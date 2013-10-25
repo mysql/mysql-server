@@ -1,0 +1,2 @@
+$GCS_RPL_PLUGIN_OPT
+--gtid-mode=on --enforce-gtid-consistency --log-slave-updates

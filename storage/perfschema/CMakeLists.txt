@@ -137,6 +137,7 @@ table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
 table_replication_connection_configuration.h
+table_replication_connection_nodes.h
 table_replication_connection_status.h
 table_replication_execute_configuration.h
 table_replication_execute_status.h
@@ -229,6 +230,7 @@ table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
 table_replication_connection_configuration.cc
+table_replication_connection_nodes.cc
 table_replication_connection_status.cc
 table_replication_execute_configuration.cc
 table_replication_execute_status.cc

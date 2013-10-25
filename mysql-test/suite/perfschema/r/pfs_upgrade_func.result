@@ -63,16 +63,17 @@ ERROR 1050 (42S01) at line 1289: Table 'memory_summary_by_user_by_event_name' al
 ERROR 1050 (42S01) at line 1324: Table 'events_statements_summary_by_digest' already exists
 ERROR 1050 (42S01) at line 1362: Table 'events_statements_summary_by_program' already exists
 ERROR 1050 (42S01) at line 1384: Table 'replication_connection_configuration' already exists
-ERROR 1050 (42S01) at line 1397: Table 'replication_connection_status' already exists
-ERROR 1050 (42S01) at line 1404: Table 'replication_execute_configuration' already exists
-ERROR 1050 (42S01) at line 1412: Table 'replication_execute_status' already exists
-ERROR 1050 (42S01) at line 1423: Table 'replication_execute_status_by_coordinator' already exists
-ERROR 1050 (42S01) at line 1436: Table 'replication_execute_status_by_worker' already exists
-ERROR 1050 (42S01) at line 1446: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1452: Table 'session_account_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1466: Table 'table_handles' already exists
-ERROR 1050 (42S01) at line 1482: Table 'metadata_locks' already exists
-ERROR 1644 (HY000) at line 2219: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1394: Table 'replication_connection_nodes' already exists
+ERROR 1050 (42S01) at line 1417: Table 'replication_connection_status' already exists
+ERROR 1050 (42S01) at line 1424: Table 'replication_execute_configuration' already exists
+ERROR 1050 (42S01) at line 1432: Table 'replication_execute_status' already exists
+ERROR 1050 (42S01) at line 1443: Table 'replication_execute_status_by_coordinator' already exists
+ERROR 1050 (42S01) at line 1456: Table 'replication_execute_status_by_worker' already exists
+ERROR 1050 (42S01) at line 1466: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1472: Table 'session_account_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1486: Table 'table_handles' already exists
+ERROR 1050 (42S01) at line 1502: Table 'metadata_locks' already exists
+ERROR 1644 (HY000) at line 2239: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name

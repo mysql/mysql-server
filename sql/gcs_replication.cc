@@ -40,13 +40,20 @@ Gcs_replication_handler::~Gcs_replication_handler()
     plugin_handle->gcs_rpl_stop();
 }
 
-int Gcs_replication_handler::gcs_rpl_start()
+int Gcs_replication_handler::gcs_handler_init()
 {
   int error= 0;
   if (!plugin_handle)
     if ((error = gcs_init()))
       return error;
-  return plugin_handle->gcs_rpl_start();
+  return 0;
+}
+
+int Gcs_replication_handler::gcs_rpl_start()
+{
+  if (plugin_handle)
+    return plugin_handle->gcs_rpl_start();
+  return 1;
 }
 
 int Gcs_replication_handler::gcs_rpl_stop()
@@ -54,6 +61,20 @@ int Gcs_replication_handler::gcs_rpl_stop()
   if (plugin_handle)
     return plugin_handle->gcs_rpl_stop();
   return 1;
+}
+
+bool Gcs_replication_handler::get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
+{
+  if (plugin_handle)
+    return plugin_handle->get_gcs_stats_info(info);
+  return true;
+}
+
+bool Gcs_replication_handler::get_gcs_nodes_info(RPL_GCS_NODES_INFO *info)
+{
+  if (plugin_handle)
+    return plugin_handle->get_gcs_nodes_info(info);
+  return true;
 }
 
 bool Gcs_replication_handler::is_gcs_rpl_running()
@@ -138,8 +159,12 @@ int init_gcs_rpl()
 {
   if (gcs_rpl_handler != NULL)
     return 1;
+
   gcs_rpl_handler= new Gcs_replication_handler();
-  return 0;
+
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->gcs_handler_init();
+  return 1;
 }
 
 int start_gcs_rpl()
@@ -156,13 +181,26 @@ int stop_gcs_rpl()
   return 1;
 }
 
+bool get_gcs_stats(RPL_GCS_STATS_INFO *info)
+{
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->get_gcs_stats_info(info);
+  return true;
+}
+
+bool get_gcs_nodes_stats(RPL_GCS_NODES_INFO *info)
+{
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->get_gcs_nodes_info(info);
+  return true;
+}
+
 bool is_running_gcs_rpl()
 {
   if (gcs_rpl_handler)
     return gcs_rpl_handler->is_gcs_rpl_running();
   return false;
 }
-
 int cleanup_gcs_rpl()
 {
   if(!gcs_rpl_handler)
@@ -171,6 +209,13 @@ int cleanup_gcs_rpl()
   delete gcs_rpl_handler;
   gcs_rpl_handler= NULL;
   return 0;
+}
+
+bool is_gcs_plugin_loaded()
+{
+  if (gcs_rpl_handler)
+    return true;
+  return false;
 }
 
 /* Server access methods  */

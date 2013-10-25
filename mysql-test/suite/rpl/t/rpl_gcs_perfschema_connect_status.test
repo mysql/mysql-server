@@ -1,0 +1,112 @@
+# WL#6841 - GCS Replication: P_S table to show GCS kernel stats
+
+# This test checks the basic functionality of the GCS replication
+# P_S for replication_connection_status table.
+# DDL and DML testing for this table is addressed in other tests.
+#
+# The follwing scenarios are tested:
+#
+#  - Test each field on a fresh gcs replication setup.
+#  - Cause group_name to reset if mysql server restarted.
+#  - Verify that the fileds are not preserved when plugin is uninstalled.
+
+--source include/have_gcs_replication_plugin.inc
+--source include/install_gcs_replication.inc
+
+--let $gcs_group_name=  8a94f356-aab3-11de-86aa-b80aa9429561
+
+# This is a valid name being given to the group name
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
+
+# Checking the performance Schema output for the replication_connection_status table.
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
+--let $assert_text= The value of view_id should be ZERO before GCS start
+--let $assert_cond= "$View_Id" = 0
+--source include/assert.inc
+
+--let $num_nodes= query_get_value(SELECT Number_Of_Nodes from performance_schema.replication_connection_status, Number_Of_Nodes, 1)
+--let $assert_text= The value of number_of_nodes should be ZERO before GCS start
+--let $assert_cond= "$num_nodes" = 0
+--source include/assert.inc
+
+# Checking the performance schema outout for preserving values at START/STOP
+# GCS Replication.
+START GCS_REPLICATION;
+
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $messages_rcvd= query_get_value(SELECT Total_Messages_Received from performance_schema.replication_connection_status, Total_Messages_Received, 1)
+--let $assert_text= The value of total_messages_received should be zero at GCS start
+--let $assert_cond= "$messages_rcvd" = 0
+--source include/assert.inc
+
+--let $messages_sent= query_get_value(SELECT Total_Messages_Sent from performance_schema.replication_connection_status, Total_Messages_Sent, 1)
+--let $assert_text= The value of total_messages_sent should be zero at GCS start
+--let $assert_cond= "$messages_sent" = 0
+--source include/assert.inc
+
+--let $bytes_rcvd= query_get_value(SELECT Total_Bytes_Received from performance_schema.replication_connection_status, Total_Bytes_Received, 1)
+--let $assert_text= The value of total_bytes_received should be zero at GCS start
+--let $assert_cond= "$bytes_rcvd" = 0
+--source include/assert.inc
+
+--let $bytes_sent= query_get_value(SELECT Total_Bytes_Sent from performance_schema.replication_connection_status, Total_Bytes_Sent, 1)
+--let $assert_text= The value of total_bytes_sent should be zero at GCS start
+--let $assert_cond= "$byes_sent" = 0
+--source include/assert.inc
+
+--let $max_msg_length= query_get_value(SELECT Max_Message_Length from performance_schema.replication_connection_status, Max_Message_Length, 1)
+--let $min_msg_length= query_get_value(SELECT Min_Message_Length from performance_schema.replication_connection_status, Min_Message_Length, 1)
+
+--let $assert_text= The value of max_message_length should be min_msg_length at GCS start
+--let $assert_cond= "$max_msg_length" = "$min_msg_length"
+--source include/assert.inc
+
+--let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
+--let $assert_text= The value of view_id should be ONE at GCS start
+--let $assert_cond= "$View_Id" = 1
+--source include/assert.inc
+
+--let $num_nodes= query_get_value(SELECT Number_Of_Nodes from performance_schema.replication_connection_status, Number_Of_Nodes, 1)
+--let $assert_text= The value of number_of_nodes should be ONE at GCS start
+--let $assert_cond= "$num_nodes" = 1
+--source include/assert.inc
+
+
+STOP GCS_REPLICATION;
+
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
+
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+# This restart tests that the plugin is still loaded on the server restart
+--source include/restart_mysqld.inc
+
+# After the server restart the group name is again set to NULL
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
+
+--let $assert_text= The value of group name should be NULL
+--let $assert_cond= "$group_Name"= ""
+--source include/assert.inc
+
+--let $source_uuid= query_get_value(SELECT Source_Uuid from performance_schema.replication_connection_status, Source_Uuid, 1)
+
+--let $assert_text= The value of source_uuid should be NULL
+--let $assert_cond= "$source_uuid"= ""
+--source include/assert.inc
+
+--source include/uninstall_gcs_replication.inc
+
+--let $assert_text= When plugin is not loaded, the table should return an empty set.
+--let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 0
+--source include/assert.inc

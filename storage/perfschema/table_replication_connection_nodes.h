@@ -15,18 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_CONNECTION_STATUS_H
-#define TABLE_REPLICATION_CONNECTION_STATUS_H
+#ifndef TABLE_REPLICATION_CONNECTION_NODES_H
+#define TABLE_REPLICATION_CONNECTION_NODES_H
 
 /**
-  @file storage/perfschema/table_replication_connection_status.h
-  Table replication_connection_status (declarations).
+  @file storage/perfschema/table_replication_connection_nodes.h
+  Table replication_connection_nodes (declarations).
 */
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
-#include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
+#include "rpl_reporting.h"
 #include "mysql_com.h"
 
 /**
@@ -34,55 +34,34 @@
   @{
 */
 
-#ifndef ENUM_RPL_YES_NO
-#define ENUM_RPL_YES_NO
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
-  PS_RPL_NO
-};
-#endif
+/** enum values for Node_State*/
+// TODO: Add functionality for recovering node state
 
-enum enum_rpl_connect_status_service_state {
-  PS_RPL_CONNECT_SERVICE_STATE_YES= 1,
-  PS_RPL_CONNECT_SERVICE_STATE_NO,
-  PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
+enum enum_node_state {
+    PS_NODE_STATE_ONLINE= 1,
+    PS_NODE_STATE_OFFLINE,
+    PS_NODE_STATE_RECOVERING
 };
 
-/*
-  A row in the table. The fields with string values have an additional
+/**
+  A row in connection nodes table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_connect_status {
+struct st_row_connect_nodes {
   char group_name[UUID_LENGTH];
-  bool group_name_is_null;
   bool is_gcs_plugin_loaded;
-  char source_uuid[UUID_LENGTH];
-  ulonglong thread_id;
-  bool thread_id_is_null;
-  enum_rpl_connect_status_service_state service_state;
-  char* received_transaction_set;
-  int received_transaction_set_length;
-  uint last_error_number;
-  char last_error_message[MAX_SLAVE_ERRMSG];
-  uint last_error_message_length;
-  ulonglong last_error_timestamp;
-  ulonglong total_messages_received;
-  ulonglong total_messages_sent;
-  ulonglong total_bytes_received;
-  ulonglong total_bytes_sent;
-  ulonglong last_message_timestamp;
-  ulong max_message_length;
-  ulong min_message_length;
-  ulong view_id;
-  uint number_of_nodes;
+  bool is_group_name_null;
+  uint node_id;
+  char node_address[HOSTNAME_LENGTH];
+  uint node_address_length;
+  enum_node_state node_state;
 };
 
-/** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
-class table_replication_connection_status: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_NODES. */
+class table_replication_connection_nodes: public PFS_engine_table
 {
 private:
   void make_row();
-
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
@@ -90,7 +69,7 @@ private:
   /** True if the current row exists. */
   bool m_row_exists;
   /** Current row */
-  st_row_connect_status m_row;
+  st_row_connect_nodes m_row;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -110,10 +89,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_connection_status();
+  table_replication_connection_nodes();
 
 public:
-  ~table_replication_connection_status();
+  ~table_replication_connection_nodes();
 
   /** Table share. */
   static PFS_engine_table_share m_share;

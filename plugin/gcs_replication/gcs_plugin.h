@@ -62,5 +62,7 @@ int gcs_replication_deinit(void *p);
 int gcs_rpl_start();
 int gcs_rpl_stop();
 bool is_gcs_rpl_running();
+bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
+bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info);
 
 #endif /* GCS_PLUGIN_INCLUDE */

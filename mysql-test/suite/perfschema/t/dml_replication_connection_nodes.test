@@ -1,0 +1,40 @@
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_connection_nodes.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_connection_nodes
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_connection_nodes
+  WHERE group_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_connection_nodes
+  SET group_name='FOO', node_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_nodes
+  SET node_id=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_nodes
+  SET node_id=12 WHERE group_name LIKE "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_nodes
+  WHERE node_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_nodes;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_nodes READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_nodes WRITE;
+UNLOCK TABLES;

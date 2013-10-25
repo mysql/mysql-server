@@ -61,88 +61,6 @@ GCS::Event_handlers gcs_plugin_event_handlers=
   handle_message_delivery
 };
 
-GCS::Stats cluster_stats;
-
-/*
-  P_S statistics collectors to be used as callbacks
-*/
-char* get_gcs_group_name()
-{
-  return cluster_stats.get_group_name();
-}
-
-longlong get_view_id()
-{
-  return cluster_stats.get_view_id();
-}
-
-longlong get_node_id()
-{
-  return cluster_stats.get_node_id();
-}
-
-longlong get_number_of_nodes()
-{
-  return cluster_stats.get_number_of_nodes();
-}
-
-bool get_node_state()
-{
-  return gcs_running; // binary return, todo: add connecting state to plugin
-}
-
-ulonglong get_total_messages_sent()
-{
-  return cluster_stats.get_total_messages_sent();
-}
-
-ulonglong get_total_bytes_sent()
-{
-  return cluster_stats.get_total_bytes_sent();
-}
-
-ulonglong get_total_messages_received()
-{
-  return cluster_stats.get_total_messages_received();
-}
-
-ulonglong get_total_bytes_received()
-{
-  return cluster_stats.get_total_bytes_received();
-}
-
-/* the first message is one of joinging the Group */
-time_t get_last_message_timestamp()
-{
-  return cluster_stats.get_last_message_timestamp();
-}
-
-ulonglong get_min_message_length()
-{
-  return cluster_stats.get_min_message_length();
-}
-
-ulonglong get_max_message_length()
-{
-  return cluster_stats.get_max_message_length();
-}
-
-gcs_stats_cb_t gcs_stats_cbs[]=
-{
-  (gcs_stats_cb_t) get_gcs_group_name,
-  (gcs_stats_cb_t) get_view_id(),
-  (gcs_stats_cb_t) get_number_of_nodes(),
-  (gcs_stats_cb_t) get_node_id(),
-  (gcs_stats_cb_t) get_node_state(),
-  (gcs_stats_cb_t) get_total_messages_sent(),
-  (gcs_stats_cb_t) get_total_bytes_sent(),
-  (gcs_stats_cb_t) get_total_messages_received(),
-  (gcs_stats_cb_t) get_total_bytes_received(),
-  (gcs_stats_cb_t) get_last_message_timestamp(),
-  (gcs_stats_cb_t) get_min_message_length(),
-  (gcs_stats_cb_t) get_max_message_length()
-};
-
 /*
   Internal auxiliary functions signatures.
 */
@@ -177,11 +95,45 @@ int log_message(enum plugin_log_level level, const char *format, ...)
 struct st_mysql_gcs_rpl gcs_rpl_descriptor=
 {
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
-  gcs_stats_cbs,
+  get_gcs_stats_info,
+  get_gcs_nodes_info,
   gcs_rpl_start,
   gcs_rpl_stop,
   is_gcs_rpl_running
 };
+
+GCS::Stats cluster_stats;
+
+/*
+  TODO:Make sure the related fields are fetched in a snapshot.
+  Use LOCKS to protect related columns.
+*/
+
+bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
+{
+  info->group_name= gcs_group_pointer;
+  info->view_id= cluster_stats.get_view_id();
+  info->node_state= is_gcs_rpl_running();
+  info->number_of_nodes= cluster_stats.get_number_of_nodes();
+  info->total_messages_sent= cluster_stats.get_total_messages_sent();
+  info->total_bytes_sent= cluster_stats.get_total_bytes_sent();
+  info->total_messages_received= cluster_stats.get_total_messages_received();
+  info->total_bytes_received= cluster_stats.get_total_bytes_received();
+  info->last_message_timestamp= cluster_stats.get_last_message_timestamp();
+  info->min_message_length= cluster_stats.get_min_message_length();
+  info->max_message_length= cluster_stats.get_max_message_length();
+
+  return false;
+}
+
+bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info)
+{
+  info->group_name= gcs_group_pointer;
+  info->node_state= is_gcs_rpl_running();
+  info->node_id= cluster_stats.get_node_id();
+
+  return false;
+}
 
 int gcs_rpl_start()
 {
@@ -263,7 +215,11 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
   pthread_mutex_init(&gcs_running_mutex, NULL);
   plugin_info_ptr= plugin_info;
   if (init_gcs_rpl())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Failure on GCS Cluster handler initialization");
     return 1;
+  }
 
   init_validation_structures();
 
@@ -467,7 +423,7 @@ static void update_group_name(MYSQL_THD thd, SYS_VAR *var, void *ptr, const
   strncpy(gcs_replication_group, newGroup, UUID_LENGTH);
   gcs_group_pointer= &gcs_replication_group[0];
 
-  cluster_stats.reset(gcs_group_pointer);
+  cluster_stats.reset();
 
   DBUG_VOID_RETURN;
 }

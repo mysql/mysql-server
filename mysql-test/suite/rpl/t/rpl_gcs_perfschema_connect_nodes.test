@@ -1,0 +1,80 @@
+# WL#6841 - GCS Replication: P_S table to show GCS kernel stats
+
+# This test checks the basic functionality of the GCS replication
+# P_S for replication_connection_nodes table.
+# DDL and DML testing for this table is addressed in other tests.
+#
+# TODO: Check for Node_Id after starting and stopping GCS for expected values
+# when node_id is fixed at corosync layer. Same applies to node_address.
+
+--source include/have_gcs_replication_plugin.inc
+--source include/install_gcs_replication.inc
+
+--let $gcs_group_name= 8a84f357-aaa4-10df-85ab-c70aa9429562
+
+# This is a valid name being given to the group name
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
+
+# Checking the performance Schema output for the replication_connection_nodes table.
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
+
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $node_id= query_get_value(SELECT Node_Id from performance_schema.replication_connection_nodes, Node_Id, 1)
+--let $assert_text= The value of node_id should be zero before starting gcs
+--let $assert_cond= "$node_id" = 0
+--source include/assert.inc
+
+--let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
+--let $assert_text= The value of node_state should be offline before starting gcs
+--let $assert_cond= "$node_state" = "OFFLINE"
+--source include/assert.inc
+
+# Checking the performance schema outout for preserving values at START/STOP
+# GCS Replication.
+START GCS_REPLICATION;
+
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
+--let $assert_text= The value of node_state should be online after starting gcs
+--let $assert_cond= "$node_state" = "ONLINE"
+--source include/assert.inc
+
+STOP GCS_REPLICATION;
+
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
+--let $assert_text= The value of node_state should be offline after stoping gcs
+--let $assert_cond= "$node_state" = "OFFLINE"
+--source include/assert.inc
+
+# This restart tests that the plugin is still loaded on the server restart
+--source include/restart_mysqld.inc
+
+# After the server restart the group name is again set to NULL
+--let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
+
+--let $assert_text= The value of group name should be NULL
+--let $assert_cond= "$group_name" = ""
+--source include/assert.inc
+
+--let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
+--let $assert_text= The value of node_state should be offline after restarting server
+--let $assert_cond= "$node_state" = "OFFLINE"
+--source include/assert.inc
+
+--source include/uninstall_gcs_replication.inc
+
+--let $assert_text= When plugin is not loaded, the table should return an empty set.
+--let $assert_cond= [select count(*) from performance_schema.replication_connection_nodes] = 0;
+--source include/assert.inc

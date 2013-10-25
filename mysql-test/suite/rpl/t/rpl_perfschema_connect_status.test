@@ -17,8 +17,6 @@
 #    in SHOW SLAVE STATUS(SSS), if there is one.
 #  - If there is no matching field in SSS, we resort to other method of testing
 #    those fields.
-#  - We perform all the testing on connection "slave". On master, the table
-#    returns an empty set.
 #
 # The follwing scenarios are tested:
 #
@@ -29,21 +27,74 @@
 #    changes to NULL and service_state to "off".
 #  - Start server with gtid-mode=on and test the RECEIVED_TRANSACTION_SET field.
 #    Also, make sure the value in this field is preserved after STOP SLAVE.
-#
+#  - Test GCS related fields. They should be set NULL when plugin is not
+#    installed on slave.
+#  - On master, when gcs plugin is not installed, table should return an empty
+#    set.
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
-#
+#  WL#6841: PERFORMANCE SCHEMA to show GCS kernel stats
 
 source include/master-slave.inc;
 source include/have_ssl_communication.inc;
 source include/have_binlog_format_mixed.inc;
 
-let $assert_text= On master, the table should return an empty set.;
-let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 0;
-source include/assert.inc;
+--let $assert_text= On master, the table should return an empty set.
+--let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 0
+--source include/assert.inc
 
 --connection slave
+
+--let $Group_Name= query_get_value(select Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
+--let $assert_text= On slave, the group_name should be set NULL
+--let $assert_cond= "$Group_Name"= ""
+--source include/assert.inc
+
+--let $Total_Messages_Received= query_get_value(select Total_Messages_Received from performance_schema.replication_connection_status, Total_Messages_Received, 1)
+--let $assert_text= On slave, the Total_Messages_Received should be set 0
+--let $assert_cond= "$Total_Messages_Received"= 0
+--source include/assert.inc
+
+--let $Total_Messages_Sent= query_get_value(select Total_Messages_Sent from performance_schema.replication_connection_status, Total_Messages_Sent, 1)
+--let $assert_text= On slave, the Total_Messages_Sent should be set 0
+--let $assert_cond= "$Total_Messages_Sent"= 0
+--source include/assert.inc
+
+--let $Total_Bytes_Received= query_get_value(select Total_Bytes_Received from performance_schema.replication_connection_status, Total_Bytes_Received, 1)
+--let $assert_text= On slave, the Total_Bytes_Received should be set 0
+--let $assert_cond= "$Total_Bytes_Received"= 0
+--source include/assert.inc
+
+--let $Total_Bytes_Sent= query_get_value(select Total_Bytes_Sent from performance_schema.replication_connection_status, Total_Bytes_Sent, 1)
+--let $assert_text= On slave, the Total_Bytes_Sent should be set 0
+--let $assert_cond= "$Total_Bytes_Sent"= 0
+--source include/assert.inc
+
+--let $Last_Message_Timestamp= query_get_value(select Last_Message_Timestamp from performance_schema.replication_connection_status, Last_Message_Timestamp, 1)
+--let $assert_text= On slave, the Last_Message_Timestamp should be set 0000-00-00 00:00:00
+--let $assert_cond= "$Last_Message_Timestamp"= "0000-00-00 00:00:00"
+--source include/assert.inc
+
+--let $Max_Message_Length= query_get_value(select Max_Message_Length from performance_schema.replication_connection_status, Max_Message_Length, 1)
+--let $assert_text= On slave, the Max_Message_Length should be set 0
+--let $assert_cond= "$Max_Message_Length"= 0
+--source include/assert.inc
+
+--let $Min_Message_Length= query_get_value(select Min_Message_Length from performance_schema.replication_connection_status, Min_Message_Length, 1)
+--let $assert_text= On slave, the Min_Message_Length should be set 0
+--let $assert_cond= "$Min_Message_Length"= 0
+--source include/assert.inc
+
+--let $View_Id= query_get_value(select View_Id from performance_schema.replication_connection_status, View_Id, 1)
+--let $assert_text= On slave, the View_Id should be set 0
+--let $assert_cond= "$View_Id"= 0
+--source include/assert.inc
+
+--let $Number_Of_Nodes= query_get_value(select Number_Of_Nodes from performance_schema.replication_connection_status, Number_Of_Nodes, 1)
+--let $assert_text= On slave, the  Number_Of_Nodes should be set 0
+--let $assert_cond= "$Number_Of_Nodes"= 0
+--source include/assert.inc
 
 --echo
 --echo # Verify that SELECT works for every field and produces an output similar

@@ -28,9 +28,11 @@
 #include "pfs_instr.h"
 #include "rpl_slave.h"
 #include "rpl_info.h"
-#include  "rpl_rli.h"
+#include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
+#include "gcs_replication.h"
+#include "log.h"
 
 THR_LOCK table_replication_connection_status::m_table_lock;
 
@@ -38,6 +40,11 @@ THR_LOCK table_replication_connection_status::m_table_lock;
 /* Numbers in varchar count utf8 characters. */
 static const TABLE_FIELD_TYPE field_types[]=
 {
+  {
+    {C_STRING_WITH_LEN("GROUP_NAME")},
+    {C_STRING_WITH_LEN("varchar(36)")},
+    {NULL, 0}
+  },
   {
     {C_STRING_WITH_LEN("SOURCE_UUID")},
     {C_STRING_WITH_LEN("char(36)")},
@@ -72,12 +79,57 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
     {C_STRING_WITH_LEN("timestamp")},
     {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("TOTAL_MESSAGES_RECEIVED")},
+    {C_STRING_WITH_LEN("bigint")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("TOTAL_MESSAGES_SENT")},
+    {C_STRING_WITH_LEN("bigint")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("TOTAL_BYTES_RECEIVED")},
+    {C_STRING_WITH_LEN("bigint")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("TOTAL_BYTES_SENT")},
+    {C_STRING_WITH_LEN("bigint")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_MESSAGE_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("MAX_MESSAGE_LENGTH")},
+    {C_STRING_WITH_LEN("int")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("MIN_MESSAGE_LENGTH")},
+    {C_STRING_WITH_LEN("int")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("VIEW_ID")},
+    {C_STRING_WITH_LEN("int")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("NUMBER_OF_NODES")},
+    {C_STRING_WITH_LEN("int")},
+    {NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_replication_connection_status::m_field_def=
-{ 7, field_types };
+{ 17, field_types };
 
 PFS_engine_table_share
 table_replication_connection_status::m_share=
@@ -88,7 +140,7 @@ table_replication_connection_status::m_share=
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_connection_status::get_row_count,
-  1, /* records */
+  1, /* records- used by optimizer */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -143,6 +195,9 @@ ha_rows table_replication_connection_status::get_row_count()
 
   mysql_mutex_unlock(&LOCK_active_mi);
 
+  if (is_gcs_plugin_loaded())
+    row_count= 1;
+
   return row_count;
 }
 
@@ -179,7 +234,51 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
 void table_replication_connection_status::make_row()
 {
-  m_row_exists= false;;
+  DBUG_ENTER("table_replication_connection_status::make_row");
+  m_row_exists= false;
+
+  m_row.group_name_is_null= true;
+
+  char* gcs_replication_group;
+  RPL_GCS_STATS_INFO* gcs_info;
+
+  m_row.is_gcs_plugin_loaded= is_gcs_plugin_loaded();
+
+  if (m_row.is_gcs_plugin_loaded)
+  {
+     if(!(gcs_info= (RPL_GCS_STATS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                   sizeof(RPL_GCS_STATS_INFO),
+                                   MYF(MY_WME))))
+     {
+       sql_print_error("Unable to allocate memory on"
+                       " table_replication_connection_status::make_row");
+       DBUG_VOID_RETURN;
+     }
+
+     bool stats_not_available= get_gcs_stats(gcs_info);
+     if (stats_not_available)
+     {
+       m_row.is_gcs_plugin_loaded= false;
+       my_free(gcs_info);
+       /*
+         Here, these stats about GCS would not be available only when plugin is
+         not available/not loaded at this point in time.
+         Hence, modified the flag after the check.
+       */
+       gcs_info= NULL;
+       DBUG_PRINT("info", ("GCS stats not available!"));
+     }
+
+     if(m_row.is_gcs_plugin_loaded)
+     {
+       gcs_replication_group= gcs_info->group_name;
+       if (gcs_replication_group)
+       {
+         memcpy(m_row.group_name, gcs_replication_group, UUID_LENGTH);
+         m_row.group_name_is_null= false;
+       }
+     }
+  }
 
   mysql_mutex_lock(&LOCK_active_mi);
 
@@ -189,7 +288,10 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH+1);
+  if (!m_row.is_gcs_plugin_loaded)
+    memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
+  else if (!m_row.group_name_is_null)
+    memcpy(m_row.source_uuid, gcs_replication_group, UUID_LENGTH);
 
   m_row.thread_id= 0;
 
@@ -210,6 +312,15 @@ void table_replication_connection_status::make_row()
 
   if (active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
     m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
+
+  else if (m_row.is_gcs_plugin_loaded)
+  {
+    if (gcs_info->node_state)
+      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
+    else
+      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
+  }
+
   else
   {
     if (active_mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT)
@@ -260,8 +371,30 @@ void table_replication_connection_status::make_row()
   mysql_mutex_unlock(&active_mi->data_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
 
-  m_row_exists= true;
+  if (m_row.is_gcs_plugin_loaded)
+  {
 
+    m_row.total_messages_received= gcs_info->total_messages_received;
+    m_row.total_messages_sent= gcs_info->total_messages_sent;
+    m_row.total_bytes_received= gcs_info->total_bytes_received;
+    m_row.total_bytes_sent= gcs_info->total_bytes_sent;
+
+    m_row.last_message_timestamp= (ulonglong)
+      gcs_info->last_message_timestamp*1000000;
+
+    m_row.max_message_length= gcs_info->max_message_length;
+
+    m_row.min_message_length= gcs_info->min_message_length;
+
+    m_row.view_id= gcs_info->view_id;
+
+    m_row.number_of_nodes= gcs_info->number_of_nodes;
+
+    my_free(gcs_info);
+  }
+
+  m_row_exists= true;
+  DBUG_VOID_RETURN;
 }
 
 int table_replication_connection_status::read_row_values(TABLE *table,
@@ -283,32 +416,96 @@ int table_replication_connection_status::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /** source_uuid */
-        set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+      case 0: /** group_name */
+        if (!m_row.group_name_is_null)
+          set_field_varchar_utf8(f, m_row.group_name, UUID_LENGTH);
+        else
+          f->set_null();
         break;
-      case 1: /** thread_id */
-        if(m_row.thread_id_is_null)
+      case 1: /** source_uuid */
+        if (m_row.is_gcs_plugin_loaded && m_row.group_name_is_null)
+          f->set_null();
+        else
+          set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        break;
+      case 2: /** thread_id */
+        if (m_row.thread_id_is_null)
           f->set_null();
         else
           set_field_ulonglong(f, m_row.thread_id);
         break;
-      case 2: /** service_state */
+      case 3: /** service_state */
         set_field_enum(f, m_row.service_state);
         break;
-      case 3: /** received_transaction_set */
+      case 4: /** received_transaction_set */
         set_field_longtext_utf8(f, m_row.received_transaction_set,
                                 m_row.received_transaction_set_length);
         break;
-      case 4: /*last_error_number*/
+      case 5: /*last_error_number*/
         set_field_ulong(f, m_row.last_error_number);
         break;
-      case 5: /*last_error_message*/
+      case 6: /*last_error_message*/
         set_field_varchar_utf8(f, m_row.last_error_message,
                                m_row.last_error_message_length);
         break;
-      case 6: /*last_error_timestamp*/
-         set_field_timestamp(f, m_row.last_error_timestamp);
+      case 7: /*last_error_timestamp*/
+        set_field_timestamp(f, m_row.last_error_timestamp);
         break;
+      case 8: /*total_messages_received */
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulonglong(f, m_row.total_messages_received);
+        else
+          f->set_null();
+        break;
+      case 9: /*total_messages_sent */
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulonglong(f, m_row.total_messages_sent);
+        else
+          f->set_null();
+        break;
+      case 10: /*total_bytes_received */
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulonglong(f, m_row.total_bytes_received);
+        else
+          f->set_null();
+        break;
+      case 11: /*total_bytes_sent */
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulonglong(f, m_row.total_bytes_sent);
+        else
+          f->set_null();
+        break;
+      case 12: /*last_message_timestamp*/
+        if (m_row.is_gcs_plugin_loaded)
+           set_field_timestamp(f, m_row.last_message_timestamp);
+        else
+          f->set_null();
+        break;
+      case 13: /*max_message_length*/
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulong(f, m_row.max_message_length);
+        else
+          f->set_null();
+        break;
+      case 14: /*min_message_length*/
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulong(f, m_row.min_message_length);
+        else
+          f->set_null();
+        break;
+      case 15: /*view_id*/
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulong(f, m_row.view_id);
+        else
+          f->set_null();
+        break;
+      case 16: /*number_of_nodes*/
+        if (m_row.is_gcs_plugin_loaded)
+          set_field_ulong(f, m_row.number_of_nodes);
+        else
+          f->set_null();
+        break;
+
       default:
         DBUG_ASSERT(false);
       }

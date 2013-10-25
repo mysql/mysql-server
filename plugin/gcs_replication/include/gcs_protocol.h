@@ -57,7 +57,7 @@ protected:
   Member_set members;
   void reset_members(Member_set& arg)
     {
-      members.erase(members.begin(), members.end());
+      members.clear();
       for (Member_set::iterator it= arg.begin(); it != arg.end(); ++it)
         members.insert(*it);
     };

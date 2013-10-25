@@ -1,0 +1,17 @@
+include/have_gcs_replication_plugin.inc
+include/install_gcs_replication.inc
+SET GLOBAL gcs_replication_plugin_group_name= "8a84f357-aaa4-10df-85ab-c70aa9429562";
+include/assert.inc [The value of group name should be 8a84f357-aaa4-10df-85ab-c70aa9429562]
+include/assert.inc [The value of node_id should be zero before starting gcs]
+include/assert.inc [The value of node_state should be offline before starting gcs]
+START GCS_REPLICATION;
+include/assert.inc [The value of group name should be 8a84f357-aaa4-10df-85ab-c70aa9429562]
+include/assert.inc [The value of node_state should be online after starting gcs]
+STOP GCS_REPLICATION;
+include/assert.inc [The value of group name should be 8a84f357-aaa4-10df-85ab-c70aa9429562]
+include/assert.inc [The value of node_state should be offline after stoping gcs]
+include/assert.inc [The value of group name should be NULL]
+include/assert.inc [The value of node_state should be offline after restarting server]
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
+include/assert.inc [When plugin is not loaded, the table should return an empty set.]

@@ -4,6 +4,16 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/assert.inc [On master, the table should return an empty set.]
+include/assert.inc [On slave, the group_name should be set NULL]
+include/assert.inc [On slave, the Total_Messages_Received should be set 0]
+include/assert.inc [On slave, the Total_Messages_Sent should be set 0]
+include/assert.inc [On slave, the Total_Bytes_Received should be set 0]
+include/assert.inc [On slave, the Total_Bytes_Sent should be set 0]
+include/assert.inc [On slave, the Last_Message_Timestamp should be set 0000-00-00 00:00:00]
+include/assert.inc [On slave, the Max_Message_Length should be set 0]
+include/assert.inc [On slave, the Min_Message_Length should be set 0]
+include/assert.inc [On slave, the View_Id should be set 0]
+include/assert.inc [On slave, the  Number_Of_Nodes should be set 0]
 
 # Verify that SELECT works for every field and produces an output similar
 # to the corresponding field in SHOW SLAVE STATUS(SSS). To verify the

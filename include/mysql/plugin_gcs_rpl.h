@@ -21,12 +21,41 @@
 #include <mysql/plugin.h>
 #define MYSQL_GCS_REPLICATION_INTERFACE_VERSION 0x0100
 
-typedef void (*gcs_stats_cb_t)(void);
+typedef struct st_rpl_gcs_nodes_info
+{
+  char*group_name;
+  uint node_id;
+  bool node_state;
+} RPL_GCS_NODES_INFO;
+
+typedef struct st_rpl_gcs_stats_info
+{
+  char* group_name;
+  bool node_state;
+  ulong view_id;
+  ulonglong total_messages_sent;
+  ulonglong total_bytes_sent;
+  ulonglong total_messages_received;
+  ulonglong total_bytes_received;
+  time_t last_message_timestamp;
+  ulong min_message_length;
+  ulong max_message_length;
+  uint number_of_nodes;
+} RPL_GCS_STATS_INFO;
 
 struct st_mysql_gcs_rpl
 {
   int interface_version;
-  gcs_stats_cb_t *stats_callbacks;
+
+  /*
+    This function is used to fetch information for gcs kernel stats.
+  */
+  bool (*get_gcs_stats_info)(RPL_GCS_STATS_INFO *info);
+
+  /*
+    This function is used to fetch information for gcs nodes.
+  */
+  bool (*get_gcs_nodes_info)(RPL_GCS_NODES_INFO *info);
   /*
     This function is to used to start the gcs replication based on the
     gcs group that is specified by the user.

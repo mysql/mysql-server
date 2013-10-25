@@ -1,0 +1,24 @@
+SELECT * FROM performance_schema.replication_connection_nodes
+LIMIT 1;
+SELECT * FROM performance_schema.replication_connection_nodes
+WHERE group_name='FOO';
+INSERT INTO performance_schema.replication_connection_nodes
+SET group_name='FOO', node_id=1;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+UPDATE performance_schema.replication_connection_nodes
+SET node_id=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+UPDATE performance_schema.replication_connection_nodes
+SET node_id=12 WHERE group_name LIKE "FOO";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+DELETE FROM performance_schema.replication_connection_nodes
+WHERE node_id=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+DELETE FROM performance_schema.replication_connection_nodes;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+LOCK TABLES performance_schema.replication_connection_nodes READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.replication_connection_nodes WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_nodes'
+UNLOCK TABLES;

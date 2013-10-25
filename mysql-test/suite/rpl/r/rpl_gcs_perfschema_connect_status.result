@@ -1,0 +1,22 @@
+include/have_gcs_replication_plugin.inc
+include/install_gcs_replication.inc
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f356-aab3-11de-86aa-b80aa9429561";
+include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
+include/assert.inc [The value of view_id should be ZERO before GCS start]
+include/assert.inc [The value of number_of_nodes should be ZERO before GCS start]
+START GCS_REPLICATION;
+include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
+include/assert.inc [The value of total_messages_received should be zero at GCS start]
+include/assert.inc [The value of total_messages_sent should be zero at GCS start]
+include/assert.inc [The value of total_bytes_received should be zero at GCS start]
+include/assert.inc [The value of total_bytes_sent should be zero at GCS start]
+include/assert.inc [The value of max_message_length should be min_msg_length at GCS start]
+include/assert.inc [The value of view_id should be ONE at GCS start]
+include/assert.inc [The value of number_of_nodes should be ONE at GCS start]
+STOP GCS_REPLICATION;
+include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
+include/assert.inc [The value of group name should be NULL]
+include/assert.inc [The value of source_uuid should be NULL]
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
+include/assert.inc [When plugin is not loaded, the table should return an empty set.]

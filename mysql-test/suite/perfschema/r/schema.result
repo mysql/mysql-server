@@ -51,6 +51,7 @@ mutex_instances
 objects_summary_global_by_type
 performance_timers
 replication_connection_configuration
+replication_connection_nodes
 replication_connection_status
 replication_execute_configuration
 replication_execute_status

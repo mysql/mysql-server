@@ -1842,17 +1842,43 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE replication_connection_nodes
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_connection_nodes("
+    "GROUP_NAME varchar(36) not null,"
+    "NODE_ID integer not null,"
+    "NODE_ADDRESS char(60) collate utf8_bin not null,"
+    "NODE_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE replication_connection_status
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
+  "GROUP_NAME varchar(36) not null,"
   "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
   "THREAD_ID BIGINT unsigned,"
   "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
   "RECEIVED_TRANSACTION_SET TEXT not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "TOTAL_MESSAGES_RECEIVED bigint unsigned not null,"
+  "TOTAL_MESSAGES_SENT bigint unsigned not null,"
+  "TOTAL_BYTES_RECEIVED bigint unsigned not null,"
+  "TOTAL_BYTES_SENT bigint unsigned not null,"
+  "LAST_MESSAGE_TIMESTAMP timestamp(0) not null,"
+  "MAX_MESSAGE_LENGTH integer unsigned not null,"
+  "MIN_MESSAGE_LENGTH integer unsigned not null,"
+  "VIEW_ID integer unsigned not null,"
+  "NUMBER_OF_NODES integer not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

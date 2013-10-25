@@ -28,9 +28,13 @@ class Gcs_replication_handler
 public:
   Gcs_replication_handler();
   ~Gcs_replication_handler();
+  int gcs_handler_init();
   int gcs_rpl_start();
   int gcs_rpl_stop();
   bool is_gcs_rpl_running();
+  /* functions accessing GCS cluster status and stats */
+  bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
+  bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info);
 
 private:
   LEX_STRING plugin_name;
@@ -82,7 +86,10 @@ int start_gcs_rpl();
 int stop_gcs_rpl();
 bool is_running_gcs_rpl();
 int cleanup_gcs_rpl();
+bool is_gcs_plugin_loaded();
 
+bool get_gcs_stats(RPL_GCS_STATS_INFO *info);
+bool get_gcs_nodes_stats(RPL_GCS_NODES_INFO *info);
 /* Server access methods and variables */
 
 extern ulong opt_rli_repository_id;
