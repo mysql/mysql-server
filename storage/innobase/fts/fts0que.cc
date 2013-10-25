@@ -3747,9 +3747,10 @@ fts_query_str_preprocess(
                         charset, str_ptr + cur_pos, str_ptr + *result_len,
 			&str, &offset);
 
-                if (cur_len == 0) {
-                        break;
-                }
+		if (cur_len == 0 || str.f_str == NULL) {
+			/* No valid word found */
+			break;
+		}
 
 		/* Check if we are in a phrase, if so, no need to do
 		replacement of '-/+'. */
