@@ -1,0 +1,239 @@
+diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
+index c142d4f..f1f2891 100644
+--- a/scripts/mysql_install_db.pl.in
++++ b/scripts/mysql_install_db.pl.in
+@@ -34,13 +34,35 @@
+ #
+ ##############################################################################
+ 
+-use Fcntl;
+-use File::Basename;
+-use File::Copy;
+-use Getopt::Long;
+-use Sys::Hostname;
+-use Data::Dumper;
+ use strict;
++use warnings;
++
++##############################################################################
++# Check if all needed modules are available, exit if something is missing.
++##############################################################################
++
++BEGIN {
++  my @req_mods = ('Fcntl', 'File::Basename', 'File::Copy', 'Getopt::Long',
++                  'Sys::Hostname', 'Data::Dumper');
++  my @missing_mods;
++  my $req;
++  foreach $req (@req_mods) {
++    eval 'require ' . $req;
++    if ($@) {
++      push(@missing_mods, $req);
++    } else {
++      $req->import();
++    }
++  }
++  # this avoids the confusing "BEGIN failed--compilation aborted" message
++  local $SIG{__DIE__} = sub {warn @_; exit 1};
++
++  if (@missing_mods) {
++    my $msg = "FATAL ERROR: please install the following Perl modules " .
++              "before executing $0:\n" . join("\n",@missing_mods)."\n";
++    die $msg;
++  }
++}
+ 
+ Getopt::Long::Configure("pass_through");
+ 
+@@ -75,6 +97,8 @@ Usage: $0 [OPTIONS]
+   --help               Display this help and exit.                     
+   --ldata=path         The path to the MySQL data directory. Same as --datadir.
+   --no-defaults        Don't read default options from any option file.
++  --keep-my-cnf        Don't try to create my.cnf based on template. 
++                       Useful for systems with working, updated my.cnf.
+ EOF1
+   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
+     print <<EOF2;
+@@ -86,6 +110,7 @@ EOF2
+   print <<EOF3;
+   --rpm                For internal use.  This option is used by RPM files
+                        during the MySQL installation process.
++                       Implies --keep-my-cnf option.
+   --skip-name-resolve  Use IP addresses rather than hostnames when creating
+                        grant table entries.  This option can be useful if
+                        your DNS does not work.
+@@ -149,6 +174,7 @@ sub parse_arguments
+ 
+              "skip-name-resolve",
+              "verbose",
++             "keep-my-cnf",
+              "rpm",
+              "help",
+              "random-passwords",
+@@ -356,13 +382,19 @@ sub tell_root_password {
+ ##############################################################################
+ 
+ sub generate_random_password {
+-  # On (at least) Linux and Solaris, a "random" device is available, use it:
+-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
+-  # Without LC_ALL, "tr" may not know the "alnum" character class -
+-  # and there are user profiles which do not have this set.
+-  #
+-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
+-  chomp ($password);
++  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
++  my $randfile = "/dev/urandom";
++  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
++  my $password = "";
++  my $pass_len = 16;
++  my $c;
++  while (length($password) < $pass_len) {
++    $c = getc(FD);
++    if ($c =~ /\w/) {
++      $password .= $c;
++    }
++  }
++  close(FD);
+   return $password;
+ }
+ 
+@@ -399,11 +431,16 @@ $basedir= "@prefix@" if ! $basedir;		# Default
+ # ----------------------------------------------------------------------
+ 
+ my $print_defaults;
++my $keep_my_cnf = 0;
+ 
+ if ( $opt->{srcdir} and $opt->{basedir} )
+ {
+   error($opt,"Specify either --basedir or --srcdir, not both");
+ }
++if ( $opt->{rpm} || $opt->{'keep-my-cnf'} )
++{
++  $keep_my_cnf = 1;
++}
+ if ( $opt->{srcdir} )
+ {
+   $opt->{builddir} = $opt->{srcdir} unless $opt->{builddir};
+@@ -425,13 +462,18 @@ my $config_file;
+ my $copy_cfg_file;
+ 
+ # ----------------------------------------------------------------------
+-# This will be the default config file
++# This will be the default config file (unless creation is unwanted)
+ # ----------------------------------------------------------------------
+ 
+ $config_file= "$basedir/my.cnf";
+ 
+ my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
+ 				  "share","share/mysql","support-files");
++# Distros might move files
++if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
++  $cfg_template = "@pkgdatadir@/my-default.cnf";
++}
++
+ -e $cfg_template or cannot_find_file("my-default.cnf");
+ 
+ $copy_cfg_file= $config_file;
+@@ -441,22 +483,21 @@ if (-e $copy_cfg_file)
+   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+   # Too early to print warning here, the user may not notice
+ }
+-open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+-if (open (CFG, "> $copy_cfg_file"))
+-{
+-  while (<TEMPL>)
+-  {
+-    # Remove lines beginning with # *** which are template comments
+-    print CFG $_ unless /^# \*\*\*/;
++
++if ( ! $keep_my_cnf ) {
++  open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
++  if (open (CFG, "> $copy_cfg_file")) {
++    while (<TEMPL>) {
++      # Remove lines beginning with # *** which are template comments
++      print CFG $_ unless /^# \*\*\*/;
++    }
++    close CFG;
++  } else {
++    warning($opt,"Could not write to config file $copy_cfg_file: $!");
++    $failed_write_cfg= 1;
+   }
+-  close CFG;
++  close TEMPL;
+ }
+-else
+-{
+-  warning($opt,"Could not write to config file $copy_cfg_file: $!");
+-  $failed_write_cfg= 1;
+-}
+-close TEMPL;
+ 
+ # ----------------------------------------------------------------------
+ # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
+@@ -619,7 +660,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
+ }
+ 
+ # ----------------------------------------------------------------------
+-# Create database directories mysql & test
++# Create database directory mysql
+ # ----------------------------------------------------------------------
+ 
+ # FIXME The shell variant uses "mkdir -p":
+@@ -652,7 +693,7 @@ if ($opt_user)
+   }
+ }
+ 
+-foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
++foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql")
+ {
+   mkdir($dir, 0700) unless -d $dir;
+   if ($opt_user and -w "/")
+@@ -838,15 +879,26 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
+              "  cd mysql-test ; perl mysql-test-run.pl");
+     }
+     report($opt,
+-           "Please report any problems with the " . '@scriptdir@' . "/mysqlbug script!",
+-           "",
+            "The latest information about MySQL is available on the web at",
+            "",
+            "  http://www.mysql.com",
+            "",
+-           "Support MySQL by buying support/licenses at http://shop.mysql.com");
++           "Please visit",
++           "",
++           "  http://bugs.mysql.com/",
++           "",
++           "to report bugs. This database is public and can be browsed",
++           "and searched by anyone. If you log in to the system",
++           "you can enter new reports.");
++
+ 
+-    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
++    if ($keep_my_cnf)
++    {
++      report($opt,
++	     "Note: new default config file not created.",
++	     "Please make sure your config file is current");
++    }
++    elsif ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+     {
+       report($opt,
+ 	     "New default config file was created as $config_file and",
+@@ -900,9 +952,15 @@ else
+         "http://www.mysql.com",
+         "Please consult the MySQL manual section: 'Problems running mysql_install_db',",
+         "and the manual section that describes problems on your OS.",
+-        "Another information source is the MySQL email archive.",
+-        "Please check all of the above before mailing us!",
+-        "And if you do mail us, you MUST use the " . '@scriptdir@' . "/mysqlbug script!")
++        "Another information source is our bug database.",
++        "Please visit",
++        "",
++        "  http://bugs.mysql.com/",
++        "",
++        "to report bugs. This database is public and can be browsed",
++        "and searched by anyone. If you log in to the system you can",
++        "enter new reports.");
++
+ }
+ 
+ ##############################################################################
