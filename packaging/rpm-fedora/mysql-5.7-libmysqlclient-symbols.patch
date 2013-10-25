@@ -1,7 +1,8 @@
-=== modified file 'libmysql/libmysql.c'
---- libmysql/libmysql.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ libmysql/libmysql.c	2013-06-27 09:26:38 +0000
-@@ -4905,3 +4905,603 @@ my_bool STDCALL mysql_read_query_result(
+diff --git a/libmysql/libmysql.c b/libmysql/libmysql.c
+index f4fe2ca..558ccd3 100644
+--- a/libmysql/libmysql.c
++++ b/libmysql/libmysql.c
+@@ -4927,3 +4927,603 @@ my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
    return (*mysql->methods->read_query_result)(mysql);
  }
  
@@ -605,10 +606,10 @@
 +SYM_16(mysql_real_connect);
 +
 +#endif
-
-=== modified file 'libmysql/libmysql.ver.in'
---- libmysql/libmysql.ver.in	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ libmysql/libmysql.ver.in	2013-05-14 10:38:22 +0000
+diff --git a/libmysql/libmysql.ver.in b/libmysql/libmysql.ver.in
+index 20eb0fd..559e553 100644
+--- a/libmysql/libmysql.ver.in
++++ b/libmysql/libmysql.ver.in
 @@ -1 +1,136 @@
 -libmysqlclient_@SHARED_LIB_MAJOR_VERSION@ { global: *; };
 +libmysqlclient_16
@@ -747,11 +748,11 @@
 +    #mysql_client_errors;
 +    *;
 +} libmysqlclient_16;
-
-=== modified file 'mysys/charset.c'
---- mysys/charset.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ mysys/charset.c	2013-05-16 06:43:42 +0000
-@@ -1030,3 +1030,20 @@ size_t escape_quotes_for_mysql(CHARSET_I
+diff --git a/mysys/charset.c b/mysys/charset.c
+index 9bcf195..ae6e3a1 100644
+--- a/mysys/charset.c
++++ b/mysys/charset.c
+@@ -1036,3 +1036,20 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
    *to= 0;
    return overflow ? (ulong)~0 : (ulong) (to - to_start);
  }
@@ -772,11 +773,11 @@
 +}
 +
 +#endif
-
-=== modified file 'mysys/my_init.c'
---- mysys/my_init.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ mysys/my_init.c	2013-05-16 06:43:58 +0000
-@@ -551,3 +551,16 @@ void my_init_mysys_psi_keys()
+diff --git a/mysys/my_init.c b/mysys/my_init.c
+index bc75f3a..9ec96b9 100644
+--- a/mysys/my_init.c
++++ b/mysys/my_init.c
+@@ -585,3 +585,16 @@ void my_init_mysys_psi_keys()
  }
  #endif /* HAVE_PSI_INTERFACE */
  
@@ -793,11 +794,11 @@
 +SYM_16(my_init);
 +
 +#endif
-
-=== modified file 'mysys_ssl/my_default.cc'
---- mysys_ssl/my_default.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ mysys_ssl/my_default.cc	2013-06-27 08:56:34 +0000
-@@ -1497,3 +1497,24 @@ static int check_file_permissions(const
+diff --git a/mysys_ssl/my_default.cc b/mysys_ssl/my_default.cc
+index faa870d..46e9c63 100644
+--- a/mysys_ssl/my_default.cc
++++ b/mysys_ssl/my_default.cc
+@@ -1503,3 +1503,24 @@ static int check_file_permissions(const char *file_name)
    return 2;                                     /* Success */
  }
  
@@ -822,11 +823,11 @@
 +
 +C_MODE_END
 +#endif
-
-=== modified file 'mysys_ssl/my_getopt.cc'
---- mysys_ssl/my_getopt.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ mysys_ssl/my_getopt.cc	2013-06-27 09:01:37 +0000
-@@ -1642,3 +1642,25 @@ void my_print_variables_ex(const struct
+diff --git a/mysys_ssl/my_getopt.cc b/mysys_ssl/my_getopt.cc
+index d5f5b7c..e297ddf 100644
+--- a/mysys_ssl/my_getopt.cc
++++ b/mysys_ssl/my_getopt.cc
+@@ -1569,3 +1569,25 @@ void my_print_variables_ex(const struct my_option *options, FILE* file)
      }
    }
  }
@@ -852,14 +853,14 @@
 +
 +C_MODE_END
 +#endif
-
-=== modified file 'sql-common/client.c'
---- sql-common/client.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ sql-common/client.c	2013-05-16 06:42:47 +0000
-@@ -4821,3 +4821,136 @@ static int clear_password_auth_client(MY
- 
-   return res ? CR_ERROR : CR_OK;
+diff --git a/sql-common/client.c b/sql-common/client.c
+index e9bd508..bc6c3d5 100644
+--- a/sql-common/client.c
++++ b/sql-common/client.c
+@@ -5134,3 +5134,136 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
  }
+ 
+ 
 +
 +#ifndef EMBEDDED_LIBRARY
 +
@@ -993,11 +994,11 @@
 +SYM_16(mysql_store_result);
 +
 +#endif
-
-=== modified file 'sql/password.c'
---- sql/password.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ sql/password.c	2013-06-27 09:00:09 +0000
-@@ -584,3 +584,16 @@ void make_password_from_salt(char *to, c
+diff --git a/sql/auth/password.c b/sql/auth/password.c
+index 6bfda74..1167208 100644
+--- a/sql/auth/password.c
++++ b/sql/auth/password.c
+@@ -584,3 +584,16 @@ void make_password_from_salt(char *to, const uint8 *hash_stage2)
    octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
  }
  
@@ -1014,11 +1015,11 @@
 +SYM_16(my_make_scrambled_password);
 +
 +#endif
-
-=== modified file 'sql/net_serv.cc'
---- sql/net_serv.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
-+++ sql/net_serv.cc	2013-06-27 09:24:19 +0000
-@@ -1038,3 +1038,15 @@ void my_net_set_write_timeout(NET *net,
+diff --git a/sql/net_serv.cc b/sql/net_serv.cc
+index 003173d..6321a4f 100644
+--- a/sql/net_serv.cc
++++ b/sql/net_serv.cc
+@@ -1038,3 +1038,15 @@ void my_net_set_write_timeout(NET *net, uint timeout)
    DBUG_VOID_RETURN;
  }
  
@@ -1034,5 +1035,3 @@
 +
 +C_MODE_END
 +#endif
-
-
