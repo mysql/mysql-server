@@ -252,7 +252,6 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
 
 int gcs_replication_deinit(void *p)
 {
-  pthread_mutex_destroy(&gcs_running_mutex);
   if (cleanup_gcs_rpl())
     return 1;
 
@@ -272,6 +271,8 @@ int gcs_replication_deinit(void *p)
 
   log_message(MY_INFORMATION_LEVEL,
               "The observers in GCS cluster have been successfully unregistered");
+
+  pthread_mutex_destroy(&gcs_running_mutex);
   return 0;
 }
 
