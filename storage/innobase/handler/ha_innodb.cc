@@ -5410,6 +5410,7 @@ innobase_mysql_fts_get_token(
 	ut_a(cs);
 
 	token->f_n_char = token->f_len = 0;
+	token->f_str = NULL;
 
 	for (;;) {
 
