@@ -54,7 +54,7 @@ public:
   {
     if (len > max_message_length)
       max_message_length= len;
-    if (len < min_message_length)
+    if (len < min_message_length || min_message_length == 0)
       min_message_length= len;
     set_last_message_timestamp();
     total_messages_received++;
