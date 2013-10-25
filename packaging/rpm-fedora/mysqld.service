@@ -4,14 +4,14 @@
 # systemd supports lots of fancy features, look here (and linked docs) for a full list: 
 #   http://www.freedesktop.org/software/systemd/man/systemd.exec.html
 #
-# Note: this file ( /usr/lib/systemd/system/mysql.service )
+# Note: this file ( /usr/lib/systemd/system/mysqld.service )
 # will be overwritten on package upgrade, please copy the file to 
 #
-#  /etc/systemd/system/mysql.service 
+#  /etc/systemd/system/mysqld.service
 #  
 # to make needed changes.
 # 
-# systemd-delta can be used to check differences between the two mysql.service files.
+# systemd-delta can be used to check differences between the two mysqld.service files.
 #
 
 [Unit]
