@@ -3285,8 +3285,6 @@ row_ins(
 						/* Save 1st dup error. Ignore
 						subsequent dup errors. */
 						index_dup = node->index;
-						thr_get_trx(thr)->error_info
-							= index_dup;
 						thr_get_trx(thr)->error_state
 							= DB_DUPLICATE_KEY;
 					}
@@ -3330,6 +3328,7 @@ row_ins(
 
 	ut_ad(node->entry == NULL);
 
+	thr_get_trx(thr)->error_info = index_dup;
 	node->state = INS_NODE_ALLOC_ROW_ID;
 
 	DBUG_RETURN(index_dup ? DB_DUPLICATE_KEY : DB_SUCCESS);
