@@ -854,11 +854,6 @@ THD::THD(bool enable_plugins)
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
    table_map_for_update(0),
-   arg_of_last_insert_id_function(FALSE),
-   first_successful_insert_id_in_prev_stmt(0),
-   first_successful_insert_id_in_prev_stmt_for_binlog(0),
-   first_successful_insert_id_in_cur_stmt(0),
-   stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
    m_statement_psi(NULL),
    m_idle_psi(NULL),
@@ -884,7 +879,7 @@ THD::THD(bool enable_plugins)
    m_stmt_da(&main_da)
 {
   ulong tmp;
-
+  reset_first_successful_insert_id();
   mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that

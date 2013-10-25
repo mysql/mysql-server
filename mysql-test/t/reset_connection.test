@@ -113,6 +113,26 @@ SET GLOBAL DEBUG='d,debug_test_cleanup_connection';
 --echo resetconnection;
 SET GLOBAL DEBUG='';
 
+--echo
+--echo Bug #17653288 MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+--echo
+
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL);
+INSERT INTO t2 VALUES (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--resetconnection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL), (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--resetconnection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+DROP TABLE t2;
+
+
 DROP TABLE IF EXISTS t1;
 DROP DATABASE wl6797;
 
