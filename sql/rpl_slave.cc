@@ -8295,7 +8295,8 @@ bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
-  bool need_relay_log_purge= 1;
+  //TODO: check if this variable is still required.
+  bool need_relay_log_purge= 0;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= false;
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
@@ -8310,13 +8311,31 @@ bool change_master(THD* thd, Master_info* mi)
   lock_slave_threads(mi);
   init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
-  if (thread_mask) // We refuse if any slave thread is running
+
+  /*
+   We error out if SQL thread is running and there is a CHANGE MASTER
+   using RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION. 
+  */
+  if (thread_mask & SLAVE_SQL && (lex_mi->relay_log_name || lex_mi->relay_log_pos || lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE || lex_mi->sql_delay != -1))
   {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    //change the error message text.
+    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
     ret= true;
     goto err;
   }
-  thread_mask= SLAVE_IO | SLAVE_SQL;
+  //thread_mask= SLAVE_IO;
+
+  /*
+    if IO thread is running and SQL thread is stopped, we disallow everything
+    except RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION.
+  */
+  if (thread_mask & SLAVE_IO && (lex_mi->host || lex_mi->user || lex_mi->password || lex_mi->log_file_name || lex_mi->bind_addr || lex_mi->port || lex_mi->server_id || lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_ca || lex_mi->ssl_capath || lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key || lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE) )
+  {
+    //change the error message text.
+    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    ret= true;
+    goto err;
+  }
 
   THD_STAGE_INFO(thd, stage_changing_master);
   /* 
@@ -8712,6 +8731,7 @@ bool change_master(THD* thd, Master_info* mi)
     saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
     (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
+  //TODO: fix the comment below
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -8722,7 +8742,7 @@ bool change_master(THD* thd, Master_info* mi)
     Notice that the rli table is available exclusively as slave is not
     running.
   */
-  DBUG_ASSERT(!mi->rli->slave_running);
+  //DBUG_ASSERT(!mi->rli->slave_running);
   if ((ret= mi->rli->flush_info(true)))
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
   mysql_cond_broadcast(&mi->data_cond);
