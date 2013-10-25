@@ -1199,6 +1199,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     thd->status_var.com_other++;
     thd->cleanup_connection();
+    thd->reset_first_successful_insert_id();
     my_ok(thd);
     break;
   }
