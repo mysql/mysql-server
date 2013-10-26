@@ -528,8 +528,8 @@ from t0 as a, t0 as b
 where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.key6=1 and a.key7 = 1 or a.key8=1)
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	94.44	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	94.44	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	a	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	b	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` join `test`.`t0` `b` where ((((`test`.`a`.`key7` = 1) and (`test`.`a`.`key6` = 1) and (`test`.`a`.`key5` = 1) and (`test`.`a`.`key4` = 1) and (`test`.`a`.`key3` = 1) and (`test`.`a`.`key2` = 1) and (`test`.`a`.`key1` = 1)) or (`test`.`a`.`key8` = 1)) and (((`test`.`b`.`key7` = 1) and (`test`.`b`.`key6` = 1) and (`test`.`b`.`key5` = 1) and (`test`.`b`.`key4` = 1) and (`test`.`b`.`key3` = 1) and (`test`.`b`.`key2` = 1) and (`test`.`b`.`key1` = 1)) or (`test`.`b`.`key8` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
