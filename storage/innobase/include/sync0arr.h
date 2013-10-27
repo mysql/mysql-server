@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,10 +37,27 @@ struct sync_cell_t;
 struct sync_array_t;
 
 /******************************************************************//**
+Get an instance of the sync wait array and reserve a wait array cell
+in the instance for waiting for an object. The event of the cell is
+reset to nonsignalled state.
+If reserving cell of the instance fails, try to get another new
+instance until we can reserve an empty cell of it.
+@return the instance found, never NULL. */
+UNIV_INLINE
+sync_array_t*
+sync_array_get_and_reserve_cell(
+/*============================*/
+	void*		object,	/*!< in: pointer to the object to wait for */
+	ulint		type,	/*!< in: lock request type */
+	const char*	file,	/*!< in: file where requested */
+	ulint		line,	/*!< in: line where requested */
+	ulint*		index);	/*!< out: index of the reserved cell */
+/******************************************************************//**
 Reserves a wait array cell for waiting for an object.
-The event of the cell is reset to nonsignalled state. */
+The event of the cell is reset to nonsignalled state.
+@return true if free cell is found, otherwise false */
 UNIV_INTERN
-void
+bool
 sync_array_reserve_cell(
 /*====================*/
 	sync_array_t*	arr,	/*!< in: wait array */

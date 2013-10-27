@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -177,6 +177,9 @@ os_thread_create_func(
 #ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
+
+	ut_a(os_thread_count <= OS_THREAD_MAX_N);
+
 	if (thread_id) {
 		*thread_id = pthread;
 	}
