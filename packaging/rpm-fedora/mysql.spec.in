@@ -47,7 +47,7 @@
 %endif
 
 
-%global src_dir               %{src_base}-%{obs_ver}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{obs_ver}
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -731,7 +731,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.2-0.1.m12
+* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.1.m13
 - Initial 5.7 port
 
 * Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
