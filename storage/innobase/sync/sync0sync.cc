@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -33,6 +33,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #ifdef UNIV_NONINL
 #include "sync0sync.ic"
+#include "sync0arr.ic"
 #endif
 
 #include "sync0rw.h"
@@ -536,10 +537,8 @@ spin_loop:
 		goto spin_loop;
 	}
 
-	sync_arr = sync_array_get();
-
-	sync_array_reserve_cell(
-		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
+	sync_arr = sync_array_get_and_reserve_cell(mutex, SYNC_MUTEX,
+						   file_name, line, &index);
 
 	/* The memory order of the array reservation and the change in the
 	waiters field is important: when we suspend a thread, we first
