@@ -18,7 +18,8 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    m13
+%global milestone       m13
+%global mysql_version   @VERSION@
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -43,7 +44,7 @@
 # Version for compat libs
 %global compatver             5.1.72
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{mysql_version}%{?milestone:-%{milestone}}
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
