@@ -100,9 +100,9 @@
 #include "sql_bootstrap.h"
 #include "opt_explain.h"
 #include "sql_rewrite.h"
-#include "global_threads.h"
 #include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 #include <algorithm>
 using std::max;
@@ -755,7 +755,7 @@ static void handle_bootstrap_impl(THD *thd)
 #endif
 
     /*
-      We don't need to obtain LOCK_thread_count here because in bootstrap
+      We don't need to obtain LOCK_thd_count here because in bootstrap
       mode we have only one thread.
     */
     thd->set_time();
@@ -799,13 +799,6 @@ pthread_handler_t handle_bootstrap(void *arg)
 
   mysql_thread_set_psi_id(thd->thread_id);
 
-  do_handle_bootstrap(thd);
-  return 0;
-}
-
-void do_handle_bootstrap(THD *thd)
-{
-  bool thd_added= false;
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
@@ -814,38 +807,22 @@ void do_handle_bootstrap(THD *thd)
     close_connection(thd, ER_OUT_OF_RESOURCES);
 #endif
     thd->fatal_error();
-    goto end;
+    bootstrap_error= 1;
+    net_end(&thd->net);
   }
+  else
+  {
+    Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+    thd_manager->add_thd(thd);
 
-  thd_added= true;
-  add_global_thread(thd);
+    handle_bootstrap_impl(thd);
 
-  handle_bootstrap_impl(thd);
-
-end:
-  net_end(&thd->net);
-  thd->release_resources();
-
-  if (thd_added)
-    remove_global_thread(thd);
-
-  /*
-    For safety we delete the thd before signalling that bootstrap is done,
-    since the server will be taken down immediately.
-  */
-  delete thd;
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  in_bootstrap= FALSE;
-  mysql_cond_broadcast(&COND_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
-
-#ifndef EMBEDDED_LIBRARY
+    net_end(&thd->net);
+    thd->release_resources();
+    thd_manager->remove_thd(thd);
+  }
   my_thread_end();
-  pthread_exit(0);
-#endif
-
-  return;
+  return 0;
 }
 
 
@@ -1125,6 +1102,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 {
   NET *net= &thd->net;
   bool error= 0;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
@@ -1163,7 +1141,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
-  inc_thread_running();
+  thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
     thd->status_var.questions++;
@@ -1221,6 +1199,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     thd->status_var.com_other++;
     thd->cleanup_connection();
+    thd->reset_first_successful_insert_id();
     my_ok(thd);
     break;
   }
@@ -1651,7 +1630,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
-                        (int) get_thread_count(), (ulong) thd->query_id,
+                        (int) thd_manager->get_thd_count(), (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
@@ -1684,7 +1663,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    if (thread_id & (~0xfffffffful))
+    if (thd_manager->get_thread_id() & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else if (packet_length < 4)
       my_error(ER_MALFORMED_PACKET, MYF(0));
@@ -1770,7 +1749,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
 
-  dec_thread_running();
+  thd_manager->dec_thread_running();
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
@@ -5282,7 +5261,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             and Query_log_event::print() would give ';;' output).
             This also helps display only the current query in SHOW
             PROCESSLIST.
-            Note that we don't need LOCK_thread_count to modify query_length.
+            Note that we don't need LOCK_thd_count to modify query_length.
           */
           if (found_semicolon && (ulong) (found_semicolon - thd->query()))
             thd->set_query_inner(thd->query(),
@@ -6136,6 +6115,31 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   lex->prev_join_using= using_fields;
 }
 
+/**
+  Callback function used by kill_one_thread to find thd based
+  on the thread id.
+
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_with_id: public Find_THD_Impl
+{
+public:
+  Find_thd_with_id(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->get_command() == COM_DAEMON)
+      return false;
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
 
 /**
   kill on thread.
@@ -6145,34 +6149,21 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   @param only_kill_query        Should it kill the query or the connection
 
   @note
-    This is written such that we have a short lock on LOCK_thread_count
+    This is written such that we have a short lock on LOCK_thd_count
 */
+
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
   THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
+  Find_thd_with_id find_thd_with_id(id);
+
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    if ((*it)->get_command() == COM_DAEMON)
-      continue;
-    if ((*it)->thread_id == id)
-    {
-      tmp= *it;
-      mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
-      break;
-    }
-  }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  tmp= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (tmp)
   {
-
     /*
       If we're SUPER, we can KILL anything, including system-threads.
       No further checks.

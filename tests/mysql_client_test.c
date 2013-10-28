@@ -19443,6 +19443,7 @@ static void test_wl6797()
   MYSQL_STMT *stmt;
   int        rc;
   const char *stmt_text;
+  my_ulonglong res;
 
   myheader("test_wl6797");
 
@@ -19483,7 +19484,33 @@ static void test_wl6797()
   rc= mysql_stmt_execute(stmt);
   DIE_IF(rc == 0);
 
+  /*
+   bug#17653288: MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+  */
+
+  rc= mysql_query(mysql, "CREATE TABLE t2 (a int NOT NULL PRIMARY KEY"\
+                         " auto_increment)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t2 VALUES (null)");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  rc= mysql_query(mysql, "INSERT INTO t2 VALUES (last_insert_id(100))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 100);
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
   mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "DROP TABLE IF EXISTS t2");
   mysql_stmt_close(stmt);
 }
 

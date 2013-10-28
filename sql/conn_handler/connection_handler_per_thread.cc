@@ -20,9 +20,9 @@
 #include "my_pthread.h"                  // pthread_handler_t
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "global_threads.h"              // LOCK_thread_count
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
+#include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // init_new_connection_handler_thread
@@ -38,12 +38,12 @@ std::list<Channel_info*> *Per_thread_connection_handler
 
 /*
   Number of pthreads currently being woken up to handle new connections.
-  Protected by LOCK_thread_count.
+  Protected by LOCK_thd_count.
 */
 static uint wake_pthread= 0;
 /*
   Set if we are trying to kill of pthreads in the thread cache.
-  Protected by LOCK_thread_count.
+  Protected by LOCK_thd_count.
 */
 static uint kill_blocked_pthreads_flag= 0;
 
@@ -59,7 +59,8 @@ static uint kill_blocked_pthreads_flag= 0;
 Channel_info* Per_thread_connection_handler::block_until_new_connection()
 {
   Channel_info *new_conn= NULL;
-  mysql_mutex_lock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->acquire_thd_lock();
   if (blocked_pthread_count < max_blocked_pthreads &&
       !kill_blocked_pthreads_flag)
   {
@@ -77,11 +78,11 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
     // Block pthread
     blocked_pthread_count++;
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
-      mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
+      thd_manager->wait_thread_cache();
     blocked_pthread_count--;
 
     if (kill_blocked_pthreads_flag)
-      mysql_cond_signal(&COND_flush_thread_cache);
+      thd_manager->notify_flush_thread_cache();
     else if (!abort_loop && wake_pthread)
     {
       wake_pthread--;
@@ -91,7 +92,7 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
       DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
     }
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
   return new_conn;
 }
 
@@ -108,6 +109,7 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
 
 static THD* init_new_thd(Channel_info *channel_info)
 {
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   THD *thd= channel_info->create_thd();
   if (thd == NULL)
   {
@@ -116,10 +118,8 @@ static THD* init_new_thd(Channel_info *channel_info)
     delete channel_info;
     return NULL;
   }
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
@@ -179,6 +179,7 @@ static THD* init_new_thd(Channel_info *channel_info)
 
 pthread_handler_t handle_connection(void *arg)
 {
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Channel_info* channel_info= static_cast<Channel_info*>(arg);
   THD *thd= NULL;
 
@@ -204,7 +205,7 @@ pthread_handler_t handle_connection(void *arg)
     mysql_thread_set_psi_id(thd->thread_id);
     mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
-    add_global_thread(thd);
+    thd_manager->add_thd(thd);
 
     if (!thd_prepare_connection(thd))
     {
@@ -225,7 +226,7 @@ pthread_handler_t handle_connection(void *arg)
     // Clean up errors now, before possibly waiting for a new connection.
     ERR_remove_state(0);
 
-    remove_global_thread(thd);
+    thd_manager->remove_thd(thd);
     delete thd;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -264,7 +265,7 @@ pthread_handler_t handle_connection(void *arg)
 
 end_thread:
   my_thread_end();
-  mysql_cond_broadcast(&COND_thread_count);
+  thd_manager->notify_all_thd();
   pthread_exit(0);
   return NULL;
 }
@@ -272,12 +273,13 @@ end_thread:
 
 void Per_thread_connection_handler::kill_blocked_pthreads()
 {
-  mysql_mutex_lock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->acquire_thd_lock();
   kill_blocked_pthreads_flag++;
   while (Per_thread_connection_handler::blocked_pthread_count)
   {
-    mysql_cond_broadcast(&COND_thread_cache);
-    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_count);
+    thd_manager->notify_thread_cache(true);
+    thd_manager->wait_flush_thread_cache();
   }
   kill_blocked_pthreads_flag--;
 
@@ -290,8 +292,7 @@ void Per_thread_connection_handler::kill_blocked_pthreads()
     channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
     delete channel_info;
   }
-
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
 }
 
 
@@ -299,17 +300,18 @@ bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
                                                   Channel_info* channel_info)
 {
   bool res= true;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  thd_manager->acquire_thd_lock();
   if (Per_thread_connection_handler::blocked_pthread_count > wake_pthread)
   {
     DBUG_PRINT("info",("waiting_channel_info_list->push %p", channel_info));
     waiting_channel_info_list->push_back(channel_info);
     wake_pthread++;
-    mysql_cond_signal(&COND_thread_cache);
+    thd_manager->notify_thread_cache(false);
     res= false;
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
 
   return res;
 }
@@ -353,7 +355,7 @@ handle_error:
     DBUG_RETURN(true);
   }
 
-  inc_thread_created();
+  Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info",("Thread created"));
   DBUG_RETURN(false);
 }
