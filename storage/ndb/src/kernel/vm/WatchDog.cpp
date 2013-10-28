@@ -125,6 +125,7 @@ WatchDog::doStop(){
   }
 }
 
+static
 const char *get_action(Uint32 IPValue)
 {
   const char *action;
