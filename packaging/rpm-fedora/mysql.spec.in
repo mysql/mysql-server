@@ -18,7 +18,9 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    m13
+
+
+%global milestone    %(echo @MYSQL_VERSION_EXTRA@ | sed -e 's/-//')
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -47,7 +49,7 @@
 %endif
 
 
-%global src_dir               %{src_base}-%{obs_ver}
+%global src_dir               %{src_base}-@VERSION@
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -70,7 +72,7 @@
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @MYSQL_RPM_VERSION@
+Version:        @MYSQL_NO_DASH_VERSION@
 Release:        0.1%{?milestone:.%{milestone}}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
@@ -83,8 +85,8 @@ Source3:        mysql.conf
 Source4:        my_config.h
 Source5:        mysql-embedded-check.c
 Source6:        mysql_config.sh
-Patch0:         mysql-5.7-libmysqlclient-symbols.patch
-Patch1:         mysql-5.6.14-mysql-install.patch
+Patch0:         mysql-5.6.14-mysql-install.patch
+Patch1:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  time
@@ -316,11 +318,11 @@ the embedded version of the MySQL server.
 %prep
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
-%patch1 -p1
+%patch0 -p1
 popd
 cp -a %{src_dir} %{src_dir}-client
 pushd %{src_dir}-client
-%patch0 -p1
+%patch1 -p0
 
 %build
 # Fail quickly and obviously if user tries to build as root
