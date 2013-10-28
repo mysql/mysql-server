@@ -154,11 +154,14 @@ if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
 	set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
 endif()
 
+# Convenience target for mcc development which installs only the mcc files,
+# this is much faster than installing everything
 add_custom_target(install_mcc 
 	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
 	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
 	VERBATIM)
 
+# Convenience target for mcc development which runs the mcc tests on installed files 
 add_custom_target(run_mcc	
 	COMMAND ${CMAKE_COMMAND} -E remove mcc_log.txt
         COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -N "" -d DEBUG -o mcc_log.txt VERBATIM)
