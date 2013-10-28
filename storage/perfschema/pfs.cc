@@ -5654,9 +5654,11 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array= global_instr_class_memory_array;
-  stat= & event_name_array[index];
-  (void) stat->count_free(size, &delta_buffer);
-
+  if (event_name_array)
+  {
+    stat= & event_name_array[index];
+    (void) stat->count_free(size, &delta_buffer);
+  }
   return;
 }
 

@@ -70460,8 +70460,10 @@ SELECT * FROM t18 WHERE c2=0;
 c1	c2
 SIZE	
 EXPLAIN SELECT * FROM t18 WHERE c2=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t18	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t18	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t18`.`c1` AS `c1`,`test`.`t18`.`c2` AS `c2` from `test`.`t18` where (`test`.`t18`.`c2` = 0)
 SET sql_mode= 'STRICT_ALL_TABLES';
 INSERT INTO t18 VALUES('SIZE','SMALL2');
 ERROR 01000: Data truncated for column 'c2' at row 1

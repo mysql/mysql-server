@@ -535,7 +535,7 @@ analyze table t0;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
  from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
@@ -562,7 +562,7 @@ analyze table t0;
 if (!$index_merge_random_rows_in_EXPLAIN)
 {
   # Too unstable for innodb
-  --replace_column 10 #
+  --replace_column 10 # 11 #
   --replace_result "4,4,4,4,4,4,4" X "4,4,4,4,4,4" X "i6,i7" "i6,i7?" "i6" "i6,i7?"
   explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
    from t0 as a, t0 as b
@@ -614,13 +614,13 @@ analyze table t1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 drop table t1;

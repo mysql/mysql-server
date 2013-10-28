@@ -41,7 +41,6 @@
 #include "opt_explain.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
-#include "global_threads.h"
 #include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"

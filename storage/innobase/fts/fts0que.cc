@@ -3939,7 +3939,8 @@ fts_query_str_preprocess(
 			charset, str_ptr + cur_pos,
 			str_ptr + *result_len, &str);
 
-		if (cur_len == 0) {
+		if (cur_len == 0 || str.f_str == NULL) {
+			/* No valid word found */
 			break;
 		}
 
