@@ -3253,6 +3253,8 @@ sel_restore_position_for_mysql(
 		      || pcur->rel_pos == BTR_PCUR_AFTER);
 	} else {
 		ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+		ut_ad((pcur->rel_pos == BTR_PCUR_ON)
+		      == btr_pcur_is_on_user_rec(pcur));
 	}
 #endif
 
