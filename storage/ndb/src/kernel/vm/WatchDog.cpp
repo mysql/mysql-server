@@ -236,7 +236,6 @@ WatchDog::run()
 
   NdbTick_getMicroTimer(&last_time);
 
-  // WatchDog for the single threaded NDB
   while (!theStop)
   {
     sleep_time= 100;
@@ -246,6 +245,8 @@ WatchDog::run()
       break;
 
     NdbTick_getMicroTimer(&now);
+
+    // Print warnings if sleeping much longer than expected
     if (NdbTick_getMicrosPassed(last_time, now)/1000 > sleep_time*2)
     {
       struct tms my_tms;
