@@ -3758,7 +3758,7 @@ bool Query_log_event::write(IO_CACHE* file)
     commit timestamp. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (!file->commit_seq_offset > 0)
+  if (file->commit_seq_offset == 0)
   {
     file->commit_seq_offset= QUERY_HEADER_LEN +
                              (uint)(start-start_of_status);
