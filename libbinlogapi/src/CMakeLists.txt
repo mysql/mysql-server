@@ -1,25 +1,19 @@
 # This configuration file builds both the static and shared version of
 # the library.
 set(replication_sources
-  access_method_factory.cpp field_iterator.cpp row_of_fields.cpp
-  binlog_driver.cpp basic_transaction_parser.cpp tcp_driver.cpp
-  file_driver.cpp binary_log.cpp protocol.cpp value.cpp binlog_event.cpp
-  resultset_iterator.cpp basic_transaction_parser.cpp
-  basic_content_handler.cpp utilities.cpp)
+  field_iterator.cpp row_of_fields.cpp
+  binary_log.cpp protocol.cpp value.cpp binlog_event.cpp
+  utilities.cpp)
 
 # Configure for building static library
-add_library(replication_static STATIC ${replication_sources})
-target_link_libraries(replication_static crypto ${Boost_LIBRARIES})
-set_target_properties(replication_static PROPERTIES
-  OUTPUT_NAME "replication")
+add_library(binlogapi_static STATIC ${replication_sources})
+set_target_properties(binlogapi_static PROPERTIES
+  OUTPUT_NAME "binlogapi")
 
 # Configure for building shared library
-add_library(replication_shared SHARED ${replication_sources})
-target_link_libraries(replication_shared crypto ${Boost_LIBRARIES})
+add_library(binlogapi_shared SHARED ${replication_sources})
+set_target_properties(binlogapi_shared PROPERTIES
+ OUTPUT_NAME "binlogapi")
 
-set_target_properties(replication_shared PROPERTIES
-  VERSION 0.1 SOVERSION 1
-  OUTPUT_NAME "replication")
-
-install(TARGETS replication_shared LIBRARY DESTINATION lib)
-install(TARGETS replication_static ARCHIVE DESTINATION lib)
+install(TARGETS binlogapi_shared LIBRARY DESTINATION libbinlogapi/lib)
+install(TARGETS binlogapi_static ARCHIVE DESTINATION libbinlogapi/lib)

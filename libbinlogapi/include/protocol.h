@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <sql_common.h>
 #include <list>
 
-namespace mysql {
+namespace binary_log {
 namespace system {
 
 //TODO:Replace this by enum declaration in log_event.h
@@ -47,7 +47,7 @@ enum enum_binlog_checksum_alg {
   Checks the Format Description event to determine if the master
   has binlog checksums enabled or not.
 */
-int check_checksum_value( mysql::Binary_log_event **event);
+int check_checksum_value( binary_log::Binary_log_event **event);
 
 /**
   Storage structure for the handshake package sent from the server to
@@ -334,6 +334,6 @@ Int_var_event *proto_intvar_event(std::istream &is, Log_event_header *header);
 User_var_event *proto_uservar_event(std::istream &is, Log_event_header *header);
 
 } // end namespace system
-} // end namespace mysql
+} // end namespace binary_log
 
 #endif	/* PROTOCOL_INCLUDED */

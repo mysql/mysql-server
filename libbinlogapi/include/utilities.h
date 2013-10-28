@@ -25,9 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "protocol.h"
 #include <map>
 
-using namespace mysql;
+using namespace binary_log;
 
-namespace mysql {
+namespace binary_log {
 
 typedef enum
 {
@@ -45,7 +45,7 @@ typedef enum
   Q_INVOKER
 } enum_var_types;
 
-int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
+int server_var_decoder (std::map<std::string, binary_log::Value> *my_var_map,
                         std::vector<uint8_t > variables);
 
 }

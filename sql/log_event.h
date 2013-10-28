@@ -61,6 +61,7 @@ extern PSI_memory_key key_memory_log_event;
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
+#include "binary_log.h"
 /* Forward declarations */
 class String;
 typedef ulonglong sql_mode_t;
@@ -654,11 +655,6 @@ enum enum_binlog_checksum_alg {
                                  // or events from checksum-unaware servers
 };
 
-#define CHECKSUM_CRC32_SIGNATURE_LEN 4
-/**
-   defined statically while there is just one alg implemented
-*/
-#define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
 #define SEQ_UNINIT -1
 
@@ -667,97 +663,14 @@ enum enum_binlog_checksum_alg {
 
   Enumeration type for the different types of log events.
 */
-enum Log_event_type
-{
-  /*
-    Every time you update this enum (when you add a type), you have to
-    fix Format_description_log_event::Format_description_log_event().
-  */
-  UNKNOWN_EVENT= 0,
-  START_EVENT_V3= 1,
-  QUERY_EVENT= 2,
-  STOP_EVENT= 3,
-  ROTATE_EVENT= 4,
-  INTVAR_EVENT= 5,
-  LOAD_EVENT= 6,
-  SLAVE_EVENT= 7,  /* Unused. Slave_log_event code has been removed. (15th Oct. 2010) */
-  CREATE_FILE_EVENT= 8,
-  APPEND_BLOCK_EVENT= 9,
-  EXEC_LOAD_EVENT= 10,
-  DELETE_FILE_EVENT= 11,
-  /*
-    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
-    sql_ex, allowing multibyte TERMINATED BY etc; both types share the
-    same class (Load_log_event)
-  */
-  NEW_LOAD_EVENT= 12,
-  RAND_EVENT= 13,
-  USER_VAR_EVENT= 14,
-  FORMAT_DESCRIPTION_EVENT= 15,
-  XID_EVENT= 16,
-  BEGIN_LOAD_QUERY_EVENT= 17,
-  EXECUTE_LOAD_QUERY_EVENT= 18,
-
-  TABLE_MAP_EVENT = 19,
-
-  /*
-    These event numbers were used for 5.1.0 to 5.1.15 and are
-    therefore obsolete.
-   */
-  PRE_GA_WRITE_ROWS_EVENT = 20,
-  PRE_GA_UPDATE_ROWS_EVENT = 21,
-  PRE_GA_DELETE_ROWS_EVENT = 22,
-
-  /*
-    These event numbers are used from 5.1.16 until mysql-trunk-xx
-   */
-  WRITE_ROWS_EVENT_V1 = 23,
-  UPDATE_ROWS_EVENT_V1 = 24,
-  DELETE_ROWS_EVENT_V1 = 25,
-
-  /*
-    Something out of the ordinary happened on the master
-   */
-  INCIDENT_EVENT= 26,
-
-  /*
-    Heartbeat event to be send by master at its idle time 
-    to ensure master's online status to slave 
-  */
-  HEARTBEAT_LOG_EVENT= 27,
-
-  /*
-    In some situations, it is necessary to send over ignorable
-    data to the slave: data that a slave can handle in case there
-    is code for handling it, but which can be ignored if it is not
-    recognized.
-  */
-  IGNORABLE_LOG_EVENT= 28,
-  ROWS_QUERY_LOG_EVENT= 29,
-
-  /* Version 2 of the Row events */
-  WRITE_ROWS_EVENT = 30,
-  UPDATE_ROWS_EVENT = 31,
-  DELETE_ROWS_EVENT = 32,
-
-  GTID_LOG_EVENT= 33,
-  ANONYMOUS_GTID_LOG_EVENT= 34,
-
-  PREVIOUS_GTIDS_LOG_EVENT= 35,
-  /*
-    Add new events here - right above this comment!
-    Existing events (except ENUM_END_EVENT) should never change their numbers
-  */
-
-  ENUM_END_EVENT /* end marker */
-};
 
 /*
    The number of types we handle in Format_description_log_event (UNKNOWN_EVENT
-   is not to be handled, it does not exist in binlogs, it does not have a
+   is not to be handled, as well as the user defined event,
+   it does not exist in binlogs, it does not have a
    format).
 */
-#define LOG_EVENT_TYPES (ENUM_END_EVENT-1)
+#define LOG_EVENT_TYPES (ENUM_END_EVENT - 2)
 
 enum Int_event_type
 {

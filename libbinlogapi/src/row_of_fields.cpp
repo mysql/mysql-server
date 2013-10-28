@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "value.h"
 #include <stdexcept>
 
-using namespace mysql;
+using namespace binary_log;
 
 Row_of_fields& Row_of_fields::operator=(const Row_of_fields &right)
 {

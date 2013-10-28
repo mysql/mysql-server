@@ -22,16 +22,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define	VALUE_ADAPTER_INCLUDED
 
 #include "protocol.h"
-#include <my_global.h>
-#include <mysql.h>
 #include <climits>
 #include <iostream>
 #define MAX_TIME_WIDTH 10
 #define MAX_DATETIME_WIDTH 19
 #define DATETIME_MAX_DECIMALS 6
 
-using namespace mysql;
-namespace mysql {
+using namespace binary_log;
+namespace binary_log {
 /**
  This helper function calculates the size in bytes of a particular field in a
  row type event as defined by the field_ptr and metadata_ptr arguments.
@@ -180,5 +178,5 @@ public:
 };
 
 
-} // end namespace mysql
+} // end namespace binary_log
 #endif	/* VALUE_ADAPTER_INCLUDED */

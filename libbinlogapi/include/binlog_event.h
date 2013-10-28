@@ -33,7 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <cstring>
 #include <sstream>
 
-namespace mysql {
 /**
   @enum Log_event_type
 
@@ -116,11 +115,11 @@ enum Log_event_type
   ANONYMOUS_GTID_LOG_EVENT= 34,
 
   PREVIOUS_GTIDS_LOG_EVENT= 35,
+
   /*
    * A user defined event
    */
-  USER_DEFINED= 36,
-
+  USER_DEFINED_EVENT= 36,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -134,6 +133,7 @@ enum Log_event_type
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 
+namespace binary_log {
 namespace system {
 /**
  * Convenience function to get the string representation of a binlog event.
@@ -416,6 +416,6 @@ Binary_log_event *create_incident_event(unsigned int type,
                                         const char *message,
                                         unsigned long pos= 0);
 
-} // end namespace mysql
+} // end namespace binary_log
 
 #endif	/* BINLOG_EVENT_INCLUDED */

@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <iostream>
 typedef unsigned long ulong;
 
-namespace mysql
+namespace binary_log
 {
 
 namespace system {
@@ -149,16 +149,6 @@ void Format_event::print_long_info(std::ostream& info)
   info << "\nCreated timestamp: " << created_ts;
   info << "\tCommon Header Length: " << (int)log_header_len;
   info << "\nPost header length for events: \n";
-
-  Log_event_type event_type;
-  for (int i= 0; i < post_header_len.size(); i++)
-  {
-    event_type= static_cast<Log_event_type>(i);
-    info << mysql::system::get_event_type_str(event_type)
-         << "= "
-         << (int)post_header_len[static_cast<Log_event_type>(i)]
-         <<  "\n";
-  }
 }
 
 void User_var_event::print_event_info(std::ostream& info)
@@ -270,4 +260,4 @@ void Xid::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
-} // end namespace mysql
+} // end namespace binary_log

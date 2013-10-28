@@ -26,9 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "row_of_fields.h"
 #include <iostream>
 
-using namespace mysql;
-
-namespace mysql
+namespace binary_log
 {
 
 template <class T>
@@ -132,7 +130,7 @@ public:
     int m_current_row;
 };
 
-} // end namespace mysql
+} // end namespace binary_log
 
 
 
