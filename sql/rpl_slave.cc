@@ -8332,7 +8332,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (thread_mask & SLAVE_IO && (lex_mi->host || lex_mi->user || lex_mi->password || lex_mi->log_file_name || lex_mi->bind_addr || lex_mi->port || lex_mi->server_id || lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_ca || lex_mi->ssl_capath || lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key || lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE) )
   {
     //change the error message text.
-    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP), MYF(0));
     ret= true;
     goto err;
   }
