@@ -1105,5 +1105,54 @@ ERROR HY000: Lost connection to MySQL server during query
 select * from t;
 i	j
 drop table t;
+use test;
+set global innodb_file_per_table = 0;
+create table t1 (i int, primary key pk(i)) engine=innodb;
+create table t2 (j int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+insert into t2 values (1), (2), (3), (4), (5);
+select * from t1;
+i
+1
+2
+3
+4
+5
+select * from t2;
+j
+1
+2
+3
+4
+5
+use test;
+use test;
+select * from t1;
+i
+1
+2
+3
+4
+5
+set DEBUG_SYNC='RESET';
+set DEBUG_SYNC='ib_trunc_table_trunc_completing SIGNAL trunc_completing WAIT_FOR trunc_continue';
+truncate table t1;
+set DEBUG_SYNC='now WAIT_FOR trunc_completing';
+select * from t2;
+j
+1
+2
+3
+4
+5
+truncate table t2;
+select * from t2;
+j
+set DEBUG_SYNC='now SIGNAL trunc_continue';
+select * from t1;
+i
+set DEBUG_SYNC='RESET';
+drop table t1;
+drop table t2;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

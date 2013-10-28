@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 #define DBTUX_STAT_CPP
 #include "Dbtux.hpp"
 #include <math.h>
+
+#define JAM_FILE_ID 367
+
 
 // debug note: uses new-style debug macro "D" unlike rest of DBTUX
 // there is no filtering feature (yet) like "DebugStat"
@@ -453,7 +455,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
     {
       Index& index = *c_indexPool.getPtr(rep->indexId);
       FragPtr fragPtr;
-      findFrag(index, rep->fragId, fragPtr);
+      findFrag(jamBuffer(), index, rep->fragId, fragPtr);
       ndbrequire(fragPtr.i != RNIL);
       // index.m_statFragPtrI need not be defined yet
       D("loadTime" << V(index.m_statLoadTime) << " ->" << V(rep->loadTime));
@@ -504,7 +506,7 @@ Dbtux::statMonStart(Signal* signal, StatMon& mon)
   if (req->fragId != ZNIL)
   {
     jam();
-    findFrag(index, req->fragId, fragPtr);
+    findFrag(jamBuffer(), index, req->fragId, fragPtr);
   }
 
   if (fragPtr.i != RNIL)

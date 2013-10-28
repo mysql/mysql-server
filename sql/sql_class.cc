@@ -59,9 +59,9 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
-#include "global_threads.h"
 #include "mysqld.h"
 #include "connection_handler_manager.h"   // Connection_handler_manager
+#include "mysqld_thd_manager.h"           // Global_THD_manager
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -301,29 +301,6 @@ void thd_set_thread_stack(THD *thd, char *stack_start)
 }
 
 /**
-  Lock connection data for the set of connections this connection
-  belongs to
-
-  @param thd                       THD object
-*/
-void thd_lock_thread_count(THD *)
-{
-  mysql_mutex_lock(&LOCK_thread_count);
-}
-
-/**
-  Lock connection data for the set of connections this connection
-  belongs to
-
-  @param thd                       THD object
-*/
-void thd_unlock_thread_count(THD *)
-{
-  mysql_cond_broadcast(&COND_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
-}
-
-/**
   Close the socket used by this connection
 
   @param thd                THD object
@@ -344,25 +321,6 @@ THD *thd_get_current_thd()
   return current_thd;
 }
 
-/**
-  Get iterator begin of global thread list
-
-  @retval Iterator begin of global thread list
-*/
-Thread_iterator thd_get_global_thread_list_begin()
-{
-  return global_thread_list_begin();
-}
-/**
-  Get iterator end of global thread list
-
-  @retval Iterator end of global thread list
-*/
-Thread_iterator thd_get_global_thread_list_end()
-{
-  return global_thread_list_end();
-}
-
 extern "C"
 void thd_binlog_pos(const THD *thd,
                     const char **file_var,
@@ -376,16 +334,15 @@ void thd_binlog_pos(const THD *thd,
 
   thd_new_connection_setup
 
-  @note Must be called with LOCK_thread_count locked.
-
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  mysql_mutex_assert_owner(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
@@ -394,8 +351,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 
-  add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
@@ -731,9 +687,9 @@ void thd_inc_row_count(THD *thd)
   @param length length of buffer
   @param max_query_len how many chars of query to copy (0 for all)
 
-  @req LOCK_thread_count
+  @req LOCK_thd_count
   
-  @note LOCK_thread_count mutex is not necessary when the function is invoked on
+  @note LOCK_thd_count mutex is not necessary when the function is invoked on
    the currently running thread (current_thd) or if the caller in some other
    way guarantees that access to thd->query is serialized.
  
@@ -754,7 +710,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     values doesn't have to very accurate and the memory it points to is static,
     but we need to attempt a snapshot on the pointer values to avoid using NULL
     values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
+    and has to be protected by LOCK_thd_data or risk pointing to
     uninitialized memory.
   */
   const char *proc_info= thd->proc_info;
@@ -875,7 +831,6 @@ void Open_tables_state::reset_open_tables_state()
   lock= NULL;
   extra_lock= NULL;
   locked_tables_mode= LTM_NONE;
-  // JOH: What about resetting current_tablenr?
   state_flags= 0U;
   reset_reprepare_observers();
 }
@@ -885,6 +840,9 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
+#ifdef EMBEDDED_LIBRARY
+   mysql(NULL),
+#endif
    query_plan(this),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
@@ -896,11 +854,6 @@ THD::THD(bool enable_plugins)
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
    table_map_for_update(0),
-   arg_of_last_insert_id_function(FALSE),
-   first_successful_insert_id_in_prev_stmt(0),
-   first_successful_insert_id_in_prev_stmt_for_binlog(0),
-   first_successful_insert_id_in_cur_stmt(0),
-   stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
    m_statement_psi(NULL),
    m_idle_psi(NULL),
@@ -926,7 +879,7 @@ THD::THD(bool enable_plugins)
    m_stmt_da(&main_da)
 {
   ulong tmp;
-
+  reset_first_successful_insert_id();
   mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that
@@ -1342,7 +1295,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size)
 extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
-  *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
+  *xid = *(MYSQL_XID *) thd->transaction.xid_state.get_xid();
 }
 
 #if defined(_WIN32)
@@ -1352,7 +1305,7 @@ extern "C"   THD *_current_thd_noinline(void)
 }
 #endif
 /*
-  Init common variables that has to be reset on start and on change_user
+  Init common variables that has to be reset on start and on cleanup_connection
 */
 
 void THD::init(void)
@@ -1418,8 +1371,7 @@ void THD::init_for_queries(Relay_log_info *rli)
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
-  transaction.xid_state.xid.null();
-  transaction.xid_state.in_thd=1;
+  transaction.xid_state.reset();
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   if (rli)
   {
@@ -1439,14 +1391,14 @@ void THD::init_for_queries(Relay_log_info *rli)
   Do what's needed when one invokes change user
 
   SYNOPSIS
-    change_user()
+    cleanup_connection()
 
   IMPLEMENTATION
     Reset all resources that are connection specific
 */
 
 
-void THD::change_user(void)
+void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
@@ -1462,6 +1414,31 @@ void THD::change_user(void)
                (my_hash_free_key) free_user_var, 0);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
+
+  clear_error();
+
+#ifndef DBUG_OFF
+    /* DEBUG code only (begin) */
+    bool check_cleanup= FALSE;
+    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= TRUE;);
+    if(check_cleanup)
+    {
+      /* isolation level should be default */
+      DBUG_ASSERT(variables.tx_isolation == ISO_REPEATABLE_READ);
+      /* check autocommit is ON by default */
+      DBUG_ASSERT(server_status == SERVER_STATUS_AUTOCOMMIT);
+      /* check prepared stmts are cleaned up */
+      DBUG_ASSERT(prepared_stmt_count == 0);
+      /* check diagnostic area is cleaned up */
+      DBUG_ASSERT(get_stmt_da()->status() == Diagnostics_area::DA_EMPTY);
+      /* check if temp tables are deleted */
+      DBUG_ASSERT(temporary_tables == NULL);
+      /* check if tables are unlocked */
+      DBUG_ASSERT(locked_tables_list.locked_tables() == NULL);
+    }
+    /* DEBUG code only (end) */
+#endif
+
 }
 
 
@@ -1476,13 +1453,13 @@ void THD::cleanup(void)
 
   killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xid_state.xa_state == XA_PREPARED)
+  if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
   {
 #error xid_state in the cache should be replaced by the allocated value
   }
 #endif
   {
-    transaction.xid_state.xa_state= XA_NOTR;
+    transaction.xid_state.set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
     xid_cache_delete(&transaction.xid_state);
   }
@@ -1545,7 +1522,7 @@ void THD::cleanup(void)
  */
 void THD::release_resources()
 {
-  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   DBUG_ASSERT(m_release_resources_done == false);
 
   mysql_mutex_lock(&LOCK_status);
@@ -1587,7 +1564,7 @@ void THD::release_resources()
 
 THD::~THD()
 {
-  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
@@ -1775,7 +1752,7 @@ void THD::awake(THD::killed_state state_to_set)
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(Connection_handler_manager::callback,
+      MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                      post_kill_notification, (this));
   }
 
@@ -2261,14 +2238,11 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item= new Item_empty_string("table", NAME_CHAR_LEN, cs));
   item->maybe_null= 1;
-  if (lex->describe & DESCRIBE_PARTITIONS)
-  {
-    /* Maximum length of string that make_used_partitions_str() can produce */
-    item= new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN),
-                                cs);
-    field_list.push_back(item);
-    item->maybe_null= 1;
-  }
+  /* Maximum length of string that make_used_partitions_str() can produce */
+  item= new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN),
+                              cs);
+  field_list.push_back(item);
+  item->maybe_null= 1;
   field_list.push_back(item= new Item_empty_string("type", 10, cs));
   item->maybe_null= 1;
   field_list.push_back(item=new Item_empty_string("possible_keys",
@@ -2286,12 +2260,9 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(item= new Item_return_int("rows", 10,
                                                  MYSQL_TYPE_LONGLONG));
   item->maybe_null= 1;
-  if (lex->describe & DESCRIBE_EXTENDED)
-  {
-    field_list.push_back(item= new Item_float(NAME_STRING("filtered"),
-                                              0.1234, 2, 4));
-    item->maybe_null=1;
-  }
+  field_list.push_back(item= new Item_float(NAME_STRING("filtered"),
+                                            0.1234, 2, 4));
+  item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   item->maybe_null= 1;
   return (result->send_result_set_metadata(field_list,
@@ -3324,7 +3295,7 @@ void Query_arena::cleanup_stmt()
 */
 
 Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-                     enum enum_state state_arg, ulong id_arg)
+                     enum_state state_arg, ulong id_arg)
   :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
@@ -3544,11 +3515,13 @@ void Statement_map::erase(Statement *statement)
 void Statement_map::reset()
 {
   /* Must be first, hash_free will reset st_hash.records */
-  mysql_mutex_lock(&LOCK_prepared_stmt_count);
-  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-  prepared_stmt_count-= st_hash.records;
-  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
-
+  if (st_hash.records > 0)
+  {
+    mysql_mutex_lock(&LOCK_prepared_stmt_count);
+    DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
+    prepared_stmt_count-= st_hash.records;
+    mysql_mutex_unlock(&LOCK_prepared_stmt_count);
+  }
   my_hash_reset(&names_hash);
   my_hash_reset(&st_hash);
   last_found_statement= 0;
@@ -3688,7 +3661,6 @@ void Security_context::init()
   password_expired= false; 
 }
 
-
 void Security_context::destroy()
 {
   if (host.ptr() != my_localhost && host.length())
@@ -3715,7 +3687,7 @@ void Security_context::destroy()
   {
     char *c= (char *) ip.ptr();
     ip.set("", 0, system_charset_info);
-    my_free(c); 
+    my_free(c);
   }
 }
 
@@ -4077,7 +4049,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(Connection_handler_manager::callback,
+  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_begin, (thd, wait_type));
 }
 
@@ -4089,7 +4061,7 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(Connection_handler_manager::callback,
+  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_end, (thd));
 }
 #else
@@ -4509,122 +4481,6 @@ void mark_transaction_to_rollback(THD *thd, bool all)
     if (thd->lex->current_select())
       thd->lex->current_select()->no_error= FALSE;
   }
-}
-/***************************************************************************
-  Handling of XA id cacheing
-***************************************************************************/
-
-mysql_mutex_t LOCK_xid_cache;
-HASH xid_cache;
-
-extern "C" uchar *xid_get_hash_key(const uchar *, size_t *, my_bool);
-extern "C" void xid_free_hash(void *);
-
-uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
-                                  my_bool not_used __attribute__((unused)))
-{
-  *length=((XID_STATE*)ptr)->xid.key_length();
-  return ((XID_STATE*)ptr)->xid.key();
-}
-
-void xid_free_hash(void *ptr)
-{
-  if (!((XID_STATE*)ptr)->in_thd)
-    my_free(ptr);
-}
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_xid_cache;
-
-static PSI_mutex_info all_xid_mutexes[]=
-{
-  { &key_LOCK_xid_cache, "LOCK_xid_cache", PSI_FLAG_GLOBAL}
-};
-
-static void init_xid_psi_keys(void)
-{
-  const char* category= "sql";
-  int count;
-
-  count= array_elements(all_xid_mutexes);
-  mysql_mutex_register(category, all_xid_mutexes, count);
-}
-#endif /* HAVE_PSI_INTERFACE */
-
-bool xid_cache_init()
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_xid_psi_keys();
-#endif
-
-  mysql_mutex_init(key_LOCK_xid_cache, &LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                      xid_get_hash_key, xid_free_hash, 0) != 0;
-}
-
-void xid_cache_free()
-{
-  if (my_hash_inited(&xid_cache))
-  {
-    my_hash_free(&xid_cache);
-    mysql_mutex_destroy(&LOCK_xid_cache);
-  }
-}
-
-XID_STATE *xid_cache_search(XID *xid)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
-                                             xid->key_length());
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-bool xid_cache_insert(XID *xid, enum xa_states xa_state)
-{
-  XID_STATE *xs;
-  my_bool res;
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
-    res=0;
-  else if (!(xs=(XID_STATE *)my_malloc(key_memory_XID_STATE,
-                                       sizeof(*xs), MYF(MY_WME))))
-    res=1;
-  else
-  {
-    xs->xa_state=xa_state;
-    xs->xid.set(xid);
-    xs->in_thd=0;
-    xs->rm_error=0;
-    res=my_hash_insert(&xid_cache, (uchar*)xs);
-  }
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-bool xid_cache_insert(XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid_state->xid.key(),
-      xid_state->xid.key_length()))
-  {
-    mysql_mutex_unlock(&LOCK_xid_cache);
-    my_error(ER_XAER_DUPID, MYF(0));
-    return true;
-  }
-  bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-void xid_cache_delete(XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  my_hash_delete(&xid_cache, (uchar *)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
 }
 
 

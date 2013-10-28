@@ -239,6 +239,7 @@ struct fts_fetch_t {
 	fts_sql_callback
 			read_record;	/*!< Callback for reading index
 					record */
+	ulint		total_memory;	/*!< Total memory used */
 };
 
 /** For horizontally splitting an FTS auxiliary index */
@@ -267,6 +268,7 @@ struct fts_doc_t {
 					same lifespan, most notably
 					the vector of token positions */
 	CHARSET_INFO*	charset;	/*!< Document's charset info */
+	st_mysql_ftparser* parser;	/*!< fts plugin parser */
 };
 
 /** A token and its positions within a document. */
@@ -331,11 +333,11 @@ fts_decode_vlc(
 			incremented by the number of bytes decoded */
 
 /******************************************************************//**
-Duplicate an UTF-8 string. */
+Duplicate a string. */
 UNIV_INLINE
 void
-fts_utf8_string_dup(
-/*================*/
+fts_string_dup(
+/*===========*/
 						/*!< out:
 						< 0 if n1 < n2,
 						0 if n1 == n2,

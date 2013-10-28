@@ -178,6 +178,7 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   unireg.cc
+  xa.cc
 )
 
 IF(WIN32)
@@ -208,6 +209,7 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mysqld.cc
+  mysqld_thd_manager.cc
   sql_client.cc
   )
 
@@ -261,10 +263,10 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
-		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
-		  rpl_info_dummy.cc)
+                  rpl_info_handler.cc rpl_info_file.cc
+                  rpl_info_table.cc rpl_info_values.cc rpl_info.cc
+                  rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
+                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 

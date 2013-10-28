@@ -185,7 +185,7 @@ buf_dump(
 	int	ret;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
@@ -421,7 +421,7 @@ buf_load()
 	buf_load_abort_flag = FALSE;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	buf_load_status(STATUS_NOTICE,
@@ -462,7 +462,7 @@ buf_load()
 
 	/* If dump is larger than the buffer pool(s), then we ignore the
 	extra trailing. This could happen if a dump is made, then buffer
-	pool is shrunk and then load it attempted. */
+	pool is shrunk and then load is attempted. */
 	total_buffer_pools_pages = buf_pool_get_n_pages()
 		* srv_buf_pool_instances;
 	if (dump_n > total_buffer_pools_pages) {

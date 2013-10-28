@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 388
+
 extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
@@ -60,13 +63,7 @@ struct NdbThread*
 AsyncIoThread::doStart()
 {
   // Stacksize for filesystem threads
-#if !defined(DBUG_OFF) && defined (__hpux)
-  // Empirical evidence indicates at least 32k
-  const NDB_THREAD_STACKSIZE stackSize = 32768;
-#else
-  // Otherwise an 8k stack should be enough
-  const NDB_THREAD_STACKSIZE stackSize = 8192;
-#endif
+  const NDB_THREAD_STACKSIZE stackSize = 128*1024;
 
   char buf[16];
   numAsyncFiles++;
@@ -133,6 +130,11 @@ AsyncIoThread::run()
   theStartFlag = true;
   NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
+
+  EmulatedJamBuffer jamBuffer;
+  jamBuffer.theEmulatedJamIndex = 0;
+  // This key is needed by jamNoBlock().
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &jamBuffer);
 
   while (1)
   {

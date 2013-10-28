@@ -43,6 +43,19 @@
 
 C_MODE_START
 
+/** @sa MDL_key. */
+struct MDL_key;
+typedef struct MDL_key MDL_key;
+
+/** @sa enum_mdl_type. */
+typedef int opaque_mdl_type;
+
+/** @sa enum_mdl_duration. */
+typedef int opaque_mdl_duration;
+
+/** @sa MDL_wait::enum_wait_status. */
+typedef int opaque_mdl_status;
+
 struct TABLE_SHARE;
 /*
   There are 3 known bison parsers in the server:
@@ -164,7 +177,12 @@ typedef struct PSI_sp_share PSI_sp_share;
 struct PSI_sp_locker;
 typedef struct PSI_sp_locker PSI_sp_locker;
 
-
+/**
+  Interface for an instrumented metadata lock.
+  This is an opaque structure.
+*/
+struct PSI_metadata_lock;
+typedef struct PSI_metadata_lock PSI_metadata_lock;
 
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
@@ -189,17 +207,59 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #ifdef HAVE_PSI_INTERFACE
 
 #ifdef DISABLE_ALL_PSI
+
+#ifndef DISABLE_PSI_MUTEX
 #define DISABLE_PSI_MUTEX
+#endif
+
+#ifndef DISABLE_PSI_RWLOCK
 #define DISABLE_PSI_RWLOCK
+#endif
+
+#ifndef DISABLE_PSI_COND
 #define DISABLE_PSI_COND
+#endif
+
+#ifndef DISABLE_PSI_FILE
 #define DISABLE_PSI_FILE
+#endif
+
+#ifndef DISABLE_PSI_TABLE
 #define DISABLE_PSI_TABLE
+#endif
+
+#ifndef DISABLE_PSI_SOCKET
 #define DISABLE_PSI_SOCKET
+#endif
+
+#ifndef DISABLE_PSI_STAGE
 #define DISABLE_PSI_STAGE
+#endif
+
+#ifndef DISABLE_PSI_STATEMENT
 #define DISABLE_PSI_STATEMENT
+#endif
+
+#ifndef DISABLE_PSI_SP
 #define DISABLE_PSI_SP
+#endif
+
+#ifndef DISABLE_PSI_IDLE
 #define DISABLE_PSI_IDLE
+#endif
+
+#ifndef DISABLE_PSI_STATEMENT_DIGEST
 #define DISABLE_PSI_STATEMENT_DIGEST
+#endif
+
+#ifndef DISABLE_PSI_METADATA
+#define DISABLE_PSI_METADATA
+#endif
+
+#ifndef DISABLE_PSI_MEMORY
+#define DISABLE_PSI_MEMORY
+#endif
+
 #endif
 
 /**
@@ -208,8 +268,6 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   This option is mostly intended to be used during development,
   when doing special builds with only a subset of the performance schema instrumentation,
   for code analysis / profiling / performance tuning of a specific instrumentation alone.
-  For this reason, DISABLE_PSI_MUTEX is not advertised in the cmake general options.
-  To disable mutexes, add -DDISABLE_PSI_MUTEX to CFLAGS.
   @sa DISABLE_PSI_RWLOCK
   @sa DISABLE_PSI_COND
   @sa DISABLE_PSI_FILE
@@ -217,8 +275,12 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   @sa DISABLE_PSI_TABLE
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
+  @sa DISABLE_PSI_SP
+  @sa DISABLE_PSI_STATEMENT_DIGEST
   @sa DISABLE_PSI_SOCKET
+  @sa DISABLE_PSI_MEMORY
   @sa DISABLE_PSI_IDLE
+  @sa DISABLE_PSI_METADATA
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -345,6 +407,16 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #endif
 
 /**
+  @def DISABLE_PSI_METADATA
+  Compiling option to disable the metadata instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_METADATA
+#define HAVE_PSI_METADATA_INTERFACE
+#endif
+
+/**
   @def PSI_VERSION_1
   Performance Schema Interface number for version 1.
   This version is supported.
@@ -405,6 +477,13 @@ typedef struct PSI_file_locker PSI_file_locker;
 */
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
+
+/**
+  Interface for an instrumented MDL operation.
+  This is an opaque structure.
+*/
+struct PSI_metadata_locker;
+typedef struct PSI_metadata_locker PSI_metadata_locker;
 
 /** Operation performed on an instrumented mutex. */
 enum PSI_mutex_operation
@@ -977,6 +1056,32 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
+
+/**
+  State data storage for @c start_metadata_wait_v1_t.
+  This structure provide temporary storage to a metadata locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa start_metadata_wait_v1_t
+*/
+struct PSI_metadata_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current metadata lock. */
+  struct PSI_metadata_lock *m_metadata_lock;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Internal data. */
+  void *m_wait;
+};
+typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
 
 #define PSI_MAX_DIGEST_STORAGE_SIZE 1024
 
@@ -1643,6 +1748,8 @@ typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
 */
 typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 
+typedef void (*unlock_table_v1_t)(struct PSI_table *table);
+
 /**
   Start a file instrumentation open operation.
   @param locker the file locker
@@ -2010,6 +2117,27 @@ typedef struct PSI_sp_share* (*get_sp_share_v1_t)
 */
 typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
 
+typedef PSI_metadata_lock* (*create_metadata_lock_v1_t)
+  (void *identity,
+   const MDL_key *key,
+   opaque_mdl_type mdl_type,
+   opaque_mdl_duration mdl_duration,
+   opaque_mdl_status mdl_status,
+   const char *src_file,
+   uint src_line);
+
+typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
+                                              opaque_mdl_status mdl_status);
+
+typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
+
+typedef struct PSI_metadata_locker* (*start_metadata_wait_v1_t)
+  (struct PSI_metadata_locker_state_v1 *state,
+   struct PSI_metadata_lock *mdl,
+   const char *src_file, uint src_line);
+
+typedef void (*end_metadata_wait_v1_t)
+  (struct PSI_metadata_locker *locker, int rc);
 
 /**
   Stores an array of connection attributes
@@ -2062,6 +2190,7 @@ struct PSI_v1
   init_socket_v1_t init_socket;
   /** @sa destroy_socket_v1_t. */
   destroy_socket_v1_t destroy_socket;
+
   /** @sa get_table_share_v1_t. */
   get_table_share_v1_t get_table_share;
   /** @sa release_table_share_v1_t. */
@@ -2243,6 +2372,15 @@ struct PSI_v1
   memory_realloc_v1_t memory_realloc;
   /** @sa memory_free_v1_t. */
   memory_free_v1_t memory_free;
+
+  unlock_table_v1_t unlock_table;
+
+  create_metadata_lock_v1_t create_metadata_lock;
+  set_metadata_lock_status_v1_t set_metadata_lock_status;
+  destroy_metadata_lock_v1_t destroy_metadata_lock;
+
+  start_metadata_wait_v1_t start_metadata_wait;
+  end_metadata_wait_v1_t end_metadata_wait;
 };
 
 /** @} (end of group Group_PSI_v1) */
@@ -2378,6 +2516,11 @@ struct PSI_socket_locker_state_v2
   int placeholder;
 };
 
+struct PSI_metadata_locker_state_v2
+{
+  int placeholder;
+};
+
 /** @} (end of group Group_PSI_v2) */
 
 #endif /* HAVE_PSI_2 */
@@ -2433,6 +2576,7 @@ typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
+typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -2454,6 +2598,7 @@ typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
+typedef struct PSI_metadata_locker_state_v2 PSI_metadata_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */

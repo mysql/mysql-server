@@ -37,6 +37,7 @@
 #include "sql_resolver.h"                       // setup_order, fix_inner_refs
 #include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "uniques.h"
 
 /**
   Implement DELETE SQL word.
@@ -206,7 +207,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     }
     if (error != HA_ERR_WRONG_COMMAND)
     {
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(error, error_flags);
@@ -387,7 +388,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     /* If quick select is used, initialize it before retrieving rows. */
     if (select && select->quick && (error= select->quick->reset()))
     {
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(error, error_flags);
@@ -465,9 +466,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         }
         else
         {
-          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          if (table->file->is_fatal_error(error))
             error_flags|= ME_FATALERROR;
-          
+
           table->file->print_error(error, error_flags);
           /*
             In < 4.0.14 we set the error number to 0 here, but that
@@ -498,7 +499,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       /* purecov: begin inspected */
       if (error != 1)
       {
-        if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+        if (table->file->is_fatal_error(loc_error))
           error_flags|= ME_FATALERROR;
 
         table->file->print_error(loc_error, error_flags);
@@ -907,7 +908,7 @@ bool multi_delete::send_data(List<Item> &values)
           have to stop the iteration.
         */
         myf error_flags= MYF(0);
-        if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+        if (table->file->is_fatal_error(error))
           error_flags|= ME_FATALERROR;
 
         table->file->print_error(error, error_flags);
@@ -1076,17 +1077,17 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
       local_error= 1;
       break;
     }
-      
+
     local_error= table->file->ha_delete_row(table->record[0]);
     if (local_error && !ignore)
     {
-      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(local_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(local_error, error_flags);
       break;
     }
-      
+
     /*
       Increase the reported number of deleted rows only if no error occurred
       during ha_delete_row.
@@ -1110,7 +1111,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     if (tmp_error && !local_error)
     {
       local_error= tmp_error;
-      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(local_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(local_error, error_flags);

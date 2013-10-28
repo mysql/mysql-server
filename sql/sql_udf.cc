@@ -62,22 +62,22 @@ static char *init_syms(udf_func *tmp, char *nm)
   if (!((tmp->func= (Udf_func_any) dlsym(tmp->dlhandle, tmp->name.str))))
     return tmp->name.str;
 
-  end=strmov(nm,tmp->name.str);
+  end=my_stpcpy(nm,tmp->name.str);
 
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
-    (void)strmov(end, "_clear");
+    (void)my_stpcpy(end, "_clear");
     if (!((tmp->func_clear= (Udf_func_clear) dlsym(tmp->dlhandle, nm))))
       return nm;
-    (void)strmov(end, "_add");
+    (void)my_stpcpy(end, "_add");
     if (!((tmp->func_add= (Udf_func_add) dlsym(tmp->dlhandle, nm))))
       return nm;
   }
 
-  (void) strmov(end,"_deinit");
+  (void) my_stpcpy(end,"_deinit");
   tmp->func_deinit= (Udf_func_deinit) dlsym(tmp->dlhandle, nm);
 
-  (void) strmov(end,"_init");
+  (void) my_stpcpy(end,"_init");
   tmp->func_init= (Udf_func_init) dlsym(tmp->dlhandle, nm);
 
   /*

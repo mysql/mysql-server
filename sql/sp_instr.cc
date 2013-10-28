@@ -375,10 +375,18 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
   }
   else
   {
@@ -691,15 +699,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
     Destroy items in the instruction's free list before re-parsing the
     statement query string (and thus, creating new items).
   */
-  Item *p= free_list;
-  while (p)
-  {
-    Item *next= p->next;
-    p->delete_self();
-    p= next;
-  }
-
-  free_list= NULL;
+  free_items();
 
   // Remove previously stored trigger-field items.
   sp_head *sp= thd->sp_runtime_ctx->sp;

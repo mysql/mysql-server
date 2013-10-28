@@ -87,6 +87,10 @@
 #include "table_replication_execute_status_by_coordinator.h"
 #include "table_replication_execute_status_by_worker.h"
 
+#include "table_md_locks.h"
+#include "table_table_handles.h"
+
+/* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -170,6 +174,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_mems_by_host_by_event_name::m_share,
   &table_mems_by_thread_by_event_name::m_share,
   &table_mems_by_user_by_event_name::m_share,
+  &table_table_handles::m_share,
+  &table_metadata_locks::m_share,
 
   &table_replication_connection_configuration::m_share,
   &table_replication_connection_status::m_share,
@@ -1559,15 +1565,28 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= host_max * memory_class_max * sizeof(PFS_memory_stat);
       total_memory+= size;
       break;
+    case 177:
+      name= "metadata_locks.row_size";
+      size= sizeof(PFS_metadata_lock);
+      break;
+    case 178:
+      name= "metadata_locks.row_count";
+      size= metadata_lock_max;
+      break;
+    case 179:
+      name= "metadata_locks.memory";
+      size= metadata_lock_max * sizeof(PFS_metadata_lock);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 177:
+    case 180:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
-      DBUG_ASSERT(size == pfs_allocated_memory);
+      DBUG_ASSERT(size == pfs_allocated_memory_size);
       break;
     default:
       goto end;

@@ -46,7 +46,7 @@ show create table `a/a`;
 Table	Create Table
 a/a	CREATE TABLE `a/a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t1 like `a/a`;
 drop table `a/a`;
 drop table `t1`;
@@ -108,8 +108,10 @@ create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	B	B	21	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	B	B	21	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`B` AS `B` from `test`.`t2` where (`test`.`t2`.`B` = 'world')
 select * from t2 where b="world";
 a	B
 3	world
@@ -243,7 +245,7 @@ t1	CREATE TABLE `t1` (
   KEY `b_29` (`b`),
   KEY `b_30` (`b`),
   KEY `b_31` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select if(1,'1','0'), month("2002-08-02");
 drop table t1;
@@ -337,7 +339,7 @@ create table t1 (,b int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
-drop table if exists t1,t2;
+drop table if exists t2,t1;
 create table t1(id int not null, name char(20));
 insert into t1 values(10,'mysql'),(20,'monty- the creator');
 create table t2(id int not null);
@@ -348,7 +350,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t3;
 id	name
 create table if not exists t3 like t1;
@@ -362,7 +364,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t3;
 id
 drop table t3;
@@ -371,7 +373,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t3;
 id	name
 drop table t2, t3;
@@ -383,14 +385,14 @@ Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t2 like t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t2;
 id	name
 create table t3 like t1;
@@ -509,7 +511,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(m,m)` varchar(1) DEFAULT NULL,
   `ifnull(n,n)` varchar(3) DEFAULT NULL,
   `ifnull(o,o)` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
 insert into t1 values ('','',0,0.0);
@@ -577,14 +579,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `primary` int(11) DEFAULT NULL,
   KEY `primary_2` (`primary`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t2 (`PRIMARY` int, index(`PRIMARY`));
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `PRIMARY` int(11) DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t3 (a int);
 alter table t3 add index `primary` (a);
 ERROR 42000: Incorrect index name 'primary'
@@ -597,7 +599,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `primary` int(11) DEFAULT NULL,
   KEY `primary_2` (`primary`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t5 (`PRIMARY` int);
 alter table t5 add index(`PRIMARY`);
 show create table t5;
@@ -605,7 +607,7 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `PRIMARY` int(11) DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2, t3, t4, t5;
 CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
 INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
@@ -693,7 +695,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(112) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t2 (
 a int(11) default NULL
@@ -709,7 +711,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null, 
@@ -724,7 +726,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null, 
@@ -737,7 +739,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null,
@@ -749,7 +751,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin,
@@ -758,10 +760,10 @@ b int not null, primary key (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 ( 
 a1 int not null,
@@ -798,7 +800,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT '3',
   `a1` int(11) DEFAULT NULL,
   `a2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1(a set("a,b","c,d") not null);
 ERROR 22007: Illegal set 'a,b' value found during parsing
@@ -930,8 +932,8 @@ flush status;
 create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	1
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -994,20 +996,17 @@ INSERT INTO t2 select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
-1	1
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
-1	1
 drop table t2;
-CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
-1	1
 drop table t1,t2;
 CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
@@ -1062,7 +1061,7 @@ Table	Create Table
 имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48	CREATE TABLE `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48` (
   `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` int(11) DEFAULT NULL,
   KEY `имя_индекса_в_кодировке_утф8_длиной_больше_чем_48` (`имя_поля_в_кодировке_утф8_длиной_больше_чем_45`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 View	Create View	character_set_client	collation_connection
 имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8	utf8_general_ci
@@ -1185,7 +1184,7 @@ t1	CREATE TABLE `t1` (
   `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 
 CREATE TABLE t2 AS SELECT * FROM t1;
 
@@ -1198,7 +1197,7 @@ t2	CREATE TABLE `t2` (
   `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 DROP TABLE t2;
 DROP TABLE t1;
@@ -1236,7 +1235,7 @@ Warning	1264	Out of range value for column 'c2' at row 1
 # -- Check DATETIME.
 SET sql_mode = '';
 
-CREATE TABLE t3(c1 DATETIME NOT NULL);
+CREATE TABLE t3(c1 DATETIME NOT NULL) ENGINE=MYISAM;
 INSERT INTO t3 VALUES (0);
 
 SET sql_mode = TRADITIONAL;
@@ -1265,7 +1264,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` year(4) DEFAULT '2008',
   `c2` year(4) DEFAULT '0000'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 INSERT INTO t1 VALUES();
 
@@ -1280,7 +1279,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` year(4) DEFAULT '0000',
   `c2` year(4) DEFAULT '0000'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 INSERT INTO t1 VALUES();
 
@@ -1443,12 +1442,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` datetime DEFAULT '2008-02-31 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `dt` datetime DEFAULT '2008-02-31 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 set @@sql_mode= @old_mode;
 drop tables t1, t2;
 CREATE TABLE t1 (id int);

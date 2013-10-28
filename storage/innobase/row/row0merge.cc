@@ -49,6 +49,9 @@ Completed by Sunny Bains and Marko Makela
 /* Whether to disable file system cache */
 char	srv_disable_sort_file_cache;
 
+/* Maximum pending doc memory limit in bytes for a fts tokenization thread */
+#define FTS_PENDING_DOC_MEMORY_LIMIT	1000000
+
 /******************************************************//**
 Encode an index record. */
 static __attribute__((nonnull))
@@ -274,6 +277,9 @@ row_merge_buf_add(
 			if (index->type & DICT_FTS) {
 				fts_doc_item_t*	doc_item;
 				byte*		value;
+				void*		ptr;
+				const ulint	max_trial_count = 10000;
+				ulint		trial_count = 0;
 
 				/* fetch Doc ID if it already exists
 				in the row, and not supplied by the
@@ -303,13 +309,12 @@ row_merge_buf_add(
 					continue;
 				}
 
-				doc_item = static_cast<fts_doc_item_t*>(
-					mem_heap_alloc(
-						buf->heap,
-						sizeof(*doc_item)));
+				ptr = ut_malloc(sizeof(*doc_item)
+						+ field->len);
 
-				value = static_cast<byte*>(
-					ut_malloc(field->len));
+				doc_item = static_cast<fts_doc_item_t*>(ptr);
+				value = static_cast<byte*>(ptr)
+					+ sizeof(*doc_item);
 				memcpy(value, field->data, field->len);
 				field->data = value;
 
@@ -318,9 +323,27 @@ row_merge_buf_add(
 
 				bucket = *doc_id % fts_sort_pll_degree;
 
-				UT_LIST_ADD_LAST(
-					psort_info[bucket].fts_doc_list,
-					doc_item);
+				/* Add doc item to fts_doc_list */
+				mutex_enter(&psort_info[bucket].mutex);
+
+				if (psort_info[bucket].error == DB_SUCCESS) {
+					UT_LIST_ADD_LAST(
+						psort_info[bucket].fts_doc_list,
+						doc_item);
+					psort_info[bucket].memory_used +=
+						sizeof(*doc_item) + field->len;
+				} else {
+					ut_free(doc_item);
+				}
+
+				mutex_exit(&psort_info[bucket].mutex);
+
+				/* Sleep when memory used exceeds limit*/
+				while (psort_info[bucket].memory_used
+				       > FTS_PENDING_DOC_MEMORY_LIMIT
+				       && trial_count++ < max_trial_count) {
+					os_thread_sleep(1000);
+				}
 
 				n_row_added = 1;
 				continue;
@@ -1127,7 +1150,7 @@ row_merge_read_clustered_index(
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
-		mem_alloc(n_index * sizeof *merge_buf));
+		ut_malloc(n_index * sizeof *merge_buf));
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1178,7 +1201,7 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			mem_alloc(dict_table_get_n_cols(new_table)
+			ut_malloc(dict_table_get_n_cols(new_table)
 				  * sizeof *nonnull));
 
 		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
@@ -1201,7 +1224,7 @@ row_merge_read_clustered_index(
 		}
 
 		if (!n_nonnull) {
-			mem_free(nonnull);
+			ut_free(nonnull);
 			nonnull = NULL;
 		}
 	}
@@ -1293,9 +1316,7 @@ end_of_index:
 					row = NULL;
 					mtr_commit(&mtr);
 					mem_heap_free(row_heap);
-					if (nonnull) {
-						mem_free(nonnull);
-					}
+					ut_free(nonnull);
 					goto write_buffers;
 				}
 			} else {
@@ -1499,12 +1520,28 @@ write_buffers:
 					max_doc_id = doc_id;
 				}
 
+				if (buf->index->type & DICT_FTS) {
+					/* Check if error occurs in child thread */
+					for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+						if (psort_info[j].error != DB_SUCCESS) {
+							err = psort_info[j].error;
+							trx->error_key_num = i;
+							break;
+						}
+					}
+
+					if (err != DB_SUCCESS) {
+						break;
+					}
+				}
+
 				continue;
 			}
 
-			if ((buf->index->type & DICT_FTS)
-			    && (!row || !doc_id)) {
-				continue;
+			if (buf->index->type & DICT_FTS) {
+				if (!row || !doc_id) {
+					continue;
+				}
 			}
 
 			/* The buffer must be sufficiently large
@@ -1562,7 +1599,7 @@ write_buffers:
 
 			if (!row_merge_write(file->fd, file->offset++,
 					     block)) {
-				err = DB_OUT_OF_FILE_SPACE;
+				err = DB_TEMP_FILE_WRITE_FAILURE;
 				trx->error_key_num = i;
 				break;
 			}
@@ -1603,10 +1640,7 @@ write_buffers:
 func_exit:
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
-
-	if (nonnull) {
-		mem_free(nonnull);
-	}
+	ut_free(nonnull);
 
 all_done:
 #ifdef FTS_INTERNAL_DIAG_PRINT
@@ -1617,11 +1651,25 @@ all_done:
 		ulint	trial_count = 0;
 		const ulint max_trial_count = 10000;
 
+wait_again:
+                /* Check if error occurs in child thread */
+		for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+			if (psort_info[j].error != DB_SUCCESS) {
+				err = psort_info[j].error;
+				trx->error_key_num = j;
+				break;
+			}
+		}
+
 		/* Tell all children that parent has done scanning */
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			psort_info[i].state = FTS_PARENT_COMPLETE;
+			if (err == DB_SUCCESS) {
+				psort_info[i].state = FTS_PARENT_COMPLETE;
+			} else {
+				psort_info[i].state = FTS_PARENT_EXITING;
+			}
 		}
-wait_again:
+
 		/* Now wait all children to report back to be completed */
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);
@@ -1669,15 +1717,21 @@ wait_again:
 
 	row_fts_free_pll_merge_buf(psort_info);
 
-	mem_free(merge_buf);
+	ut_free(merge_buf);
 
 	btr_pcur_close(&pcur);
 
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
-	if (max_doc_id) {
-		fts_update_next_doc_id(
-			0, new_table, old_table->name, max_doc_id);
+	if (max_doc_id && err == DB_SUCCESS) {
+		/* Sync fts cache for other fts indexes to keep all
+		fts indexes consistent in sync_doc_id. */
+		err = fts_sync_table(const_cast<dict_table_t*>(new_table));
+
+		if (err == DB_SUCCESS) {
+			fts_update_next_doc_id(
+				0, new_table, old_table->name, max_doc_id);
+		}
 	}
 
 	trx->op_info = "";
@@ -2041,7 +2095,7 @@ row_merge_sort(
 	}
 
 	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
+	run_offset = (ulint*) ut_malloc(file->offset * sizeof(ulint));
 
 	/* This tells row_merge() where to start for the first round
 	of merge. */
@@ -2063,7 +2117,7 @@ row_merge_sort(
 		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 	} while (num_runs > 1);
 
-	mem_free(run_offset);
+	ut_free(run_offset);
 
 	DBUG_RETURN(error);
 }
@@ -3003,7 +3057,7 @@ row_make_new_pathname(
 
 	new_path = os_file_make_new_pathname(old_path, new_name);
 
-	mem_free(old_path);
+	ut_free(old_path);
 
 	return(new_path);
 }
@@ -3080,7 +3134,7 @@ row_merge_rename_tables_dict(
 				   " WHERE SPACE = :old_space;\n"
 				   "END;\n", FALSE, trx);
 
-		mem_free(tmp_path);
+		ut_free(tmp_path);
 	}
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
@@ -3109,7 +3163,7 @@ row_merge_rename_tables_dict(
 				   " WHERE SPACE = :new_space;\n"
 				   "END;\n", FALSE, trx);
 
-		mem_free(old_path);
+		ut_free(old_path);
 	}
 
 	if (err == DB_SUCCESS && dict_table_is_discarded(new_table)) {
@@ -3208,6 +3262,8 @@ row_merge_create_index(
 		index = dict_table_get_index_on_name(table, index_def->name);
 
 		ut_a(index);
+
+		index->parser = index_def->parser;
 
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
@@ -3329,7 +3385,7 @@ row_merge_build_indexes(
 	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
-		mem_alloc(n_indexes * sizeof *merge_files));
+		ut_malloc(n_indexes * sizeof *merge_files));
 
 	/* Initialize all the merge file descriptors, so that we
 	don't call row_merge_file_destroy() on uninitialized
@@ -3543,7 +3599,7 @@ func_exit:
 		dict_mem_index_free(fts_sort_idx);
 	}
 
-	mem_free(merge_files);
+	ut_free(merge_files);
 	os_mem_free_large(block, block_size);
 
 	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);

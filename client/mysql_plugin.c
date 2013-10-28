@@ -1074,7 +1074,7 @@ static int find_plugin(char *tp_path)
 
 
 /**
-  Build the boostrap file.
+  Build the bootstrap file.
   
   Create a new file and populate it with SQL commands to ENABLE or DISABLE
   the plugin via REPLACE and DELETE operations on the mysql.plugin table.
@@ -1203,7 +1203,7 @@ exit:
   
   Create a command line sequence to launch mysqld in bootstrap mode. This
   will allow mysqld to launch a minimal server instance to read and
-  execute SQL commands from a file piped in (the boostrap file). We use
+  execute SQL commands from a file piped in (the bootstrap file). We use
   the --no-defaults option to skip reading values from the config file.
 
   The bootstrap mode skips loading of plugins and many other subsystems.

@@ -102,7 +102,8 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 
 SET @@global.innodb_max_dirty_pages_pct = -1;
 SELECT @@global.innodb_max_dirty_pages_pct;
-
+SET @@global.innodb_max_dirty_pages_pct = -1024;
+SELECT @@global.innodb_max_dirty_pages_pct;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_max_dirty_pages_pct = "T";
 SELECT @@global.innodb_max_dirty_pages_pct;
@@ -111,7 +112,11 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = "Y";
 SELECT @@global.innodb_max_dirty_pages_pct;
 
+SET @@global.innodb_max_dirty_pages_pct = 100;
+SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = 1001;
+SELECT @@global.innodb_max_dirty_pages_pct;
+SET @@global.innodb_max_dirty_pages_pct = 100000;
 SELECT @@global.innodb_max_dirty_pages_pct;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_max_dirty_pages_pct = ' ';

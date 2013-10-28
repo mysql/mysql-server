@@ -35,7 +35,9 @@
 #include "sql_sort.h"
 #include "queues.h"                             // QUEUE
 #include "my_tree.h"                            // element_count
-#include "sql_class.h"                          // Unique
+#include "uniques.h"                            // Unique
+
+#include <algorithm>
 
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
@@ -57,7 +59,8 @@ int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
 
 Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 	       uint size_arg, ulonglong max_in_memory_size_arg)
-  :max_in_memory_size(max_in_memory_size_arg),
+  :file_ptrs(PSI_INSTRUMENT_ME),
+   max_in_memory_size(max_in_memory_size_arg),
    record_pointers(NULL),
    size(size_arg),
    elements(0)
@@ -65,8 +68,7 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
   my_b_clear(&file);
   init_tree(&tree, (ulong) (max_in_memory_size / 16), 0, size, comp_func, 0,
             NULL, comp_func_fixed_arg);
-  /* If the following fail's the next add will also fail */
-  my_init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
+
   /*
     If you change the following, change it in get_max_elements function, too.
   */
@@ -320,7 +322,6 @@ Unique::~Unique()
 {
   close_cached_file(&file);
   delete_tree(&tree);
-  delete_dynamic(&file_ptrs);
 }
 
 
@@ -328,13 +329,14 @@ Unique::~Unique()
 bool Unique::flush()
 {
   BUFFPEK file_ptr;
+  memset(&file_ptr, 0, sizeof(file_ptr));
   elements+= tree.elements_in_tree;
   file_ptr.count=tree.elements_in_tree;
   file_ptr.file_pos=my_b_tell(&file);
 
   if (tree_walk(&tree, (tree_walk_action) unique_write_to_file,
 		(void*) this, left_root_right) ||
-      insert_dynamic(&file_ptrs, &file_ptr))
+      file_ptrs.push_back(file_ptr))
     return 1;
   delete_tree(&tree);
   return 0;
@@ -358,7 +360,7 @@ Unique::reset()
   */
   if (elements)
   {
-    reset_dynamic(&file_ptrs);
+    file_ptrs.clear();
     reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
   }
   elements= 0;
@@ -561,12 +563,21 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
     return 1;
   if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
     return 1;
+
+  /*
+    Compute the size of the merge buffer used by merge_walk(). This buffer
+    must at least be able to store one element from each file pointer plus
+    one extra.
+  */
+  const ulong min_merge_buffer_size= (file_ptrs.size() + 1) * size;
+  const ulong merge_buffer_size=
+    std::max<ulong>(min_merge_buffer_size, max_in_memory_size);
+
   if (!(merge_buffer= (uchar *) my_malloc(key_memory_Unique_merge_buffer,
-                                          (ulong) max_in_memory_size, MYF(0))))
+                                          merge_buffer_size, MYF(0))))
     return 1;
-  res= merge_walk(merge_buffer, (ulong) max_in_memory_size, size,
-                  (BUFFPEK *) file_ptrs.buffer,
-                  (BUFFPEK *) file_ptrs.buffer + file_ptrs.elements,
+  res= merge_walk(merge_buffer, merge_buffer_size, size,
+                  file_ptrs.begin(), file_ptrs.end(),
                   action, walk_action_arg,
                   tree.compare, tree.custom_arg, &file);
   my_free(merge_buffer);
@@ -600,8 +611,8 @@ bool Unique::get(TABLE *table)
     return 1;
 
   IO_CACHE *outfile=table->sort.io_cache;
-  BUFFPEK *file_ptr= (BUFFPEK*) file_ptrs.buffer;
-  uint maxbuffer= file_ptrs.elements - 1;
+  BUFFPEK *file_ptr= file_ptrs.begin();
+  uint maxbuffer= file_ptrs.size() - 1;
   uchar *sort_buffer;
   my_off_t save_pos;
   bool error=1;

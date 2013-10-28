@@ -364,7 +364,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 
     share->path.str= path_buff;
     share->path.length= path_length;
-    strmov(share->path.str, path);
+    my_stpcpy(share->path.str, path);
     share->normalized_path.str=    share->path.str;
     share->normalized_path.length= path_length;
 
@@ -718,7 +718,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
     /* Unencoded 5.0 table name found */
     path[length]= '\0'; // Remove .frm extension
-    strmov(share->normalized_path.str, path);
+    my_stpcpy(share->normalized_path.str, path);
     share->normalized_path.length= length;
   }
 
@@ -1220,7 +1220,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
   }
   keynames=(char*) key_part;
-  strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
+  strpos+= (my_stpcpy(keynames, (char *) strpos) - keynames)+1;
 
   //reading index comments
   for (keyinfo= share->key_info, i=0; i < keys; i++, keyinfo++)
@@ -5434,7 +5434,7 @@ void TABLE::mark_columns_per_binlog_row_image()
         /* for every field that is not set, mark it unless it is a blob */
         for (Field **ptr=field ; *ptr ; ptr++)
         {
-          Field *field= *ptr;
+          Field *my_field= *ptr;
           /* 
             bypass blob fields. These can be set or not set, we don't care.
             Later, at binlogging time, if we don't need them in the before 
@@ -5444,12 +5444,12 @@ void TABLE::mark_columns_per_binlog_row_image()
             nothing we can do about it.
            */
           if ((s->primary_key < MAX_KEY) && 
-              ((field->flags & PRI_KEY_FLAG) || 
-              (field->type() != MYSQL_TYPE_BLOB)))
-            bitmap_set_bit(read_set, field->field_index);
+              ((my_field->flags & PRI_KEY_FLAG) || 
+              (my_field->type() != MYSQL_TYPE_BLOB)))
+            bitmap_set_bit(read_set, my_field->field_index);
 
-          if (field->type() != MYSQL_TYPE_BLOB)
-            bitmap_set_bit(write_set, field->field_index);
+          if (my_field->type() != MYSQL_TYPE_BLOB)
+            bitmap_set_bit(write_set, my_field->field_index);
         }
         break;
       case BINLOG_ROW_IMAGE_MINIMAL:
@@ -5969,11 +5969,12 @@ size_t max_row_length(TABLE *table, const uchar *data)
 void init_mdl_requests(TABLE_LIST *table_list)
 {
   for ( ; table_list ; table_list= table_list->next_global)
-    table_list->mdl_request.init(MDL_key::TABLE,
-                                 table_list->db, table_list->table_name,
-                                 table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ,
-                                 MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&table_list->mdl_request,
+                     MDL_key::TABLE,
+                     table_list->db, table_list->table_name,
+                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     MDL_TRANSACTION);
 }
 
 

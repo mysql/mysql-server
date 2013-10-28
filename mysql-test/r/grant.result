@@ -2,6 +2,7 @@ SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creato
 SET GLOBAL log_bin_trust_function_creators = 1;
 drop table if exists t1;
 drop database if exists mysqltest;
+call mtr.add_suppression("Did not write failed .* ");
 SET NAMES binary;
 delete from mysql.user where user='mysqltest_1';
 delete from mysql.db where user='mysqltest_1';
@@ -2549,9 +2550,9 @@ create database mysqltest_db1;
 create user mysqltest_u1;
 # Both GRANT statements below should fail with the same error.
 grant execute on function mysqltest_db1.f1 to mysqltest_u1;
-ERROR 42000: FUNCTION or PROCEDURE f1 does not exist
+ERROR 42000: FUNCTION f1 does not exist
 grant execute on procedure mysqltest_db1.p1 to mysqltest_u1;
-ERROR 42000: FUNCTION or PROCEDURE p1 does not exist
+ERROR 42000: PROCEDURE p1 does not exist
 # Let us show that GRANT behaviour for routines is consistent
 # with GRANT behaviour for tables. Attempt to grant privilege
 # on non-existent table also results in an error.

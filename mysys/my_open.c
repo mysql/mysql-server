@@ -188,8 +188,8 @@ void my_print_open_files(void)
     {
       if (my_file_info[i].type != UNOPEN)
       {
-        fprintf(stderr, EE(EE_FILE_NOT_CLOSED), my_file_info[i].name, i);
-        fputc('\n', stderr);
+        my_message_local(INFORMATION_LEVEL,
+                         EE(EE_FILE_NOT_CLOSED), my_file_info[i].name, i);
       }
     }
   }

@@ -353,6 +353,20 @@ TEST_F(MemRootTest, Reserve)
 }
 
 
+// Verify that we can swap mem-root, without any leaks.
+// Run with 
+// valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
+TEST_F(MemRootTest, CopyMemRoot)
+{
+  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  // Take a copy, we do *not* free_root(own_root)
+  MEM_ROOT own_root= *m_mem_root_p;
+  intarr.set_mem_root(&own_root);
+  intarr.push_back(42);
+  *m_mem_root_p= own_root;
+}
+
+
 class DestroyCounter
 {
 public:

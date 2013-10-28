@@ -170,10 +170,10 @@ struct TrxFactory {
 		trx->dict_operation_lock_mode = 0;
 
 		trx->xid = reinterpret_cast<XID*>(
-			mem_zalloc(sizeof(*trx->xid)));
+			ut_zalloc(sizeof(*trx->xid)));
 
 		trx->detailed_error = reinterpret_cast<char*>(
-			mem_zalloc(MAX_DETAILED_ERROR_LEN));
+			ut_zalloc(MAX_DETAILED_ERROR_LEN));
 
 		trx->xid->formatID = -1;
 
@@ -191,7 +191,7 @@ struct TrxFactory {
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
-		mem_zalloc() in Pool::Pool() which would not call
+		ut_zalloc() in Pool::Pool() which would not call
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 
@@ -225,8 +225,8 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		mem_free(trx->xid);
-		mem_free(trx->detailed_error);
+		ut_free(trx->xid);
+		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
@@ -240,7 +240,7 @@ struct TrxFactory {
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
 
-			mem_free(trx->lock.rec_pool[0]);
+			ut_free(trx->lock.rec_pool[0]);
 		}
 
 		if (!trx->lock.rec_pool.empty()) {
@@ -248,7 +248,7 @@ struct TrxFactory {
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
 
-			mem_free(trx->lock.table_pool[0]);
+			ut_free(trx->lock.table_pool[0]);
 		}
 
 		trx->lock.rec_pool.~lock_pool_t();
@@ -379,6 +379,12 @@ trx_create_low()
 
 	mem_heap_t*	heap;
 	ib_alloc_t*	alloc;
+
+	trx->api_trx = false;
+
+	trx->api_auto_commit = false;
+
+	trx->read_write = true;
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 
@@ -878,7 +884,9 @@ trx_lists_init_at_db_start(void)
 	ut_a(srv_is_being_started);
 
 	/* Look from the rollback segments if there exist undo logs for
-	transactions */
+	transactions. Upgrade demands clean shutdown and so there is
+	not need to look at pending_purge_rseg_array for rollbacking
+	transactions. */
 
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
@@ -1177,12 +1185,13 @@ trx_start_low(
 	ut_ad(!trx->in_rollback);
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
-	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
+	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
+			   || thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		(!trx->ddl
-		 && !trx->internal
-		 && thd_trx_is_read_only(trx->mysql_thd))
+		(trx->api_trx && !trx->read_write)
+		|| (!trx->ddl && !trx->internal
+		    && thd_trx_is_read_only(trx->mysql_thd))
 		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
@@ -1606,12 +1615,12 @@ trx_flush_log_if_needed_low(
 		break;
 	case 1:
 		/* Write the log and optionally flush it to disk */
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
+		log_write_up_to(lsn,
 				srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
 		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+		log_write_up_to(lsn, false);
 
 		break;
 	default:
@@ -1949,6 +1958,9 @@ trx_commit(
 {
 	mtr_t*	mtr;
 	mtr_t	local_mtr;
+
+	DBUG_EXECUTE_IF("ib_trx_commit_crash_before_trx_commit_start",
+			DBUG_SUICIDE(););
 
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
@@ -2819,7 +2831,7 @@ trx_start_if_not_started_xa_low(
 			trx_sys_t::rw_trx_list. */
 			if (!trx->read_only) {
 				trx_set_rw_mode(trx);
-			} else if (trx->read_only && !srv_read_only_mode) {
+			} else if (!srv_read_only_mode) {
 				trx_assign_rseg(trx);
 			}
 		}
@@ -2993,7 +3005,7 @@ trx_set_rw_mode(
 		MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
 	}
 
-	ut_ad(trx->in_ro_trx_list == true);
+	ut_ad(trx->in_ro_trx_list);
 
 #ifdef UNIV_DEBUG
 	if (trx->id > trx_sys->rw_max_trx_id) {

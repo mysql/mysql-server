@@ -134,7 +134,7 @@ struct PFS_byte_stat : public PFS_single_stat
     PFS_single_stat::aggregate_counted();
     m_bytes+= bytes;
   }
-    
+
   PFS_byte_stat()
   {
     reset();
@@ -498,7 +498,9 @@ enum PFS_TL_LOCK_TYPE
 
   /* Locks for handler::ha_external_lock() */
   PFS_TL_READ_EXTERNAL= 8,
-  PFS_TL_WRITE_EXTERNAL= 9
+  PFS_TL_WRITE_EXTERNAL= 9,
+
+  PFS_TL_NONE= 99
 };
 
 #define COUNT_PFS_TL_LOCK_TYPE 10
@@ -742,6 +744,7 @@ struct PFS_memory_stat_delta
 */
 struct PFS_memory_stat
 {
+  bool m_used;
   size_t m_alloc_count;
   size_t m_free_count;
   size_t m_alloc_size;
@@ -754,6 +757,7 @@ struct PFS_memory_stat
 
   inline void reset(void)
   {
+    m_used= false;
     m_alloc_count= 0;
     m_free_count= 0;
     m_alloc_size= 0;
@@ -767,6 +771,9 @@ struct PFS_memory_stat
 
   inline void rebase(void)
   {
+    if (! m_used)
+      return;
+
     size_t base;
 
     base= std::min<size_t>(m_alloc_count, m_free_count);
@@ -785,7 +792,12 @@ struct PFS_memory_stat
 
   inline void partial_aggregate_to(PFS_memory_stat *stat)
   {
+    if (! m_used)
+      return;
+
     size_t base;
+
+    stat->m_used= true;
 
     base= std::min<size_t>(m_alloc_count, m_free_count);
     if (base != 0)
@@ -818,6 +830,11 @@ struct PFS_memory_stat
 
   inline void full_aggregate_to(PFS_memory_stat *stat) const
   {
+    if (! m_used)
+      return;
+
+    stat->m_used= true;
+
     stat->m_alloc_count+= m_alloc_count;
     stat->m_free_count+= m_free_count;
     stat->m_alloc_size+= m_alloc_size;
@@ -831,7 +848,13 @@ struct PFS_memory_stat
 
   inline void partial_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2)
   {
+    if (! m_used)
+      return;
+
     size_t base;
+
+    stat1->m_used= true;
+    stat2->m_used= true;
 
     base= std::min<size_t>(m_alloc_count, m_free_count);
     if (base != 0)
@@ -872,6 +895,12 @@ struct PFS_memory_stat
 
   inline void full_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2) const
   {
+    if (! m_used)
+      return;
+
+    stat1->m_used= true;
+    stat2->m_used= true;
+
     stat1->m_alloc_count+= m_alloc_count;
     stat2->m_alloc_count+= m_alloc_count;
     stat1->m_free_count+= m_free_count;
@@ -894,6 +923,8 @@ struct PFS_memory_stat
   inline PFS_memory_stat_delta *count_alloc(size_t size,
                                             PFS_memory_stat_delta *delta)
   {
+    m_used= true;
+
     m_alloc_count++;
     m_free_count_capacity++;
     m_alloc_size+= size;
@@ -934,6 +965,8 @@ struct PFS_memory_stat
   inline PFS_memory_stat_delta *count_realloc(size_t old_size, size_t new_size,
                                               PFS_memory_stat_delta *delta)
   {
+    m_used= true;
+
     size_t size_delta= new_size - old_size;
     m_alloc_count++;
     m_alloc_size+= new_size;
@@ -983,6 +1016,8 @@ struct PFS_memory_stat
 
   inline PFS_memory_stat_delta *count_free(size_t size, PFS_memory_stat_delta *delta)
   {
+    m_used= true;
+
     m_free_count++;
     m_alloc_count_capacity++;
     m_free_size+= size;
@@ -1029,6 +1064,8 @@ struct PFS_memory_stat
     size_t remaining_free_count;
     size_t remaining_free_size;
     bool has_remaining= false;
+
+    m_used= true;
 
     val= delta->m_alloc_count_delta;
     if (val <= m_alloc_count_capacity)

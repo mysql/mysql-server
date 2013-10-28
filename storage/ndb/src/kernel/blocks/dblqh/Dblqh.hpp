@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
 #include <SectionReader.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>
@@ -38,11 +36,15 @@
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
+#include "../dbacc/Dbacc.hpp"
 
 class Dbacc;
 class Dbtup;
 class Lgman;
 #endif // DBLQH_STATE_EXTRACT
+
+
+#define JAM_FILE_ID 450
 
 #ifdef DBLQH_C
 // Constants
@@ -337,8 +339,13 @@ class Lgman;
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES FROM TUP                                                */
 /* ------------------------------------------------------------------------- */
-#define ZSEARCH_CONDITION_FALSE 899
-#define ZUSER_ERROR_CODE_LIMIT 6000
+/** 
+ * 899 would be returned by an interpreted program such as a scan filter. New
+ * such programs should use 626 instead, but 899 will also be supported to 
+ * remain backwards compatible. 899 is problematic since it is also used as
+ * "Rowid already allocated" (cf. ndberror.c).
+ */
+#define ZUSER_SEARCH_CONDITION_FALSE_CODE 899
 #endif
 
 /** 
@@ -2127,6 +2134,7 @@ public:
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
+    UintR hashIndex;
     Uint32 tcHashKeyHi;
     UintR tcScanInfo;
     UintR tcScanRec;
@@ -2161,7 +2169,6 @@ public:
     Uint16 nodeAfterNext[3];
 
     Uint8 activeCreat;
-    Uint8 apiVersionNo;
     Uint8 dirtyOp;
     Uint8 indTakeOver;
     Uint8 lastReplicaNo;
@@ -2183,7 +2190,9 @@ public:
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
       OP_SCANKEYINFOPOSSAVED    = 0x4,
-      OP_DEFERRED_CONSTRAINTS   = 0x8
+      OP_DEFERRED_CONSTRAINTS   = 0x8,
+      OP_NORMAL_PROTOCOL        = 0x10,
+      OP_DISABLE_FK             = 0x20
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2619,6 +2628,7 @@ private:
                                   const class LqhKeyReq* req);
   void earlyKeyReqAbort(Signal* signal, 
                         const class LqhKeyReq * lqhKeyReq, 
+                        bool isLongReq,
                         Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
@@ -3337,6 +3347,18 @@ public:
   Uint64 cTotalLqhKeyReqCount;
   Uint32 c_max_parallel_scans_per_frag;
 
+  Uint64 c_keyOverloads;
+  
+  /* All that apply */
+  Uint64 c_keyOverloadsTcNode;
+  Uint64 c_keyOverloadsReaderApi;
+  Uint64 c_keyOverloadsPeerNode;
+  Uint64 c_keyOverloadsSubscriber;
+  
+  Uint64 c_scanSlowDowns; 
+    
+
+
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
@@ -3433,8 +3455,6 @@ Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
   *transId2 = regTcPtr.p->transid[1];
 }
 
-#include "../dbacc/Dbacc.hpp"
-
 inline
 void
 Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
@@ -3489,4 +3509,7 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
     ERROR_INSERTED(5713);
 }
 #endif
+
+#undef JAM_FILE_ID
+
 #endif

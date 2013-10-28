@@ -98,15 +98,15 @@ bool Database_ids::do_unpack_dynamic_ids(char *param_dynamic_ids)
       DBUG_RETURN(TRUE);
     else
     {
-      size_t size= strlen(token);
-      if (token[size - 1] == '\n')
+      size_t len= strlen(token);
+      if (token[len - 1] == '\n')
       {
         /*
           Remove \n as there may be one when reading from file.
           After improving init_dynarray_intvar_from_file we can
           remove this.
         */
-        token[size -1]= '\0';
+        token[len -1]= '\0';
       }
       insert_dynamic(&dynamic_ids, (uchar *) token);
     }

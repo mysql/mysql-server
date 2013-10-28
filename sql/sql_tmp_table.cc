@@ -523,7 +523,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
           can't index BIT fields.
       */
       (*tmp->item)->marker= 4;
-      if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
+      const uint char_len=
+        (*tmp->item)->max_length / (*tmp->item)->collation.collation->mbmaxlen;
+      if (char_len > CONVERT_IF_BIGGER_TO_BLOB)
         using_unique_constraint= true;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)
@@ -584,7 +586,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
-  strmov(tmpname,path);
+  my_stpcpy(tmpname,path);
   /* make table according to fields */
 
   memset(table, 0, sizeof(*table));
@@ -592,9 +594,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   memset(default_field, 0, sizeof(Field*) * (field_count));
   memset(from_field, 0, sizeof(Field*)*field_count);
 
+  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&)
   table->mem_root= own_root;
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
+  copy_func->set_mem_root(&table->mem_root);
 
   table->field=reg_field;
   table->alias= table_alias;
@@ -1237,7 +1241,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   /* STEP 2: Figure if we'll be using a key or blob+constraint */
-  if (uniq_tuple_length_arg >= CONVERT_IF_BIGGER_TO_BLOB)
+  if (uniq_tuple_length_arg > CONVERT_IF_BIGGER_TO_BLOB)
     using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
@@ -1261,7 +1265,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);
   }
-  strmov(tmpname,path);
+  my_stpcpy(tmpname,path);
   
 
   /* STEP 4: Create TABLE description */
@@ -2016,7 +2020,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->ha_write_row(table->record[0])))
   {
-    if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
+    if (!new_table.file->is_ignorable_error(write_err) ||
 	!ignore_last_dup)
       goto err;
     if (is_duplicate)

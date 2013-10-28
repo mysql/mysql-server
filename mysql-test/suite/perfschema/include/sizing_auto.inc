@@ -14,3 +14,6 @@ show status like "%performance_schema%";
 
 show engine performance_schema status;
 
+--vertical_results
+select * from performance_schema.memory_summary_global_by_event_name
+  where event_name='memory/performance_schema/internal_buffers';

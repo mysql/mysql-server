@@ -17,17 +17,17 @@
 // This code can be used only in debug builds.
 #else
 
-/** 
+/**
   @file
- 
+
   ===========================
    Test trace plugin
   ===========================
 
-  If WITH_TEST_TRACE_PLUGIN build option was checked when building libmysql 
-  then this plugin is built into client library (no plugin loading required). 
-  
-  The plugin follows the protocol flow based on the trace evnets reported to
+  If WITH_TEST_TRACE_PLUGIN build option was checked when building libmysql
+  then this plugin is built into client library (no plugin loading required).
+
+  The plugin follows the protocol flow based on the trace events reported to
   it. If MYSQL_TEST_TRACE_DEBUG environment variable is non-zero then it logs
   information about received trace events and reports if a particular event
   is invalid.
@@ -41,14 +41,14 @@
 #include <my_global.h>
 #include "mysql.h"
 #include "mysql_trace.h"
-
+#include <mysql/service_my_snprintf.h>          /* my_snprintf() */
 
 /*
   Definition of the plugin
   ========================
 
   Whole implementation of the test trace plugin is inside test_trace namespace
-  to avoid conflicts with symbols used by application linked to the 
+  to avoid conflicts with symbols used by application linked to the
   client library. The only external symbol defined here is the test_trace_plugin
   plugin structure.
 */
@@ -74,7 +74,7 @@ extern "C" {
 /*
   Test_trace_plugin symbol is to be used by C code (client.c) and thus it
   is declared inside extern "C" to avoid C++ name mangling problems. Current
-  C++ compilers do not mangle data symbol names but to be on the safe side 
+  C++ compilers do not mangle data symbol names but to be on the safe side
   we explicitly declare it as extern "C".
 */
 
@@ -103,9 +103,9 @@ namespace test_trace {
 typedef unsigned char byte;
 
 /**
-  State information maintained by the test trace plugin for each 
+  State information maintained by the test trace plugin for each
   traced connection.
- 
+
   ----------- ---------------------------------------------------
   last_cmd    last command reported with SEND_COMMAND event
   next_stage  expected next protocol stage
@@ -130,7 +130,7 @@ struct st_trace_data
 /*
   Logging for test trace plugin
   =============================
-  
+
   Usage:
 
   {
@@ -144,8 +144,8 @@ struct st_trace_data
   }
 
   Normally logger outputs messages on stderr. This can be disabled by setting
-  logger_enabled flag to false. The flag is initialized based on MYSQL_TRACE_DEBUG 
-  env. variable (see plugin_init() below).
+  logger_enabled flag to false. The flag is initialized based on
+  MYSQL_TRACE_DEBUG env. variable (see plugin_init() below).
 */
 
 static bool logger_enabled= false;
@@ -216,8 +216,8 @@ void Logger::dump(const char *key, const void *data, size_t data_len)
   size_t len= header();
   const unsigned char *ptr= static_cast<const unsigned char*>(data);
 
-  end+= my_snprintf(end, sizeof(buffer)-len, 
-                    "%s: %lu bytes", 
+  end+= my_snprintf(end, sizeof(buffer)-len,
+                    "%s: %lu bytes",
                     key, data_len);
 
   /*
@@ -231,7 +231,7 @@ void Logger::dump(const char *key, const void *data, size_t data_len)
     *(end++)= '\n';
     *(end++)= ' ';
 
-    /* 
+    /*
       Char_disp points at the next location in the right pane, where
       characters are displayed.
     */
@@ -248,12 +248,12 @@ void Logger::dump(const char *key, const void *data, size_t data_len)
       {
         if (0 == data_len)
         {
-          /* 
+          /*
             Wipe-out '\0' terminator put there by my_snprintf()
             and make sure end points past the last character in
             the output.
           */
-          *end= ' '; 
+          *end= ' ';
           end= char_disp;
           goto done;
         }
@@ -270,7 +270,7 @@ void Logger::dump(const char *key, const void *data, size_t data_len)
       *(end++)= ' ';
     }
 
-    *end= ' '; 
+    *end= ' ';
     end= char_disp;
   }
 
@@ -307,9 +307,9 @@ static Logger logger;
 
 /**
   Global flag telling if test trace plugin should crash if it detects
-  incorrect protocol flow (unexpected stage or invalid event for the 
+  incorrect protocol flow (unexpected stage or invalid event for the
   current stage).
-  
+
   This can be used for detecting invalid protocol trace events in
   MTR tests, for example. The flag is set from environment variable
   MYSQL_TEST_TRACE_CRASH upon plugin initialization. By default it
@@ -318,7 +318,7 @@ static Logger logger;
 static bool opt_crash= false;
 
 
-int 
+int
 plugin_init(char *a, size_t b ,int argc, va_list args)
 {
   const char *opt= getenv("MYSQL_TEST_TRACE_CRASH");
@@ -327,7 +327,7 @@ plugin_init(char *a, size_t b ,int argc, va_list args)
     opt_crash= true;
 
   opt= getenv("MYSQL_TEST_TRACE_DEBUG");
-  
+
   if (opt && '0' != *opt)
     logger_enabled= true;
 
@@ -336,7 +336,7 @@ plugin_init(char *a, size_t b ,int argc, va_list args)
 }
 
 
-int 
+int
 plugin_deinit()
 {
   LOG(("Test trace plugin de-initialized"));
@@ -356,17 +356,17 @@ plugin_deinit()
 
 
 void*
-trace_start(struct st_mysql_client_plugin_TRACE *self, 
+trace_start(struct st_mysql_client_plugin_TRACE *self,
             MYSQL *conn, enum protocol_stage stage)
 {
   LOGGER(conn);
   LOG(("Starting tracing in stage %s", protocol_stage_name(stage)));
 
-  struct st_trace_data *plugin_data= new st_trace_data;    
+  struct st_trace_data *plugin_data= new st_trace_data;
 
   if (plugin_data)
   {
-    memset(plugin_data, 0, sizeof(st_trace_data));  
+    memset(plugin_data, 0, sizeof(st_trace_data));
     plugin_data->next_stage= PROTOCOL_STAGE_CONNECTING;
   }
   else
@@ -379,18 +379,18 @@ trace_start(struct st_mysql_client_plugin_TRACE *self,
 
 
 void
-trace_stop(struct st_mysql_client_plugin_TRACE *self, 
+trace_stop(struct st_mysql_client_plugin_TRACE *self,
            MYSQL *conn, void *data)
 {
   LOGGER(conn);
   LOG(("Tracing connection has ended"));
   if (data)
-    my_free(data);
+    delete static_cast<st_trace_data*>(data);
 }
 
 
-/* 
-  Declare functions for checking protocol flow (defined below). See 
+/*
+  Declare functions for checking protocol flow (defined below). See
   plugin_trace.h for description how the trick with PROTOCOL_STAGE_LIST()
   macro works.
 */
@@ -410,17 +410,17 @@ PROTOCOL_STAGE_LIST(chk_ev_declare)
   Main plugin method called when a trace event is detected.
 */
 
-int 
+int
 trace_event(struct st_mysql_client_plugin_TRACE *self,
-            void *data_ptr, MYSQL *conn, 
-            enum protocol_stage stage, enum trace_event ev, 
+            void *data_ptr, MYSQL *conn,
+            enum protocol_stage stage, enum trace_event ev,
             struct st_trace_event_args args)
 {
   LOGGER(conn);
   int check= 0;
   struct st_trace_data *data= static_cast<st_trace_data*>(data_ptr);
 
-  LOG(("stage: %s, event: %s", protocol_stage_name(stage), 
+  LOG(("stage: %s, event: %s", protocol_stage_name(stage),
                                trace_event_name(ev)));
 
   if (ev == TRACE_EVENT_DISCONNECTED)
@@ -429,7 +429,7 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     return 1;
   }
 
-  /* 
+  /*
     Check if current protocol stage is as expected. The expected
     protocol stage is kept in data->next_stage. Check that it equals
     the stage reported here, with some exceptions.
@@ -439,8 +439,8 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
   {
   case TRACE_EVENT_SEND_COMMAND:
     /*
-      Allow SEND_COMMAND to appear in any protocol stage - 
-      a client can interrupt whatever is being done now 
+      Allow SEND_COMMAND to appear in any protocol stage -
+      a client can interrupt whatever is being done now
       and send new command to the server.
     */
     if (data)
@@ -481,7 +481,7 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     }
 
   case TRACE_EVENT_SEND_COMMAND:
-    
+
     if (data)
     {
       data->multi_resultset= false;
@@ -523,8 +523,8 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     case COM_QUIT:
       LOG(("QUIT"));
       break;
-    
-    default: 
+
+    default:
       LOG(("cmd: %d", args.cmd));
       if (args.hdr_len > 0)
         DUMP("cmd hdr", args.hdr, args.hdr_len);
@@ -562,8 +562,8 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
 
       if ('#' == *pkt)
       {
-        LOG(("Server error %d (%.5s): %.*s", 
-             err_code, pkt+1, args.pkt_len - 9, pkt+6));      
+        LOG(("Server error %d (%.5s): %.*s",
+             err_code, pkt+1, args.pkt_len - 9, pkt+6));
       }
       else
       {
@@ -578,11 +578,11 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
   default: break;
   }
 
-  /* 
-    Use the check_event_XXX() functions to check if the event is valid in the 
+  /*
+    Use the check_event_XXX() functions to check if the event is valid in the
     current stage and also update data->next_stage. The result of the check is
     stored in check variable, which is set to true if event is invalid.
-    
+
     These checks are skipped if trace data is NULL.
 
     See plugin_trace.h for description how the trick with PROTOCOL_STAGE_LIST()
@@ -595,13 +595,13 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
 #define protocol_stage_check(S) \
   case PROTOCOL_STAGE_ ## S: \
     check= check_event_ ## S(conn, data, ev, args, &(data->next_stage)); \
-    break; 
+    break;
 
   switch (stage)
   {
     PROTOCOL_STAGE_LIST(check)
   default:
-    LOG(("invlaid stage %d", stage));
+    LOG(("invalid stage %d", stage));
     if (opt_crash)
       DBUG_ASSERT(0);
   }
@@ -663,13 +663,13 @@ int check_event_CONNECTING(MYSQL *conn,
   /*
     This is the first stage of the protocol, when client is establishing
     physical connection with the server. After connection is established
-    protocol moves to WAIT_FOR_CHALLENGE stage where the first 
+    protocol moves to WAIT_FOR_CHALLENGE stage where the first
     authentication challenge packet is expected from the server.
   */
   switch (ev)
   {
   case TRACE_EVENT_CONNECTING:        return 0;
-  case TRACE_EVENT_CONNECTED:          
+  case TRACE_EVENT_CONNECTED:
     NEXT_STAGE(WAIT_FOR_INIT_PACKET); return 0;
   default: return 1;  /* invalid event */
   };
@@ -684,7 +684,7 @@ int check_event_WAIT_FOR_INIT_PACKET(MYSQL *conn,
 {
   /*
     In this stage client waits for the first challenge packet from the
-    server. When it is received, protocol movest to AUTHENTICATE stage
+    server. When it is received, protocol moves to AUTHENTICATE stage
     where client authorizes itself against server.
   */
   switch (ev)
@@ -706,7 +706,7 @@ int check_event_AUTHENTICATE(MYSQL *conn,
   /*
     In this stage client exchanges various packets with the server to:
     - authenticate itself against the server,
-    - negotiante client/server capabilities and connection parameters,
+    - negotiate client/server capabilities and connection parameters,
     - establish encrypted SSL connection.
     At any moment during this exchange server can send an ERR packet
     indicating that it rejects the connection.
@@ -716,8 +716,8 @@ int check_event_AUTHENTICATE(MYSQL *conn,
 
   switch (ev)
   {
-  case TRACE_EVENT_AUTHENTICATED:     
-    NEXT_STAGE(READY_FOR_COMMAND); 
+  case TRACE_EVENT_AUTHENTICATED:
+    NEXT_STAGE(READY_FOR_COMMAND);
     return 0;
 
   case TRACE_EVENT_PACKET_RECEIVED:
@@ -737,7 +737,7 @@ int check_event_AUTHENTICATE(MYSQL *conn,
 
       return 0;
     }
-  
+
   case TRACE_EVENT_SEND_SSL_REQUEST:
     NEXT_STAGE(SSL_NEGOTIATION);
     return 0;
@@ -766,7 +766,7 @@ int check_event_SSL_NEGOTIATION(MYSQL *conn,
   case TRACE_EVENT_PACKET_SENT:
   case TRACE_EVENT_PACKET_RECEIVED:
   case TRACE_EVENT_SSL_CONNECT:
-    return 0;   
+    return 0;
 
   case TRACE_EVENT_SSL_CONNECTED:
     NEXT_STAGE(AUTHENTICATE);
@@ -787,7 +787,7 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
     This is the stage when client can send a command to the server.
     After sending command packet to the server, PACKET_SENT trace
     event happens. The next stage depends on whether a result set
-    is expected after the command, or just OK/ERR reply or it is 
+    is expected after the command, or just OK/ERR reply or it is
     a command with no reply from server.
   */
 
@@ -802,10 +802,10 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
   switch (ev)
   {
   case TRACE_EVENT_SEND_COMMAND:
-    /* 
-      Save the command code (to be examined in the following 
-      PACKET_SENT event) and reset PS information stored in 
-      trace info record 
+    /*
+      Save the command code (to be examined in the following
+      PACKET_SENT event) and reset PS information stored in
+      trace info record
     */
     if (data)
       data->last_cmd = args.cmd;
@@ -821,30 +821,30 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
     case COM_TABLE_DUMP:
       return 1;
 
-    default: 
+    default:
       return 0;
     }
 
   case TRACE_EVENT_PACKET_SENT:
     /*
       Move to correct stage based on the command that was
-      reported in the preceeding SEND_COMMAND event.
+      reported in the preceding SEND_COMMAND event.
     */
     if (!data)
       return 1;
     switch (data->last_cmd)
     {
-    case COM_STMT_PREPARE: 
-      NEXT_STAGE(WAIT_FOR_PS_DESCRIPTION); 
+    case COM_STMT_PREPARE:
+      NEXT_STAGE(WAIT_FOR_PS_DESCRIPTION);
       break;
 
     case COM_QUERY:
       NEXT_STAGE(WAIT_FOR_RESULT); break;
 
-    case COM_STMT_EXECUTE: 
+    case COM_STMT_EXECUTE:
       /*
         Result of COM_STMT_EXECUTE is always followed by OK packet. We set
-        multi_resultset falg to correctly expect the OK packet.
+        multi_resultset flag to correctly expect the OK packet.
       */
       data->multi_resultset= true;
       NEXT_STAGE(WAIT_FOR_RESULT); break;
@@ -853,12 +853,12 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
       NEXT_STAGE(WAIT_FOR_ROW);
       return 0;
 
-    /* 
-       No server reply is expected after these commands so we reamin ready
+    /*
+       No server reply is expected after these commands so we remain ready
        for the next command.
     */
     case COM_QUIT:
-    case COM_STMT_SEND_LONG_DATA: 
+    case COM_STMT_SEND_LONG_DATA:
     case COM_STMT_CLOSE:
     case COM_REGISTER_SLAVE:
       return 0;
@@ -887,7 +887,7 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
       break;
 
     /*
-      Server replies to COM_STATISTICS with a single packet 
+      Server replies to COM_STATISTICS with a single packet
       containing a string with statistics information.
     */
     case COM_STATISTICS:
@@ -896,7 +896,7 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn,
 
     /*
       After COM_CHANGE_USER a regular authentication exchange
-      is performad.
+      is performed.
     */
     case COM_CHANGE_USER:
       NEXT_STAGE(AUTHENTICATE);
@@ -942,9 +942,9 @@ int check_event_WAIT_FOR_PACKET(MYSQL *conn,
   switch (ev)
   {
   case TRACE_EVENT_READ_PACKET: return 0;
-  case TRACE_EVENT_PACKET_RECEIVED: 
+  case TRACE_EVENT_PACKET_RECEIVED:
     NEXT_STAGE(READY_FOR_COMMAND);
-    return 0;      
+    return 0;
   default: return 1;  /* invalid event */
   };
 }
@@ -958,7 +958,7 @@ int check_event_WAIT_FOR_RESULT(MYSQL *conn,
 {
   /*
     This stage is reached after a command which can produce a result set
-    (COM_QUERY or COM_STMT_EXECUTE). In this stage a single packet is 
+    (COM_QUERY or COM_STMT_EXECUTE). In this stage a single packet is
     received from the server informing about the result of the query:
     - ERR packet informs that error has happened when processing query,
     - OK packet informs that query produced no result set,
@@ -998,9 +998,9 @@ int check_event_WAIT_FOR_RESULT(MYSQL *conn,
 
       /*
         If query generates no data, server replies with OK packet. In
-        case of a multi-query, more result sets can follow, as 
+        case of a multi-query, more result sets can follow, as
         indicated by SERVER_MORE_RESULTS_EXISTS flag in the OK packet.
-        If the flag is set we move to WAIT_FOR_RESULTSET stage to 
+        If the flag is set we move to WAIT_FOR_RESULTSET stage to
         read the following result set(s).
       */
       if (OK_PACKET(args.pkt))
@@ -1010,7 +1010,7 @@ int check_event_WAIT_FOR_RESULT(MYSQL *conn,
         unsigned int affected_rows;
         unsigned int last_insert_id;
 
-        pkt++;                         /* cmd header */
+        pkt++;                                   /* cmd header */
         affected_rows=  net_field_length(&pkt);  /* affected_rows */
         last_insert_id= net_field_length(&pkt);  /* last_insert_id */
         flags= uint2korr(pkt);
@@ -1050,7 +1050,7 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn,
   /*
     In this stage definitions of row fields are read from server. This
     can happen when reading query result set, or after preparing
-    a statement which produces result set or upon explicit COM_FIELD_LIST 
+    a statement which produces result set or upon explicit COM_FIELD_LIST
     request.
   */
 
@@ -1066,10 +1066,10 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn,
         of the next row field and we can continue, remaining in the same stage.
 
         To correctly recognize EOF packets we have to check its length, because
-        a field description packet can theoretically start with byte 0xFE - the 
-        same as the first byte of the EOF packet. 
-        
-        This can happen if the first length-encoded string in the packet starts 
+        a field description packet can theoretically start with byte 0xFE - the
+        same as the first byte of the EOF packet.
+
+        This can happen if the first length-encoded string in the packet starts
         with 8-byte length-encoded integer whose first byte is 0xFE. In this
         case the string and thus the whole packet is longer than 9 bytes and\
         EOF packet is always shorter than 9 bytes.
@@ -1083,9 +1083,9 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn,
       LOG(("No more fields"));
       /*
         If this WAIT_FOR_FIELD_DEF stage was reached after COM_STMT_PREPARE or
-        COM_FIELD_LIST then the EOF packet ends proccesing of the command and 
-        next stage is READY_FOR_COMMAND. 
-        Otherwise we are reading a result set and the field definitions have 
+        COM_FIELD_LIST then the EOF packet ends processing of the command and
+        next stage is READY_FOR_COMMAND.
+        Otherwise we are reading a result set and the field definitions have
         ended - next stage is WAIT_FOR_ROW.
       */
       switch (data->last_cmd)
@@ -1114,7 +1114,7 @@ int check_event_WAIT_FOR_ROW(MYSQL *conn,
 {
   /*
     This stage is entered when reading a result set, after receiving
-    its metadata. In this stage server sends packets with rows unitl
+    its metadata. In this stage server sends packets with rows until
     EOF or ERR packet is sent.
   */
 
@@ -1152,10 +1152,10 @@ int check_event_WAIT_FOR_ROW(MYSQL *conn,
 
       LOG(("End of data"));
       /*
-        In case of a multi-resutset a SERVER_MORE_RESULTS_EXISTS flag can 
+        In case of a multi-resutset a SERVER_MORE_RESULTS_EXISTS flag can
         be set in the EOF packet. In that case next resultset will follow
-        and the next stage is WAIT_FOR_RESULTSET. If 
-        SERVER_MORE_RESULTS_EXISTS flag is not set, next stage is 
+        and the next stage is WAIT_FOR_RESULTSET. If
+        SERVER_MORE_RESULTS_EXISTS flag is not set, next stage is
         READY_FOR_COMMAND.
       */
 
@@ -1214,7 +1214,7 @@ int check_event_WAIT_FOR_PS_DESCRIPTION(MYSQL *conn,
       /*
         Otherwise we read information about statement parameters
         (param_count) and produced result set (col_count) and store
-        it in the ti structure.
+        it in the data structure.
       */
 
       stmt_id     = uint4korr(pkt+1);
@@ -1226,7 +1226,7 @@ int check_event_WAIT_FOR_PS_DESCRIPTION(MYSQL *conn,
            stmt_id, param_count, col_count));
 
       /*
-        If statement has parameters then next stage is 
+        If statement has parameters then next stage is
         WAIT_FOR_PS_PARAMETER, where server sends parameter
         descriptions.
       */
@@ -1248,7 +1248,7 @@ int check_event_WAIT_FOR_PS_DESCRIPTION(MYSQL *conn,
       }
 
       /*
-        Otherwise (no parameters and no result set), preparing 
+        Otherwise (no parameters and no result set), preparing
         the statement is done and next stage is READY_FOR_COMMAND.
       */
       NEXT_STAGE(READY_FOR_COMMAND);
@@ -1267,8 +1267,8 @@ int check_event_WAIT_FOR_PARAM_DEF(MYSQL *conn,
 {
   /*
     This stage is reached after COM_PREPARE_STMT command and after
-    receiving the stmt OK packet from the server (if the statement 
-    has parameters). Server sends descriptions of the parameters in 
+    receiving the stmt OK packet from the server (if the statement
+    has parameters). Server sends descriptions of the parameters in
     the same format in which result set fields are described.
   */
 
@@ -1280,9 +1280,9 @@ int check_event_WAIT_FOR_PARAM_DEF(MYSQL *conn,
   case TRACE_EVENT_PACKET_RECEIVED:
     {
       /*
-        Sending parameter descriptions continues until an EOF 
-        packet is received. To correctly recognize EOF packet 
-        we must check the packet length the same as 
+        Sending parameter descriptions continues until an EOF
+        packet is received. To correctly recognize EOF packet
+        we must check the packet length the same as
         in WAIT_FOR_FILED_DEF stage.
       */
       if (!(EOF_PACKET(args.pkt) && args.pkt_len < 9))
@@ -1297,7 +1297,7 @@ int check_event_WAIT_FOR_PARAM_DEF(MYSQL *conn,
         the statement produces any result set, in which case column
         definitions will follow, or not.
 
-        We decide this based on statement info stored in the ti 
+        We decide this based on statement info stored in the data
         structure.
       */
 
@@ -1343,7 +1343,7 @@ int check_event_FILE_REQUEST(MYSQL *conn,
       }
       return 0;
     }
- 
+
   case TRACE_EVENT_READ_PACKET:
     /*
       Client library reads extra packet in case error is reported

@@ -16,11 +16,11 @@
 #include "rpl_binlog_sender.h"
 
 #ifdef HAVE_REPLICATION
-#include "global_threads.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"
 #include "my_pthread.h"
 #include "rpl_master.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -34,15 +34,15 @@ void Binlog_sender::init()
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->acquire_thd_lock();
   thd->current_linfo= &m_linfo;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
 
-  if (log_warnings > 1)
-    sql_print_information("Start binlog_dump to master_thread_id(%lu) "
-                          "slave_server(%u), pos(%s, %llu)",
-                          thd->thread_id, thd->server_id,
-                          m_start_file, m_start_pos);
+  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
+                        "slave_server(%u), pos(%s, %llu)",
+                        thd->thread_id, thd->server_id,
+                        m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, 0/*flags*/,
                                                  m_start_file, m_start_pos)))
@@ -57,9 +57,9 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (DBUG_EVALUATE_IF("simulate_no_server_id", true, !server_id_supplied))
+  if (DBUG_EVALUATE_IF("simulate_no_server_id", true, server_id == 0))
   {
-    set_fatal_error("Misconfigured master - server_id was not set");
+    set_fatal_error("Misconfigured master - master server_id is 0");
     DBUG_VOID_RETURN;
   }
 
@@ -94,10 +94,10 @@ void Binlog_sender::cleanup()
   THD *thd= m_thd;
 
   (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, 0/*flags*/));
-
-  mysql_mutex_lock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->acquire_thd_lock();
   thd->current_linfo= NULL;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
 
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet;
 

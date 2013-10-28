@@ -16,6 +16,7 @@
 #
 
 --echo #---------------- ROR-index_merge tests -----------------------
+--echo # (Start of test file: index_merge_ror.inc)
 
 eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
@@ -124,14 +125,14 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-# One row results tests for cases where a single row matches all conditions
+--echo # One row results tests for cases where a single row matches all conditions
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
-# Several-rows results
+--echo # Several-rows results
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, -1, -1, 'key1-key2');
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4-key3');
 
@@ -141,30 +142,30 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-#  ROR-intersection, not covering
+--echo #  ROR-intersection, not covering
 explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
 
-#  ROR-intersection, covering
+--echo #  ROR-intersection, covering
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
-#  ROR-union of ROR-intersections
+--echo #  ROR-union of ROR-intersections
 explain select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
-#  3-way ROR-intersection
+--echo #  3-way ROR-intersection
 explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 
-#  ROR-union(ROR-intersection, ROR-range)
+--echo #  ROR-union(ROR-intersection, ROR-range)
 insert into t1 (key1,key2,key3,key4,filler1) values (101,101,101,101, 'key1234-101');
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 
-# Run some ROR updates/deletes
+--echo # Run some ROR updates/deletes
 select key1,key2, filler1 from t1 where key1=100 and key2=100;
 update t1 set filler1='to be deleted' where key1=100 and key2=100;
 update t1 set key1=200,key2=200 where key1=100 and key2=100;
@@ -176,8 +177,8 @@ analyze table t1;
 -- enable_query_log
 select key1,key2,filler1 from t1 where key2=100 and key2=200;
 
-# ROR-union(ROR-intersection) with one of ROR-intersection giving empty
-# results
+--echo # ROR-union(ROR-intersection) with one of ROR-intersection giving empty
+--echo # results
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
@@ -189,16 +190,19 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-# ROR-union with all ROR-intersections giving empty results
+--echo # ROR-union with all ROR-intersections giving empty results
+# The relative order of keys inside 
+# "Using union(intersect(keyx,keyx),...)" doesn't matter
+--replace_result key2,key1 key1,key2 key4,key3 key3,key4
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
-# ROR-intersection with empty result
+--echo # ROR-intersection with empty result
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
-# ROR-union tests with various cases.
-#  All scans returning duplicate rows:
+--echo # ROR-union tests with various cases.
+--echo #  All scans returning duplicate rows:
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-1');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-2');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-3');
@@ -234,11 +238,11 @@ analyze table t1;
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
-##
-## Optimizer tests
-##
+--echo ##
+--echo ## Optimizer tests
+--echo ##
 
-# Check that the shortest key is used for ROR-intersection, covering and non-covering.
+--echo # Check that the shortest key is used for ROR-intersection, covering and non-covering.
 if (!$index_merge_random_rows_in_EXPLAIN)
 {
   # Too unstable on InnoDB
@@ -247,8 +251,8 @@ if (!$index_merge_random_rows_in_EXPLAIN)
   explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 }
 
-# Do many tests
-# Check that keys that don't improve selectivity are skipped.
+--echo # Do many tests
+--echo # Check that keys that don't improve selectivity are skipped.
 #
 
 # Different value on 32 and 64 bit
@@ -259,62 +263,62 @@ explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 # 11 #
 }
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
 drop table t0,t1;
 
-# 'Partially' covered fields test
+--echo # 'Partially' covered fields test
 
 create table t2 (
   a char(10),
@@ -346,7 +350,7 @@ analyze table t2;
 -- enable_result_log
 -- enable_query_log
 
-# BUG#1:
+--echo # BUG#1:
 --replace_result a a_or_b b a_or_b
 explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
@@ -361,10 +365,10 @@ analyze table t2;
 explain select a from t2 where a='ab';
 drop table t2;
 
-#
-# BUG#25048 - ERROR 126 : Incorrect key file for table '.XXXX.MYI'; try to
-#             repair it
-#
+--echo #
+--echo # BUG#25048 - ERROR 126 : Incorrect key file for table '.XXXX.MYI';
+--echo #             try to repair it
+--echo #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
 KEY(c1), KEY(c2), KEY(c3));
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),

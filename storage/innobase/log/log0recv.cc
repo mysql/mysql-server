@@ -184,7 +184,7 @@ recv_sys_create(void)
 		return;
 	}
 
-	recv_sys = static_cast<recv_sys_t*>(mem_zalloc(sizeof(*recv_sys)));
+	recv_sys = static_cast<recv_sys_t*>(ut_zalloc(sizeof(*recv_sys)));
 
 	mutex_create("recv_sys", &recv_sys->mutex);
 	mutex_create("recv_writer", &recv_sys->writer_mutex);
@@ -209,13 +209,8 @@ recv_sys_close(void)
 			mem_heap_free(recv_sys->heap);
 		}
 
-		if (recv_sys->buf != NULL) {
-			ut_free(recv_sys->buf);
-		}
-
-		if (recv_sys->last_block_buf_start != NULL) {
-			mem_free(recv_sys->last_block_buf_start);
-		}
+		ut_free(recv_sys->buf);
+		ut_free(recv_sys->last_block_buf_start);
 
 #ifndef UNIV_HOTBACKUP
 		ut_ad(!recv_writer_thread_active);
@@ -224,7 +219,7 @@ recv_sys_close(void)
 
 		mutex_free(&recv_sys->mutex);
 
-		mem_free(recv_sys);
+		ut_free(recv_sys);
 		recv_sys = NULL;
 	}
 }
@@ -245,15 +240,9 @@ recv_sys_mem_free(void)
 			mem_heap_free(recv_sys->heap);
 		}
 
-		if (recv_sys->buf != NULL) {
-			ut_free(recv_sys->buf);
-		}
-
-		if (recv_sys->last_block_buf_start != NULL) {
-			mem_free(recv_sys->last_block_buf_start);
-		}
-
-		mem_free(recv_sys);
+		ut_free(recv_sys->buf);
+		ut_free(recv_sys->last_block_buf_start);
+		ut_free(recv_sys);
 		recv_sys = NULL;
 	}
 }
@@ -394,7 +383,7 @@ recv_sys_init(
 	recv_sys->apply_batch_on = FALSE;
 
 	recv_sys->last_block_buf_start = static_cast<byte*>(
-		mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_malloc(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	recv_sys->last_block = static_cast<byte*>(ut_align(
 		recv_sys->last_block_buf_start, OS_FILE_LOG_BLOCK_SIZE));
@@ -443,7 +432,7 @@ recv_sys_debug_free(void)
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_free(recv_sys->heap);
 	ut_free(recv_sys->buf);
-	mem_free(recv_sys->last_block_buf_start);
+	ut_free(recv_sys->last_block_buf_start);
 
 	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;
@@ -1462,7 +1451,7 @@ recv_recover_page_func(
 			/* We have to copy the record body to a separate
 			buffer */
 
-			buf = static_cast<byte*>(mem_alloc(recv->len));
+			buf = static_cast<byte*>(ut_malloc(recv->len));
 
 			recv_data_copy_to_buf(buf, recv);
 		} else {
@@ -1526,7 +1515,7 @@ recv_recover_page_func(
 		}
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {
-			mem_free(buf);
+			ut_free(buf);
 		}
 
 		recv = UT_LIST_GET_NEXT(rec_list, recv);
@@ -1791,7 +1780,7 @@ recv_apply_log_recs_for_backup(void)
 	ulint		n_hash_cells;
 	buf_block_t*	block;
 	ulint		actual_size;
-	ibool		success;
+	bool		success;
 	ulint		error;
 	ulint		i;
 
@@ -2996,8 +2985,7 @@ recv_recovery_from_checkpoint_start(
 
 	log_sys->buf_free = (ulint) log_sys->lsn % OS_FILE_LOG_BLOCK_SIZE;
 	log_sys->buf_next_to_write = log_sys->buf_free;
-	log_sys->written_to_some_lsn = log_sys->lsn;
-	log_sys->written_to_all_lsn = log_sys->lsn;
+	log_sys->write_lsn = log_sys->lsn;
 
 	log_sys->last_checkpoint_lsn = checkpoint_lsn;
 
@@ -3161,8 +3149,7 @@ recv_reset_logs(
 	}
 
 	log_sys->buf_next_to_write = 0;
-	log_sys->written_to_some_lsn = log_sys->lsn;
-	log_sys->written_to_all_lsn = log_sys->lsn;
+	log_sys->write_lsn = log_sys->lsn;
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = 0;
@@ -3200,7 +3187,7 @@ recv_reset_log_files_for_backup(
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 {
 	os_file_t	log_file;
-	ibool		success;
+	bool		success;
 	byte*		buf;
 	ulint		i;
 	ulint		log_dir_len;

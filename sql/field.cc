@@ -5380,7 +5380,7 @@ longlong Field_temporal_with_date_and_timef::val_int()
 }
 
 
-my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
+my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
@@ -5390,7 +5390,7 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   }
-  return date2my_decimal(&ltime, dec);
+  return date2my_decimal(&ltime, dec_arg);
 }
 
 
@@ -7836,7 +7836,6 @@ Field_blob::store_to_mem(const char *from, uint length,
     queries having GROUP_CONCAT with ORDER BY or DISTINCT,
     hence some assersions:
   */
-  DBUG_ASSERT(!f_is_hex_escape(flags));
   DBUG_ASSERT(field_charset == cs);
   DBUG_ASSERT(length <= max_data_length());
 
@@ -7895,16 +7894,6 @@ Field_blob::store_internal(const char *from, uint length,
   if (value.alloc(new_length))
     goto oom_error;
   tmp= const_cast<char*>(value.ptr());
-
-  if (f_is_hex_escape(flags))
-  {
-    uint copy_length= my_copy_with_hex_escaping(field_charset,
-                                                tmp, new_length,
-                                                from, length);
-    store_ptr_and_length(tmp, copy_length);
-    return TYPE_OK;
-  }
-
 
   {
     const char *well_formed_error_pos;

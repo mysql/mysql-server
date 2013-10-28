@@ -47,6 +47,7 @@
 
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
+#include "xa.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -160,8 +161,6 @@ extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
-
-extern bool volatile shutdown_in_progress;
 
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
 extern "C" char **thd_query(MYSQL_THD thd);
@@ -882,7 +881,7 @@ public:
   Statement() {}
 
   Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum enum_state state_arg, ulong id_arg);
+            enum_state state_arg, ulong id_arg);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
@@ -1208,27 +1207,6 @@ struct st_savepoint {
   MDL_savepoint        mdl_savepoint;
 };
 
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
-extern const char *xa_state_names[];
-
-typedef struct st_xid_state {
-  /* For now, this is only used to catch duplicated external xids */
-  XID  xid;                           // transaction identifier
-  enum xa_states xa_state;            // used by external XA only
-  bool in_thd;
-  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
-  uint rm_error;
-} XID_STATE;
-
-extern mysql_mutex_t LOCK_xid_cache;
-extern HASH xid_cache;
-bool xid_cache_init(void);
-void xid_cache_free(void);
-XID_STATE *xid_cache_search(XID *xid);
-bool xid_cache_insert(XID *xid, enum xa_states xa_state);
-bool xid_cache_insert(XID_STATE *xid_state);
-void xid_cache_delete(XID_STATE *xid_state);
-
 /**
   @class Security_context
   @brief A set of THD members describing the current authenticated user.
@@ -1237,8 +1215,8 @@ void xid_cache_delete(XID_STATE *xid_state);
 class Security_context {
 private:
 
-String host; 
-String ip; 
+String host;
+String ip;
 String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
@@ -2336,15 +2314,7 @@ public:
       DBUG_ENTER("THD::st_transaction::cleanup");
       changed_tables= 0;
       savepoints= 0;
-
-      /*
-        If rm_error is raised, it means that this piece of a distributed
-        transaction has failed and must be rolled back. But the user must
-        rollback it explicitly, so don't start a new distributed XA until
-        then.
-      */
-      if (!xid_state.rm_error)
-        xid_state.xid.null();
+      xid_state.cleanup();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
       DBUG_VOID_RETURN;
     }
@@ -2355,7 +2325,6 @@ public:
     st_transactions()
     {
       memset(this, 0, sizeof(*this));
-      xid_state.xid.null();
       init_sql_alloc(key_memory_thd_transactions, &mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
     void push_unsafe_rollback_warnings(THD *thd)
@@ -2548,6 +2517,15 @@ public:
     }
     return first_successful_insert_id_in_prev_stmt;
   }
+  inline void reset_first_successful_insert_id()
+  {
+    arg_of_last_insert_id_function= FALSE;
+    first_successful_insert_id_in_prev_stmt= 0;
+    first_successful_insert_id_in_cur_stmt= 0;
+    first_successful_insert_id_in_prev_stmt_for_binlog= 0;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+  }
+
   /*
     Used by Intvar_log_event::do_apply_event() and by "SET INSERT_ID=#"
     (mysqlbinlog). We'll soon add a variant which can take many intervals in
@@ -3002,13 +2980,11 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thread_count,
+    We want to minimize the time we hold LOCK_thd_count,
     so when destroying a global thread, do:
 
     thd->release_resources()
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->remove_thd();
     delete thd;
    */
   ~THD();
@@ -3033,7 +3009,7 @@ public:
     alloc_root. 
   */
   void init_for_queries(Relay_log_info *rli= NULL);
-  void change_user(void);
+  void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
@@ -3485,7 +3461,7 @@ public:
     int err= killed_errno();
     if (err && !get_stmt_da()->is_set())
     {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+      if ((err == KILL_CONNECTION) && !abort_loop)
         err = KILL_QUERY;
       /*
         KILL is fatal because:
@@ -3658,6 +3634,12 @@ public:
   bool set_db(const char *new_db, size_t new_db_len)
   {
     bool result;
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocating the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -3671,6 +3653,7 @@ public:
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
+    mysql_mutex_unlock(&LOCK_thd_data);
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
@@ -4442,12 +4425,11 @@ public:
 
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
-  NOTE
-    This structure is copied using memcpy as a part of JOIN.
+/**
+  Object containing parameters used when creating and using temporary
+  tables. Temporary tables created with the help of this object are
+  used only internally by the query execution engine.
 */
-
 class TMP_TABLE_PARAM :public Sql_alloc
 {
 public:
@@ -4456,6 +4438,12 @@ public:
   uchar	    *group_buff;
   Func_ptr_array *items_to_copy;             /* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
+
+  /**
+    After temporary table creation, points to an index on the table
+    created depending on the purpose of the table - grouping,
+    duplicate elimination, etc. There is at most one such index.
+  */
   KEY *keyinfo;
   ha_rows end_write_records;
   /**
@@ -4870,62 +4858,6 @@ public:
   String *val_str(my_bool *null_value, String *str, uint decimals);
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
 };
-
-/*
-   Unique -- class for unique (removing of duplicates). 
-   Puts all values to the TREE. If the tree becomes too big,
-   it's dumped to the file. User can request sorted values, or
-   just iterate through them. In the last case tree merging is performed in
-   memory simultaneously with iteration, so it should be ~2-3x faster.
- */
-
-class Unique :public Sql_alloc
-{
-  DYNAMIC_ARRAY file_ptrs;
-  ulong max_elements;
-  ulonglong max_in_memory_size;
-  IO_CACHE file;
-  TREE tree;
-  uchar *record_pointers;
-  bool flush();
-  uint size;
-
-public:
-  ulong elements;
-  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
-	 uint size_arg, ulonglong max_in_memory_size_arg);
-  ~Unique();
-  ulong elements_in_tree() { return tree.elements_in_tree; }
-  inline bool unique_add(void *ptr)
-  {
-    DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush())
-      DBUG_RETURN(1);
-    DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
-  }
-
-  bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
-                             ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
-                                            ulonglong max_in_memory_size)
-  {
-    ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
-    return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
-  }
-
-  void reset();
-  bool walk(tree_walk_action action, void *walk_action_arg);
-
-  uint get_size() const { return size; }
-  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
-
-  friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
-  friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
-};
-
 
 class multi_delete :public select_result_interceptor
 {

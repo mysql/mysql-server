@@ -320,9 +320,7 @@ sync_array_reserve_cell(
 	} else {
 		sync_array_exit(arr);
 
-		/* No free slots found - crash and burn. */
-		ut_error;
-		// FIXME: We should return NULL and if there is more than
+		// We should return NULL and if there is more than
 		// one sync array, try another sync array instance.
 		return(NULL);
 	}
@@ -1156,12 +1154,12 @@ sync_array_init(
 {
 	ut_a(sync_wait_array == NULL);
 	ut_a(srv_sync_array_size > 0);
-	ut_a(n_threads > srv_sync_array_size);
+	ut_a(n_threads > 0);
 
 	sync_array_size = srv_sync_array_size;
 
 	/* We have to use ut_malloc() because the mutex infrastructure
-	hasn't been initialised yet. It is required by mem_alloc() and
+	hasn't been initialised yet. It is required by ut_malloc() and
 	the heap functions. */
 
 	sync_wait_array = new(std::nothrow) sync_array_t*[sync_array_size];

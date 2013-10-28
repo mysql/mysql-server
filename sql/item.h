@@ -1448,7 +1448,8 @@ public:
   /**
      Clean up after removing the item from the item tree.
 
-     @param arg Not used
+     @param arg Pointer to the st_select_lex from which the walk started, i.e.,
+                the st_select_lex that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
 
@@ -1722,11 +1723,7 @@ public:
   /**
      Check if an item either is a blob field, or will be represented as a BLOB
      field if a field is created based on this item.
-     
-     @note Original non-BLOB items that are longer than
-     CONVERT_IF_BIGGER_TO_BLOB will be converted to BLOBs when a field
-     is created for it.
-     
+
      @retval TRUE  If a field based on this item will be a BLOB field,
      @retval FALSE Otherwise.
   */

@@ -278,7 +278,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_exclude_missing_columns, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "disable-indexes", NDB_OPT_NOSHORT,
-    "Disable indexes",
+    "Disable indexes and foreign keys",
     (uchar**) &ga_disable_indexes,
     (uchar**) &ga_disable_indexes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -1398,13 +1398,36 @@ main(int argc, char** argv)
            << metaData.getNoOfTables() << endl;
     }
   }
+
+  debug << "Save foreign key info" << endl;
+  for(i = 0; i<metaData.getNoOfObjects(); i++)
+  {
+    for(Uint32 j= 0; j < g_consumers.size(); j++)
+      if (!g_consumers[j]->fk(metaData.getObjType(i),
+			      metaData.getObjPtr(i)))
+      {
+        // no error is possible 
+        assert(false);
+      } 
+  }
+
   debug << "Close tables" << endl; 
   for(i= 0; i < g_consumers.size(); i++)
+  {
     if (!g_consumers[i]->endOfTables())
     {
       err << "Restore: Failed while closing tables" << endl;
       exitHandler(NDBT_FAILED);
     } 
+    if (!ga_disable_indexes && !ga_rebuild_indexes)
+    {
+      if (!g_consumers[i]->endOfTablesFK())
+      {
+        err << "Restore: Failed while closing tables FKs" << endl;
+        exitHandler(NDBT_FAILED);
+      } 
+    }
+  }
   /* report to clusterlog if applicable */
   for(i= 0; i < g_consumers.size(); i++)
   {
@@ -1586,6 +1609,11 @@ main(int argc, char** argv)
         if (!g_consumers[j]->rebuild_indexes(* table))
           return -1;
       }
+    }
+    for(Uint32 j= 0; j < g_consumers.size(); j++)
+    {
+      if (!g_consumers[j]->endOfTablesFK())
+        return -1;
     }
   }
 

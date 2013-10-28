@@ -334,21 +334,6 @@ innobase_close_thd(
 /*===============*/
 	THD*	thd);		/*!< in: MySQL thread handle for
 				which to close the connection */
-/*************************************************************//**
-Get the next token from the given string and store it in *token. */
-
-ulint
-innobase_mysql_fts_get_token(
-/*=========================*/
-	CHARSET_INFO*	charset,	/*!< in: Character set */
-	const byte*	start,		/*!< in: start of text */
-	const byte*	end,		/*!< in: one character past end of
-					text */
-	fts_string_t*	token,		/*!< out: token's text */
-	ulint*		offset);	/*!< out: offset to token,
-					measured as characters from
-					'start' */
-
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
 

@@ -135,7 +135,7 @@ fts_eval_sql(
 	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Construct the name of an ancillary FTS table for the given table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name(
@@ -217,7 +217,8 @@ fts_write_node(
 	fts_table_t*	fts_table,	/*!< in: the FTS aux index */
 	fts_string_t*	word,		/*!< in: word in UTF-8 */
 	fts_node_t*	node)		/*!< in: node columns */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Tokenize a document. */
 
@@ -226,9 +227,9 @@ fts_tokenize_document(
 /*==================*/
 	fts_doc_t*	doc,		/*!< in/out: document to
 					tokenize */
-	fts_doc_t*	result)		/*!< out: if provided, save
+	fts_doc_t*	result,		/*!< out: if provided, save
 					result tokens here */
-	__attribute__((nonnull(1)));
+	st_mysql_ftparser*	parser);/* in: plugin fts parser */
 
 /*******************************************************************//**
 Continue to tokenize a document. */
@@ -240,9 +241,10 @@ fts_tokenize_document_next(
 					tokenize */
 	ulint		add_pos,	/*!< in: add this position to all
 					tokens from this tokenization */
-	fts_doc_t*	result)		/*!< out: if provided, save
+	fts_doc_t*	result,		/*!< out: if provided, save
 					result tokens here */
-	__attribute__((nonnull(1)));
+	st_mysql_ftparser*	parser);/* in: plugin fts parser */
+
 /******************************************************************//**
 Initialize a document. */
 
@@ -613,7 +615,7 @@ fts_optimize_do_table(
 	__attribute__((nonnull));
 /******************************************************************//**
 Construct the prefix name of an FTS table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name_prefix(

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,7 +98,11 @@ static const char* empty_string = "";
  * 4700 - "" Event
  * 4800 - API, QueryBuilder
  * 5000 - Management server
+ * 6000 - 6999 User error codes, to be used with 
+ *   NdbInterpretedCode::interpret_exit_nok(). Do not define internal error 
+ *   codes in this range!
  * 20000 - SPJ
+ * 21000 - DICT FK
  */
 
 static
@@ -121,6 +125,8 @@ ErrorBundle ErrorCodes[] = {
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
   { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 255,  HA_ERR_NO_REFERENCED_ROW, CV, "Foreign key constraint violated: No parent row found" },
+  { 256,  HA_ERR_ROW_IS_REFERENCED, CV, "Foreign key constraint violated: Referenced row exists" },
 
   /**
    * Node recovery errors
@@ -169,6 +175,34 @@ ErrorBundle ErrorCodes[] = {
   { 20020, HA_ERR_NO_SUCH_TABLE, SE, "Query table is being dropped" },
   { 20021, HA_ERR_TABLE_DEF_CHANGED, SE, "Query table definition has changed" },
 
+  /**
+   * DICT FK kernel and ndbapi error codes
+   */
+  { 21000, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed - parent key is primary key and on-update-cascade is not allowed" },
+  /* CreateFKRef + CreateFKImplRef */
+  { 21020, DMEC, TR, "Create foreign key failed in NDB - no more object records" },
+  { 21021, DMEC, IE, "Create foreign key failed in NDB - invalid request" },
+  { 21022, DMEC, SE, "Create foreign key failed in NDB - parent table is not table" },
+  { 21023, DMEC, SE, "Create foreign key failed in NDB - invalid parent table version" },
+  { 21024, DMEC, SE, "Create foreign key failed in NDB - child table is not table" },
+  { 21025, DMEC, SE, "Create foreign key failed in NDB - invalid child table version" },
+  { 21026, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - parent index is not unique index" },
+  { 21027, DMEC, SE, "Create foreign key failed in NDB - invalid parent index version" },
+  { 21028, DMEC, SE, "Create foreign key failed in NDB - child index is not index" },
+  { 21029, DMEC, SE, "Create foreign key failed in NDB - invalid child index version" },
+  { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
+  { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
+  { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  /* DropFKRef + DropFKImplRef */
+  { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
+  { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
+  { 21042, DMEC, SE, "Drop foreign key failed in NDB - foreign key not found in TC" },
+  /* BuildFKRef + BuildFKImplRef */
+  { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
+  { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
+  /* Referential integrity */
+  { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
+  
   /**
    * Node shutdown
    */
@@ -436,6 +470,7 @@ ErrorBundle ErrorCodes[] = {
   { 708,  DMEC, SE, "No more attribute metadata records (increase MaxNoOfAttributes)" },
   { 709,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 710,  DMEC, SE, "Internal: Get by table name not supported, use table id." },
+  { 712,  DMEC, SE, "No more hashmap metadata records" },
   { 721,  HA_ERR_TABLE_EXIST,   OE, "Schema object with given name already exists" },
   { 723,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 736,  DMEC, SE, "Unsupported array size" },
@@ -461,7 +496,7 @@ ErrorBundle ErrorCodes[] = {
   { 752,  DMEC, SE, "Invalid file format" },
   { 753,  IE, SE, "Invalid filegroup for file" },
   { 754,  IE, SE, "Invalid filegroup version when creating file" },
-  { 755,  HA_WRONG_CREATE_OPTION, SE, "Invalid tablespace" },
+  { 755,  HA_MISSING_CREATE_OPTION, SE, "Invalid tablespace" },
   { 756,  DMEC, SE, "Index on disk column is not supported" },
   { 757,  DMEC, SE, "Varsize bitfield not supported" },
   { 758,  DMEC, SE, "Tablespace has changed" },

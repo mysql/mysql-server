@@ -46,7 +46,7 @@ Created 10/21/1995 Heikki Tuuri
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
 
-extern ibool	os_has_said_disk_full;
+extern bool	os_has_said_disk_full;
 
 /** Number of pending os_file_pread() operations */
 extern ulint	os_file_n_pending_preads;
@@ -69,13 +69,6 @@ extern ulint	os_n_pending_writes;
 
 #endif
 
-/* path name separator character */
-#ifdef _WIN32
-#  define OS_FILE_PATH_SEPARATOR	'\\'
-#else
-#  define OS_FILE_PATH_SEPARATOR	'/'
-#endif /* _WIN32 */
-
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 #ifdef _WIN32
@@ -93,6 +86,8 @@ typedef int	os_file_t;
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
 #endif
+
+static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
 
 /** Umask for creating files */
 extern ulint	os_innodb_umask;
@@ -453,7 +448,7 @@ os_file_opendir(
 /*============*/
 	const char*	dirname,	/*!< in: directory name; it must not
 					contain a trailing '\' or '/' */
-	ibool		error_is_fatal);/*!< in: TRUE if we should treat an
+	bool		error_is_fatal);/*!< in: TRUE if we should treat an
 					error as a fatal error; if we try to
 					open symlinks then we do not wish a
 					fatal error if it happens not to be
@@ -484,12 +479,12 @@ directory exists already, nothing is done and the call succeeds, unless the
 fail_if_exists arguments is true.
 @return TRUE if call succeeds, FALSE on error */
 
-ibool
+bool
 os_file_create_directory(
 /*=====================*/
 	const char*	pathname,	/*!< in: directory name as
 					null-terminated string */
-	ibool		fail_if_exists);/*!< in: if TRUE, pre-existing directory
+	bool		fail_if_exists);/*!< in: if TRUE, pre-existing directory
 					is treated as an error. */
 /****************************************************************//**
 NOTE! Use the corresponding macro os_file_create_simple(), not directly
@@ -506,7 +501,7 @@ os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
-	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success);/*!< out: TRUE if succeed, FALSE if error */
 /****************************************************************//**
 NOTE! Use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
@@ -524,7 +519,7 @@ os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
-	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
@@ -558,7 +553,7 @@ os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
-	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
@@ -587,7 +582,7 @@ Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return TRUE if success */
 
-ibool
+bool
 os_file_rename_func(
 /*================*/
 	const char*	oldpath,	/*!< in: old file path as a
@@ -600,7 +595,7 @@ Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return TRUE if success */
 
-ibool
+bool
 os_file_close_func(
 /*===============*/
 	os_file_t	file);	/*!< in, own: handle to a file */
@@ -623,7 +618,7 @@ pfs_os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 	__attribute__((nonnull, warn_unused_result));
@@ -648,7 +643,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 	__attribute__((nonnull, warn_unused_result));
@@ -676,7 +671,7 @@ pfs_os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 	__attribute__((nonnull, warn_unused_result));
@@ -687,7 +682,7 @@ this function!
 A performance schema instrumented wrapper function for os_file_close().
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_close_func(
 /*===================*/
         os_file_t	file,	/*!< in, own: handle to a file */
@@ -700,7 +695,7 @@ This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_read_func(
 /*==================*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -718,7 +713,7 @@ os_file_read_no_error_handling_func() which requests a synchronous
 read operation.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_read_no_error_handling_func(
 /*====================================*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -735,7 +730,7 @@ Performance schema wrapper function of os_aio() which requests
 an asynchronous i/o operation.
 @return TRUE if request was queued successfully, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_aio_func(
 /*============*/
 	ulint		type,	/*!< in: OS_FILE_READ or OS_FILE_WRITE */
@@ -764,7 +759,7 @@ This is the performance schema instrumented wrapper function for
 os_file_write() which requests a synchronous write operation.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_write_func(
 /*===================*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -783,7 +778,7 @@ os_file_flush() which flushes the write buffers of a given file to the disk.
 Flushes the write buffers of a given file to the disk.
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_flush_func(
 /*===================*/
 	os_file_t	file,	/*!< in, own: handle to a file */
@@ -797,7 +792,7 @@ This is the performance schema instrumented wrapper function for
 os_file_rename()
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_rename_func(
 /*====================*/
 	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
@@ -846,7 +841,7 @@ pfs_os_file_delete_if_exists_func(
 Closes a file handle.
 @return TRUE if success */
 
-ibool
+bool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
@@ -864,7 +859,7 @@ os_file_get_size(
 Write the specified number of zeros to a newly created file.
 @return TRUE if success */
 
-ibool
+bool
 os_file_set_size(
 /*=============*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -876,7 +871,7 @@ os_file_set_size(
 Truncates a file at its current position.
 @return TRUE if success */
 
-ibool
+bool
 os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
@@ -896,7 +891,7 @@ NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return TRUE if success */
 
-ibool
+bool
 os_file_flush_func(
 /*===============*/
 	os_file_t	file);	/*!< in, own: handle to a file */
@@ -917,7 +912,7 @@ NOTE! Use the corresponding macro os_file_read(), not directly this function!
 Requests a synchronous read operation.
 @return TRUE if request was successful, FALSE if fail */
 
-ibool
+bool
 os_file_read_func(
 /*==============*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -942,7 +937,7 @@ Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return TRUE if request was successful, FALSE if fail */
 
-ibool
+bool
 os_file_read_no_error_handling_func(
 /*================================*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -956,7 +951,7 @@ function!
 Requests a synchronous write operation.
 @return TRUE if request was successful, FALSE if fail */
 
-ibool
+bool
 os_file_write_func(
 /*===============*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -969,11 +964,11 @@ os_file_write_func(
 Check the existence and type of the given file.
 @return TRUE if call succeeded */
 
-ibool
+bool
 os_file_status(
 /*===========*/
 	const char*	path,	/*!< in:	pathname of the file */
-	ibool*		exists,	/*!< out: TRUE if file exists */
+	bool*		exists,	/*!< out: TRUE if file exists */
 	os_file_type_t* type);	/*!< out: type of the file (if it exists) */
 /****************************************************************//**
 The function os_file_dirname returns a directory component of a
@@ -1044,7 +1039,7 @@ os_file_make_remote_pathname(
 /*=========================*/
 	const char*	data_dir_path,	/*!< in: pathname */
 	const char*	tablename,	/*!< in: tablename */
-	const char*	extention);	/*!< in: file extention; ibd,cfg*/
+	const char*	extension);	/*!< in: file extension; ibd,cfg*/
 /****************************************************************//**
 This function reduces a null-terminated full remote path name into
 the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
@@ -1066,7 +1061,7 @@ os_file_make_data_dir_path(
 Creates all missing subdirectories along the given path.
 @return TRUE if call succeeded FALSE otherwise */
 
-ibool
+bool
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path);	/*!< in: path name */
@@ -1078,7 +1073,7 @@ respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that */
 
-ibool
+bool
 os_aio_init(
 /*========*/
 	ulint	n_per_seg,	/*<! in: maximum number of pending aio
@@ -1099,7 +1094,7 @@ NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return TRUE if request was queued successfully, FALSE if fail */
 
-ibool
+bool
 os_aio_func(
 /*========*/
 	ulint		type,	/*!< in: OS_FILE_READ or OS_FILE_WRITE */
@@ -1171,7 +1166,7 @@ for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return TRUE if the aio operation succeeded */
 
-ibool
+bool
 os_aio_windows_handle(
 /*==================*/
 	ulint	segment,	/*!< in: the number of the segment in the aio
@@ -1198,7 +1193,7 @@ Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return TRUE if the aio operation succeeded */
 
-ibool
+bool
 os_aio_simulated_handle(
 /*====================*/
 	ulint	segment,	/*!< in: the number of the segment in the aio
@@ -1217,7 +1212,7 @@ os_aio_simulated_handle(
 Validates the consistency of the aio system.
 @return TRUE if ok */
 
-ibool
+bool
 os_aio_validate(void);
 /*=================*/
 /**********************************************************************//**
@@ -1239,7 +1234,7 @@ os_aio_refresh_stats(void);
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
 
-ibool
+bool
 os_aio_all_slots_free(void);
 /*=======================*/
 #endif /* UNIV_DEBUG */
@@ -1279,7 +1274,7 @@ for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return TRUE if the IO was successful */
 
-ibool
+bool
 os_aio_linux_handle(
 /*================*/
 	ulint	global_seg,	/*!< in: segment number in the aio array

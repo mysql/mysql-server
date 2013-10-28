@@ -41,7 +41,6 @@
 #include "opt_explain.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
-#include "global_threads.h"
 #include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"
@@ -795,7 +794,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (loc_error && !error)
     {
       myf error_flags= MYF(0);
-      if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(loc_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(loc_error, error_flags);
@@ -1332,9 +1331,10 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       else
         table->file->insert_id_for_cur_row= insert_id_for_cur_row;
       bool is_duplicate_key_error;
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (!table->file->is_ignorable_error(error))
 	goto err;
-      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      is_duplicate_key_error= (error == HA_ERR_FOUND_DUPP_KEY ||
+                               error == HA_ERR_FOUND_DUPP_UNIQUE);
       if (!is_duplicate_key_error)
       {
         /*
@@ -1496,7 +1496,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
               error != HA_ERR_RECORD_IS_THE_SAME)
           {
             if (ignore_errors &&
-                !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+                table->file->is_ignorable_error(error))
             {
               goto ok_or_after_trg_err;
             }
@@ -1604,7 +1604,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   {
     DEBUG_SYNC(thd, "write_row_noreplace");
     if (!ignore_errors ||
-        table->file->is_fatal_error(error, HA_CHECK_DUP))
+        !table->file->is_ignorable_error(error))
       goto err;
     table->file->restore_auto_increment(prev_insert_id);
     goto ok_or_after_trg_err;
@@ -1630,7 +1630,7 @@ err:
     info->last_errno= error;
     DBUG_ASSERT(thd->lex->current_select() != NULL);
     thd->lex->current_select()->no_error= 0;        // Give error
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+    if (table->file->is_fatal_error(error))
       error_flags|= ME_FATALERROR;
 
     table->file->print_error(error, error_flags);
@@ -2108,7 +2108,7 @@ bool select_insert::send_eof()
   if (error)
   {
     myf error_flags= MYF(0);
-    if (table->file->is_fatal_error(my_errno, HA_CHECK_DUP_KEY))
+    if (table->file->is_fatal_error(my_errno))
       error_flags|= ME_FATALERROR;
 
     table->file->print_error(my_errno, error_flags);

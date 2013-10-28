@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,23 +38,14 @@ void get_date(char * to, int flag, time_t date)
 {
    struct tm *start_time;
    time_t skr;
-#if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
   struct tm tm_tmp;
-#endif
 
    skr=date ? (time_t) date : my_time(0);
-#if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
    if (flag & GETDATE_GMT)
      gmtime_r(&skr,&tm_tmp);
    else
      localtime_r(&skr,&tm_tmp);
    start_time= &tm_tmp;
-#else
-   if (flag & GETDATE_GMT)
-     start_time= gmtime(&skr);
-   else
-     start_time= localtime(&skr);
-#endif
    if (flag & GETDATE_SHORT_DATE)
      sprintf(to,"%02d%02d%02d",
 	     start_time->tm_year % 100,

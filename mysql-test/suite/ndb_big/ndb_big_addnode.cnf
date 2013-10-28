@@ -1,0 +1,56 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+!include my.cnf
+
+[cluster_config.1]
+NoOfReplicas=                  2
+DataMemory=                    80M
+IndexMemory=                   20M
+#NoOfFragmentLogFiles=          4
+NoOfFragmentLogFiles=          16
+#FragmentLogFileSize=           80M
+FragmentLogFileSize=           100M
+#RedoBuffer=                    100M
+RedoBuffer=                    200M
+#TransactionDeadlockDetectionTimeout= 7500
+ndbd=,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+# Make all mysqlds use cluster
+#ndbcluster
+#ndb-wait-connected=20
+#ndb-wait-setup=600
+ndb-cluster-connection-pool=2
+#ndb-extra-logging=99
+
+#connect_timeout=60
+#delayed_insert_timeout =1300
+#interactive_timeout    =28800
+#net_read_timeout       =1130
+net_write_timeout      =1160
+#slave_net_timeout      =1120
+#Table_lock_wait_timeout=1150
+#wait_timeout =  28800
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port
+
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
+
+# Test will pass some table names that includes $ to command line interpreter.
+# $ is expanded in bourne shell, but not expanded in Windows command line.
+# The environment variable below makes sure that xxx$BLOB is passed as xxx$BLOB
+# in either case.
+BLOB=$BLOB
+unique=$unique

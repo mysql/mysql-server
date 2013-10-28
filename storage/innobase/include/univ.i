@@ -211,8 +211,6 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
-#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
-assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -221,7 +219,6 @@ and the insert buffer must be empty when the database is started */
                                                 related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
-#define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
 #define UNIV_SYNC_PERF_STAT			/* operation counts for
 						rw-locks and mutexes */
 #define UNIV_SEARCH_PERF_STAT			/* statistics for the
@@ -373,9 +370,9 @@ limit both with this same constant. */
 /** Largest compressed page size */
 #define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
 
-/** Number of supported page sizes (The convention 'ssize' is used
+/** Largest possible ssize (The convention 'ssize' is used
 for 'log2 minus 9' or the number of shifts starting with 512.)
-This number varies depending on UNIV_PAGE_SIZE. */
+This max number varies depending on UNIV_PAGE_SIZE. */
 #define UNIV_PAGE_SSIZE_MAX					\
 	(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
@@ -594,9 +591,11 @@ functions. */
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(0)
+#define OS_PATH_SEPARATOR '\\'
 #else
 typedef void* os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(NULL)
+#define OS_PATH_SEPARATOR '/'
 #endif
 
 #include <stdio.h>

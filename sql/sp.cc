@@ -793,8 +793,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->variables.select_limit= old_select_limit;
 #ifdef HAVE_PSI_SP_INTERFACE
   if (sp != NULL)
-  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type == SP_TYPE_PROCEDURE ?
-                                     SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type,
                                      sp->m_db.str, sp->m_db.length,
                                      sp->m_name.str, sp->m_name.length);
 #endif
@@ -1358,8 +1357,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     }
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP((type == SP_TYPE_PROCEDURE) ?
-                  SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+    MYSQL_DROP_SP(type,
                   name->m_db.str, name->m_db.length,
                   name->m_name.str, name->m_name.length);
 #endif 
@@ -1558,9 +1556,10 @@ bool lock_db_routines(THD *thd, char *db)
                                table->field[MYSQL_PROC_FIELD_NAME]);
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
-      mdl_request->init(sp_type == SP_TYPE_FUNCTION ?
-                        MDL_key::FUNCTION : MDL_key::PROCEDURE,
-                        db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+      MDL_REQUEST_INIT(mdl_request,
+                       sp_type == SP_TYPE_FUNCTION ?
+                         MDL_key::FUNCTION : MDL_key::PROCEDURE,
+                       db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(mdl_request);
     } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
                                        table->field[MYSQL_PROC_FIELD_DB]->ptr,
@@ -1637,15 +1636,7 @@ sp_drop_db_routines(THD *thd, char *db)
       uint sp_name_length= sp_name_end - sp_name;
       uint db_name_length= strlen(db);
 
-      enum_sp_object_type sp_type;
-      if ((int)table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == (int)SP_TYPE_FUNCTION)
-      {
-        sp_type= SP_OBJECT_TYPE_FUNCTION;
-      }
-      else
-      {
-        sp_type= SP_OBJECT_TYPE_PROCEDURE;
-      }
+      enum_sp_type sp_type= (enum_sp_type) table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0];
       /* Drop statistics for this stored program from performance schema. */
       MYSQL_DROP_SP(sp_type,
                     db, db_name_length,
@@ -1884,7 +1875,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
     thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
-      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), is_proc ? "PROCEDURE" : "FUNCTION",
                routine->table_name);
       DBUG_RETURN(TRUE);
     }
@@ -1948,7 +1939,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->mdl_request.init(key, MDL_SHARED, MDL_TRANSACTION);
+    MDL_REQUEST_INIT_BY_KEY(&rn->mdl_request,
+                            key, MDL_SHARED, MDL_TRANSACTION);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
@@ -2594,6 +2586,7 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_ALTER_SERVER:
   case SQLCOM_DROP_SERVER:
   case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_CHANGE_REPLICATION_FILTER:
   case SQLCOM_SLAVE_START:
   case SQLCOM_SLAVE_STOP:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
@@ -2659,8 +2652,9 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->lock_type= locktype;
   table->select_lex= lex->current_select();
   table->cacheable_table= 1;
-  table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          mdl_type, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&table->mdl_request,
+                   MDL_key::TABLE, table->db, table->table_name,
+                   mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
 

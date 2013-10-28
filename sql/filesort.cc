@@ -439,19 +439,18 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ?
-                    ER(kill_errno) :
-                    thd->get_stmt_da()->message_text());
+                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
+                                 !abort_loop) ? ER(THD::KILL_QUERY) :
+                                                          ER(kill_errno)) :
+                                 thd->get_stmt_da()->message_text());
 
-    if (log_warnings > 1)
-    {
-      sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
-                        ER_THD(thd, ER_FILSORT_ABORT),
-                        thd->security_ctx->host_or_ip,
-                        &thd->security_ctx->priv_user[0],
-                        (ulong) thd->thread_id,
-                        thd->query());
-    }
+    sql_print_information("%s, host: %s, user: %s, "
+                          "thread: %lu, query: %-.4096s",
+                          ER_THD(thd, ER_FILSORT_ABORT),
+                          thd->security_ctx->host_or_ip,
+                          &thd->security_ctx->priv_user[0],
+                          (ulong) thd->thread_id,
+                          thd->query());
   }
   else
     thd->inc_status_sort_rows(num_rows);
@@ -1037,18 +1036,20 @@ void make_sortkey(Sort_param *param, uchar *to, uchar *ref_pos)
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          uint tmp_length;
           if ((uchar*) from == to)
           {
             set_if_smaller(length,sort_field->length);
             memcpy(param->tmp_buffer,from,length);
             from=param->tmp_buffer;
           }
-          tmp_length= cs->coll->strnxfrm(cs, to, sort_field->length,
-                                         item->max_char_length(),
-                                         (uchar*) from, length,
-                                         MY_STRXFRM_PAD_WITH_SPACE |
-                                         MY_STRXFRM_PAD_TO_MAXLEN);
+#ifndef DBUG_OFF
+          uint tmp_length=
+#endif
+            cs->coll->strnxfrm(cs, to, sort_field->length,
+                               item->max_char_length(),
+                               (uchar*) from, length,
+                               MY_STRXFRM_PAD_WITH_SPACE |
+                               MY_STRXFRM_PAD_TO_MAXLEN);
           DBUG_ASSERT(tmp_length == sort_field->length);
         }
         else

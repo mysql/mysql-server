@@ -1,0 +1,140 @@
+
+--source include/have_debug.inc
+
+--echo #
+--echo # WL#6797 Method for clearing session state
+--echo #
+
+CREATE DATABASE wl6797;
+USE wl6797;
+CREATE TABLE t1 (a int);
+
+--echo
+--echo #CASE1: cleanup prepare statements
+--echo
+
+PREPARE x FROM 'INSERT INTO t1 VALUES (1), (2)';
+EXECUTE x;
+SELECT * FROM t1 ORDER BY 1;
+--resetconnection
+--echo resetconnection;
+# below execute should report error
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE x;
+
+--echo
+--echo #CASE2: cleanup temporary tables
+--echo
+
+CREATE TEMPORARY TABLE temp1(a int);
+INSERT INTO temp1 VALUES (1),(2),(3),(4);
+SELECT * FROM temp1 ORDER BY 1;
+--resetconnection
+--echo resetconnection;
+# should report temp1 does not exists error
+--error ER_NO_SUCH_TABLE
+SELECT * FROM temp1 ORDER BY 1;
+
+--echo
+--echo #CASE3: cleanup user variables
+--echo
+
+set @a:=1;
+SELECT @a;
+--resetconnection
+--echo resetconnection;
+# should report NULL
+SELECT @a;
+
+--echo
+--echo #CASE4: cleanup session variables
+--echo
+
+# set variables to default
+--resetconnection
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+set autocommit=0;
+set tx_isolation='SERIALIZABLE';
+set names 'big5';
+set max_join_size=100;
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+--resetconnection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+
+--echo
+--echo #CASE5: cleanup table cache and close open tables
+--echo
+
+# since table_open_cache_hits return different value
+# with/without ps_protocol, hence disabling the below testcase
+
+--disable_ps_protocol
+
+FLUSH TABLES;
+FLUSH STATUS;
+SHOW STATUS like 'Table_open_cache_hits';
+SHOW STATUS like 'Opened_tables';
+CREATE TABLE newt( a int );
+INSERT INTO newt VALUES (1),(2);
+SELECT * FROM newt ORDER BY 1;
+DELETE FROM newt;
+DROP TABLE newt;
+SHOW STATUS like 'Table_open_cache_hits';
+SHOW STATUS like 'Opened_tables';
+--resetconnection
+--echo resetconnection;
+SHOW STATUS like 'Table_open_cache_hits';
+SHOW STATUS like 'Opened_tables';
+
+--enable_ps_protocol
+
+--echo
+--echo #CASE6: check in debug mode
+--echo
+
+LOCK TABLE t1 WRITE;
+SELECT * FROM t1 ORDER BY 1;
+--resetconnection
+SET GLOBAL DEBUG='d,debug_test_cleanup_connection';
+--resetconnection
+--echo resetconnection;
+SET GLOBAL DEBUG='';
+
+--echo
+--echo Bug #17653288 MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+--echo
+
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL);
+INSERT INTO t2 VALUES (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--resetconnection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL), (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--resetconnection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+DROP TABLE t2;
+
+
+DROP TABLE IF EXISTS t1;
+DROP DATABASE wl6797;
+
+--echo
+--echo End of tests

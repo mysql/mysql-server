@@ -43,6 +43,7 @@ Created 3/14/2011 Jimmy Yang
 #include "transaction.h"
 #include "sql_handler.h"
 #include "handler.h"
+#include "mysqld_thd_manager.h"
 
 #include "log_event.h"
 #include "innodb_config.h"
@@ -87,8 +88,9 @@ handler_create_thd(
 	}
 
 	my_net_init(&thd->net,(st_vio*) 0);
-	thd->variables.pseudo_thread_id = thread_id++;
-	thd->thread_id = thd->variables.pseudo_thread_id;
+        Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+        thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+        thd->thread_id= thd->variables.pseudo_thread_id;
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
@@ -146,10 +148,11 @@ handler_open_table(
 	tables.init_one_table(db_name, strlen(db_name), table_name,
 			      strlen(table_name), table_name, lock_mode);
 
-	tables.mdl_request.init(MDL_key::TABLE, db_name, table_name,
-				(lock_mode > TL_READ)
-				? MDL_SHARED_WRITE
-				: MDL_SHARED_READ, MDL_TRANSACTION);
+	MDL_REQUEST_INIT(&tables.mdl_request,
+                         MDL_key::TABLE, db_name, table_name,
+			 (lock_mode > TL_READ)
+			 ? MDL_SHARED_WRITE
+			 : MDL_SHARED_READ, MDL_TRANSACTION);
 
 	if (!open_table(thd, &tables, &table_ctx)) {
 		TABLE*	table = tables.table;
@@ -226,6 +229,11 @@ handler_binlog_rollback(
 {
 	THD*		thd = static_cast<THD*>(my_thd);
 
+	/*
+	  Memcached plugin doesn't use thd_mark_transaction_to_rollback()
+	  on deadlocks. So no special handling for this flag is needed.
+	*/
+	assert(! thd->transaction_rollback_request);
 	if (tc_log) {
 		tc_log->rollback(thd, true);
 	}
@@ -299,6 +307,31 @@ handler_rec_setup_int(
 	void*		my_table,	/*!< in/out: TABLE structure */
 	int		field_id,	/*!< in: Field ID for the field */
 	int		value,		/*!< in: value to set */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null)	/*!< in: whether it is null value */
+{
+	Field*		fld;
+	TABLE*		table = static_cast<TABLE*>(my_table);
+
+	fld = table->field[field_id];
+
+	if (is_null) {
+		fld->set_null();
+	} else {
+		fld->set_notnull();
+		fld->store(value, unsigned_flag);
+	}
+}
+
+/**********************************************************************//**
+Set up an unsigned int64 field in TABLE->record[0] */
+void
+handler_rec_setup_uint64(
+/*=====================*/
+	void*		my_table,	/*!< in/out: TABLE structure */
+	int		field_id,	/*!< in: Field ID for the field */
+	unsigned long long
+			value,		/*!< in: value to set */
 	bool		unsigned_flag,	/*!< in: whether it is unsigned */
 	bool		is_null)	/*!< in: whether it is null value */
 {

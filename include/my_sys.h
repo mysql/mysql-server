@@ -229,7 +229,8 @@ extern char curr_dir[];		/* Current directory for user */
 extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
-extern void(*sql_print_warning_hook)(const char *format,...);
+extern void (*local_message_hook)(enum loglevel ll,
+                                  const char *format, va_list args);
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
@@ -252,12 +253,6 @@ extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern ulong    my_file_total_opened;
 extern my_bool	my_init_done;
 
-					/* Point to current my_message() */
-extern void (*my_sigtstp_cleanup)(void),
-					/* Executed before jump to shell */
-	    (*my_sigtstp_restart)(void),
-	    (*my_abort_hook)(int);
-					/* Executed when comming from shell */
 extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
 extern int my_umask_dir,
 	   my_recived_signals,	/* Signals we have got */
@@ -476,6 +471,15 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
+  /* Store the transaction's commit sequence number when the IO cache is used
+     to store transaction to be flushed to binary log. */
+  int64 commit_seq_no;
+  /*
+    Offset of the space allotted for commit sequence number from the beginning
+    of the cache that will be used to update it when the transaction has
+    its commit sequence.
+   */
+  uint commit_seq_offset;
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -650,10 +654,12 @@ extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
                              int first, int last);
-extern void my_printf_warning (const char * format, ...);
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
+void my_message_local_stderr(enum loglevel ll,
+                             const char *format, va_list args);
+extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);

@@ -9,7 +9,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -      "delete": true,
 -      "table_name": "t1",
 -      "access_type": "ALL",
--      "rows": 1,
+-      "rows_examined_per_scan": 1,
 -      "filtered": 100,
 -      "message": "Deleting all rows"
 -    }
@@ -54,33 +54,37 @@ QUERY: SELECT STRAIGHT_JOIN * FROM t3  JOIN t1 ON t3.a=t1.a  JOIN t2 ON t3.a=t2.
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -63,3 +63,3 @@
+@@ -98,3 +98,3 @@
            "table_name": "t4",
 -          "access_type": "ALL",
 +          "access_type": "range",
            "possible_keys": [
-@@ -67,4 +67,9 @@
+@@ -102,5 +102,10 @@
            ],
--          "rows": 7,
--          "filtered": 100,
+-          "rows_examined_per_scan": 7,
 +          "key": "PRIMARY",
 +          "used_key_parts": [
 +            "a"
 +          ],
 +          "key_length": "4",
-+          "rows": 2,
++          "rows_examined_per_scan": 2,
+           "rows_produced_per_join": 28,
+-          "filtered": 100,
 +          "filtered": 350,
-           "range_checked_for_each_record": "index map: 0x1"
+           "range_checked_for_each_record": "index map: 0x1",
 QUERY: SELECT STRAIGHT_JOIN  (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b))  FROM t3, t1, t2 WHERE t3.a=t1.a AND t3.a=t2.a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -77,4 +77,4 @@
+@@ -116,2 +116,3 @@
              "filtered": 100,
--            "using_index": true,
--            "attached_condition": "(`test`.`t4`.`a` in (`test`.`t1`.`b`,`test`.`t2`.`b`))"
 +            "using_where": true,
-+            "using_index": true
+             "using_index": true,
+@@ -125,4 +126,3 @@
+               "a"
+-            ],
+-            "attached_condition": "(`test`.`t4`.`a` in (`test`.`t1`.`b`,`test`.`t2`.`b`))"
++            ]
            }
 QUERY: SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b 
 STATUS: EQUAL
@@ -88,7 +92,7 @@ QUERY: DELETE FROM t3 WHERE (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) > 10
 STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -1,34 +0,0 @@
+@@ -1,48 +0,0 @@
 -EXPLAIN
 -{
 -  "query_block": {
@@ -100,6 +104,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 -        "cacheable": true,
 -        "query_block": {
 -          "select_id": 2,
+-          "cost_info": {
+-            "query_cost": "5.00"
+-          },
 -          "grouping_operation": {
 -            "using_filesort": false,
 -            "table": {
@@ -113,9 +120,20 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                "a"
 -              ],
 -              "key_length": "5",
--              "rows": 8,
+-              "rows_examined_per_scan": 8,
+-              "rows_produced_per_join": 8,
 -              "filtered": 100,
--              "using_index_for_group_by": true
+-              "using_index_for_group_by": true,
+-              "cost_info": {
+-                "read_cost": "3.40",
+-                "eval_cost": "1.60",
+-                "prefix_cost": "5.00",
+-                "data_read_per_join": "128"
+-              },
+-              "used_columns": [
+-                "a",
+-                "b"
+-              ]
 -            }
 -          }
 -        }
@@ -127,10 +145,15 @@ QUERY: SELECT * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -22,3 +22,3 @@
+@@ -26,2 +26,3 @@
          "filtered": 80,
++        "using_where": true,
+         "cost_info": {
+@@ -42,4 +43,3 @@
+           "col4"
+-        ],
 -        "attached_condition": "((`test`.`t1`.`key1` <=> 1130) and isnull(`test`.`t1`.`col1`))"
-+        "using_where": true
++        ]
        }
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
 STATUS: EQUAL
@@ -138,48 +161,67 @@ QUERY: SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER J
 STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -19,4 +19,4 @@
+@@ -34,2 +34,3 @@
            "filtered": 100,
--          "using_join_buffer": "Block Nested Loop",
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -45,4 +46,3 @@
+             "c1"
+-          ],
 -          "attached_condition": "(`test`.`t1`.`i1` = 1)"
-+          "using_where": true,
-+          "using_join_buffer": "Block Nested Loop"
++          ]
          }
-@@ -29,4 +29,4 @@
+@@ -56,2 +56,3 @@
            "filtered": 100,
--          "using_join_buffer": "Block Nested Loop",
--          "attached_condition": "(`test`.`t2`.`c2` <= `test`.`t5`.`c1`)"
 +          "using_where": true,
-+          "using_join_buffer": "Block Nested Loop"
+           "using_join_buffer": "Block Nested Loop",
+@@ -67,4 +68,3 @@
+             "c2"
+-          ],
+-          "attached_condition": "(`test`.`t2`.`c2` <= `test`.`t5`.`c1`)"
++          ]
          }
 QUERY: SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL GROUP BY t2.f1, t2.f2 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -35,4 +35,4 @@
+@@ -49,2 +49,3 @@
              "filtered": 100,
--            "using_index": true,
--            "attached_condition": "((`test`.`t2`.`f1` <=> 4) and (`test`.`t2`.`f2` is not null))"
 +            "using_where": true,
-+            "using_index": true
+             "using_index": true,
+@@ -59,4 +60,3 @@
+               "f2"
+-            ],
+-            "attached_condition": "((`test`.`t2`.`f1` <=> 4) and (`test`.`t2`.`f2` is not null))"
++            ]
            }
 QUERY: SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -33,3 +33,3 @@
+@@ -48,2 +48,3 @@
            "filtered": 100,
++          "using_where": true,
+           "cost_info": {
+@@ -57,4 +58,3 @@
+             "ref"
+-          ],
 -          "attached_condition": "(`test`.`a`.`ref` < `test`.`b`.`ref`)"
-+          "using_where": true
++          ]
          }
 QUERY: DELETE FROM a USING t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -34,3 +34,3 @@
+@@ -49,2 +49,3 @@
            "filtered": 100,
++          "using_where": true,
+           "cost_info": {
+@@ -58,4 +59,3 @@
+             "ref"
+-          ],
 -          "attached_condition": "(`test`.`a`.`ref` < `test`.`b`.`ref`)"
-+          "using_where": true
++          ]
          }
 QUERY: SELECT * from t2 left outer join t1  using (n) 
 STATUS: EQUAL
@@ -189,59 +231,82 @@ QUERY: UPDATE t1 left join t2  on t1.a=t2.a set t1.b=2, t2.b=2 where t1.b=1 and 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -21,4 +21,3 @@
+@@ -36,3 +36,3 @@
            "filtered": 100,
 -          "using_join_buffer": "Block Nested Loop",
++          "using_where": true,
+           "cost_info": {
+@@ -46,4 +46,3 @@
+             "b"
+-          ],
 -          "attached_condition": "(<if>(found_match(t2), (((`test`.`t2`.`b` = 1) and (`test`.`t1`.`b` = 1)) or isnull(`test`.`t2`.`a`)), true) and <if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true))"
-+          "using_where": true
++          ]
          }
 QUERY: UPDATE t1 LEFT JOIN t2 USING(id) SET s1 = 'b' 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -26,4 +26,3 @@
+@@ -40,3 +40,3 @@
            "filtered": 100,
 -          "using_join_buffer": "Block Nested Loop",
++          "using_where": true,
+           "cost_info": {
+@@ -50,4 +50,3 @@
+             "s1"
+-          ],
 -          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`id` = `test`.`t2`.`id`), true)"
-+          "using_where": true
++          ]
          }
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -24,4 +24,4 @@
+@@ -28,2 +28,3 @@
          "filtered": 100,
--        "using_index": true,
--        "attached_condition": "((`test`.`t1`.`a` <=> 1) and (`test`.`t1`.`b` <=> NULL) and isnull(`test`.`t1`.`b`))"
 +        "using_where": true,
-+        "using_index": true
+         "using_index": true,
+@@ -39,4 +40,3 @@
+           "c"
+-        ],
+-        "attached_condition": "((`test`.`t1`.`a` <=> 1) and (`test`.`t1`.`b` <=> NULL) and isnull(`test`.`t1`.`b`))"
++        ]
        }
 QUERY: SELECT * from t1 where b=1 or b is null order by a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -22,3 +22,3 @@
+@@ -26,3 +26,3 @@
          "filtered": 50,
--        "index_condition": "((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`))"
-+        "index_condition": true
-       }
+-        "index_condition": "((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`))",
++        "index_condition": true,
+         "cost_info": {
 QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -23,3 +23,3 @@
+@@ -27,2 +27,3 @@
          "filtered": 50,
++        "using_where": true,
+         "cost_info": {
+@@ -36,4 +37,3 @@
+           "c"
+-        ],
 -        "attached_condition": "((`test`.`t1`.`a` <=> 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`)))"
-+        "using_where": true
++        ]
        }
 QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -23,3 +23,3 @@
+@@ -27,2 +27,3 @@
          "filtered": 50,
++        "using_where": true,
+         "cost_info": {
+@@ -36,4 +37,3 @@
+           "c"
+-        ],
 -        "attached_condition": "((`test`.`t1`.`a` <=> 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`)))"
-+        "using_where": true
++        ]
        }
 QUERY: UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 
 STATUS:NOT_EQUAL
@@ -263,37 +328,33 @@ QUERY: SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.5272
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -29,3 +29,3 @@
-           "table_name": "s",
--          "access_type": "ALL",
-+          "access_type": "range",
-           "possible_keys": [
-@@ -33,4 +33,9 @@
-           ],
--          "rows": 6,
--          "filtered": 83.333,
-+          "key": "OXLEFT",
-+          "used_key_parts": [
-+            "OXLEFT"
-+          ],
-+          "key_length": "4",
-+          "rows": 1,
-+          "filtered": 500,
-           "range_checked_for_each_record": "index map: 0x4"
+@@ -52,2 +52,3 @@
+           "filtered": 83.333,
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -63,4 +64,3 @@
+             "OXROOTID"
+-          ],
+-          "attached_condition": "((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))"
++          ]
+         }
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -9,3 +9,3 @@
+@@ -13,2 +13,3 @@
        "filtered": 100,
--      "attached_condition": "(`test`.`t1`.`b` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))",
 +      "using_where": true,
+       "cost_info": {
+@@ -23,3 +24,2 @@
+       ],
+-      "attached_condition": "(`test`.`t1`.`b` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))",
        "attached_subqueries": [
 QUERY: DELETE from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -10,26 +10,10 @@
+@@ -10,40 +10,10 @@
        "filtered": 100,
 -      "attached_condition": "(`test`.`t1`.`b` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))",
 +      "using_where": true,
@@ -305,6 +366,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "cacheable": true,
            "query_block": {
              "select_id": 2,
+-            "cost_info": {
+-              "query_cost": "1.20"
+-            },
 -            "table": {
 -              "table_name": "t2",
 -              "access_type": "eq_ref",
@@ -319,8 +383,19 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "ref": [
 -                "test.t1.a"
 -              ],
--              "rows": 1,
--              "filtered": 100
+-              "rows_examined_per_scan": 1,
+-              "rows_produced_per_join": 1,
+-              "filtered": 100,
+-              "cost_info": {
+-                "read_cost": "1.00",
+-                "eval_cost": "0.20",
+-                "prefix_cost": "1.20",
+-                "data_read_per_join": "16"
+-              },
+-              "used_columns": [
+-                "a",
+-                "b"
+-              ]
 -            }
 +            "message": "Plan isn't ready yet"
            }
@@ -328,17 +403,19 @@ QUERY: SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE num
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -21,4 +21,4 @@
+@@ -25,2 +25,3 @@
          "filtered": 100,
 +        "using_where": true,
          "using_index": true,
+@@ -35,3 +36,2 @@
+         ],
 -        "attached_condition": "(not(exists(/* select#2 */ select 1 from dual where ('1' = `test`.`t2`.`topic`))))",
          "attached_subqueries": [
 QUERY: DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) 
 STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -10,49 +10,20 @@
+@@ -10,75 +10,20 @@
        "filtered": 100,
 -      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`topic`) in t2 on topic where ((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))))",
 +      "using_where": true,
@@ -350,6 +427,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "cacheable": true,
            "query_block": {
              "select_id": 2,
+-            "cost_info": {
+-              "query_cost": "1.42"
+-            },
 -            "duplicates_removal": {
 -              "using_filesort": false,
 -              "table": {
@@ -366,9 +446,19 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                "ref": [
 -                  "func"
 -                ],
--                "rows": 2,
+-                "rows_examined_per_scan": 2,
+-                "rows_produced_per_join": 2,
 -                "filtered": 100,
 -                "using_index": true,
+-                "cost_info": {
+-                  "read_cost": "1.02",
+-                  "eval_cost": "0.40",
+-                  "prefix_cost": "1.42",
+-                  "data_read_per_join": "160"
+-                },
+-                "used_columns": [
+-                  "topic"
+-                ],
 -                "attached_condition": "(not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`))))",
 -                "attached_subqueries": [
 -                  {
@@ -376,14 +466,27 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                    "cacheable": false,
 -                    "query_block": {
 -                      "select_id": 3,
+-                      "cost_info": {
+-                        "query_cost": "1.00"
+-                      },
 -                      "table": {
 -                        "table_name": "t3",
 -                        "access_type": "system",
 -                        "possible_keys": [
 -                          "PRIMARY"
 -                        ],
--                        "rows": 1,
--                        "filtered": 100
+-                        "rows_examined_per_scan": 1,
+-                        "rows_produced_per_join": 1,
+-                        "filtered": 100,
+-                        "cost_info": {
+-                          "read_cost": "0.00",
+-                          "eval_cost": "0.20",
+-                          "prefix_cost": "0.00",
+-                          "data_read_per_join": "16"
+-                        },
+-                        "used_columns": [
+-                          "numeropost"
+-                        ]
 -                      }
 -                    }
 -                  }
@@ -405,23 +508,29 @@ QUERY: SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FR
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -34,4 +34,4 @@
+@@ -52,2 +52,3 @@
                "filtered": 16.667,
--              "using_index": true,
--              "attached_condition": "((`test`.`s`.`id_cns` <=> `test`.`cns`.`id`))"
 +              "using_where": true,
-+              "using_index": true
+               "using_index": true,
+@@ -62,4 +63,3 @@
+                 "anno_dep"
+-              ],
+-              "attached_condition": "((`test`.`s`.`id_cns` <=> `test`.`cns`.`id`))"
++              ]
              }
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -34,4 +34,4 @@
+@@ -51,2 +51,3 @@
                "filtered": 10.117,
--              "using_index": true,
--              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`))"
 +              "using_where": true,
-+              "using_index": true
+               "using_index": true,
+@@ -61,4 +62,3 @@
+                 "b"
+-              ],
+-              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`))"
++              ]
              }
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
 STATUS: EQUAL
@@ -429,84 +538,111 @@ QUERY: SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -21,4 +21,4 @@
+@@ -25,2 +25,3 @@
            "filtered": 100,
--          "using_index": true,
--          "attached_condition": "(`test`.`t3`.`b` is not null)"
 +          "using_where": true,
-+          "using_index": true
+           "using_index": true,
+@@ -35,4 +36,3 @@
+             "c"
+-          ],
+-          "attached_condition": "(`test`.`t3`.`b` is not null)"
++          ]
          }
-@@ -74,4 +74,4 @@
+@@ -102,2 +102,3 @@
                "filtered": 20,
--              "using_index": true,
--              "attached_condition": "((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t2`.`c` <=> `test`.`t1`.`a`))"
 +              "using_where": true,
-+              "using_index": true
+               "using_index": true,
+@@ -113,4 +114,3 @@
+                 "d"
+-              ],
+-              "attached_condition": "((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t2`.`c` <=> `test`.`t1`.`a`))"
++              ]
              }
 QUERY: SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,4 +27,4 @@
+@@ -43,2 +43,3 @@
              "filtered": 80,
--            "using_join_buffer": "Block Nested Loop",
--            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            "using_where": true,
-+            "using_join_buffer": "Block Nested Loop"
+             "using_join_buffer": "Block Nested Loop",
+@@ -53,4 +54,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
++            ]
            }
-@@ -45,5 +45,5 @@
+@@ -72,2 +72,3 @@
              "filtered": 80,
 +            "using_where": true,
              "using_index": true,
--            "using_join_buffer": "Block Nested Loop",
+@@ -82,4 +83,3 @@
+               "col_int_key"
+-            ],
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
-+            "using_join_buffer": "Block Nested Loop"
++            ]
            }
 QUERY: SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,4 +27,4 @@
+@@ -43,2 +43,3 @@
              "filtered": 80,
--            "using_join_buffer": "Block Nested Loop",
--            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            "using_where": true,
-+            "using_join_buffer": "Block Nested Loop"
+             "using_join_buffer": "Block Nested Loop",
+@@ -53,4 +54,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
++            ]
            }
-@@ -45,5 +45,5 @@
+@@ -72,2 +72,3 @@
              "filtered": 80,
 +            "using_where": true,
              "using_index": true,
--            "using_join_buffer": "Block Nested Loop",
+@@ -82,4 +83,3 @@
+               "col_int_key"
+-            ],
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
-+            "using_join_buffer": "Block Nested Loop"
++            ]
            }
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -46,3 +46,3 @@
+@@ -75,2 +75,3 @@
              "filtered": 10,
--            "attached_condition": "((`a2`.`c` = NULL) and (`a2`.`d` like '_'))",
 +            "using_where": true,
+             "cost_info": {
+@@ -85,3 +86,2 @@
+             ],
+-            "attached_condition": "((`a2`.`c` = NULL) and (`a2`.`d` like '_'))",
              "materialized_from_subquery": {
 QUERY: SELECT (SELECT rs.t2_id FROM t2 rs WHERE rs.t1_id= (SELECT lt.t1_id FROM t1 lt WHERE lt.t3_id=a.t3_id) ORDER BY b DESC LIMIT 1) from t3 AS a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -34,4 +34,4 @@
+@@ -51,2 +51,3 @@
                "filtered": 100,
--              "using_index": true,
--              "attached_condition": "((`test`.`rs`.`t1_id` <=> (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))) and (`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))))"
 +              "using_where": true,
-+              "using_index": true
+               "using_index": true,
+@@ -62,4 +63,3 @@
+                 "b"
+-              ],
+-              "attached_condition": "((`test`.`rs`.`t1_id` <=> (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))) and (`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))))"
++              ]
              },
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -11,3 +11,3 @@
+@@ -15,2 +15,3 @@
            "filtered": 100,
++          "using_where": true,
+           "cost_info": {
+@@ -24,4 +25,3 @@
+             "a"
+-          ],
 -          "attached_condition": "(`test`.`t2`.`a` is not null)"
-+          "using_where": true
++          ]
          }

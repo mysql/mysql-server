@@ -10,7 +10,7 @@ t1	CREATE TABLE `t1` (
   `a` date NOT NULL,
   `b` varchar(50) NOT NULL,
   `c` varchar(50) NOT NULL,
-  `d` enum('m','w') NOT NULL DEFAULT 'm',
+  `d` enum('m','w') NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a,b,c,d)

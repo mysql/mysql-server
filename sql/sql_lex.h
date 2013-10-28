@@ -176,12 +176,6 @@ typedef struct YYLTYPE
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
-#define DESCRIBE_EXTENDED	2
-/*
-  This is not within #ifdef because we want "EXPLAIN PARTITIONS ..." to produce
-  additional "partitions" column even if partitioning is not compiled in.
-*/
-#define DESCRIBE_PARTITIONS	4
 
 #ifdef MYSQL_SERVER
 
@@ -669,6 +663,14 @@ public:
 #else
   void assert_not_fully_clean() {}
 #endif
+  void invalidate();
+  /*
+    An exception: this is the only function that needs to adjust
+    explain_marker.
+  */
+  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                     bool open_view_no_parse);
+
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -818,6 +820,12 @@ public:
   /// Array of pointers to top elements of all_fields list
   Ref_ptr_array ref_pointer_array;
 
+  /// Number of derived tables and views
+  uint derived_table_count;
+  /// Number of materialized derived tables and views
+  uint materialized_table_count;
+  /// Number of partitioned tables
+  uint partitioned_table_count;
   /*
     number of items in select_list and HAVING clause used to get number
     bigger then can be number of entries that will be added to all item
@@ -949,6 +957,7 @@ public:
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
   void mark_as_dependent(SELECT_LEX *last);
+  void invalidate();
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();

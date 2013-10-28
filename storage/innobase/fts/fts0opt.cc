@@ -57,6 +57,9 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
+/** Initial size of nodes in fts_word_t. */
+static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
+
 /** Last time we did check whether system need a sync */
 static ib_time_t	last_check_sync_time;
 
@@ -360,7 +363,7 @@ fts_word_init(
 	word->heap_alloc = ib_heap_allocator_create(heap);
 
 	word->nodes = ib_vector_create(
-		word->heap_alloc, sizeof(fts_node_t), 64);
+		word->heap_alloc, sizeof(fts_node_t), FTS_WORD_NODES_INIT_SIZE);
 
 	return(word);
 }
@@ -438,6 +441,8 @@ fts_optimize_index_fetch_node(
 	dfield_t*	dfield = que_node_get_val(exp);
 	void*		data = dfield_get_data(dfield);
 	ulint		dfield_len = dfield_get_len(dfield);
+	fts_node_t*	node;
+	bool		is_word_init = false;
 
 	ut_a(dfield_len <= FTS_MAX_WORD_LEN);
 
@@ -445,6 +450,7 @@ fts_optimize_index_fetch_node(
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
 		fts_word_init(word, (byte*) data, dfield_len);
+		is_word_init = true;
 	}
 
 	word = static_cast<fts_word_t*>(ib_vector_last(words));
@@ -454,9 +460,23 @@ fts_optimize_index_fetch_node(
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
 		fts_word_init(word, (byte*) data, dfield_len);
+		is_word_init = true;
 	}
 
-	fts_optimize_read_node(word, que_node_get_next(exp));
+	node = fts_optimize_read_node(word, que_node_get_next(exp));
+
+	fetch->total_memory += node->ilist_size;
+	if (is_word_init) {
+		fetch->total_memory += sizeof(fts_word_t)
+			+ sizeof(ib_alloc_t) + sizeof(ib_vector_t) + dfield_len
+			+ sizeof(fts_node_t) * FTS_WORD_NODES_INIT_SIZE;
+	} else if (ib_vector_size(words) > FTS_WORD_NODES_INIT_SIZE) {
+		fetch->total_memory += sizeof(fts_node_t);
+	}
+
+	if (fetch->total_memory >= fts_result_cache_limit) {
+		return(FALSE);
+	}
 
 	return(TRUE);
 }
@@ -1477,7 +1497,7 @@ fts_optimize_write_word(
 	fts_que_graph_free(graph);
 	graph = NULL;
 
-	mem_free(table_name);
+	ut_free(table_name);
 
 	/* Even if the operation needs to be rolled back and redone,
 	we iterate over the nodes in order to free the ilist. */
@@ -1728,7 +1748,7 @@ fts_optimize_free(
 	fts_doc_ids_free(optim->to_delete);
 	fts_optimize_graph_free(&optim->graph);
 
-	mem_free(optim->name_prefix);
+	ut_free(optim->name_prefix);
 
 	/* This will free the heap from which optim itself was allocated. */
 	mem_heap_free(heap);
@@ -1794,9 +1814,11 @@ fts_optimize_words(
 		selected = fts_select_index(charset, word->f_str, word->f_len);
 
 		/* Read the index records to optimize. */
+		fetch.total_memory = 0;
 		error = fts_index_fetch_nodes(
 			trx, &graph, &optim->fts_index_table, word,
 			&fetch);
+		ut_ad(fetch.total_memory < fts_result_cache_limit);
 
 		if (error == DB_SUCCESS) {
 			/* There must be some nodes to read. */
@@ -2092,7 +2114,7 @@ fts_optimize_purge_deleted_doc_ids(
 
 	graph = fts_parse_sql(NULL, info, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	/* Delete the doc ids that were copied at the start. */
 	for (i = 0; i < ib_vector_size(optim->to_delete->doc_ids); ++i) {
@@ -2143,7 +2165,7 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 	the start of optimize. */
 	graph = fts_parse_sql(NULL, NULL, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	error = fts_eval_sql(optim->trx, graph);
 	fts_que_graph_free(graph);
@@ -2192,7 +2214,7 @@ fts_optimize_create_deleted_doc_id_snapshot(
 	/* Move doc_ids that are to be deleted to state being deleted. */
 	graph = fts_parse_sql(NULL, NULL, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	error = fts_eval_sql(optim->trx, graph);
 

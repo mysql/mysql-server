@@ -8,17 +8,19 @@ select uncompress(compress(@test_compress_string));
 uncompress(compress(@test_compress_string))
 string for test compress function aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 
 explain extended select uncompress(compress(@test_compress_string));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select uncompress(compress((@`test_compress_string`))) AS `uncompress(compress(@test_compress_string))`
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
 explain extended select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (uncompressed_length(compress((@`test_compress_string`))) = length((@`test_compress_string`))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
 select uncompressed_length(compress(@test_compress_string));
 uncompressed_length(compress(@test_compress_string))
@@ -93,18 +95,21 @@ End of 4.1 tests
 create table t1 (a varchar(32) not null);
 insert into t1 values ('foo');
 explain select * from t1 where uncompress(a) is null;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Warning	1259	ZLIB: Input data corrupted
+Note	1003	/* select#1 */ select 'foo' AS `a` from dual where isnull(uncompress('foo'))
 select * from t1 where uncompress(a) is null;
 a
 foo
 Warnings:
 Warning	1259	ZLIB: Input data corrupted
 explain select *, uncompress(a) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'foo' AS `a`,uncompress('foo') AS `uncompress(a)` from dual
 select *, uncompress(a) from t1;
 a	uncompress(a)
 foo	NULL

@@ -48,10 +48,11 @@ while ($i) {
 let $slave_status= 0;
 let $trx= 0;
 let $alter= 0;
-let $i= 200; # with bigger value test times out on some PB hosts 
-if ($VALGRIND_TEST)
+let $i= 200; # with bigger value test times out on some PB hosts
+--let $small_test=`SELECT @@slave_parallel_type='LOGICAL_CLOCK' OR $VALGRIND_TEST`
+if ($small_test)
 {
-  # test may be slow on Valgrind
+  # test may be slow on Valgrind or on MTS SUBMODE = LOGICAL CLOCK
   let $i=50;
 }
 if (`select @@binlog_format like "STATEMENT"`) {

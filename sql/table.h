@@ -206,8 +206,7 @@ typedef struct st_order {
   struct st_order *next;
   Item   **item;                        /* Point at item in select fields */
   Item   *item_ptr;                     /* Storage for initial item */
-  int    counter;                       /* position in SELECT list, correct
-                                           only if counter_used is true */
+
   enum enum_order {
     ORDER_NOT_RELEVANT,
     ORDER_ASC,
@@ -216,7 +215,6 @@ typedef struct st_order {
 
   enum_order direction;                 /* Requested direction of ordering */
   bool   in_field_list;                 /* true if in select field list */
-  bool   counter_used;                  /* parameter was counter of columns */
   /**
      Tells whether this ORDER element was referenced with an alias or with an
      expression, in the query:
@@ -1559,9 +1557,10 @@ struct TABLE_LIST
     table_name_length= table_name_length_arg;
     alias= (char*) alias_arg;
     lock_type= lock_type_arg;
-    mdl_request.init(MDL_key::TABLE, db, table_name,
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, db, table_name,
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                     MDL_SHARED_WRITE : MDL_SHARED_READ,
+                       MDL_SHARED_WRITE : MDL_SHARED_READ,
                      MDL_TRANSACTION);
     callback_func= 0;
   }

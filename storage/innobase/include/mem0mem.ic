@@ -607,71 +607,6 @@ mem_heap_free_func(
 	}
 }
 
-/***************************************************************//**
-NOTE: Use the corresponding macro instead of this function.
-Allocates a single buffer of memory from the dynamic memory of
-the C compiler. Is like malloc of C. The buffer must be freed
-with mem_free.
-@return own: free storage */
-UNIV_INLINE
-void*
-mem_alloc_func(
-/*===========*/
-	ulint		n,		/*!< in: desired number of bytes */
-	ulint*		size,		/*!< out: allocated size in bytes,
-					or NULL */
-	const char*	file_name,	/*!< in: file name where created */
-	ulint		line)		/*!< in: line where created */
-{
-	mem_heap_t*	heap;
-	void*		buf;
-
-	heap = mem_heap_create_func(n, MEM_HEAP_DYNAMIC, file_name, line);
-
-	/* Note that as we created the first block in the heap big enough
-	for the buffer requested by the caller, the buffer will be in the
-	first block and thus we can calculate the pointer to the heap from
-	the pointer to the buffer when we free the memory buffer. */
-
-	if (size) {
-		/* Adjust the allocation to the actual size of the
-		memory block. */
-		ulint	m = mem_block_get_len(heap)
-			- mem_block_get_free(heap);
-#ifdef UNIV_MEM_DEBUG
-		m -= MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE;
-#endif /* UNIV_MEM_DEBUG */
-		ut_ad(m >= n);
-		n = m;
-		*size = m;
-	}
-
-	buf = mem_heap_alloc(heap, n);
-
-	ut_a((byte*) heap == (byte*) buf - MEM_BLOCK_HEADER_SIZE
-	     - MEM_FIELD_HEADER_SIZE);
-	return(buf);
-}
-
-/***************************************************************//**
-NOTE: Use the corresponding macro instead of this function. Frees a single
-buffer of storage from the dynamic memory of the C compiler. Similar to the
-free of C. */
-UNIV_INLINE
-void
-mem_free_func(
-/*==========*/
-	void*		ptr,		/*!< in, own: buffer to be freed */
-	const char*	file_name,	/*!< in: file name where created */
-	ulint		line)		/*!< in: line where created */
-{
-	mem_heap_t*   heap;
-
-	heap = (mem_heap_t*)((byte*) ptr - MEM_BLOCK_HEADER_SIZE
-			     - MEM_FIELD_HEADER_SIZE);
-	mem_heap_free_func(heap, file_name, line);
-}
-
 /*****************************************************************//**
 Returns the space in bytes occupied by a memory heap. */
 UNIV_INLINE
@@ -697,7 +632,7 @@ mem_heap_get_size(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -705,12 +640,12 @@ mem_strdup(
 	const char*	str)	/*!< in: string to be copied */
 {
 	ulint	len = strlen(str) + 1;
-	return((char*) memcpy(mem_alloc(len), str, len));
+	return(static_cast<char*>(memcpy(ut_malloc(len), str, len)));
 }
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdupl(
@@ -718,9 +653,9 @@ mem_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len)	/*!< in: length of str, in bytes */
 {
-	char*	s = (char*) mem_alloc(len + 1);
+	char*	s = static_cast<char*>(ut_malloc(len + 1));
 	s[len] = 0;
-	return((char*) memcpy(s, str, len));
+	return(static_cast<char*>(memcpy(s, str, len)));
 }
 
 /**********************************************************************//**

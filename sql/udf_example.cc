@@ -119,11 +119,11 @@
 #include <algorithm>
 
 #if defined(MYSQL_SERVER)
-#include <m_string.h>		/* To get strmov() */
+#include <m_string.h>		/* To get my_stpcpy() */
 #else
 /* when compiled as standalone */
 #include <string.h>
-#define strmov(a,b) stpcpy(a,b)
+#define my_stpcpy(a,b) stpcpy(a,b)
 #endif
 
 #include <mysql.h>
@@ -634,7 +634,7 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count > 1)
   {
-    strmov(message,"This function takes none or 1 argument");
+    my_stpcpy(message,"This function takes none or 1 argument");
     return 1;
   }
   if (args->arg_count)
@@ -642,7 +642,7 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 
   if (!(initid->ptr=(char*) malloc(sizeof(longlong))))
   {
-    strmov(message,"Couldn't allocate memory");
+    my_stpcpy(message,"Couldn't allocate memory");
     return 1;
   }
   memset(initid->ptr, 0, sizeof(longlong));
@@ -713,7 +713,7 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT)
   {
-    strmov(message,"Wrong arguments to lookup;  Use the source");
+    my_stpcpy(message,"Wrong arguments to lookup;  Use the source");
     return 1;
   }
   initid->max_length=11;
@@ -772,7 +772,7 @@ char *lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
   pthread_mutex_unlock(&LOCK_hostname);
 #endif
   memcpy(&in, *hostent->h_addr_list, sizeof(in.s_addr));
-  *res_length= (ulong) (strmov(result, inet_ntoa(in)) - result);
+  *res_length= (ulong) (my_stpcpy(result, inet_ntoa(in)) - result);
   return result;
 }
 
@@ -792,7 +792,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
       INT_RESULT;
   else
   {
-    strmov(message,
+    my_stpcpy(message,
 	   "Wrong number of arguments to reverse_lookup;  Use the source");
     return 1;
   }
@@ -875,7 +875,7 @@ char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
   }
   pthread_mutex_unlock(&LOCK_hostname);
 #endif
-  *res_length=(ulong) (strmov(result,hp->h_name) - result);
+  *res_length=(ulong) (my_stpcpy(result,hp->h_name) - result);
   return result;
 }
 
@@ -936,7 +936,7 @@ avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
 
   if (!(data = new (std::nothrow) avgcost_data))
   {
-    strmov(message,"Couldn't allocate memory");
+    my_stpcpy(message,"Couldn't allocate memory");
     return 1;
   }
   data->totalquantity	= 0;
@@ -1051,7 +1051,7 @@ my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
 {
   if (args->arg_count != 1)
   {
-    strmov(message,"myfunc_argument_name_init accepts only one argument");
+    my_stpcpy(message,"myfunc_argument_name_init accepts only one argument");
     return 1;
   }
   initid->max_length= args->attribute_lengths[0];
@@ -1084,7 +1084,7 @@ my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
   {
-    strmov(message, "IS_CONST accepts only one argument");
+    my_stpcpy(message, "IS_CONST accepts only one argument");
     return 1;
   }
   initid->ptr= (char*)((args->args[0] != NULL) ? 1UL : 0);
@@ -1112,7 +1112,7 @@ my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
   {
-    strmov(message, "CHECK_CONST_LEN accepts only one argument");
+    my_stpcpy(message, "CHECK_CONST_LEN accepts only one argument");
     return 1;
   }
   if (args->args[0] == 0)
@@ -1136,7 +1136,7 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
                 char *result, unsigned long *length,
                 char *is_null, char *error __attribute__((unused)))
 {
-  strmov(result, initid->ptr);
+  my_stpcpy(result, initid->ptr);
   *length= (uint) strlen(result);
   *is_null= 0;
   return result;
@@ -1165,7 +1165,7 @@ my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message)
   My_median_data *data= new (std::nothrow) My_median_data;
   if (!data)
   {
-    strmov(message,"Could not allocate memory");
+    my_stpcpy(message,"Could not allocate memory");
     return true;
   }
   initid->ptr= static_cast<char*>(static_cast<void*>(data));

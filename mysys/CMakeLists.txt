@@ -27,7 +27,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
 				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
-				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
+				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
 				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
@@ -68,8 +68,13 @@ ENDIF()
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
-
 ADD_EXECUTABLE(queues queues.c)
 TARGET_LINK_LIBRARIES(queues mysys)
 SET_TARGET_PROPERTIES(queues PROPERTIES COMPILE_FLAGS "-DMAIN")
 ADD_TEST(queues_test queues)
+
+INSTALL_DEBUG_SYMBOLS(mysys)
+IF(MSVC)
+   INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+

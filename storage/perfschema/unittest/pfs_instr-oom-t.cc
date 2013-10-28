@@ -64,6 +64,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -101,6 +102,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -138,6 +140,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -175,6 +178,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -210,6 +214,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -247,6 +252,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -284,6 +290,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -323,6 +330,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -358,11 +366,13 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread wait)");
+  cleanup_instruments();
 
   param.m_enabled= true;
   param.m_mutex_class_sizing= 0;
@@ -385,11 +395,11 @@ void test_oom()
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (socket)");
-
   cleanup_instruments();
 
   param.m_host_sizing= 0;
@@ -403,6 +413,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 1;
   init_event_name_sizing(& param);
@@ -439,6 +450,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -475,6 +487,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -511,6 +524,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -547,6 +561,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -583,6 +598,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 1;
   init_event_name_sizing(& param);
@@ -619,6 +635,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -658,6 +675,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 0;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -697,6 +715,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_memory_class_sizing= 10;
+  param.m_metadata_lock_sizing= 0;
 
   stub_alloc_fails_after_count= 0;
   init_event_name_sizing(& param);

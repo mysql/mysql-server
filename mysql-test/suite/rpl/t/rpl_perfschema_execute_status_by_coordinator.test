@@ -65,46 +65,12 @@ source include/wait_for_slave_param.inc;
 --echo # Testing on fresh slave.
 --echo
 
-# To verify that the SQL thread_id is correctly shown by PS table, find the
-# row in SHOW PROCESSLIST that corresponds to SQL thread and extract the
-# Id field shown in that row.
-# This is implemented by dumping the SHOW PROCESSLIST output in a file
-# and looking for the string "Slave has read all relay log; waiting for the
-# slave I/O thread to update" in a line in the dumped file. The Id field
-# in the that line is then extracted to obtain the SQL thread_id.
-
-let $out_file=$MYSQLTEST_VARDIR/tmp/show_processlist_output.txt;
-exec $MYSQL_SLAVE -e "show processlist" > $out_file;
-let INPUT_FILE= $out_file;
-let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_execute_status_by_coordinator, Thread_Id, 1);
-let SQL_THREAD_ID= $ps_value;
-
-perl;
-use strict;
-my $input_file= $ENV{'INPUT_FILE'} or die "INPUT_FILE not set\n";
-my $sql_thread_id= $ENV{'SQL_THREAD_ID'} or die "SQL_THREAD_ID not set\n";
-open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
-while (<IN_FILE>)
-{
-  if (/(\d+)(.*?)(Slave\s+has\s+read\s+all\s+relay\s+log)(.*?)$/)
-  {
-    if ($sql_thread_id == $1)
-    {
-      print "sql thread id extracted from SHOW PROCESSLIST and PS table match.\n";
-    }
-    else
-    {
-      print "sql thread id extracted from SHOW PROCESSLIST and PS table do NOT match.\n";
-    }
-  }
-}
-
-close(IN_FILE);
-EOF
-
-remove_file $out_file;
-
-# End of perl code for thread_id testing.
+# To verify the correctness of thread_id field, we check for the name of
+# the thread.
+let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_execute_status_by_coordinator)`;
+let $assert_text= thread_name should should indicate sql thread.;
+let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
@@ -321,46 +287,12 @@ source include/start_slave.inc;
 --let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
 source include/wait_for_slave_param.inc;
 
-# To verify that the coordinator's thread_id is correctly shown by PS table,
-# find the row in SHOW PROCESSLIST that corresponds to SQL thread and extract
-# the Id field shown in that row.
-# This is implemented by dumping the SHOW PROCESSLIST output in a file
-# and looking for the string "Slave has read all relay log" in a line in the
-# dumped file. The Id field in the that line is then extracted to obtain the
-# coordinator's thread_id.
-
-let $out_file=$MYSQLTEST_VARDIR/tmp/show_processlist_output.txt;
-exec $MYSQL_SLAVE -e "show processlist" > $out_file;
-let INPUT_FILE= $out_file;
-let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_execute_status_by_coordinator, Thread_Id, 1);
-let COORD_THREAD_ID= $ps_value;
-
-perl;
-use strict;
-my $input_file= $ENV{'INPUT_FILE'} or die "INPUT_FILE not set\n";
-my $coord_thread_id= $ENV{'COORD_THREAD_ID'} or die "COORD_THREAD_ID not set\n";
-open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
-while (<IN_FILE>)
-{
-  if (/(\d+)(.*?)(Slave\s+has\s+read\s+all\s+relay\s+log)(.*?)$/)
-  {
-    if ($coord_thread_id == $1)
-    {
-      print "coordinator's thread id extracted from SHOW PROCESSLIST and PS table match.\n";
-    }
-    else
-    {
-      print "coordinator's thread id extracted from SHOW PROCESSLIST and PS table do NOT match.\n";
-    }
-  }
-}
-
-close(IN_FILE);
-EOF
-
-remove_file $out_file;
-
-# End of perl code for thread_id testing.
+# To verify the correctness of thread_id field, we check for the name of
+# the thread.
+let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_execute_status_by_coordinator)`;
+let $assert_text= thread_name should should indicate sql thread.;
+let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);

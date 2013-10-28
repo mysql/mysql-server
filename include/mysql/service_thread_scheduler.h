@@ -19,35 +19,64 @@
 #define SERVICE_THREAD_SCHEDULER_INCLUDED
 
 #ifdef __cplusplus
-class Connection_handler;
-#define MYSQL_CONNECTION_HANDLER Connection_handler*
-#else
-#define MYSQL_CONNECTION_HANDLER void*
-#endif
-
-#ifdef __cplusplus
 extern "C" {
 #endif
 
-struct Connection_handler_callback;
+struct Connection_handler_functions;
+struct THD_event_functions;
 
 extern struct my_thread_scheduler_service {
-  int (*connection_handler_set)(MYSQL_CONNECTION_HANDLER conn_handler,
-                                struct Connection_handler_callback *cb);
+  int (*connection_handler_set)(struct Connection_handler_functions *,
+                                struct THD_event_functions *);
   int (*connection_handler_reset)();
 } *my_thread_scheduler_service;
+
+
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define my_connection_handler_set(F, M) my_thread_scheduler_service->connection_handler_set((F), (M))
-#define my_connection_handler_reset() my_thread_scheduler_service->connection_handler_reset()
+#define my_connection_handler_set(F, M) \
+  my_thread_scheduler_service->connection_handler_set((F), (M))
+#define my_connection_handler_reset() \
+  my_thread_scheduler_service->connection_handler_reset()
 
 #else
 
-int my_connection_handler_set(MYSQL_CONNECTION_HANDLER conn_handler,
-                              struct Connection_handler_callback *cb);
+/**
+   Instantiates Plugin_connection_handler based on the supplied
+   Conection_handler_functions and sets it as the current
+   connection handler.
+
+   Also sets the THD_event_functions functions which will
+   be called by the server when e.g. begining a wait.
+
+   Remembers the existing connection handler so that it can be restored later.
+
+   @param chf  struct with functions to be called when e.g. handling
+               new clients.
+   @param tef  struct with functions to be called when events
+               (e.g. lock wait) happens.
+
+   @note Both pointers (i.e. not the structs themselves) will be copied,
+         so the structs must not disappear.
+
+   @note We don't support dynamically loading more than one connection handler.
+
+   @retval 1  failure
+   @retval 0  success
+*/
+int my_connection_handler_set(struct Connection_handler_functions *chf,
+                              struct THD_event_functions *tef);
+
+/**
+   Destroys the current connection handler and restores the previous.
+   Should only be called after calling my_connection_handler_set().
+
+   @retval 1  failure
+   @retval 0  success
+*/
 int my_connection_handler_reset();
 
-#endif
+#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 #ifdef __cplusplus
 }

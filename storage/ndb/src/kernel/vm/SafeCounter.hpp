@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +49,11 @@
  */
 
 #include <NodeBitmask.hpp>
-#include "DLList.hpp"
+#include "IntrusiveList.hpp"
 #include "VMSignal.hpp"
+
+#define JAM_FILE_ID 286
+
 
 class SimulatedBlock;
 
@@ -317,5 +320,8 @@ SafeCounter::forceClearWaitingFor(Uint32 nodeId){
   }
   return (m_count == 0);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
