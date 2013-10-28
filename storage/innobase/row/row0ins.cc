@@ -2710,9 +2710,8 @@ row_ins_sec_index_entry_low(
 
 	n_unique = dict_index_get_n_unique(index);
 
-	if (!dict_index_is_unique(index)) {
-		/* No need to check uniqueness */
-	} else if (cursor.low_match >= n_unique || cursor.up_match >= n_unique) {
+	if (dict_index_is_unique(index)
+	    && (cursor.low_match >= n_unique || cursor.up_match >= n_unique)) {
 		mtr_commit(&mtr);
 
 		DEBUG_SYNC_C("row_ins_sec_index_unique");
@@ -2767,9 +2766,11 @@ row_ins_sec_index_entry_low(
 			index, 0, entry, PAGE_CUR_LE,
 			search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE),
 			&cursor, 0, __FILE__, __LINE__, &mtr);
-	} else if (thr_get_trx(thr)->duplicates
-		   && thr_get_trx(thr)->isolation_level
-		   >= TRX_ISO_REPEATABLE_READ) {
+	}
+
+	if (dict_index_is_unique(index)
+	    && thr_get_trx(thr)->duplicates
+	    && thr_get_trx(thr)->isolation_level >= TRX_ISO_REPEATABLE_READ) {
 
 		/* When using the REPLACE statement or ON DUPLICATE clause, a
 		gap lock is taken on the position of the to-be-inserted record,
