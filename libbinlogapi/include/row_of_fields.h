@@ -24,9 +24,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <vector>
 #include <iostream>
 
-using namespace mysql;
+using namespace binary_log;
 
-namespace mysql
+namespace binary_log
 {
 
 class Row_of_fields : public std::vector<Value >

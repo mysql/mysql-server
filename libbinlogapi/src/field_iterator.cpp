@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 //Row_iterator Row_iterator::end() const
 //{ return Row_iterator(); }
 
-namespace mysql
+namespace binary_log
 {
 
 
@@ -100,4 +100,4 @@ int lookup_metadata_field_size(enum_field_types field_type)
   }
 }
 
-} // end namespace mysql
+} // end namespace binary_log

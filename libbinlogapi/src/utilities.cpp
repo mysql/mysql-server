@@ -20,11 +20,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include "utilities.h"
 
-using namespace mysql;
+using namespace binary_log;
 
-namespace mysql {
+namespace binary_log {
 
-int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
+int server_var_decoder (std::map<std::string, binary_log::Value> *my_var_map,
                         std::vector<uint8_t> variables)
 {
   uint8_t length, i;
@@ -64,7 +64,7 @@ int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
         length= 2;
         my_var_map->insert(std::make_pair
                            ("auto_increment_increment",
-                            mysql::Value(MYSQL_TYPE_SHORT,
+                            binary_log::Value(MYSQL_TYPE_SHORT,
                                          length, (char*) &(*it))));
         for (i= 0; i < length; i++)
           it++;
@@ -76,14 +76,14 @@ int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
         length= 2;
         my_var_map->insert(std::make_pair
                            ("character_set_client",
-                            mysql::Value(MYSQL_TYPE_SHORT,
+                            binary_log::Value(MYSQL_TYPE_SHORT,
                                          length, (char*) &(*it))));
         for (i= 0; i < length; i++)
           it++;
 
         my_var_map->insert(std::make_pair
                            ("collation_connection",
-                            mysql::Value(MYSQL_TYPE_SHORT,
+                            binary_log::Value(MYSQL_TYPE_SHORT,
                                          length, (char*) &(*it))));
         for (i= 0; i < length; i++)
           it++;
@@ -125,7 +125,7 @@ int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
         length= *it++;
         my_var_map->insert(std::make_pair
                            ("user",
-                            mysql::Value(MYSQL_TYPE_VAR_STRING,
+                            binary_log::Value(MYSQL_TYPE_VAR_STRING,
                                          length, (char*) &(*it))));
         for (i= 0; i < length; i++)
           it++;
@@ -139,7 +139,7 @@ int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
         return 1;
     }                                           /* switch */
     my_var_map->insert(std::make_pair
-                       (name, mysql::Value(field_type, length,
+                       (name, binary_log::Value(field_type, length,
                                            (char*) &(*it))));
     while (length --)
       ++it;
@@ -154,5 +154,5 @@ int server_var_decoder (std::map<std::string, mysql::Value> *my_var_map,
   return 0;
 }                                               /* server_var_decoder() */
 
-}                                               /* mysql namespace */
+}                                               /* binary_log namespace */
 

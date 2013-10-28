@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "field_iterator.h"
 #include "resultset_iterator.h"
 
-using namespace mysql;
+using namespace binary_log;
 
-namespace mysql {
+namespace binary_log {
 
 class Row_event;
 class Table_map_event;

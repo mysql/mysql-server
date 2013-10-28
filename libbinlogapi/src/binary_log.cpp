@@ -18,12 +18,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 
-#include "binlog_api.h"
+#include "binary_log.h"
 #include <list>
 
-using namespace mysql;
-using namespace mysql::system;
-namespace mysql
+using namespace binary_log;
+using namespace binary_log::system;
+namespace binary_log
 {
 /**
  *Errors you can get from the API
@@ -63,94 +63,5 @@ const char* str_error(int error_no)
       msg= (char*)"Unknown error";
    }
    return msg;
-}
-
-Binary_log::Binary_log(Binary_log_driver *drv) : m_binlog_position(4),
-                                                 m_binlog_file("")
-{
-  if (drv == NULL)
-  {
-    m_driver= &m_dummy_driver;
-  }
-  else
-   m_driver= drv;
-}
-
-Content_handler_pipeline *Binary_log::content_handler_pipeline(void)
-{
-  return &m_content_handlers;
-}
-
-unsigned int Binary_log::wait_for_next_event(mysql::Binary_log_event **event_ptr)
-{
-  int rc;
-  mysql::Binary_log_event *event;
-
-  do {
-      // Return in case of non-ERR_OK.
-      if ((rc= m_driver->wait_for_next_event(&event)))
-        return rc;
-
-    m_binlog_position= event->header()->next_position;
-    std::list<mysql::Content_handler *>::iterator it=
-    m_content_handlers.begin();
-
-    for(; it != m_content_handlers.end(); it++)
-    {
-      if (event)
-      {
-        event= (*it)->internal_process_event(event);
-      }
-    }
-  } while(event == 0);
-
-  if (event_ptr)
-    *event_ptr= event;
-
-  return 0;
-}
-
-int Binary_log::set_position(const std::string &filename, ulong position)
-{
-  int status= m_driver->set_position(filename, position);
-  if (status == ERR_OK)
-  {
-    m_binlog_file= filename;
-    m_binlog_position= position;
-  }
-  return status;
-}
-
-int Binary_log::set_position(ulong position)
-{
-  std::string filename;
-  m_driver->get_position(&filename, NULL);
-  return this->set_position(filename, position);
-}
-
-ulong Binary_log::get_position(void)
-{
-  return m_binlog_position;
-}
-
-ulong Binary_log::get_position(std::string &filename)
-{
-  m_driver->get_position(&m_binlog_file, &m_binlog_position);
-  filename= m_binlog_file;
-  return m_binlog_position;
-}
-
-int Binary_log::connect(ulong pos)
-{
-  return m_driver->connect((const std::string&)"", pos);
-}
-
-int Binary_log::disconnect()
-{
-  return m_driver->disconnect();
-}
-int Binary_log::connect()
-{
-  return m_driver->connect();
 }
 }

@@ -21,9 +21,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "binlog_event.h"
 #include <iomanip>
 
-using namespace mysql;
-using namespace mysql::system;
-namespace mysql {
+using namespace binary_log;
+using namespace binary_log::system;
+namespace binary_log {
 
 uint32_t calc_field_size(unsigned char column_type, const unsigned char *field_ptr,
                     uint32_t metadata)
@@ -558,4 +558,4 @@ void Converter::to(long &out, const Value &val) const
 }
 
 
-} // end namespace mysql
+} // end namespace binary_log

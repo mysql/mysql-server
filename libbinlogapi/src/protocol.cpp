@@ -19,17 +19,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 */
 #include "protocol.h"
 #include "transitional_methods.h"
-#include "binlog_api.h"
+#include "binary_log.h"
 #include <my_global.h>
 #include <mysql_com.h>
 #include <iostream>
 #include <stdint.h>
 #include <vector>
 
-using namespace mysql;
-using namespace mysql::system;
+using namespace binary_log;
+using namespace binary_log::system;
 using namespace std;
-namespace mysql { namespace system {
+namespace binary_log { namespace system {
 
 
 
@@ -37,7 +37,7 @@ namespace mysql { namespace system {
   Checks the Format Description event to determine if the master
   has binlog checksums enabled or not.
 */
-int check_checksum_value(mysql::Binary_log_event **event)
+int check_checksum_value(binary_log::Binary_log_event **event)
 {
 
   Format_event *fdev= static_cast<Format_event*>(*event);
@@ -56,10 +56,10 @@ int check_checksum_value(mysql::Binary_log_event **event)
 
     // Last element in post_header_len is the checksum algorithm descriptor.
     if ((int)fdev->post_header_len.back() ==
-        mysql::system::BINLOG_CHECKSUM_ALG_CRC32)
-      return mysql::ERR_CHECKSUM_ENABLED;
+        binary_log::system::BINLOG_CHECKSUM_ALG_CRC32)
+      return binary_log::ERR_CHECKSUM_ENABLED;
   }
-  return mysql::ERR_OK;
+  return binary_log::ERR_OK;
 }
 
 int proto_get_one_package(MYSQL *mysql, char *buff,
@@ -486,4 +486,4 @@ std::istream &operator>>(std::istream &is, Protocol_chunk_vector &chunk)
 }
 
 
-} } // end namespace mysql::system
+} } // end namespace binary_log::system

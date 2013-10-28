@@ -1,14 +1,14 @@
 # Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -422,6 +422,15 @@ INCLUDE(configure.cmake)
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
+### libbinlogapi ##
+#libbinlobapi headers are used in log_event.h, which are included by header
+#files in other subdirectories, which are storage/perfschema, storage/federated
+#Since the hedear files of libbinblogapi are contained in libbinlogapi/include,
+#they need to be explicitly included
+### end comment ##
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogapi/include)
+
+LINK_DIRECTORIES(${PROJECT_BINARY_DIR}/libbinlogapi/lib)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
@@ -473,6 +482,7 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(mysys_ssl)
 ADD_SUBDIRECTORY(libmysql)
+ADD_SUBDIRECTORY(libbinlogapi)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
