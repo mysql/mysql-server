@@ -312,8 +312,8 @@ the embedded version of the MySQL server.
 %setup -q -T -a 0 -a 7 -c -n %{src_dir}
 cd %{src_dir}
 %patch0 -p1
-chmod +x %{__perl_provides}
-chmod +x %{__perl_requires}
+chmod 0755 %{__perl_provides}
+chmod 0755 %{__perl_requires}
 
 %build
 # Fail quickly and obviously if user tries to build as root
