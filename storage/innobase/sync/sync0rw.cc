@@ -33,6 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.h"
 #ifdef UNIV_NONINL
 #include "sync0rw.ic"
+#include "sync0arr.ic"
 #endif
 
 #include "ha_prototypes.h"
@@ -204,7 +205,7 @@ rw_lock_debug_t*
 rw_lock_debug_create(void)
 /*======================*/
 {
-	return((rw_lock_debug_t*) mem_alloc(sizeof(rw_lock_debug_t)));
+	return((rw_lock_debug_t*) ut_malloc(sizeof(rw_lock_debug_t)));
 }
 
 /******************************************************************//**
@@ -215,7 +216,7 @@ rw_lock_debug_free(
 /*===============*/
 	rw_lock_debug_t* info)
 {
-	mem_free(info);
+	ut_free(info);
 }
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -403,11 +404,10 @@ lock_loop:
 
 		rw_lock_stats.rw_s_spin_round_count.inc();
 
-		sync_arr = sync_array_get();
+		sync_cell_t*	cell;
 
-		sync_cell_t*	cell = sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_S,
-			file_name, line);
+		sync_arr = sync_array_get_and_reserve_cell(
+				lock, RW_LOCK_S, file_name, line, &cell);
 
 		/* Set waiters before checking lock_word to ensure wake-up
 		signal is sent. This may lead to some unnecessary signals. */
@@ -484,11 +484,10 @@ rw_lock_x_lock_wait_func(
 		/* If there is still a reader, then go to sleep.*/
 		rw_lock_stats.rw_x_spin_round_count.inc();
 
-		sync_arr = sync_array_get();
+		sync_cell_t*	cell;
 
-		sync_cell_t*	cell = sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_X_WAIT,
-			file_name, line);
+		sync_arr = sync_array_get_and_reserve_cell(
+				lock, RW_LOCK_X_WAIT, file_name, line, &cell);
 
 		i = 0;
 
@@ -749,10 +748,10 @@ lock_loop:
 
 	rw_lock_stats.rw_x_spin_round_count.inc();
 
-	sync_arr = sync_array_get();
+	sync_cell_t*	cell;
 
-	sync_cell_t*	cell = sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_X, file_name, line);
+	sync_arr = sync_array_get_and_reserve_cell(
+			lock, RW_LOCK_X, file_name, line, &cell);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
@@ -851,10 +850,10 @@ lock_loop:
 
 	rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
 
-	sync_arr = sync_array_get();
+	sync_cell_t*	cell;
 
-	sync_cell_t*	cell = sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_SX, file_name, line);
+	sync_arr = sync_array_get_and_reserve_cell(
+			lock, RW_LOCK_SX, file_name, line, &cell);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
@@ -1130,6 +1129,7 @@ rw_lock_is_locked(
 	default:
 		ut_error;
 	}
+	return(false);	/* avoid compiler warnings */
 }
 
 #ifdef UNIV_SYNC_DEBUG

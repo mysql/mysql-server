@@ -216,7 +216,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 		len = clust_len;
 
-		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -501,7 +502,7 @@ sel_col_prefetch_buf_alloc(
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
 	column->prefetch_buf = static_cast<sel_buf_t*>(
-		mem_alloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+		ut_malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
@@ -529,11 +530,11 @@ sel_col_prefetch_buf_free(
 
 		if (sel_buf->val_buf_size > 0) {
 
-			mem_free(sel_buf->data);
+			ut_free(sel_buf->data);
 		}
 	}
 
-	mem_free(prefetch_buf);
+	ut_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -3194,12 +3195,6 @@ row_sel_get_clust_rec_for_mysql(
 		    && !row_sel_sec_rec_is_for_clust_rec(
 			    rec, sec_index, clust_rec, clust_index)) {
 			clust_rec = NULL;
-#ifdef UNIV_SEARCH_DEBUG
-		} else {
-			ut_a(clust_rec == NULL
-			     || row_sel_sec_rec_is_for_clust_rec(
-				     rec, sec_index, clust_rec, clust_index));
-#endif
 		}
 
 		err = DB_SUCCESS;
@@ -3245,48 +3240,76 @@ sel_restore_position_for_mysql(
 	mtr_t*		mtr)		/*!< in: mtr; CAUTION: may commit
 					mtr temporarily! */
 {
-	ibool	success;
-	ulint	relative_position;
-
-	relative_position = pcur->rel_pos;
+	ibool		success;
 
 	success = btr_pcur_restore_position(latch_mode, pcur, mtr);
 
 	*same_user_rec = success;
 
-	if (relative_position == BTR_PCUR_ON) {
-		if (success) {
-			return(FALSE);
-		}
-
-		if (moves_up) {
-			btr_pcur_move_to_next(pcur, mtr);
-		}
-
-		return(TRUE);
+	ut_ad(!success || pcur->rel_pos == BTR_PCUR_ON);
+#ifdef UNIV_DEBUG
+	if (pcur->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
+		ut_ad(pcur->rel_pos == BTR_PCUR_BEFORE
+		      || pcur->rel_pos == BTR_PCUR_AFTER);
+	} else {
+		ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 	}
+#endif
 
-	if (relative_position == BTR_PCUR_AFTER
-	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
+	/* The position may need be adjusted for rel_pos and moves_up. */
 
-		if (moves_up) {
+	switch (pcur->rel_pos) {
+	case BTR_PCUR_ON:
+		if (!success && moves_up) {
+next:
+			btr_pcur_move_to_next(pcur, mtr);
 			return(TRUE);
 		}
-
-		if (btr_pcur_is_on_user_rec(pcur)) {
+		return(!success);
+	case BTR_PCUR_AFTER_LAST_IN_TREE:
+	case BTR_PCUR_BEFORE_FIRST_IN_TREE:
+		return(TRUE);
+	case BTR_PCUR_AFTER:
+		/* positioned to record after pcur->old_rec. */
+		pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+prev:
+		if (btr_pcur_is_on_user_rec(pcur) && !moves_up) {
 			btr_pcur_move_to_prev(pcur, mtr);
 		}
-
 		return(TRUE);
+	case BTR_PCUR_BEFORE:
+		/* For non optimistic restoration:
+		The position is now set to the record before pcur->old_rec.
+
+		For optimistic restoration:
+		The position also needs to take the previous search_mode into
+		consideration. */
+
+		switch (pcur->pos_state) {
+		case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
+			pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+			if (pcur->search_mode == PAGE_CUR_GE) {
+				/* Positioned during Greater or Equal search
+				with BTR_PCUR_BEFORE. Optimistic restore to
+				the same record. If scanning for lower then
+				we must move to previous record.
+				This can happen with:
+				HANDLER READ idx a = (const);
+				HANDLER READ idx PREV; */
+				goto prev;
+			}
+			return(TRUE);
+		case BTR_PCUR_IS_POSITIONED:
+			if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
+				goto next;
+			}
+			return(TRUE);
+		case BTR_PCUR_WAS_POSITIONED:
+		case BTR_PCUR_NOT_POSITIONED:
+			break;
+		}
 	}
-
-	ut_ad(relative_position == BTR_PCUR_BEFORE
-	      || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
-
-	if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
-		btr_pcur_move_to_next(pcur, mtr);
-	}
-
+	ut_ad(0);
 	return(TRUE);
 }
 
@@ -3400,7 +3423,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = static_cast<byte*>(mem_alloc(sz));
+	ptr = static_cast<byte*>(ut_malloc(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 
@@ -3491,19 +3514,12 @@ row_sel_try_search_shortcut_for_mysql(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
 
-#ifndef UNIV_SEARCH_DEBUG
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 				   BTR_SEARCH_LEAF, pcur,
 				   (trx->has_search_latch)
 				    ? RW_S_LATCH
 				    : 0,
 				   mtr);
-#else /* UNIV_SEARCH_DEBUG */
-	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
-				   BTR_SEARCH_LEAF, pcur,
-				   0,
-				   mtr);
-#endif /* UNIV_SEARCH_DEBUG */
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_user_rec(rec)) {
@@ -3673,9 +3689,6 @@ row_search_for_mysql(
 	/* if the returned record was locked and we did a semi-consistent
 	read (fetch the newest committed version), then this is set to
 	TRUE */
-#ifdef UNIV_SEARCH_DEBUG
-	ulint		cnt				= 0;
-#endif /* UNIV_SEARCH_DEBUG */
 	ulint		next_offs;
 	ibool		same_user_rec;
 	mtr_t		mtr;
@@ -3921,20 +3934,15 @@ row_search_for_mysql(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-#ifndef UNIV_SEARCH_DEBUG
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = true;
 			}
-#endif
+
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
 					&mtr)) {
 			case SEL_FOUND:
-#ifdef UNIV_SEARCH_DEBUG
-				ut_a(0 == cmp_dtuple_rec(search_tuple,
-							 rec, offsets));
-#endif
 				/* At this point, rec is protected by
 				a page latch that was acquired by
 				row_sel_try_search_shortcut_for_mysql().
@@ -4192,17 +4200,6 @@ rec_loop:
 	rec = btr_pcur_get_rec(pcur);
 
 	ut_ad(!!page_rec_is_comp(rec) == comp);
-#ifdef UNIV_SEARCH_DEBUG
-	/*
-	fputs("Using ", stderr);
-	dict_index_name_print(stderr, trx, index);
-	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
-	page_get_page_no(page_align(rec)));
-	rec_print(stderr, rec, index);
-	printf("delete-mark: %lu\n",
-	       rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
-	*/
-#endif /* UNIV_SEARCH_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 
@@ -4385,6 +4382,14 @@ wrong_offs:
 
 			btr_pcur_store_position(pcur, &mtr);
 
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
+
 			err = DB_RECORD_NOT_FOUND;
 #if 0
 			ut_print_name(stderr, trx, FALSE, index->name);
@@ -4425,6 +4430,14 @@ wrong_offs:
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
+
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
 #if 0
@@ -4989,10 +5002,6 @@ next_rec:
 		if (sel_restore_position_for_mysql(&same_user_rec,
 						   BTR_SEARCH_LEAF,
 						   pcur, moves_up, &mtr)) {
-#ifdef UNIV_SEARCH_DEBUG
-			cnt++;
-#endif /* UNIV_SEARCH_DEBUG */
-
 			goto rec_loop;
 		}
 	}
@@ -5015,10 +5024,6 @@ not_moved:
 			goto not_moved;
 		}
 	}
-
-#ifdef UNIV_SEARCH_DEBUG
-	cnt++;
-#endif /* UNIV_SEARCH_DEBUG */
 
 	goto rec_loop;
 
@@ -5094,11 +5099,6 @@ lock_table_wait:
 
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-#ifdef UNIV_SEARCH_DEBUG
-	/*	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
-	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-#endif /* UNIV_SEARCH_DEBUG */
 	goto func_exit;
 
 normal_return:
@@ -5125,14 +5125,9 @@ normal_return:
 		pre-fetch queue, but we definitely wrote to the record
 		buffer passed to use by MySQL. */
 
+		DEBUG_SYNC_C("row_search_cached_row");
 		err = DB_SUCCESS;
 	}
-
-#ifdef UNIV_SEARCH_DEBUG
-	/*	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
-	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-#endif /* UNIV_SEARCH_DEBUG */
 
 func_exit:
 	trx->op_info = "";

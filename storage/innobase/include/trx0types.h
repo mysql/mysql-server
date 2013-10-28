@@ -98,21 +98,6 @@ struct commit_node_t;
 struct trx_named_savept_t;
 /* @} */
 
-/** Rollback contexts */
-enum trx_rb_ctx {
-	RB_NONE = 0,	/*!< no rollback */
-	RB_NORMAL,	/*!< normal rollback */
-	RB_RECOVERY_PURGE_REC,
-			/*!< rolling back an incomplete transaction,
-			in crash recovery, rolling back an
-			INSERT that was performed by updating a
-			delete-marked record; if the delete-marked record
-			no longer exists in an active read view, it will
-			be purged */
-	RB_RECOVERY	/*!< rolling back an incomplete transaction,
-			in crash recovery */
-};
-
 /** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
 typedef ib_id_t	row_id_t;
 /** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
@@ -255,7 +240,7 @@ struct TrxTrack {
 struct TrxTrackHash {
 	size_t operator()(const TrxTrack& key) const
 	{
-		return(key.m_id);
+		return(size_t(key.m_id));
 	}
 };
 

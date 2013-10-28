@@ -250,19 +250,23 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 
 /*
   handle_rtc_failure
-  Catch the RTC error and dump it to stderr
+  Windows: run-time error checks are reported to ...
 */
 
 int handle_rtc_failure(int err_type, const char *file, int line,
                        const char* module, const char *format, ...)
 {
   va_list args;
+  char   buff[2048];
+  size_t len;
+
+  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+
   va_start(args, format);
-  fprintf(stderr, "Error:");
-  vfprintf(stderr, format, args);
-  fprintf(stderr, " At %s:%d\n", file, line);
+  vsnprintf(buff + len, sizeof(buff) - len, format, args);
   va_end(args);
-  (void) fflush(stderr);
+
+  my_message_local(ERROR_LEVEL, buff);
 
   return 0; /* Error is handled */
 }
@@ -461,10 +465,6 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 PSI_mutex_key key_my_file_info_mutex;
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
 
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-PSI_mutex_key key_LOCK_localtime_r;
-#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -478,9 +478,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
   { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  { &key_LOCK_localtime_r, "LOCK_localtime_r", PSI_FLAG_GLOBAL},
-#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},

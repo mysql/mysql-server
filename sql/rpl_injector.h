@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -382,7 +382,6 @@ public:
      */
     void new_trans(THD *, transaction *);
 
-    int record_incident(THD*, Incident incident);
     int record_incident(THD*, Incident incident, LEX_STRING const message);
 
 private:

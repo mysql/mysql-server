@@ -49,6 +49,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
 #include "lock0lock.h"
+#include "sync0rw.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
 #include "trx0undo.h"
@@ -1375,7 +1376,7 @@ buf_pool_init_instance(
 		buf_pool->n_chunks = 1;
 
 		buf_pool->chunks = chunk =
-			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
+			(buf_chunk_t*) ut_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->LRU, &buf_page_t::LRU);
 		UT_LIST_INIT(buf_pool->free, &buf_page_t::list);
@@ -1392,8 +1393,8 @@ buf_pool_init_instance(
 		}
 
 		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
-			mem_free(chunk);
-			mem_free(buf_pool);
+			ut_free(chunk);
+			ut_free(buf_pool);
 
 			buf_pool_mutex_exit(buf_pool);
 
@@ -1428,10 +1429,10 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
-	buf_pool->watch = (buf_page_t*) mem_zalloc(
+	buf_pool->watch = (buf_page_t*) ut_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 
-	/* All fields are initialized by mem_zalloc(). */
+	/* All fields are initialized by ut_zalloc(). */
 
 	buf_pool->try_LRU_scan = TRUE;
 
@@ -1490,7 +1491,7 @@ buf_pool_free_instance(
 		}
 	}
 
-	mem_free(buf_pool->watch);
+	ut_free(buf_pool->watch);
 	buf_pool->watch = NULL;
 
 	chunks = buf_pool->chunks;
@@ -1514,7 +1515,7 @@ buf_pool_free_instance(
 		os_event_destroy(buf_pool->no_flush[i]);
 	}
 
-	mem_free(buf_pool->chunks);
+	ut_free(buf_pool->chunks);
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
@@ -1537,7 +1538,7 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
-	buf_pool_ptr = (buf_pool_t*) mem_zalloc(
+	buf_pool_ptr = (buf_pool_t*) ut_zalloc(
 		n_instances * sizeof *buf_pool_ptr);
 
 	for (i = 0; i < n_instances; i++) {
@@ -1573,7 +1574,7 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	mem_free(buf_pool_ptr);
+	ut_free(buf_pool_ptr);
 	buf_pool_ptr = NULL;
 }
 
@@ -1625,7 +1626,7 @@ buf_pool_clear_hash_index(void)
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
 The caller must take care of relocating bpage->list. */
-
+static
 void
 buf_relocate(
 /*=========*/
@@ -2680,7 +2681,6 @@ buf_page_get_gen(
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
 	BPageMutex*	block_mutex;
-	buf_page_t*	hash_bpage;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
@@ -2870,6 +2870,11 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
+		bpage->buf_fix_count++;
+
 		/* Allocate an uncompressed page. */
 		mutex_exit(block_mutex);
 		block = buf_LRU_get_free_block(buf_pool);
@@ -2877,45 +2882,34 @@ wait_until_unfixed:
 
 		buf_pool_mutex_enter(buf_pool);
 
-		/* As we have released the page_hash lock and the
-		block_mutex to allocate an uncompressed page it is
-		possible that page_hash might have changed. We do
-		another lookup here while holding the hash_lock
-		to verify that bpage is indeed still a part of
-		page_hash. */
 		rw_lock_x_lock(hash_lock);
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get_low(
+			      buf_pool, space, offset, fold));
 
-		hash_bpage = buf_page_hash_get_low(
-			buf_pool, space, offset, fold);
+		mutex_enter(&block->mutex);
+		mutex_enter(&buf_pool->zip_mutex);
 
-		buf_page_mutex_enter(block);
-
-		if (bpage != hash_bpage
-		    || bpage->buf_fix_count
+		if (--bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+
+			mutex_exit(&buf_pool->zip_mutex);
+			/* The block was buffer-fixed or I/O-fixed while
+			buf_pool->mutex was not held by this thread.
+			Free the block that was allocated and retry.
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
 
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit(buf_pool);
 			rw_lock_x_unlock(hash_lock);
 			buf_page_mutex_exit(block);
 
-			if (bpage != hash_bpage) {
-				/* The buf_pool->page_hash was modified
-				while buf_pool->mutex was not held
-				by this thread. */
-				goto loop;
-			} else {
-				/* The block was buffer-fixed or
-				I/O-fixed while buf_pool->mutex was
-				not held by this thread. */
-				goto wait_until_unfixed;
-			}
+			goto wait_until_unfixed;
 		}
 
 		/* Move the compressed page from bpage to block,
 		and uncompress it. */
-
-		mutex_enter(&buf_pool->zip_mutex);
 
 		buf_relocate(bpage, &block->page);
 		buf_block_init_low(block);
@@ -4820,9 +4814,9 @@ buf_print_instance(
 	size = buf_pool->curr_size;
 
 	index_ids = static_cast<index_id_t*>(
-		mem_alloc(size * sizeof *index_ids));
+		ut_malloc(size * sizeof *index_ids));
 
-	counts = static_cast<ulint*>(mem_alloc(sizeof(ulint) * size));
+	counts = static_cast<ulint*>(ut_malloc(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -4911,8 +4905,8 @@ buf_print_instance(
 		putc('\n', stderr);
 	}
 
-	mem_free(index_ids);
-	mem_free(counts);
+	ut_free(index_ids);
+	ut_free(counts);
 
 	ut_a(buf_pool_validate_instance(buf_pool));
 }
@@ -5380,7 +5374,7 @@ buf_print_io(
 	one extra buf_pool_info_t, the last one stores
 	aggregated/total values from all pools */
 	if (srv_buf_pool_instances > 1) {
-		pool_info = (buf_pool_info_t*) mem_zalloc((
+		pool_info = (buf_pool_info_t*) ut_zalloc((
 			srv_buf_pool_instances + 1) * sizeof *pool_info);
 
 		pool_info_total = &pool_info[srv_buf_pool_instances];
@@ -5389,7 +5383,7 @@ buf_print_io(
 
 		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
-				mem_zalloc(sizeof *pool_info));
+				ut_zalloc(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -5425,7 +5419,7 @@ buf_print_io(
 		}
 	}
 
-	mem_free(pool_info);
+	ut_free(pool_info);
 }
 
 /**********************************************************************//**

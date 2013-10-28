@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql/plugin.h>
+#include <m_ctype.h>
 
 #if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
 #define __attribute__(A)
@@ -148,7 +149,7 @@ static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
 static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
-    { FT_TOKEN_WORD, 0, 0, 0, 0, ' ', 0 };
+    { FT_TOKEN_WORD, 0, 0, 0, 0, (word - param->doc), ' ', 0 };
 
   param->mysql_add_word(param, word, len, &bool_info);
 }
@@ -181,7 +182,7 @@ static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
         add_word(param, start, end - start);
       break;
     }
-    else if (isspace(*end))
+    else if (my_isspace(param->cs, *end))
     {
       if (end > start)
         add_word(param, start, end - start);

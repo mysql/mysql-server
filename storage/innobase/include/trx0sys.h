@@ -122,8 +122,9 @@ UNIV_INLINE
 trx_rseg_t*
 trx_sys_get_nth_rseg(
 /*=================*/
-	trx_sys_t*	sys,	/*!< in: trx system */
-	ulint		n);	/*!< in: index of slot */
+	trx_sys_t*	sys,		/*!< in: trx system */
+	ulint		n,		/*!< in: index of slot */
+	bool		is_redo_rseg);	/*!< in: true if redo rseg. */
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
 @return pointer to system file copy, page x-locked */

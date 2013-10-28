@@ -1238,8 +1238,8 @@ static int lex_one_token(void *arg, void *yythd)
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   const CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  const uchar *state_map= cs->state_map;
+  const uchar *ident_map= cs->ident_map;
 
   lip->yylval=yylval;			// The global state
 
@@ -2159,17 +2159,34 @@ void st_select_lex_unit::exclude_level()
     taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
   */
   mysql_mutex_lock(&thd->LOCK_query_plan);
-  SELECT_LEX_UNIT *units= 0, **units_last= &units;
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX_UNIT *units= NULL;
+  SELECT_LEX_UNIT **units_last= &units;
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
 
     // bring up underlay levels
-    SELECT_LEX_UNIT **last= 0;
+    SELECT_LEX_UNIT **last= NULL;
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
     {
+      /*
+        We are excluding a SELECT_LEX from the hierarchy of
+        SELECT_LEX_UNITs and SELECT_LEXes. Since this level is
+        removed, we must also exclude the Name_resolution_context
+        belonging to this level. Do this by looping through inner
+        subqueries and changing their contexts' outer context pointers
+        to point to the outer context of the removed SELECT_LEX.
+      */
+      for (SELECT_LEX *s= u->first_select(); s; s= s->next_select())
+      {
+        if (s->context.outer_context == &sl->context)
+          s->context.outer_context= sl->context.outer_context;
+      }
       u->master= master;
       last= &(u->next);
     }
@@ -2178,6 +2195,9 @@ void st_select_lex_unit::exclude_level()
       (*units_last)= sl->first_inner_unit();
       units_last= last;
     }
+
+    sl->invalidate();
+    sl= next_select;
   }
   if (units)
   {
@@ -2191,10 +2211,13 @@ void st_select_lex_unit::exclude_level()
   else
   {
     // exclude currect unit from list of nodes
-    (*prev)= next;
+    if (prev)
+      (*prev)= next;
     if (next)
       next->prev= prev;
   }
+
+  invalidate();
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
 
@@ -2204,8 +2227,11 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
@@ -2215,11 +2241,30 @@ void st_select_lex_unit::exclude_tree()
     {
       u->exclude_level();
     }
+
+    sl->invalidate();
+    sl= next_select;
   }
   // exclude currect unit from list of nodes
-  (*prev)= next;
+  if (prev)
+    (*prev)= next;
   if (next)
     next->prev= prev;
+
+  invalidate();
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex_unit::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
 }
 
 /**
@@ -2328,6 +2373,21 @@ bool st_select_lex::add_group_to_list(THD *thd, Item *item, bool asc)
 bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)
 {
   return !func || ftfunc_list->push_back(func); // end of memory?
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
+  link_next= NULL;
+  link_prev= NULL;  
 }
 
 
@@ -2442,14 +2502,7 @@ void st_select_lex::print_order(String *str,
 {
   for (; order; order= order->next)
   {
-    if (order->counter_used)
-    {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
-    }
-    else
-      (*order->item)->print_for_order(str, query_type, order->used_alias);
+    (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
@@ -2719,7 +2772,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       {
         if (alias && alias[0])
         {
-          strmov(t_alias_buff, alias);
+          my_stpcpy(t_alias_buff, alias);
           my_casedn_str(files_charset_info, t_alias_buff);
           t_alias= t_alias_buff;
         }
@@ -2762,16 +2815,13 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
-  if (master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN)
-  {
-    /*
-     In order to provide inf for EXPLAIN FOR CONNECTION units aren't
-     completely cleaned till the end of the query.
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
-    return;
-  }
+  /*
+   In order to provide info for EXPLAIN FOR CONNECTION units shouldn't
+   be completely cleaned till the end of the query. This is valid only for
+   explainable commands.
+  */
+  DBUG_ASSERT(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
+                is_explainable_query(thd->lex->sql_command)));
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
@@ -3291,7 +3341,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
   if (sl->select_limit)
   {
-    Item *item = sl->select_limit;
+    Item *limit_item = sl->select_limit;
     /*
       fix_fields() has not been called for sl->select_limit. That's due to the
       historical reasons -- this item could be only of type Item_int, and
@@ -3319,13 +3369,13 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
       of fix_fields() in order to handle error condition in non-debug build.
     */
     bool fix_fields_successful= true;
-    if (!item->fixed)
+    if (!limit_item->fixed)
     {
-      fix_fields_successful= !item->fix_fields(thd, NULL);
+      fix_fields_successful= !limit_item->fix_fields(thd, NULL);
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? limit_item->val_uint() : HA_POS_ERROR;
   }
   else
     val= HA_POS_ERROR;
@@ -3333,16 +3383,16 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   select_limit_val= (ha_rows)val;
   if (sl->offset_limit)
   {
-    Item *item = sl->offset_limit;
+    Item *offset_item = sl->offset_limit;
     // see comment for sl->select_limit branch.
     bool fix_fields_successful= true;
-    if (!item->fixed)
+    if (!offset_item->fixed)
     {
-      fix_fields_successful= !item->fix_fields(thd, NULL);
+      fix_fields_successful= !offset_item->fix_fields(thd, NULL);
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? offset_item->val_uint() : HA_POS_ERROR;
   }
   else
     val= ULL(0);

@@ -3,9 +3,9 @@ drop procedure if exists test.user_proc;
 create procedure test.user_proc()
 select "Not supposed to be here";
 update mysql.proc set db='performance_schema' where name='user_proc';
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 157: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 182: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 207: Table 'events_waits_history' already exists
@@ -70,7 +70,9 @@ ERROR 1050 (42S01) at line 1423: Table 'replication_execute_status_by_coordinato
 ERROR 1050 (42S01) at line 1436: Table 'replication_execute_status_by_worker' already exists
 ERROR 1050 (42S01) at line 1446: Table 'session_connect_attrs' already exists
 ERROR 1050 (42S01) at line 1452: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 2189: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1466: Table 'table_handles' already exists
+ERROR 1050 (42S01) at line 1482: Table 'metadata_locks' already exists
+ERROR 1644 (HY000) at line 2219: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name

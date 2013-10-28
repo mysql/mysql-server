@@ -61,20 +61,6 @@
 #endif
 
 #ifdef HAVE_PSI_SP_INTERFACE
-/**
-  Enum values for the various OBJECT_TYPE.
-*/
-enum enum_sp_object_type
-{
-  SP_OBJECT_TYPE_EVENT= 1,
-  SP_OBJECT_TYPE_FUNCTION= 2,
-  SP_OBJECT_TYPE_PROCEDURE= 3,
-  SP_OBJECT_TYPE_TABLE= 4,
-  SP_OBJECT_TYPE_TRIGGER= 5,
-  SP_OBJECT_TYPE_TEMPORARY_TABLE= 7,
-  SP_OBJECT_TYPE_NONE= 7
-};
-
 static inline struct PSI_sp_locker*
 inline_mysql_start_sp(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
 {
@@ -88,21 +74,21 @@ static inline void inline_mysql_end_sp(PSI_sp_locker *locker)
 }
 
 static inline void 
-inline_mysql_drop_sp(uint object_type,
+inline_mysql_drop_sp(uint sp_type,
                      const char* schema_name, uint shcema_name_length,
                      const char* object_name, uint object_name_length)
 {
-  PSI_SP_CALL(drop_sp)(object_type,
+  PSI_SP_CALL(drop_sp)(sp_type,
                        schema_name, shcema_name_length,
                        object_name, object_name_length);
 }
 
 static inline PSI_sp_share*
-inline_mysql_get_sp_share(uint object_type,
+inline_mysql_get_sp_share(uint sp_type,
                           const char* schema_name, uint shcema_name_length,
                           const char* object_name, uint object_name_length)
 {
-  return PSI_SP_CALL(get_sp_share)(object_type,
+  return PSI_SP_CALL(get_sp_share)(sp_type,
                                    schema_name, shcema_name_length,
                                    object_name, object_name_length);
 }

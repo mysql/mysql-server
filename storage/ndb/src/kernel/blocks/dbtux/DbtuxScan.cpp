@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
 #include <my_sys.h>
+
+#define JAM_FILE_ID 371
+
 
 /*
  * Error handling:  Any seized scan op is released.  ACC_SCANREF is sent
@@ -39,7 +42,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     c_indexPool.getPtr(indexPtr, req->tableId);
     // get the fragment
     FragPtr fragPtr;
-    findFrag(*indexPtr.p, req->fragmentNo, fragPtr);
+    findFrag(jamBuffer(), *indexPtr.p, req->fragmentNo, fragPtr);
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // check for index not Online (i.e. Dropping)
@@ -68,7 +71,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     }
     // seize from pool and link to per-fragment list
     if (ERROR_INSERTED(12008) ||
-        ! frag.m_scanList.seize(scanPtr)) {
+        ! frag.m_scanList.seizeFirst(scanPtr)) {
       CLEAR_ERROR_INSERT_VALUE;
       jam();
       // should never happen but can be used to test error handling
@@ -1240,7 +1243,7 @@ Dbtux::addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
     list.next(lockPtr);
   }
 #endif
-  bool ok = list.seize(lockPtr);
+  bool ok = list.seizeLast(lockPtr);
   ndbrequire(ok);
   ndbrequire(accLockOp != RNIL);
   lockPtr.p->m_accLockOp = accLockOp;

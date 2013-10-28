@@ -1558,6 +1558,13 @@ IndexPurge::next() UNIV_NOTHROW
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 
+	/* We do not need to adjust for optimistic restore since
+	it was restored to supremum record and we will goto next. */
+	ut_ad(m_pcur.pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC);
+	ut_ad(m_pcur.rel_pos == BTR_PCUR_AFTER);
+	m_pcur.pos_state = BTR_PCUR_IS_POSITIONED;
+	ut_ad(btr_pcur_is_after_last_on_page(&m_pcur));
+
 	if (!btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr)) {
 
 		return(DB_END_OF_INDEX);
@@ -1583,7 +1590,7 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 			dict_table_is_comp(m_index->table)));
 
 	btr_cur_pessimistic_delete(
-		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, RB_NONE, &m_mtr);
+		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false, &m_mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -3613,14 +3620,14 @@ row_import_for_mysql(
 			ER_FILE_NOT_FOUND,
 			filepath, err, ut_strerr(err));
 
-		mem_free(filepath);
+		ut_free(filepath);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	mem_free(filepath);
+	ut_free(filepath);
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 

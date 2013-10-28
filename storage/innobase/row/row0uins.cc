@@ -153,10 +153,7 @@ retry:
 			&node->pcur, &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-				   trx_is_recv(node->trx)
-				   ? RB_RECOVERY
-				   : RB_NORMAL, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -238,14 +235,13 @@ row_undo_ins_remove_sec_low(
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
-		/* No need to distinguish RB_RECOVERY here, because we
-		are deleting a secondary index record: the distinction
-		between RB_NORMAL and RB_RECOVERY only matters when
-		deleting a record that contains externally stored
-		columns. */
+		/* Passing rollback=false here, because we are
+		deleting a secondary index record: the distinction
+		only matters when deleting a record that contains
+		externally stored columns. */
 		ut_ad(!dict_index_is_clust(index));
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   RB_NORMAL, &mtr);
+					   false, &mtr);
 	}
 func_exit:
 	btr_pcur_close(&pcur);
@@ -390,13 +386,14 @@ row_undo_ins_remove_sec_rec(
 			/* The database must have crashed after
 			inserting a clustered index record but before
 			writing all the externally stored columns of
-			that record.  Because secondary index entries
-			are inserted after the clustered index record,
-			we may assume that the secondary index record
-			does not exist.  However, this situation may
-			only occur during the rollback of incomplete
-			transactions. */
-			ut_a(trx_is_recv(node->trx));
+			that record, or a statement is being rolled
+			back because an error occurred while storing
+			off-page columns.
+
+			Because secondary index entries are inserted
+			after the clustered index record, we may
+			assume that the secondary index record does
+			not exist. */
 		} else {
 			err = row_undo_ins_remove_sec(index, entry);
 

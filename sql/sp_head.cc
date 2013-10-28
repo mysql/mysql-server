@@ -38,7 +38,6 @@
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
-#include "global_threads.h"
 
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
@@ -188,7 +187,7 @@ sp_name::sp_name(const MDL_key *key, char *qname_buff)
   }
   else
   {
-    strmov(qname_buff, m_name.str);
+    my_stpcpy(qname_buff, m_name.str);
     m_qname.length= m_name.length;
   }
   m_explicit_name= false;
@@ -737,12 +736,12 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       thd->user_var_events_alloc= thd->mem_root;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    PSI_statement_locker_state state;
+    PSI_statement_locker_state psi_state;
     PSI_statement_locker *parent_locker;
     PSI_statement_info *psi_info = i->get_psi_info();
 
     parent_locker= thd->m_statement_psi;
-    thd->m_statement_psi= MYSQL_START_STATEMENT(& state, psi_info->m_key,
+    thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                 thd->db, thd->db_length,
                                                 thd->charset(),
                                                 this->m_sp_share);
@@ -818,11 +817,18 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->stmt_arena= old_arena;
   state= STMT_EXECUTED;
 
-  if (err_status)
+  if (err_status && thd->is_error() && !caller_da->is_error())
   {
     /*
       If the SP ended with an exception, transfer the exception condition
       information to the Diagnostics Area of the caller.
+
+      Note that no error might be set yet in the case of kill.
+      It will be set later by mysql_execute_command() / execute_trigger().
+
+      In the case of multi update, it is possible that we can end up
+      executing a trigger after the update has failed. In this case,
+      keep the exception condition from the caller_da and don't transfer.
     */
     caller_da->set_error_status(thd->get_stmt_da()->mysql_errno(),
                                 thd->get_stmt_da()->message_text(),
@@ -1017,10 +1023,10 @@ bool sp_head::execute_trigger(THD *thd,
   thd->sp_runtime_ctx= trigger_runtime_ctx;
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   err_status= execute(thd, FALSE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1205,9 +1211,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    mysql_mutex_lock(&LOCK_thread_count);
-    q= global_query_id;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_rdlock(&global_query_id_lock);
+    q= my_atomic_load64(&global_query_id); 
+    my_atomic_rwlock_rdunlock(&global_query_id_lock);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1226,10 +1232,10 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   err_status= execute(thd, TRUE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1418,10 +1424,18 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
 
     thd->rollback_item_tree_changes();
 
@@ -1452,10 +1466,10 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   if (!err_status)
     err_status= execute(thd, TRUE);
@@ -2054,10 +2068,11 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
         is safe to infer the type of metadata lock from the type of
         table lock.
       */
-      table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                              table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ,
-                              MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&table->mdl_request,
+                       MDL_key::TABLE, table->db, table->table_name,
+                       table->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                         MDL_SHARED_WRITE : MDL_SHARED_READ,
+                       MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <ArenaPool.hpp>
 #include <DataBuffer2.hpp>
 #include <DLHashTable.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <CArray.hpp>
 #include <KeyTable.hpp>
 #include <KeyTable2.hpp>
@@ -74,7 +74,6 @@
 #include <Rope.hpp>
 #include <signaldata/CreateFilegroupImpl.hpp>
 #include <signaldata/DropFilegroupImpl.hpp>
-#include <SLList.hpp>
 #include <signaldata/DictSignal.hpp>
 #include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
@@ -84,7 +83,16 @@
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
+#include <Mutex.hpp>
 
+#include <signaldata/CreateFK.hpp>
+#include <signaldata/CreateFKImpl.hpp>
+#include <signaldata/BuildFK.hpp>
+#include <signaldata/BuildFKImpl.hpp>
+#include <signaldata/DropFK.hpp>
+#include <signaldata/DropFKImpl.hpp>
+
+#define JAM_FILE_ID 464
 
 #ifdef DBDICT_C
 
@@ -232,8 +240,8 @@ public:
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
   typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
-  typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
-  typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
+  typedef DLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> AttributeRecord_list;
+  typedef LocalDLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> LocalAttributeRecord_list;
 
   AttributeRecord_pool c_attributeRecordPool;
   AttributeRecord_hash c_attributeRecordHash;
@@ -246,8 +254,8 @@ public:
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef DLFifoList<TableRecord,TableRecord,TableRecord_pool> TableRecord_list;
-  typedef LocalDLFifoList<TableRecord,TableRecord,TableRecord_pool> LocalTableRecord_list;
+  typedef DLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> TableRecord_list;
+  typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
 
   struct TableRecord {
     TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
@@ -1711,8 +1719,8 @@ private:
 
   typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
   typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
-  typedef DLFifoList<SchemaOp,SchemaOp,SchemaOp_pool>::Head  SchemaOp_head;
-  typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
+  typedef DLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp>::Head  SchemaOp_head;
+  typedef LocalDLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -2076,7 +2084,7 @@ private:
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
   typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
-  typedef DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_list;
+  typedef DLFifoListImpl<SchemaTrans_pool, SchemaTrans, SchemaTrans> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
   SchemaTrans_hash c_schemaTransHash;
@@ -2157,7 +2165,6 @@ private:
   void check_partial_trans_commit_next(SchemaTransPtr,
                                        NdbNodeBitmask &,
                                        SchemaOpPtr);
-  void check_partial_trans_end_recv_reply(SchemaTransPtr);
 
   // participant
   void recvTransReq(Signal*);
@@ -2775,13 +2782,14 @@ private:
 
   struct TriggerTmpl {
     const char* nameFormat; // contains one %u for index id
-    const TriggerInfo triggerInfo;
+    TriggerInfo triggerInfo;
   };
 
   static const TriggerTmpl g_hashIndexTriggerTmpl[1];
   static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
   static const TriggerTmpl g_reorgTriggerTmpl[1];
+  static const TriggerTmpl g_fkTriggerTmpl[2];
 
   struct AlterIndexRec;
   typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
@@ -3707,6 +3715,231 @@ private:
   void dropNodegroup_fromWaitGCP(Signal*, Uint32 op_key, Uint32 ret);
   void dropNodegroup_fromBlockSubStartStop(Signal*, Uint32 op_key, Uint32);
 
+  // MODULE: CreateFK
+  struct CreateFKRec;
+  typedef RecordPool<CreateFKRec,ArenaPool> CreateFKRec_pool;
+
+  struct CreateFKRec : public OpRec {
+    bool m_parsed;
+    bool m_prepared;
+    Uint32 m_sub_create_trigger;
+    bool m_sub_build_fk;
+    CreateFKImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static CreateFKRec_pool&
+    getPool(Dbdict* dict) {
+      return dict->c_createFKRecPool;
+    }
+
+    CreateFKRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+      m_sub_create_trigger = 0;
+      m_sub_build_fk = false;
+    }
+  };
+
+  typedef Ptr<CreateFKRec> CreateFKRecPtr;
+  CreateFKRec_pool c_createFKRecPool;
+
+  // OpInfo
+  bool createFK_seize(SchemaOpPtr);
+  void createFK_release(SchemaOpPtr);
+  //
+  void createFK_parse(Signal*, bool master,
+                      SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool createFK_subOps(Signal*, SchemaOpPtr);
+  void createFK_reply(Signal*, SchemaOpPtr, ErrorInfo);
+
+  void createFK_toCreateTrigger(Signal* signal, SchemaOpPtr);
+  void createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret);
+  void createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret);
+  //
+  void createFK_prepare(Signal*, SchemaOpPtr);
+  void createFK_writeTableConf(Signal* signal, Uint32 op_key, Uint32 ret);
+  void createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret);
+
+  void createFK_commit(Signal*, SchemaOpPtr);
+  void createFK_complete(Signal*, SchemaOpPtr);
+  //
+  void createFK_abortParse(Signal*, SchemaOpPtr);
+  void createFK_abortPrepare(Signal*, SchemaOpPtr);
+  void createFK_abortPrepareFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  void createFK_fromLocal(Signal*, Uint32, Uint32);
+  void createFK_fromWriteObjInfo(Signal*, Uint32, Uint32);
+
+  void execCREATE_FK_REQ(Signal*);
+  void execCREATE_FK_IMPL_REF(Signal*);
+  void execCREATE_FK_IMPL_CONF(Signal*);
+  void execCREATE_FK_REF(Signal*);
+  void execCREATE_FK_CONF(Signal*);
+
+  // MODULE: BuildFK
+  struct BuildFKRec;
+  typedef RecordPool<BuildFKRec,ArenaPool> BuildFKRec_pool;
+
+  struct BuildFKRec : public OpRec {
+    bool m_parsed, m_prepared;
+    BuildFKImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static BuildFKRec_pool&
+    getPool(Dbdict* dict) {
+      return dict->c_buildFKRecPool;
+    }
+
+    BuildFKRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+    }
+  };
+
+  typedef Ptr<BuildFKRec> BuildFKRecPtr;
+  BuildFKRec_pool c_buildFKRecPool;
+
+  // OpInfo
+  bool buildFK_seize(SchemaOpPtr);
+  void buildFK_release(SchemaOpPtr);
+  //
+  void buildFK_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool buildFK_subOps(Signal*, SchemaOpPtr);
+  void buildFK_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void buildFK_prepare(Signal*, SchemaOpPtr);
+  void buildFK_commit(Signal*, SchemaOpPtr);
+  void buildFK_complete(Signal*, SchemaOpPtr);
+  //
+  void buildFK_abortParse(Signal*, SchemaOpPtr);
+  void buildFK_abortPrepare(Signal*, SchemaOpPtr);
+
+  void buildFK_fromLocal(Signal*, Uint32, Uint32);
+
+  void execBUILD_FK_REQ(Signal*);
+  void execBUILD_FK_REF(Signal*);
+  void execBUILD_FK_CONF(Signal*);
+  void execBUILD_FK_IMPL_REF(Signal*);
+  void execBUILD_FK_IMPL_CONF(Signal*);
+
+  // MODULE: DropFK
+  struct DropFKRec;
+  typedef RecordPool<DropFKRec,ArenaPool> DropFKRec_pool;
+
+  struct DropFKRec : public OpRec {
+    bool m_parsed;
+    bool m_prepared;
+    Uint32 m_sub_drop_trigger;
+    DropFKImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static DropFKRec_pool&
+    getPool(Dbdict* dict) {
+      return dict->c_dropFKRecPool;
+    }
+
+    DropFKRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+      m_sub_drop_trigger = 0;
+    }
+  };
+
+  typedef Ptr<DropFKRec> DropFKRecPtr;
+  DropFKRec_pool c_dropFKRecPool;
+
+  // OpInfo
+  bool dropFK_seize(SchemaOpPtr);
+  void dropFK_release(SchemaOpPtr);
+  //
+  void dropFK_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool dropFK_subOps(Signal*, SchemaOpPtr);
+  void dropFK_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropFK_toDropTrigger(Signal* signal, SchemaOpPtr, Uint32);
+  void dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret);
+
+  //
+  void dropFK_prepare(Signal*, SchemaOpPtr);
+  void dropFK_commit(Signal*, SchemaOpPtr);
+  void dropFK_complete(Signal*, SchemaOpPtr);
+  //
+  void dropFK_abortParse(Signal*, SchemaOpPtr);
+  void dropFK_abortPrepare(Signal*, SchemaOpPtr);
+
+  void send_drop_fk_req(Signal*, SchemaOpPtr);
+  void dropFK_fromLocal(Signal*, Uint32, Uint32);
+  void dropFK_fromWriteObjInfo(Signal*, Uint32, Uint32);
+
+  void execDROP_FK_REQ(Signal*);
+  void execDROP_FK_IMPL_REF(Signal*);
+  void execDROP_FK_IMPL_CONF(Signal*);
+
+  /**
+   * Foreign Key representation
+   */
+  struct ForeignKeyRec
+  {
+    ForeignKeyRec() { }
+
+    static bool isCompatible(Uint32 type) {
+      return DictTabInfo::isForeignKey(type);
+    }
+
+    Uint32 m_magic;
+    union {
+      Uint32 key;
+      Uint32 m_fk_id;
+    };
+
+    Uint32 m_obj_ptr_i;
+    Uint32 m_version;
+    RopeHandle m_name;
+    Uint32 m_parentTableId;
+    Uint32 m_childTableId;
+    Uint32 m_parentIndexId;
+    Uint32 m_childIndexId;
+    Uint32 m_bits; // CreateFKImplReq::Bits
+
+    Uint32 m_parentTriggerId;
+    Uint32 m_childTriggerId;
+
+    Uint32 m_columnCount;
+    Uint32 m_parentColumns[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 m_childColumns[MAX_ATTRIBUTES_IN_INDEX];
+
+    Uint32 nextPool;
+    Uint32 nextHash;
+    Uint32 prevHash;
+
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    Uint32 equal(const ForeignKeyRec& obj) const {
+      return key == obj.key;
+    }
+  };
+
+  typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
+  typedef RecordPool<ForeignKeyRec, RWPool> ForeignKeyRec_pool;
+
+  ForeignKeyRec_pool c_fk_pool;
+
+  ForeignKeyRec_pool& get_pool(ForeignKeyRecPtr) { return c_fk_pool; }
+  void packFKIntoPages(SimpleProperties::Writer &, Ptr<ForeignKeyRec>);
+
   /**
    * Only used at coordinator/master
    */
@@ -3899,6 +4132,12 @@ private:
   void rebuildIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  // FK re-enable (create triggers) on start up
+  void enableFKs(Signal* signal, Uint32 i);
+  void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
+  void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  bool c_restart_enable_fks;
 
   // Events
   void
@@ -4134,6 +4373,7 @@ protected:
 private:
   ArenaAllocator c_arenaAllocator;
   Uint32 c_noOfMetaTables;
+  Uint32 c_default_hashmap_size;
 };
 
 inline bool
@@ -4173,4 +4413,7 @@ Dbdict::TableRecord::isOrderedIndex() const
 }
 
 // quilt keeper
+
+#undef JAM_FILE_ID
+
 #endif

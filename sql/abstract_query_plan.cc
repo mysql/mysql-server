@@ -161,15 +161,15 @@ namespace AQP
 
       case AT_ORDERED_INDEX_SCAN:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_TABLE_SCAN:
         DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
@@ -440,6 +440,26 @@ namespace AQP
   bool Table_access::uses_join_cache() const
   {
     return get_join_tab()->use_join_cache != JOIN_CACHE::ALG_NONE;
+  }
+
+  /**
+    Check if 'FirstMatch' strategy is used for this table and return
+    the last table 'firstmatch' will skip over.
+    The tables ['last_skipped'..'this'] will form a range of tables
+    which we skipped when a 'firstmatch' is found
+  */
+  const Table_access* Table_access::get_firstmatch_last_skipped() const
+  {
+    const JOIN_TAB* const join_tab= get_join_tab();
+    if (join_tab->do_firstmatch())
+    {
+      DBUG_ASSERT(join_tab->firstmatch_return < join_tab);
+      const uint firstmatch_last_skipped= 
+        join_tab->firstmatch_return+1 - m_join_plan->get_join_tab(0);
+
+      return m_join_plan->get_table_access(firstmatch_last_skipped);
+    }
+    return NULL;
   }
 
   /**

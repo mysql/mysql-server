@@ -149,23 +149,22 @@ row_undo_mod_clust_low(
 }
 
 /***********************************************************//**
-Removes a clustered index record after undo if possible.
+Purges a clustered index record after undo if possible.
 This is attempted when the record was inserted by updating a
 delete-marked record and there no longer exist transactions
-that would see the delete-marked record.  In other words, we
-roll back the insert by purging the record.
-@return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
+that would see the delete-marked record.
+@return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr,	/*!< in: mtr */
+	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
+	ulint		trx_id_offset;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
@@ -179,6 +178,36 @@ row_undo_mod_remove_clust_low(
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+
+	trx_id_offset = btr_cur_get_index(btr_cur)->trx_id_offset;
+
+	if (!trx_id_offset) {
+		mem_heap_t*	heap	= NULL;
+		ulint		trx_id_col;
+		const ulint*	offsets;
+		ulint		len;
+
+		trx_id_col = dict_index_get_sys_col_pos(
+			btr_cur_get_index(btr_cur), DATA_TRX_ID);
+		ut_ad(trx_id_col > 0);
+		ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_cur), btr_cur_get_index(btr_cur),
+			NULL, trx_id_col + 1, &heap);
+
+		trx_id_offset = rec_get_nth_field_offs(
+			offsets, trx_id_col, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
+		mem_heap_free(heap);
+	}
+
+	if (trx_read_trx_id(btr_cur_get_rec(btr_cur) + trx_id_offset)
+	    != node->new_trx_id) {
+		/* The record must have been purged and then replaced
+		with a different one. */
+		return(DB_SUCCESS);
+	}
 
 	/* We are about to remove an old, delete-marked version of the
 	record that may have been delete-marked by a different transaction
@@ -194,12 +223,14 @@ row_undo_mod_remove_clust_low(
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 
 		/* This operation is analogous to purge, we can free also
-		inherited externally stored fields */
+		inherited externally stored fields.
+		We can also assume that the record was complete
+		(including BLOBs), because it had been delete-marked
+		after it had been completely inserted. Therefore, we
+		are passing rollback=false, just like purge does. */
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   thr_is_recv(thr)
-					   ? RB_RECOVERY_PURGE_REC
-					   : RB_NONE, mtr);
+					   false, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -308,6 +339,9 @@ row_undo_mod_clust(
 		}
 	}
 
+	ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index)
+	      == node->new_trx_id);
+
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
 
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
@@ -319,7 +353,7 @@ row_undo_mod_clust(
 		because the record is delete-marked and would thus
 		be omitted from the rebuilt copy of the table. */
 		err = row_undo_mod_remove_clust_low(
-			node, thr, &mtr, BTR_MODIFY_LEAF);
+			node, &mtr, BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {
 			btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -330,7 +364,7 @@ row_undo_mod_clust(
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(
-				node, thr, &mtr,
+				node, &mtr,
 				BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE);
 
 			ut_ad(err == DB_SUCCESS
@@ -455,15 +489,13 @@ row_undo_mod_del_mark_or_remove_sec_low(
 				err = DB_FAIL;
 			}
 		} else {
-			/* No need to distinguish RB_RECOVERY_PURGE here,
+			/* Passing rollback=false,
 			because we are deleting a secondary index record:
-			the distinction between RB_NORMAL and
-			RB_RECOVERY_PURGE only matters when deleting a
-			record that contains externally stored
-			columns. */
+			the distinction only matters when deleting a
+			record that contains externally stored columns. */
 			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-						   RB_NORMAL, &mtr);
+						   false, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database

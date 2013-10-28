@@ -16,6 +16,7 @@
 
 
 #include "semisync_slave.h"
+#include "debug_sync.h"
 
 char rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;
@@ -28,7 +29,7 @@ int ReplSemiSyncSlave::initObject()
 
   if (init_done_)
   {
-    fprintf(stderr, "%s called twice\n", kWho);
+    sql_print_warning("%s called twice", kWho);
     return 1;
   }
   init_done_ = true;
@@ -107,6 +108,15 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql,
   int  reply_res, name_len = strlen(binlog_filename);
 
   function_enter(kWho);
+
+  DBUG_EXECUTE_IF("rpl_semisync_before_send_ack",
+                  {
+                    const char act[]=
+                      "now SIGNAL sending_ack WAIT_FOR continue";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
 
   /* Prepare the buffer of the reply. */
   reply_buffer[REPLY_MAGIC_NUM_OFFSET] = kPacketMagicNum;

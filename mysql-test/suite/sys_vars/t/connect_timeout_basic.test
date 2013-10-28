@@ -66,6 +66,8 @@ SET @@global.connect_timeout = 10000;
 SELECT @@global.connect_timeout;
 SET @@global.connect_timeout = 21221204;
 SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 31536000;
+SELECT @@global.connect_timeout;
 
 
 --echo '#--------------------FN_DYNVARS_019_04-------------------------#'
@@ -76,6 +78,8 @@ SELECT @@global.connect_timeout;
 SET @@global.connect_timeout = 1;
 SELECT @@global.connect_timeout;
 SET @@global.connect_timeout = -1024;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 31536001;
 SELECT @@global.connect_timeout;
 SET @@global.connect_timeout = 42949672950;
 SELECT @@global.connect_timeout;

@@ -44,6 +44,11 @@ COUNT(*)
 ########## setup (PART I)
 ##########
 include/rpl_reset.inc
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing routine level grants in the privilege "
+                         "tables.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "revoking all_privileges from a list of users.");
 CREATE DATABASE b54866 ;
 use b54866;
 CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
@@ -185,16 +190,6 @@ REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE SQL_THREAD;
-include/wait_for_slave_sql_to_start.inc
 ##########
 ########## Cleanup
 ##########

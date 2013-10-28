@@ -19,26 +19,17 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "global_threads.h"              // LOCK_thread_count
 #include "mysqld_error.h"                // ER_*
+#include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release
 #include "sql_connect.h"                 // init_new_connection_handler_thread
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // do_command
 
 
-static inline void remove_and_destroy_thd(THD *thd)
-{
-  thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
-  remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
-  delete thd;
-}
-
-
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 {
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   if (init_new_connection_handler_thread())
   {
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
@@ -53,9 +44,8 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     return true;
   }
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
 
@@ -79,14 +69,14 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   mysql_thread_set_psi_id(thd->thread_id);
   mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->add_thd(thd);
 
   if (thd_prepare_connection(thd))
   {
     close_connection(thd);
-    remove_and_destroy_thd(thd);
+    thd->release_resources();
+    thd_manager->remove_thd(thd);
+    delete thd;
     return true;
   }
 
@@ -100,12 +90,9 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 
   end_connection(thd);
   close_connection(thd);
-  Connection_handler_manager::get_instance()->remove_connection(thd);
+  dec_connection_count();
+  thd->release_resources();
+  thd_manager->remove_thd(thd);
+  delete thd;
   return false;
-}
-
-
-void One_thread_connection_handler::remove_connection(THD* thd)
-{
-  remove_and_destroy_thd(thd);
 }

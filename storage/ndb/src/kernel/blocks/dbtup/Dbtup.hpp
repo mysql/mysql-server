@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,81 +40,9 @@
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 
-// jams
-#undef jam
-#undef jamEntry
-#ifdef DBTUP_BUFFER_CPP
-#define jam()	 	jamLine(10000 + __LINE__)
-#define jamEntry() 	jamEntryLine(10000 + __LINE__)
-#endif
-#ifdef DBTUP_ROUTINES_CPP
-#define jam()           jamLine(15000 + __LINE__)
-#define jamEntry()      jamEntryLine(15000 + __LINE__)
-#endif
-#ifdef DBTUP_COMMIT_CPP
-#define jam()           jamLine(20000 + __LINE__)
-#define jamEntry()      jamEntryLine(20000 + __LINE__)
-#endif
-#ifdef DBTUP_FIXALLOC_CPP
-#define jam()           jamLine(25000 + __LINE__)
-#define jamEntry()      jamEntryLine(25000 + __LINE__)
-#endif
-#ifdef DBTUP_TRIGGER_CPP
-#define jam()           jamLine(30000 + __LINE__)
-#define jamEntry()      jamEntryLine(30000 + __LINE__)
-#endif
-#ifdef DBTUP_ABORT_CPP
-#define jam()           jamLine(35000 + __LINE__)
-#define jamEntry()      jamEntryLine(35000 + __LINE__)
-#endif
-#ifdef DBTUP_PAGE_MAP_CPP
-#define jam()           jamLine(40000 + __LINE__)
-#define jamEntry()      jamEntryLine(40000 + __LINE__)
-#endif
-#ifdef DBTUP_PAG_MAN_CPP
-#define jam()           jamLine(45000 + __LINE__)
-#define jamEntry()      jamEntryLine(45000 + __LINE__)
-#endif
-#ifdef DBTUP_STORE_PROC_DEF_CPP
-#define jam()           jamLine(50000 + __LINE__)
-#define jamEntry()      jamEntryLine(50000 + __LINE__)
-#endif
-#ifdef DBTUP_META_CPP
-#define jam()           jamLine(55000 + __LINE__)
-#define jamEntry()      jamEntryLine(55000 + __LINE__)
-#endif
-#ifdef DBTUP_TAB_DES_MAN_CPP
-#define jam()           jamLine(60000 + __LINE__)
-#define jamEntry()      jamEntryLine(60000 + __LINE__)
-#endif
-#ifdef DBTUP_GEN_CPP
-#define jam()           jamLine(65000 + __LINE__)
-#define jamEntry()      jamEntryLine(65000 + __LINE__)
-#endif
-#ifdef DBTUP_INDEX_CPP
-#define jam()           jamLine(70000 + __LINE__)
-#define jamEntry()      jamEntryLine(70000 + __LINE__)
-#endif
-#ifdef DBTUP_DEBUG_CPP
-#define jam()           jamLine(75000 + __LINE__)
-#define jamEntry()      jamEntryLine(75000 + __LINE__)
-#endif
-#ifdef DBTUP_VAR_ALLOC_CPP
-#define jam()           jamLine(80000 + __LINE__)
-#define jamEntry()      jamEntryLine(80000 + __LINE__)
-#endif
-#ifdef DBTUP_SCAN_CPP
-#define jam()           jamLine(85000 + __LINE__)
-#define jamEntry()      jamEntryLine(85000 + __LINE__)
-#endif
-#ifdef DBTUP_DISK_ALLOC_CPP
-#define jam()           jamLine(90000 + __LINE__)
-#define jamEntry()      jamEntryLine(90000 + __LINE__)
-#endif
-#ifndef jam
-#define jam()           jamLine(__LINE__)
-#define jamEntry()      jamEntryLine(__LINE__)
-#endif
+#define JAM_FILE_ID 414
+
+
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -142,35 +70,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 }
 
 #ifdef DBTUP_C
-//------------------------------------------------------------------
-// Jam Handling:
-//
-// When DBTUP reports lines through jam in the trace files it has to
-// be interpreted. 4024 means as an example line 24 in DbtupCommit.cpp
-// Thus 4000 is added to the line number beacuse it is located in the
-// file DbtupCommit.cpp. The following is the exhaustive list of the
-// added value in the various files. ndbrequire, ptrCheckGuard still
-// only reports the line number in the file it currently is located in.
-// 
-// DbtupExecQuery.cpp         0
-// DbtupBuffer.cpp         10000
-// DbtupRoutines.cpp       15000
-// DbtupCommit.cpp         20000
-// DbtupFixAlloc.cpp       25000
-// DbtupTrigger.cpp        30000
-// DbtupAbort.cpp          35000
-// DbtupPageMap.cpp        40000
-// DbtupPagMan.cpp         45000
-// DbtupStoredProcDef.cpp  50000
-// DbtupMeta.cpp           55000
-// DbtupTabDesMan.cpp      60000
-// DbtupGen.cpp            65000
-// DbtupIndex.cpp          70000
-// DbtupDebug.cpp          75000
-// DbtupVarAlloc.cpp       80000
-// DbtupScan.cpp           85000
-// DbtupDiskAlloc.cpp      90000
-//------------------------------------------------------------------
 
 /*
 2.2 LOCAL SYMBOLS
@@ -338,6 +237,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZMIN_PAGE_LIMIT_TUP_COMMITREQ 2
 
 #define ZSKIP_TUX_TRIGGERS 0x1 // flag for TUP_ABORTREQ
+#define ZABORT_DEALLOC     0x2 // flag for TUP_ABORTREQ
 
 #endif
 
@@ -834,6 +734,15 @@ struct Operationrec {
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
     unsigned int m_gci_written : 1;
+    /* If the op has no logical effect, it should not be logged
+     * or sent as an event. Example op is OPTIMIZE table,
+     * which uses ZUPDATE to move varpart values physically.
+     */
+    unsigned int m_physical_only_op : 1;
+    /* No foreign keys should be checked for this operation.
+     * No fk triggers will be fired.  
+     */
+    unsigned int m_disable_fk_checks : 1;
   };
   union {
     OpBitFields op_struct;
@@ -1549,8 +1458,10 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   {
     KRS_PREPARE = 0,
     KRS_COMMIT = 1,
-    KRS_PRE_COMMIT0 = 2, // There can be multiple pre commit phases...
-    KRS_PRE_COMMIT1 = 3
+    KRS_PRE_COMMIT_BASE = 2,
+    KRS_UK_PRE_COMMIT0 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_0,
+    KRS_UK_PRE_COMMIT1 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_1,
+    KRS_FK_PRE_COMMIT  = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::FK_PASS_0
   };
 
 struct KeyReqStruct {
@@ -1562,6 +1473,7 @@ struct KeyReqStruct {
     jamBuffer = _jamBuffer;
     m_when = when;
     m_deferred_constraints = true;
+    m_disable_fk_checks = false;
   }
   KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1570,6 +1482,7 @@ struct KeyReqStruct {
     jamBuffer = tup->jamBuffer();
     m_when = when;
     m_deferred_constraints = true;
+    m_disable_fk_checks = false;
   }
   
 /**
@@ -1665,6 +1578,7 @@ struct KeyReqStruct {
   bool            m_use_rowid;
   Uint8           m_reorg;
   bool            m_deferred_constraints;
+  bool            m_disable_fk_checks;
 
   Signal*         signal;
   Uint32 no_fired_triggers;
@@ -2687,11 +2601,6 @@ private:
                             Operationrec* regOperPtr,
                             bool disk);
 
-  void executeTriggers(KeyReqStruct *req_struct,
-                       DLList<TupTriggerData>& triggerList,
-                       Operationrec* regOperPtr,
-                       bool disk);
-
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
@@ -3052,7 +2961,8 @@ private:
 //----------------------------------------------------------------------------
   
 // Public methods
-  void allocConsPages(Uint32 noOfPagesToAllocate,
+  void allocConsPages(EmulatedJamBuffer* jamBuf,
+                      Uint32 noOfPagesToAllocate,
                       Uint32& noOfPagesAllocated,
                       Uint32& allocPageRef);
   void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
@@ -3073,7 +2983,8 @@ private:
   Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(Uint32 * err, Fragrecord* regFragPtr);
+  Uint32 allocFragPage(EmulatedJamBuffer* jamBuf, Uint32 * err, 
+                       Fragrecord* regFragPtr);
   Uint32 allocFragPage(Uint32 * err, Tablerec*, Fragrecord*, Uint32 page_no);
   void releaseFragPage(Fragrecord* regFragPtr, Uint32 logicalPageId, PagePtr);
   void rebuild_page_free_list(Signal*);
@@ -3129,7 +3040,7 @@ private:
 
   void validate_page(Tablerec*, Var_page* page);
   
-  Uint32* alloc_fix_rec(Uint32 * err,
+  Uint32* alloc_fix_rec(EmulatedJamBuffer* jamBuf, Uint32* err,
                         Fragrecord*const, Tablerec*const, Local_key*,
                         Uint32*);
   void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
@@ -3363,7 +3274,8 @@ private:
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Disk_alloc_info&, Ptr<Page>, Int32 estimate);
-  void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>, Int32 delta);
+  void update_extent_pos(EmulatedJamBuffer* jamBuf, Disk_alloc_info&, 
+                         Ptr<Extent_info>, Int32 delta);
 
   void disk_page_move_page_request(Disk_alloc_info& alloc,
                                    Ptr<Extent_info>,
@@ -3385,9 +3297,11 @@ public:
   
   void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+  int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
+                                Uint32 tableId, Uint32 fragId, 
 				const Local_key* key, Uint32 pages);
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+  void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
+                              Uint32 tableId, Uint32 fragId,
 			      const Local_key*, Uint32 bits);
   void disk_restart_undo(Signal* signal, Uint64 lsn,
 			 Uint32 type, const Uint32 * ptr, Uint32 len);
@@ -3710,7 +3624,8 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
 class Dbtup_client
 {
   friend class DbtupProxy;
-  Uint32 m_block;
+  // jam buffer of caller block.
+  EmulatedJamBuffer* const m_jamBuf;
   class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
   Dbtup* m_dbtup;
   DEBUG_OUT_DEFINES(DBTUP);
@@ -3731,5 +3646,8 @@ public:
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 			      const Local_key* key, Uint32 bits);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

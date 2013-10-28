@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,32 +86,14 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
+// Foreign key data cached under handler instance
+struct Ndb_fk_data;
+
 typedef enum ndb_write_op {
   NDB_INSERT = 0,
   NDB_UPDATE = 1,
   NDB_PK_UPDATE = 2
 } NDB_WRITE_OP;
-
-//class NDB_ALTER_DATA : public Sql_alloc
-class NDB_ALTER_DATA : public inplace_alter_handler_ctx
-{
-public:
-  NDB_ALTER_DATA(NdbDictionary::Dictionary *dict,
-		 const NdbDictionary::Table *table) :
-    dictionary(dict),
-    old_table(table),
-    new_table(new NdbDictionary::Table(*table)),
-      table_id(table->getObjectId()),
-      old_table_version(table->getObjectVersion())
-  {}
-  ~NDB_ALTER_DATA()
-  { delete new_table; }
-  NdbDictionary::Dictionary *dictionary;
-  const  NdbDictionary::Table *old_table;
-  NdbDictionary::Table *new_table;
-  Uint32 table_id;
-  Uint32 old_table_version;
-};
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
@@ -251,18 +233,32 @@ public:
   uint max_supported_key_length() const;
   uint max_supported_key_part_length() const;
 
+  virtual bool is_fk_defined_on_table_or_index(uint index);
+  int get_child_or_parent_fk_list(THD *thd,
+                                  List<FOREIGN_KEY_INFO>*f_key_list,
+                                  bool is_child, bool is_parent);
+  virtual int get_foreign_key_list(THD *thd,
+                                   List<FOREIGN_KEY_INFO>*f_key_list);
+  virtual int get_parent_foreign_key_list(THD *thd,
+                                          List<FOREIGN_KEY_INFO>*f_key_list);
+  virtual uint referenced_by_foreign_key();
+  uint is_child_or_parent_of_fk();
+  virtual bool can_switch_engines();
+  virtual char* get_foreign_key_create_info();
+  virtual void free_foreign_key_create_info(char* str);
+
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
   int get_default_no_partitions(HA_CREATE_INFO *info);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
-  virtual bool is_fatal_error(int error, uint flags)
+  virtual bool is_ignorable_error(int error)
   {
-    if (!handler::is_fatal_error(error, flags) ||
+    if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND)
-      return FALSE;
-    return TRUE;
+      return true;
+    return false;
   }
 
   THR_LOCK_DATA **store_lock(THD *thd,
@@ -425,6 +421,15 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
+  int get_fk_data(THD *thd, Ndb *ndb);
+  void release_fk_data(THD *thd);
+  int create_fks(THD *thd, Ndb *ndb);
+  int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
+  int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
+                               const NdbDictionary::Table*);
+  static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
+                                     const NdbDictionary::Table*,
+                                     int drop_flags);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
@@ -448,8 +453,7 @@ private:
   int set_list_data(const partition_info* part_info,
                     NdbDictionary::Table&) const;
   int ndb_pk_update_row(THD *thd, 
-                        const uchar *old_data, uchar *new_data,
-                        uint32 old_part_id);
+                        const uchar *old_data, uchar *new_data);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
@@ -471,7 +475,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
+  int alter_frm(THD *thd, const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -498,10 +502,6 @@ private:
     return m_table->getColumn(index);
   }
 
-  bool add_row_check_if_batch_full_size(Thd_ndb *thd_ndb, uint size);
-  bool add_row_check_if_batch_full(Thd_ndb *thd_ndb) {
-    return add_row_check_if_batch_full_size(thd_ndb, m_bytes_per_write);
-  }
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
 
@@ -516,6 +516,8 @@ private:
                                NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
+  void get_read_set(bool use_cursor, uint idx);
+
   void eventSetAnyValue(THD *thd,
                         NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
@@ -539,19 +541,6 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
-   /*
-     Check if we are applying a binlog, either as a slave or
-     by applying BINLOG statements (from mysqlbinlog command line tool)
-    */
-  bool applying_binlog(THD* thd)
-  { 
-    return 
-#ifdef HAVE_NDB_BINLOG
-      thd->slave_thread ||
-#endif
-      m_thd_ndb->trans_options & TNTO_APPLYING_BINLOG;
-  };
-  
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name) const;
@@ -559,10 +548,8 @@ private:
   int check_ndb_connection(THD* thd) const;
 
   void set_rec_per_key();
-  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
-  void no_uncommitted_rows_reset(THD *);
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx,
@@ -641,6 +628,9 @@ private:
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   key_map btree_keys;
+  static const size_t fk_root_block_size= 1024;
+  MEM_ROOT m_fk_mem_root;
+  Ndb_fk_data *m_fk_data;
 
   /*
     Pointer to row returned from scan nextResult().
@@ -725,3 +715,5 @@ extern Ndb_util_thread ndb_util_thread;
 
 #include "ha_ndb_index_stat.h"
 extern Ndb_index_stat_thread ndb_index_stat_thread;
+
+int ndb_to_mysql_error(const NdbError *ndberr);

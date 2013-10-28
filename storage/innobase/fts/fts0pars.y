@@ -135,7 +135,7 @@ expr	: term		{
 	}
 
 	| text '@' FTS_NUMB {
-		fts_ast_term_set_distance($1, strtoul($3, NULL, 10));
+		fts_ast_text_set_distance($1, strtoul($3, NULL, 10));
 		free($3);
 	}
 
@@ -153,7 +153,7 @@ expr	: term		{
 	| prefix text '@' FTS_NUMB {
 		$$ = fts_ast_create_node_list(state, $1);
 		fts_ast_add_node($$, $2);
-		fts_ast_term_set_distance($2, strtoul($4, NULL, 10));
+		fts_ast_text_set_distance($2, strtoul($4, NULL, 10));
 		free($4);
 	}
 

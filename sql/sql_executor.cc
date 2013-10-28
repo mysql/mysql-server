@@ -614,7 +614,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((error= table->file->ha_write_row(table->record[0])))
     {
       /* create_myisam_from_heap will generate error if needed */
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
+      if (!table->file->is_ignorable_error(error) &&
           create_myisam_from_heap(thd, table,
                                   sjm->table_param.start_recinfo, 
                                   &sjm->table_param.recinfo, error,
@@ -1393,7 +1393,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   if (error)
   {
     /* If this is a duplicate error, return immediately */
-    if (!sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
+    if (sjtbl->tmp_table->file->is_ignorable_error(error))
       DBUG_RETURN(1);
     /*
       Other error than duplicate error: Attempt to create a temporary table.
@@ -1835,7 +1835,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     {						// Info for DESCRIBE
       tab->info= ET_CONST_ROW_NOT_FOUND;
       /* Mark for EXPLAIN that the row was not found */
-      pos->records_read=0.0;
+      pos->fanout= 0.0;
+      pos->prefix_record_count= 0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
@@ -1856,7 +1857,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     {
       tab->info= ET_UNIQUE_ROW_NOT_FOUND;
       /* Mark for EXPLAIN that the row was not found */
-      pos->records_read=0.0;
+      pos->fanout= 0.0;
+      pos->prefix_record_count= 0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
@@ -2672,33 +2674,31 @@ pick_table_access_method(JOIN_TAB *tab)
   // Must have an associated table
   if (!tab->table)
     return;
+
   /**
-    Set up modified access function for pushed joins.
+    Set up modified access function for children of pushed joins.
   */
-  uint pushed_joins= tab->table->file->number_of_pushed_joins();
-  if (pushed_joins > 0)
+  const TABLE *pushed_root= tab->table->file->root_of_pushed_join();
+  if (pushed_root && pushed_root != tab->table)
   {
-    if (tab->table->file->root_of_pushed_join() != tab->table)
-    {
-      /*
-        Is child of a pushed join operation:
-        Replace access functions with its linked counterpart.
-        ... Which is effectively a NOOP as the row is already fetched 
-        together with the root of the linked operation.
-      */
-      DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
-      tab->read_first_record= join_read_linked_first;
-      tab->read_record.read_record= join_read_linked_next;
-      tab->read_record.unlock_row= rr_unlock_row;
-      return;
-    }
+    /**
+      Is child of a pushed join operation:
+      Replace access functions with its linked counterpart.
+      ... Which is effectively a NOOP as the row is already fetched 
+      together with the root of the linked operation.
+     */
+    DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
+    tab->read_first_record= join_read_linked_first;
+    tab->read_record.read_record= join_read_linked_next;
+    tab->read_record.unlock_row= rr_unlock_row;
+    return;
   }
 
   /**
-    Already set to some non-default value in sql_select.cc
+    Already set to some non-default value in sql_select.cc?
     TODO: Move these settings into pick_table_access_method() also
   */
-  else if (tab->read_first_record != NULL)
+  if (tab->read_first_record != NULL)
     return;  
 
   // Fall through to set default access functions:
@@ -3006,7 +3006,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       join->found_records++;
       if ((error=table->file->ha_write_row(table->record[0])))
       {
-        if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
+        if (table->file->is_ignorable_error(error))
 	  goto end;
 	if (create_myisam_from_heap(join->thd, table,
                                     join_tab->tmp_table_param->start_recinfo,
@@ -3381,7 +3381,7 @@ JOIN_TAB::remove_duplicates()
   bool error;
   ulong reclength,offset;
   uint field_count;
-  List<Item> *fields= (this-1)->fields;
+  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3391,7 +3391,7 @@ JOIN_TAB::remove_duplicates()
 
   /* Calculate how many saved fields there is in list */
   field_count=0;
-  List_iterator<Item> it(*fields);
+  List_iterator<Item> it(*field_list);
   Item *item;
   while ((item=it++))
   {
@@ -4254,7 +4254,10 @@ QEP_tmp_table::prepare_tmp_table()
       join_tab->tmp_table_param->sum_func_count && table->s->keys)
     rc= table->file->ha_index_init(0, 0);
   else
-    rc= table->file->ha_rnd_init(0);
+  {
+    /* Start index scan in scanning mode */
+    rc= table->file->ha_rnd_init(true);
+  }
   if (rc)
   {
     table->file->print_error(rc, MYF(0));

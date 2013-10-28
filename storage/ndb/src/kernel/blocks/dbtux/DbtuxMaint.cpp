@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #define DBTUX_MAINT_CPP
 #include "Dbtux.hpp"
+
+#define JAM_FILE_ID 369
+
 
 /*
  * Maintain index.
@@ -63,7 +66,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  findFrag(*indexPtr.p, fragId, fragPtr);
+  findFrag(jamBuffer(), *indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up search entry

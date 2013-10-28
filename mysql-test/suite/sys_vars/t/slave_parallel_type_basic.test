@@ -1,0 +1,42 @@
+--source include/not_embedded.inc
+
+# SAVE INTITIAL VALUES
+--let $saved_value= `SELECT @@global.slave_parallel_type`
+SELECT @@global.slave_parallel_type;
+
+# CORRECT VALUES
+SET GLOBAL slave_parallel_type= 'DATABASE';
+SELECT @@global.slave_parallel_type;
+
+SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
+SELECT @@global.slave_parallel_type;
+
+SET GLOBAL slave_parallel_type= DEFAULT;
+SELECT @@global.slave_parallel_type;
+
+
+# INCORRECT VAULES
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slave_parallel_type= NULL;
+SELECT @@global.slave_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slave_parallel_type= '';
+SELECT @@global.slave_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slave_parallel_type= '0';
+SELECT @@global.slave_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slave_parallel_type= 'GARBAGE';
+SELECT @@global.slave_parallel_type;
+
+# THIS IS NOT A SESSION VARIABLE
+--error ER_GLOBAL_VARIABLE
+SET SESSION slave_parallel_type= 'LOGICAL_CLOCK';
+SELECT @@global.slave_parallel_type;
+
+# RESTORE INITIAL VALUE
+--disable_query_log ONCE
+--eval SET GLOBAL slave_parallel_type= '$saved_value';

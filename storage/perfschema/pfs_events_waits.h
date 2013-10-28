@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ struct PFS_table_share;
 struct PFS_account;
 struct PFS_user;
 struct PFS_host;
+struct PFS_metadata_lock;
 
 /** Class of a wait event. */
 enum events_waits_class
@@ -48,7 +49,8 @@ enum events_waits_class
   WAIT_CLASS_TABLE,
   WAIT_CLASS_FILE,
   WAIT_CLASS_SOCKET,
-  WAIT_CLASS_IDLE
+  WAIT_CLASS_IDLE,
+  WAIT_CLASS_METADATA
 };
 
 /** A wait event record. */
@@ -66,8 +68,6 @@ struct PFS_events_waits : public PFS_events
     - TRUNCATE EVENTS_WAITS_HISTORY_LONG
   */
   events_waits_class m_wait_class;
-  /** Executing thread. */
-  PFS_thread *m_thread;
   /** Object type */
   enum_object_type m_object_type;
   /** Table share, for table operations only. */
@@ -76,6 +76,8 @@ struct PFS_events_waits : public PFS_events
   PFS_file *m_weak_file;
   /** Socket, for socket operations only. */
   PFS_socket *m_weak_socket;
+  /** Metadata lock, for mdl operations only. */
+  PFS_metadata_lock *m_weak_metadata_lock;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
@@ -116,7 +118,7 @@ extern bool flag_global_instrumentation;
 extern bool flag_thread_instrumentation;
 
 extern bool events_waits_history_long_full;
-extern volatile uint32 events_waits_history_long_index;
+extern PFS_ALIGNED PFS_cacheline_uint32 events_waits_history_long_index;
 extern PFS_events_waits *events_waits_history_long_array;
 extern ulong events_waits_history_long_size;
 

@@ -27,24 +27,25 @@
 */
 
 
-C_MODE_START
-
-#include <mysql/plugin.h>
 #include <mysql/client_plugin.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
   Lists of protocol stages and trace events
   =========================================
 
   These lists are defined with PROTOCOL_STAGE_LIST() and TRACE_EVENT_LIST(),
-  respectively. Macros accept a disposition name as an argument. 
-  
-  For example, to process list of protocol stages using disposition "foo", 
+  respectively. Macros accept a disposition name as an argument.
+
+  For example, to process list of protocol stages using disposition "foo",
   define protocol_stage_foo(Stage) macro and then put
 
     PROTOCOL_STAGE_LIST(foo)
 
-  in your code. This will expand to sequence of protocol_stage_foo(X) 
+  in your code. This will expand to sequence of protocol_stage_foo(X)
   macros where X ranges over the list of protocol stages, and these macros
   should generate the actual code. See below how this technique is used
   to generate protocol_stage and trace_events enums.
@@ -54,11 +55,11 @@ C_MODE_START
   Protocol stages
   ---------------
 
-  A client following the MySQL protocol goes through several stages of it. Each 
-  stage determines what packets can be expected from the server or can be send by 
-  the client.
+  A client following the MySQL protocol goes through several stages of it. Each
+  stage determines what packets can be expected from the server or can be send
+  by the client.
 
-  Upon receiving each trace event, trace plugin will be notified of the current 
+  Upon receiving each trace event, trace plugin will be notified of the current
   protocol stage so that it can correctly interpret the event.
 
   These are the possible protocol stages and the transitions between them.
@@ -76,8 +77,8 @@ C_MODE_START
 
     READY_FOR_COMMAND -> DISCONNECTED [ label = "COM_QUIT" ];
     READY_FOR_COMMAND -> AUTHENTICATE [ label="after change user" ];
-    READY_FOR_COMMAND -> WAIT_FOR_PACKET 
-         [ label="wait for single packet after, e.g., COM_STATISTICS" ];
+    READY_FOR_COMMAND -> WAIT_FOR_PACKET
+         [ label="wait for a single packet after, e.g., COM_STATISTICS" ];
     READY_FOR_COMMAND -> WAIT_FOR_RESULT;
     READY_FOR_COMMAND -> WAIT_FOR_PS_DESCRIPTION
                                       [ label="after prepare command" ];
@@ -144,9 +145,9 @@ C_MODE_START
   Authentication events
   ---------------------- -----------------------------------------------------
   CHALLENGE_RECEIVED     Client received authentication challenge.
-  AUTH_PLUGIN            Client selects an authentication plugin to be used 
+  AUTH_PLUGIN            Client selects an authentication plugin to be used
                          in the following authentication exchange.
-  SEND_AUTH_RESPONSE     Client sends response to the authentication 
+  SEND_AUTH_RESPONSE     Client sends response to the authentication
                          challenge.
   SEND_AUTH_DATA         Client sends extra authentication data packet.
   AUTHENTICATED          Server has accepted connection.
@@ -185,16 +186,16 @@ C_MODE_START
   trace_event_ ## X(PACKET_SENT)
 
 /**
-  Some trace events have additional arguments. These are stored in 
-  st_trace_event_args structure. Various events store their arguments in the 
+  Some trace events have additional arguments. These are stored in
+  st_trace_event_args structure. Various events store their arguments in the
   structure as follows. Unused members are set to 0/NULL.
 
-   AUTH_PLUGIN    
+   AUTH_PLUGIN
   ------------- ----------------------------------
    plugin_name  the name of the plugin
   ------------- ----------------------------------
 
-   SEND_COMMAND   
+   SEND_COMMAND
   ------------- ----------------------------------
    cmd          the command code
    hdr          pointer to command packet header
@@ -230,7 +231,7 @@ struct st_trace_event_args
 
 #define protocol_stage_enum(X) PROTOCOL_STAGE_ ## X,
 
-enum protocol_stage { 
+enum protocol_stage {
   PROTOCOL_STAGE_LIST(enum)
   PROTOCOL_STAGE_LAST
 };
@@ -254,20 +255,20 @@ struct st_mysql;
 /**
   Trace plugin tracing_start() method.
 
-  Called when tracing with this plugin starts on a connection. A trace 
+  Called when tracing with this plugin starts on a connection. A trace
   plugin might want to maintain per-connection information. It can
-  return a pointer to memory area holding such information. It will be 
+  return a pointer to memory area holding such information. It will be
   stored in a connection handle and passed to other plugin methods.
 
   @param self   pointer to the plugin instance
   @param connection_handle
-  @param stage  protocol stage in which tracing has started - currently 
+  @param stage  protocol stage in which tracing has started - currently
                 it is always CONNECTING stage.
 
   @return A pointer to plugin-specific, per-connection data if any.
 */
 
-typedef 
+typedef
 void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
                                struct st_mysql *connection_handle,
                                enum protocol_stage stage);
@@ -275,8 +276,8 @@ void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
 /**
   Trace plugin tracing_stop() method.
 
-  Called when tracing of the connection has ended. If a plugin 
-  allocated any per-connection resources, it should de-allocate them 
+  Called when tracing of the connection has ended. If a plugin
+  allocated any per-connection resources, it should de-allocate them
   here.
 
   @param self   pointer to the plugin instance
@@ -284,7 +285,7 @@ void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
   @param plugin_data pointer to plugin's per-connection data.
 */
 
-typedef 
+typedef
 void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
                              struct st_mysql *connection_handle,
                              void   *plugin_data);
@@ -305,7 +306,7 @@ void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
   @return Non-zero if tracing of the connection should end here.
 */
 
-typedef 
+typedef
 int (trace_event_handler)(struct st_mysql_client_plugin_TRACE *self,
                           void *plugin_data,
                           struct st_mysql *connection_handle,
@@ -341,6 +342,8 @@ const char* trace_event_name(enum trace_event ev);
 
 #endif
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif
 
 #endif

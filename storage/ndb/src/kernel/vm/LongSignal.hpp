@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,10 @@
 
 #include "pc.hpp"
 #include <ArrayPool.hpp>
+#include "DataBuffer.hpp"
+
+#define JAM_FILE_ID 288
+
 
 /**
  * Section handling
@@ -76,8 +80,6 @@ Uint32* getLastWordPtr(Uint32 id);
 bool verifySection(Uint32 firstIVal, 
                    SectionSegmentPool& thePool= g_sectionSegmentPool);
 
-#include "DataBuffer.hpp"
-
 template<Uint32 sz>
 void
 append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
@@ -89,5 +91,8 @@ append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
   }
   dst.append(ptr.p->theData, len);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

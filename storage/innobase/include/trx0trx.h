@@ -1176,6 +1176,11 @@ struct trx_t{
 					transaction branch */
 	trx_mod_tables_t mod_tables;	/*!< List of tables that were modified
 					by this transaction */
+        /*------------------------------*/
+	bool		api_trx;	/*!< trx started by InnoDB API */
+	bool		api_auto_commit;/*!< automatic commit */
+	bool		read_write;	/*!< if read and write operation */
+
 	/*------------------------------*/
 	char*		detailed_error;	/*!< detailed error message for last
 					error, or empty. */

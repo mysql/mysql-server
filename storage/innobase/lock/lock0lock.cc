@@ -766,7 +766,7 @@ lock_sys_create(
 	lock_sys_sz = sizeof(*lock_sys)
 		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
-	lock_sys = static_cast<lock_sys_t*>(mem_zalloc(lock_sys_sz));
+	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
 
 	void*	ptr = &lock_sys[1];
 
@@ -807,7 +807,15 @@ lock_sys_close(void)
 	mutex_destroy(&lock_sys->mutex);
 	mutex_destroy(&lock_sys->wait_mutex);
 
-	mem_free(lock_sys);
+	srv_slot_t*	slot = lock_sys->waiting_threads;
+
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+		if (slot->event != NULL) {
+			os_event_destroy(slot->event);
+		}
+	}
+
+	ut_free(lock_sys);
 
 	lock_sys = NULL;
 }
@@ -1982,9 +1990,9 @@ lock_rec_create(
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
 	lock->index = index;
 
-	lock->un_member.rec_lock.space = space;
-	lock->un_member.rec_lock.page_no = page_no;
-	lock->un_member.rec_lock.n_bits = n_bytes * 8;
+	lock->un_member.rec_lock.space = ib_uint32_t(space);
+	lock->un_member.rec_lock.page_no = ib_uint32_t(page_no);
+	lock->un_member.rec_lock.n_bits = ib_uint32_t(n_bytes * 8);
 
 	/* Reset to zero the bitmap which resides immediately after the
 	lock struct */
@@ -3719,7 +3727,7 @@ lock_table_create(
 
 	}
 
-	lock->type_mode = type_mode | LOCK_TABLE;
+	lock->type_mode = ib_uint32_t(type_mode | LOCK_TABLE);
 	lock->trx = trx;
 
 	lock->un_member.tab_lock.table = table;
@@ -7481,7 +7489,7 @@ void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	byte*	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	/* We allocate one big chunk and then distribute it among
 	the rest of the elements. The allocated chunk pointer is always
@@ -7493,7 +7501,7 @@ lock_trx_alloc_locks(trx_t* trx)
 	}
 
 	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
 		trx->lock.table_pool.push_back(

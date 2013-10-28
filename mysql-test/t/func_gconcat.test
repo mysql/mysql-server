@@ -22,7 +22,7 @@ insert into t1 values (3,9,"D","c");
 
 # Test of MySQL simple request
 select grp,group_concat(c) from t1 group by grp;
---replace_column 9 9
+--replace_column 10 9
 explain extended select grp,group_concat(c) from t1 group by grp;
 select grp,group_concat(a,c) from t1 group by grp;
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
@@ -41,12 +41,12 @@ select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
 select grp,group_concat(c order by 1) from t1 group by grp;
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 select grp,group_concat(distinct c order by c desc) from t1 group by grp;
---replace_column 9 9
+--replace_column 10 9
 explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
---replace_column 9 9
+--replace_column 10 9
 explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
 

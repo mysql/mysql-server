@@ -21427,8 +21427,10 @@ SELECT * FROM test3.v32;
 f1
 1.000
 EXPLAIN SELECT * FROM test3.v32;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test3`.`t1`.`f1` AS `f1` from `test3`.`t1`
 DROP VIEW test3.v0;
 SHOW CREATE VIEW test3.v32;
 View	Create View	character_set_client	collation_connection
@@ -22040,6 +22042,8 @@ f1	f2	f3	f4
 1	NULL	NULL	NULL
 DELETE FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;
@@ -22109,6 +22113,8 @@ DELETE FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;

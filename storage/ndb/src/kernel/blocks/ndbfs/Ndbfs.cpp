@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <signaldata/NdbfsContinueB.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/AllocMem.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 
 #include <RefConvert.hpp>
 #include <portlib/NdbDir.hpp>
@@ -43,6 +44,9 @@
 #include <Configuration.hpp>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 393
+
 extern EventLogger * g_eventLogger;
 
 NdbMutex g_active_bound_threads_mutex;
@@ -978,8 +982,6 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
   ndbrequire(forward(file, request));
 }
 
-#include <signaldata/BuildIndxImpl.hpp>
-
 void
 Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
@@ -1653,7 +1655,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 const char*
 Ndbfs::get_filename(Uint32 fd) const
 {
-  jamEntry();
+  jamNoBlock();
   const AsyncFile* openFile = theOpenFiles.find(fd);
   if(openFile)
     return openFile->theFileName.get_base_name();

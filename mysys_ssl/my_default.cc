@@ -399,8 +399,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       goto err;
     if (error > 0)
     {
-      fprintf(stderr, "Could not open required defaults file: %s\n",
-              my_defaults_file);
+      my_message_local(ERROR_LEVEL,
+                       "Could not open required defaults file: %s",
+                       my_defaults_file);
       goto err;
     }
   }
@@ -420,8 +421,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 	  goto err;				/* Fatal error */
         if (error > 0)
         {
-          fprintf(stderr, "Could not open required defaults file: %s\n",
-                  my_defaults_extra_file);
+          my_message_local(ERROR_LEVEL,
+                           "Could not open required defaults file: %s",
+                           my_defaults_extra_file);
           goto err;
         }
       }
@@ -431,7 +433,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   DBUG_RETURN(0);
 
 err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   DBUG_RETURN(1);
 }
 
@@ -474,7 +477,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
       return 1;
     if (insert_dynamic(ctx->args, &tmp))
       return 1;
-    strmov(tmp, option);
+    my_stpcpy(tmp, option);
   }
 
   return 0;
@@ -743,7 +746,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
   DBUG_RETURN(0);
 
  err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   exit(1);
   return 0;					/* Keep compiler happy */
 }
@@ -820,9 +824,9 @@ static char *get_argument(const char *keyword, size_t kwlen,
   /* Print error msg if there is nothing after !include* directive */
   if (end <= ptr)
   {
-    fprintf(stderr,
-	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
-	    keyword, name, line);
+    my_message_local(ERROR_LEVEL,
+                     "Wrong '!%s' directive in config file %s at line %d!",
+                     keyword, name, line);
     return 0;
   }
   return ptr;
@@ -881,7 +885,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   }
   else
   {
-    strmov(name,config_file);
+    my_stpcpy(name,config_file);
   }
   fn_format(name,name,"","",4);
 
@@ -920,10 +924,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
              end--)
         {}
         end[0]= 0;
-        fprintf(stderr,
-                "Warning: skipping '%s' directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                ptr, name, line);
+        my_message_local(WARNING_LEVEL,
+                         "skipping '%s' directive as maximum include"
+                         "recursion level was reached in file %s at line %d!",
+                         ptr, name, line);
         continue;
       }
 
@@ -987,10 +991,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       found_group=1;
       if (!(end=(char *) strchr(++ptr,']')))
       {
-	fprintf(stderr,
-		"error: Wrong group definition in config file: %s at line %d\n",
-		name,line);
-	goto err;
+        my_message_local(ERROR_LEVEL,
+                         "Wrong group definition in config file %s at line %d!",
+                         name,line);
+        goto err;
       }
       /* Remove end space */
       for ( ; my_isspace(&my_charset_latin1, end[-1]); end --)
@@ -1007,13 +1011,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
     if (!found_group)
     {
-      fprintf(stderr,
-	      "error: Found option without preceding group in config file: %s at line: %d\n",
-	      name,line);
+      my_message_local(ERROR_LEVEL,
+                       "Found option without preceding group in config file"
+                       " %s at line %d!", name,line);
       goto err;
     }
-    
-   
+
+
     end= remove_end_comment(ptr);
     if ((value= strchr(ptr, '=')))
       end= value;				/* Option without argument */
@@ -1022,7 +1026,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
     if (!value)
     {
-      strmake(strmov(option,"--"),ptr, (size_t) (end-ptr));
+      strmake(my_stpcpy(option,"--"),ptr, (size_t) (end-ptr));
       if (opt_handler(handler_ctx, curr_gr, option))
         goto err;
     }
@@ -1052,7 +1056,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	value++;
 	value_end--;
       }
-      ptr=strnmov(strmov(option,"--"),ptr,(size_t) (end-ptr));
+      ptr=my_stpnmov(my_stpcpy(option,"--"),ptr,(size_t) (end-ptr));
       *ptr++= '=';
 
       for ( ; value != value_end; value++)
@@ -1478,8 +1482,8 @@ static int check_file_permissions(const char *file_name)
   if (is_login_file && (stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO))
       && (stat_info.st_mode & S_IFMT) == S_IFREG)
   {
-    fprintf(stderr, "Warning: %s should be readable/writable only by "
-            "current user.\n", file_name);
+    my_message_local(WARNING_LEVEL, "%s should be readable/writable only by "
+            "current user.", file_name);
     return 0;
   }
   /*
@@ -1491,8 +1495,8 @@ static int check_file_permissions(const char *file_name)
            (stat_info.st_mode & S_IFMT) == S_IFREG)
 
   {
-    fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
-            file_name);
+    my_message_local(WARNING_LEVEL,
+                     "World-writable config file '%s' is ignored.", file_name);
     return 0;
   }
 #endif

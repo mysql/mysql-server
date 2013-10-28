@@ -1,0 +1,31 @@
+Batch extends Context
+
+/** execute()
+ * ASYNC
+ * Execute this batch. All operations are executed and for each operation
+ * the callback for that operation is called (in no particular order).
+ * The execute function's callback is also called.
+ * The batch is executed in the context of the session's current state:
+ * autocommit if a transaction has not been started;
+ * default lock mode;
+ * the partition key.
+ * @return undefined
+ */
+execute(Function(error, ... ) callback, ...);
+
+/** clear()
+ * IMMEDIATE
+ * Clear this batch. The transaction state is unaffected.
+ * The batch is still valid, but all operations previously defined
+ * are removed, restoring the batch to a clean state.
+ * If operations are defined, the callback for each operation will be called
+ * with an error indicating that the batch has been cleared.
+ */
+clear();
+
+/** getSession()
+ * IMMEDIATE
+ * Get the session from which this batch was created.
+ * @return the session
+ */
+getSession();

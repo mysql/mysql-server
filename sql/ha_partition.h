@@ -343,7 +343,8 @@ private:
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
                             handler *file, const char *part_name,
-                            partition_element *p_elem);
+                            partition_element *p_elem,
+                            uint disable_non_uniq_indexes);
   /*
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
@@ -487,13 +488,13 @@ public:
   */
   int truncate_partition(Alter_info *, bool *binlog_stmt);
 
-  virtual bool is_fatal_error(int error, uint flags)
+  virtual bool is_ignorable_error(int error)
   {
-    if (!handler::is_fatal_error(error, flags) ||
+    if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND ||
         error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
-      return FALSE;
-    return TRUE;
+      return true;
+    return false;
   }
 
 

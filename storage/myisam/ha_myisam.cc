@@ -1044,7 +1044,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
   param.out_flag= 0;
-  strmov(fixed_name,file->filename);
+  my_stpcpy(fixed_name,file->filename);
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);

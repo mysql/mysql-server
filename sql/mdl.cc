@@ -21,8 +21,11 @@
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include <pfs_metadata_provider.h>
+#include <mysql/psi/mysql_mdl.h>
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+#include <my_murmur3.h>
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -315,8 +318,7 @@ bool Deadlock_detection_visitor::inspect_edge(MDL_context *node)
   Change the deadlock victim to a new one if it has lower deadlock
   weight.
 
-  @retval new_victim  Victim is not changed.
-  @retval !new_victim New victim became the current.
+  @param new_victim New candidate for deadlock victim.
 */
 
 void
@@ -729,13 +731,33 @@ void MDL_map::init()
 }
 
 
+/**
+  Adapter function which allows to use murmur3 with our HASH implementation.
+*/
+
+extern "C" my_hash_value_type murmur3_adapter(const HASH*, const uchar *key,
+                                              size_t length)
+{
+  return murmur3_32(key, length, 0);
+}
+
+
 /** Initialize the partition in the container with all MDL locks. */
 
 MDL_map_partition::MDL_map_partition()
 {
   mysql_mutex_init(key_MDL_map_mutex, &m_mutex, NULL);
-  my_hash_init(&m_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
-               mdl_locks_key, 0, 0);
+  /*
+    Lower bits of values produced by hash function which is used in 'm_locks'
+    HASH container are also to select specific MDL_map_partition instance.
+    This means that this hash function needs to hash key value in such
+    a way that lower bits in result are sufficiently random. Since standard
+    hash function from 'my_charset_bin' doesn't satisfy this criteria we use
+    MurmurHash3 instead.
+  */
+  my_hash_init3(&m_locks, 0, &my_charset_bin, murmur3_adapter,
+                16 /* FIXME */, 0, 0, mdl_locks_key,
+                0, 0);
 };
 
 
@@ -1117,16 +1139,20 @@ void MDL_context::destroy()
   @param  mdl_type       The MDL lock type for the request.
 */
 
-void MDL_request::init(MDL_key::enum_mdl_namespace mdl_namespace,
+void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *db_arg,
                        const char *name_arg,
                        enum_mdl_type mdl_type_arg,
-                       enum_mdl_duration mdl_duration_arg)
+                       enum_mdl_duration mdl_duration_arg,
+                       const char *src_file,
+                       uint src_line)
 {
   key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type= mdl_type_arg;
   duration= mdl_duration_arg;
   ticket= NULL;
+  m_src_file= src_file;
+  m_src_line= src_line;
 }
 
 
@@ -1139,14 +1165,18 @@ void MDL_request::init(MDL_key::enum_mdl_namespace mdl_namespace,
   @param mdl_type_arg  The MDL lock type for the request.
 */
 
-void MDL_request::init(const MDL_key *key_arg,
+void MDL_request::init_by_key_with_source(const MDL_key *key_arg,
                        enum_mdl_type mdl_type_arg,
-                       enum_mdl_duration mdl_duration_arg)
+                       enum_mdl_duration mdl_duration_arg,
+                       const char *src_file,
+                       uint src_line)
 {
   key.mdl_key_init(key_arg);
   type= mdl_type_arg;
   duration= mdl_duration_arg;
   ticket= NULL;
+  m_src_file= src_file;
+  m_src_line= src_line;
 }
 
 
@@ -1202,6 +1232,9 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
 
 void MDL_ticket::destroy(MDL_ticket *ticket)
 {
+  mysql_mdl_destroy(ticket->m_psi);
+  ticket->m_psi= NULL;
+
   delete ticket;
 }
 
@@ -1343,7 +1376,6 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
 
   return result;
 }
-
 
 /**
   Clear bit corresponding to the type of metadata lock in bitmap representing
@@ -1906,9 +1938,6 @@ MDL_context::find_ticket(MDL_request *mdl_request,
   Returns immediately without any side effect if encounters a lock
   conflict. Otherwise takes the lock.
 
-  FIXME: Compared to lock_table_name_if_not_cached() (from 5.1)
-         it gives slightly more false negatives.
-
   @param mdl_request [in/out] Lock request object for lock to be acquired
 
   @retval  FALSE   Success. The lock may have not been acquired.
@@ -2019,6 +2048,14 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                    )))
     return TRUE;
 
+  DBUG_ASSERT(ticket->m_psi == NULL);
+  ticket->m_psi= mysql_mdl_create(ticket, key,
+                                  mdl_request->type,
+                                  mdl_request->duration,
+                                  MDL_wait::EMPTY,
+                                  mdl_request->m_src_file,
+                                  mdl_request->m_src_line);
+
   /* The below call implicitly locks MDL_lock::m_rwlock on success. */
   if (!(lock= mdl_locks.find_or_insert(key)))
   {
@@ -2037,6 +2074,8 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     m_tickets[mdl_request->duration].push_front(ticket);
 
     mdl_request->ticket= ticket;
+
+    mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
   }
   else
     *out_ticket= ticket;
@@ -2087,6 +2126,15 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
 
   m_tickets[mdl_request->duration].push_front(ticket);
+
+  DBUG_ASSERT(ticket->m_psi == NULL);
+  ticket->m_psi= mysql_mdl_create(ticket,
+                                  &mdl_request->key,
+                                  mdl_request->type,
+                                  mdl_request->duration,
+                                  MDL_wait::GRANTED,
+                                  mdl_request->m_src_file,
+                                  mdl_request->m_src_line);
 
   return FALSE;
 }
@@ -2216,6 +2264,18 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   mysql_prlock_unlock(&lock->m_rwlock);
 
+#ifdef HAVE_PSI_METADATA_INTERFACE
+  PSI_metadata_locker_state state;
+  PSI_metadata_locker *locker= NULL;
+
+  if (ticket->m_psi != NULL)
+  {
+    locker= PSI_METADATA_CALL(start_metadata_wait)(&state,
+                                                   ticket->m_psi,
+                                                   __FILE__, __LINE__);
+  }
+#endif
+
   will_wait_for(ticket);
 
   /* There is a shared or exclusive lock on the object. */
@@ -2253,6 +2313,13 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   done_waiting_for();
 
+#ifdef HAVE_PSI_METADATA_INTERFACE
+  if (locker != NULL)
+  {
+    PSI_METADATA_CALL(end_metadata_wait)(locker, 0);
+  }
+#endif
+
   if (wait_status != MDL_wait::GRANTED)
   {
     lock->remove_ticket(&MDL_lock::m_waiting, ticket);
@@ -2286,6 +2353,8 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   m_tickets[mdl_request->duration].push_front(ticket);
 
   mdl_request->ticket= ticket;
+
+  mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
 
   return FALSE;
 }
@@ -2413,8 +2482,9 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   if (mdl_ticket->has_stronger_or_equal_type(new_type))
     DBUG_RETURN(FALSE);
 
-  mdl_xlock_request.init(&mdl_ticket->m_lock->key, new_type,
-                         MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&mdl_xlock_request,
+                          &mdl_ticket->m_lock->key, new_type,
+                          MDL_TRANSACTION);
 
   if (acquire_lock(&mdl_xlock_request, lock_wait_timeout))
     DBUG_RETURN(TRUE);
@@ -2643,9 +2713,6 @@ bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor)
   @note If during deadlock resolution context which performs deadlock
         detection is chosen as a victim it will be informed about the
         fact by setting VICTIM status to its wait slot.
-
-  @retval TRUE  A deadlock is found.
-  @retval FALSE No deadlock found.
 */
 
 void MDL_context::find_deadlock()
@@ -2856,7 +2923,8 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
   MDL_request mdl_request;
   enum_mdl_duration not_unused;
   /* We don't care about exact duration of lock here. */
-  mdl_request.init(mdl_namespace, db, name, mdl_type, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   mdl_namespace, db, name, mdl_type, MDL_TRANSACTION);
   MDL_ticket *ticket= find_ticket(&mdl_request, &not_unused);
 
   DBUG_ASSERT(ticket == NULL || ticket->m_lock);

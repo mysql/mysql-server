@@ -281,6 +281,12 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
 
   MYSQL_NET_WRITE_START(len);
 
+  DBUG_EXECUTE_IF("simulate_net_write_failure", {
+                  my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
+                  return 1;
+                  };
+                 );
+
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
     length. The last packet is always a packet that is < MAX_PACKET_LENGTH.
@@ -770,8 +776,9 @@ static my_bool net_read_packet_header(NET *net)
       the server expects the client to send a file, but the client
       may reply with a new command instead.
     */
-    fprintf(stderr, "Error: packets out of order (found %u, expected %u)\n",
-            (uint) pkt_nr, net->pkt_nr);
+    my_message_local(ERROR_LEVEL,
+                     "packets out of order (found %u, expected %u)",
+                     (uint) pkt_nr, net->pkt_nr);
     DBUG_ASSERT(pkt_nr == net->pkt_nr);
 #endif
     return TRUE;

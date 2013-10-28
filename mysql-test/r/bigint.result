@@ -362,12 +362,12 @@ select cast(19999999999999999999 as signed);
 cast(19999999999999999999 as signed)
 9223372036854775807
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '19999999999999999999'
 select cast(-19999999999999999999 as signed);
 cast(-19999999999999999999 as signed)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 select -9223372036854775808;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					-9223372036854775808	8	20	20	N	32897	0	63
@@ -420,21 +420,25 @@ UPDATE t1 SET b = a;
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 18446744073709551615) and ('18446744073709551615' = `test`.`t1`.`b`))
 # 8000000000000000
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775808) and ('9223372036854775808' = `test`.`t1`.`b`))
 # 7FFFFFFFFFFFFFFF
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775807) and ('9223372036854775807' = `test`.`t1`.`b`))
 # 0
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 0) and ('0' = `test`.`t1`.`b`))
 DROP TABLE t1;
 # End of 5.1 tests

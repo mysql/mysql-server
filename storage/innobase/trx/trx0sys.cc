@@ -604,7 +604,7 @@ trx_sys_create(void)
 {
 	ut_ad(trx_sys == NULL);
 
-	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
+	trx_sys = static_cast<trx_sys_t*>(ut_zalloc(sizeof(*trx_sys)));
 
 	mutex_create("trx_sys", &trx_sys->mutex);
 
@@ -1048,7 +1048,7 @@ trx_sys_read_file_format_id(
 				         space */
 {
 	os_file_t	file;
-	ibool		success;
+	bool		success;
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
@@ -1128,7 +1128,7 @@ trx_sys_read_pertable_file_format_id(
 				         data file */
 {
 	os_file_t	file;
-	ibool		success;
+	bool		success;
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
@@ -1302,7 +1302,7 @@ trx_sys_close(void)
 
 	trx_sys->rw_trx_set.~TrxIdSet();
 
-	mem_free(trx_sys);
+	ut_free(trx_sys);
 
 	trx_sys = NULL;
 }

@@ -2142,16 +2142,14 @@ String *Item_func_encode::val_str(String *str)
 
 void Item_func_encode::crypto_transform(String *res)
 {
-  THD *thd= current_thd;
-  WARN_DEPRECATED(thd, "ENCODE", "AES_ENCRYPT");
+  push_deprecated_warn(current_thd, "ENCODE", "AES_ENCRYPT");
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
 void Item_func_decode::crypto_transform(String *res)
 {
-  THD *thd= current_thd;
-  WARN_DEPRECATED(thd, "DECODE", "AES_DECRYPT");
+  push_deprecated_warn(current_thd, "DECODE", "AES_DECRYPT");
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
 
@@ -3190,7 +3188,9 @@ String *Item_func_conv::val_str(String *str)
   int to_base= (int) args[2]->val_int();
   int err;
 
+  // Note that abs(INT_MIN) is undefined.
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
+      from_base == INT_MIN || to_base == INT_MIN ||
       abs(to_base) > 36 || abs(to_base) < 2 ||
       abs(from_base) > 36 || abs(from_base) < 2 || !(res->length()))
   {
@@ -3420,6 +3420,8 @@ String *Item_func_weight_string::val_str(String *str)
                                    nweights ? nweights : tmp_length,
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
+  DBUG_ASSERT(frm_length <= tmp_length);
+
   tmp_value.length(frm_length);
   null_value= 0;
   return &tmp_value;
@@ -4351,7 +4353,7 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s, time_low, 8);
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
-  strmov(s+18, clock_seq_and_node_str);
+  my_stpcpy(s+18, clock_seq_and_node_str);
   return str;
 }
 

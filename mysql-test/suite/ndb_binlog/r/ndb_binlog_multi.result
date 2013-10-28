@@ -90,8 +90,6 @@ col28 int, col29 int, col30 int, col31 int,
 primary key(col0)) engine = ndb;
 begin;
 insert into t1 (col0) values (1);
-alter online table t1 add column col32 int COLUMN_FORMAT DYNAMIC;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
 commit;
 drop table t1;

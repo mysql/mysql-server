@@ -644,7 +644,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   *pos++=(uchar) NAMES_SEP_CHAR;
   for (key=keyinfo ; key != end ; key++)
   {
-    uchar *tmp=(uchar*) strmov((char*) pos,key->name);
+    uchar *tmp=(uchar*) my_stpcpy((char*) pos,key->name);
     *tmp++= (uchar) NAMES_SEP_CHAR;
     *tmp=0;
     pos=tmp;
@@ -655,8 +655,8 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     if (key->flags & HA_USES_COMMENT)
     {
       int2store(pos, key->comment.length);
-      uchar *tmp= (uchar*)strnmov((char*) pos+2,key->comment.str,
-                                  key->comment.length);
+      uchar *tmp= (uchar*)my_stpnmov((char*) pos+2,key->comment.str,
+                                     key->comment.length);
       pos= tmp;
     }
   }
@@ -887,7 +887,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
     int2store(buff+8,field->pack_flag);
-    DBUG_ASSERT(field->unireg_check < 256);
     buff[10]= (uchar) field->unireg_check;
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
@@ -920,7 +919,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   it.rewind();
   while ((field=it++))
   {
-    char *pos= strmov((char*) buff,field->field_name);
+    char *pos= my_stpcpy((char*) buff,field->field_name);
     *pos++=NAMES_SEP_CHAR;
     if (i == create_fields.elements-1)
       *pos++=0;

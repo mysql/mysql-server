@@ -290,7 +290,7 @@ hash_create(
 
 	prime = ut_find_prime(n);
 
-	table = static_cast<hash_table_t*>(mem_alloc(sizeof(hash_table_t)));
+	table = static_cast<hash_table_t*>(ut_malloc(sizeof(hash_table_t)));
 
 	array = static_cast<hash_cell_t*>(
 		ut_malloc(sizeof(hash_cell_t) * prime));
@@ -328,7 +328,7 @@ hash_table_free(
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	ut_free(table->array);
-	mem_free(table);
+	ut_free(table);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -356,7 +356,7 @@ hash_create_sync_obj(
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
-			mem_alloc(n_sync_obj * sizeof(ib_mutex_t)));
+			ut_malloc(n_sync_obj * sizeof(ib_mutex_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			mutex_create(name, table->sync_obj.mutexes + i);
@@ -371,7 +371,7 @@ hash_create_sync_obj(
 		ut_a(level != SYNC_UNKNOWN);
 
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
-			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
+			ut_malloc(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_locks_key,

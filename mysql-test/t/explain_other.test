@@ -137,6 +137,7 @@ eval EXPLAIN FOR CONNECTION $qid;
 --enable_query_log
 
 # Explain for non-existing connection
+--error ER_NO_SUCH_THREAD
 EXPLAIN FOR CONNECTION 11111111;
 --echo Explain queries with ready plan
 
@@ -368,26 +369,26 @@ connection ce;
 --echo # Bug#14586538: EXPLAIN OTHER RESULT NOT MATCHING WITH EXPLAIN
 --echo #
 
-CREATE TABLE H2 (
+CREATE TABLE h2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
 ) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
 
-insert into H2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-CREATE TABLE AA3 (
+CREATE TABLE aa3 (
   col_int_key int(11) DEFAULT NULL,
   KEY col_int_key (col_int_key)
  ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 let $point= before_join_exec;
 let $err= 0;
-let $query= SELECT alias1.pk AS field1 FROM H2 AS alias1 LEFT JOIN AA3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3;
+let $query= SELECT alias1.pk AS field1 FROM h2 AS alias1 LEFT JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3;
 --eval EXPLAIN $query;
 --echo Should show same # of rows as above
 --source include/explain_other.inc
 
-DROP TABLE H2, AA3;
+DROP TABLE h2, aa3;
 
 --echo #
 --echo # Bug#14591376: EXPLAIN OTHER RESULT NOT MATCHING WITH EXPLAIN - REF

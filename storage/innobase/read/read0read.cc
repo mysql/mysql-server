@@ -423,7 +423,9 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 
 		ut_ad(i + (n / sizeof(trx_ids_t::value_type)) == m_ids.size());
 
-		::memmove(p + i, &trx_ids[i + 1], n);
+		if (n > 0) {
+			::memmove(p + i, &trx_ids[i + 1], n);
+		}
 	} else {
 		ulint	n = size * sizeof(trx_ids_t::value_type);
 

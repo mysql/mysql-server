@@ -194,14 +194,21 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 {
   m_row_exists= false;
 
-  m_row.worker_id= w->id;
+  m_row.worker_id= w->get_internal_id();
 
   m_row.thread_id= 0;
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING)
   {
-    m_row.thread_id= (ulonglong)w->info_thd->thread_id;
-    m_row.thread_id_is_null= false;
+    PSI_thread *psi= thd_get_psi(w->info_thd);
+    PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+    if(pfs)
+    {
+      m_row.thread_id= pfs->m_thread_internal_id;
+      m_row.thread_id_is_null= false;
+    }
+    else /* no instrumentation found */
+      m_row.thread_id_is_null= true;
   }
   else
     m_row.thread_id_is_null= true;

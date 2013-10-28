@@ -83,9 +83,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     my_hash_value_type hash_value;
 
-    table_list->mdl_request.init(MDL_key::TABLE,
-                                 table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&table_list->mdl_request,
+                     MDL_key::TABLE,
+                     table_list->db, table_list->table_name,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout, 0))
@@ -936,8 +937,20 @@ send_result_message:
       }
     }
     /* Error path, a admin command failed. */
-    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
-      goto err;
+    if (thd->transaction_rollback_request)
+    {
+      /*
+        Unlikely, but transaction rollback was requested by one of storage
+        engines (e.g. due to deadlock). Perform it.
+      */
+      if (trans_rollback_stmt(thd) || trans_rollback_implicit(thd))
+        goto err;
+    }
+    else
+    {
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+        goto err;
+    }
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
 

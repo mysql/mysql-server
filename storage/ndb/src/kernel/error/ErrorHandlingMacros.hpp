@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <ndbd_exit_codes.h>
 #include "ErrorReporter.hpp"
+
+#define JAM_FILE_ID 489
+
 
 #define ERROR_SET_SIGNAL(not_used, messageID, problemData, objectRef) \
         ErrorReporter::handleError(messageID, problemData, objectRef, NST_ErrorHandlerSignal)
@@ -44,5 +47,8 @@
         //      -
         // Additional information:
         //      -
+
+
+#undef JAM_FILE_ID
 
 #endif

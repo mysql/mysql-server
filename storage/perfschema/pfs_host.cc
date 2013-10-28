@@ -33,8 +33,9 @@
   @{
 */
 
-ulong host_max;
-ulong host_lost;
+ulong host_max= 0;
+ulong host_lost= 0;
+bool host_full;
 
 PFS_host *host_array= NULL;
 
@@ -56,6 +57,8 @@ int init_host(const PFS_global_param *param)
   uint index;
 
   host_max= param->m_host_sizing;
+  host_lost= 0;
+  host_full= false;
 
   host_array= NULL;
   host_instr_class_waits_array= NULL;
@@ -211,11 +214,7 @@ static void set_host_key(PFS_host_key *key,
 PFS_host *find_or_create_host(PFS_thread *thread,
                               const char *hostname, uint hostname_length)
 {
-  if (host_max == 0)
-  {
-    host_lost++;
-    return NULL;
-  }
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
 
   LF_PINS *pins= get_host_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -228,8 +227,11 @@ PFS_host *find_or_create_host(PFS_thread *thread,
   set_host_key(&key, hostname, hostname_length);
 
   PFS_host **entry;
+  PFS_host *pfs;
   uint retry_count= 0;
   const uint retry_max= 3;
+  uint index;
+  uint attempts= 0;
 
 search:
   entry= reinterpret_cast<PFS_host**>
@@ -246,60 +248,60 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  PFS_scan scan;
-  uint random= randomized_index(hostname, host_max);
-
-  for (scan.init(random, host_max);
-       scan.has_pass();
-       scan.next_pass())
+  if (host_full)
   {
-    PFS_host *pfs= host_array + scan.first();
-    PFS_host *pfs_last= host_array + scan.last();
-    for ( ; pfs < pfs_last; pfs++)
+    host_lost++;
+    return NULL;
+  }
+
+  while (++attempts <= host_max)
+  {
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % host_max;
+    pfs= host_array + index;
+
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        pfs->m_key= key;
+        if (hostname_length > 0)
+          pfs->m_hostname= &pfs->m_key.m_hash_key[0];
+        else
+          pfs->m_hostname= NULL;
+        pfs->m_hostname_length= hostname_length;
+
+        pfs->init_refcount();
+        pfs->reset_stats();
+        pfs->m_disconnected_count= 0;
+
+        int res;
+        pfs->m_lock.dirty_to_allocated();
+        res= lf_hash_insert(&host_hash, pins, &pfs);
+        if (likely(res == 0))
         {
-          pfs->m_key= key;
-          if (hostname_length > 0)
-            pfs->m_hostname= &pfs->m_key.m_hash_key[0];
-          else
-            pfs->m_hostname= NULL;
-          pfs->m_hostname_length= hostname_length;
-
-          pfs->init_refcount();
-          pfs->reset_stats();
-          pfs->m_disconnected_count= 0;
-
-          int res;
-          res= lf_hash_insert(&host_hash, pins, &pfs);
-          if (likely(res == 0))
-          {
-            pfs->m_lock.dirty_to_allocated();
-            return pfs;
-          }
-
-          pfs->m_lock.dirty_to_free();
-
-          if (res > 0)
-          {
-            if (++retry_count > retry_max)
-            {
-              host_lost++;
-              return NULL;
-            }
-            goto search;
-          }
-
-          host_lost++;
-          return NULL;
+          return pfs;
         }
+
+        pfs->m_lock.allocated_to_free();
+
+        if (res > 0)
+        {
+          if (++retry_count > retry_max)
+          {
+            host_lost++;
+            return NULL;
+          }
+          goto search;
+        }
+
+        host_lost++;
+        return NULL;
       }
     }
   }
 
   host_lost++;
+  host_full= true;
   return NULL;
 }
 
@@ -400,6 +402,7 @@ void purge_host(PFS_thread *thread, PFS_host *host)
                      host->m_key.m_hash_key, host->m_key.m_key_length);
       host->aggregate(false);
       host->m_lock.allocated_to_free();
+      host_full= false;
     }
   }
 

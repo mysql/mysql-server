@@ -442,7 +442,7 @@ trx_undo_seg_create(
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
 	ulint		n_reserved;
-	ibool		success;
+	bool		success;
 	dberr_t		err = DB_SUCCESS;
 
 	ut_ad(mtr && id && rseg_hdr);
@@ -1472,7 +1472,7 @@ trx_undo_mem_create(
 			"undo->id is %lu", (ulong) id);
 	}
 
-	undo = static_cast<trx_undo_t*>(mem_alloc(sizeof(*undo)));
+	undo = static_cast<trx_undo_t*>(ut_malloc(sizeof(*undo)));
 
 	if (undo == NULL) {
 
@@ -1548,7 +1548,7 @@ trx_undo_mem_free(
 			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
-	mem_free(undo);
+	ut_free(undo);
 }
 
 /**********************************************************************//**

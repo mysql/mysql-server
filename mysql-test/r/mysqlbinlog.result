@@ -82,15 +82,6 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FI
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-COMMIT
-/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -113,6 +104,15 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
 /*!*/;
@@ -148,12 +148,6 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-COMMIT
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -286,15 +280,6 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FI
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-COMMIT
-/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -317,6 +302,15 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`word`)
 /*!*/;
@@ -352,12 +346,6 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-COMMIT
-/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -934,7 +922,7 @@ SET GLOBAL SERVER_ID = 1;
 #
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #
-Warning: Using a password on the command line interface can be insecure.
+mysqlbinlog: [Warning] Using a password on the command line interface can be insecure.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;

@@ -1432,5 +1432,17 @@ dict_disable_redo_if_temporary(
 	}
 }
 
+/********************************************************************//**
+Check if the table uses a single-table tablespace (file_per_table).
+@return true if the file-per-table flag is set. */
+UNIV_INLINE
+bool
+dict_table_use_file_per_table(
+/*==========================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+{
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
+}
+
 #endif /* !UNIV_HOTBACKUP */
 

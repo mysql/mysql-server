@@ -132,6 +132,9 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_MEMORY:
       instr_class= find_memory_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_METADATA:
+      instr_class= find_metadata_class(m_pos.m_index_2);
+      break;
     }
     if (instr_class)
     {
@@ -188,6 +191,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_MEMORY:
     instr_class= find_memory_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)
@@ -304,6 +310,9 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_MEMORY:
       /* No flag to update. */
+      break;
+    case pos_setup_instruments::VIEW_METADATA:
+      update_metadata_derived_flags();
       break;
     default:
       DBUG_ASSERT(false);

@@ -105,6 +105,11 @@ ulong session_connect_attrs_size_per_thread;
 /** Number of connection attributes lost */
 ulong session_connect_attrs_lost= 0;
 
+ulong metadata_lock_max;
+ulong metadata_lock_lost;
+/** True when @c metadata_lock_array is full. */
+bool metadata_lock_full;
+
 /**
   Mutex instrumentation instances array.
   @sa mutex_max
@@ -162,11 +167,13 @@ PFS_table *table_array= NULL;
 */
 PFS_socket *socket_array= NULL;
 
+PFS_metadata_lock *metadata_lock_array= NULL;
+
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
 PFS_memory_stat *global_instr_class_memory_array= NULL;
 
-static volatile uint64 thread_internal_id_counter= 0;
+static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
 
 static uint thread_instr_class_waits_sizing= 0;
 static uint thread_instr_class_stages_sizing= 0;
@@ -229,6 +236,9 @@ int init_instruments(const PFS_global_param *param)
   socket_max= param->m_socket_sizing;
   socket_full= false;
   socket_lost= 0;
+  metadata_lock_max= param->m_metadata_lock_sizing;
+  metadata_lock_full= false;
+  metadata_lock_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
   thread_waits_history_sizing= param->m_thread_sizing
@@ -269,6 +279,7 @@ int init_instruments(const PFS_global_param *param)
   file_handle_array= NULL;
   table_array= NULL;
   socket_array= NULL;
+  metadata_lock_array= NULL;
   thread_array= NULL;
   thread_waits_history_array= NULL;
   thread_stages_history_array= NULL;
@@ -278,7 +289,7 @@ int init_instruments(const PFS_global_param *param)
   thread_instr_class_stages_array= NULL;
   thread_instr_class_statements_array= NULL;
   thread_instr_class_memory_array= NULL;
-  thread_internal_id_counter= 0;
+  thread_internal_id_counter.m_u64= 0;
 
   if (mutex_max > 0)
   {
@@ -326,6 +337,13 @@ int init_instruments(const PFS_global_param *param)
   {
     socket_array= PFS_MALLOC_ARRAY(socket_max, PFS_socket, MYF(MY_ZEROFILL));
     if (unlikely(socket_array == NULL))
+      return 1;
+  }
+
+  if (metadata_lock_max > 0)
+  {
+    metadata_lock_array= PFS_MALLOC_ARRAY(metadata_lock_max, PFS_metadata_lock, MYF(MY_ZEROFILL));
+    if (unlikely(metadata_lock_array == NULL))
       return 1;
   }
 
@@ -513,6 +531,9 @@ void cleanup_instruments(void)
   pfs_free(socket_array);
   socket_array= NULL;
   socket_max= 0;
+  pfs_free(metadata_lock_array);
+  metadata_lock_array= NULL;
+  metadata_lock_max= 0;
   pfs_free(thread_array);
   thread_array= NULL;
   thread_max= 0;
@@ -526,6 +547,12 @@ void cleanup_instruments(void)
   thread_statements_stack_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
+  pfs_free(thread_instr_class_stages_array);
+  thread_instr_class_stages_array= NULL;
+  pfs_free(thread_instr_class_statements_array);
+  thread_instr_class_statements_array= NULL;
+  pfs_free(thread_instr_class_memory_array);
+  thread_instr_class_memory_array= NULL;
   pfs_free(global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
@@ -580,75 +607,6 @@ void cleanup_file_hash(void)
   }
 }
 
-void PFS_scan::init(uint random, uint max_size)
-{
-  m_pass= 0;
-
-  if (max_size == 0)
-  {
-    /* Degenerated case, no buffer */
-    m_pass_max= 0;
-    return;
-  }
-
-  DBUG_ASSERT(random < max_size);
-
-  if (PFS_MAX_ALLOC_RETRY < max_size)
-  {
-    /*
-      The buffer is big compared to PFS_MAX_ALLOC_RETRY,
-      scan it only partially.
-    */
-    if (random + PFS_MAX_ALLOC_RETRY < max_size)
-    {
-      /*
-        Pass 1: [random, random + PFS_MAX_ALLOC_RETRY - 1]
-        Pass 2: not used.
-      */
-      m_pass_max= 1;
-      m_first[0]= random;
-      m_last[0]= random + PFS_MAX_ALLOC_RETRY;
-      m_first[1]= 0;
-      m_last[1]= 0;
-    }
-    else
-    {
-      /*
-        Pass 1: [random, max_size - 1]
-        Pass 2: [0, ...]
-        The combined length of pass 1 and 2 is PFS_MAX_ALLOC_RETRY.
-      */
-      m_pass_max= 2;
-      m_first[0]= random;
-      m_last[0]= max_size;
-      m_first[1]= 0;
-      m_last[1]= PFS_MAX_ALLOC_RETRY - (max_size - random);
-    }
-  }
-  else
-  {
-    /*
-      The buffer is small compared to PFS_MAX_ALLOC_RETRY,
-      scan it in full in two passes.
-      Pass 1: [random, max_size - 1]
-      Pass 2: [0, random - 1]
-    */
-    m_pass_max= 2;
-    m_first[0]= random;
-    m_last[0]= max_size;
-    m_first[1]= 0;
-    m_last[1]= random;
-  }
-
-  DBUG_ASSERT(m_first[0] < max_size);
-  DBUG_ASSERT(m_first[1] < max_size);
-  DBUG_ASSERT(m_last[1] <= max_size);
-  DBUG_ASSERT(m_last[1] <= max_size);
-  /* The combined length of all passes should not exceed PFS_MAX_ALLOC_RETRY. */
-  DBUG_ASSERT((m_last[0] - m_first[0]) +
-              (m_last[1] - m_first[1]) <= PFS_MAX_ALLOC_RETRY);
-}
-
 /**
   Create instrumentation for a mutex instance.
   @param klass                        the mutex class
@@ -657,7 +615,8 @@ void PFS_scan::init(uint random, uint max_size)
 */
 PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
 {
-  static uint PFS_ALIGNED mutex_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_mutex *pfs;
@@ -694,7 +653,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
       in a given loop by a given thread, other threads will not attempt this
       slot.
     */
-    index= PFS_atomic::add_u32(& mutex_monotonic_index, 1) % mutex_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % mutex_max;
     pfs= mutex_array + index;
 
     if (pfs->m_lock.is_free())
@@ -754,7 +713,8 @@ void destroy_mutex(PFS_mutex *pfs)
 */
 PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
 {
-  static uint PFS_ALIGNED rwlock_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_rwlock *pfs;
@@ -768,7 +728,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   while (++attempts <= rwlock_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& rwlock_monotonic_index, 1) % rwlock_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % rwlock_max;
     pfs= rwlock_array + index;
 
     if (pfs->m_lock.is_free())
@@ -822,7 +782,8 @@ void destroy_rwlock(PFS_rwlock *pfs)
 */
 PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
 {
-  static uint PFS_ALIGNED cond_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_cond *pfs;
@@ -836,7 +797,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   while (++attempts <= cond_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& cond_monotonic_index, 1) % cond_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % cond_max;
     pfs= cond_array + index;
 
     if (pfs->m_lock.is_free())
@@ -889,13 +850,23 @@ PFS_thread* PFS_thread::get_current_thread()
 void PFS_thread::reset_session_connect_attrs()
 {
   m_session_connect_attrs_length= 0;
-  m_session_connect_attrs_cs= NULL;
+  m_session_connect_attrs_cs_number= 0;
 
   if ((m_session_connect_attrs != NULL) &&
       (session_connect_attrs_size_per_thread > 0) )
   {
     /* Do not keep user data */
     memset(m_session_connect_attrs, 0, session_connect_attrs_size_per_thread);
+  }
+}
+
+void PFS_thread::set_enabled(bool enabled)
+{
+  m_enabled= enabled;
+  if (flag_global_instrumentation && flag_thread_instrumentation && m_enabled)
+  {
+    /* Only arm this flag, never disarm it. */
+    m_aggregate_on_disconnect= true;
   }
 }
 
@@ -943,7 +914,8 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
                           ulonglong processlist_id)
 {
-  static uint PFS_ALIGNED thread_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_thread *pfs;
@@ -957,7 +929,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   while (++attempts <= thread_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& thread_monotonic_index, 1) % thread_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % thread_max;
     pfs= thread_array + index;
 
     if (pfs->m_lock.is_free())
@@ -965,13 +937,14 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
       if (pfs->m_lock.free_to_dirty())
       {
         pfs->m_thread_internal_id=
-          PFS_atomic::add_u64(&thread_internal_id_counter, 1);
+          PFS_atomic::add_u64(&thread_internal_id_counter.m_u64, 1);
         pfs->m_parent_thread_internal_id= 0;
         pfs->m_processlist_id= processlist_id;
         pfs->m_event_id= 1;
         pfs->m_stmt_lock.set_allocated();
         pfs->m_session_lock.set_allocated();
         pfs->m_enabled= true;
+        pfs->m_aggregate_on_disconnect= flag_global_instrumentation && flag_thread_instrumentation;
         pfs->m_class= klass;
         pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
         pfs->m_waits_history_full= false;
@@ -1008,68 +981,22 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_account= NULL;
         set_thread_account(pfs);
 
-        PFS_events_waits *child_wait;
-        for (index= 0; index < WAIT_STACK_SIZE; index++)
-        {
-          child_wait= & pfs->m_events_waits_stack[index];
-          child_wait->m_thread_internal_id= pfs->m_thread_internal_id;
-          child_wait->m_event_id= 0;
-          child_wait->m_end_event_id= 0;
-          child_wait->m_event_type= EVENT_TYPE_STATEMENT;
-          child_wait->m_wait_class= NO_WAIT_CLASS;
-        }
+        /*
+          For child waits, by default,
+          - NESTING_EVENT_ID is NULL
+          - NESTING_EVENT_TYPE is NULL
+        */
+        PFS_events_waits *child_wait= & pfs->m_events_waits_stack[0];
+        child_wait->m_event_id= 0;
 
+        /*
+          For child stages, by default,
+          - NESTING_EVENT_ID is NULL
+          - NESTING_EVENT_TYPE is NULL
+        */
         PFS_events_stages *child_stage= & pfs->m_stage_current;
-        child_stage->m_thread_internal_id= pfs->m_thread_internal_id;
-        child_stage->m_event_id= 0;
-        child_stage->m_end_event_id= 0;
-        child_stage->m_event_type= EVENT_TYPE_STATEMENT;
-        child_stage->m_class= NULL;
-        child_stage->m_timer_start= 0;
-        child_stage->m_timer_end= 0;
-        child_stage->m_source_file= NULL;
-        child_stage->m_source_line= 0;
+        child_stage->m_nesting_event_id= 0;
 
-        PFS_events_statements *child_statement;
-        for (index= 0; index < statement_stack_max; index++)
-        {
-          child_statement= & pfs->m_statement_stack[index];
-          child_statement->m_thread_internal_id= pfs->m_thread_internal_id;
-          child_statement->m_event_id= 0;
-          child_statement->m_end_event_id= 0;
-          child_statement->m_event_type= EVENT_TYPE_STATEMENT;
-          child_statement->m_class= NULL;
-          child_statement->m_timer_start= 0;
-          child_statement->m_timer_end= 0;
-          child_statement->m_lock_time= 0;
-          child_statement->m_source_file= NULL;
-          child_statement->m_source_line= 0;
-          child_statement->m_current_schema_name_length= 0;
-          child_statement->m_sqltext_length= 0;
-
-          child_statement->m_message_text[0]= '\0';
-          child_statement->m_sql_errno= 0;
-          child_statement->m_sqlstate[0]= '\0';
-          child_statement->m_error_count= 0;
-          child_statement->m_warning_count= 0;
-          child_statement->m_rows_affected= 0;
-
-          child_statement->m_rows_sent= 0;
-          child_statement->m_rows_examined= 0;
-          child_statement->m_created_tmp_disk_tables= 0;
-          child_statement->m_created_tmp_tables= 0;
-          child_statement->m_select_full_join= 0;
-          child_statement->m_select_full_range_join= 0;
-          child_statement->m_select_range= 0;
-          child_statement->m_select_range_check= 0;
-          child_statement->m_select_scan= 0;
-          child_statement->m_sort_merge_passes= 0;
-          child_statement->m_sort_range= 0;
-          child_statement->m_sort_rows= 0;
-          child_statement->m_sort_scan= 0;
-          child_statement->m_no_index_used= 0;
-          child_statement->m_no_good_index_used= 0;
-        }
         pfs->m_events_statements_count= 0;
 
         pfs->m_lock.dirty_to_allocated();
@@ -1120,6 +1047,11 @@ PFS_file *sanitize_file(PFS_file *unsafe)
 PFS_socket *sanitize_socket(PFS_socket *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_socket, socket_array, socket_max, unsafe);
+}
+
+PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_metadata_lock, metadata_lock_array, metadata_lock_max, unsafe);
 }
 
 /**
@@ -1228,6 +1160,8 @@ PFS_file*
 find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                     const char *filename, uint len, bool create)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   PFS_file *pfs;
 
   DBUG_ASSERT(klass != NULL || ! create);
@@ -1322,7 +1256,6 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   PFS_file **entry;
   uint retry_count= 0;
   const uint retry_max= 3;
-  static uint PFS_ALIGNED file_monotonic_index= 0;
   uint index;
   uint attempts= 0;
 
@@ -1356,7 +1289,7 @@ search:
   while (++attempts <= file_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& file_monotonic_index, 1) % file_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % file_max;
     pfs= file_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1374,17 +1307,17 @@ search:
         pfs->m_identity= (const void *)pfs;
 
         int res;
-        res= lf_hash_insert(&filename_hash, thread->m_filename_hash_pins,
+        pfs->m_lock.dirty_to_allocated();
+        res= lf_hash_insert(&filename_hash, pins,
                             &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           if (klass->is_singleton())
             klass->m_singleton= pfs;
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {
@@ -1459,7 +1392,8 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
 PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity)
 {
-  static uint PFS_ALIGNED table_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_table *pfs;
@@ -1473,7 +1407,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   while (++attempts <= table_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& table_monotonic_index, 1) % table_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_max;
     pfs= table_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1490,9 +1424,12 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
         pfs->m_has_io_stats= false;
         pfs->m_has_lock_stats= false;
+        pfs->m_internal_lock= PFS_TL_NONE;
+        pfs->m_external_lock= PFS_TL_NONE;
         share->inc_refcount();
         pfs->m_table_stat.fast_reset();
         pfs->m_thread_owner= opening_thread;
+        pfs->m_owner_event_id= opening_thread->m_event_id;
         pfs->m_lock.dirty_to_allocated();
         return pfs;
       }
@@ -1612,7 +1549,8 @@ void destroy_table(PFS_table *pfs)
 PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
                           const struct sockaddr *addr, socklen_t addr_len)
 {
-  static uint PFS_ALIGNED socket_monotonic_index= 0;
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   uint index;
   uint attempts= 0;
   PFS_socket *pfs;
@@ -1634,7 +1572,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
 
   while (++attempts <= socket_max)
   {
-    index= PFS_atomic::add_u32(& socket_monotonic_index, 1) % socket_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % socket_max;
     pfs= socket_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1711,6 +1649,63 @@ void destroy_socket(PFS_socket *pfs)
   pfs->m_addr_len= 0;
   pfs->m_lock.allocated_to_free();
   socket_full= false;
+}
+
+PFS_metadata_lock* create_metadata_lock(void *identity,
+                                        const MDL_key *mdl_key,
+                                        opaque_mdl_type mdl_type,
+                                        opaque_mdl_duration mdl_duration,
+                                        opaque_mdl_status mdl_status,
+                                        const char *src_file,
+                                        uint src_line)
+{
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+  uint index;
+  uint attempts= 0;
+  PFS_metadata_lock *pfs;
+
+  if (metadata_lock_full)
+  {
+    metadata_lock_lost++;
+    return NULL;
+  }
+
+  while (++attempts <= metadata_lock_max)
+  {
+    /* See create_mutex() */
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % metadata_lock_max;
+    pfs= metadata_lock_array + index;
+
+    if (pfs->m_lock.is_free())
+    {
+      if (pfs->m_lock.free_to_dirty())
+      {
+        pfs->m_identity= identity;
+        pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
+        pfs->m_timed= global_metadata_class.m_timed;
+        pfs->m_mdl_key.mdl_key_init(mdl_key);
+        pfs->m_mdl_type= mdl_type;
+        pfs->m_mdl_duration= mdl_duration;
+        pfs->m_mdl_status= mdl_status;
+        pfs->m_src_file= src_file;
+        pfs->m_src_line= src_line;
+        pfs->m_owner_thread_id= 0;
+        pfs->m_owner_event_id= 0;
+        pfs->m_lock.dirty_to_allocated();
+        return pfs;
+      }
+    }
+  }
+
+  metadata_lock_lost++;
+  metadata_lock_full= true;
+  return NULL;
+}
+
+void destroy_metadata_lock(PFS_metadata_lock *pfs)
+{
+  DBUG_ASSERT(pfs != NULL);
+  pfs->m_lock.allocated_to_free();
 }
 
 static void reset_mutex_waits_by_instance(void)
@@ -2013,10 +2008,29 @@ void aggregate_thread(PFS_thread *thread,
                       PFS_user *safe_user,
                       PFS_host *safe_host)
 {
-  aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
-  aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
-  aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+  if (thread->m_aggregate_on_disconnect)
+  {
+    /* No HAVE_PSI_???_INTERFACE flag, waits cover multiple instrumentations */
+    aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+    aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+#endif
+  }
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  /*
+    Do not check m_aggregate_on_disconnect,
+    because pfs_memory_free_v1() may collect data even when the thread
+    instrumentation is turned off.
+  */
   aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
+#endif
+
   aggregate_thread_stats(thread, safe_account, safe_user, safe_host);
 }
 
@@ -2456,6 +2470,33 @@ void update_socket_derived_flags()
   }
 }
 
+void update_metadata_derived_flags()
+{
+  PFS_metadata_lock *pfs= metadata_lock_array;
+  PFS_metadata_lock *pfs_last= metadata_lock_array + metadata_lock_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
+    pfs->m_timed= global_metadata_class.m_timed;
+  }
+}
+
+void update_thread_derived_flags()
+{
+  if (flag_global_instrumentation && flag_thread_instrumentation)
+  {
+    PFS_thread *pfs= thread_array;
+    PFS_thread *pfs_last= thread_array + thread_max;
+
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if (pfs->m_enabled)
+        pfs->m_aggregate_on_disconnect= true;
+    }
+  }
+}
+
 void update_instruments_derived_flags()
 {
   update_mutex_derived_flags();
@@ -2464,6 +2505,7 @@ void update_instruments_derived_flags()
   update_file_derived_flags();
   update_table_derived_flags();
   update_socket_derived_flags();
+  update_metadata_derived_flags();
   /* nothing for stages and statements (no instances) */
 }
 

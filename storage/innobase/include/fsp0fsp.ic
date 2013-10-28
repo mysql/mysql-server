@@ -180,6 +180,26 @@ fsp_flags_get_page_size(
 #ifndef UNIV_INNOCHECKSUM
 
 /********************************************************************//**
+Convert a page size, which is a power of 2, to an ssize, which is the
+number of bit shifts from 512 to make that page size.
+@param zip_size in: compressed page size in bytes
+@return an ssize created from the page size provided. */
+UNIV_INLINE
+ulint
+page_size_to_ssize(
+/*===============*/
+	ulint	page_size)	/*!< in: compressed page size in bytes */
+{
+	ulint ssize;
+
+	for (ssize = UNIV_ZIP_SIZE_SHIFT_MIN;
+	     ((ulint) 1 << ssize) < page_size;
+	     ssize++) {};
+
+	return(ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
+}
+
+/********************************************************************//**
 Add the page size to the tablespace flags.
 @return tablespace flags after page size is added */
 UNIV_INLINE
@@ -190,27 +210,19 @@ fsp_flags_set_page_size(
 	ulint	page_size)	/*!< in: page size in bytes */
 {
 	ulint ssize = 0;
-	ulint shift;
 
-	/* Page size should be > UNIV_PAGE_SIZE_MIN */
+	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
+	and UNIV_PAGE_SIZE */
 	ut_ad(page_size >= UNIV_PAGE_SIZE_MIN);
 	ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
+	ut_ad(ut_is_2pow(page_size));
 
 	if (page_size == UNIV_PAGE_SIZE_ORIG) {
 		ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
 		return(flags);
 	}
 
-	for (shift = UNIV_PAGE_SIZE_SHIFT_MAX;
-	     shift >= UNIV_PAGE_SIZE_SHIFT_MIN;
-	     shift--) {
-		ulint	mask = (1 << shift);
-		if (page_size & mask) {
-			ut_ad(!(page_size & ~mask));
-			ssize = shift - UNIV_ZIP_SIZE_SHIFT_MIN + 1;
-			break;
-		}
-	}
+	ssize = page_size_to_ssize(page_size);
 
 	ut_ad(ssize);
 	ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);

@@ -39,8 +39,8 @@
 #include "events.h"
 #endif
 
-#include "global_threads.h"
 #include "table_cache.h" // table_cache_manager
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -141,7 +141,7 @@ TEST_join(JOIN *join)
       if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
-		tab->select->quick_keys.print(buf));
+                form->quick_keys.print(buf));
       else if (tab->select->quick)
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
@@ -462,7 +462,8 @@ void mysql_print_status()
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
-  printf("Running threads: %u  Stack size: %ld\n", get_thread_count(),
+  printf("Running threads: %u  Stack size: %ld\n",
+         Global_THD_manager::get_instance()->get_thd_count(),
 	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF

@@ -152,30 +152,55 @@ c32 set('monday', 'tuesday', 'wednesday')
 create table t2 like t1;
 set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
 prepare stmt1 from @stmt ;
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
 execute stmt1 ;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 't1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 't1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 't1.c4' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (NULL + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (NULL + 4.0),(NULL + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join (/* select#6 */ select NULL AS `x`,NULL AS `y` from `test`.`t2`) `tt` where ((NULL * 1) = NULL)
 execute stmt1 ;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 't1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 't1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 't1.c4' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (NULL + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (NULL + 4.0),(NULL + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join (/* select#6 */ select NULL AS `x`,NULL AS `y` from `test`.`t2`) `tt` where ((NULL * 1) = NULL)
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select 1,1 from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join (/* select#6 */ select NULL AS `x`,NULL AS `y` from `test`.`t2`) `tt` where ((NULL * 1) = NULL)
 deallocate prepare stmt1;
 drop tables t1,t2;
 set @arg00=1;
@@ -318,22 +343,28 @@ execute stmt;
 a
 drop table t1;
 deallocate prepare stmt;
-create table t1 (a int, b int);
+create table t1 (a int, b int) engine = myisam;
 insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
 prepare stmt from
 "explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
 set @v=5;
 execute stmt using @v;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--	-	-	-	-	-	-	-	NULL	Impossible WHERE
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-	-	-	-	-	-	-	-	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+-	-	-
 set @v=0;
 execute stmt using @v;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--	-	-	-	-	-	-	-	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-	-	-	-	-	-	-	-	NULL	4	100.00	Using where
+Warnings:
+-	-	-
 set @v=5;
 execute stmt using @v;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--	-	-	-	-	-	-	-	NULL	Impossible WHERE
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-	-	-	-	-	-	-	-	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+-	-	-
 drop table t1;
 deallocate prepare stmt;
 create table t1 (a int);
@@ -580,7 +611,7 @@ select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 id
 3
 deallocate prepare stmt;
-drop table t1, t2;
+drop table t2, t1;
 create table t1 (id int);
 prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
 execute stmt;
@@ -1095,12 +1126,12 @@ show create table mysqltest.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `test` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table mysqltest.t1;
 drop table mysqltest.t2;
 alter database mysqltest character set latin1;
@@ -1110,12 +1141,12 @@ show create table mysqltest.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `test` varchar(4) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop database mysqltest;
 deallocate prepare stmt1;
 deallocate prepare stmt2;
@@ -1335,7 +1366,7 @@ a	b
 1	9
 3	7
 drop table t1;
-create table t1 (a int);
+create table t1 (a int) engine=myisam;
 create table t2 like t1;
 create table t3 like t2;
 prepare stmt from "repair table t1";
@@ -1494,10 +1525,11 @@ Field	Type	Null	Key	Default	Extra
 i	int(11)	YES		NULL	
 execute stmt_analyze;
 Table	Op	Msg_type	Msg_text
-mysqltest_long_database_name_to_thrash_heap.t1	analyze	status	Table is already up to date
+mysqltest_long_database_name_to_thrash_heap.t1	analyze	status	OK
 execute stmt_optimize;
 Table	Op	Msg_type	Msg_text
-mysqltest_long_database_name_to_thrash_heap.t1	optimize	status	Table is already up to date
+mysqltest_long_database_name_to_thrash_heap.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+mysqltest_long_database_name_to_thrash_heap.t1	optimize	status	OK
 execute stmt_show;
 Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
 t1
@@ -1666,7 +1698,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
-) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
 flush tables;
 select * from t2;
 i	j	k
@@ -1676,7 +1708,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
-) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
 deallocate prepare stmt;
 drop table t1, t2;
 set @old_character_set_server= @@character_set_server;
@@ -1718,7 +1750,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `?` decimal(2,1) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 drop table if exists t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
@@ -2432,24 +2464,24 @@ create procedure proc_1() show create table tab1;
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop procedure proc_1;
 create function func_1() returns int begin show create table tab1; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2461,24 +2493,24 @@ prepare abc from "show create table tab1";
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 deallocate prepare abc;
 drop table tab1;
 drop view if exists v1;
@@ -2888,7 +2920,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
   KEY `c` (`c`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 execute stmt;
 show create table t1;
@@ -2896,7 +2928,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
   KEY `c` (`c`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 drop table if exists t1, t2;
 create table t1 (a int, b int);
@@ -2979,16 +3011,18 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
 PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
+Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 EXECUTE stmt;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
 EXECUTE stmt;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
 DEALLOCATE PREPARE stmt;
@@ -3000,15 +3034,19 @@ CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(1);
 PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1))';
 EXECUTE stmt;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 EXECUTE stmt;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
@@ -3181,7 +3219,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 127;
 @a	@a = 127
 127	1
@@ -3199,7 +3237,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 32767;
 @a	@a = 32767
 32767	1
@@ -3217,7 +3255,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 8388607;
 @a	@a = 8388607
 8388607	1
@@ -3235,7 +3273,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 2147483647;
 @a	@a = 2147483647
 2147483647	1
@@ -3253,7 +3291,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 9223372036854775807;
 @a	@a = 9223372036854775807
 9223372036854775807	1
@@ -3271,7 +3309,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = b'10100100101';
 @a	@a = b'10100100101'
 1317	1
@@ -3289,7 +3327,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = '2007-11-18 15:01:02';
 @a	@a = '2007-11-18 15:01:02'
 2007-11-18 15:01:02	1
@@ -3307,7 +3345,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = '1234-11-12 12:34:59';
 @a	@a = '1234-11-12 12:34:59'
 1234-11-12 12:34:59	1
@@ -3325,7 +3363,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = '123:45:01';
 @a	@a = '123:45:01'
 123:45:01	1
@@ -3343,7 +3381,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = '1234-11-12';
 @a	@a = '1234-11-12'
 1234-11-12	1
@@ -3361,7 +3399,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 2010;
 @a	@a = 2010
 2010	1
@@ -3379,7 +3417,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a - 123.4567 < 0.00001;
 @a	@a - 123.4567 < 0.00001
 123.45670318603516	1
@@ -3397,7 +3435,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a - 123.45678 < 0.000001;
 @a	@a - 123.45678 < 0.000001
 123.45678	1
@@ -3415,7 +3453,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` decimal(65,30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 123.456789;
 @a	@a = 123.456789
 123.456789	1
@@ -3433,7 +3471,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('a', 16);
 @a	@a = REPEAT('a', 16)
 aaaaaaaaaaaaaaaa	1
@@ -3451,7 +3489,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('b', 16);
 @a	@a = REPEAT('b', 16)
 bbbbbbbbbbbbbbbb	1
@@ -3469,7 +3507,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('c', 16);
 @a	@a = REPEAT('c', 16)
 cccccccccccccccc	1
@@ -3487,7 +3525,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('d', 16);
 @a	@a = REPEAT('d', 16)
 dddddddddddddddd	1
@@ -3505,7 +3543,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('e', 16);
 @a	@a = REPEAT('e', 16)
 eeeeeeeeeeeeeeee	1
@@ -3523,7 +3561,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('f', 16);
 @a	@a = REPEAT('f', 16)
 ffffffffffffffff	1
@@ -3541,7 +3579,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('g', 32);
 @a	@a = REPEAT('g', 32)
 gggggggggggggggggggggggggggggggg	1
@@ -3559,7 +3597,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('h', 16);
 @a	@a = REPEAT('h', 16)
 hhhhhhhhhhhhhhhh	1
@@ -3577,7 +3615,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('i', 16);
 @a	@a = REPEAT('i', 16)
 iiiiiiiiiiiiiiii	1
@@ -3595,7 +3633,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('j', 16);
 @a	@a = REPEAT('j', 16)
 jjjjjjjjjjjjjjjj	1
@@ -3613,7 +3651,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('k', 16);
 @a	@a = REPEAT('k', 16)
 kkkkkkkkkkkkkkkk	1
@@ -3631,7 +3669,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = REPEAT('l', 16);
 @a	@a = REPEAT('l', 16)
 llllllllllllllll	1
@@ -3649,7 +3687,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 'aaa';
 @a	@a = 'aaa'
 aaa	1
@@ -3667,7 +3705,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT @a, @a = 'aaa';
 @a	@a = 'aaa'
 aaa	1

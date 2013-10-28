@@ -44,10 +44,13 @@ using std::max;
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
+#ifndef DBUG_OFF
+static PSI_memory_key key_memory_plugin_ref;
+#endif
+
 static PSI_memory_key key_memory_plugin_mem_root;
 static PSI_memory_key key_memory_plugin_init_tmp;
 static PSI_memory_key key_memory_plugin_int_mem_root;
-static PSI_memory_key key_memory_plugin_ref;
 static PSI_memory_key key_memory_mysql_plugin;
 static PSI_memory_key key_memory_mysql_plugin_dl;
 
@@ -172,6 +175,8 @@ static bool initialized= 0;
 static MEM_ROOT plugin_mem_root;
 static uint global_variables_dynamic_size= 0;
 static HASH bookmark_hash;
+/** Hash for system variables of string type with MEMALLOC flag. */
+static HASH malloced_string_type_sysvars_bookmark_hash;
 
 
 /*
@@ -326,7 +331,8 @@ static void report_error(int where_to, uint error, ...)
  */
 bool check_valid_path(const char *path, size_t len)
 {
-  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP,
+                            strlen(FN_DIRSEP));
   return  prefix < len;
 }
 
@@ -1220,10 +1226,12 @@ static PSI_mutex_info all_plugin_mutexes[]=
 
 static PSI_memory_info all_plugin_memory[]=
 {
+#ifndef DBUG_OFF
+  { &key_memory_plugin_ref, "plugin_ref", 0},
+#endif
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
   { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
-  { &key_memory_plugin_ref, "plugin_ref", 0},
   { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
   { &key_memory_mysql_plugin, "mysql_plugin", 0}
 };
@@ -1274,6 +1282,9 @@ int plugin_init(int *argc, char **argv, int flags)
                    get_bookmark_hash_key, NULL, HASH_UNIQUE))
       goto err;
 
+  if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
+                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE))
+      goto err;
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
 
@@ -1801,6 +1812,7 @@ void plugin_shutdown(void)
   delete_dynamic(&plugin_dl_array);
 
   my_hash_free(&bookmark_hash);
+  my_hash_free(&malloced_string_type_sysvars_bookmark_hash);
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -2589,6 +2601,19 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       fprintf(stderr, "failed to add placeholder to hash");
       DBUG_ASSERT(0);
     }
+
+    /*
+      Hashing vars of string type with MEMALLOC flag.
+    */
+    if (((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
+        (flags & PLUGIN_VAR_MEMALLOC) &&
+        (my_hash_insert(&malloced_string_type_sysvars_bookmark_hash,
+                        (uchar *)result)))
+    {
+      fprintf(stderr, "failed to add placeholder to"
+                      " hash of malloced string type sysvars");
+      DBUG_ASSERT(0);
+    }
   }
   my_afree(varname);
   return result;
@@ -2601,6 +2626,87 @@ static void restore_pluginvar_names(sys_var *first)
     sys_var_pluginvar *pv= var->cast_pluginvar();
     pv->plugin_var->name= pv->orig_pluginvar_name;
   }
+}
+
+
+/**
+  Allocate memory and copy dynamic variables from global system variables
+  to per-thread system variables copy.
+
+  @param thd              thread context
+  @param global_lock      If true LOCK_global_system_variables should be
+                          acquired while copying variables from global
+                          variables copy.
+*/
+void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
+{
+  uint idx;
+
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+
+  thd->variables.dynamic_variables_ptr= (char*)
+    my_realloc(key_memory_THD_variables,
+               thd->variables.dynamic_variables_ptr,
+               global_variables_dynamic_size,
+               MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
+  /*
+    Debug hook which allows tests to check that this code is not
+    called for InnoDB after connection was created.
+  */
+  DBUG_EXECUTE_IF("verify_innodb_thdvars", DBUG_ASSERT(0););
+
+  memcpy(thd->variables.dynamic_variables_ptr +
+         thd->variables.dynamic_variables_size,
+         global_system_variables.dynamic_variables_ptr +
+         thd->variables.dynamic_variables_size,
+         global_system_variables.dynamic_variables_size -
+         thd->variables.dynamic_variables_size);
+
+  /*
+    Iterate through newly copied vars of string type with MEMALLOC
+    flag and strdup value.
+  */
+  for (idx= 0; idx < malloced_string_type_sysvars_bookmark_hash.records; idx++)
+  {
+    sys_var_pluginvar *pi;
+    sys_var *var;
+    int varoff;
+    char **thdvar, **sysvar;
+    st_bookmark *v=
+      (st_bookmark*)my_hash_element(&malloced_string_type_sysvars_bookmark_hash,
+                                    idx);
+
+    if (v->version <= thd->variables.dynamic_variables_version ||
+        !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
+        !(pi= var->cast_pluginvar()) ||
+        v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
+      continue;
+
+    varoff= *(int *) (pi->plugin_var + 1);
+    thdvar= (char **) (thd->variables.
+                       dynamic_variables_ptr + varoff);
+    sysvar= (char **) (global_system_variables.
+                       dynamic_variables_ptr + varoff);
+    *thdvar= NULL;
+    plugin_var_memalloc_session_update(thd, NULL, thdvar, *sysvar);
+  }
+
+  if (global_lock)
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  thd->variables.dynamic_variables_version=
+    global_system_variables.dynamic_variables_version;
+  thd->variables.dynamic_variables_head=
+    global_system_variables.dynamic_variables_head;
+  thd->variables.dynamic_variables_size=
+    global_system_variables.dynamic_variables_size;
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 }
 
 
@@ -2623,72 +2729,8 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   */
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
-  {
-    uint idx;
+    alloc_and_copy_thd_dynamic_variables(thd, global_lock);
 
-    mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-
-    thd->variables.dynamic_variables_ptr= (char*)
-      my_realloc(key_memory_THD_variables,
-                 thd->variables.dynamic_variables_ptr,
-                 global_variables_dynamic_size,
-                 MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
-
-    if (global_lock)
-      mysql_mutex_lock(&LOCK_global_system_variables);
-
-    mysql_mutex_assert_owner(&LOCK_global_system_variables);
-
-    memcpy(thd->variables.dynamic_variables_ptr +
-             thd->variables.dynamic_variables_size,
-           global_system_variables.dynamic_variables_ptr +
-             thd->variables.dynamic_variables_size,
-           global_system_variables.dynamic_variables_size -
-             thd->variables.dynamic_variables_size);
-
-    /*
-      now we need to iterate through any newly copied 'defaults'
-      and if it is a string type with MEMALLOC flag, we need to strdup
-    */
-    for (idx= 0; idx < bookmark_hash.records; idx++)
-    {
-      sys_var_pluginvar *pi;
-      sys_var *var;
-      st_bookmark *v= (st_bookmark*) my_hash_element(&bookmark_hash,idx);
-
-      if (v->version <= thd->variables.dynamic_variables_version ||
-          !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
-          !(pi= var->cast_pluginvar()) ||
-          v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
-        continue;
-
-      /* Here we do anything special that may be required of the data types */
-
-      if ((pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
-          pi->plugin_var->flags & PLUGIN_VAR_MEMALLOC)
-      {
-         int varoff= *(int *) (pi->plugin_var + 1);
-         char **thdvar= (char **) (thd->variables.
-                                   dynamic_variables_ptr + varoff);
-         char **sysvar= (char **) (global_system_variables.
-                                   dynamic_variables_ptr + varoff);
-         *thdvar= NULL;
-         plugin_var_memalloc_session_update(thd, NULL, thdvar, *sysvar);
-      }
-    }
-
-    if (global_lock)
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-
-    thd->variables.dynamic_variables_version=
-           global_system_variables.dynamic_variables_version;
-    thd->variables.dynamic_variables_head=
-           global_system_variables.dynamic_variables_head;
-    thd->variables.dynamic_variables_size=
-           global_system_variables.dynamic_variables_size;
-
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-  }
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
 
@@ -2755,7 +2797,6 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   thd->variables.table_plugin= NULL;
   thd->variables.temp_table_plugin= NULL;
 
-  /* we are going to allocate these lazily */
   thd->variables.dynamic_variables_version= 0;
   thd->variables.dynamic_variables_size= 0;
   thd->variables.dynamic_variables_ptr= 0;
@@ -3659,7 +3700,7 @@ static my_bool check_if_option_is_deprecated(int optid,
 {
   if (optid == -1)
   {
-    WARN_DEPRECATED(NULL, opt->name, (opt->name + strlen("plugin-")));
+    push_deprecated_warn(NULL, opt->name, (opt->name + strlen("plugin-")));
   }
   return 0;
 }
@@ -3765,9 +3806,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   */
   if (disable_plugin)
   {
-    if (log_warnings)
-      sql_print_information("Plugin '%s' is disabled.",
-                            tmp->name.str);
+    sql_print_information("Plugin '%s' is disabled.",
+                          tmp->name.str);
     if (opts)
       my_cleanup_options(opts);
     DBUG_RETURN(1);

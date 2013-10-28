@@ -50,7 +50,21 @@ class JOIN :public Sql_alloc
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  /**
+    Optimal query execution plan. Initialized with a tentative plan in
+    make_join_statistics() and later replaced with the optimal plan in
+    get_best_combination().
+  */
+  JOIN_TAB *join_tab;
+
+  /**
+    Array of plan operators representing the current (partial) best
+    plan. The array is stack-allocated in make_join_statistics() as
+    stat_vector[MAX_TABLES + 1] and is thus valid only inside
+    make_join_statistics(). Initially (*best_ref[i]) ==
+    join_tab[i]. The optimizer reorders best_ref.
+  */
+  JOIN_TAB **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
@@ -128,7 +142,11 @@ public:
   */
   ha_rows  min_ft_matches;
 
-  /* Finally picked QEP. This is result of join optimization */
+  /**
+    This is the result of join optimization.
+
+    @note This is a scratch array, not used after get_best_combination().
+  */
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
@@ -151,6 +169,8 @@ public:
     The estimated row count of the plan with best read time (see above).
   */
   ha_rows  best_rowcount;
+  /// Expected cost of filesort.
+  double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   THD	   *thd;
@@ -468,6 +488,7 @@ public:
     set_group_rpa= false;
     group_sent= 0;
     plan_state= NO_PLAN;
+    sort_cost= 0.0;
   }
 
   /// True if plan is const, ie it will return zero or one rows.
@@ -596,20 +617,6 @@ private:
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
   /**
-    Execute current query. To be called from @c JOIN::exec.
-
-    If current query is a dependent subquery, this execution is performed on a
-    temporary copy of the original JOIN object in order to be able to restore
-    the original content for re-execution and EXPLAIN. (@note Subqueries may
-    be executed as part of EXPLAIN.) In such cases, execution data that may be
-    reused for later executions will be copied to the original 
-    @c JOIN object (@c parent).
-
-    @param parent Original @c JOIN object when current object is a temporary 
-                  copy. @c NULL, otherwise
-  */
-  void execute(JOIN *parent);
-  /**
     Send current query result set to the client. To be called from JOIN::execute
 
     @note       Explain skips this call during JOIN::execute() execution
@@ -680,6 +687,9 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  bool prune_table_partitions();
+#endif
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
@@ -688,6 +698,9 @@ private:
 
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
+public: // @todo: Make private
+  void set_semijoin_embedding();
+private:
   void set_semijoin_info();
   bool set_access_methods();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
@@ -697,6 +710,10 @@ private:
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  /**
+    Recount temp table field types recursively.
+  */
+  void recount_field_types();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.
