@@ -19,7 +19,6 @@
 # change these, has to be exactly as is.
 
 
-
 %global milestone   m13 
 
 %global mysql_vendor Oracle and/or its affiliates
