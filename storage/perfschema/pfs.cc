@@ -3641,6 +3641,8 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= mutex->m_class->m_event_name_index;
+  
+    DBUG_ASSERT(index <= wait_class_max);
 
     if (flags & STATE_FLAG_TIMED)
     {
