@@ -579,15 +579,11 @@ function main() {
         JSCRUND.stats.peek();
       }
       if (nRun++ >= nRuns) {
-        JSCRUND.implementation.close(function(err) {
-          if (err) {
-            console.log('Error closing JSCRUND.implementation:', err);
-            process.exit(1);
-          }
-        });
         console.log('\ndone: ' + nRuns + ' runs.');
         logFile.close();
-        process.exit(0);
+        JSCRUND.implementation.close(function(err) {
+          process.exit(err ? 1 : 0);
+        });
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
         modeNumber = 0;
