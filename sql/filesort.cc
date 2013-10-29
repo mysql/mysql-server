@@ -286,8 +286,18 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   {
     DBUG_PRINT("info", ("filesort PQ is not applicable"));
 
+    /*
+      We need space for at least one record from each merge chunk, i.e.
+        param->max_keys_per_buffer >= MERGEBUFF2
+      See merge_buffers()),
+      memory_available must be large enough for
+        param->max_keys_per_buffer * (record + record pointer) bytes
+      (the main sort buffer, see alloc_sort_buffer()).
+      Hence this minimum:
+    */
     const ulong min_sort_memory=
-      max(MIN_SORT_MEMORY, param.sort_length * MERGEBUFF2);
+      max<ulong>(MIN_SORT_MEMORY,
+                 ALIGN_SIZE(MERGEBUFF2 * (param.rec_length + sizeof(uchar*))));
     while (memory_available >= min_sort_memory)
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
