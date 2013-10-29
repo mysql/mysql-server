@@ -26,7 +26,7 @@
 
 using std::min;
 using std::max;
-
+using binary_log::checksum_crc32;
 
 /**
    Function to compare two size_t integers for their relative
@@ -1135,62 +1135,6 @@ table_def::~table_def()
 #endif
 }
 
-/**
-   @param   even_buf    point to the buffer containing serialized event
-   @param   event_len   length of the event accounting possible checksum alg
-
-   @return  TRUE        if test fails
-            FALSE       as success
-*/
-bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
-{
-  bool res= FALSE;
-  uint16 flags= 0; // to store in FD's buffer flags orig value
-
-  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
-  {
-    ha_checksum incoming;
-    ha_checksum computed;
-
-    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
-    {
-#ifndef DBUG_OFF
-      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                             BINLOG_CHECKSUM_ALG_DESC_LEN];
-#endif
-      /*
-        FD event is checksummed and therefore verified w/o the binlog-in-use flag
-      */
-      flags= uint2korr(event_buf + FLAGS_OFFSET);
-      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /*
-         The only algorithm currently is CRC32. Zero indicates
-         the binlog file is checksum-free *except* the FD-event.
-      */
-      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
-      /*
-        Complile time guard to watch over  the max number of alg
-      */
-      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
-    }
-    incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
-    computed= my_checksum(0L, NULL, 0);
-    /* checksum the event content but the checksum part itself */
-    computed= my_checksum(computed, (const uchar*) event_buf,
-                          event_len - BINLOG_CHECKSUM_LEN);
-    if (flags != 0)
-    {
-      /* restoring the orig value of flags of FD */
-      DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-      event_buf[FLAGS_OFFSET]= flags;
-    }
-    res= !(computed == incoming);
-  }
-  return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
-}
-
 #ifndef MYSQL_CLIENT
 
 #define HASH_ROWS_POS_SEARCH_INVALID -1
@@ -1472,7 +1416,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
    */
   if (bitmap_is_set_all(cols))
   {
-    crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+    crc= checksum_crc32(crc, table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
 
@@ -1500,11 +1444,11 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
         {
           String tmp;
           f->val_str(&tmp);
-          crc= my_checksum(crc, (uchar*) tmp.ptr(), tmp.length());
+          crc= checksum_crc32(crc, (uchar*) tmp.ptr(), tmp.length());
           break;
         }
         default:
-          crc= my_checksum(crc, f->ptr, f->data_length());
+          crc= checksum_crc32(crc, f->ptr, f->data_length());
           break;
       }
 #ifndef DBUG_OFF

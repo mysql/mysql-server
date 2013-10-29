@@ -60,6 +60,7 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 using std::min;
 using std::max;
+using binary_log::Binary_log_event;
 
 #define BIN_LOG_HEADER_SIZE	4U
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -2547,7 +2548,7 @@ static Exit_status check_header(IO_CACHE* file,
       {
         /* This is 3.23 or 4.x */
         if (uint4korr(buf + EVENT_LEN_OFFSET) < 
-            (LOG_EVENT_MINIMAL_HEADER_LEN + START_V3_HEADER_LEN))
+            (LOG_EVENT_MINIMAL_HEADER_LEN + Binary_log_event::START_V3_HEADER_LEN))
         {
           /* This is 3.23 (format 1) */
           delete glob_description_event;

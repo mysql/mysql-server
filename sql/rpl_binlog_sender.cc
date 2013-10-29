@@ -25,7 +25,8 @@
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
 #endif
-
+using binary_log::get_checksum_alg;
+using binary_log::checksum_crc32;
 void Binlog_sender::init()
 {
   DBUG_ENTER("Binlog_sender::init");
@@ -545,7 +546,7 @@ void Binlog_sender::init_checksum_alg()
   if (entry)
   {
     m_slave_checksum_alg=
-      find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1;
+      static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);
     DBUG_ASSERT(m_slave_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
@@ -567,7 +568,7 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
 
   const char* p = next_log_file + dirname_length(next_log_file);
   ulong ident_len = strlen(p);
-  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
+  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
@@ -593,7 +594,7 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
   int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
   int8store(rotate_header, log_pos);
-  memcpy(rotate_header + ROTATE_HEADER_LEN, p, ident_len);
+  memcpy(rotate_header + Binary_log_event::ROTATE_HEADER_LEN, p, ident_len);
 
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
@@ -603,8 +604,8 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
 
 inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_len)
 {
-  ha_checksum crc= my_checksum(0L, NULL, 0);
-  crc= my_checksum(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
+  ha_checksum crc= checksum_crc32(0L, NULL, 0);
+  crc= checksum_crc32(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
@@ -724,7 +725,7 @@ const char* Binlog_sender::log_read_error_msg(int error)
   }
 }
 
-inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
+inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_alg checksum_alg,
                                      uchar **event_ptr, uint32 *event_len)
 {
   DBUG_ENTER("Binlog_sender::read_event");

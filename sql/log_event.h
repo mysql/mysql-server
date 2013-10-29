@@ -140,12 +140,6 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 */
 #define BINLOG_VERSION    4
 
-/*
- We could have used SERVER_VERSION_LENGTH, but this introduces an
- obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
- this would break the replication protocol
-*/
-#define ST_SERVER_VER_LEN 50
 
 /*
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
@@ -246,46 +240,6 @@ struct sql_ex_info
 
  ****************************************************************************/
 
-#define LOG_EVENT_HEADER_LEN 19U    /* the fixed header length */
-#define OLD_HEADER_LEN       13U    /* the fixed header length in 3.23 */
-/*
-   Fixed header length, where 4.x and 5.0 agree. That is, 5.0 may have a longer
-   header (it will for sure when we have the unique event's ID), but at least
-   the first 19 bytes are the same in 4.x and 5.0. So when we have the unique
-   event's ID, LOG_EVENT_HEADER_LEN will be something like 26, but
-   LOG_EVENT_MINIMAL_HEADER_LEN will remain 19.
-*/
-#define LOG_EVENT_MINIMAL_HEADER_LEN 19U
-
-/* event-specific post-header sizes */
-// where 3.23, 4.x and 5.0 agree
-#define QUERY_HEADER_MINIMAL_LEN     (4 + 4 + 1 + 2)
-// where 5.0 differs: 2 for len of N-bytes vars.
-#define QUERY_HEADER_LEN     (QUERY_HEADER_MINIMAL_LEN + 2)
-#define STOP_HEADER_LEN      0
-#define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
-#define START_V3_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
-#define ROTATE_HEADER_LEN    8 // this is FROZEN (the Rotate post-header is frozen)
-#define INTVAR_HEADER_LEN      0
-#define CREATE_FILE_HEADER_LEN 4
-#define APPEND_BLOCK_HEADER_LEN 4
-#define EXEC_LOAD_HEADER_LEN   4
-#define DELETE_FILE_HEADER_LEN 4
-#define NEW_LOAD_HEADER_LEN    LOAD_HEADER_LEN
-#define RAND_HEADER_LEN        0
-#define USER_VAR_HEADER_LEN    0
-#define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
-#define XID_HEADER_LEN         0
-#define BEGIN_LOAD_QUERY_HEADER_LEN APPEND_BLOCK_HEADER_LEN
-#define ROWS_HEADER_LEN_V1     8
-#define TABLE_MAP_HEADER_LEN   8
-#define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
-#define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
-#define INCIDENT_HEADER_LEN    2
-#define HEARTBEAT_HEADER_LEN   0
-#define IGNORABLE_HEADER_LEN   0
-#define ROWS_HEADER_LEN_V2     10
-
 /*
    The maximum number of updated databases that a status of
    Query-log-event can carry.  It can redefined within a range
@@ -325,9 +279,9 @@ struct sql_ex_info
                                                    /* type, commit timestamp */ \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
-  LOG_EVENT_HEADER_LEN + /* write_header */ \
-  QUERY_HEADER_LEN     + /* write_data */   \
-  EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN + /*write_post_header_for_derived */ \
+  (LOG_EVENT_HEADER_LEN + /* write_header */ \
+  Binary_log_event::QUERY_HEADER_LEN     + /* write_data */   \
+  Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN) + /*write_post_header_for_derived */ \
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
 
@@ -338,23 +292,6 @@ struct sql_ex_info
 */
 #define MAX_MAX_ALLOWED_PACKET 1024*1024*1024
 
-/* 
-   Event header offsets; 
-   these point to places inside the fixed header.
-*/
-
-#define EVENT_TYPE_OFFSET    4
-#define SERVER_ID_OFFSET     5
-#define EVENT_LEN_OFFSET     9
-#define LOG_POS_OFFSET       13
-#define FLAGS_OFFSET         17
-
-/* start event post-header (for v3 and v4) */
-
-#define ST_BINLOG_VER_OFFSET  0
-#define ST_SERVER_VER_OFFSET  2
-#define ST_CREATED_OFFSET     (ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
-#define ST_COMMON_HEADER_LEN_OFFSET (ST_CREATED_OFFSET + 4)
 
 /* slave event post-header (this event is never written) */
 
@@ -483,7 +420,7 @@ struct sql_ex_info
 #define RW_V_EXTRAINFO_TAG 0
 
 /* ELQ = "Execute Load Query" */
-#define ELQ_FILE_ID_OFFSET QUERY_HEADER_LEN
+#define ELQ_FILE_ID_OFFSET Binary_log_event::QUERY_HEADER_LEN
 #define ELQ_FN_POS_START_OFFSET ELQ_FILE_ID_OFFSET + 4
 #define ELQ_FN_POS_END_OFFSET ELQ_FILE_ID_OFFSET + 8
 #define ELQ_DUP_HANDLING_OFFSET ELQ_FILE_ID_OFFSET + 12
@@ -646,31 +583,7 @@ struct sql_ex_info
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
-enum enum_binlog_checksum_alg {
-  BINLOG_CHECKSUM_ALG_OFF= 0,    // Events are without checksum though its generator
-                                 // is checksum-capable New Master (NM).
-  BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
-  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
-  BINLOG_CHECKSUM_ALG_UNDEF= 255 // special value to tag undetermined yet checksum
-                                 // or events from checksum-unaware servers
-};
-
-#define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
 #define SEQ_UNINIT -1
-
-/**
-  @enum Log_event_type
-
-  Enumeration type for the different types of log events.
-*/
-
-/*
-   The number of types we handle in Format_description_log_event (UNKNOWN_EVENT
-   is not to be handled, as well as the user defined event,
-   it does not exist in binlogs, it does not have a
-   format).
-*/
-#define LOG_EVENT_TYPES (ENUM_END_EVENT - 2)
 
 enum Int_event_type
 {
@@ -1149,7 +1062,7 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            uint8 checksum_alg_arg,
+                            enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
                             bool* is_binlog_active= NULL);
   /*
@@ -1201,7 +1114,7 @@ public:
      On the slave side the value is assigned from post_header_len[last] 
      of the last seen FD event.
   */
-  uint8 checksum_alg;
+  enum_binlog_checksum_alg checksum_alg;
 
   static void *operator new(size_t size)
   {
@@ -2514,7 +2427,7 @@ public:
   int get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
-	    + LOAD_HEADER_LEN
+	    + Binary_log_event::LOAD_HEADER_LEN
 	    + sql_ex.data_size() + field_block_len + num_fields);
   }
 
@@ -2601,7 +2514,7 @@ public:
   bool is_valid() const { return 1; }
   int get_data_size()
   {
-    return START_V3_HEADER_LEN; //no variable-sized part
+    return Binary_log_event::START_V3_HEADER_LEN; //no variable-sized part
   }
 
 protected:
@@ -2690,7 +2603,7 @@ public:
       post-header, because in a given version it never changes (contrary to the
       query in a Query_log_event).
     */
-    return FORMAT_DESCRIPTION_HEADER_LEN;
+    return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
 
   void calc_server_version_split();
@@ -3102,7 +3015,7 @@ public:
       my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
-  int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
+  int get_data_size() { return  ident_len + Binary_log_event::ROTATE_HEADER_LEN;}
   bool is_valid() const { return new_log_ident != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3233,7 +3146,7 @@ public:
                          *description_event);
   ~Append_block_log_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
-  int get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
+  int get_data_size() { return  block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN ;}
   bool is_valid() const { return block != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3274,7 +3187,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Delete_file_log_event() {}
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
-  int get_data_size() { return DELETE_FILE_HEADER_LEN ;}
+  int get_data_size() { return Binary_log_event::DELETE_FILE_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3314,7 +3227,7 @@ public:
                          *description_event);
   ~Execute_load_log_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
-  int get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
+  int get_data_size() { return  Binary_log_event::EXEC_LOAD_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -4683,7 +4596,7 @@ public:
     return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
   }
   virtual int get_data_size() {
-    return INCIDENT_HEADER_LEN + 1 + (uint) m_message.length;
+    return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) m_message.length;
   }
 
 private:
@@ -4740,7 +4653,7 @@ public:
 
   virtual bool is_valid() const { return 1; }
 
-  virtual int get_data_size() { return IGNORABLE_HEADER_LEN; }
+  virtual int get_data_size() { return Binary_log_event::IGNORABLE_HEADER_LEN; }
 };
 
 
@@ -4778,7 +4691,7 @@ public:
 
   virtual int get_data_size()
   {
-    return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
+    return Binary_log_event::IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
   }
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -4847,8 +4760,6 @@ bool slave_execute_deferred_events(THD *thd);
 
 int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to);
-bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
-uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
 
 class Gtid_log_event : public Log_event
@@ -5079,45 +4990,6 @@ inline bool is_gtid_event(Log_event* evt)
 {
   return (evt->get_type_code() == GTID_LOG_EVENT ||
           evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
-}
-
-inline ulong version_product(const uchar* version_split)
-{
-  return ((version_split[0] * 256 + version_split[1]) * 256
-          + version_split[2]);
-}
-
-/**
-   Splits server 'version' string into three numeric pieces stored
-   into 'split_versions':
-   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
-   X.Yabc -> {X,Y,0}
-*/
-inline void do_server_version_split(char* version, uchar split_versions[3])
-{
-  char *p= version, *r;
-  ulong number;
-  for (uint i= 0; i<=2; i++)
-  {
-    number= strtoul(p, &r, 10);
-    /*
-      It is an invalid version if any version number greater than 255 or
-      first number is not followed by '.'.
-    */
-    if (number < 256 && (*r == '.' || i != 0))
-      split_versions[i]= (uchar)number;
-    else
-    {
-      split_versions[0]= 0;
-      split_versions[1]= 0;
-      split_versions[2]= 0;
-      break;
-    }
-
-    p= r;
-    if (*r == '.')
-      p++; // skip the dot
-  }
 }
 
 #ifdef MYSQL_SERVER

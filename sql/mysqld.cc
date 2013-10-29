@@ -4577,7 +4577,7 @@ int mysqld_main(int argc, char **argv)
           Previous_gtids_log_event prev_gtids_ev(logged_gtids);
           global_sid_lock->unlock();
 
-          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+          prev_gtids_ev.checksum_alg= static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
