@@ -1257,8 +1257,6 @@ trx_undo_report_row_operation(
 	assign temporary rseg. */
 	if (trx->read_only || is_temp_table) {
 
-		ut_ad(trx->in_ro_trx_list || is_temp_table);
-
 		ut_ad(!srv_read_only_mode || is_temp_table);
 
 		/* MySQL should block writes to non-temporary tables. */
