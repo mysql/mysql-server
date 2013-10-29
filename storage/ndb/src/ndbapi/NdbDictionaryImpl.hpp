@@ -945,6 +945,7 @@ public:
   int dropTableGlobal(NdbTableImpl &);
   int dropTableGlobal(NdbTableImpl &, int flags);
   int dropIndexGlobal(NdbIndexImpl & impl);
+  int dropIndexGlobal(NdbIndexImpl &, bool ignoreFKs);
   int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
 
