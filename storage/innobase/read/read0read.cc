@@ -746,8 +746,6 @@ MVCC::view_close(ReadView*& view, bool own_mutex)
 		/* Sanitise the pointer first. */
 		ReadView*	ptr = reinterpret_cast<ReadView*>(p & ~1);
 
-		ut_ad(ptr->m_creator_trx_id == 0);
-
 		/* Note this can be called for a read view that
 		was already closed. */
 		ptr->m_closed = true;
