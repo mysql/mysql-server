@@ -354,7 +354,7 @@ btr_free_but_not_root(
 						size in bytes or 0 for
 						uncompressed pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	ulint			logging_mode);	/*!< in: mtr logging mode */
+	mtr_log_t		logging_mode);	/*!< in: mtr logging mode */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 
@@ -702,7 +702,7 @@ btr_validate_index(
 	dict_index_t*	index,	/*!< in: index */
 	const trx_t*	trx,	/*!< in: transaction or 0 */
 	bool		lockout)/*!< in: true if X-latch index is intended */
-	__attribute__((nonnull(1), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
