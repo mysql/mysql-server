@@ -21,8 +21,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define	BINLOG_EVENT_INCLUDED
 
 #include "debug_vars.h"
+/*
+ *The header contains functions macros for reading and storing in
+ *machine independent format (low byte first).
+ */
 #include "byteorder.h"
-#include "assert.h"
+#include "cassert"
 #include <zlib.h> //for checksum calculations
 #include <stdint.h>
 #ifdef min //definition of min() and max() in std and libmysqlclient
@@ -161,13 +165,6 @@ enum Log_event_type
 };
 
 /*
- We could have used SERVER_VERSION_LENGTH, but this introduces an
- obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
- this would break the replication protocol
-*/
-#define ST_SERVER_VER_LEN 50
-
-/*
    Event header offsets;
    these point to places inside the fixed header.
 */
@@ -216,6 +213,7 @@ enum enum_binlog_checksum_alg {
  * Convenience function to get the string representation of a binlog event.
  */
 const char* get_event_type_str(Log_event_type type);
+typedef uint32_t ha_checksum;
 
 /*
   Calculate a long checksum for a memoryblock.
@@ -237,22 +235,59 @@ bool event_checksum_test(unsigned char* buf, unsigned long event_len,
                          enum_binlog_checksum_alg alg);
 
 #define LOG_EVENT_HEADER_SIZE 20
+
 class Log_event_header
 {
 public:
-  uint8_t  marker; // always 0 or 0xFF
-  uint32_t timestamp;
-  uint8_t  type_code;
-  uint32_t server_id;
-  uint32_t event_length;
-  uint32_t next_position;
+  /**
+    Timestamp on the master(for debugging and replication of
+    NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
+    INFILE. This is set at the event's creation time, except for Query
+    and Load (and other events) events where this is set at the query's
+    execution time, which guarantees good replication (otherwise, we
+    could have a query and its event with different timestamps).
+  */
+  struct timeval when;
+
+  /**
+    The server id read from the Binlog.
+  */
+  unsigned int unmasked_server_id;
+
+  /* Length of an event, which will be written by write() function */
+  unsigned long data_written;
+
+  /**
+    The offset in the log where this event originally appeared (it is
+    preserved in relay logs, making SHOW SLAVE STATUS able to print
+    coordinates of the event in the master's binlog). Note: when a
+    transaction is written by the master to its binlog (wrapped in
+    BEGIN/COMMIT) the log_pos of all the queries it contains is the
+    one of the BEGIN (this way, when one does SHOW SLAVE STATUS it
+    sees the offset of the BEGIN, which is logical as rollback may
+    occur), except the COMMIT query which has its real offset.
+  */
+  unsigned long long log_pos;
+
+  /**
+    16 or less flags depending on the version of the binary log.
+    See the definitions above for LOG_EVENT_TIME_F,
+    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
+    LOG_EVENT_SUPPRESS_USE_F for notes.
+  */
   uint16_t flags;
+
+  /**
+    Event type extracted from the header. In the server, it is decoded
+    by read_log_event(), but adding here for complete decoding.
+  */
+  Log_event_type  type_code;
+
+  Log_event_header(const char* buf, Format_event *description_event);
 
   ~Log_event_header() {}
 };
 
-
-class Binary_log_event;
 
 /**
  * TODO Base class for events. Implementation is in body()

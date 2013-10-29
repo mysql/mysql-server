@@ -82,6 +82,7 @@ const char *get_event_type_str(Log_event_type type)
 
    @param buf buffer holding serialized FD event
    @param len netto (possible checksum is stripped off) length of the event buf
+
    @return  the version-safe checksum alg descriptor where zero
             designates no checksum, 255 - the orginator is
             checksum-unaware (effectively no checksum) and the actuall
@@ -111,6 +112,111 @@ enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len)
   return ret;
 }
 
+
+/**
+  Log_event_header constructor
+*/
+Log_event_header::Log_event_header(const char* buf,
+                                   const Format_event *description_event)
+{
+  //TODO: replace uint4korr with le32toh() when merged with patch on rb2984
+  when.tv_sec= uint4korr(buf);
+  when.tv_usec= 0;
+  //TODO:Modify server_id in Log_event based on unmasked_server_id defined here
+  unmasked_server_id= uint4korr(buf + SERVER_ID_OFFSET);
+
+  /**
+    The first 13 bytes in the header is as follows:
+      +============================================+
+      | member_variable               offset : len |
+      +============================================+
+      | when.tv_sec                        0 : 4   |
+      +--------------------------------------------+
+      | type_code       EVENT_TYPE_OFFSET(4) : 1   |
+      +--------------------------------------------+
+      | server_id       SERVER_ID_OFFSET(5)  : 4   |
+      +--------------------------------------------+
+      | data_written    EVENT_LEN_OFFSET(9)  : 4   |
+      +============================================+
+   */
+  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
+
+  switch (description_event->binlog_version)
+  {
+  case 1:
+    log_pos= 0;
+    flags= 0;
+    return;
+
+  case 3:
+    /*
+      If the log is 4.0 (so here it can only be a 4.0 relay log read by
+      the SQL thread or a 4.0 master binlog read by the I/O thread),
+      log_pos is the beginning of the event: we transform it into the end
+      of the event, which is more useful.
+      But how do you know that the log is 4.0: you know it if
+      description_event is version 3 *and* you are not reading a
+      Format_desc (remember that mysqlbinlog starts by assuming that 5.0
+      logs are in 4.0 format, until it finds a Format_desc).
+    */
+    if (buf[EVENT_TYPE_OFFSET] < FORMAT_DESCRIPTION_EVENT && log_pos)
+    {
+      /*
+        If log_pos=0, don't change it. log_pos==0 is a marker to mean
+        "don't change rli->group_master_log_pos" (see
+        inc_group_relay_log_pos()). As it is unreal log_pos, adding the
+        event len's is not correct. For example, a fake Rotate event should
+        not have its log_pos (which is 0) changed or it will modify
+        Exec_master_log_pos in SHOW SLAVE STATUS, displaying a wrong
+        value of (a non-zero offset which does not exist in the master's
+        binlog, so which will cause problems if the user uses this value
+        in CHANGE MASTER).
+      */
+      log_pos+= data_written; /* purecov: inspected */
+    }
+
+  /* 4.0 or newer */
+  /**
+    Additional header fields include:
+      +=============================================+
+      | member_variable               offset : len  |
+      +=============================================+
+      | log_pos           LOG_POS_OFFSET(13) : 4    |
+      +---------------------------------------------+
+      | flags               FLAGS_OFFSET(17) : 1    |
+      +---------------------------------------------+
+      | extra_headers                     19 : x-19 |
+      +=============================================+
+     extra_headers are not used in the current version.
+   */
+
+  default:
+    if (description_event->binlog_version != 3)
+      log_pos= uint4korr(buf + LOG_POS_OFFSET);
+
+    flags= uint2korr(buf + FLAGS_OFFSET);
+
+     if ((buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
+         (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
+     {
+       /*
+         These events always have a header which stops here (i.e. their
+         header is FROZEN).
+       */
+       /*
+         Initialization to zero of all other Log_event members as they're
+         not specified. Currently there are no such members; in the future
+         there will be an event UID (but Format_description and Rotate
+         don't need this UID, as they are not propagated through
+         --log-slave-updates (remember the UID is used to not play a query
+         twice when you have two masters which are slaves of a 3rd master).
+         Then we are done with decoding the header.
+      */
+      return;
+    }
+  /* otherwise, go on with reading the header from buf (nothing now) */
+  } //end switch (description_event->binlog_version)
+}
 
 Binary_log_event::~Binary_log_event()
 {

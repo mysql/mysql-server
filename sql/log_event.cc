@@ -889,91 +889,23 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
 }
 #endif /* !MYSQL_CLIENT */
 
-
-/*
-  Log_event::Log_event()
-*/
-
-Log_event::Log_event(const char* buf,
-                     const Format_description_log_event* description_event)
-  :temp_buf(0), exec_time(0),
-  event_cache_type(EVENT_INVALID_CACHE),
-  event_logging_type(EVENT_INVALID_LOGGING),
-  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+//TODO: Remove this constructor after all the events are implemented
+Log_event(Log_event_header *header)
+:Binary_log_event(header)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif
-  when.tv_sec= uint4korr(buf);
-  when.tv_usec= 0;
-  server_id = uint4korr(buf + SERVER_ID_OFFSET);
-  unmasked_server_id = server_id;
   /*
      Mask out any irrelevant parts of the server_id
   */
 #ifdef HAVE_REPLICATION
-  server_id = unmasked_server_id & opt_server_id_mask;
+  server_id = header->unmasked_server_id & opt_server_id_mask;
 #else
-  server_id = unmasked_server_id;
+  server_id = header->unmasked_server_id;
 #endif
-  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
-  if (description_event->binlog_version==1)
-  {
-    log_pos= 0;
-    flags= 0;
-    return;
-  }
-  /* 4.0 or newer */
-  log_pos= uint4korr(buf + LOG_POS_OFFSET);
-  /*
-    If the log is 4.0 (so here it can only be a 4.0 relay log read by
-    the SQL thread or a 4.0 master binlog read by the I/O thread),
-    log_pos is the beginning of the event: we transform it into the end
-    of the event, which is more useful.
-    But how do you know that the log is 4.0: you know it if
-    description_event is version 3 *and* you are not reading a
-    Format_desc (remember that mysqlbinlog starts by assuming that 5.0
-    logs are in 4.0 format, until it finds a Format_desc).
-  */
-  if (description_event->binlog_version==3 &&
-      buf[EVENT_TYPE_OFFSET]<FORMAT_DESCRIPTION_EVENT && log_pos)
-  {
-      /*
-        If log_pos=0, don't change it. log_pos==0 is a marker to mean
-        "don't change rli->group_master_log_pos" (see
-        inc_group_relay_log_pos()). As it is unreal log_pos, adding the
-        event len's is nonsense. For example, a fake Rotate event should
-        not have its log_pos (which is 0) changed or it will modify
-        Exec_master_log_pos in SHOW SLAVE STATUS, displaying a nonsense
-        value of (a non-zero offset which does not exist in the master's
-        binlog, so which will cause problems if the user uses this value
-        in CHANGE MASTER).
-      */
-    log_pos+= data_written; /* purecov: inspected */
-  }
-  DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
-
-  flags= uint2korr(buf + FLAGS_OFFSET);
-  if ((buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
-      (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
-  {
-    /*
-      These events always have a header which stops here (i.e. their
-      header is FROZEN).
-    */
-    /*
-      Initialization to zero of all other Log_event members as they're
-      not specified. Currently there are no such members; in the future
-      there will be an event UID (but Format_description and Rotate
-      don't need this UID, as they are not propagated through
-      --log-slave-updates (remember the UID is used to not play a query
-      twice when you have two masters which are slaves of a 3rd master).
-      Then we are done.
-    */
-    return;
-  }
-  /* otherwise, go on with reading the header from buf (nothing now) */
 }
+
 
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
@@ -1336,6 +1268,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               const char *log_file_name_arg,
                               bool* is_binlog_active)
 {
+
   ulong data_len;
   int result=0;
   char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
@@ -1702,104 +1635,108 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
         (event_type == FORMAT_DESCRIPTION_EVENT ||
          alg != BINLOG_CHECKSUM_ALG_OFF))
       event_len= event_len - BINLOG_CHECKSUM_LEN;
-    
+
+    binary_log::Format_event *des_ev;
+    des_ev= new binary_log::Format_event(description_event->binlog_version, server_version);
+    Log_event_header header= new Log_event_header(buf, des_event);
+
     switch(event_type) {
     case QUERY_EVENT:
-      ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
+      ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT, header);
       break;
     case LOAD_EVENT:
-      ev = new Load_log_event(buf, event_len, description_event);
+      ev = new Load_log_event(buf, event_len, description_event, header);
       break;
     case NEW_LOAD_EVENT:
-      ev = new Load_log_event(buf, event_len, description_event);
+      ev = new Load_log_event(buf, event_len, description_event, header);
       break;
     case ROTATE_EVENT:
-      ev = new Rotate_log_event(buf, event_len, description_event);
+      ev = new Rotate_log_event(buf, event_len, description_event, header);
       break;
     case CREATE_FILE_EVENT:
-      ev = new Create_file_log_event(buf, event_len, description_event);
+      ev = new Create_file_log_event(buf, event_len, description_event, header);
       break;
     case APPEND_BLOCK_EVENT:
-      ev = new Append_block_log_event(buf, event_len, description_event);
+      ev = new Append_block_log_event(buf, event_len, description_event, header);
       break;
     case DELETE_FILE_EVENT:
-      ev = new Delete_file_log_event(buf, event_len, description_event);
+      ev = new Delete_file_log_event(buf, event_len, description_event, header);
       break;
     case EXEC_LOAD_EVENT:
-      ev = new Execute_load_log_event(buf, event_len, description_event);
+      ev = new Execute_load_log_event(buf, event_len, description_event, header);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, description_event);
+      ev = new Start_log_event_v3(buf, description_event, header);
       break;
     case STOP_EVENT:
-      ev = new Stop_log_event(buf, description_event);
+      ev = new Stop_log_event(buf, description_event, header);
       break;
     case INTVAR_EVENT:
-      ev = new Intvar_log_event(buf, description_event);
+      ev = new Intvar_log_event(buf, description_event, header);
       break;
     case XID_EVENT:
-      ev = new Xid_log_event(buf, description_event);
+      ev = new Xid_log_event(buf, description_event, header);
       break;
     case RAND_EVENT:
-      ev = new Rand_log_event(buf, description_event);
+      ev = new Rand_log_event(buf, description_event, header);
       break;
     case USER_VAR_EVENT:
-      ev = new User_var_log_event(buf, event_len, description_event);
+      ev = new User_var_log_event(buf, event_len, description_event, header);
       break;
     case FORMAT_DESCRIPTION_EVENT:
-      ev = new Format_description_log_event(buf, event_len, description_event);
+      ev = new Format_description_log_event(buf, event_len, description_event, header);
       break;
 #if defined(HAVE_REPLICATION) 
     case PRE_GA_WRITE_ROWS_EVENT:
-      ev = new Write_rows_log_event_old(buf, event_len, description_event);
+      ev = new Write_rows_log_event_old(buf, event_len, description_event, header);
       break;
     case PRE_GA_UPDATE_ROWS_EVENT:
-      ev = new Update_rows_log_event_old(buf, event_len, description_event);
+      ev = new Update_rows_log_event_old(buf, event_len, description_event, header);
       break;
     case PRE_GA_DELETE_ROWS_EVENT:
-      ev = new Delete_rows_log_event_old(buf, event_len, description_event);
+      ev = new Delete_rows_log_event_old(buf, event_len, description_event, header);
       break;
     case WRITE_ROWS_EVENT_V1:
-      ev = new Write_rows_log_event(buf, event_len, description_event);
+      ev = new Write_rows_log_event(buf, event_len, description_event, header);
       break;
     case UPDATE_ROWS_EVENT_V1:
-      ev = new Update_rows_log_event(buf, event_len, description_event);
+      ev = new Update_rows_log_event(buf, event_len, description_event, header);
       break;
     case DELETE_ROWS_EVENT_V1:
-      ev = new Delete_rows_log_event(buf, event_len, description_event);
+      ev = new Delete_rows_log_event(buf, event_len, description_event, header);
       break;
     case TABLE_MAP_EVENT:
-      ev = new Table_map_log_event(buf, event_len, description_event);
+      ev = new Table_map_log_event(buf, event_len, description_event, header);
       break;
 #endif
     case BEGIN_LOAD_QUERY_EVENT:
-      ev = new Begin_load_query_log_event(buf, event_len, description_event);
+      ev = new Begin_load_query_log_event(buf, event_len, description_event, header);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
-      ev= new Execute_load_query_log_event(buf, event_len, description_event);
+      ev= new Execute_load_query_log_event(buf, event_len, description_event, header);
       break;
     case INCIDENT_EVENT:
-      ev = new Incident_log_event(buf, event_len, description_event);
+      ev = new Incident_log_event(buf, event_len, description_event, header);
       break;
     case ROWS_QUERY_LOG_EVENT:
-      ev= new Rows_query_log_event(buf, event_len, description_event);
+      ev= new Rows_query_log_event(buf, event_len, description_event, header);
       break;
     case GTID_LOG_EVENT:
     case ANONYMOUS_GTID_LOG_EVENT:
-      ev= new Gtid_log_event(buf, event_len, description_event);
+      ev= new Gtid_log_event(buf, event_len, description_event, header);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
-      ev= new Previous_gtids_log_event(buf, event_len, description_event);
+      ev= new Previous_gtids_log_event(buf, event_len, description_event, header);
       break;
 #if defined(HAVE_REPLICATION)
     case WRITE_ROWS_EVENT:
-      ev = new Write_rows_log_event(buf, event_len, description_event);
+      ev = new Write_rows_log_event(buf, event_len, description_event, header);
       break;
     case UPDATE_ROWS_EVENT:
-      ev = new Update_rows_log_event(buf, event_len, description_event);
+      ev = new Update_rows_log_event(buf, event_len, description_event, header);
       break;
     case DELETE_ROWS_EVENT:
-      ev = new Delete_rows_log_event(buf, event_len, description_event);
+      ev = new Delete_rows_log_event(buf, event_len, description_event, header);
       break;
 #endif
     default:
@@ -1809,7 +1746,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       */
       if (uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F)
       {
-        ev= new Ignorable_log_event(buf, description_event);
+        ev= new Ignorable_log_event(buf, description_event, header);
       }
       else
       {
@@ -4172,8 +4109,9 @@ code_name(int code)
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event
                                  *description_event,
-                                 Log_event_type event_type)
-  :Log_event(buf, description_event), data_buf(0), query(NullS),
+                                 Log_event_type event_type,
+                                 Log_event_header *header)
+  :Log_event(header), data_buf(0), query(NullS),
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
@@ -4217,7 +4155,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     Depending on the format, we may or not have affected/warnings etc
     The remnent post-header to be parsed has length:
   */
-  tmp= post_header_len - Binary_log_event::QUERY_HEADER_MINIMAL_LEN; 
+  tmp= post_header_len - Binary_log_event::QUERY_HEADER_MINIMAL_LEN;
   if (tmp)
   {
     status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
@@ -5369,8 +5307,9 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 Start_log_event_v3::Start_log_event_v3(const char* buf,
                                        const Format_description_log_event
-                                       *description_event)
-  :Log_event(buf, description_event)
+                                       *description_event,
+                                       Log_event_header* header)
+  :Log_event(header)
 {
   buf+= description_event->common_header_len;
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
@@ -6296,8 +6235,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
     constructed event.
 */
 Load_log_event::Load_log_event(const char *buf, uint event_len,
-                               const Format_description_log_event *description_event)
-  :Log_event(buf, description_event), num_fields(0), fields(0),
+                               const Format_description_log_event *description_event,
+                               Log_event_header *header)
+  :Log_event(header), num_fields(0), fields(0),
    field_lens(0),field_block_len(0),
    table_name(0), db(0), fname(0), local_fname(FALSE),
    /*
@@ -6308,6 +6248,7 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
    is_concurrent(FALSE)
 {
   DBUG_ENTER("Load_log_event");
+
   /*
     I (Guilhem) manually tested replication of LOAD DATA INFILE for 3.23->5.0,
     4.0->5.0 and 5.0->5.0 and it works.
@@ -6315,7 +6256,7 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
   if (event_len)
     copy_log_event(buf, event_len,
                    ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                    Binary_log_event::LOAD_HEADER_LEN + 
+                    Binary_log_event::LOAD_HEADER_LEN +
                     description_event->common_header_len :
                     Binary_log_event::LOAD_HEADER_LEN + LOG_EVENT_HEADER_LEN),
                    description_event);
@@ -6903,10 +6844,12 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
-                                   const Format_description_log_event* description_event)
-  :Log_event(buf, description_event) ,new_log_ident(0), flags(DUP_NAME)
+                                   const Format_description_log_event* description_event,
+                                   Log_event_header* header)
+  :Log_event(header) ,new_log_ident(0), flags(DUP_NAME)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
+
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
   uint8 header_size= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[ROTATE_EVENT-1];
@@ -7106,8 +7049,9 @@ int Intvar_log_event::pack_info(Protocol *protocol)
 */
 
 Intvar_log_event::Intvar_log_event(const char* buf,
-                                   const Format_description_log_event* description_event)
-  :Log_event(buf, description_event)
+                                   const Format_description_log_event* description_event,
+                                   Log_event_header* header)
+  :Log_event(header)
 {
   /* The Post-Header is empty. The Varible Data part begins immediately. */
   buf+= description_event->common_header_len +
@@ -7256,9 +7200,11 @@ int Rand_log_event::pack_info(Protocol *protocol)
 
 
 Rand_log_event::Rand_log_event(const char* buf,
-                               const Format_description_log_event* description_event)
-  :Log_event(buf, description_event)
+                               const Format_description_log_event* description_event,
+                               Log_event_header *header)
+  :Log_event(header)
 {
+
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
     description_event->post_header_len[RAND_EVENT-1];
@@ -7389,9 +7335,11 @@ int Xid_log_event::pack_info(Protocol *protocol)
 
 Xid_log_event::
 Xid_log_event(const char* buf,
-              const Format_description_log_event *description_event)
-  :Log_event(buf, description_event)
+              const Format_description_log_event *description_event,
+              Log_event_header *header)
+  :Log_event(header)
 {
+
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
     description_event->post_header_len[XID_EVENT-1];
@@ -7697,12 +7645,14 @@ int User_var_log_event::pack_info(Protocol* protocol)
 
 User_var_log_event::
 User_var_log_event(const char* buf, uint event_len,
-                   const Format_description_log_event* description_event)
-  :Log_event(buf, description_event)
+                   const Format_description_log_event* description_event,
+                   Log_event_header *header)
+  :Log_event(header)
 #ifndef MYSQL_CLIENT
   , deferred(false), query_id(0)
 #endif
 {
+
   bool error= false;
   const char* buf_start= buf;
   /* The Post-Header is empty. The Variable Data part begins immediately. */
@@ -8522,9 +8472,11 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 */
 
 Append_block_log_event::Append_block_log_event(const char* buf, uint len,
-                                               const Format_description_log_event* description_event)
-  :Log_event(buf, description_event),block(0)
+                                               const Format_description_log_event* description_event,
+                                               Log_event_header *header)
+  :Log_event(header),block(0)
 {
+
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
   uint8 common_header_len= description_event->common_header_len; 
   uint8 append_block_header_len=
@@ -8699,9 +8651,11 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 */
 
 Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
-                                             const Format_description_log_event* description_event)
-  :Log_event(buf, description_event),file_id(0)
+                                             const Format_description_log_event* description_event,
+                                             Log_event_header *header)
+  :Log_event(header),file_id(0)
 {
+
   uint8 common_header_len= description_event->common_header_len;
   uint8 delete_file_header_len= description_event->post_header_len[DELETE_FILE_EVENT-1];
   if (len < (uint)(common_header_len + delete_file_header_len))
@@ -8803,9 +8757,11 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
 */
 
 Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
-                                               const Format_description_log_event* description_event)
-  :Log_event(buf, description_event), file_id(0)
+                                               const Format_description_log_event* description_event,
+                                               Log_event_header *header)
+  :Log_event(header), file_id(0)
 {
+
   uint8 common_header_len= description_event->common_header_len;
   uint8 exec_load_header_len= description_event->post_header_len[EXEC_LOAD_EVENT-1];
   if (len < (uint)(common_header_len+exec_load_header_len))
@@ -9442,8 +9398,9 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
 
 Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                const Format_description_log_event
-                               *description_event)
-  : Log_event(buf, description_event),
+                               *description_event,
+                               Log_event_header *header)
+  : Log_event(header),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -9455,6 +9412,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
+
   uint8 const common_header_len= description_event->common_header_len;
   Log_event_type event_type= (Log_event_type) buf[EVENT_TYPE_OFFSET];
   m_type= event_type;
@@ -11970,9 +11928,10 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
 #if defined(HAVE_REPLICATION)
 Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                                          const Format_description_log_event
-                                         *description_event)
+                                         *description_event,
+                                         Log_event_header *header)
 
-  : Log_event(buf, description_event),
+  : Log_event(header),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
 #endif
@@ -13134,10 +13093,12 @@ void Update_rows_log_event::print(FILE *file,
 
 
 Incident_log_event::Incident_log_event(const char *buf, uint event_len,
-                                       const Format_description_log_event *descr_event)
-  : Log_event(buf, descr_event)
+                                       const Format_description_log_event *descr_event,
+                                       Log_event_header *header)
+  : Log_event(header)
 {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
+
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
@@ -13282,10 +13243,12 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 
 
 Ignorable_log_event::Ignorable_log_event(const char *buf,
-                                         const Format_description_log_event *descr_event)
-  : Log_event(buf, descr_event)
+                                         const Format_description_log_event *descr_event,
+                                         Log_event_header *header)
+  :Log_event(header)
 {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+
   DBUG_VOID_RETURN;
 }
 
@@ -13434,10 +13397,12 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
-                               const Format_description_log_event *descr_event)
-  : Log_event(buffer, descr_event)
+                               const Format_description_log_event *descr_event,
+                               Log_event_header *header)
+  : Log_event(header)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
+
   uint8 const common_header_len=
     descr_event->common_header_len;
 
@@ -13644,10 +13609,12 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 
 Previous_gtids_log_event::Previous_gtids_log_event(
   const char *buffer, uint event_len,
-  const Format_description_log_event *descr_event)
-  : Log_event(buffer, descr_event)
+  const Format_description_log_event *descr_event,
+  Log_event_header *header)
+  : Log_event(header)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
+
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
@@ -13811,8 +13778,9 @@ st_print_event_info::st_print_event_info()
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
                     const Format_description_log_event* description_event)
-  :Log_event(buf, description_event)
+  :Log_event(header)
 {
+
   uint8 header_size= description_event->common_header_len;
   ident_len = event_len - header_size;
   set_if_smaller(ident_len,FN_REFLEN-1);
