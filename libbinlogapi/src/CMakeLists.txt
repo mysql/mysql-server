@@ -15,7 +15,7 @@ add_library(binlogapi_shared SHARED ${replication_sources})
 set_target_properties(binlogapi_shared PROPERTIES
  OUTPUT_NAME "binlogapi")
 
-install(TARGETS binlogapi_shared LIBRARY
-        DESTINATION libbinlogapi/lib
-        ARCHIVE libbinlogapi/lib)
+install(TARGETS binlogapi_shared
+        LIBRARY DESTINATION libbinlogapi/lib
+        ARCHIVE DESTINATION libbinlogapi/lib)
 install(TARGETS binlogapi_static ARCHIVE DESTINATION libbinlogapi/lib)
