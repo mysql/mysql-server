@@ -8407,6 +8407,8 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
+  thread_mask= SLAVE_IO | SLAVE_SQL; 
+
   THD_STAGE_INFO(thd, stage_changing_master);
   /* 
     We need to check if there is an empty master_host. Otherwise
