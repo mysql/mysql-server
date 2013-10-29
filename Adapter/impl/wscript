@@ -44,7 +44,7 @@ def build(ctx):
   "ndb/src/ScanImpl.cpp " +\
   "ndb/src/EncoderCharset.cpp " +\
   \
-  "src/mysqlclient_wrapper.cpp " +\
+  "ndb/src/mysqlclient_wrapper.cpp " +\
   ""
   
   ctx.recurse("test")
