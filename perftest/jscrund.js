@@ -51,15 +51,15 @@ function usage() {
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
   "   -df=file:  Enable debug output only from source file <file>\n" +
-  "   --debugFile=<file>  \n" +
-  "   -i      :  Specify number of iterations per test (default 4000)\n" +
+  "   --debugFile=<file>\n" +
+  "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
   "   --test  :  Specify tests to run (default persist,find,remove)\n" +
-  "   --table':\n" +
-  "   -t      :  Use table name for operations\n" +
-  "  --forever:  Repeat tests until interrupted\n" +
+  "   -r <n>  :  Repeat tests #n times (default 1, n<0: forever)\n" +
+  "   --trace :\n" +
+  "   -t      :  Enable trace output\n" +
   "   --set other=value: set property other to value"
   ;
   console.log(msg);
@@ -82,6 +82,9 @@ function parse_command_line(options) {
     case '-m':
       options.adapter = "mysql";
       break;
+    case '-f':
+      options.adapter = "sql";
+      break;
     case '-i':
       options.iterations = parseInt(process.argv[++i]);
       if (isNaN(options.iterations)) {
@@ -89,11 +92,15 @@ function parse_command_line(options) {
         options.exit = true;
       }
       break;
+    case '-r':
+      options.nRuns = parseInt(process.argv[++i]);
+      if (isNaN(options.nRuns)) {
+        console.log('runs value is not allowed:', process.argv[i]);
+        options.exit = true;
+      }
+      break;
     case '--stats':
       options.stats = true;
-      break;
-    case '--forever':
-      options.forever = true;
       break;
     case '--debug':
     case '-d':
@@ -194,11 +201,32 @@ function parse_command_line(options) {
 function A() {
 }
 
+/** Constructor for domain object for B mapped to table b.
+ */
+function B() {
+}
+
 /** Options are set up based on command line.
  * Properties are set up based on options.
  */
 function main() {
   var config_file_exists = false;
+
+  function currentDateString() {
+    function zpad(s) {
+      return (s.length == 1) ? "0" + s : s;
+    }
+    var d = new Date();
+    var yy = d.getFullYear();
+    var mm = zpad("" + (d.getMonth() + 1));
+    var dd = zpad("" + d.getDate());
+    var hh = zpad("" + d.getHours());
+    var mn = zpad("" + d.getMinutes());
+    var sc = zpad("" + d.getSeconds());
+    return ("" + yy + mm + dd + "_" + hh + mn + sc);
+  };
+  var fs = require('fs');
+  var logFileName = ("log_" + currentDateString() + ".txt");
 
   /* Default options: */
   var options = {
@@ -208,7 +236,7 @@ function main() {
     'tests': 'persist,find,remove',
     'iterations': 4000,
     'stats': false,
-    'forever': false
+    'nRuns': 1
   };
 
   /* Options from config file; connection_properties are handled below */
@@ -260,7 +288,8 @@ function main() {
   properties.database = options.database;
   options.properties = properties; // properties for getSession
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
-  options.annotations = A;
+  new JSCRUND.mynode.TableMapping("b").applyToClass(B);
+  options.annotations = [ A, B ];
 
   var generateAllParameters = function(numberOfParameters) {
     var result = [];
@@ -271,7 +300,7 @@ function main() {
   };
 
   var generateParameters = function(i) {
-    return {'key' :generateKey(i), 'object':generateObject(i)};
+    return {'key': generateKey(i), 'object': generateObject(i)};
   };
 
   var generateKey = function(i) {
@@ -280,13 +309,38 @@ function main() {
 
   var generateObject = function(i) {
     var result = new A();
-    result.id = i;
-    result.cint = i;
-    result.clong = i;
-    result.cfloat = i;
-    result.cdouble = i;
+    //var result = new B();
+    result.init(i);
     return result;
   };
+
+  var initAB = function(i) {
+    this.id = i;
+    this.cint = i;
+    this.clong = i;
+    this.cfloat = i;
+    this.cdouble = i;
+  }
+
+  var verifyObject = function(that) {
+    for (var prop in this) {
+      // only verify immediate properties, not inherited ones
+      if (this.hasOwnProperty(prop)) {
+        // only compare value, not type, since long numbers mapped to string
+        //if (this[prop] !== that[prop])
+        if (this[prop] != that[prop])
+            appendError('Error: data mismatch for property '
+                        + this.constructor.name + '.' + prop
+                        + ' expected: ' + JSON.stringify(this[prop])
+                        + ' actual: ' + JSON.stringify(that[prop]));
+      }
+    }
+  };
+
+  A.prototype.init = initAB;
+  B.prototype.init = initAB;
+  A.prototype.verify = verifyObject;
+  B.prototype.verify = verifyObject;
 
   var appendError = function(error) {
     JSCRUND.errors.push(error);
@@ -313,11 +367,12 @@ function main() {
     var object;
     var iteration = 0;
     var numberOfIterations = options.iterations;
-    var iterationsCompleted = 0;
+    var nRun = 0;
+    var nRuns = (options.nRuns < 0 ? Infinity : options.nRuns);
 
     var operationsDoneCallback;
     var testsDoneCallback;
-    var resultsArray = [];
+    var resultStats = [];
 
     var parameters = generateAllParameters(numberOfIterations);
     
@@ -337,11 +392,13 @@ function main() {
       } else {
         JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
         timer.stop();
-        resultsArray.push(timer.interval);
+        resultStats.push({
+          name: testName + "," + modeName,
+          time: timer.interval
+        });
         operationsDoneCallback();
       }
     };
-
 
     /** Call indyOperationsLoop for all of the tests in testNames
      */
@@ -370,7 +427,10 @@ function main() {
         appendError(err);
       }
       timer.stop();
-      resultsArray.push(timer.interval);
+      resultStats.push({
+        name: testName + "," + modeName,
+        time: timer.interval
+      });
       operationsDoneCallback();
     };
 
@@ -418,11 +478,15 @@ function main() {
      */
     var bulkCheckBatchCallback = function(err) {
       JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
-      timer.stop();
-      resultsArray.push(timer.interval);
+      // check result
       if (err) {
         appendError(err);
       }
+      timer.stop();
+      resultStats.push({
+        name: testName + "," + modeName,
+        time: timer.interval
+      });
       bulkTestsLoop();
     };
 
@@ -458,20 +522,6 @@ function main() {
       }
     };
 
-    /** Finish up after modeLoop
-    */
-    var onLoopComplete = function() {
-      if(options.stats) {
-        JSCRUND.stats.peek();
-      }
-      if(options.forever) {
-        runTests(options);
-      }
-      else {
-        process.exit(0);
-      }    
-    };
-
     /** Run all modes specified in --modes: default is indy, each, bulk.
      * 
      */
@@ -484,17 +534,53 @@ function main() {
         console.log('\njscrund.modeLoop', modeNumber, 'of', modes.length, ':', modeName);
         mode.apply(runTests);
       } else {
-        console.log('jscrund.modeLoop', modeNumber, 'of', modes.length, 'complete.');
+        //console.log('jscrund.modeLoop', modeNumber, 'of', modes.length, 'complete.');
         if (JSCRUND.errors.length !== 0) {
           console.log(JSCRUND.errors);
         }
-        var r, resultsString = "";
-        while(r = resultsArray.shift())
-          resultsString += r + "\t";
-        console.log(resultsString);
-        JSCRUND.implementation.close(onLoopComplete);
+
+        // collect result stats
+        var opNames = "rtime[ms]," + options.adapter + '\t';
+        var opTimes = "" + numberOfIterations + '\t';
+        var r;
+        while (r = resultStats.shift()) {
+          opNames += r.name + '\t';
+          opTimes += r.time + '\t';
+        }
+        //console.log(opNames);
+        //console.log(opTimes);
+
+        // write result stats to file
+        console.log("\nappending results to file: " + logFileName);
+        if (nRun == 1)
+            fs.appendFileSync(logFileName, opNames + '\n');
+        fs.appendFileSync(logFileName, opTimes + '\n');
+
+        testLoop();
       }
     };
+
+    /** Run test with all modes.
+    */
+    var testLoop = function() {
+      if (options.stats) {
+        JSCRUND.stats.peek();
+      }
+      if (nRun++ >= nRuns) {
+        JSCRUND.implementation.close(function(err) {
+          if (err) {
+            console.log('Error closing JSCRUND.implementation:', err);
+            process.exit(1);
+          }
+        });
+        console.log('\ndone: ' + nRuns + ' runs.');
+        //process.exit(0); // redundant
+      } else {
+        console.log('\nRun #' + nRun + ' of ' + nRuns);
+        modeNumber = 0;
+        modeLoop();
+      }
+    }
 
     // runTests starts here
     var modeTable = {
@@ -511,11 +597,11 @@ function main() {
     JSCRUND.implementation.initialize(options, function(err) {
       // initialization complete
       if (err) {
-        console.log('Error initializing', err);
+        console.log('Error initializing JSCRUND.implementation:', err);
         process.exit(1);
       } else {
         testsDoneCallback = modeLoop;
-        modeLoop();
+        testLoop();
       }
     });
   };
