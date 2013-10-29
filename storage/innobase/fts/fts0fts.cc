@@ -2807,7 +2807,7 @@ fts_update_sync_doc_id(
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"BEGIN "
-		"UPDATE %s SET value = :doc_id"
+		"UPDATE \"%s\" SET value = :doc_id"
 		" WHERE key = 'synced_doc_id';");
 
 	error = fts_eval_sql(trx, graph);
@@ -4214,7 +4214,7 @@ fts_is_word_in_index(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word = :word "
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
