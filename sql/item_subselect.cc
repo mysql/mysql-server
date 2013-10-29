@@ -2928,6 +2928,7 @@ int subselect_single_select_engine::prepare()
 		    select_lex->order_list.elements +
 		    select_lex->group_list.elements,
 		    select_lex->order_list.first,
+                    false,
 		    select_lex->group_list.first,
 		    select_lex->having,
 		    NULL, select_lex,

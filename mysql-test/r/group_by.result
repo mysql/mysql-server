@@ -2407,4 +2407,9 @@ a
 200
 set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2;
+#
+# MDEV-5104 crash in Item_field::used_tables with broken order by
+#
+(select 1 order by x(y)) order by 1;
+ERROR 42S22: Unknown column 'y' in 'order clause'
 # End of 5.3 tests
