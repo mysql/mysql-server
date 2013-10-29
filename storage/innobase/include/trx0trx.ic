@@ -29,9 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
-A running transaction must be in trx_sys->ro_trx_list or trx_sys->rw_trx_list
-unless it is a non-locking autocommit read only transaction, which is only
-in trx_sys->mysql_trx_list.
+A running RW transaction must be in trx_sys->rw_trx_list.
 @return TRUE if trx->state == state */
 UNIV_INLINE
 ibool
@@ -54,14 +52,13 @@ trx_state_eq(
 		return(state == trx->state);
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 		return(state == trx->state);
 
 	case TRX_STATE_NOT_STARTED:
 		/* This state is not allowed for running transactions. */
 		ut_a(state == TRX_STATE_NOT_STARTED);
 		ut_ad(!trx->in_rw_trx_list);
-		ut_ad(!trx->in_ro_trx_list);
 		return(state == trx->state);
 	}
 	ut_error;
