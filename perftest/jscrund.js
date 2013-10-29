@@ -206,27 +206,41 @@ function A() {
 function B() {
 }
 
+function currentDateString() {
+  function zpad(s) {
+    return (s.length == 1) ? "0" + s : s;
+  }
+  var d = new Date();
+  var yy = d.getFullYear();
+  var mm = zpad("" + (d.getMonth() + 1));
+  var dd = zpad("" + d.getDate());
+  var hh = zpad("" + d.getHours());
+  var mn = zpad("" + d.getMinutes());
+  var sc = zpad("" + d.getSeconds());
+  return ("" + yy + mm + dd + "_" + hh + mn + sc);
+};
+
+function ResultLog() {
+  this.name = "log_" + currentDateString() + ".txt";
+  this.fd = fs.openSync(this.name, 'a');
+}
+
+ResultLog.prototype.write = function(message) {
+  var buffer = new Buffer(message);
+  fs.writeSync(this.fd, buffer, 0, buffer.length);
+};
+
+ResultLog.prototype.close = function() {
+  fs.closeSync(this.fd);
+};
+
 /** Options are set up based on command line.
  * Properties are set up based on options.
  */
 function main() {
   var config_file_exists = false;
-
-  function currentDateString() {
-    function zpad(s) {
-      return (s.length == 1) ? "0" + s : s;
-    }
-    var d = new Date();
-    var yy = d.getFullYear();
-    var mm = zpad("" + (d.getMonth() + 1));
-    var dd = zpad("" + d.getDate());
-    var hh = zpad("" + d.getHours());
-    var mn = zpad("" + d.getMinutes());
-    var sc = zpad("" + d.getSeconds());
-    return ("" + yy + mm + dd + "_" + hh + mn + sc);
-  };
   var fs = require('fs');
-  var logFileName = ("log_" + currentDateString() + ".txt");
+  var logFile = new ResultLog();
 
   /* Default options: */
   var options = {
@@ -236,6 +250,7 @@ function main() {
     'tests': 'persist,find,remove',
     'iterations': 4000,
     'stats': false,
+    'spi': false,
     'nRuns': 1
   };
 
@@ -534,7 +549,6 @@ function main() {
         console.log('\njscrund.modeLoop', modeNumber, 'of', modes.length, ':', modeName);
         mode.apply(runTests);
       } else {
-        //console.log('jscrund.modeLoop', modeNumber, 'of', modes.length, 'complete.');
         if (JSCRUND.errors.length !== 0) {
           console.log(JSCRUND.errors);
         }
@@ -547,14 +561,12 @@ function main() {
           opNames += r.name + '\t';
           opTimes += r.time + '\t';
         }
-        //console.log(opNames);
-        //console.log(opTimes);
 
         // write result stats to file
-        console.log("\nappending results to file: " + logFileName);
+        console.log("\nappending results to file: " + logFile.name);
         if (nRun == 1)
-            fs.appendFileSync(logFileName, opNames + '\n');
-        fs.appendFileSync(logFileName, opTimes + '\n');
+            logFile.write(opNames + '\n');
+        logFile.write(opTimes + '\n');
 
         testLoop();
       }
@@ -574,7 +586,8 @@ function main() {
           }
         });
         console.log('\ndone: ' + nRuns + ' runs.');
-        //process.exit(0); // redundant
+        logFile.close();
+        process.exit(0);
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
         modeNumber = 0;
