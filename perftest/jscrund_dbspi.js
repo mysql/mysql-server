@@ -86,14 +86,6 @@ implementation.prototype.initialize = function(options, callback) {
   impl.dbService.connect(options.properties, onConnect);
 };
 
-//
-//  QUESTION:  When does jscrund expect to get the callback?
-//  as an operation callback?  a transaction callback?  both? 
-//
-//
-//
-
-
 implementation.prototype.execOneOperation = function(op, tx, callback) {
   if(this.inBatchMode) {
     this.operations.push(op);

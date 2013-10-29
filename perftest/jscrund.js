@@ -24,16 +24,15 @@
 global.JSCRUND = {};
 
 JSCRUND.mynode = require("..");
-JSCRUND.random = require("../samples/ndb_loader/lib/RandomData");
-JSCRUND.unified_debug = require("../Adapter/api/unified_debug");
-JSCRUND.udebug = JSCRUND.unified_debug.getLogger('jscrund');
+JSCRUND.udebug = require("../Adapter/api/unified_debug").getLogger("jscrund");
 JSCRUND.stats  = require("../Adapter/api/stats");
 JSCRUND.lib    = require("./lib");
-JSCRUND.mysqljs = require("./jscrund_mysqljs");
-JSCRUND.errors  = [];
+// Backends:
+JSCRUND.mysqljs = require('./jscrund_mysqljs');
 JSCRUND.sqlAdapter = require('./jscrund_sql');
 JSCRUND.spiAdapter = require('./jscrund_dbspi');
 
+JSCRUND.errors  = [];
 
 
 function usage() {
@@ -46,6 +45,7 @@ function usage() {
   "   --adapter=mysql\n" +
   "   -m      :  Use mysql adapter\n" +
   "   --adapter=sql\n" +
+  "   --spi   :  Run tests using DBServiceProvider SPI \n" +
   "   -f      :  Use felix sql driver (not mysql-js api)\n" +
   "   --detail:  Enable detail debug output\n" +
   "   --debug :\n" +
@@ -60,7 +60,6 @@ function usage() {
   "   --table':\n" +
   "   -t      :  Use table name for operations\n" +
   "  --forever:  Repeat tests until interrupted\n" +
-  "   --spi   :  Run tests using DBServiceProvider SPI \n" +
   "   --set other=value: set property other to value"
   ;
   console.log(msg);
