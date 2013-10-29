@@ -31,6 +31,9 @@ JSCRUND.stats  = require("../Adapter/api/stats");
 JSCRUND.lib    = require("./lib");
 JSCRUND.mysqljs = require("./jscrund_mysqljs");
 JSCRUND.errors  = [];
+JSCRUND.sqlAdapter = require('./jscrund_sql');
+JSCRUND.spiAdapter = require('./jscrund_dbspi');
+
 
 
 function usage() {
@@ -57,6 +60,7 @@ function usage() {
   "   --table':\n" +
   "   -t      :  Use table name for operations\n" +
   "  --forever:  Repeat tests until interrupted\n" +
+  "   --spi   :  Run tests using DBServiceProvider SPI \n" +
   "   --set other=value: set property other to value"
   ;
   console.log(msg);
@@ -106,6 +110,9 @@ function parse_command_line(options) {
     case '--trace':
     case '-t':
       options.printStackTraces = true;
+      break;
+    case '--spi':
+      options.spi = true;
       break;
     case '--set':
       i++;  // next argument
@@ -234,10 +241,13 @@ function main() {
   var properties = {};
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
-    JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
+    if(options.spi) {
+      JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
+    } else { 
+      JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
+    }
   } else if (options.adapter === 'sql') {
-    var sqladapter = require('./jscrund_sql');
-    JSCRUND.implementation = new sqladapter.implementation();
+    JSCRUND.implementation = new JSCRUND.sqlAdapter.implementation();
   }
   /* Connection properties from jscrund.config */
   if(config_file_exists) {
