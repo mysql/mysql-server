@@ -23,7 +23,6 @@ Mini-transaction logging routines
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
-#include "buf0buf.h"
 #include "buf0dblwr.h"
 #include "fsp0types.h"
 #include "mach0data.h"
@@ -38,11 +37,9 @@ mlog_open(
 /*======*/
 	mtr_t*	mtr,	/*!< in: mtr */
 	ulint	size)	/*!< in: buffer size in bytes; MUST be
-			smaller than DYN_ARRAY_DATA_SIZE! */
+			smaller than mtr_t::buf_t::MAX_DATA_SIZE! */
 {
-	dyn_array_t*	mlog;
-
-	mtr->modifications = TRUE;
+	mtr->set_modified();
 
 	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
 	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
@@ -50,9 +47,7 @@ mlog_open(
 		return(NULL);
 	}
 
-	mlog = &(mtr->log);
-
-	return(dyn_array_open(mlog, size));
+	return(mtr->get_log()->open(size));
 }
 
 /********************************************************//**
@@ -64,14 +59,10 @@ mlog_close(
 	mtr_t*	mtr,	/*!< in: mtr */
 	byte*	ptr)	/*!< in: buffer space from ptr up was not used */
 {
-	dyn_array_t*	mlog;
-
 	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
 	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
 
-	mlog = &(mtr->log);
-
-	dyn_array_close(mlog, ptr);
+	mtr->get_log()->close(ptr);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -81,43 +72,49 @@ UNIV_INLINE
 void
 mlog_catenate_ulint(
 /*================*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	ulint	val,	/*!< in: value to write */
-	ulint	type)	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_buf_t*	mtr_buf,	/*!< in/out: buffer to write */
+	ulint		val,		/*!< in: value to write */
+	mlog_id_t	type)		/*!< in: type of value to write */
 {
-	dyn_array_t*	mlog;
-	byte*		ptr;
+	ut_ad(MLOG_1BYTE == 1);
+	ut_ad(MLOG_2BYTES == 2);
+	ut_ad(MLOG_4BYTES == 4);
+	ut_ad(MLOG_8BYTES == 8);
 
+	byte*	ptr = mtr_buf->push<byte*>(type);
+
+	switch (type) {
+	case MLOG_4BYTES:
+		mach_write_to_4(ptr, val);
+		break;
+	case MLOG_2BYTES:
+		mach_write_to_2(ptr, val);
+		break;
+	case MLOG_1BYTE:
+		mach_write_to_1(ptr, val);
+		break;
+	default:
+		ut_error;
+	}
+}
+
+/********************************************************//**
+Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+UNIV_INLINE
+void
+mlog_catenate_ulint(
+/*================*/
+	mtr_t*		mtr,	/*!< in/out: mtr */
+	ulint		val,	/*!< in: value to write */
+	mlog_id_t	type)	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+{
 	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
 	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
 
 		return;
 	}
 
-	mlog = &(mtr->log);
-
-#if MLOG_1BYTE != 1
-# error "MLOG_1BYTE != 1"
-#endif
-#if MLOG_2BYTES != 2
-# error "MLOG_2BYTES != 2"
-#endif
-#if MLOG_4BYTES != 4
-# error "MLOG_4BYTES != 4"
-#endif
-#if MLOG_8BYTES != 8
-# error "MLOG_8BYTES != 8"
-#endif
-	ptr = (byte*) dyn_array_push(mlog, type);
-
-	if (type == MLOG_4BYTES) {
-		mach_write_to_4(ptr, val);
-	} else if (type == MLOG_2BYTES) {
-		mach_write_to_2(ptr, val);
-	} else {
-		ut_ad(type == MLOG_1BYTE);
-		mach_write_to_1(ptr, val);
-	}
+	mlog_catenate_ulint(mtr->get_log(), val, type);
 }
 
 /********************************************************//**
@@ -180,21 +177,19 @@ mlog_write_initial_log_record_fast(
 	const byte*	ptr,	/*!< in: pointer to (inside) a buffer
 				frame holding the file page where
 				modification is made */
-	byte		type,	/*!< in: log item type: MLOG_1BYTE, ... */
+	mlog_id_t	type,	/*!< in: log item type: MLOG_1BYTE, ... */
 	byte*		log_ptr,/*!< in: pointer to mtr log which has
 				been opened */
-	mtr_t*		mtr)	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in/out: mtr */
 {
-#ifdef UNIV_DEBUG
-	buf_block_t*	block;
-#endif
 	const byte*	page;
 	ulint		space;
 	ulint		offset;
 
-	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
+	ut_ad(mtr->memo_contains_page_flagged(
+			ptr,
+			MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
@@ -206,6 +201,7 @@ mlog_write_initial_log_record_fast(
 	the doublewrite buffer is located in pages
 	FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the
 	system tablespace */
+
 	if (space == TRX_SYS_SPACE
 	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
 		if (buf_dblwr_being_created) {
@@ -214,39 +210,36 @@ mlog_write_initial_log_record_fast(
 			anything for the doublewrite buffer pages. */
 			return(log_ptr);
 		} else {
-			fprintf(stderr,
-				"Error: trying to redo log a record of type "
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to redo log a record of type "
 				"%d on page %lu of space %lu in the "
-				"doublewrite buffer, continuing anyway.\n"
+				"doublewrite buffer, continuing anyway. "
 				"Please post a bug report to "
-				"bugs.mysql.com.\n",
+				"bugs.mysql.com.",
 				type, offset, space);
 			ut_ad(0);
 		}
 	}
 
 	mach_write_to_1(log_ptr, type);
-	log_ptr++;
+
+	++log_ptr;
+
 	log_ptr += mach_write_compressed(log_ptr, space);
+
 	log_ptr += mach_write_compressed(log_ptr, offset);
 
-	mtr->n_log_recs++;
-
-#ifdef UNIV_LOG_DEBUG
-	fprintf(stderr,
-		"Adding to mtr log record type %lu space %lu page no %lu\n",
-		(ulong) type, space, offset);
-#endif
+	mtr->added_rec();
 
 #ifdef UNIV_DEBUG
 	/* We now assume that all x-latched pages have been modified! */
-	block = (buf_block_t*) buf_block_align(ptr);
+	buf_block_t*	block = (buf_block_t*) buf_block_align(ptr);
 
-	if (!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY)) {
-
-		mtr_memo_push(mtr, block, MTR_MEMO_MODIFY);
+	if (!mtr->memo_contains(mtr->get_memo(), block, MTR_MEMO_MODIFY)) {
+		mtr->memo_push(block, MTR_MEMO_MODIFY);
 	}
-#endif
+#endif /* UNIV_DEBUG */
+
 	return(log_ptr);
 }
 
@@ -257,12 +250,13 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(
 /*======================================*/
-	ulint	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-			MLOG_FILE_RENAME */
-	ulint	space_id,/*!< in: space id, if applicable */
-	ulint	page_no,/*!< in: page number (not relevant currently) */
-	byte*	log_ptr,/*!< in: pointer to mtr log which has been opened */
-	mtr_t*	mtr)	/*!< in: mtr */
+	mlog_id_t	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
+				MLOG_FILE_RENAME */
+	ulint		space_id,/*!< in: space id, if applicable */
+	ulint		page_no,/*!< in: page number (not relevant currently) */
+	byte*		log_ptr,/*!< in: pointer to mtr log which has been
+				opened */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(log_ptr);
 
@@ -273,7 +267,7 @@ mlog_write_initial_log_record_for_file_op(
 	log_ptr += mach_write_compressed(log_ptr, space_id);
 	log_ptr += mach_write_compressed(log_ptr, page_no);
 
-	mtr->n_log_recs++;
+	mtr->added_rec();
 
 	return(log_ptr);
 }

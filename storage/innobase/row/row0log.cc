@@ -36,6 +36,7 @@ Created 2011-05-26 Marko Makela
 #include "row0ext.h"
 #include "data0data.h"
 #include "que0que.h"
+#include "srv0mon.h"
 #include "handler0alter.h"
 
 #include<map>
@@ -1710,7 +1711,7 @@ row_log_table_apply_update(
 func_exit:
 		mtr_commit(&mtr);
 func_exit_committed:
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 
 		if (error != DB_SUCCESS) {
 			/* Report the erroneous row using the new
@@ -1763,7 +1764,7 @@ func_exit_committed:
 
 		error = row_log_table_apply_delete_low(
 			&pcur, cur_offsets, NULL, heap, &mtr);
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 
 		if (error == DB_SUCCESS) {
 			error = row_log_table_apply_insert_low(

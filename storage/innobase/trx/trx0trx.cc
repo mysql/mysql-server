@@ -1608,8 +1608,8 @@ trx_flush_log_if_needed_low(
 		break;
 	case 1:
 		/* Write the log and optionally flush it to disk */
-		log_write_up_to(lsn,
-				srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
+		log_write_up_to(
+			lsn, srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
 		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
@@ -1680,11 +1680,10 @@ static
 void
 trx_commit_in_memory(
 /*=================*/
-	trx_t*	trx,		/*!< in/out: transaction */
-	lsn_t	lsn)		/*!< in: log sequence number of the
-				mini-transaction commit of
-				trx_write_serialisation_history(), or 0
-				if the transaction did not modify anything */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const mtr_t*	mtr)	/*!< in: mini-transaction of
+				trx_write_serialisation_history(), or NULL if
+				the transaction did not modify anything */
 {
 	trx->must_flush_log_later = false;
 
@@ -1761,7 +1760,8 @@ trx_commit_in_memory(
 		trx->state = TRX_STATE_NOT_STARTED;
 	}
 
-	if (lsn > 0) {
+	if (mtr != NULL) {
+
 		if (trx->rsegs.m_redo.insert_undo != NULL
 		    || trx->rsegs.m_noredo.insert_undo != NULL) {
 
@@ -1797,6 +1797,8 @@ trx_commit_in_memory(
 		mutex would serialize all commits and prevent a group of
 		transactions from gathering. */
 
+		lsn_t	lsn = mtr->commit_lsn();
+
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = true;
@@ -1817,7 +1819,7 @@ trx_commit_in_memory(
 	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 	trx_roll_savepoints_free(trx, savep);
 
-        if (trx->fts_trx) {
+        if (trx->fts_trx != NULL) {
                 trx_finalize_for_fts(trx, not_rollback);
         }
 
@@ -1840,15 +1842,13 @@ trx_commit_low(
 	mtr_t*	mtr)	/*!< in/out: mini-transaction (will be committed),
 			or NULL if trx made no modifications */
 {
-	lsn_t	lsn;
-
 	assert_trx_nonlocking_or_in_list(trx);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
-	ut_ad(!mtr || mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr || mtr->is_active());
 	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx && trx->undo_no != 0) {
+	if (trx->fts_trx != NULL && trx->undo_no != 0) {
 		dberr_t	error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
@@ -1872,6 +1872,8 @@ trx_commit_low(
 	bool	serialised;
 
 	if (mtr != NULL) {
+
+		mtr->set_sync();
 
 		serialised = trx_write_serialisation_history(trx, mtr);
 
@@ -1901,10 +1903,8 @@ trx_commit_low(
 					DBUG_SUICIDE();
 				});
 		/*--------------*/
-		lsn = mtr->end_lsn;
 
 	} else {
-		lsn = 0;
 		serialised = false;
 	}
 
@@ -1932,7 +1932,7 @@ trx_commit_low(
 		mutex_exit(&trx_sys->mutex);
 	}
 
-	trx_commit_in_memory(trx, lsn);
+	trx_commit_in_memory(trx, mtr);
 }
 
 /****************************************************************//**
@@ -1951,7 +1951,7 @@ trx_commit(
 
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
-		mtr_start(mtr);
+		mtr_start_sync(mtr);
 	} else {
 
 		mtr = NULL;
@@ -2506,15 +2506,13 @@ trx_prepare_low(
 					segment scheduled for prepare. */
 	bool		noredo_logging)	/*!< in: turn-off redo logging. */
 {
-	trx_rseg_t*	rseg;
-	mtr_t		mtr;
-	lsn_t		lsn = 0;
-
-	rseg = undo_ptr->rseg;
+	lsn_t		lsn;
 
 	if (undo_ptr->insert_undo != NULL || undo_ptr->update_undo != NULL) {
+		mtr_t		mtr;
+		trx_rseg_t*	rseg = undo_ptr->rseg;
 
-		mtr_start(&mtr);
+		mtr_start_sync(&mtr);
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -2548,8 +2546,11 @@ trx_prepare_low(
 		file-based world. */
 		mtr_commit(&mtr);
 		/*--------------*/
-		lsn = mtr.end_lsn;
-		ut_ad(lsn);
+
+		lsn = mtr.commit_lsn();
+		ut_ad(lsn > 0);
+	} else {
+		lsn = 0;
 	}
 
 	return(lsn);
@@ -2576,8 +2577,8 @@ trx_prepare(
 
 	DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
 
-	if (trx->rsegs.m_noredo.rseg != NULL &&
-	    trx_is_noredo_rseg_updated(trx)) {
+	if (trx->rsegs.m_noredo.rseg != NULL
+	    && trx_is_noredo_rseg_updated(trx)) {
 
 		lsn_t noredo_lsn = trx_prepare_low(
 			trx, &trx->rsegs.m_noredo, true);
@@ -2593,7 +2594,7 @@ trx_prepare(
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
 
-	if (lsn) {
+	if (lsn > 0) {
 		/* Depending on the my.cnf options, we may now write the log
 		buffer to the log files, making the prepared state of the
 		transaction durable if the OS does not crash. We may also

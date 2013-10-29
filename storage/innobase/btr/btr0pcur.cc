@@ -231,8 +231,7 @@ btr_pcur_restore_position_func(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
 	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
 	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
