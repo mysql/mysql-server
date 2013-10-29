@@ -228,7 +228,8 @@ Segment.prototype.compare = function(that) {
 };
 
 /* intersection: greatest lower bound & least upper bound 
-*/
+   TODO:  GREATER AND LOWER FUNCTIONS THAT TAKE TWO ENDPOINTS */
+
 Segment.prototype.intersection = function(that) {
   var s = null;
   var lp, hp, lcmp, hcmp;
@@ -236,8 +237,7 @@ Segment.prototype.intersection = function(that) {
   if(this.intersects(that)) {
     lcmp = this.low.compare(that.low);
     hcmp = this.high.compare(that.high);
-    if(lcmp === false) {   /* Values are equal but one is exclusive. */
-      lp = new Endpoint(this.low.value, false); 
+    if(lcmp === false) {   /* */
     }
     else if(lcmp === 1) {
       lp = this.low;
@@ -246,7 +246,7 @@ Segment.prototype.intersection = function(that) {
       lp = that.low;
     }
     if(hcmp === false) {  /* Values are equal but one is exclusive. */
-      hp = new Endpoint(this.low.value, false);      
+      hp = new Endpoint(this.high.value, false);      
     }
     else if(hcmp === 1) {
       hp = this.high;
@@ -314,7 +314,7 @@ function createSegmentForComparator(operator, value) {
     case 3:   // GT
       return new Segment(new Endpoint(value, false), posInf);
     case 4:   // EQ
-    case 5:   // NE
+    case 5:   // NE   /* DONT SHARE CODE */
       pt = new Endpoint(value);
       segment = new Segment(pt, pt);
       return (operator == 5 ? segment.complement() : segment);
@@ -731,6 +731,10 @@ function IndexColumn(resultContainer, columnBounds, nextColumn) {
    the partialBounds, and try to add the segment to it.  If the 
    segment endpoint is exclusive, we have to stop there; otherwise,
    pass the partialBounds along to the next column.
+
+// TODO: If an intermediate column is exclusive you can just turn it into an
+   inclusive point? 
+
 */
 IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
   var boundsIterator, segment, idxBounds;
@@ -821,3 +825,13 @@ function getIndexBounds(queryHandler, dbIndex, params) {
 
 exports.getIndexBounds = getIndexBounds;
 
+
+
+/* TODO: 
+    (A = 3 AND B > 6)  OR ( A = 5 AND B < 4) 
+
+  { 3,6 exc --  3 inc   }
+  { 5 inc   --  5,4 exc }
+
+  AND(A,B,C) is always a superset of AND(A,B,C,D)
+*/
