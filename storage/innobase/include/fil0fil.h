@@ -31,6 +31,7 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef UNIV_INNOCHECKSUM
 
 #include "dict0types.h"
+#include "buf0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
 #ifndef UNIV_HOTBACKUP
@@ -38,11 +39,13 @@ Created 10/25/1995 Heikki Tuuri
 #include "ibuf0types.h"
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "mem0mem.h"
 
 #include <list>
 #include <vector>
 
 // Forward declaration
+struct mtr_t;
 struct trx_t;
 class truncate_t;
 struct fil_space_t;
@@ -350,6 +353,7 @@ fil_write_flushed_lsn_to_data_files(
 /*================================*/
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no);	/*!< in: latest archived log file number */
+
 /*******************************************************************//**
 Reads the flushed lsn and tablespace flag fields from a data
 file at database startup.
