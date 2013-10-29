@@ -749,7 +749,7 @@ lock_rec_get_page_no(
 Check if there are any locks (table or rec) against table.
 @return TRUE if locks exist */
 
-ibool
+bool
 lock_table_has_locks(
 /*=================*/
 	const dict_table_t*	table);	/*!< in: check if there are any locks
