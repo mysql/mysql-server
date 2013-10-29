@@ -28,6 +28,7 @@
 #include "rpl_binlog_sender.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 
+
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
 

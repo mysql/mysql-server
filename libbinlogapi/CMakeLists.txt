@@ -1,3 +1,4 @@
+INCLUDE(configure.cmake)
 # General settings
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
@@ -20,6 +21,8 @@ endif(GTEST_FOUND)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
 )
+
+CONFIGURE_FILE(config.h.cmake   ${CMAKE_SOURCE_DIR}/libbinlogapi/include/config.h)
 
 add_subdirectory(src)
 

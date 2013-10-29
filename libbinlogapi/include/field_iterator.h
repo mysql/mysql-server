@@ -29,6 +29,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <vector>
 #include <stdexcept>
 
+using namespace binary_log;
+
 namespace binary_log {
 
 bool is_null(unsigned char *bitmap, int index);

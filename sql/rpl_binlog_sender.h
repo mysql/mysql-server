@@ -17,7 +17,6 @@
 #define DEFINED_RPL_BINLOG_SENDER
 
 #include "my_global.h"
-
 #ifdef HAVE_REPLICATION
 #include "rpl_gtid.h"
 #include "my_sys.h"
@@ -26,6 +25,7 @@
 #include "binlog.h"
 #include "log_event.h"
 
+#include "binary_log.h"
 /**
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
@@ -68,8 +68,8 @@ private:
   /* The binlog file it is reading */
   LOG_INFO m_linfo;
 
-  uint8 m_event_checksum_alg;
-  uint8 m_slave_checksum_alg;
+  enum_binlog_checksum_alg m_event_checksum_alg;
+  enum_binlog_checksum_alg m_slave_checksum_alg;
   ulonglong m_heartbeat_period;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
@@ -215,7 +215,7 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  inline int read_event(IO_CACHE *log_cache, uint8 checksum_alg,
+  inline int read_event(IO_CACHE *log_cache, enum_binlog_checksum_alg checksum_alg,
                         uchar **event_ptr, uint32 *event_len);
   /**
     It checks if the event is in m_exclude_gtid.

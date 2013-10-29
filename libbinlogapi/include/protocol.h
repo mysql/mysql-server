@@ -119,7 +119,6 @@ struct st_error_package
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
 
-class Protocol_validator;
 class buffer_source;
 
 /**

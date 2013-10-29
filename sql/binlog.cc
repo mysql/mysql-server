@@ -39,6 +39,7 @@ using std::max;
 using std::min;
 using std::string;
 using std::list;
+using binary_log::checksum_crc32;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -3480,9 +3481,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
      relay_log_checksum_alg :
      /* otherwise use slave's local preference of RL events verification */
      (opt_slave_sql_verify_checksum == 0) ?
-     (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+      BINLOG_CHECKSUM_ALG_OFF : (enum_binlog_checksum_alg)binlog_checksum_options):
     /* binlog */
-    binlog_checksum_options;
+    (enum_binlog_checksum_alg)binlog_checksum_options;
   DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
     goto err;
@@ -5730,7 +5731,7 @@ uint MYSQL_BIN_LOG::next_file_id()
   DBUG_ASSERT(length >= off + LOG_EVENT_HEADER_LEN); //at least common header in
   int2store(event_begin + FLAGS_OFFSET, flags);
   ret= length >= off + event_len ? 0 : off + event_len - length;
-  *crc= my_checksum(*crc, event_begin, event_len - ret); 
+  *crc= checksum_crc32(*crc, event_begin, event_len - ret);
   return ret;
 }
 
@@ -5833,7 +5834,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
                        (ulonglong) length, (ulonglong) group));
   hdr_offs= carry= 0;
   if (do_checksum)
-    crc= crc_0= my_checksum(0L, NULL, 0);
+    crc= crc_0= checksum_crc32(0L, NULL, 0);
 
   if (DBUG_EVALUATE_IF("fault_injection_crc_value", 1, 0))
     crc= crc - 1;
@@ -5883,7 +5884,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
       if (do_checksum)
       {
         DBUG_ASSERT(crc == crc_0 && remains == 0);
-        crc= my_checksum(crc, header, carry);
+        crc= checksum_crc32(crc, header, carry);
         remains= uint4korr(header + EVENT_LEN_OFFSET) - carry -
           BINLOG_CHECKSUM_LEN;
       }
@@ -5907,7 +5908,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 
         DBUG_ASSERT(remains != 0 && crc != crc_0);
 
-        crc= my_checksum(crc, cache->read_pos, length); 
+        crc= checksum_crc32(crc, cache->read_pos, length);
         remains -= length;
         if (my_b_write(&log_file, cache->read_pos, length))
           DBUG_RETURN(ER_ERROR_ON_WRITE);
@@ -5936,7 +5937,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
               from previous into the current buffer
             */
             DBUG_ASSERT(crc != crc_0);
-            crc= my_checksum(crc, cache->read_pos, hdr_offs);
+            crc= checksum_crc32(crc, cache->read_pos, hdr_offs);
             int4store(buf, crc);
             remains -= hdr_offs;
             DBUG_ASSERT(remains == 0);
@@ -6314,7 +6315,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
         s.checksum_alg= is_relay_log ?
-          relay_log_checksum_alg : binlog_checksum_options;
+          relay_log_checksum_alg : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);

@@ -118,7 +118,7 @@ ENDFOREACH()
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
   OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
 
-TARGET_LINK_LIBRARIES(mysqlserver binlogapi)
+TARGET_LINK_LIBRARIES(mysqlserver binlogapi_static)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)

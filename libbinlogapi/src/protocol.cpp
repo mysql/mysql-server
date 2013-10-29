@@ -26,41 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <stdint.h>
 #include <vector>
 
-using namespace binary_log;
-using namespace binary_log::system;
-using namespace std;
 namespace binary_log { namespace system {
-
-
-
-/**
-  Checks the Format Description event to determine if the master
-  has binlog checksums enabled or not.
-*/
-int check_checksum_value(binary_log::Binary_log_event **event)
-{
-
-  Format_event *fdev= static_cast<Format_event*>(*event);
-
-  uchar version_split[3];
-  do_server_version_split((fdev->master_version).c_str(), version_split);
-  if (version_product(version_split) >= checksum_version_product)
-  {
-    /*
-      Last four bytes is the check sum value which is to be removed
-      from post_header_len.
-    */
-    fdev->post_header_len.erase(fdev->post_header_len.end() -
-                                BINLOG_CHECKSUM_LEN,
-                                fdev->post_header_len.end());
-
-    // Last element in post_header_len is the checksum algorithm descriptor.
-    if ((int)fdev->post_header_len.back() ==
-        binary_log::system::BINLOG_CHECKSUM_ALG_CRC32)
-      return binary_log::ERR_CHECKSUM_ENABLED;
-  }
-  return binary_log::ERR_OK;
-}
 
 int proto_get_one_package(MYSQL *mysql, char *buff,
                            uint8_t *packet_no)

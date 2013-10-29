@@ -19,14 +19,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 */
 
 #include "binlog_event.h"
+#include "transitional_methods.h"
 #include <iostream>
 typedef unsigned long ulong;
 
+
+const unsigned char checksum_version_split[3]= {5, 6, 1};
+const unsigned long checksum_version_product=
+  (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
+  checksum_version_split[2];
+
 namespace binary_log
 {
-
-namespace system {
-
 const char *get_event_type_str(Log_event_type type)
 {
   switch(type) {
@@ -70,7 +74,42 @@ const char *get_event_type_str(Log_event_type type)
   return "No Error";
 }
 
-} // end namespace system
+/*this method was previously defined in log_event.cc */
+/**
+   The method returns the checksum algorithm used to checksum the binary log.
+   For MySQL server versions < 5.6, the algorithm is undefined. For the higher
+   versions, the type is decoded from the FORMAT_DESCRIPTION_EVENT.
+
+   @param buf buffer holding serialized FD event
+   @param len netto (possible checksum is stripped off) length of the event buf
+   @return  the version-safe checksum alg descriptor where zero
+            designates no checksum, 255 - the orginator is
+            checksum-unaware (effectively no checksum) and the actuall
+            [1-254] range alg descriptor.
+*/
+enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len)
+{
+  enum_binlog_checksum_alg ret;
+  char version[ST_SERVER_VER_LEN];
+  unsigned char version_split[3];
+#ifndef DBUG_OFF
+  assert(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+#endif
+  memcpy(version, buf +
+         buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET]
+         + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
+  version[ST_SERVER_VER_LEN - 1]= 0;
+
+  do_server_version_split(version, version_split);
+  if (version_product(version_split) < checksum_version_product)
+    ret=  BINLOG_CHECKSUM_ALG_UNDEF;
+  else
+    ret= static_cast<enum_binlog_checksum_alg>(*(buf + len - BINLOG_CHECKSUM_LEN - BINLOG_CHECKSUM_ALG_DESC_LEN));
+  assert(ret == BINLOG_CHECKSUM_ALG_OFF ||
+         ret == BINLOG_CHECKSUM_ALG_UNDEF ||
+         ret == BINLOG_CHECKSUM_ALG_CRC32);
+  return ret;
+}
 
 
 Binary_log_event::~Binary_log_event()
@@ -78,7 +117,7 @@ Binary_log_event::~Binary_log_event()
 }
 
 Binary_log_event * create_incident_event(unsigned int type,
-                                         const char *message, ulong pos)
+                                         const char *message, unsigned long pos)
 {
   Incident_event *incident= new Incident_event();
   incident->header()->type_code= INCIDENT_EVENT;
