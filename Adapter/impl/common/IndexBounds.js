@@ -80,7 +80,7 @@ function EncodedValue() {
 EncodedValue.prototype = {
   isEncodedValue : true,
   compare : function(that) {
-    console.log("EncodedValue must implement compare()");
+    //.. console.log("EncodedValue must implement compare()");
     process.exit();
   }
 };
@@ -237,7 +237,8 @@ Segment.prototype.intersection = function(that) {
   if(this.intersects(that)) {
     lcmp = this.low.compare(that.low);
     hcmp = this.high.compare(that.high);
-    if(lcmp === false) {   /* */
+    if(lcmp === false) {  /* Values are equal but one is exclusive. */
+      lp = new Endpoint(this.low.value, false);
     }
     else if(lcmp === 1) {
       lp = this.low;
@@ -589,7 +590,7 @@ ColumnBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
     for(i = 0 ; i < node.predicates.length ; i++) {
       segment = this.fetchRange(node.predicates[i]);
       line.union(segment);
-      console.log("OR",i,segment.asString(),"=>",line.asString());
+      //.. console.log("OR",i,segment.asString(),"=>",line.asString());
     }
   }  
   this.storeRange(node, line);
@@ -741,9 +742,9 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
 
   boundsIterator = this.columnBounds.getIterator();
   segment = boundsIterator.next();
-  console.log("consolidating", this.columnBounds.asString());
+  //.. console.log("consolidating", this.columnBounds.asString());
   while(segment) {
-    console.log("in loop");
+    //.. console.log("in loop");
     idxBounds = partialBounds.copy();
 
     if(doLow) {
@@ -759,13 +760,13 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
       this.nextColumn.consolidate(idxBounds, doLow, doHigh);
     }
     else {
-      console.log("pushing");
+      //.. console.log("pushing");
       this.resultContainer.push(idxBounds);
     }
 
     segment = boundsIterator.next();
   }
-  console.log("out of loop");
+  //.. console.log("out of loop");
 };
 
 
@@ -789,7 +790,7 @@ function consolidateRanges(indexName, predicate) {
 
   /* nextColumn is now the first column */  
   nextColumn.consolidate(new IndexBounds(), true, true);
-  console.log("Bounds:", stringify());
+  //.. console.log("Bounds:", stringify());
   return allBounds;
 }
 
