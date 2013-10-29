@@ -3531,7 +3531,7 @@ fil_load_single_table_tablespace(
 
 		if (check_msg) {
 			fprintf(stderr,
-				"InnoDB: Error: %s in file %s",
+				"InnoDB: Error: %s in file %s\n",
 				check_msg, filepath);
 			goto func_exit;
 		}
