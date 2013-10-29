@@ -8295,8 +8295,11 @@ bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
-  //TODO: check if this variable is still required.
-  bool need_relay_log_purge= 0;
+  /* 
+   Relay logs are purged only if both the SQL and IO threads are stopped before
+   executing CHANGE MASTER.
+  */
+  bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= false;
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
@@ -8313,26 +8316,93 @@ bool change_master(THD* thd, Master_info* mi)
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   /*
+    Traditionally, we have imposed the condition that STOP SLAVE is required
+    before CHANGE MASTER. Since, the slave threads die on STOP SLAVE, it was
+    fine if we purged relay logs. Now that we allow CHANGE MASTER with a running
+    receiver/applier thread, whenever possible, we need to make sure that the
+    relay logs are purged only if both the receiver and applier threads are
+    stopped.
+
+    The idea behind purging relay logs if both the threads are stopped is to
+    keep consistent with the old behavior. If the user/application is doing
+    a CHANGE MASTER without stopping any one thread, the relay log purge should
+    be controlled via the system variable 'relay_log_purge'.
+  */
+
+   if (thread_mask & SLAVE_SQL || thread_mask & SLAVE_IO)
+     need_relay_log_purge= 0;
+
+  /*
+    change master with master_auto_position=1 requires stopping both IO and SQL
+    threads. If any thread is running, we throw an error.
+  */
+  if (thread_mask && lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE)
+  {                                                                                                              
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    ret= true;                                                                  
+    goto err;                                                                   
+  } 
+
+  /*
    We error out if SQL thread is running and there is a CHANGE MASTER
    using RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION. 
   */
-  if (thread_mask & SLAVE_SQL && (lex_mi->relay_log_name || lex_mi->relay_log_pos || lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE || lex_mi->sql_delay != -1))
+  if (thread_mask & SLAVE_SQL &&
+      (lex_mi->relay_log_name ||
+       lex_mi->relay_log_pos ||
+       lex_mi->sql_delay != -1
+      ))
   {
-    //change the error message text.
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP),
+               MYF(0));
     ret= true;
     goto err;
   }
-  //thread_mask= SLAVE_IO;
 
   /*
-    if IO thread is running and SQL thread is stopped, we disallow everything
-    except RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION.
+    TODO: Discuss this with Sven/Luis/team.
+    If the applier is running and the slave has open temporary tables, we dont allow
+    CHANGE MASTER. 
   */
-  if (thread_mask & SLAVE_IO && (lex_mi->host || lex_mi->user || lex_mi->password || lex_mi->log_file_name || lex_mi->bind_addr || lex_mi->port || lex_mi->server_id || lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED || lex_mi->ssl_ca || lex_mi->ssl_capath || lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key || lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE) )
+  if (thread_mask & SLAVE_SQL && slave_open_temp_tables)
+  {                                                                             
+    my_message(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO,
+               ER(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO), MYF(0));                                                         
+    ret= true;                                                                  
+    goto err;                                                                   
+  }
+
+  /*
+    If IO thread is running and SQL thread is stopped, we disallow everything
+    except RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION.
+    The idea is to have a simple rule to allow the changes in applier attributes
+    when the applier module is not executing.   
+  */
+  if (thread_mask & SLAVE_IO &&
+      (lex_mi->host ||
+       lex_mi->user ||
+       lex_mi->password ||
+       lex_mi->log_file_name ||
+       lex_mi->bind_addr ||
+       lex_mi->port ||
+       lex_mi->connect_retry ||
+       lex_mi->server_id ||
+       lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+       lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+       lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+       lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+       lex_mi->ssl_key ||
+       lex_mi->ssl_cert ||
+       lex_mi->ssl_ca ||
+       lex_mi->ssl_capath ||
+       lex_mi->ssl_cipher ||
+       lex_mi->ssl_crl ||
+       lex_mi->ssl_crlpath ||
+       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE
+      ))
   {
-    //change the error message text.
-    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP), MYF(0));
+    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP),
+               MYF(0));
     ret= true;
     goto err;
   }
