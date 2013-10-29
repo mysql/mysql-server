@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <m_ctype.h>
 #include <sql_common.h>
 #include <list>
+#include <string.h>
 
 namespace binary_log {
 namespace system {
