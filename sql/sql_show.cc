@@ -522,11 +522,21 @@ ignore_db_dirs_process_additions()
   for (i= 0; i < ignore_db_dirs_array.elements; i++)
   {
     get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
-    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
+    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *)dir))
+    {
+      /* ignore duplicates from the config file */
+      if (my_hash_search(&ignore_db_dirs_hash, (uchar *)dir->str, dir->length))
+      {
+        sql_print_warning("Duplicate ignore-db-dir directory name '%.*s' "
+                          "found in the config file(s). Ignoring the duplicate.",
+                          (int) dir->length, dir->str);
+        continue;
+      }
       return true;
+    }
     ptr= my_stpnmov(ptr, dir->str, dir->length);
-    if (i + 1 < ignore_db_dirs_array.elements)
-      ptr= my_stpcpy(ptr, ",");
+    /* It's safe to always do, since the last one will be repalced with a 0 */
+    *ptr++ = ',';
 
     /*
       Set the transferred array element to NULL to avoid double free
@@ -536,6 +546,12 @@ ignore_db_dirs_process_additions()
     set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
   }
 
+  /* get back to the last comma, if there is one */
+  if (ptr > opt_ignore_db_dirs)
+  {
+    ptr--;
+    DBUG_ASSERT(*ptr == ',');
+  }
   /* make sure the string is terminated */
   DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
   *ptr= 0;
