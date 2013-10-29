@@ -589,7 +589,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
       if (unpack_blobs)
       {
         memcpy(record+keyseg->start+keyseg->bit_start,
-               (char*) &blob_ptr,sizeof(char*));
+               &blob_ptr, sizeof(char*));
         memcpy(blob_ptr,key,length);
         blob_ptr+=length;
 
