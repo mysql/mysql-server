@@ -1558,13 +1558,6 @@ IndexPurge::next() UNIV_NOTHROW
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 
-	/* We do not need to adjust for optimistic restore since
-	it was restored to supremum record and we will goto next. */
-	ut_ad(m_pcur.pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC);
-	ut_ad(m_pcur.rel_pos == BTR_PCUR_AFTER);
-	m_pcur.pos_state = BTR_PCUR_IS_POSITIONED;
-	ut_ad(btr_pcur_is_after_last_on_page(&m_pcur));
-
 	if (!btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr)) {
 
 		return(DB_END_OF_INDEX);

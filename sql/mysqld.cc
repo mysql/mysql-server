@@ -2234,7 +2234,10 @@ void my_init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,thr_server_alarm);
-  sigaddset(&set,SIGINT);
+  if (test_flags & TEST_SIGINT)
+    sigdelset(&set,SIGINT);
+  else
+    sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
