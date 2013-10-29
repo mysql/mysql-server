@@ -2544,7 +2544,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
-      sl->handle_derived(lex, DT_REINIT);
+      {
+#ifndef DBUG_OFF
+        bool res=
+#endif
+          sl->handle_derived(lex, DT_REINIT);
+        DBUG_ASSERT(res == 0);
+      }
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();

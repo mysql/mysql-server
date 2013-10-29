@@ -602,8 +602,8 @@ int
 JOIN::prepare(Item ***rref_pointer_array,
 	      TABLE_LIST *tables_init,
 	      uint wild_num, COND *conds_init, uint og_num,
-	      ORDER *order_init, ORDER *group_init,
-	      Item *having_init,
+	      ORDER *order_init, bool skip_order_by,
+              ORDER *group_init, Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select_lex_arg,
 	      SELECT_LEX_UNIT *unit_arg)
 {
@@ -717,7 +717,16 @@ JOIN::prepare(Item ***rref_pointer_array,
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   ref_pointer_array= *rref_pointer_array;
-  
+
+  /* Resolve the ORDER BY that was skipped, then remove it. */
+  if (skip_order_by && select_lex != select_lex->master_unit()->global_parameters)
+  {
+    if (setup_order(thd, (*rref_pointer_array), tables_list, fields_list,
+                    all_fields, select_lex->order_list.first))
+      DBUG_RETURN(-1);
+    select_lex->order_list.empty();
+  }
+
   if (having)
   {
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
@@ -3022,7 +3031,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       else
       {
         if ((err= join->prepare(rref_pointer_array, tables, wild_num,
-                                conds, og_num, order, group, having,
+                                conds, og_num, order, false, group, having,
                                 proc_param, select_lex, unit)))
 	{
 	  goto err;
@@ -3046,7 +3055,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     thd_proc_info(thd, "init");
     thd->lex->used_tables=0;
     if ((err= join->prepare(rref_pointer_array, tables, wild_num,
-                            conds, og_num, order, group, having, proc_param,
+                            conds, og_num, order, false, group, having, proc_param,
                             select_lex, unit)))
     {
       goto err;

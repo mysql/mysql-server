@@ -1323,8 +1323,8 @@ public:
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
-	      COND *conds, uint og_num, ORDER *order, ORDER *group,
-	      Item *having, ORDER *proc_param, SELECT_LEX *select,
+	      COND *conds, uint og_num, ORDER *order, bool skip_order_by,
+              ORDER *group, Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
   bool prepare_stage2();
   int optimize();

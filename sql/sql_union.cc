@@ -327,6 +327,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                                sl->group_list.elements,
                                can_skip_order_by ?
                                NULL : sl->order_list.first,
+                               can_skip_order_by,
                                sl->group_list.first,
                                sl->having,
                                (is_union_select ? NULL :
@@ -510,7 +511,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 		  0, 0,
                   global_parameters->order_list.elements, // og_num
                   global_parameters->order_list.first,    // order
-		  NULL, NULL, NULL,
+                  false, NULL, NULL, NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
       }

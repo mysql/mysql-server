@@ -424,7 +424,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       if (unpack_blobs)
       {
         memcpy(record+keyseg->start+keyseg->bit_start,
-               &blob_ptr,sizeof(char*));
+               &blob_ptr, sizeof(char *));
         memcpy(blob_ptr,key,length);
         blob_ptr+=length;
 
