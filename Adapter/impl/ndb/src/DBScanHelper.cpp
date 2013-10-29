@@ -193,8 +193,9 @@ Handle<Value> DBScanHelper_wrapper(const Arguments &args) {
   HandleScope scope;
   DBScanHelper * helper = new DBScanHelper(args);
   Local<Object> wrapper = dbScanHelperEnvelope.newWrapper();
-  wrapPointerInObject<DBScanHelper *>(helper, dbScanHelperEnvelope, wrapper);
-  freeFromGC<DBScanHelper *>(helper, wrapper);
+  wrapPointerInObject(helper, dbScanHelperEnvelope, wrapper);
+  // freeFromGC: Disabled as it leads to segfaults during garbage collection
+  // freeFromGC(helper, wrapper);
   return scope.Close(wrapper);
 }
 
