@@ -250,10 +250,10 @@ static ib_time_t fts_optimize_time_limit = 0;
 static	const char* fts_init_delete_sql =
 	"BEGIN\n"
 	"\n"
-	"INSERT INTO %s_BEING_DELETED\n"
+	"INSERT INTO \"%s_BEING_DELETED\"\n"
 		"SELECT doc_id FROM \"%s_DELETED\";\n"
 	"\n"
-	"INSERT INTO %s_BEING_DELETED_CACHE\n"
+	"INSERT INTO \"%s_BEING_DELETED_CACHE\"\n"
 		"SELECT doc_id FROM \"%s_DELETED_CACHE\";\n";
 
 static const char* fts_delete_doc_ids_sql =
