@@ -1241,7 +1241,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
-    return test(packet_error);
+    return MY_TEST(packet_error);
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 

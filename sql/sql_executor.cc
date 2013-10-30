@@ -1455,7 +1455,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 
   if (condition)
   {
-    found= test(condition->val_int());
+    found= MY_TEST(condition->val_int());
 
     if (join->thd->killed)
     {
@@ -1869,7 +1869,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
     DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
-    if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
+    if ((table->null_row= MY_TEST((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
   if (!table->null_row)

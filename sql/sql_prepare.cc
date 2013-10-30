@@ -1031,7 +1031,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
       typecode= sint2korr(read_pos);
       read_pos+= 2;
-      (**it).unsigned_flag= test(typecode & signed_bit);
+      (**it).unsigned_flag= MY_TEST(typecode & signed_bit);
       setup_one_conversion_function(thd, *it, (uchar) (typecode & ~signed_bit));
     }
   }
@@ -2712,7 +2712,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   DBUG_PRINT("exec_query", ("%s", stmt->query()));
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
-  open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
+  open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
   thd->protocol= &thd->protocol_binary;
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);

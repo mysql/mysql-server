@@ -1037,9 +1037,9 @@ deny:
 static bool test_if_create_new_users(THD *thd)
 {
   Security_context *sctx= thd->security_ctx;
-  bool create_new_users= test(sctx->master_access & INSERT_ACL) ||
+  bool create_new_users= MY_TEST(sctx->master_access & INSERT_ACL) ||
                          (!opt_safe_user_create &&
-                          test(sctx->master_access & CREATE_USER_ACL));
+                          MY_TEST(sctx->master_access & CREATE_USER_ACL));
   if (!create_new_users)
   {
     TABLE_LIST tl;
@@ -1269,8 +1269,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, Str,
                              0, revoke_grant, create_new_users,
-                             test(thd->variables.sql_mode &
-                                  MODE_NO_AUTO_CREATE_USER));
+                             MY_TEST(thd->variables.sql_mode &
+                                     MODE_NO_AUTO_CREATE_USER));
     if (error)
     {
       result= TRUE;                             // Remember error
@@ -1536,8 +1536,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, Str,
                              0, revoke_grant, create_new_users,
-                             test(thd->variables.sql_mode &
-                                  MODE_NO_AUTO_CREATE_USER));
+                             MY_TEST(thd->variables.sql_mode &
+                                     MODE_NO_AUTO_CREATE_USER));
     if (error)
     {
       result= TRUE;                             // Remember error
@@ -1764,8 +1764,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
  
     if (replace_user_table(thd, tables[0].table, Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
-                           test(thd->variables.sql_mode &
-                                MODE_NO_AUTO_CREATE_USER)))
+                           MY_TEST(thd->variables.sql_mode &
+                                   MODE_NO_AUTO_CREATE_USER)))
     {
       result= -1;
       is_user_applied= false;
@@ -1940,7 +1940,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   {
     TABLE_LIST *const t_ref=
       tl->correspondent_table ? tl->correspondent_table : tl;
-    sctx = test(t_ref->security_ctx) ? t_ref->security_ctx : thd->security_ctx;
+    sctx = MY_TEST(t_ref->security_ctx) ? t_ref->security_ctx : thd->security_ctx;
 
     const ACL_internal_table_access *access=
       get_cached_table_access(&t_ref->grant.m_internal,
@@ -2152,7 +2152,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *sctx= test(table_ref->security_ctx) ?
+  Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
                           table_ref->security_ctx : thd->security_ctx;
 
   if (table_ref->view || table_ref->field_translation)

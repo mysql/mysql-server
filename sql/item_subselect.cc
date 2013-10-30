@@ -3690,7 +3690,7 @@ bool subselect_hash_sj_engine::exec()
       goto err; /* purecov: inspected */
 
     materialize_engine->join->exec();
-    if ((res= test(materialize_engine->join->error || thd->is_fatal_error)))
+    if ((res= MY_TEST(materialize_engine->join->error || thd->is_fatal_error)))
       goto err;
 
     /*

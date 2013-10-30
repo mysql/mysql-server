@@ -799,7 +799,7 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex, test(order));
+  init_ftfuncs(thd, select_lex, MY_TEST(order));
 
   DBUG_VOID_RETURN;
 }
@@ -887,7 +887,7 @@ bool JOIN::destroy()
   sjm_exec_list.empty();
 
   keyuse_array.clear();
-  DBUG_RETURN(test(error));
+  DBUG_RETURN(MY_TEST(error));
 }
 
 
@@ -1651,7 +1651,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     for (uint part_no= 0 ; part_no < keyparts ; part_no++)
     {
       keyuse= chosen_keyuses[part_no];
-      uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
+      uint maybe_null= MY_TEST(keyinfo->key_part[part_no].null_bit);
 
       if (keyuse->val->type() == Item::FIELD_ITEM)
       {
@@ -1885,7 +1885,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
           new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -1914,7 +1914,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         if (!fix)
           return NULL;
         new_cond->argument_list()->push_back(fix);
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -2728,7 +2728,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  const bool statistics= MY_TEST(!(join->select_options & SELECT_DESCRIBE));
 
   DBUG_ENTER("make_join_readinfo");
 
@@ -4461,7 +4461,7 @@ test_if_subpart(ORDER *a,ORDER *b)
     else
       return 0;
   }
-  return test(!b);
+  return MY_TEST(!b);
 }
 
 /**
@@ -5218,7 +5218,7 @@ bool JOIN::make_tmp_tables_info()
         or end_write_group()) if JOIN::group is set to false.
       */
       // the temporary table was explicitly requested
-      DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+      DBUG_ASSERT(MY_TEST(select_options & OPTION_BUFFER_RESULT));
       // the temporary table does not have a grouping expression
       DBUG_ASSERT(!join_tab[curr_tmp_table].table->group); 
     }

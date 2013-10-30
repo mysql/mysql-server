@@ -3870,7 +3870,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  with length (unlike blobs, where ft code takes data length from a
 	  data prefix, ignoring column->length).
 	*/
-	column->length=test(f_is_blob(sql_field->pack_flag));
+	column->length= MY_TEST(f_is_blob(sql_field->pack_flag));
       }
       else
       {
@@ -7239,7 +7239,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
-                   test(key_info->flags & HA_GENERATED_KEY),
+                   MY_TEST(key_info->flags & HA_GENERATED_KEY),
                    key_parts);
       new_key_list.push_back(key);
     }
@@ -9281,7 +9281,7 @@ static bool check_engine(THD *thd, const char *db_name,
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
-        test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+        MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);
