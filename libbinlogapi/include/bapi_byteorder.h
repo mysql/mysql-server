@@ -16,6 +16,10 @@
 #ifndef BAPI_BYTEORDER_H
 #define BAPI_BYTEORDER_H
 
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE
+#endif
+
 #include "libbinlogapi_config.h"
 
 /*
@@ -45,13 +49,11 @@
  * Checking le16toh is required because the machine may have the header
  * but the functions might not be defined if the version of glibc < 2.9
  */
-  #ifndef _BSD_SOURCE
-    #define _BSD_SOURCE
-  #endif
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
-#endif
+#else
 #ifndef HAVE_LE16TOH
+dfaf
 uint16_t inline le16toh(uint16_t x)
 {
   #ifndef IS_BIG_ENDIAN
@@ -75,7 +77,7 @@ uint32_t inline le32toh(uint32_t x)
   #endif
 }
 #endif
-
+#endif
 #define do_compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \
