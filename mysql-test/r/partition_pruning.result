@@ -4557,13 +4557,13 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 8))
 explain extended select * from t2 where b > 5 and b < 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 7))
 explain partitions select * from t2 where b > 5 and b < 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using index condition
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 7))
