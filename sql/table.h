@@ -1916,7 +1916,6 @@ public:
                           TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);
   void hide_view_error(THD *thd);
-  TABLE_LIST *find_underlying_table(TABLE *table);
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
@@ -2069,6 +2068,22 @@ public:
     if (embedding->sj_on_expr)
       return embedding->embedding;
     return embedding;
+  }
+  /**
+    Return the base table entry of an updatable view (or table).
+    In DELETE, UPDATE and LOAD, a view used as a target table must be mergeable,
+    updatable and defined over a single table.
+  */
+  TABLE_LIST *updatable_base_table()
+  {
+    TABLE_LIST *tbl= this;
+    DBUG_ASSERT(tbl->updatable && !tbl->multitable_view);
+    while (tbl->view)
+    {
+      tbl= tbl->merge_underlying_list;
+      DBUG_ASSERT(tbl->updatable && !tbl->multitable_view);
+    }
+    return tbl;
   }
 
 private:
