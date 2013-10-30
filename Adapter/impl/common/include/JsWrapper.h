@@ -135,6 +135,16 @@ void wrapPointerInObject(PTR ptr,
   obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
 
+/* Specializations for non-pointers reduce gcc warnings */
+template <> inline void wrapPointerInObject(int, Envelope &, Local<Object>) {
+  assert(0);
+}
+template <> inline void wrapPointerInObject(size_t, Envelope &, Local<Object>) {
+  assert(0);
+}
+template <> inline void wrapPointerInObject(unsigned, Envelope &, Local<Object>) {
+  assert(0);
+}
 
 /*****************************************************************
  Unwrap a native pointer from a JavaScript object
