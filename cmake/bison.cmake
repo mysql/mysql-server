@@ -49,6 +49,17 @@ MACRO (RUN_BISON input_yy output_cc output_h input_cc input_h)
     ENDIF()
   ENDIF()
   IF(BISON_USABLE)
+# MCP_BUG16877045 -->
+    # When using bison, make sure that output files distributed
+    # with source is not present so that the bison generated
+    # files will be used for sure.
+    IF(EXISTS ${output_cc})
+      FILE(RENAME ${output_cc} ${output_cc}.dist)
+    ENDIF()
+    IF(EXISTS ${output_h})
+      FILE(RENAME ${output_h} ${output_h}.dist)
+    ENDIF()
+# MCP_BUG16877045 <--
     ADD_CUSTOM_COMMAND(
       OUTPUT ${output_cc}
              ${output_h}
