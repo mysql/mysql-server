@@ -13,10 +13,10 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef BYTEORDER_H
-#define BYTEORDER_H
+#ifndef BAPI_BYTEORDER_H
+#define BAPI_BYTEORDER_H
 
-#include "bapi_config.h"
+#include "libbinlogapi_config.h"
 
 /*
  * Define types uint_t typedefs if stdint is not present
@@ -81,4 +81,4 @@ uint32_t inline le32toh(uint32_t x)
   {                                                                         \
     typedef char do_compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
-#endif // BYTEORDER_H
+#endif // BAPI_BYTEORDER_H

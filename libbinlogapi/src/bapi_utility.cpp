@@ -15,6 +15,7 @@
 
 
 #include "binlog_event.h"
+#include "bapi_byteorder.h"
 #include <algorithm>
 
 using std::min;

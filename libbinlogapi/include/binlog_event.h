@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  *The header contains functions macros for reading and storing in
  *machine independent format (low byte first).
  */
-#include "byteorder.h"
+#include "bapi_byteorder.h"
 #include "cassert"
 #include <zlib.h> //for checksum calculations
 #include "m_string.h"//for strmov used in Format_description_event's constructor
