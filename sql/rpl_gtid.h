@@ -760,6 +760,10 @@ struct Gtid
 
   /// Set both components to 0.
   void clear() { sidno= 0; gno= 0; }
+  // Set both components to input values.
+  void set(rpl_sidno sno, rpl_gno gtidno) { sidno= sno; gno= gtidno; }
+  // check if both components are zero or not.
+  bool empty() const { return (sidno == 0) && (gno == 0); }
   /**
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
@@ -929,6 +933,16 @@ public:
   */
   enum_return_status _add_gtid(const Gtid &gtid)
   { return _add_gtid(gtid.sidno, gtid.gno); }
+  /**
+    Removes the given GTID from this Gtid_set.
+
+    @param gtid Gtid to remove.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+   */
+  enum_return_status _remove_gtid(const Gtid &gtid)
+  {
+    return _remove_gtid(gtid.sidno, gtid.gno);
+  }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
 
