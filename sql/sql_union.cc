@@ -271,7 +271,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   bool is_union_select;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
-  describe= test(additional_options & SELECT_DESCRIBE);
+  describe= MY_TEST(additional_options & SELECT_DESCRIBE);
 
   /*
     result object should be reassigned even if preparing already done for
@@ -462,7 +462,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (global_parameters->ftfunc_list->elements)
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
-    if (union_result->create_result_table(thd, &types, test(union_distinct),
+    if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", FALSE, TRUE))
       goto err;
     memset(&result_table_list, 0, sizeof(result_table_list));

@@ -3305,8 +3305,8 @@ public:
   }
   inline bool is_strict_mode() const
   {
-    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                      MODE_STRICT_ALL_TABLES));
+    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                         MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -4781,7 +4781,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
-  bool is_derived_table() const { return test(sel); }
+  bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
     db.str= db_name; db.length= (uint) strlen(db_name);

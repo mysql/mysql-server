@@ -1218,7 +1218,7 @@ public:
   }
   bool requires_prelocking()
   {
-    return test(query_tables_own_last);
+    return MY_TEST(query_tables_own_last);
   }
   void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
   {
