@@ -495,7 +495,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
   checkpoint_seqno= ptr_g->checkpoint_seqno;
   group_relay_log_pos= ev->future_event_relay_log_pos;
-  group_master_log_pos= ev->log_pos;
+  group_master_log_pos= ev->common_header->log_pos;
 
   /*
     Directly accessing c_rli->get_group_master_log_name() does not
@@ -1619,7 +1619,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 {
   THD *thd= rli->info_thd;
   int ret= -1;
-  ulong ev_size= ((Log_event*) (job_item->data))->data_written;
+  ulong ev_size= ((Log_event*) (job_item->data))->common_header->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
@@ -1814,8 +1814,8 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   thd->server_id = ev->server_id;
   thd->set_time();
   thd->lex->set_current_select(0);
-  if (!ev->when.tv_sec)
-    ev->when.tv_sec= my_time(0);
+  if (!ev->common_header->when.tv_sec)
+    ev->common_header->when.tv_sec= my_time(0);
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
   ev->worker= worker;
 
@@ -1866,7 +1866,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
 
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
-  worker->set_master_log_pos(ev->log_pos);
+  worker->set_master_log_pos(ev->common_header->log_pos);
   worker->set_gaq_index(ev->mts_group_idx);
   error= ev->do_apply_event_worker(worker);
 
@@ -1914,7 +1914,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   mysql_mutex_lock(&rli->pending_jobs_lock);
 
   rli->pending_jobs--;
-  rli->mts_pending_jobs_size -= ev->data_written;
+  rli->mts_pending_jobs_size -= ev->common_header->data_written;
   DBUG_ASSERT(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
 
   /*

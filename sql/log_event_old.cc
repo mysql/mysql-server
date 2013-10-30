@@ -193,7 +193,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    ev_thd->set_time(&ev->when);
+    ev_thd->set_time(&ev->common_header->when);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1315,11 +1315,11 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 #endif
 
 
-Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
-                                       Log_event_type event_type,
-                                       const Format_description_log_event
-                                       *description_event)
-  : Log_event(buf, description_event),
+Old_rows_log_event::
+Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
+                   const Format_description_log_event *description_event,
+                   Log_event_header *header)
+  : Log_event(header),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -1634,7 +1634,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time(&when);
+    thd->set_time(&(common_header->when));
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1891,7 +1891,7 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       Step the group log position if we are not in a transaction,
       otherwise increase the event log position.
      */
-    rli->stmt_done(log_pos);
+    rli->stmt_done(common_header->log_pos);
     /*
       Clear any errors in thd->net.last_err*. It is not known if this is
       needed or not. It is believed that any errors that may exist in
@@ -2571,12 +2571,12 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Write_rows_log_event_old::Write_rows_log_event_old(const char *buf,
-                                                   uint event_len,
-                                                   const Format_description_log_event
-                                                   *description_event)
+Write_rows_log_event_old::
+Write_rows_log_event_old(const char *buf, uint event_len,
+                         const Format_description_log_event *description_event,
+                         Log_event_header *header)
 : Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT,
-                     description_event)
+                     description_event, header)
 {
 }
 #endif
@@ -2704,12 +2704,12 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Delete_rows_log_event_old::Delete_rows_log_event_old(const char *buf,
-                                                     uint event_len,
-                                                     const Format_description_log_event
-                                                     *description_event)
+Delete_rows_log_event_old::
+Delete_rows_log_event_old(const char *buf, uint event_len,
+                          const Format_description_log_event *description_event,
+                          Log_event_header *header)
   : Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
-                       description_event),
+                       description_event, header),
     m_after_image(NULL), m_memory(NULL)
 {
 }
@@ -2809,13 +2809,12 @@ Update_rows_log_event_old::Update_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Update_rows_log_event_old::Update_rows_log_event_old(const char *buf,
-                                                     uint event_len,
-                                                     const
-                                                     Format_description_log_event
-                                                     *description_event)
+Update_rows_log_event_old::
+Update_rows_log_event_old(const char *buf, uint event_len,
+                          const Format_description_log_event
+                          *description_event, Log_event_header *header)
   : Old_rows_log_event(buf, event_len, PRE_GA_UPDATE_ROWS_EVENT,
-                       description_event),
+                       description_event, header),
     m_after_image(NULL), m_memory(NULL)
 {
 }

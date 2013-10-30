@@ -24,8 +24,8 @@ MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # First, decide about build type (debug or release)
-# If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE, 
-# respect user wishes and do not (re)define CMAKE_BUILD_TYPE. If WITH_DEBUG{_FULL} 
+# If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE,
+# respect user wishes and do not (re)define CMAKE_BUILD_TYPE. If WITH_DEBUG{_FULL}
 # is given, set CMAKE_BUILD_TYPE = Debug. Otherwise, use Relwithdebinfo.
 
 
@@ -40,12 +40,12 @@ OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 # default being a community build. This does not impact the feature
 # set that will be compiled in; it's merely provided as a hint to
 # custom packaging steps.
-OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
+OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON)
 
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
-IF(NOT DEFINED MANUFACTURER) 
+IF(NOT DEFINED MANUFACTURER)
   SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
@@ -62,9 +62,9 @@ ENDIF()
 MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
-# which turns out to be not trivial, as this involves synchronization 
+# which turns out to be not trivial, as this involves synchronization
 # between CMAKE_BUILD_TYPE and WITH_DEBUG. Besides, we have to deal with cases
-# where WITH_DEBUG is  reset from ON to OFF  and here we need to reset 
+# where WITH_DEBUG is  reset from ON to OFF  and here we need to reset
 # CMAKE_BUILD_TYPE to either none or default RelWithDebInfo
 
 SET(BUILDTYPE_DOCSTRING
@@ -81,8 +81,8 @@ IF(WITH_DEBUG)
   SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
       "MySQL maintainer-specific development environment")
   IF(UNIX AND NOT APPLE)
-    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
-    # Predefine it to ON, in case user chooses to build embedded. 
+    # Compiling with PIC speeds up embedded build, on PIC sensitive systems
+    # Predefine it to ON, in case user chooses to build embedded.
     SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
   ENDIF()
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
@@ -90,7 +90,7 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   IF(CUSTOM_C_FLAGS)
     SET(CMAKE_BUILD_TYPE "" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   ELSE(CMAKE_BUILD_TYPE MATCHES "Debug" OR NOT HAVE_CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING 
+    SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
        ${BUILDTYPE_DOCSTRING} FORCE)
   ENDIF()
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
@@ -149,7 +149,7 @@ IF(UNIX)
 ELSE()
   OPTION(WITH_INNODB_MEMCACHED "" OFF)
 ENDIF()
- 
+
 # Following autotools tradition, add preprocessor definitions
 # specified in environment variable CPPFLAGS
 IF(DEFINED ENV{CPPFLAGS})
@@ -204,7 +204,7 @@ INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 
 # Handle options
-OPTION(DISABLE_SHARED 
+OPTION(DISABLE_SHARED
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
   SET(WITHOUT_DYNAMIC_PLUGINS 1)
@@ -297,12 +297,12 @@ IF (WITH_ASAN)
 ENDIF()
 
 
-OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
-IF(ENABLE_DEBUG_SYNC) 
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
-ENDIF() 
- 
+OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON)
+IF(ENABLE_DEBUG_SYNC)
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
+ENDIF()
+
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
@@ -354,7 +354,7 @@ SET(WITH_TEST_TRACE_PLUGIN 0)
 ENDIF()
 
 IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
-  MESSAGE(SEND_ERROR 
+  MESSAGE(SEND_ERROR
           "Test trace plugin was selected but it can be included only in debug binaries.
           Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
@@ -362,22 +362,22 @@ ENDIF()
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
+    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE}
      "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
     IF(WITH_FAST_MUTEXES)
-      SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
+      SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE}
         "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DMY_PTHREAD_FASTMUTEX=1")
     ENDIF()
   ENDFOREACH()
 ENDFOREACH()
 
 IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
+    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio"
+    AND NOT CMAKE_GENERATOR MATCHES "Xcode")
     # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects 
-    # without build type too, unless user specifically requests DBUG. 
+    # or if custom C flags are set. In VS and Xcode for non-Debug configurations
+    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects
+    # without build type too, unless user specifically requests DBUG.
     IF(NOT CMAKE_C_FLAGS MATCHES "-DDBUG_ON")
       ADD_DEFINITIONS(-DDBUG_OFF)
     ENDIF()
@@ -508,7 +508,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(sql)
   ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
-  IF(WITH_EMBEDDED_SERVER) 
+  IF(WITH_EMBEDDED_SERVER)
    ADD_SUBDIRECTORY(libmysqld)
    ADD_SUBDIRECTORY(libmysqld/examples)
   ENDIF(WITH_EMBEDDED_SERVER)
@@ -556,7 +556,7 @@ IF(WIN32)
   SET(CPACK_GENERATOR "ZIP")
 ELSE()
   SET(CPACK_GENERATOR "TGZ")
-ENDIF() 
+ENDIF()
 ADD_SUBDIRECTORY(packaging/WiX)
 ADD_SUBDIRECTORY(packaging/solaris)
 
@@ -571,8 +571,8 @@ ENDIF()
 # RPM installs documentation directly from the source tree
 #
 IF(NOT INSTALL_LAYOUT MATCHES "RPM")
-  INSTALL(FILES COPYING LICENSE.mysql 
-  DESTINATION ${INSTALL_DOCREADMEDIR} 
+  INSTALL(FILES COPYING LICENSE.mysql
+  DESTINATION ${INSTALL_DOCREADMEDIR}
   COMPONENT Readme
   OPTIONAL
   )

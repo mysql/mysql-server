@@ -4581,7 +4581,7 @@ int mysqld_main(int argc, char **argv)
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
-          mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
+          mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
 
           if (flush_io_cache(mysql_bin_log.get_log_file()) ||
               mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
