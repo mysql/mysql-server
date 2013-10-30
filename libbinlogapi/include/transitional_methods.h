@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #ifndef _TRANSITIONAL_METHODS_H
 #define _TRANSITIONAL_METHODS_H
+#include <cstdlib>
 #include <cstring>
 #ifdef min //definition of min() and max() in std and libmysqlclient
            //can be/are different

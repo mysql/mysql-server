@@ -22,6 +22,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
 )
 
+find_package(ZLIB REQUIRED)
+if (ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+endif(ZLIB_FOUND) 
+
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_SOURCE_DIR}/libbinlogapi/include/config.h)
 
 add_subdirectory(src)

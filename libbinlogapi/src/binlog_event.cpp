@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include "binlog_event.h"
 #include "transitional_methods.h"
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 typedef unsigned long ulong;
 

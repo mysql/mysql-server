@@ -7,11 +7,13 @@ set(replication_sources
 
 # Configure for building static library
 add_library(binlogapi_static STATIC ${replication_sources})
+target_link_libraries(binlogapi_static ${ZLIB_LIBRARIES})
 set_target_properties(binlogapi_static PROPERTIES
   OUTPUT_NAME "binlogapi")
 
 # Configure for building shared library
 add_library(binlogapi_shared SHARED ${replication_sources})
+target_link_libraries(binlogapi_shared ${ZLIB_LIBRARIES})
 set_target_properties(binlogapi_shared PROPERTIES
  OUTPUT_NAME "binlogapi")
 
