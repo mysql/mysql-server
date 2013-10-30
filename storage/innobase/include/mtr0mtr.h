@@ -148,7 +148,7 @@ struct mtr_memo_slot_t {
 	void*		object;
 
 	/** type of the stored object (MTR_MEMO_S_LOCK, ...) */
-	mtr_memo_type_t	type;
+	ulint		type;
 };
 
 /** Mini-transaction handle and buffer */
