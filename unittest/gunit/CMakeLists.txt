@@ -281,6 +281,7 @@ SET(SERVER_TESTS
   make_sortkey
   my_decimal
   opt_range
+  opt_ref
   opt_trace
   segfault
   sql_table
