@@ -327,6 +327,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               prefix_rowcount *
               table->file->index_only_read_time(key, tmp_fanout);
           }
+          else if (key == table->s->primary_key &&
+                   table->file->primary_key_is_clustered())
+          {
+            cur_read_cost= prefix_rowcount *
+              table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+          }
           else
             cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
         }
@@ -505,6 +511,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           // we can use only index tree
           cur_read_cost= prefix_rowcount *
             table->file->index_only_read_time(key, tmp_fanout);
+        }
+        else if (key == table->s->primary_key &&
+                 table->file->primary_key_is_clustered())
+        {
+          cur_read_cost= prefix_rowcount *
+            table->file->read_time(key, 1, (ha_rows)tmp_fanout);
         }
         else
           cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
