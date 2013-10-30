@@ -206,6 +206,7 @@
 /* 632 used for CFG_DB_NO_REDOLOG_PARTS */
 
 #define CFG_DB_AT_RESTART_SKIP_INDEXES   633
+#define CFG_DB_AT_RESTART_SKIP_FKS       634
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
