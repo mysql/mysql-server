@@ -3846,14 +3846,12 @@ void TABLE_LIST::set_underlying_merge()
 
     if (!multitable_view)
     {
-      table= merge_underlying_list->table;
       /*
         If underlying view is not updatable and current view
         is a single table view
       */
       if (!merge_underlying_list->updatable)
         updatable= false;
-      schema_table= merge_underlying_list->schema_table;
     }
   }
 }
@@ -4193,34 +4191,6 @@ void TABLE_LIST::hide_view_error(THD *thd)
   }
 }
 
-
-/*
-  Find underlying base tables (TABLE_LIST) which represent given
-  table_to_find (TABLE)
-
-  SYNOPSIS
-    TABLE_LIST::find_underlying_table()
-    table_to_find table to find
-
-  RETURN
-    0  table is not found
-    found table reference
-*/
-
-TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
-{
-  /* is this real table and table which we are looking for? */
-  if (table == table_to_find && merge_underlying_list == 0)
-    return this;
-
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-  {
-    TABLE_LIST *result;
-    if ((result= tbl->find_underlying_table(table_to_find)))
-      return result;
-  }
-  return 0;
-}
 
 /*
   cleanup items belonged to view fields translation table

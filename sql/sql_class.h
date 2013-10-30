@@ -4861,17 +4861,26 @@ public:
 
 class multi_delete :public select_result_interceptor
 {
-  TABLE_LIST *delete_tables, *table_being_deleted;
+  TABLE_LIST *delete_tables;
+  /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
+  /// Pointers to table objects matching tempfiles
+  TABLE **tables;
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
+  /// Map of all tables to delete rows from
+  table_map delete_table_map;
+  /// Map of tables to delete from immediately
+  table_map delete_immediate;
+  // Map of transactional tables to be deleted from
+  table_map transactional_table_map;
+  /// Map of non-transactional tables to be deleted from
+  table_map non_transactional_table_map;
+  /// True if some delete operation has been performed (immediate or delayed)
   bool do_delete;
-  /* True if at least one table we delete from is transactional */
-  bool transactional_tables;
-  /* True if at least one table we delete from is not transactional */
-  bool normal_tables;
-  bool delete_while_scanning;
+  /// True if some actual delete operation against non-transactional table done
+  bool non_transactional_deleted;
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.

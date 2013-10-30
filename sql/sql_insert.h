@@ -22,7 +22,8 @@
 /* Instead of including sql_lex.h we add this typedef here */
 typedef List<Item> List_item;
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
+bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+                          TABLE_LIST **insert_table_ref,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,

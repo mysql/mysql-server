@@ -61,7 +61,6 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	update	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	delete	NULL
 show status like 'performance_schema_%';
 Variable_name	Value

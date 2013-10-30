@@ -118,7 +118,8 @@ bool mysql_union_prepare_and_optimize(THD *thd, LEX *lex,
     }
     else
     {
-      SELECT_LEX *first= unit->first_select();
+      SELECT_LEX *const first= unit->first_select();
+      SELECT_LEX *const select_save= thd->lex->current_select();
       bool free_join= false; // It's ignored for EXPLAIN
       thd->lex->set_current_select(first);
       unit->set_limit(unit->global_parameters());
@@ -133,6 +134,7 @@ bool mysql_union_prepare_and_optimize(THD *thd, LEX *lex,
                            union_options),
                         result, unit, first, &free_join))
         return true;
+      thd->lex->set_current_select(select_save);
       unit->optimized= true;
     }
   }

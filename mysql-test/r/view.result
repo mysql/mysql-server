@@ -469,6 +469,8 @@ update v2 set x=x+1;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
+delete from v2 limit 1;
+ERROR HY000: The target table v2 of the DELETE is not updatable
 set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;

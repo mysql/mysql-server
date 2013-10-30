@@ -1117,18 +1117,18 @@ bool Explain_join::explain_modify_flags()
       fmt->entry()->mod_type= MT_UPDATE;
     break;
   case SQLCOM_DELETE_MULTI:
+    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
+         at;
+         at= at->next_local)
     {
-      TABLE_LIST *aux_tables= query_plan->get_lex()->auxiliary_table_list.first;
-      for (TABLE_LIST *at= aux_tables; at; at= at->next_local)
+      if (at->correspondent_table->updatable &&
+          at->correspondent_table->updatable_base_table()->table == table)
       {
-        if (at->table == table)
-        {
-          fmt->entry()->mod_type= MT_DELETE;
-          break;
-        }
+        fmt->entry()->mod_type= MT_DELETE;
+        break;
       }
-      break;
     }
+    break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->leaf_tables_insert->table)
       fmt->entry()->mod_type= MT_INSERT;
