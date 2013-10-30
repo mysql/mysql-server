@@ -4718,6 +4718,7 @@ NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl, bool ignoreFKs)
 
   if (!ignoreFKs)
   {
+    /* prevent dropping index if used by a FK */
     for (unsigned i = 0; i < list.count; i++)
     {
       const List::Element& element = list.elements[i];
