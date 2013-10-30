@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */
+
+    /* Reinitialize closed fd, so they won't be closed again. */
+    from_file= -1;
+    to_file= -1;
 
     /* Copy modes if possible */
 
