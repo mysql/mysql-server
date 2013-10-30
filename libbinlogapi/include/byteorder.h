@@ -46,6 +46,9 @@
  * but the functions might not be defined if the version of glibc < 2.9
  */
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
+  #ifndef _BSD_SOURCE
+    #define _BSD_SOURCE
+  #endif
   #include <endian.h>
 #endif
 #ifndef HAVE_LE16TOH
