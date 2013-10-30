@@ -18,7 +18,7 @@ set_target_properties(binlogapi_shared PROPERTIES
  OUTPUT_NAME "binlogapi")
 
 install(TARGETS binlogapi_shared
-        LIBRARY DESTINATION ${PROJECT_BINARY_DIR}/libbinlogapi/lib
+        LIBRARY DESTINATION libbinlogapi/lib
         ARCHIVE DESTINATION ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
 install(TARGETS binlogapi_static
-        ARCHIVE DESTINATION ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
+        ARCHIVE DESTINATION libbinlogapi/lib)
