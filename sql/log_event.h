@@ -62,6 +62,7 @@ extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 #include "binary_log.h"
+using  binary_log::Binary_log_event;
 /* Forward declarations */
 class String;
 typedef ulonglong sql_mode_t;
@@ -831,7 +832,9 @@ typedef struct st_print_event_info
   - Strings are stored in various formats.  The format of each string
   is documented separately.
 */
-class Log_event
+
+//TODO the dependency on Binary_log_event will be removed in future 
+class Log_event : public Binary_log_event
 {
 public:
   /**
@@ -915,34 +918,12 @@ public:
   typedef unsigned char Byte;
 
   /*
-    The offset in the log where this event originally appeared (it is
-    preserved in relay logs, making SHOW SLAVE STATUS able to print
-    coordinates of the event in the master's binlog). Note: when a
-    transaction is written by the master to its binlog (wrapped in
-    BEGIN/COMMIT) the log_pos of all the queries it contains is the
-    one of the BEGIN (this way, when one does SHOW SLAVE STATUS it
-    sees the offset of the BEGIN, which is logical as rollback may
-    occur), except the COMMIT query which has its real offset.
-  */
-  my_off_t log_pos;
-  /*
      A temp buffer for read_log_event; it is later analysed according to the
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
-  /*
-    Timestamp on the master(for debugging and replication of
-    NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
-    INFILE. This is set at the event's creation time, except for Query
-    and Load (et al.) events where this is set at the query's
-    execution time, which guarantees good replication (otherwise, we
-    could have a query and its event with different timestamps).
-  */
-  struct timeval when;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
-  /* Number of bytes written by write() function */
-  ulong data_written;
 
   /*
     The master's server id (is preserved in the relay log; used to
@@ -950,19 +931,6 @@ public:
   */
   uint32 server_id;
 
-  /*
-    The server id read from the Binlog.  server_id above has
-    lowest bits of this only according to the value of
-    opt_server_id_bits
-  */
-  uint32 unmasked_server_id;
-
-  /**
-    Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
-    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
-    LOG_EVENT_SUPPRESS_USE_F for notes.
-  */
-  uint16 flags;
   
   /**
     A storage to cache the global system variable's value.
@@ -981,12 +949,10 @@ public:
     to disk.
   */
   enum_event_logging_type event_logging_type;
-
   /**
     Placeholder for event checksum while writing to binlog.
   */
   ha_checksum crc;
-
   /**
     Index in @c rli->gaq array to indicate a group that this event is
     purging. The index is set by Coordinator to a group terminator
@@ -994,7 +960,12 @@ public:
     data represent the Worker progress status.
   */
   ulong mts_group_idx;
+  /**
+   The Log_event_header class contains the variable present
+   in the common header
+  */
 
+  binary_log::Log_event_header *common_header;
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
     Additionally the member serves to tag deferred (IRU) events to avoid
@@ -1091,9 +1062,11 @@ public:
 #else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
-  : temp_buf(0), flags(0), event_cache_type(cache_type_arg),
+  : temp_buf(0),  event_cache_type(cache_type_arg),
     event_logging_type(logging_type_arg)
-  { }
+  {
+    common_header= new Log_event_header();
+  }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -1150,25 +1123,26 @@ public:
   { return 0; }
   inline time_t get_time()
   {
-    if (!when.tv_sec && !when.tv_usec) /* Not previously initialized */
+    /* Not previously initialized */
+    if (!common_header->when.tv_sec && !common_header->when.tv_usec)
     {
       THD *tmp_thd= thd ? thd : current_thd;
       if (tmp_thd)
-        when= tmp_thd->start_time;
+        common_header->when= tmp_thd->start_time;
       else
-        my_micro_time_to_timeval(my_micro_time(), &when);
+        my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
     }
-    return (time_t) when.tv_sec;
+    return (time_t) common_header->when.tv_sec;
   }
 #endif
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
-  void set_artificial_event() { flags |= LOG_EVENT_ARTIFICIAL_F; }
-  void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
-  bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
-  bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
-  bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
-  bool is_no_filter_event() const { return flags & LOG_EVENT_NO_FILTER_F; }
+  void set_artificial_event() { common_header->flags |= LOG_EVENT_ARTIFICIAL_F; }
+  void set_relay_log_event() { common_header->flags |= LOG_EVENT_RELAY_LOG_F; }
+  bool is_artificial_event() const { return common_header->flags & LOG_EVENT_ARTIFICIAL_F; }
+  bool is_relay_log_event() const { return common_header->flags & LOG_EVENT_RELAY_LOG_F; }
+  bool is_ignorable_event() const { return common_header->flags & LOG_EVENT_IGNORABLE_F; }
+  bool is_no_filter_event() const { return common_header->flags & LOG_EVENT_NO_FILTER_F; }
   inline bool is_using_trans_cache() const
   {
     return (event_cache_type == EVENT_TRANSACTIONAL_CACHE);
@@ -1181,8 +1155,7 @@ public:
   {
     return(event_logging_type == EVENT_IMMEDIATE_LOGGING);
   }
-  Log_event(const char* buf, const Format_description_log_event
-            *description_event);
+  Log_event(Log_event_header *header);
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
@@ -1289,10 +1262,10 @@ private:
                                                    bool mts_in_group)
   {
     if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
-         ((server_id == (uint32) ::server_id) || (log_pos == 0))) ||
+         ((server_id == (uint32) ::server_id) || (common_header->log_pos == 0))) ||
         (get_type_code() == ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
-          (log_pos == 0    /* very first fake Rotate (R_f) */
+          (common_header->log_pos == 0    /* very first fake Rotate (R_f) */
            && mts_in_group /* ignored event turned into R_f at slave stop */))))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec())
@@ -1333,7 +1306,7 @@ private:
                 get_type_code() == QUERY_EVENT ||
                 get_type_code() == EXEC_LOAD_EVENT ||
                 get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
-    flags |= LOG_EVENT_MTS_ISOLATE_F;
+    common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
 
@@ -1356,7 +1329,8 @@ public:
                   execute in isolation from other Workers,
             FASE  otherwise
   */
-  bool is_mts_group_isolated() { return flags & LOG_EVENT_MTS_ISOLATE_F; }
+  bool is_mts_group_isolated() { return common_header->flags &
+                                        LOG_EVENT_MTS_ISOLATE_F; }
 
   /**
      Events of a certain type can start or end a group of events treated
@@ -2054,7 +2028,8 @@ public:
   Query_log_event();
   Query_log_event(const char* buf, uint event_len,
                   const Format_description_log_event *description_event,
-                  Log_event_type event_type);
+                  Log_event_type event_type,
+                  Log_event_header *header);
   ~Query_log_event()
   {
     if (data_buf)
@@ -2332,7 +2307,8 @@ private:
 protected:
   int copy_log_event(const char *buf, ulong event_len,
                      int body_offset,
-                     const Format_description_log_event* description_event);
+                     const Format_description_log_event* description_event,
+                     Log_event_header *header);
 
 public:
   uint get_query_buffer_length();
@@ -2412,7 +2388,8 @@ public:
     for the common_header_len (post_header_len will not be changed).
   */
   Load_log_event(const char* buf, uint event_len,
-                 const Format_description_log_event* description_event);
+                 const Format_description_log_event* description_event,
+                 Log_event_header *header);
   ~Load_log_event()
   {}
   Log_event_type get_type_code()
@@ -2443,7 +2420,6 @@ public:        /* !!! Public in this patch to allow old usage */
 #endif
 };
 
-extern char server_version[SERVER_VERSION_LENGTH];
 
 /**
   @class Start_log_event_v3
@@ -2505,7 +2481,8 @@ public:
 #endif
 
   Start_log_event_v3(const char* buf,
-                     const Format_description_log_event* description_event);
+                     const Format_description_log_event* description_event,
+                     Log_event_header *header);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
 #ifdef MYSQL_SERVER
@@ -2564,10 +2541,11 @@ public:
   uchar server_version_split[3];
   const uint8 *event_type_permutation;
 
-  Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
+  Format_description_log_event(uint16 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
-                               *description_event);
+                               *description_event,
+                               Log_event_header *header);
   ~Format_description_log_event()
   {
     my_free(post_header_len);
@@ -2676,7 +2654,8 @@ public:
 #endif
 
   Intvar_log_event(const char* buf,
-                   const Format_description_log_event *description_event);
+                   const Format_description_log_event *description_event,
+                   Log_event_header *header);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
@@ -2754,7 +2733,8 @@ class Rand_log_event: public Log_event
 #endif
 
   Rand_log_event(const char* buf,
-                 const Format_description_log_event *description_event);
+                 const Format_description_log_event *description_event,
+                 Log_event_header *header);
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
   int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
@@ -2803,7 +2783,8 @@ class Xid_log_event: public Log_event
 #endif
 
   Xid_log_event(const char* buf,
-                const Format_description_log_event *description_event);
+                const Format_description_log_event *description_event,
+                Log_event_header *header);
   ~Xid_log_event() {}
   Log_event_type get_type_code() { return XID_EVENT;}
   int get_data_size() { return sizeof(xid); }
@@ -2865,7 +2846,8 @@ public:
 #endif
 
   User_var_log_event(const char* buf, uint event_len,
-                     const Format_description_log_event *description_event);
+                     const Format_description_log_event *description_event,
+                     Log_event_header *header);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
@@ -2912,8 +2894,9 @@ public:
 #endif
 
   Stop_log_event(const char* buf,
-                 const Format_description_log_event *description_event):
-    Log_event(buf, description_event)
+                 const Format_description_log_event *description_event,
+                 Log_event_header *header):
+    Log_event(header)
   {}
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
@@ -3008,7 +2991,8 @@ public:
 #endif
 
   Rotate_log_event(const char* buf, uint event_len,
-                   const Format_description_log_event* description_event);
+                   const Format_description_log_event* description_event,
+                   Log_event_header *header);
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
@@ -3071,7 +3055,8 @@ public:
 #endif
 
   Create_file_log_event(const char* buf, uint event_len,
-                        const Format_description_log_event* description_event);
+                        const Format_description_log_event* description_event,
+                        Log_event_header *header);
   ~Create_file_log_event()
   {
     my_free((void*) event_buf);
@@ -3143,7 +3128,8 @@ public:
 
   Append_block_log_event(const char* buf, uint event_len,
                          const Format_description_log_event
-                         *description_event);
+                         *description_event,
+                         Log_event_header *header);
   ~Append_block_log_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   int get_data_size() { return  block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN ;}
@@ -3184,7 +3170,8 @@ public:
 #endif
 
   Delete_file_log_event(const char* buf, uint event_len,
-                        const Format_description_log_event* description_event);
+                        const Format_description_log_event* description_event,
+                        Log_event_header *header);
   ~Delete_file_log_event() {}
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
   int get_data_size() { return Binary_log_event::DELETE_FILE_HEADER_LEN ;}
@@ -3224,7 +3211,8 @@ public:
 
   Execute_load_log_event(const char* buf, uint event_len,
                          const Format_description_log_event
-                         *description_event);
+                         *description_event,
+                         Log_event_header *header);
   ~Execute_load_log_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
   int get_data_size() { return  Binary_log_event::EXEC_LOAD_HEADER_LEN ;}
@@ -3273,7 +3261,8 @@ public:
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,
                              const Format_description_log_event
-                             *description_event);
+                             *description_event,
+                             Log_event_header *header);
   ~Begin_load_query_log_event() {}
   Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
 private:
@@ -3331,7 +3320,8 @@ public:
 #endif
   Execute_load_query_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
-                               *description_event);
+                               *description_event,
+                               Log_event_header *header);
   ~Execute_load_query_log_event() {}
 
   Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
@@ -3364,8 +3354,9 @@ public:
     event's header (the unique ID for example).
   */
   Unknown_log_event(const char* buf,
-                    const Format_description_log_event *description_event):
-    Log_event(buf, description_event)
+                    const Format_description_log_event *description_event,
+                    Log_event_header *header):
+    Log_event(header)
   {}
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3740,7 +3731,8 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
-                      const Format_description_log_event *description_event);
+                      const Format_description_log_event *description_event,
+                      Log_event_header *header);
 #endif
 
   ~Table_map_log_event();
@@ -4026,7 +4018,8 @@ protected:
                  const uchar* extra_row_info);
 #endif
   Rows_log_event(const char *row_data, uint event_len, 
-		 const Format_description_log_event *description_event);
+		 const Format_description_log_event *description_event,
+                 Log_event_header *header);
 
 #ifdef MYSQL_CLIENT
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
@@ -4327,7 +4320,8 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
-                       const Format_description_log_event *description_event);
+                       const Format_description_log_event *description_event,
+                       Log_event_header *header);
 #endif
 #if defined(MYSQL_SERVER) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -4398,7 +4392,8 @@ public:
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_log_event *description_event,
+                        Log_event_header *header);
 #endif
 
 #ifdef MYSQL_SERVER
@@ -4466,7 +4461,8 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_log_event *description_event,
+                        Log_event_header *header);
 #endif
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -4574,7 +4570,8 @@ public:
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
-                     const Format_description_log_event *descr_event);
+                     const Format_description_log_event *descr_event,
+                     Log_event_header *header);
 
   virtual ~Incident_log_event();
 
@@ -4638,7 +4635,8 @@ public:
 #endif
 
   Ignorable_log_event(const char *buf,
-                      const Format_description_log_event *descr_event);
+                      const Format_description_log_event *descr_event,
+                      Log_event_header *header);
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
@@ -4678,7 +4676,8 @@ public:
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
-                     const Format_description_log_event *descr_event);
+                       const Format_description_log_event *descr_event,
+                       Log_event_header *header);
 
   virtual ~Rows_query_log_event();
 
@@ -4734,12 +4733,13 @@ class Heartbeat_log_event: public Log_event
 {
 public:
   Heartbeat_log_event(const char* buf, uint event_len,
-                      const Format_description_log_event* description_event);
+                      const Format_description_log_event* description_event,
+                      Log_event_header *header);
   Log_event_type get_type_code() { return HEARTBEAT_LOG_EVENT; }
   bool is_valid() const
     {
       return (log_ident != NULL &&
-              log_pos >= BIN_LOG_HEADER_SIZE);
+              common_header->log_pos >= BIN_LOG_HEADER_SIZE);
     }
   const char * get_log_ident() { return log_ident; }
   uint get_ident_len() { return ident_len; }
@@ -4782,9 +4782,9 @@ public:
 #ifndef MYSQL_CLIENT
   int pack_info(Protocol*);
 #endif
-
   Gtid_log_event(const char *buffer, uint event_len,
-                 const Format_description_log_event *descr_event);
+                 const Format_description_log_event *descr_event,
+                 Log_event_header *header);
 
   virtual ~Gtid_log_event() {}
 
@@ -4928,7 +4928,8 @@ public:
 #endif
 
   Previous_gtids_log_event(const char *buffer, uint event_len,
-                           const Format_description_log_event *descr_event);
+                           const Format_description_log_event *descr_event,
+                           Log_event_header *header);
   virtual ~Previous_gtids_log_event() {}
 
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }

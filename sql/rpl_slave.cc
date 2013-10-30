@@ -65,6 +65,7 @@ using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 using binary_log::get_checksum_alg;
+using binary_log::Log_event_header;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -3313,7 +3314,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   {
     // The time when we should execute the event.
     time_t sql_delay_end=
-      ev->when.tv_sec + rli->mi->clock_diff_with_master + sql_delay;
+      ev->common_header->when.tv_sec + rli->mi->clock_diff_with_master + sql_delay;
     // The current time.
     time_t now= my_time(0);
     // The time we will have to sleep before executing the event.
@@ -3327,7 +3328,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                         "now= %ld "
                         "sql_delay_end= %ld "
                         "nap_time= %ld",
-                        sql_delay, (long) ev->when.tv_sec,
+                        sql_delay, (long) ev->common_header->when.tv_sec,
                         rli->mi->clock_diff_with_master,
                         (long)now, (long)sql_delay_end, (long)nap_time));
 
@@ -3454,11 +3455,11 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
      Set the unmasked and actual server ids from the event
    */
   thd->server_id = ev->server_id; // use the original server id for logging
-  thd->unmasked_server_id = ev->unmasked_server_id;
+  thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();                            // time the query
   thd->lex->set_current_select(0);
-  if (!ev->when.tv_sec)
-    my_micro_time_to_timeval(my_micro_time(), &ev->when);
+  if (!ev->common_header->when.tv_sec)
+    my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
   if (!(rli->is_mts_recovery() && bitmap_is_set(&rli->recovery_groups,
@@ -3539,7 +3540,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             Slave_job_item da_item;
             get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
-                      ((Log_event* )da_item.data)->log_pos, w->id));
+                      ((Log_event* )da_item.data)->common_header->log_pos,
+                       w->id));
             static_cast<Log_event*>(da_item.data)->mts_group_idx=
               rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
@@ -3560,7 +3562,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
 
         DBUG_PRINT("mts", ("Assigning job %llu to worker %lu\n",
-                   ((Log_event* )job_item->data)->log_pos, w->id));
+                   ((Log_event* )job_item->data)->common_header->log_pos, w->id));
 
         /* Notice `ev' instance can be destoyed after `append()' */
         if (append_item_to_jobs(job_item, w, rli))
@@ -3835,9 +3837,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+          (ev->common_header->when.tv_sec == 0) ||
+           ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
     {
-      rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
+      rli->last_master_timestamp= ev->common_header->when.tv_sec +
+                                  (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
     }
 
@@ -4661,7 +4665,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   while(de_queue(&w->jobs, job_item))
   {
     purge_cnt++;
-    purge_size += ((Log_event*) (job_item->data))->data_written;
+    purge_size += ((Log_event*) (job_item->data))->common_header->data_written;
     DBUG_ASSERT(job_item->data);
     delete static_cast<Log_event*>(job_item->data);
   }
@@ -4939,7 +4943,8 @@ int mts_recovery_groups(Relay_log_info *rli)
 
         DBUG_PRINT("mts", ("Event Recoverying relay log info "
                    "group_mster_log_name %s, event_master_log_pos %llu type code %u.",
-                   linfo.log_file_name, ev->log_pos, ev->get_type_code()));
+                   linfo.log_file_name, ev->common_header->log_pos,
+                   ev->get_type_code()));
 
         if (ev->starts_group())
         {
@@ -4950,14 +4955,15 @@ int mts_recovery_groups(Relay_log_info *rli)
         {
           int ret= 0;
           LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
-                                      ev->log_pos };
+                                      ev->common_header->log_pos };
           flag_group_seen_begin= false;
           recovery_group_cnt++;
 
           sql_print_information("Slave: MTS group recovery relay log info "
                                 "group_master_log_name %s, "
                                 "event_master_log_pos %llu.",
-                                rli->get_group_master_log_name(), ev->log_pos);
+                                rli->get_group_master_log_name(),
+                                ev->common_header->log_pos);
           if ((ret= mts_event_coord_cmp(&ev_coord, &w_last)) == 0)
           {
 #ifndef DBUG_OFF
@@ -6027,7 +6033,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
         if (unlikely(cev_not_written))
           break;
         Execute_load_log_event xev(thd,0,0);
-        xev.log_pos = cev->log_pos;
+        (xev.common_header)->log_pos = cev->common_header->log_pos;
         if (unlikely(mi->rli->relay_log.append_event(&xev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
@@ -6056,7 +6062,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       {
         aev.block = net->read_pos;
         aev.block_len = num_bytes;
-        aev.log_pos = cev->log_pos;
+        (aev.common_header)->log_pos= cev->common_header->log_pos;
         if (unlikely(mi->rli->relay_log.append_event(&aev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
@@ -6198,8 +6204,8 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     my_free((char*) tmp_buf);
     DBUG_RETURN(1);
   }
-
-  mi->set_master_log_pos(ev->log_pos); /* 3.23 events don't contain log_pos */
+  /* 3.23 events don't contain log_pos */
+  mi->set_master_log_pos(ev->common_header->log_pos);
   switch (ev->get_type_code()) {
   case STOP_EVENT:
     ignore_event= 1;
@@ -6224,7 +6230,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     /* We come here when and only when tmp_buf != 0 */
     DBUG_ASSERT(tmp_buf != 0);
     inc_pos=event_len;
-    ev->log_pos+= inc_pos;
+    ev->common_header->log_pos+= inc_pos;
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
@@ -6238,12 +6244,13 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   }
   if (likely(!ignore_event))
   {
-    if (ev->log_pos)
+    if (ev->common_header->log_pos)
       /*
          Don't do it for fake Rotate events (see comment in
       Log_event::Log_event(const char* buf...) in log_event.cc).
       */
-      ev->log_pos+= event_len; /* make log_pos be the pos of the end of the event */
+      /* make log_pos be the pos of the end of the event */
+      ev->common_header->log_pos+= event_len;
     if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
     {
       delete ev;
@@ -6426,8 +6433,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   );
  
   bapi_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-
- 
+  Log_event_header *header;
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
     error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
@@ -6436,7 +6442,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   mysql_mutex_lock(&mi->data_lock);
-
+  const Format_description_event *des_ev;
+  des_ev= new Format_description_event(mi->get_mi_description_event()->binlog_version);
+  header= new Log_event_header(buf, des_ev);
   if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
   {
@@ -6464,7 +6472,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
-                         mi->get_mi_description_event());
+                         mi->get_mi_description_event(), header);
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
@@ -6585,7 +6593,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            mi->rli->relay_log.relay_log_checksum_alg
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->get_mi_description_event());
+                           mi->get_mi_description_event(), header);
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -6593,7 +6601,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr(hb.log_pos, llbuf);
+      llstr((hb.common_header)->log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
       goto err;
     }
@@ -6615,14 +6623,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       we update only the positions and not the file names, as a ROTATE
       EVENT from the master prior to this will update the file name.
     */
-    if (mi->is_auto_position()  && mi->get_master_log_pos() < hb.log_pos
-        &&  mi->get_master_log_name() != NULL)
+    if (mi->is_auto_position()  && mi->get_master_log_pos() <
+       (hb.common_header)->log_pos &&  mi->get_master_log_name() != NULL)
     {
 
       DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
                          hb.get_log_ident(), hb.get_ident_len()) == 0);
 
-      mi->set_master_log_pos(hb.log_pos);
+      mi->set_master_log_pos((hb.common_header)->log_pos);
 
       /*
          Put this heartbeat event in the relay log as a Rotate Event.
@@ -6651,13 +6659,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
                 hb.get_log_ident(), hb.get_ident_len())
          && mi->get_master_log_name() != NULL)
-        || ((mi->get_master_log_pos() != hb.log_pos && gtid_mode == 0) || 
+        || ((mi->get_master_log_pos() != (hb.common_header)->log_pos
+        && gtid_mode == 0) ||
             /*
               When Gtid mode is on only monotocity can be claimed.
               Todo: enhance HB event with the skipped events size
               and to convert HB.pos  == MI.pos to HB.pos - HB.skip_size == MI.pos
             */
-            (mi->get_master_log_pos() > hb.log_pos)))
+            (mi->get_master_log_pos() > (hb.common_header)->log_pos)))
     {
       /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -6665,7 +6674,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr(hb.log_pos, llbuf);
+      llstr((hb.common_header)->log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
       goto err;
     }
@@ -6710,7 +6719,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     global_sid_lock->rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->get_mi_description_event());
+                           mi->get_mi_description_event(), header);
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock->unlock();
     if (gtid.sidno < 0)

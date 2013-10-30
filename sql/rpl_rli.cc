@@ -1246,8 +1246,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
       log_pos= (!ev)? group_master_log_pos :
-        ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
-         group_master_log_pos : ev->log_pos - ev->data_written);
+        ((thd->variables.option_bits & OPTION_BEGIN || !ev->common_header->log_pos) ?
+         group_master_log_pos : ev->common_header->log_pos -
+         ev->common_header->data_written);
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */

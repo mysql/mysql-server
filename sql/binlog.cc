@@ -3472,7 +3472,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     as we won't be able to reset it later
   */
   if (io_cache_type == WRITE_CACHE)
-    s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
+  {
+    (s.common_header)->flags|=  LOG_EVENT_BINLOG_IN_USE_F;
+  }
   s.checksum_alg= is_relay_log ?
     /* relay-log */
     /* inherit master's A descriptor if one has been received */
@@ -3493,7 +3495,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     s.set_relay_log_event();
   if (s.write(&log_file))
     goto err;
-  bytes_written+= s.data_written;
+  bytes_written+= (s.common_header)->data_written;
   /*
     We need to revisit this code and improve it.
     See further comments in the mysqld.
@@ -3511,7 +3513,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     prev_gtids_ev.checksum_alg= s.checksum_alg;
     if (prev_gtids_ev.write(&log_file))
       goto err;
-    bytes_written+= prev_gtids_ev.data_written;
+    bytes_written+= (prev_gtids_ev.common_header)->data_written;
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)
@@ -3542,7 +3544,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
     if (extra_description_event->write(&log_file))
       goto err;
-    bytes_written+= extra_description_event->data_written;
+    bytes_written+= extra_description_event->common_header->data_written;
   }
   if (flush_io_cache(&log_file) ||
       mysql_file_sync(log_file.file, MYF(MY_WME)))
@@ -5141,7 +5143,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
     }
-    bytes_written += r.data_written;
+    bytes_written += (r.common_header)->data_written;
   }
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
@@ -5288,7 +5290,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
   bool error = false;
   if (ev->write(&log_file) == 0)
   {
-    bytes_written+= ev->data_written;
+    bytes_written+= ev->common_header->data_written;
     error= after_append_to_relay_log(mi);
   }
   else
@@ -6319,7 +6321,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
-      bytes_written+= s.data_written;
+      bytes_written+= (s.common_header)->data_written;
       flush_io_cache(&log_file);
       update_binlog_end_pos();
     }
@@ -6495,7 +6497,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
-        ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+        ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F)
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
       valid_pos= my_b_tell(&log);

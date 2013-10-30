@@ -868,7 +868,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
-       ((my_time_t) (ev->when.tv_sec) >= start_datetime)) ||
+       ((my_time_t) (ev->common_header->when.tv_sec) >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
@@ -892,7 +892,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           server_id && (server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t) (ev->when.tv_sec) >= stop_datetime)
+    if (((my_time_t) (ev->common_header->when.tv_sec) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
       /* end the program */
@@ -1116,7 +1116,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       ev= 0;
       if (!force_if_open_opt &&
-          (glob_description_event->flags & LOG_EVENT_BINLOG_IN_USE_F))
+          (glob_description_event->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F))
       {
         error("Attempting to dump binlog '%s', which was not closed properly. "
               "Most probably, mysqld is still writing it, or it crashed. "
@@ -1335,7 +1335,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         /*   
           Fake rotate events have 'when' set to zero. @c fake_rotate_event(...).
         */
-        bool is_fake= (rev->when.tv_sec == 0);
+        bool is_fake= (rev->common_header->when.tv_sec == 0);
         if (!in_transaction && !is_fake)
         {
           /*
@@ -2316,7 +2316,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
         }
 
-        if (rev->when.tv_sec == 0)
+        if (rev->common_header->when.tv_sec == 0)
         {
           if (!to_last_remote_log)
           {
@@ -2724,7 +2724,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
         if binlog wasn't closed properly ("in use" flag is set) don't complain
         about a corruption, but treat it as EOF and move to the next binlog.
       */
-      if (glob_description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
+      if (glob_description_event->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F)
         file->error= 0;
       else if (file->error)
       {
