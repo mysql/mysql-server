@@ -1471,7 +1471,7 @@ bool JOIN::set_access_methods()
       if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
         DBUG_RETURN(true);
     }
-   }
+  }
 
   DBUG_RETURN(false);
 }
@@ -1748,16 +1748,16 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
 static store_key *
 get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
-	      KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
+              KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
   {
     return new store_key_const_item(thd,
-				    key_part->field,
-				    key_buff + maybe_null,
-				    maybe_null ? key_buff : 0,
-				    key_part->length,
-				    keyuse->val);
+                                    key_part->field,
+                                    key_buff + maybe_null,
+                                    maybe_null ? key_buff : 0,
+                                    key_part->length,
+                                    keyuse->val);
   }
 
   Item_field *field_item= NULL;
@@ -1787,11 +1787,11 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
                                keyuse->val->full_name());
 
   return new store_key_item(thd,
-			    key_part->field,
-			    key_buff + maybe_null,
-			    maybe_null ? key_buff : 0,
-			    key_part->length,
-			    keyuse->val);
+                            key_part->field,
+                            key_buff + maybe_null,
+                            maybe_null ? key_buff : 0,
+                            key_part->length,
+                            keyuse->val);
 }
 
 
@@ -1874,15 +1874,15 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       table_map used_tables= 0;
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return NULL;
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
-	if (fix)
+        Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+        if (fix)
         {
-	  new_cond->argument_list()->push_back(fix);
+          new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
         n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
@@ -1891,29 +1891,29 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return NULL;
+        return NULL;
       case 1:
         new_cond->set_used_tables(used_tables);
-	return new_cond->argument_list()->head();
+        return new_cond->argument_list()->head();
       default:
-	new_cond->quick_fix_field();
+        new_cond->quick_fix_field();
         new_cond->set_used_tables(used_tables);
-	return new_cond;
+        return new_cond;
       }
     }
     else /* It's OR */
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return NULL;
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
-	if (!fix)
-	  return NULL;
-	new_cond->argument_list()->push_back(fix);
+        Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+        if (!fix)
+          return NULL;
+        new_cond->argument_list()->push_back(fix);
         n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
@@ -1924,7 +1924,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       return new_cond;
     }
   }
-
+  
   if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
   {
     /* 
