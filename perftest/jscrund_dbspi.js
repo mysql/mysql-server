@@ -26,22 +26,15 @@ var spi            = require('../Adapter/impl/SPI.js'),
     unified_debug  = require('../Adapter/api/unified_debug.js'),
     udebug         = unified_debug.getLogger('jscrund_dbspi.js')
 
-function blah() {
-  console.log("BLAH");
-  console.log.apply(null, arguments);
-  process.exit();
-}
-
 function implementation() {
 };
 
 implementation.prototype = {
-  dbService      :    null,   // DBServiceProvider
-  dbConnPool     :    null,
-  dbSession      :    null,
-  dbTableHandler :    null,
-  operations     :    [],
-  inBatchMode    :    false,  
+  dbServiceProvider :  null,
+  dbConnPool        :  null,
+  dbSession         :  null,
+  inBatchMode       :  false,  
+  operations        :  null,
 };
 
 implementation.prototype.close = function(callback) {
@@ -50,28 +43,42 @@ implementation.prototype.close = function(callback) {
 };
 
 implementation.prototype.initialize = function(options, callback) {
+  udebug.log("initialize");
   var impl = this;
-  var mapping = options.annotations.prototype.mynode.mapping;
-  udebug.log("initalize() with mapping", mapping);
+  var mappings = options.annotations;
+  var nmappings = mappings.length;
 
-  impl.dbService = spi.getDBServiceProvider(options.adapter);
+  impl.dbServiceProvider = spi.getDBServiceProvider(options.adapter);
 
-  function onMetadata(err, tableMetadata) {
-    if(err) { callback(err); } 
-    else {  
-      var dbt = new DBTableHandler(tableMetadata, mapping, options.annotations);
+  function getMapping(n) {
+    function gotMapping(err, tableMetadata) {
+      udebug.log("gotMapping", n);
+      nmappings--;
+      var dbt = new DBTableHandler(tableMetadata, mappings[n].prototype.mynode.mapping, 
+                                   mappings[n]);
       udebug.log("Got DBTableHandler", dbt);
-      impl.dbTableHandler = dbt;
-      callback(null);
+      mappings[n].dbt = dbt;
+      if(nmappings == 0) {
+        callback(null);  /* All done */
+      }
     }
+
+    impl.dbConnPool.getTableMetadata(options.properties.database, 
+                                     mappings[n].prototype.mynode.mapping.table,
+                                     impl.dbSession, gotMapping);
   }
-    
+
   function onDbSession(err, dbSession) {
+    var n;
     if(err) { callback(err, null); } 
     else {
-      impl.dbSession = dbSession;      
-      impl.dbConnPool.getTableMetadata(options.properties.database, 
-                                       mapping.table, dbSession, onMetadata);                                       
+      impl.dbSession = dbSession;
+      if(mappings.length) {
+        for(n = 0 ; n < mappings.length ; n++) { getMapping(n); }
+      }
+      else {
+        callback(null);
+      }
     }
   }
     
@@ -83,38 +90,40 @@ implementation.prototype.initialize = function(options, callback) {
     }
   }
   
-  impl.dbService.connect(options.properties, onConnect);
+  impl.dbServiceProvider.connect(options.properties, onConnect);
 };
 
-implementation.prototype.execOneOperation = function(op, tx, callback) {
+implementation.prototype.execOneOperation = function(op, tx, callback, row) {
   if(this.inBatchMode) {
     this.operations.push(op);
   }
   else {
-    tx.execute([op], function(err) { if(err) console.log("TX EXECUTE ERR:", err); });
+    tx.execute([op], function(err) { if(err) console.log("TX EXECUTE ERR:", err, row); });
   }
-}
+};
 
-implementation.prototype.persist = function(parameters, callback) {  
+implementation.prototype.persist = function(parameters, callback) {
   udebug.log_detail('persist object:', parameters.object);
+  var dbt = parameters.object.constructor.dbt;
   var tx = this.dbSession.getTransactionHandler();
-  var op = this.dbSession.buildInsertOperation(this.dbTableHandler, 
-                                               parameters.object, tx, callback);
-  this.execOneOperation(op, tx, callback);
+  var op = this.dbSession.buildInsertOperation(dbt, parameters.object, tx, callback);
+  this.execOneOperation(op, tx, callback, parameters.object);
 };
 
 implementation.prototype.find = function(parameters, callback) {
   udebug.log_detail('find key:', parameters.key);
+  var dbt = parameters.object.constructor.dbt;
   var tx = this.dbSession.getTransactionHandler();
-  var index = this.dbTableHandler.getIndexHandler(parameters.key, true);
+  var index = dbt.getIndexHandler(parameters.key, true);
   var op = this.dbSession.buildReadOperation(index, parameters.key, tx, callback);
   this.execOneOperation(op, tx, callback);
 };
 
 implementation.prototype.remove = function(parameters, callback) {
   udebug.log_detail('remove key:', parameters.key);
+  var dbt = parameters.object.constructor.dbt;
   var tx = this.dbSession.getTransactionHandler();
-  var index = this.dbTableHandler.getIndexHandler(parameters.key, true);
+  var index = dbt.getIndexHandler(parameters.key, true);
   var op = this.dbSession.buildDeleteOperation(index, parameters.key, tx, callback);
   this.execOneOperation(op, tx, callback);
 };
