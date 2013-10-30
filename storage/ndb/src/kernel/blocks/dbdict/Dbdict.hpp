@@ -1278,6 +1278,7 @@ private:
   void initSchemaFile(XSchemaFile *, Uint32 firstPage, Uint32 lastPage,
                       bool initEntries);
   void resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages);
+  void modifySchemaFileAtRestart(XSchemaFile * xsf);
   void computeChecksum(XSchemaFile *, Uint32 pageNo);
   bool validateChecksum(const XSchemaFile *);
   SchemaFile::TableEntry * getTableEntry(Uint32 tableId);
@@ -3898,6 +3899,7 @@ private:
   void rebuildIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  Uint32 c_at_restart_skip_indexes;
 
   // Events
   void
