@@ -238,7 +238,8 @@ public:
   bool need_tmp;
   int hidden_group_field_count;
 
-  Key_use_array keyuse;
+  // Used and updated by make_join_statistics and optimize_keyuse
+  Key_use_array keyuse_array;
 
   List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
@@ -419,7 +420,7 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    : keyuse(thd_arg->mem_root),
+    : keyuse_array(thd_arg->mem_root),
       fields_list(fields_arg),
       sj_subselects(thd_arg->mem_root)
   {
@@ -476,7 +477,7 @@ public:
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
-    keyuse.clear();
+    keyuse_array.clear();
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;

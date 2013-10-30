@@ -886,7 +886,7 @@ bool JOIN::destroy()
     delete sjm;
   sjm_exec_list.empty();
 
-  keyuse.clear();
+  keyuse_array.clear();
   DBUG_RETURN(test(error));
 }
 
