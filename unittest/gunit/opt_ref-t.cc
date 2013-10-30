@@ -17,6 +17,8 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "test_utils.h"
+
 #include "fake_table.h"
 #include "mock_field_long.h"
 #include "sql_optimizer.cc"
@@ -24,6 +26,8 @@
 
 // Unit tests of the ref optimizer.
 namespace opt_ref_unittest {
+
+using my_testing::Server_initializer;
 
 bool scrap_bool; // Needed by Key_field CTOR.
 
