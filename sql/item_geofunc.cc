@@ -261,7 +261,7 @@ String *Item_func_centroid::val_str(String *str)
   srid= uint4korr(swkb->ptr());
   str->q_append(srid);
 
-  return (null_value= test(geom->centroid(str))) ? 0 : str;
+  return (null_value= MY_TEST(geom->centroid(str))) ? 0 : str;
 }
 
 

@@ -3239,7 +3239,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_mode= mode;
   m_open_test_lock= test_if_locked;
   m_part_field_array= m_part_info->full_part_field_array;
-  if (get_from_handler_file(name, &table->mem_root, test(m_is_clone_of)))
+  if (get_from_handler_file(name, &table->mem_root, MY_TEST(m_is_clone_of)))
     DBUG_RETURN(error);
   name_buffer_ptr= m_name_buffer_ptr;
   if (populate_partition_name_hash())
@@ -5501,7 +5501,7 @@ int ha_partition::read_range_first(const key_range *start_key,
     m_start_key.key= NULL;
 
   m_index_scan_type= partition_read_range;
-  error= common_index_read(m_rec0, test(start_key));
+  error= common_index_read(m_rec0, MY_TEST(start_key));
   DBUG_RETURN(error);
 }
 
@@ -7497,8 +7497,8 @@ uint32 ha_partition::calculate_key_hash_value(Field **field_array)
   ulong nr1= 1;
   ulong nr2= 4;
   bool use_51_hash;
-  use_51_hash= test((*field_array)->table->part_info->key_algorithm ==
-                    partition_info::KEY_ALGORITHM_51);
+  use_51_hash= MY_TEST((*field_array)->table->part_info->key_algorithm ==
+                       partition_info::KEY_ALGORITHM_51);
 
   do
   {

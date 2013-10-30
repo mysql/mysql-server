@@ -497,7 +497,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                      *item) :
 #endif
           new Item_int_with_ref(field->val_int(), *item,
-                                test(field->flags & UNSIGNED_FLAG));
+                                MY_TEST(field->flags & UNSIGNED_FLAG));
         if (tmp)
           thd->change_item_tree(item, tmp);
         result= 1;                              // Item was replaced
@@ -1425,8 +1425,8 @@ int Arg_comparator::compare_e_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return test(res1 == res2);
-  return test(sortcmp(res1, res2, cmp_collation.collation) == 0);
+    return MY_TEST(res1 == res2);
+  return MY_TEST(sortcmp(res1, res2, cmp_collation.collation) == 0);
 }
 
 
@@ -1436,8 +1436,8 @@ int Arg_comparator::compare_e_binary_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return test(res1 == res2);
-  return test(stringcmp(res1, res2) == 0);
+    return MY_TEST(res1 == res2);
+  return MY_TEST(stringcmp(res1, res2) == 0);
 }
 
 
@@ -1492,8 +1492,8 @@ int Arg_comparator::compare_e_real()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return test(val1 == val2);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return MY_TEST(val1 == val2);
 }
 
 int Arg_comparator::compare_e_decimal()
@@ -1502,8 +1502,8 @@ int Arg_comparator::compare_e_decimal()
   my_decimal *val1= (*a)->val_decimal(&decimal1);
   my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return test(my_decimal_cmp(val1, val2) == 0);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return MY_TEST(my_decimal_cmp(val1, val2) == 0);
 }
 
 
@@ -1541,8 +1541,8 @@ int Arg_comparator::compare_e_real_fixed()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return test(val1 == val2 || fabs(val1 - val2) < precision);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return MY_TEST(val1 == val2 || fabs(val1 - val2) < precision);
 }
 
 
@@ -1616,8 +1616,8 @@ int Arg_comparator::compare_e_time_packed()
   longlong val1= (*a)->val_time_temporal();
   longlong val2= (*b)->val_time_temporal();
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return test(val1 == val2);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return MY_TEST(val1 == val2);
 }
 
 
@@ -1708,8 +1708,8 @@ int Arg_comparator::compare_e_int()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return test(val1 == val2);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return MY_TEST(val1 == val2);
 }
 
 /**
@@ -1720,8 +1720,8 @@ int Arg_comparator::compare_e_int_diff_signedness()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return test((*a)->null_value && (*b)->null_value);
-  return (val1 >= 0) && test(val1 == val2);
+    return MY_TEST((*a)->null_value && (*b)->null_value);
+  return (val1 >= 0) && MY_TEST(val1 == val2);
 }
 
 int Arg_comparator::compare_row()

@@ -8408,7 +8408,7 @@ mysqld_get_one_option(int optid,
     opt_myisam_log=1;
     break;
   case (int) OPT_BIN_LOG:
-    opt_bin_log= test(argument != disabled_my_option);
+    opt_bin_log= MY_TEST(argument != disabled_my_option);
     break;
 #ifdef HAVE_REPLICATION
   case (int)OPT_REPLICATE_IGNORE_DB:
@@ -8942,7 +8942,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     Set some global variables from the global_system_variables
     In most cases the global variables will not be used
   */
-  my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
+  my_disable_locking= myisam_single_user= MY_TEST(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
 
   global_system_variables.long_query_time= (ulonglong)
@@ -8969,8 +8969,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
 
   global_system_variables.engine_condition_pushdown=
-    test(global_system_variables.optimizer_switch &
-         OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+    MY_TEST(global_system_variables.optimizer_switch &
+            OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
 

@@ -3635,7 +3635,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                          /* TODO:
                             the NULL byte is taken into account in
                             key_parts[part_no].store_length, so instead of
-                            cur_ref_buff + test(maybe_null), we could
+                            cur_ref_buff + MY_TEST(maybe_null), we could
                             use that information instead.
                          */
                          cur_ref_buff + (nullable ? 1 : 0),
@@ -3744,7 +3744,7 @@ bool subselect_hash_sj_engine::exec()
       goto err; /* purecov: inspected */
 
     materialize_engine->join->exec();
-    if ((res= test(materialize_engine->join->error || thd->is_fatal_error)))
+    if ((res= MY_TEST(materialize_engine->join->error || thd->is_fatal_error)))
       goto err;
 
     /*

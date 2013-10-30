@@ -134,7 +134,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	pack_reclength++;
         min_pack_length++;
         /* We must test for 257 as length includes pack-length */
-        if (test(rec->length >= 257))
+        if (MY_TEST(rec->length >= 257))
 	{
 	  long_varchar_count++;
 	  pack_reclength+= 2;			/* May be packed on 3 bytes */
@@ -193,7 +193,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   packed=(packed+7)/8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+packed +
-      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_OPTION_PACK_RECORD));
+      MY_TEST(test_all_bits(options, HA_OPTION_CHECKSUM | HA_OPTION_PACK_RECORD));
   min_pack_length+=packed;
 
   if (!ci->data_file_length && ci->max_rows)
@@ -544,7 +544,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.records=ci->max_rows;
   share.base.reloc=  ci->reloc_rows;
   share.base.reclength=real_reclength;
-  share.base.pack_reclength=reclength+ test(options & HA_OPTION_CHECKSUM);
+  share.base.pack_reclength=reclength+ MY_TEST(options & HA_OPTION_CHECKSUM);
   share.base.max_pack_length=pack_reclength;
   share.base.min_pack_length=min_pack_length;
   share.base.pack_bits=packed;
