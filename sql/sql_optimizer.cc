@@ -45,7 +45,6 @@ using std::max;
 using std::min;
 
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
-                                 Key_use_array *keyuse,
                                  bool first_optimization);
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
 static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
@@ -90,7 +89,7 @@ static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
 				      const key_map *keys,ha_rows limit);
-static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array);
+static void optimize_keyuse(JOIN *join);
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
@@ -384,7 +383,7 @@ JOIN::optimize()
 
   /* Calculate how to do the join */
   THD_STAGE_INFO(thd, stage_statistics);
-  if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse,
+  if (make_join_statistics(this, select_lex->leaf_tables, conds,
       first_optimization))
   {
     DBUG_PRINT("error",("Error: make_join_statistics() failed"));
@@ -3166,7 +3165,6 @@ void JOIN::set_prefix_tables()
   @param tables_arg         List of tables referenced by this query block.
   @param conds              Query search condition (derived version of the
                             WHERE clause.) 
-  @param keyuse_array[out]  Populated with key_use information.
   @param first_optimization True if this is the first optimization of this
                             query.
 
@@ -3203,7 +3201,7 @@ void JOIN::set_prefix_tables()
 
 static bool
 make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
-                     Key_use_array *keyuse_array, bool first_optimization)
+                     bool first_optimization)
 {
   int error;
   THD *const thd= join->thd;
@@ -3383,7 +3381,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     trace_table_dependencies(trace, stat, table_count);
 
   if (conds || outer_join)
-    if (update_ref_and_keys(thd, keyuse_array, stat, join->tables,
+    if (update_ref_and_keys(thd, &join->keyuse_array, stat, join->tables,
                             conds, join->cond_equal,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
@@ -3815,7 +3813,7 @@ const_table_extraction_done:
     join->set_semijoin_embedding();
 
   if (!join->plan_is_const())
-    optimize_keyuse(join, keyuse_array);
+    optimize_keyuse(join);
 
   join->allow_outer_refs= true;
 
@@ -9518,8 +9516,10 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
   
 */
 
-static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
+static void optimize_keyuse(JOIN *join)
 {
+  Key_use_array *keyuse_array= &join->keyuse_array;
+
   for (size_t ix= 0; ix < keyuse_array->size(); ++ix)
   {
     Key_use *keyuse= &keyuse_array->at(ix);
