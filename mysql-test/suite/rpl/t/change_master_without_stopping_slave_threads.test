@@ -1,0 +1,253 @@
+#
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+#
+
+# ==== Purpose ====
+#
+# This test script serves as the functionality testing for the
+# WL#6120- Change master without stopping Slave threads.
+#
+# This test script does the following:
+
+#  - Ensure that he behavior does not change for CHANGE MASTER when both the
+#    IO and SQL threads are stopped.
+#  - We have two types of options- receiver options and applier options under
+#    CHANGE MASTER
+#    And we have a very simple rule:
+#       -  Allow setting receiver options when the receiver is not running,
+#       -  Allow setting applier options when the applier is not running,
+
+#    Make sure we stick to the above mentioned rule.
+
+# The follwing scenarios are tested:
+#
+#  - With both receiver and applier stopped, all CHANGE MASTER options should be
+#    allowed.
+#  - With receiver stopped and applier running, we should be able to change
+#    receiver options.
+#      - Setting receiver options should throw the correct error message.
+#      - Using an allowed option and a not allowed option should error out.
+#  - With applier stopped and receiver running, we should be able to change
+#    applier options.
+#      - Setting applier options should throw the correct error message.
+#      - Using an allowed option and a not allowed option should error out.
+#
+#  ==== Related Worklog(s) And Bug(s)====
+#
+#  WL#6120- Change master without stopping Slave threads.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+--echo
+--echo Create a replication user to use in change master tests.
+--echo
+
+--connection master
+grant replication slave on *.* to replssl@localhost require ssl;
+sync_slave_with_master;
+
+--echo
+--echo With both receiver and applier stopped, all CHANGE MASTER options should
+--echo be allowed.
+--echo
+
+--source include/stop_slave.inc
+
+let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
+let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+
+--connection slave
+replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
+replace_column 2 ####;
+eval change master to
+  master_host= 'localhost',
+  master_user= 'replssl',
+  master_password= '',
+  master_port= $MASTER_MYPORT,
+  master_connect_retry=20,
+  master_retry_count= 1,
+  master_delay= 20,
+  master_log_file= '$master_log_file',
+  master_log_pos= $master_log_pos,
+  master_heartbeat_period= 20,
+  master_ssl=1,
+  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
+  master_ssl_verify_server_cert= 1;
+
+let $relay_log_file=query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+eval change master to relay_log_file='$relay_log_file';
+
+let $relay_log_pos=query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+eval change master to relay_log_pos=$relay_log_pos;
+
+change master to master_auto_position= 1;
+#Re-setting auto_position=0 to continue testing position related options.
+change master to master_auto_position= 0;
+
+--echo
+--echo  With receiver stopped and applier running, we should be able to change
+--echo  receiver options. Setting applier options should throw the correct error
+--echo  message.
+--echo
+
+--source include/start_slave_sql.inc
+
+replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
+replace_column 2 ####;
+eval change master to
+  master_host= 'localhost',
+  master_user= 'replssl',
+  master_password= '',
+  master_port= $MASTER_MYPORT,
+  master_connect_retry=20,
+  master_retry_count= 1,
+  master_log_file= '$master_log_file',
+  master_log_pos= $master_log_pos,
+  master_heartbeat_period= 20,
+  master_ssl=1,
+  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
+  master_ssl_verify_server_cert= 1;
+
+# Now on to some negative testing
+
+# Both receiver and applier needs to be stopped to set the auto_position option.
+--error ER_SLAVE_MUST_STOP
+change master to master_auto_position= 1;
+
+# Re-setting auto_position=0 to continue testing position related options.
+change master to master_auto_position= 0;
+
+# Since the applier is running, using the applier options should error out.
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+eval change master to relay_log_file='$relay_log_file';
+
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+eval change master to relay_log_pos=$relay_log_pos;
+
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+change master to master_delay=10;
+
+# Using an allowed option and a not allowed option should throw an error.
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+eval change master to master_retry_count= 1, relay_log_file='$relay_log_file';
+
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+eval change master to master_retry_count= 1, relay_log_pos=$relay_log_pos;
+
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+change master to master_retry_count= 1, master_delay=10;
+
+--echo
+--echo  With applier stopped and receiver running, we should be able to change
+--echo  applier options. Setting receiver options should throw the correct error
+--echo  message.
+--echo
+
+--source include/stop_slave_sql.inc
+--source include/start_slave_io.inc
+
+eval change master to relay_log_file='$relay_log_file';
+
+eval change master to relay_log_pos=$relay_log_pos;
+
+change master to master_delay=10;
+
+# Now on to some negative testing
+
+# Both receiver and applier needs to be stopped to set the auto_position option.
+--error ER_SLAVE_MUST_STOP
+change master to master_auto_position= 1;
+
+# Re-setting auto_position=0 to continue testing position related options.
+change master to master_auto_position= 0;
+
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_host= 'localhost';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_user= 'replssl';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_password= '';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_port= $MASTER_MYPORT;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_connect_retry=20;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_retry_count= 1;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_log_file= '$master_log_file';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_log_pos= $master_log_pos;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_heartbeat_period= 20;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_ssl=1;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_ssl_verify_server_cert= 1;
+
+# Using an  allowed error and a not allowed error should throw an error.
+
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_host= 'localhost';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_user= 'replssl';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_password= '';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_port= $MASTER_MYPORT;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_connect_retry=20;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_retry_count= 1;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_log_file= '$master_log_file';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_log_pos= $master_log_pos;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_heartbeat_period= 20;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_ssl=1;
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+eval change master to  master_delay=10, master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+--error ER_SLAVE_IO_THREAD_MUST_STOP
+change master to  master_delay=10, master_ssl_verify_server_cert= 1;
+
+--source include/stop_slave.inc
+
+--echo
+--echo cleanup
+--echo
+
+replace_column 2 ####;
+eval change master to
+  master_host= '127.0.0.1',
+  master_user= 'root',
+  master_delay= 0,
+  master_ssl=0,
+  master_ssl_ca ='',
+  master_ssl_cert='',
+  master_ssl_key='',
+  master_ssl_verify_server_cert= 0;
+
+--source include/start_slave.inc
+
+--connection master
+drop user replssl@localhost;
+sync_slave_with_master;
+
+--source include/rpl_end.inc
