@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2303,7 +2303,9 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 void Table_triggers_list::set_parse_error_message(char *error_message)
 {
   m_has_unparseable_trigger= true;
-  strcpy(m_parse_error_message, error_message);
+  size_t len= sizeof(m_parse_error_message);
+  strncpy(m_parse_error_message, error_message, len - 1);
+  m_parse_error_message[len - 1] = '\0';
 }
 
 

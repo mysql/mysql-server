@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,9 @@ void *my_realloc(void *oldpoint, size_t size, myf my_flags)
                    (ulong) size, my_flags));
 
   DBUG_ASSERT(size > 0);
+  /* These flags are mutually exclusive. */
+  DBUG_ASSERT(!((my_flags & MY_FREE_ON_ERROR) &&
+                (my_flags & MY_HOLD_ON_ERROR)));
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   point= NULL;
                   goto end;);
@@ -100,10 +103,10 @@ end:
 #endif
   if (point == NULL)
   {
-    if (my_flags & MY_FREE_ON_ERROR)
-      my_free(oldpoint);
     if (my_flags & MY_HOLD_ON_ERROR)
       DBUG_RETURN(oldpoint);
+    if (my_flags & MY_FREE_ON_ERROR)
+      my_free(oldpoint);
     my_errno=errno;
     if (my_flags & (MY_FAE+MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ ME_WAITTANG + ME_FATALERROR),
