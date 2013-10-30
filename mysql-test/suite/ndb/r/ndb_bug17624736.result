@@ -8,16 +8,18 @@ create table t2 (
 a int not null,
 b int not null,
 key t2x1 (b),
-primary key using hash (a)
+primary key using hash (a),
+foreign key t2fk1 (b) references t1 (b)
 ) engine=ndb;
 
 ndb_show_tables completed.....
 
 select type,name from ndb_show_tables_results
-where type like '%Index%'
+where (type like '%Index%' or type like '%ForeignKey%')
 and (name like '%t1%' or name like '%t2%')
 order by name;
 type	name
+'ForeignKey'	'XX/XX/t2fk1'
 'UniqueHashIndex'	't1x1$unique'
 'OrderedIndex'	't2x1'
 insert into t1 values (1,10),(2,20),(3,30),(4,40),(5,50);
@@ -34,7 +36,7 @@ a	b
 ndb_show_tables completed.....
 
 select type,name from ndb_show_tables_results
-where type like '%Index%'
+where (type like '%Index%' or type like '%ForeignKey%')
 and (name like '%t1%' or name like '%t2%')
 order by name;
 type	name
@@ -51,16 +53,18 @@ create table t2 (
 a int not null,
 b int not null,
 key t2x1 (b),
-primary key using hash (a)
+primary key using hash (a),
+foreign key t2fk1 (b) references t1 (b)
 ) engine=ndb;
 
 ndb_show_tables completed.....
 
 select type,name from ndb_show_tables_results
-where type like '%Index%'
+where (type like '%Index%' or type like '%ForeignKey%')
 and (name like '%t1%' or name like '%t2%')
 order by name;
 type	name
+'ForeignKey'	'XX/XX/t2fk1'
 'UniqueHashIndex'	't1x1$unique'
 'OrderedIndex'	't2x1'
 # run restore

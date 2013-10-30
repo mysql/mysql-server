@@ -2235,7 +2235,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_AT_RESTART_SKIP_INDEXES,
     "__at_restart_skip_indexes",
     DB_TOKEN,
-    "Ignore all index info on the node "
+    "Ignore all index and foreign key info on the node "
+    "at (non-initial) restart.  "
+    "This is a one-time recovery option for a non-startable database.  "
+    "Carefully consult documentation before using.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
+  {
+    CFG_DB_AT_RESTART_SKIP_FKS,
+    "__at_restart_skip_fks",
+    DB_TOKEN,
+    "Ignore all foreign key info on the node "
     "at (non-initial) restart.  "
     "This is a one-time recovery option for a non-startable database.  "
     "Carefully consult documentation before using.",

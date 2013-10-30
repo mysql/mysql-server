@@ -4140,6 +4140,7 @@ private:
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
   Uint32 c_at_restart_skip_indexes;
+  Uint32 c_at_restart_skip_fks;
 
   // Events
   void
