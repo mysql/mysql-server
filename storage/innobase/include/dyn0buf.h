@@ -154,13 +154,6 @@ public:
 		ulint		m_magic_n;
 #endif /* UNIV_DEBUG */
 
-		/** Doubly linked list node. */
-		block_node_t	m_node;
-
-		/** number of data bytes used in this block;
-		DYN_BLOCK_FULL_FLAG is set when the block becomes full */
-		ib_uint32_t	m_used;
-
 		/** SIZE - sizeof(m_node) + sizeof(m_used) */
 		enum {
 			MAX_DATA_SIZE = SIZE
@@ -170,6 +163,13 @@ public:
 
 		/** Storage */
 		byte            m_data[MAX_DATA_SIZE];
+
+		/** Doubly linked list node. */
+		block_node_t	m_node;
+
+		/** number of data bytes used in this block;
+		DYN_BLOCK_FULL_FLAG is set when the block becomes full */
+		ib_uint32_t	m_used;
 
 		friend class dyn_buf_t;
 	};
