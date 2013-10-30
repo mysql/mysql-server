@@ -24,7 +24,8 @@
 global.JSCRUND = {};
 
 JSCRUND.mynode = require("..");
-JSCRUND.udebug = require("../Adapter/api/unified_debug").getLogger("jscrund");
+JSCRUND.unified_debug = require("../Adapter/api/unified_debug");
+JSCRUND.udebug = JSCRUND.unified_debug.getLogger("jscrund.js");
 JSCRUND.stats  = require("../Adapter/api/stats");
 JSCRUND.lib    = require("./lib");
 // Backends:
@@ -51,7 +52,6 @@ function usage() {
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
   "   -df=file:  Enable debug output only from source file <file>\n" +
-  "   --debugFile=<file>\n" +
   "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
@@ -176,7 +176,6 @@ function parse_command_line(options) {
             }
           }
           break;
-        case '--debugFile':
         case '-df':
           unified_debug.on();
           var client = require(path.join(build_dir,"ndb_adapter")).debug;
@@ -575,12 +574,12 @@ function main() {
     /** Run test with all modes.
     */
     var testLoop = function() {
-      if (options.stats) {
-        JSCRUND.stats.peek();
-      }
       if (nRun++ >= nRuns) {
         console.log('\ndone: ' + nRuns + ' runs.');
         logFile.close();
+        if (options.stats) {
+          JSCRUND.stats.peek();
+        }
         JSCRUND.implementation.close(function(err) {
           process.exit(err ? 1 : 0);
         });
