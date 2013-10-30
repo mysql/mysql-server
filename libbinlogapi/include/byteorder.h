@@ -16,7 +16,7 @@
 #ifndef BYTEORDER_H
 #define BYTEORDER_H
 
-#include "config.h"
+#include "bapi_config.h"
 
 /*
  * Define types uint_t typedefs if stdint is not present
