@@ -33,6 +33,9 @@
 template <typename Element_type> class Bounds_checked_array
 {
 public:
+  // Convenience typedef, same typedef name as std::vector
+  typedef Element_type value_type;
+
   Bounds_checked_array() : m_array(NULL), m_size(0) {}
 
   Bounds_checked_array(Element_type *el, size_t size)

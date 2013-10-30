@@ -130,13 +130,14 @@ inline double log2_n_fact(double x)
       total_buf_elems * log2(n_buffers) * ROWID_COMPARE_COST;
 */
 
-static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
-                                     uint *first, uint *last)
+static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
+                                     uint elem_size,
+                                     uint first, uint last)
 {
   uint total_buf_elems= 0;
-  for (uint *pbuf= first; pbuf <= last; pbuf++)
-    total_buf_elems+= *pbuf;
-  *last= total_buf_elems;
+  for (uint pbuf= first; pbuf <= last; pbuf++)
+    total_buf_elems+= buff_elems[pbuf];
+  buff_elems[last]= total_buf_elems;
 
   size_t n_buffers= last - first + 1;
 
@@ -173,13 +174,14 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
     Cost of merge in disk seeks.
 */
 
-static double get_merge_many_buffs_cost(uint *buffer,
+static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
                                         uint maxbuffer, uint max_n_elems,
                                         uint last_n_elems, int elem_size)
 {
   int i;
   double total_cost= 0.0;
-  uint *buff_elems= buffer; /* #s of elements in each of merged sequences */
+  Unique::Imerge_cost_buf_type buff_elems=
+    buffer; /* #s of elements in each of merged sequences */
 
   /*
     Set initial state: first maxbuffer sequences contain max_n_elems elements
@@ -201,20 +203,20 @@ static double get_merge_many_buffs_cost(uint *buffer,
       for (i = 0; i <= (int) maxbuffer - MERGEBUFF*3/2; i += MERGEBUFF)
       {
         total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                           buff_elems + i,
-                                           buff_elems + i + MERGEBUFF-1);
+                                           i,
+                                           i + MERGEBUFF-1);
 	lastbuff++;
       }
       total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                         buff_elems + i,
-                                         buff_elems + maxbuffer);
+                                         i,
+                                         maxbuffer);
       maxbuffer= lastbuff;
     }
   }
 
   /* Simulate final merge_buff call. */
   total_cost += get_merge_buffers_cost(buff_elems, elem_size,
-                                       buff_elems, buff_elems + maxbuffer);
+                                       0, maxbuffer);
   return total_cost;
 }
 
@@ -266,7 +268,8 @@ static double get_merge_many_buffs_cost(uint *buffer,
       these will be random seeks.
 */
 
-double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
+double Unique::get_use_cost(Imerge_cost_buf_type buffer,
+                            uint nkeys, uint key_size,
                             ulonglong max_in_memory_size)
 {
   ulong max_elements_in_tree;
