@@ -222,7 +222,7 @@ bool mysql_update(THD *thd,
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   const bool    using_limit= limit != HA_POS_ERROR;
   const bool    safe_update=
-                  test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
+                  MY_TEST(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool          used_key_is_modified= false;
   bool          transactional_table, will_batch;
   int           res;

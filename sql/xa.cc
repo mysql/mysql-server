@@ -438,7 +438,7 @@ bool trans_xa_commit(THD *thd)
            thd->lex->xa_opt == XA_ONE_PHASE)
   {
     int r= ha_commit_trans(thd, true);
-    if ((res= test(r)))
+    if ((res= MY_TEST(r)))
       my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
   }
   else if (xid_state->has_state(XID_STATE::XA_PREPARED) &&
@@ -468,9 +468,9 @@ bool trans_xa_commit(THD *thd)
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
-        res= test(tc_log->commit(thd, /* all */ true));
+        res= MY_TEST(tc_log->commit(thd, /* all */ true));
       else
-        res= test(ha_commit_low(thd, /* all */ true));
+        res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
