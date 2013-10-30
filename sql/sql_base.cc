@@ -1646,10 +1646,10 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 /**
   Test that table is unique (It's only exists once in the table list)
 
-  @param  thd                   thread handle
-  @param  table                 table which should be checked
-  @param  table_list            list of tables
-  @param  check_alias           whether to check tables' aliases
+  @param  thd          thread handle
+  @param  table        table to be checked (must be updatable base table)
+  @param  table_list   list of tables
+  @param  check_alias  whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -1676,21 +1676,16 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   @retval 0 if table is unique
 */
 
-static
-TABLE_LIST* find_dup_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-                           bool check_alias)
+static TABLE_LIST* find_dup_table(THD *thd, const TABLE_LIST *table,
+                                  TABLE_LIST *table_list, bool check_alias)
 {
   TABLE_LIST *res;
   const char *d_name, *t_name, *t_alias;
   DBUG_ENTER("find_dup_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
+  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
   /*
-    If this function called for query which update table (INSERT/UPDATE/...)
-    then we have in table->table pointer to TABLE object which we are
-    updating even if it is VIEW so we need TABLE_LIST of this TABLE object
-    to get right names (even if lower_case_table_names used).
-
     If this function called for CREATE command that we have not opened table
     (table->table equal to 0) and right names is in current TABLE_LIST
     object.
@@ -1701,15 +1696,10 @@ TABLE_LIST* find_dup_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
     DBUG_ASSERT(table->table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
     /* temporary table is always unique */
-    if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
-      DBUG_RETURN(0);
-    table= table->find_underlying_table(table->table);
-    /*
-      as far as we have table->table we have to find real TABLE_LIST of
-      it in underlying tables
-    */
-    DBUG_ASSERT(table);
+    if (table->table->s->tmp_table != NO_TMP_TABLE)
+      DBUG_RETURN(NULL);
   }
+
   d_name= table->db;
   t_name= table->table_name;
   t_alias= table->alias;
@@ -1769,16 +1759,21 @@ next:
   tables of @c table (if any) are listed right after it and that
   their @c parent_l field points at the main table.
 
+  @param  thd        thread handle
+  @param  table      table to be checked (must be updatable base table)
+  @param  table_list List of tables to check against
+  @param  check_alias whether to check tables' aliases
 
   @retval non-NULL The table list element for the table that
                    represents the duplicate. 
   @retval NULL     No duplicates found.
 */
 
-TABLE_LIST*
-unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-             bool check_alias)
+TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+                         TABLE_LIST *table_list, bool check_alias)
 {
+  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
+
   TABLE_LIST *dup;
   if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM)
   {
@@ -8212,8 +8207,10 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
   {
     if (table->merge_underlying_list)
     {
+      // A mergeable view is not allowed to have a table pointer.
       DBUG_ASSERT(table->view &&
-                  table->effective_algorithm == VIEW_ALGORITHM_MERGE);
+                  table->effective_algorithm == VIEW_ALGORITHM_MERGE &&
+                  table->table == NULL);
       list= make_leaves_list(list, table->merge_underlying_list);
     }
     else

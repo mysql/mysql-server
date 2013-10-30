@@ -1309,6 +1309,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_insert");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
+  TABLE_LIST *insert_table_ref= 0;
+
   if (open_temporary_tables(thd, table_list))
     goto error;
 
@@ -1337,7 +1339,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       table_list->table->insert_values=(uchar *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, table_list->table,
+    if (mysql_prepare_insert(thd, table_list, &insert_table_ref,
                              fields, values, update_fields, update_values,
                              duplic, &unused_conds, FALSE, FALSE, FALSE))
       goto error;
@@ -1385,18 +1387,16 @@ error:
 static int mysql_test_update(Prepared_statement *stmt,
                               TABLE_LIST *table_list)
 {
-  int res;
-  THD *thd= stmt->thd;
-  SELECT_LEX *select= stmt->lex->select_lex;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  uint          want_privilege;
-#endif
   DBUG_ENTER("mysql_test_update");
 
-  if (update_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
+  THD        *const thd= stmt->thd;
+  SELECT_LEX *const select= stmt->lex->select_lex;
+
+  if (update_precheck(thd, table_list))
+    DBUG_RETURN(1);
+  if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
+    DBUG_RETURN(1);
 
   if (table_list->multitable_view)
   {
@@ -1409,45 +1409,48 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (!table_list->updatable)
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
-    goto error;
+    DBUG_RETURN(1);
   }
+
+  TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
-  want_privilege= (table_list->view ? UPDATE_ACL :
-                   table_list->grant.want_privilege);
+  const uint want_privilege= (table_list->view ? UPDATE_ACL :
+                             table_list->grant.want_privilege);
 #endif
 
-  if (mysql_prepare_update(thd, table_list, &select->where,
+  if (mysql_prepare_update(thd, table_list, update_table_ref, &select->where,
                            select->order_list.elements,
                            select->order_list.first))
-    goto error;
+    DBUG_RETURN(1);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  TABLE *const table= update_table_ref->table;
+
   table_list->grant.want_privilege= want_privilege;
-  table_list->table->grant.want_privilege= want_privilege;
+  table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  thd->lex->select_lex->no_wrap_view_item= true;
-  res= setup_fields(thd, Ref_ptr_array(),
-                    select->item_list, MARK_COLUMNS_READ, 0, 0);
-  thd->lex->select_lex->no_wrap_view_item= false;
+  DBUG_ASSERT(select == thd->lex->select_lex);
+  select->no_wrap_view_item= true;
+  const int res= setup_fields(thd, Ref_ptr_array(),
+                              select->item_list, MARK_COLUMNS_READ, 0, 0);
+  select->no_wrap_view_item= false;
   if (res)
-    goto error;
+    DBUG_RETURN(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table_list->grant.want_privilege=
-  table_list->table->grant.want_privilege=
-    (SELECT_ACL & ~table_list->table->grant.privilege);
+  table->grant.want_privilege=
+    (SELECT_ACL & ~table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
   if (setup_fields(thd, Ref_ptr_array(),
                    stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
-    goto error;
+    DBUG_RETURN(1);
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
-error:
-  DBUG_RETURN(1);
 }
 
 
@@ -1471,21 +1474,32 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
+  if (delete_precheck(thd, table_list))
+    DBUG_RETURN(true);
+  if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
+    DBUG_RETURN(true);
 
-  if (!table_list->table)
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    DBUG_RETURN(true);
+  }
+
+  if (table_list->multitable_view)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
-    goto error;
+    DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(mysql_prepare_delete(thd, table_list, &lex->select_lex->where));
-error:
-  DBUG_RETURN(TRUE);
+  TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
+
+  if (mysql_prepare_delete(thd, table_list, delete_table_ref,
+                           &lex->select_lex->where))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1931,7 +1945,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
                                       &mysql_multi_delete_prepare_tester,
                                       OPTION_SETUP_TABLES_DONE))
     goto error;
-  if (!tables->table)
+  if (tables->multitable_view)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              tables->view_db.str, tables->view_name.str);
