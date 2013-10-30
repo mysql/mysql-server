@@ -1209,9 +1209,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     Query_cache_query_flags flags;
     // fill all gaps between fields with 0 to get repeatable key
     memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-    flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
-    flags.client_protocol_41= test(thd->client_capabilities &
-                                   CLIENT_PROTOCOL_41);
+    flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
+    flags.client_protocol_41= MY_TEST(thd->client_capabilities &
+                                      CLIENT_PROTOCOL_41);
     /*
       Protocol influences result format, so statement results in the binary
       protocol (COM_EXECUTE) cannot be served to statements asking for results
@@ -1220,10 +1220,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.protocol_type= (unsigned int) thd->protocol->type();
     /* PROTOCOL_LOCAL results are not cached. */
     DBUG_ASSERT(flags.protocol_type != (unsigned int) Protocol::PROTOCOL_LOCAL);
-    flags.more_results_exists= test(thd->server_status &
-                                    SERVER_MORE_RESULTS_EXISTS);
+    flags.more_results_exists= MY_TEST(thd->server_status &
+                                       SERVER_MORE_RESULTS_EXISTS);
     flags.in_trans= thd->in_active_multi_stmt_transaction();
-    flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
+    flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
     flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
@@ -1595,14 +1595,14 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   // fill all gaps between fields with 0 to get repeatable key
   memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-  flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
-  flags.client_protocol_41= test(thd->client_capabilities &
-                                 CLIENT_PROTOCOL_41);
+  flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
+  flags.client_protocol_41= MY_TEST(thd->client_capabilities &
+                                    CLIENT_PROTOCOL_41);
   flags.protocol_type= (unsigned int) thd->protocol->type();
-  flags.more_results_exists= test(thd->server_status &
-                                  SERVER_MORE_RESULTS_EXISTS);
+  flags.more_results_exists= MY_TEST(thd->server_status &
+                                     SERVER_MORE_RESULTS_EXISTS);
   flags.in_trans= thd->in_active_multi_stmt_transaction();
-  flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
+  flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
   flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
@@ -3056,7 +3056,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	 tmp++)
       unlink_table(tmp);
   }
-  return test(n);
+  return MY_TEST(n);
 }
 
 

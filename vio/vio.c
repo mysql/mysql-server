@@ -202,7 +202,7 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
   if (old_vio.write_timeout >= 0)
     ret|= vio_timeout(vio, 1, old_vio.write_timeout);
 
-  DBUG_RETURN(test(ret));
+  DBUG_RETURN(MY_TEST(ret));
 }
 
 

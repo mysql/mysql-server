@@ -63,7 +63,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   from_file=to_file= -1;
   DBUG_ASSERT(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
   if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
-    new_file_stat= test(my_stat((char*) to, &new_stat_buff, MYF(0)));
+    new_file_stat= MY_TEST(my_stat((char*) to, &new_stat_buff, MYF(0)));
 
   if ((from_file=my_open(from,O_RDONLY | O_SHARE,MyFlags)) >= 0)
   {

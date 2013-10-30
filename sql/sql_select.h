@@ -808,7 +808,7 @@ public:
       used_rowid_fields= 1;
       used_fieldlength+= table->file->ref_length;
     }
-    return test(used_rowid_fields);
+    return MY_TEST(used_rowid_fields);
   }
   bool is_inner_table_of_outer_join()
   {
