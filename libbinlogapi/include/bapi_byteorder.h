@@ -45,10 +45,10 @@
  * Checking le16toh is required because the machine may have the header
  * but the functions might not be defined if the version of glibc < 2.9
  */
-#ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #ifndef _BSD_SOURCE
     #define _BSD_SOURCE
   #endif
+#ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
 #endif
 #ifndef HAVE_LE16TOH
