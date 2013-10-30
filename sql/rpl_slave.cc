@@ -8295,7 +8295,7 @@ bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
-  /* 
+  /*
    Relay logs are purged only if both the SQL and IO threads are stopped before
    executing CHANGE MASTER.
   */
@@ -8337,11 +8337,11 @@ bool change_master(THD* thd, Master_info* mi)
     threads. If any thread is running, we throw an error.
   */
   if (thread_mask && lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE)
-  {                                                                                                              
+  {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    ret= true;                                                                  
-    goto err;                                                                   
-  } 
+    ret= true;
+    goto err;
+  }
 
   /*
    We error out if SQL thread is running and there is a CHANGE MASTER
@@ -8362,27 +8362,28 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     TODO: Discuss this with Sven/Luis/team.
     If the applier is running and the slave has open temporary tables, we dont allow
-    CHANGE MASTER. 
+    CHANGE MASTER.
   */
   if (thread_mask & SLAVE_SQL && slave_open_temp_tables)
-  {                                                                             
+  {
     my_message(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO,
-               ER(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO), MYF(0));                                                         
-    ret= true;                                                                  
-    goto err;                                                                   
+               ER(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO), MYF(0));
+    ret= true;
+    goto err;
   }
 
   /*
     If IO thread is running and SQL thread is stopped, we disallow everything
     except RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION.
     The idea is to have a simple rule to allow the changes in applier attributes
-    when the applier module is not executing.   
+    when the applier module is not executing.
   */
   if (thread_mask & SLAVE_IO &&
       (lex_mi->host ||
        lex_mi->user ||
        lex_mi->password ||
        lex_mi->log_file_name ||
+       lex_mi->pos ||
        lex_mi->bind_addr ||
        lex_mi->port ||
        lex_mi->connect_retry ||
@@ -8407,17 +8408,17 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  thread_mask= SLAVE_IO | SLAVE_SQL; 
+  thread_mask= SLAVE_IO | SLAVE_SQL;
 
   THD_STAGE_INFO(thd, stage_changing_master);
-  /* 
+  /*
     We need to check if there is an empty master_host. Otherwise
-    change master succeeds, a master.info file is created containing 
+    change master succeeds, a master.info file is created containing
     empty master_host string and when issuing: start slave; an error
     is thrown stating that the server is not configured as slave.
     (See BUG#28796).
   */
-  if(lex_mi->host && !*lex_mi->host) 
+  if(lex_mi->host && !*lex_mi->host)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
     unlock_slave_threads(mi);
@@ -8814,9 +8815,9 @@ bool change_master(THD* thd, Master_info* mi)
     Notice that the rli table is available exclusively as slave is not
     running.
   */
-  //DBUG_ASSERT(!mi->rli->slave_running);
-  if ((ret= mi->rli->flush_info(true)))
-    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
+  if (!mi->rli->slave_running);
+    if ((ret= mi->rli->flush_info(true)))
+      my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
   mysql_cond_broadcast(&mi->data_cond);
   mysql_mutex_unlock(&mi->rli->data_lock);
 

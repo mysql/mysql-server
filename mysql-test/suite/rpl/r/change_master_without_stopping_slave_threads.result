@@ -1,0 +1,164 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+Create a replication user to use in change master tests.
+
+grant replication slave on *.* to replssl@localhost require ssl;
+
+With both receiver and applier stopped, all CHANGE MASTER options should
+be allowed.
+
+include/stop_slave.inc
+change master to
+master_host= 'localhost',
+master_user= 'replssl',
+master_password= '',
+master_port= 13000,
+master_connect_retry=20,
+master_retry_count= 1,
+master_delay= 20,
+master_log_file= 'master-bin.000001',
+master_log_pos= 362,
+master_heartbeat_period= 20,
+master_ssl=1,
+master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
+master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
+master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem',
+master_ssl_verify_server_cert= 1;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+change master to relay_log_file='slave-relay-bin.000001';
+change master to relay_log_pos=4;
+change master to master_auto_position= 1;
+change master to master_auto_position= 0;
+
+With receiver stopped and applier running, we should be able to change
+receiver options. Setting applier options should throw the correct error
+message.
+
+include/start_slave_sql.inc
+change master to
+master_host= 'localhost',
+master_user= 'replssl',
+master_password= '',
+master_port= 13000,
+master_connect_retry=20,
+master_retry_count= 1,
+master_log_file= 'master-bin.000001',
+master_log_pos= 362,
+master_heartbeat_period= 20,
+master_ssl=1,
+master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
+master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
+master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem',
+master_ssl_verify_server_cert= 1;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+change master to master_auto_position= 1;
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+change master to master_auto_position= 0;
+change master to relay_log_file='slave-relay-bin.000001';
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+change master to relay_log_pos=4;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+change master to master_delay=10;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+change master to master_retry_count= 1, relay_log_file='slave-relay-bin.000001';
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+change master to master_retry_count= 1, relay_log_pos=4;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+change master to master_retry_count= 1, master_delay=10;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+
+With applier stopped and receiver running, we should be able to change
+applier options. Setting receiver options should throw the correct error
+message.
+
+include/stop_slave_sql.inc
+include/start_slave_io.inc
+change master to relay_log_file='slave-relay-bin.000001';
+change master to relay_log_pos=4;
+change master to master_delay=10;
+change master to master_auto_position= 1;
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+change master to master_auto_position= 0;
+change master to  master_host= 'localhost';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_user= 'replssl';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_password= '';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_port= 13000;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_connect_retry=20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_retry_count= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_log_file= 'master-bin.000001';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_log_pos= 362;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_heartbeat_period= 20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_ssl=1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_ssl_ca ='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/cacert.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_ssl_cert='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/client-cert.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_ssl_key='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/client-key.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_ssl_verify_server_cert= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_host= 'localhost';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_user= 'replssl';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_password= '';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_port= 13000;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_connect_retry=20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_retry_count= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_log_file= 'master-bin.000001';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_log_pos= 362;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_heartbeat_period= 20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_ssl=1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_ssl_ca ='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/cacert.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_ssl_cert='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/client-cert.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_ssl_key='/home/shiv/project/repo/worklogs/mysql-trunk-wl6120/mysql-test/std_data/client-key.pem';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+change master to  master_delay=10, master_ssl_verify_server_cert= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first
+include/stop_slave.inc
+
+cleanup
+
+change master to
+master_host= '127.0.0.1',
+master_user= 'root',
+master_delay= 0,
+master_ssl=0,
+master_ssl_ca ='',
+master_ssl_cert='',
+master_ssl_key='',
+master_ssl_verify_server_cert= 0;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+drop user replssl@localhost;
+include/rpl_end.inc
