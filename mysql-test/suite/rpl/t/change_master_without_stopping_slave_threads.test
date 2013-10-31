@@ -59,6 +59,7 @@ let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 
 --connection slave
+--disable_query_log
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval change master to
@@ -78,6 +79,8 @@ eval change master to
   master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
   master_ssl_verify_server_cert= 1;
 
+--enable_query_log
+
 let $relay_log_file=query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 eval change master to relay_log_file='$relay_log_file';
 
@@ -95,7 +98,7 @@ change master to master_auto_position= 0;
 --echo
 
 --source include/start_slave_sql.inc
-
+--disable_query_log
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval change master to
@@ -113,6 +116,7 @@ eval change master to
   master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
   master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
   master_ssl_verify_server_cert= 1;
+--enable_query_log
 
 # Now on to some negative testing
 
@@ -173,26 +177,38 @@ change master to  master_host= 'localhost';
 change master to  master_user= 'replssl';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_password= '';
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_port= $MASTER_MYPORT;
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_connect_retry=20;
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_retry_count= 1;
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_log_file= '$master_log_file';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_log_pos= $master_log_pos;
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_heartbeat_period= 20;
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_ssl=1;
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_ssl_verify_server_cert= 1;
 
@@ -204,26 +220,38 @@ change master to  master_delay=10, master_host= 'localhost';
 change master to  master_delay=10, master_user= 'replssl';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_password= '';
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_port= $MASTER_MYPORT;
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_connect_retry=20;
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_retry_count= 1;
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_log_file= '$master_log_file';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_log_pos= $master_log_pos;
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_heartbeat_period= 20;
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_ssl=1;
+
+--disable_query_log
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval change master to  master_delay=10, master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+--enable_query_log
+
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_ssl_verify_server_cert= 1;
 
