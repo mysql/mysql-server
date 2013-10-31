@@ -7211,6 +7211,8 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 bool Xid_log_event::do_commit(THD *thd)
 {
+  DBUG_EXECUTE_IF("dbug.reached_commit",
+                  {DBUG_SET("+d,dbug.enabled_commit");});
   bool error= trans_commit(thd); /* Automatically rolls back on error. */
   DBUG_EXECUTE_IF("crash_after_apply", 
                   sql_print_information("Crashing crash_after_apply.");
