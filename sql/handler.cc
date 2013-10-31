@@ -1389,6 +1389,12 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
+    DBUG_EXECUTE_IF("dbug.enabled_commit",
+                    {
+                      const char act[]= "now signal Reached wait_for signal.commit_continue";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     if (rw_trans && !ignore_global_read_lock)
     {
       /*
