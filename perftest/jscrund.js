@@ -32,6 +32,7 @@ JSCRUND.lib    = require("./lib");
 JSCRUND.mysqljs = require('./jscrund_mysqljs');
 JSCRUND.sqlAdapter = require('./jscrund_sql');
 JSCRUND.spiAdapter = require('./jscrund_dbspi');
+JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
@@ -45,9 +46,12 @@ function usage() {
   "   -n      :  Use ndb adapter (default)\n" +
   "   --adapter=mysql\n" +
   "   -m      :  Use mysql adapter\n" +
-  "   --adapter=sql\n" +
   "   --spi   :  Run tests using DBServiceProvider SPI \n" +
+  "   --adapter=sql\n" +
   "   -f      :  Use felix sql driver (not mysql-js api)\n" +
+  "   --adapter=null\n" +
+  "           :  Use null driver\n" +
+  "   --log   :  Write log file\n" +
   "   --detail:  Enable detail debug output\n" +
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
@@ -116,6 +120,9 @@ function parse_command_line(options) {
     case '--trace':
     case '-t':
       options.printStackTraces = true;
+      break;
+    case '--log':
+      options.log = true;
       break;
     case '--spi':
       options.spi = true;
@@ -219,18 +226,32 @@ function currentDateString() {
   return ("" + yy + mm + dd + "_" + hh + mn + sc);
 };
 
-function ResultLog() {
-  this.name = "log_" + currentDateString() + ".txt";
-  this.fd = fs.openSync(this.name, 'a');
+function ResultLog(enabled) {
+  this.enabled = enabled;
+  if(enabled) {
+    this.name = "log_" + currentDateString() + ".txt";
+    this.fd = fs.openSync(this.name, 'a');
+  } else {
+    this.name = "[none]";
+    this.message = "";
+  }
 }
 
 ResultLog.prototype.write = function(message) {
-  var buffer = new Buffer(message);
-  fs.writeSync(this.fd, buffer, 0, buffer.length);
+  if(this.enabled) {
+    var buffer = new Buffer(message);
+    fs.writeSync(this.fd, buffer, 0, buffer.length);
+  } else {
+    this.message += message;
+  }
 };
 
 ResultLog.prototype.close = function() {
-  fs.closeSync(this.fd);
+  if(this.enabled) {
+    fs.closeSync(this.fd);
+  } else {
+    console.log(this.message);
+  }
 };
 
 /** Options are set up based on command line.
@@ -239,7 +260,6 @@ ResultLog.prototype.close = function() {
 function main() {
   var config_file_exists = false;
   var fs = require('fs');
-  var logFile = new ResultLog();
 
   /* Default options: */
   var options = {
@@ -250,6 +270,7 @@ function main() {
     'iterations': 4000,
     'stats': false,
     'spi': false,
+    'log': false,
     'nRuns': 1
   };
 
@@ -288,7 +309,12 @@ function main() {
       JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
     }
   } else if (options.adapter === 'sql') {
+    properties = new JSCRUND.mynode.ConnectionProperties('mysql');
     JSCRUND.implementation = new JSCRUND.sqlAdapter.implementation();
+  }
+  else if (options.adapter === 'null') {
+    properties = new JSCRUND.mynode.ConnectionProperties('mysql'); // for CREATE
+    JSCRUND.implementation = new JSCRUND.nullAdapter.implementation();
   }
   /* Connection properties from jscrund.config */
   if(config_file_exists) {
@@ -298,7 +324,7 @@ function main() {
       }
     }
   }
-  
+  var logFile = new ResultLog(options.log);
   properties.database = options.database;
   options.properties = properties; // properties for getSession
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
