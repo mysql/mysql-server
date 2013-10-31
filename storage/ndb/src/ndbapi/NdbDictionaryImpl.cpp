@@ -4170,7 +4170,7 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
 
       // note can also return -2 in error case(INCOMPATIBLE_VERSION),
       // hence compare with != 0
-      if ((res = dropIndexGlobal(*idx)) != 0)
+      if ((res = dropIndexGlobal(*idx, true)) != 0)
       {
         releaseIndexGlobal(*idx, 1);
         ERR_RETURN(getNdbError(), -1);
@@ -4702,7 +4702,55 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
 int
 NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl)
 {
+  return dropIndexGlobal(impl, false);
+}
+
+int
+NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl, bool ignoreFKs)
+{
   DBUG_ENTER("NdbDictionaryImpl::dropIndexGlobal");
+  const char* index_name = impl.m_internalName.c_str();
+  DBUG_PRINT("info", ("index name: %s", index_name));
+
+  List list;
+  if (listDependentObjects(list, impl.m_id) != 0)
+    ERR_RETURN(getNdbError(), -1);
+
+  if (!ignoreFKs)
+  {
+    /* prevent dropping index if used by a FK */
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const List::Element& element = list.elements[i];
+      const char* fk_name = element.name;
+
+      if (DictTabInfo::isForeignKey(element.type))
+      {
+        NdbDictionary::ForeignKey fk;
+        DBUG_PRINT("info", ("fk name: %s", fk_name));
+        if (getForeignKey(fk, fk_name) != 0)
+        {
+          ERR_RETURN(getNdbError(), -1);
+        }
+
+        const char* parent = fk.getParentIndex();
+        const char* child = fk.getChildIndex();
+        DBUG_PRINT("info", ("parent index: %s child index: %s",
+                             parent?parent:"PK", child?child:"PK"));
+        if (parent != 0 && strcmp(parent, index_name) == 0)
+        {
+          m_receiver.m_error.code = 21081;
+          ERR_RETURN(getNdbError(), -1);
+        }
+        if (child != 0 && strcmp(child, index_name) == 0)
+        {
+          m_receiver.m_error.code = 21082;
+          ERR_RETURN(getNdbError(), -1);
+        }
+      }
+    }
+  }
+
   int ret = m_receiver.dropIndex(impl, *impl.m_table);
   impl.m_status = NdbDictionary::Object::Invalid;
   if(ret == 0)
