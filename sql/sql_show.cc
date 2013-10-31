@@ -530,6 +530,13 @@ ignore_db_dirs_process_additions()
         sql_print_warning("Duplicate ignore-db-dir directory name '%.*s' "
                           "found in the config file(s). Ignoring the duplicate.",
                           (int) dir->length, dir->str);
+        /*
+          Free the excess element since the array will just be reset at
+          the end of the function, not destructed.
+        */
+        my_free(dir);
+        dir= NULL;
+        set_dynamic(&ignore_db_dirs_array, (uchar *)&dir, i);
         continue;
       }
       return true;
