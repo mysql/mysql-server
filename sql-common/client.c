@@ -2119,7 +2119,8 @@ static MYSQL_METHODS client_methods=
   NULL,                                        /* free_embedded_thd */
   cli_read_statistics,                         /* read_statistics */
   cli_read_query_result,                       /* next_result */
-  cli_read_binary_rows                         /* read_rows_from_cursor */
+  cli_read_binary_rows,                        /* read_rows_from_cursor */
+  free_rows
 #endif
 };
 
