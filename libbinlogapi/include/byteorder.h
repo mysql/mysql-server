@@ -52,7 +52,7 @@
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
 #endif
-#ifndef HAVE_LE16TOH
+#if !defined(le16toh)
 uint16_t inline le16toh(uint16_t x)
 {
   #ifndef IS_BIG_ENDIAN
@@ -63,7 +63,7 @@ uint16_t inline le16toh(uint16_t x)
 }
 #endif
 
-#ifndef HAVE_LE32TOH
+#ifndef !defined(le32toh)
 uint32_t inline le32toh(uint32_t x)
 {
   #ifndef IS_BIG_ENDIAN
