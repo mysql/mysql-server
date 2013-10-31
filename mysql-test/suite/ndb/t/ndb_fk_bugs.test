@@ -685,3 +685,39 @@ create table t1 (
 # Fails here with "Table 'test.t1' doesn't exist"
 create table t1(a int primary key) engine = ndb;
 drop table t1, t1_parent;
+
+--echo # bug#17591531 - ERROR ON DROP INDEX WHEN REFERENCING FOREIGN KEYS
+
+create table t1 (
+  a int not null,
+  b int not null,
+  unique key t1x1 (b) using hash,
+  primary key using hash (a)
+) engine=ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  key (c),
+  key t2x1 (b),
+  primary key using hash (a),
+  foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+
+--echo # try to drop indexes
+--error ER_DROP_INDEX_FK
+alter table t1 drop index t1x1;
+show warnings;
+--error ER_DROP_INDEX_FK
+alter table t2 drop index t2x1;
+show warnings;
+
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10,100),(2,20,200),(3,30,300);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4,40,400);
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where a=1;
+
+drop table t2, t1;
