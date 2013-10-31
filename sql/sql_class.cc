@@ -592,7 +592,9 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
                       const char *calling_file,
                       const unsigned int calling_line)
 {
-  DBUG_PRINT("THD::enter_stage", ("%s:%d", calling_file, calling_line));
+  DBUG_PRINT("THD::enter_stage",
+             ("'%s' %s:%d", new_stage ? new_stage->m_name : "",
+              calling_file, calling_line));
 
   if (old_stage != NULL)
   {

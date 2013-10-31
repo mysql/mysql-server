@@ -860,7 +860,7 @@ bool JOIN::destroy()
   {
     JOIN_TAB *const tab= join_tab + i;
 
-    DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
+    DBUG_ASSERT(!tab->table || !tab->table->sort.has_filesort_result());
     if (tab->op)
     {
       if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
