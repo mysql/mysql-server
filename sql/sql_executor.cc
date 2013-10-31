@@ -2535,7 +2535,6 @@ join_read_first(JOIN_TAB *tab)
     table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.table=table;
-  tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
 
@@ -2575,7 +2574,6 @@ join_read_last(JOIN_TAB *tab)
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
-  tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->use_order())))
@@ -2830,8 +2828,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  if (table->sort.record_pointers ||
-	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
+	  if (table->sort.has_filesort_result())
 	  {
 	    /* Using filesort */
 	    join->send_records= table->sort.found_records;
