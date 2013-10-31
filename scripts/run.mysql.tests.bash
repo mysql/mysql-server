@@ -52,7 +52,7 @@ if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     system=${BASH_REMATCH[3]}
     arch=${BASH_REMATCH[4]}
 else
-    exit 1
+    echo $mysqlbuild is not a tokudb build
 fi
 
 if [ -d $mysql_basedir/lib/mysql ] ; then
