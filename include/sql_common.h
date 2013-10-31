@@ -97,6 +97,7 @@ typedef struct st_mysql_methods
   const char *(*read_statistics)(MYSQL *mysql);
   my_bool (*next_result)(MYSQL *mysql);
   int (*read_rows_from_cursor)(MYSQL_STMT *stmt);
+  void (*free_rows)(MYSQL_DATA *cur);
 #endif
 } MYSQL_METHODS;
 
