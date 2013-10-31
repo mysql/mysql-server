@@ -8145,7 +8145,6 @@ PSI_memory_key key_memory_Owned_gtids_to_string;
 PSI_memory_key key_memory_Sort_param_tmp_buffer;
 PSI_memory_key key_memory_Filesort_info_buffpek;
 PSI_memory_key key_memory_Filesort_info_record_pointers;
-PSI_memory_key key_memory_SORT_ADDON_FIELD;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
 PSI_memory_key key_memory_XID;
@@ -8280,7 +8279,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Sort_param_tmp_buffer, "Sort_param::tmp_buffer", 0},
   { &key_memory_Filesort_info_buffpek, "Filesort_info::buffpek", 0},
   { &key_memory_Filesort_info_record_pointers, "Filesort_info::record_pointers", 0},
-  { &key_memory_SORT_ADDON_FIELD, "SORT_ADDON_FIELD", 0},
   { &key_memory_Filesort_buffer_sort_keys, "Filesort_buffer::sort_keys", 0},
   { &key_memory_handler_errmsgs, "handler::errmsgs", 0},
   { &key_memory_handlerton, "handlerton", 0},

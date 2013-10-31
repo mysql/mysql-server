@@ -1247,8 +1247,14 @@ public:
 
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
-  virtual uint max_packed_col_length(uint max_length)
-  { return max_length;}
+
+  /**
+    This is a wrapper around pack_length() used by filesort() to determine
+    how many bytes we need for packing "addon fields".
+    @returns maximum size of a row when stored in the filesort buffer.
+   */
+  virtual uint max_packed_col_length()
+  { return pack_length(); }
 
   uint offset(uchar *record)
   {
@@ -3353,7 +3359,7 @@ public:
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
-  uint max_packed_col_length(uint max_length);
+  uint max_packed_col_length();
   enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -3445,7 +3451,7 @@ public:
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
   uint packed_col_length(const uchar *to, uint length);
-  uint max_packed_col_length(uint max_length);
+
   uint32 data_length();
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
@@ -3662,7 +3668,7 @@ public:
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
-  uint max_packed_col_length(uint max_length);
+  uint max_packed_col_length();
   void free() { value.free(); }
   inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);

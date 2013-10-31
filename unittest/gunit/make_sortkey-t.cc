@@ -48,8 +48,8 @@ protected:
     m_sort_fields[1].field= NULL;
     m_sort_fields[0].reverse= false;
     m_sort_fields[1].reverse= false;
-    m_sort_param.local_sortorder= m_sort_fields;
-    m_sort_param.end= m_sort_param.local_sortorder + 1;
+    m_sort_param.local_sortorder=
+      Bounds_checked_array<SORT_FIELD>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
     m_to= &m_buff[8];
   }
@@ -94,7 +94,7 @@ TEST_F(MakeSortKeyTest, IntResult)
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -114,7 +114,7 @@ TEST_F(MakeSortKeyTest, IntResultNull)
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -133,7 +133,7 @@ TEST_F(MakeSortKeyTest, DecimalResult)
   EXPECT_EQ(10U, m_sort_fields[0].length);
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -151,7 +151,7 @@ TEST_F(MakeSortKeyTest, RealResult)
   EXPECT_EQ(sizeof(double), m_sort_fields[0].length);
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }

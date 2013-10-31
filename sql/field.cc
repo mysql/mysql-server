@@ -7170,9 +7170,10 @@ uint Field_string::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_string::max_packed_col_length(uint max_length)
+uint Field_string::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -7570,11 +7571,6 @@ uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
   return (uint) *data_ptr + 1;
 }
 
-
-uint Field_varstring::max_packed_col_length(uint max_length)
-{
-  return (max_length > 255 ? 2 : 1)+max_length;
-}
 
 uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
 {
@@ -8317,9 +8313,12 @@ uint Field_blob::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_blob::max_packed_col_length(uint max_length)
+uint Field_blob::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  // We do not use addon fields for blobs.
+  DBUG_ASSERT(false);
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
