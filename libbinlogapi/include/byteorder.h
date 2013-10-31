@@ -13,14 +13,14 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef BAPI_BYTEORDER_H
-#define BAPI_BYTEORDER_H
+#ifndef BYTEORDER_H
+#define BYTEORDER_H
 
 #ifndef _BSD_SOURCE
 #define _BSD_SOURCE
 #endif
 
-#include "libbinlogapi_config.h"
+#include "config.h"
 
 /*
  * Define types uint_t typedefs if stdint is not present
@@ -52,8 +52,8 @@
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
 #endif
-#ifndef HAVE_iLE16TOH
-uint16_t inline ile16toh(uint16_t x)
+#ifndef HAVE_LE16TOH
+uint16_t inline le16toh(uint16_t x)
 {
   #ifndef IS_BIG_ENDIAN
     return x;
@@ -63,8 +63,8 @@ uint16_t inline ile16toh(uint16_t x)
 }
 #endif
 
-#ifndef HAVE_iLE32TOH
-uint32_t inline ile32toh(uint32_t x)
+#ifndef HAVE_LE32TOH
+uint32_t inline le32toh(uint32_t x)
 {
   #ifndef IS_BIG_ENDIAN
     return x;
@@ -82,4 +82,4 @@ uint32_t inline ile32toh(uint32_t x)
   {                                                                         \
     typedef char do_compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
-#endif // BAPI_BYTEORDER_H
+#endif // BYTEORDER_H

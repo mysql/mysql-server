@@ -27,8 +27,8 @@ if (ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
 endif(ZLIB_FOUND) 
 
-CONFIGURE_FILE(bapi_config.h.cmake
-               ${CMAKE_SOURCE_DIR}/libbinlogapi/include/libbinlogapi_config.h)
+CONFIGURE_FILE(config.h.cmake
+               ${CMAKE_SOURCE_DIR}/libbinlogapi/include/config.h)
 
 add_subdirectory(src)
 
