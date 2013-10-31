@@ -120,7 +120,7 @@ Log_event_header::Log_event_header(const char* buf,
                                    const Format_description_event *description_event)
 {
   //TODO: replace uint4korr with le32toh() when merged with patch on rb2984
-  when.tv_sec= le32toh(*((uint32_t*)(buf)));
+  when.tv_sec= ile32toh(*((uint32_t*)(buf)));
   when.tv_usec= 0;
   //TODO:Modify server_id in Log_event based on unmasked_server_id defined here
   unmasked_server_id= uint4korr(buf + SERVER_ID_OFFSET);
