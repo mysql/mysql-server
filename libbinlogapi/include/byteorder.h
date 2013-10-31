@@ -63,7 +63,7 @@ uint16_t inline le16toh(uint16_t x)
 }
 #endif
 
-#ifndef !defined(le32toh)
+#if !defined(le32toh)
 uint32_t inline le32toh(uint32_t x)
 {
   #ifndef IS_BIG_ENDIAN
