@@ -51,10 +51,9 @@
  */
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
-#else
-#ifndef HAVE_LE16TOH
-dfaf
-uint16_t inline le16toh(uint16_t x)
+#endif
+#ifndef HAVE_iLE16TOH
+uint16_t inline ile16toh(uint16_t x)
 {
   #ifndef IS_BIG_ENDIAN
     return x;
@@ -64,8 +63,8 @@ uint16_t inline le16toh(uint16_t x)
 }
 #endif
 
-#ifndef HAVE_LE32TOH
-uint32_t inline le32toh(uint32_t x)
+#ifndef HAVE_iLE32TOH
+uint32_t inline ile32toh(uint32_t x)
 {
   #ifndef IS_BIG_ENDIAN
     return x;
@@ -77,7 +76,7 @@ uint32_t inline le32toh(uint32_t x)
   #endif
 }
 #endif
-#endif
+
 #define do_compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \
