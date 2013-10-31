@@ -1,0 +1,2 @@
+--open-files-limit=65535
+--secure-file-priv=$MYSQL_TMP_DIR
