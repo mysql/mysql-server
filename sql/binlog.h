@@ -907,7 +907,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   DBUG_ASSERT(ptr);
   if (ptr)
   {
-    uint length= strlen(ptr);
+    uint length= (uint)strlen(ptr);
 
     // Strips the CR+LF at the end of log name and \0-terminates it.
     if (length && ptr[length-1] == '\n')

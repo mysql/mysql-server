@@ -117,6 +117,13 @@ ulong memory_class_max= 0;
 /** Number of memory class lost. @sa memory_class_array */
 ulong memory_class_lost= 0;
 
+/**
+  Number of transaction classes. Although there is only one transaction class,
+  this is used for sizing by other event classes.
+  @sa global_transaction_class
+*/
+ulong transaction_class_max= 0;
+
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
 PFS_cond_class *cond_class_array= NULL;
@@ -144,27 +151,30 @@ PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
 PFS_ALIGNED PFS_single_stat global_metadata_stat;
+PFS_ALIGNED PFS_transaction_stat global_transaction_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
 PFS_ALIGNED PFS_instr_class global_metadata_class;
+PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
-{&wait_timer,      /* PFS_CLASS_NONE */
- &wait_timer,      /* PFS_CLASS_MUTEX */
- &wait_timer,      /* PFS_CLASS_RWLOCK */
- &wait_timer,      /* PFS_CLASS_COND */
- &wait_timer,      /* PFS_CLASS_FILE */
- &wait_timer,      /* PFS_CLASS_TABLE */
- &stage_timer,     /* PFS_CLASS_STAGE */
- &statement_timer, /* PFS_CLASS_STATEMENT */
- &wait_timer,      /* PFS_CLASS_SOCKET */
- &wait_timer,      /* PFS_CLASS_TABLE_IO */
- &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
- &idle_timer,      /* PFS_CLASS_IDLE */
- &wait_timer,      /* PFS_CLASS_METADATA */
- &wait_timer       /* PFS_CLASS_MEMORY */
+{&wait_timer,        /* PFS_CLASS_NONE */
+ &wait_timer,        /* PFS_CLASS_MUTEX */
+ &wait_timer,        /* PFS_CLASS_RWLOCK */
+ &wait_timer,        /* PFS_CLASS_COND */
+ &wait_timer,        /* PFS_CLASS_FILE */
+ &wait_timer,        /* PFS_CLASS_TABLE */
+ &stage_timer,       /* PFS_CLASS_STAGE */
+ &statement_timer,   /* PFS_CLASS_STATEMENT */
+ &transaction_timer, /* PFS_CLASS_TRANSACTION */
+ &wait_timer,        /* PFS_CLASS_SOCKET */
+ &wait_timer,        /* PFS_CLASS_TABLE_IO */
+ &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
+ &idle_timer,        /* PFS_CLASS_IDLE */
+ &wait_timer,        /* PFS_CLASS_METADATA */
+ &wait_timer         /* PFS_CLASS_MEMORY */
 };
 
 /**
@@ -251,6 +261,15 @@ void register_global_classes()
   global_metadata_class.m_enabled= false; /* Disabled by default */
   global_metadata_class.m_timed= false;
   configure_instr_class(&global_metadata_class);
+
+  /* Transaction class */
+  init_instr_class(&global_transaction_class, "transaction", 11,
+                   0, PFS_CLASS_TRANSACTION);
+  global_transaction_class.m_event_name_index= GLOBAL_TRANSACTION_INDEX;
+  global_transaction_class.m_enabled= false; /* Disabled by default */
+  global_transaction_class.m_timed= false;
+  configure_instr_class(&global_transaction_class);
+  transaction_class_max= 1; /* used for sizing by other event classes */
 }
 
 /**
@@ -1302,6 +1321,20 @@ PFS_instr_class *find_metadata_class(uint index)
 PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
 {
   if (likely(& global_metadata_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_transaction_class *find_transaction_class(uint index)
+{
+  if (index == 1)
+    return &global_transaction_class;
+  return NULL;
+}
+
+PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
+{
+  if (likely(&global_transaction_class == unsafe))
     return unsafe;
   return NULL;
 }

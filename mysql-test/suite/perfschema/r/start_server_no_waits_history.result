@@ -10,13 +10,13 @@ count(*)
 5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-12
+15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
 select count(*) from performance_schema.setup_timers;
 count(*)
-4
+5
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -36,6 +36,14 @@ select * from performance_schema.events_statements_summary_by_host_by_event_name
 select * from performance_schema.events_statements_summary_by_thread_by_event_name;
 select * from performance_schema.events_statements_summary_by_user_by_event_name;
 select * from performance_schema.events_statements_summary_global_by_event_name;
+select * from performance_schema.events_transactions_current;
+select * from performance_schema.events_transactions_history;
+select * from performance_schema.events_transactions_history_long;
+select * from performance_schema.events_transactions_summary_by_account_by_event_name;
+select * from performance_schema.events_transactions_summary_by_host_by_event_name;
+select * from performance_schema.events_transactions_summary_by_thread_by_event_name;
+select * from performance_schema.events_transactions_summary_by_user_by_event_name;
+select * from performance_schema.events_transactions_summary_global_by_event_name;
 select * from performance_schema.events_waits_current;
 select * from performance_schema.events_waits_history;
 select * from performance_schema.events_waits_history_long;
@@ -96,6 +104,8 @@ performance_schema_events_stages_history_long_size	1000
 performance_schema_events_stages_history_size	10
 performance_schema_events_statements_history_long_size	1000
 performance_schema_events_statements_history_size	10
+performance_schema_events_transactions_history_long_size	1000
+performance_schema_events_transactions_history_size	10
 performance_schema_events_waits_history_long_size	10000
 performance_schema_events_waits_history_size	0
 performance_schema_hosts_size	100
