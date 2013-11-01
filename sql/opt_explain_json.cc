@@ -1562,7 +1562,26 @@ public:
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
-    return union_result->format(json) || format_unit(json);
+    if (union_result)
+      return (union_result->format(json)) || format_unit(json);
+    else
+    {
+      /*
+        UNION without temporary table. There is no union_result since
+        there is no fake_select_lex.
+      */
+      Opt_trace_object union_res(json, K_UNION_RESULT);
+      union_res.add(K_USING_TMP_TABLE, false);
+      Opt_trace_array specs(json, K_QUERY_SPECIFICATIONS);
+      List_iterator<context> it(query_specs);
+      context *ctx;
+      while ((ctx= it++))
+      {
+        if (ctx->format(json))
+          return true; /* purecov: inspected */
+      }
+      return format_unit(json);
+    }
   }
 
 public:

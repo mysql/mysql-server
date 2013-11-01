@@ -591,7 +591,7 @@ public:
 	    group_list == NULL && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
-  bool change_result(select_result *result);
+  bool change_result(select_result *new_result, select_result *old_result);
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();

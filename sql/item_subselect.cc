@@ -3297,7 +3297,7 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 {
   item= si;
   result= res;
-  return select_lex->join->change_result(result);
+  return select_lex->join->change_result(result, NULL);
 }
 
 
@@ -3621,7 +3621,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   */
   materialize_engine->prepare();
   /* Let our engine reuse this query plan for materialization. */
-  materialize_engine->join->change_result(result);
+  materialize_engine->join->change_result(result, NULL);
 
   DBUG_RETURN(FALSE);
 }
