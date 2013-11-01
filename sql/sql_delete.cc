@@ -906,6 +906,16 @@ bool multi_delete::send_data(List<Item> &values)
     if (!(table->map & delete_table_map))
       continue;
 
+    const bool immediate= table->map & delete_immediate;
+
+    DBUG_ASSERT(immediate || table == tables[unique_counter]);
+
+    /*
+      If not doing immediate deletion, increment unique_counter and assign
+      "tempfile" here, so that it is available when and if it is needed.
+    */
+    Unique *const tempfile= immediate ? NULL : tempfiles[unique_counter++];
+
     // Check if using outer join and no row found, or row is already deleted
     if (table->status & (STATUS_NULL_ROW | STATUS_DELETED))
       continue;
@@ -913,7 +923,7 @@ bool multi_delete::send_data(List<Item> &values)
     table->file->position(table->record[0]);
     found++;
 
-    if (table->map & delete_immediate)
+    if (immediate)
     {
       // Rows from this table can be deleted immediately
       if (table->triggers &&
@@ -950,8 +960,7 @@ bool multi_delete::send_data(List<Item> &values)
     else
     {
       // Save deletes in a Unique object, to be carried out later.
-      DBUG_ASSERT(table == tables[unique_counter]);
-      error= tempfiles[unique_counter++]->unique_add((char*) table->file->ref);
+      error= tempfile->unique_add((char*) table->file->ref);
       if (error)
       {
         /* purecov: begin inspected */
