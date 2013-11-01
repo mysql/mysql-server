@@ -289,6 +289,7 @@ SET(SERVER_TESTS
   table_cache
   tc_log_mmap
   thd_manager
+  unique
 )
 
 ## Merging tests into fewer executables saves *a lot* of
