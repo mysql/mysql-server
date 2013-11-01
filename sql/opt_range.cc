@@ -912,8 +912,8 @@ public:
 
   key_map *needed_reg;        /* ptr to SQL_SELECT::needed_reg */
 
-  uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
-  uint imerge_cost_buff_size; /* size of the buffer */
+  // Buffer for index_merge cost estimates.
+  Unique::Imerge_cost_buf_type imerge_cost_buff;
 
   /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
@@ -2725,7 +2725,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.mem_root= &alloc;
     param.old_root= thd->mem_root;
     param.needed_reg= &needed_reg;
-    param.imerge_cost_buff_size= 0;
+    param.imerge_cost_buff.reset();
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
     param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
@@ -4381,7 +4381,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   bool all_scans_ror_able= TRUE;
   bool all_scans_rors= TRUE;
-  uint unique_calc_buff_size;
+  size_t unique_calc_buff_size;
   TABLE_READ_PLAN **roru_read_plans;
   TABLE_READ_PLAN **cur_roru_plan;
   double roru_index_costs;
@@ -4519,12 +4519,16 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     Unique::get_cost_calc_buff_size((ulong)non_cpk_scan_records,
                                     param->table->file->ref_length,
                                     param->thd->variables.sortbuff_size);
-  if (param->imerge_cost_buff_size < unique_calc_buff_size)
+  if (param->imerge_cost_buff.size() < unique_calc_buff_size)
   {
-    if (!(param->imerge_cost_buff= (uint*)alloc_root(param->mem_root,
-                                                     unique_calc_buff_size)))
+    typedef Unique::Imerge_cost_buf_type::value_type element_type;
+    void *rawmem=
+      alloc_root(param->mem_root, unique_calc_buff_size * sizeof(element_type));
+    if (!rawmem)
       DBUG_RETURN(NULL);
-    param->imerge_cost_buff_size= unique_calc_buff_size;
+    param->imerge_cost_buff=
+      Unique::Imerge_cost_buf_type(static_cast<element_type*>(rawmem),
+                                   unique_calc_buff_size);
   }
 
   {
