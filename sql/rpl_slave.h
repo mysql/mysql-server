@@ -150,19 +150,19 @@ extern bool server_id_supplied;
       mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
 
     reset_logs:
-      LOCK_thd_count, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
+      THD::LOCK_thd_data, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
 
     purge_relay_logs:
-      rli.data_lock, (relay.reset_logs) LOCK_thd_count,
+      rli.data_lock, (relay.reset_logs) THD::LOCK_thd_data,
       relay.LOCK_log, relay.LOCK_index, global_sid_lock->wrlock
 
     reset_master:
-      (binlog.reset_logs) LOCK_thd_count, binlog.LOCK_log,
+      (binlog.reset_logs) THD::LOCK_thd_data, binlog.LOCK_log,
       binlog.LOCK_index, global_sid_lock->wrlock
 
     reset_slave:
       mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
-      LOCK_thd_count, relay.LOCK_log, relay.LOCK_index,
+      THD::LOCK_thd_data, relay.LOCK_log, relay.LOCK_index,
       global_sid_lock->wrlock
 
     purge_logs:

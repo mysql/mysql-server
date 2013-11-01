@@ -263,9 +263,6 @@ private:
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key key_LOG_INFO_lock;
-#endif
 
 /*
   Note that we destroy the lock mutex in the destructor here.
@@ -279,15 +276,12 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   int entry_index; //used in purge_logs(), calculatd in find_log_pos().
-  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
