@@ -19,6 +19,8 @@
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "auth_common.h"            // SUPER_ACL
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 
 /**
   Check if we have a condition where the transaction state must
@@ -132,6 +134,21 @@ bool trans_begin(THD *thd, uint flags)
   /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
+  /*
+    Register transaction start in performance schema if not done already.
+    We handle explicitly started transactions here, implicitly started
+    transactions (and single-statement transactions in autocommit=1 mode)
+    are handled in trans_register_ha().
+    We can't handle explicit transactions in the same way as implicit
+    because we want to correctly attribute statements which follow
+    BEGIN but do not touch any transactional tables.
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi == NULL)
+    thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                                 NULL, NULL, thd->tx_isolation,
+                                                 thd->tx_read_only, false);
+#endif
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -171,6 +188,9 @@ bool trans_commit(THD *thd)
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
+
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -228,6 +248,9 @@ bool trans_commit_implicit(THD *thd)
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
 
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
   /*
     Upon implicit commit, reset the current transaction
     isolation level and access mode. We do not care about
@@ -276,6 +299,9 @@ bool trans_rollback(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -316,7 +342,9 @@ bool trans_rollback_implicit(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
 
   /* Rollback should clear transaction_rollback_request flag. */
-  DBUG_ASSERT(! thd->transaction_rollback_request);
+  DBUG_ASSERT(!thd->transaction_rollback_request);
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -379,6 +407,10 @@ bool trans_commit_stmt(THD *thd)
   else if (tc_log)
     tc_log->commit(thd, false);
 
+  /* In autocommit=1 mode the transaction should be marked as complete in P_S */
+  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
+              thd->m_transaction_psi == NULL);
+
   thd->transaction.stmt.reset();
 
   DBUG_RETURN(MY_TEST(res));
@@ -428,6 +460,10 @@ bool trans_rollback_stmt(THD *thd)
   }
   else if (tc_log)
     tc_log->rollback(thd, false);
+
+  /* In autocommit=1 mode the transaction should be marked as complete in P_S */
+  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
+              thd->m_transaction_psi == NULL);
 
   thd->transaction.stmt.reset();
 

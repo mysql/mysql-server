@@ -33,6 +33,14 @@ select * from performance_schema.events_statements_summary_by_host_by_event_name
 select * from performance_schema.events_statements_summary_by_thread_by_event_name;
 select * from performance_schema.events_statements_summary_by_user_by_event_name;
 select * from performance_schema.events_statements_summary_global_by_event_name;
+select * from performance_schema.events_transactions_current;
+select * from performance_schema.events_transactions_history;
+select * from performance_schema.events_transactions_history_long;
+select * from performance_schema.events_transactions_summary_by_account_by_event_name;
+select * from performance_schema.events_transactions_summary_by_host_by_event_name;
+select * from performance_schema.events_transactions_summary_by_thread_by_event_name;
+select * from performance_schema.events_transactions_summary_by_user_by_event_name;
+select * from performance_schema.events_transactions_summary_global_by_event_name;
 select * from performance_schema.events_waits_current;
 select * from performance_schema.events_waits_history;
 select * from performance_schema.events_waits_history_long;

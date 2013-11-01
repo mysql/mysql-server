@@ -2256,12 +2256,12 @@ innobase_register_trx(
 	THD*		thd,	/* in: MySQL thd (connection) object */
 	trx_t*		trx)	/* in: transaction to register */
 {
-	trans_register_ha(thd, FALSE, hton);
+	trans_register_ha(thd, FALSE, hton, (const ulonglong *)&trx->id);
 
 	if (!trx_is_registered_for_2pc(trx)
 	    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
-		trans_register_ha(thd, TRUE, hton);
+		trans_register_ha(thd, TRUE, hton, (const ulonglong *)&trx->id);
 	}
 
 	trx_register_for_2pc(trx);
