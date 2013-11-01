@@ -16,8 +16,7 @@
 #ifndef SQL_CONNECT_INCLUDED
 #define SQL_CONNECT_INCLUDED
 
-#include "my_sys.h"                          /* pthread_handler_t */
-#include "mysql_com.h"                         /* enum_server_command */
+#include "my_global.h"   // uint
 
 class THD;
 typedef struct st_lex_user LEX_USER;
@@ -26,23 +25,14 @@ typedef struct user_resources USER_RESOURCES;
 
 void init_max_user_conn(void);
 void free_max_user_conn(void);
-bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
-void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
 bool thd_prepare_connection(THD *thd);
 void close_connection(THD *thd, uint sql_errno= 0);
 bool thd_is_connection_alive(THD *thd);
-
-int check_user(THD *thd, enum enum_server_command command,
-	       const char *passwd, uint passwd_len, const char *db,
-	       bool check_count);
-
-bool login_connection(THD *thd);
-void prepare_new_connection_state(THD* thd);
 void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host, const USER_RESOURCES *mqh);

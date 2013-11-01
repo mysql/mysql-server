@@ -211,6 +211,37 @@ bool foreign_key_prefix(Key *a, Key *b)
 ****************************************************************************/
 
 /**
+  Release resources of the THD, prior to destruction.
+
+  @param    THD   pointer to THD object.
+*/
+
+void thd_release_resources(THD *thd)
+{
+  thd->release_resources();
+}
+
+/**
+  Reset the context associated from THD with the thread.
+
+  @param    THD   pointer to THD object.
+*/
+void restore_globals(THD *thd)
+{
+  thd->restore_globals();
+}
+
+/**
+  Delete the THD object.
+
+  @param    THD   pointer to THD object.
+*/
+void destroy_thd(THD *thd)
+{
+  delete thd;
+}
+
+/**
   Get reference to scheduler data object
 
   @param thd            THD object
@@ -687,12 +718,6 @@ void thd_inc_row_count(THD *thd)
   @param length length of buffer
   @param max_query_len how many chars of query to copy (0 for all)
 
-  @req LOCK_thd_count
-  
-  @note LOCK_thd_count mutex is not necessary when the function is invoked on
-   the currently running thread (current_thd) or if the caller in some other
-   way guarantees that access to thd->query is serialized.
- 
   @return Pointer to string
 */
 
@@ -1523,7 +1548,6 @@ void THD::cleanup(void)
  */
 void THD::release_resources()
 {
-  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   DBUG_ASSERT(m_release_resources_done == false);
 
   mysql_mutex_lock(&LOCK_status);
@@ -1565,7 +1589,6 @@ void THD::release_resources()
 
 THD::~THD()
 {
-  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));

@@ -1853,9 +1853,9 @@ public:
   virtual void operator()(THD *thd)
   {
     LOG_INFO* linfo;
+    mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo= thd->current_linfo))
     {
-      mysql_mutex_lock(&linfo->lock);
       /*
         Index file offset can be less that purge offset only if
         we just started reading the index file. In that case
@@ -1865,8 +1865,8 @@ public:
         linfo->fatal = (linfo->index_file_offset != 0);
       else
         linfo->index_file_offset -= m_purge_offset;
-      mysql_mutex_unlock(&linfo->lock);
     }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 private:
   my_off_t m_purge_offset;
@@ -1914,9 +1914,9 @@ public:
   virtual void operator()(THD *thd)
   {
     LOG_INFO* linfo;
+    mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo = thd->current_linfo))
     {
-      mysql_mutex_lock(&linfo->lock);
       if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
         sql_print_warning("file %s was not purged because it was being read"
@@ -1924,9 +1924,8 @@ public:
                           (ulonglong)thd->thread_id);
         m_count++;
       }
-      mysql_mutex_unlock(&linfo->lock);
     }
-    return;
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
   int get_count() { return m_count; }
 private:
@@ -2297,7 +2296,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
   LOG_INFO linfo;
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   DBUG_ENTER("show_binlog_events");
 
@@ -2336,9 +2334,9 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       goto err;
     }
 
-    thd_manager->acquire_thd_lock();
+    mysql_mutex_lock(&thd->LOCK_thd_data);
     thd->current_linfo = &linfo;
-    thd_manager->release_thd_lock();
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
@@ -2439,9 +2437,9 @@ err:
   else
     my_eof(thd);
 
-  thd_manager->acquire_thd_lock();
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo = 0;
-  thd_manager->release_thd_lock();
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
@@ -4005,15 +4003,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   ha_reset_logs(thd);
 
   /*
-    The following mutex is needed to ensure that no threads call
-    'delete thd' as we would then risk missing a 'rollback' from this
-    thread. If the transaction involved MyISAM tables, it should go
-    into binlog even on rollback.
-  */
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->acquire_thd_lock();
-
-  /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
   */
@@ -4134,7 +4123,6 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
   global_sid_lock->unlock();
-  thd_manager->release_thd_lock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);

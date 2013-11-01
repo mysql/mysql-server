@@ -26,7 +26,6 @@ WHERE name IN (
 AND enabled = 'yes' AND timed = 'yes'
 ORDER BY name;
 NAME	ENABLED	TIMED
-wait/synch/mutex/sql/LOG_INFO::lock	YES	YES
 wait/synch/mutex/sql/THD::LOCK_thd_data	YES	YES
 SELECT * FROM performance_schema.setup_instruments
 WHERE name = 'wait/synch/mutex/sql/hash_filo::lock'
