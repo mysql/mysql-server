@@ -972,7 +972,7 @@ mysql_prepare_select(THD *thd,
       creation
     */
     if (select_lex->linkage != DERIVED_TABLE_TYPE ||
-	(select_options & SELECT_DESCRIBE))
+        (select_options & SELECT_DESCRIBE))
     {
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
@@ -995,7 +995,7 @@ mysql_prepare_select(THD *thd,
   else
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
-	DBUG_RETURN(TRUE); /* purecov: inspected */
+      DBUG_RETURN(TRUE); /* purecov: inspected */
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
@@ -4885,26 +4885,34 @@ void JOIN::clear()
 
 
 /**
-  change select_result object of JOIN.
+  Change the select_result object of the JOIN.
 
-  @param res		new select_result object
+  If old_result is not used, forward the call to the current
+  select_result in case it is a wrapper around old_result.
 
-  @retval
-    FALSE   OK
-  @retval
-    TRUE    error
+  Call prepare() and prepare2() on the new select_result if we decide
+  to use it.
+
+  @param new_result New select_result object
+  @param old_result Old select_result object (NULL to force change)
+
+  @retval false Success
+  @retval true  Error
 */
 
-bool JOIN::change_result(select_result *res)
+bool JOIN::change_result(select_result *new_result, select_result *old_result)
 {
   DBUG_ENTER("JOIN::change_result");
-  result= res;
-  if (result->prepare(fields_list, select_lex->master_unit()) ||
-      result->prepare2())
+  if (old_result == NULL || result == old_result)
   {
-    DBUG_RETURN(TRUE);
+    result= new_result;
+    if (result->prepare(fields_list, select_lex->master_unit()) ||
+        result->prepare2())
+      DBUG_RETURN(true); /* purecov: inspected */
+    DBUG_RETURN(false);
   }
-  DBUG_RETURN(FALSE);
+  else
+    DBUG_RETURN(result->change_result(new_result));
 }
 
 
