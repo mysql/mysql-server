@@ -150,6 +150,13 @@ struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
 
 /**
+  Interface for an instrumented transaction.
+  This is an opaque structure.
+*/
+struct PSI_transaction_locker;
+typedef struct PSI_transaction_locker PSI_transaction_locker;
+
+/**
   Interface for an instrumented idle operation.
   This is an opaque structure.
 */
@@ -260,6 +267,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #define DISABLE_PSI_MEMORY
 #endif
 
+#ifndef DISABLE_PSI_TRANSACTION
+#define DISABLE_PSI_TRANSACTION
+#endif
+
 #endif
 
 /**
@@ -281,6 +292,7 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   @sa DISABLE_PSI_MEMORY
   @sa DISABLE_PSI_IDLE
   @sa DISABLE_PSI_METADATA
+  @sa DISABLE PSI_TRANSACTION
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -374,6 +386,16 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #ifndef DISABLE_PSI_STATEMENT_DIGEST
 #define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
 #endif
+#endif
+
+/**
+  @def DISABLE_PSI_TRANSACTION
+  Compiling option to disable the transaction instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_TRANSACTION
+#define HAVE_PSI_TRANSACTION_INTERFACE
 #endif
 
 /**
@@ -1184,6 +1206,46 @@ struct PSI_statement_locker_state_v1
   PSI_sp_share *m_parent_sp_share;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
+
+/**
+  State data storage for @c get_thread_transaction_locker_v1_t,
+  @c get_thread_transaction_locker_v1_t.
+  This structure provide temporary storage to a transaction locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_transaction_locker_v1_t
+*/
+struct PSI_transaction_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Instrumentation class. */
+  void *m_class;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Internal data. */
+  void *m_transaction;
+  /** True if read-only transaction, false if read-write. */
+  my_bool m_read_only;
+  /** True if transaction is autocommit. */
+  my_bool m_autocommit;
+  /** Number of statements. */
+  ulong m_statement_count;
+  /** Total number of savepoints. */
+  ulong m_savepoint_count;
+  /** Number of rollback_to_savepoint. */
+  ulong m_rollback_to_savepoint_count;
+  /** Number of release_savepoint. */
+  ulong m_release_savepoint_count;
+};
+
+typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
 
 /**
   State data storage for @c start_socket_wait_v1_t.
@@ -2018,6 +2080,102 @@ typedef void (*end_statement_v1_t)
   (struct PSI_statement_locker *locker, void *stmt_da);
 
 /**
+  Get a transaction instrumentation locker.
+  @param state data storage for the locker
+  @param xid the xid for this transaction
+  @param trxid the InnoDB transaction id
+  @param iso_level isolation level for this transaction
+  @param read_only true if transaction access mode is read-only
+  @param autocommit true if transaction is autocommit
+  @return a transaction locker, or NULL
+*/
+typedef struct PSI_transaction_locker* (*get_thread_transaction_locker_v1_t)
+  (struct PSI_transaction_locker_state_v1 *state, const void *xid,
+   const ulonglong *trxid, int isolation_level, my_bool read_only,
+   my_bool autocommit);
+
+/**
+  Start a new transaction event.
+  @param locker the transaction locker for this event
+  @param src_file source file name
+  @param src_line source line number
+*/
+typedef void (*start_transaction_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const char *src_file, uint src_line);
+
+/**
+  Set the transaction xid.
+  @param locker the transaction locker for this event
+  @param xid the id of the XA transaction
+  #param xa_state is the state of the XA transaction
+*/
+typedef void (*set_transaction_xid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const void *xid, int xa_state);
+
+/**
+  Set the state of the XA transaction.
+  @param locker the transaction locker for this event
+  @param xa_state the new state of the xa transaction
+*/
+typedef void (*set_transaction_xa_state_v1_t)
+  (struct PSI_transaction_locker *locker,
+   int xa_state);
+
+/**
+  Set the transaction gtid.
+  @param locker the transaction locker for this event
+  @param sid the source id for the transaction, mapped from sidno
+  @param gtid_spec the gtid specifier for the transaction
+*/
+typedef void (*set_transaction_gtid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const void *sid, const void *gtid_spec);
+
+/**
+  Set the transaction trx_id.
+  @param locker the transaction locker for this event
+  @param trxid the storage engine transaction ID
+*/
+typedef void (*set_transaction_trxid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const ulonglong *trxid);
+
+/**
+  Increment a transaction event savepoint count.
+  @param locker the transaction locker
+  @param count the increment value
+*/
+typedef void (*inc_transaction_savepoints_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+
+/**
+  Increment a transaction event rollback to savepoint count.
+  @param locker the transaction locker
+  @param count the increment value
+*/
+typedef void (*inc_transaction_rollback_to_savepoint_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+
+/**
+  Increment a transaction event release savepoint count.
+  @param locker the transaction locker
+  @param count the increment value
+*/
+typedef void (*inc_transaction_release_savepoint_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+
+/**
+  Commit or rollback the transaction.
+  @param locker the transaction locker for this event
+  @param commit true if transaction was committed, false if rolled back
+*/
+typedef void (*end_transaction_v1_t)
+  (struct PSI_transaction_locker *locker,
+   my_bool commit);
+
+/**
   Record a socket instrumentation start event.
   @param locker a socket locker for the running thread
   @param op socket operation to be performed
@@ -2338,6 +2496,26 @@ struct PSI_v1
   set_statement_no_good_index_used_t set_statement_no_good_index_used;
   /** @sa end_statement_v1_t. */
   end_statement_v1_t end_statement;
+  /** @sa get_thread_transaction_locker_v1_t. */
+  get_thread_transaction_locker_v1_t get_thread_transaction_locker;
+  /** @sa start_transaction_v1_t. */
+  start_transaction_v1_t start_transaction;
+  /** @sa set_transaction_xid_v1_t. */
+  set_transaction_xid_v1_t set_transaction_xid;
+  /** @sa set_transaction_xa_state_v1_t. */
+  set_transaction_xa_state_v1_t set_transaction_xa_state;
+  /** @sa set_transaction_gtid_v1_t. */
+  set_transaction_gtid_v1_t set_transaction_gtid;
+  /** @sa set_transaction_trxid_v1_t. */
+  set_transaction_trxid_v1_t set_transaction_trxid;
+  /** @sa inc_transaction_savepoints_v1_t. */
+  inc_transaction_savepoints_v1_t inc_transaction_savepoints;
+  /** @sa inc_transaction_rollback_to_savepoint_v1_t. */
+  inc_transaction_rollback_to_savepoint_v1_t inc_transaction_rollback_to_savepoint;
+  /** @sa inc_transaction_release_savepoint_v1_t. */
+  inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
+  /** @sa end_transaction_v1_t. */
+  end_transaction_v1_t end_transaction;
   /** @sa start_socket_wait_v1_t. */
   start_socket_wait_v1_t start_socket_wait;
   /** @sa end_socket_wait_v1_t. */
@@ -2461,6 +2639,13 @@ struct PSI_statement_info_v2
 };
 
 /** Placeholder */
+struct PSI_transaction_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
 struct PSI_idle_locker_state_v2
 {
   /** Placeholder */
@@ -2504,6 +2689,13 @@ struct PSI_table_locker_state_v2
 
 /** Placeholder */
 struct PSI_statement_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
+struct PSI_transaction_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
@@ -2566,6 +2758,7 @@ typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_stage_info_v1 PSI_stage_info;
 typedef struct PSI_statement_info_v1 PSI_statement_info;
+typedef struct PSI_transaction_info_v1 PSI_transaction_info;
 typedef struct PSI_socket_info_v1 PSI_socket_info;
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
@@ -2574,6 +2767,7 @@ typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
+typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
@@ -2588,6 +2782,7 @@ typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
 typedef struct PSI_stage_info_v2 PSI_stage_info;
 typedef struct PSI_statement_info_v2 PSI_statement_info;
+typedef struct PSI_transaction_info_v2 PSI_transaction_info;
 typedef struct PSI_socket_info_v2 PSI_socket_info;
 typedef struct PSI_idle_locker_state_v2 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
@@ -2596,6 +2791,7 @@ typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
+typedef struct PSI_transaction_locker_state_v2 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
 typedef struct PSI_metadata_locker_state_v2 PSI_metadata_locker_state;

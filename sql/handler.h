@@ -3450,8 +3450,8 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
-void trans_register_ha(THD *thd, bool all, handlerton *ht);
-
+void trans_register_ha(THD *thd, bool all, handlerton *ht,
+                       const ulonglong *trxid);
 /*
   Storage engine has to assume the transaction will end up with 2pc if
    - there is more than one 2pc-capable storage engine available

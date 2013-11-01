@@ -486,5 +486,6 @@
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1
 #cmakedefine DISABLE_PSI_MEMORY 1
+#cmakedefine DISABLE_PSI_TRANSACTION 1
 
 #endif
