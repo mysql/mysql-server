@@ -1,0 +1,5 @@
+#
+# WL#6791 Redefine client --ssl option to imply enforced encryption
+#
+# verify that --ssl makes SSL required against a no-ssl server
+End of 5.7 tests
