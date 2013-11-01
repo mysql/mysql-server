@@ -22,7 +22,7 @@
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release
-#include "sql_connect.h"                 // init_new_connection_handler_thread
+#include "sql_connect.h"                 // close_connection
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // do_command
 
@@ -30,9 +30,12 @@
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  if (init_new_connection_handler_thread())
+
+  if (my_thread_init())
   {
+    connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    Connection_handler_manager::dec_connection_count();
     return true;
   }
 
@@ -41,6 +44,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    Connection_handler_manager::dec_connection_count();
     return true;
   }
 
@@ -63,6 +67,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     close_connection(thd, ER_OUT_OF_RESOURCES);
     thd->release_resources();
     delete thd;
+    Connection_handler_manager::dec_connection_count();
     return true;
   }
 
@@ -71,28 +76,24 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 
   thd_manager->add_thd(thd);
 
+  bool error= false;
   if (thd_prepare_connection(thd))
+    error= true; // Returning true causes inc_aborted_connects() to be called.
+  else
   {
-    close_connection(thd);
-    thd->release_resources();
-    thd_manager->remove_thd(thd);
-    delete thd;
-    return true;
+    delete channel_info;
+    while (thd_is_connection_alive(thd))
+    {
+      mysql_audit_release(thd);
+      if (do_command(thd))
+        break;
+    }
+    end_connection(thd);
   }
-
-  delete channel_info;
-  while (thd_is_connection_alive(thd))
-  {
-    mysql_audit_release(thd);
-    if (do_command(thd))
-      break;
-  }
-
-  end_connection(thd);
   close_connection(thd);
-  dec_connection_count();
+  Connection_handler_manager::dec_connection_count();
   thd->release_resources();
   thd_manager->remove_thd(thd);
   delete thd;
-  return false;
+  return error;
 }

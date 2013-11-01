@@ -4195,7 +4195,6 @@ pthread_handler_t handle_slave_io(void *arg)
   thd_set_psi(mi->info_thd, psi);
   #endif
 
-  pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
   mi->clear_error();
   if (init_slave_thread(thd, SLAVE_THD_IO))
@@ -4665,7 +4664,6 @@ pthread_handler_t handle_slave_worker(void *arg)
   thd_set_psi(w->info_thd, psi);
   #endif
 
-  pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_WORKER))
   {
     // todo make SQL thread killed
@@ -5635,7 +5633,6 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
 
-  pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
     /*
