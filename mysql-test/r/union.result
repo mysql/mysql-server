@@ -125,7 +125,6 @@ explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union all /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain select xx from t1 union select 1;
@@ -1877,3 +1876,90 @@ z
 select b as z from t1 union (select b from t1) order by (select z);
 z
 drop table t1;
+#
+# WL#1763 Avoid creating temporary table in UNION ALL
+#
+EXPLAIN SELECT 1 UNION ALL SELECT 1 LIMIT 1 OFFSET 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union all /* select#2 */ select 1 AS `1` limit 1,1
+# Bug #17579498 CHANGES IN DATATYPE OF THE RESULT QUERY IN UNION.
+CREATE TABLE t1 (a TIME);
+CREATE TABLE t2 (b DATETIME);
+CREATE TABLE t3
+SELECT a FROM t1 UNION ALL SELECT b FROM t2;
+SELECT column_name, column_type
+FROM information_schema.columns
+WHERE TABLE_NAME='t3';
+column_name	column_type
+a	datetime
+DROP TABLE t1, t2, t3;
+# Bug #17602922 RESULT DIFFERENCES IN UNION QUERIES WITH IN
+# (SUBQUERY-UNION ALL)
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('j');
+INSERT INTO t1 VALUES ('k');
+INSERT INTO t1 VALUES ('r');
+INSERT INTO t1 VALUES ('r');
+INSERT INTO t1 VALUES ('h');
+SELECT a FROM t1 WHERE a IN (SELECT 'r' FROM t1 UNION ALL SELECT 'j');
+a
+j
+r
+r
+CREATE TABLE t2
+SELECT a FROM t1 WHERE a IN (SELECT 'r' FROM t1 UNION ALL SELECT 'j');
+SELECT * FROM t2;
+a
+j
+r
+r
+DROP TABLE t1, t2;
+# Bug #17580869 FOUND_ROWS() VALUE DO NOT MATCH WITH
+# UNION-LIMIT QUERIES
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
+a	SUM(a)
+1	1
+NULL	NULL
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+DROP TABLE t1, t2;
+# Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT
+# SQL_INSERT.CC
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 SELECT a, a FROM t1 UNION ALL SELECT a, a FROM t1;
+ERROR 42S21: Duplicate column name 'a'
+DROP TABLE t1;
+# Bug #17694956 RESULT DIFFERENCES IN UNION ALL QUERIES WITH LIMIT
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+(SELECT a FROM t1 ORDER BY a LIMIT 0) UNION ALL SELECT a FROM t1;
+a
+1
+DROP TABLE t1;
+# Bug #17708480 FOUND_ROWS() VALUE DO NOT MATCH WITH UNION ALL QUERIES
+CREATE TABLE t1 (a INT) ENGINE=MEMORY;
+CREATE TABLE t2 (a INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (1);
+SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1;
+a
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+1
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION ALL SELECT * FROM t2;
+a
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+1
+DROP TABLE t1, t2;
+# End of WL1763 tests
