@@ -7694,11 +7694,11 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    trans_register_ha(thd, FALSE, ht);
+    trans_register_ha(thd, FALSE, ht, NULL);
     if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
-        trans_register_ha(thd, TRUE, ht);
+        trans_register_ha(thd, TRUE, ht, NULL);
       thd_ndb->m_handler= NULL;
     }
     else

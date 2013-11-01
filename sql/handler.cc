@@ -38,6 +38,8 @@
 #include "probes_mysql.h"
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
@@ -1167,7 +1169,8 @@ void ha_close_connection(THD* thd)
     times per transaction.
 
 */
-void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
+void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
+                       const ulonglong *trxid)
 {
   THD_TRANS *trans;
   Ha_trx_info *ha_info;
@@ -1194,6 +1197,28 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 
   trans->no_2pc|=(ht_arg->prepare==0);
   thd->transaction.xid_state.set_query_id(thd->query_id);
+/*
+  Register transaction start in performance schema if not done already.
+  By doing this, we handle cases when the transaction is started implicitly in
+  autocommit=0 mode, and cases when we are in normal autocommit=1 mode and the
+  executed statement is a single-statement transaction.
+
+  Explicitly started transactions are handled in trans_begin().
+
+  Do not register transactions in which binary log is the only participating
+  transactional storage engine.
+*/
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi == NULL &&
+      ht_arg->db_type != DB_TYPE_BINLOG)
+  {
+    const XID *xid= thd->transaction.xid_state.get_xid();
+    my_bool autocommit= !thd->in_multi_stmt_transaction_mode();
+    thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                         xid, trxid, thd->tx_isolation,
+                                         thd->tx_read_only, autocommit);
+  }
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1441,6 +1466,18 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     error= 1;
     goto end;
   }
+/*
+  Mark multi-statement (any autocommit mode) or single-statement
+  (autocommit=1) transaction as rolled back
+*/
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (is_real_trans && thd->m_transaction_psi != NULL)
+  {
+    MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
+  
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
@@ -1617,6 +1654,17 @@ int ha_rollback_trans(THD *thd, bool all)
 
   if (tc_log)
     error= tc_log->rollback(thd, all);
+  /*
+    Mark multi-statement (any autocommit mode) or single-statement
+    (autocommit=1) transaction as rolled back
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (all || !thd->in_active_multi_stmt_transaction())
+  {
+    MYSQL_ROLLBACK_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
@@ -1738,6 +1786,12 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trans->ha_list= sv->ha_list;
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(thd->m_transaction_psi, 1);
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -1812,6 +1866,11 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
   */
   sv->ha_list= trans->ha_list;
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (!error && thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_SAVEPOINTS(thd->m_transaction_psi, 1);
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -1836,6 +1895,11 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
     }
   }
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(thd->m_transaction_psi, 1);
+#endif
   DBUG_RETURN(error);
 }
 

@@ -433,6 +433,47 @@ struct PFS_statement_stat
   }
 };
 
+/** Statistics for transaction usage. */
+struct PFS_transaction_stat
+{
+  PFS_single_stat m_read_write_stat;
+  PFS_single_stat m_read_only_stat;
+
+  ulonglong m_savepoint_count;
+  ulonglong m_rollback_to_savepoint_count;
+  ulonglong m_release_savepoint_count;
+
+  PFS_transaction_stat()
+  {
+    m_savepoint_count= 0;
+    m_rollback_to_savepoint_count= 0;
+    m_release_savepoint_count= 0;
+  }
+
+  ulonglong count(void)
+  {
+    return (m_read_write_stat.m_count + m_read_only_stat.m_count);
+  }
+
+  inline void reset(void)
+  {
+    m_read_write_stat.reset();
+    m_read_only_stat.reset();
+    m_savepoint_count= 0;
+    m_rollback_to_savepoint_count= 0;
+    m_release_savepoint_count= 0;
+  }
+
+  inline void aggregate(PFS_transaction_stat *stat)
+  {
+    m_read_write_stat.aggregate(&stat->m_read_write_stat);
+    m_read_only_stat.aggregate(&stat->m_read_only_stat);
+    m_savepoint_count+= stat->m_savepoint_count;
+    m_rollback_to_savepoint_count+= stat->m_rollback_to_savepoint_count;
+    m_release_savepoint_count+= stat->m_release_savepoint_count;
+  }
+};
+
 /** Single table io statistic. */
 struct PFS_table_io_stat
 {

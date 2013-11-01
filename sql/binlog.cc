@@ -7634,8 +7634,8 @@ void register_binlog_handler(THD *thd, bool trx)
       Set callbacks in order to be able to call commmit or rollback.
     */
     if (trx)
-      trans_register_ha(thd, TRUE, binlog_hton);
-    trans_register_ha(thd, FALSE, binlog_hton);
+      trans_register_ha(thd, TRUE, binlog_hton, NULL);
+    trans_register_ha(thd, FALSE, binlog_hton, NULL);
 
     /*
       Set the binary log as read/write otherwise callbacks are not called.
