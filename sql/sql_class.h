@@ -2661,6 +2661,14 @@ public:
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
+
+  /** Current transaction instrumentation. */
+  PSI_transaction_locker *m_transaction_psi;
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /** Current transaction instrumentation state. */
+  PSI_transaction_locker_state m_transaction_state;
+#endif /* HAVE_PSI_TRANSACTION_INTERFACE */
+
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
 #ifdef HAVE_PSI_IDLE_INTERFACE

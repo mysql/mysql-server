@@ -42,6 +42,7 @@ PFS_user *user_array= NULL;
 static PFS_single_stat *user_instr_class_waits_array= NULL;
 static PFS_stage_stat *user_instr_class_stages_array= NULL;
 static PFS_statement_stat *user_instr_class_statements_array= NULL;
+static PFS_transaction_stat *user_instr_class_transactions_array= NULL;
 static PFS_memory_stat *user_instr_class_memory_array= NULL;
 
 LF_HASH user_hash;
@@ -64,10 +65,12 @@ int init_user(const PFS_global_param *param)
   user_instr_class_waits_array= NULL;
   user_instr_class_stages_array= NULL;
   user_instr_class_statements_array= NULL;
+  user_instr_class_transactions_array= NULL;
   user_instr_class_memory_array= NULL;
   uint waits_sizing= user_max * wait_class_max;
   uint stages_sizing= user_max * stage_class_max;
   uint statements_sizing= user_max * statement_class_max;
+  uint transactions_sizing= user_max * transaction_class_max;
   uint memory_sizing= user_max * memory_class_max;
 
   if (user_max > 0)
@@ -102,6 +105,14 @@ int init_user(const PFS_global_param *param)
       return 1;
   }
 
+  if (transactions_sizing > 0)
+  {
+    user_instr_class_transactions_array=
+      PFS_connection_slice::alloc_transactions_slice(transactions_sizing);
+    if (unlikely(user_instr_class_transactions_array == NULL))
+      return 1;
+  }
+
   if (memory_sizing > 0)
   {
     user_instr_class_memory_array=
@@ -118,6 +129,8 @@ int init_user(const PFS_global_param *param)
       &user_instr_class_stages_array[index * stage_class_max];
     user_array[index].m_instr_class_statements_stats=
       &user_instr_class_statements_array[index * statement_class_max];
+    user_array[index].m_instr_class_transactions_stats=
+      &user_instr_class_transactions_array[index * transaction_class_max];
     user_array[index].m_instr_class_memory_stats=
       &user_instr_class_memory_array[index * memory_class_max];
   }
@@ -136,6 +149,8 @@ void cleanup_user(void)
   user_instr_class_stages_array= NULL;
   pfs_free(user_instr_class_statements_array);
   user_instr_class_statements_array= NULL;
+  pfs_free(user_instr_class_transactions_array);
+  user_instr_class_transactions_array= NULL;
   pfs_free(user_instr_class_memory_array);
   user_instr_class_memory_array= NULL;
   user_max= 0;
@@ -310,6 +325,7 @@ void PFS_user::aggregate(bool alive)
   aggregate_waits();
   aggregate_stages();
   aggregate_statements();
+  aggregate_transactions();
   aggregate_memory(alive);
   aggregate_stats();
 }
@@ -330,6 +346,12 @@ void PFS_user::aggregate_statements()
 {
   /* No parent to aggregate to, clean the stats */
   reset_statements_stats();
+}
+
+void PFS_user::aggregate_transactions()
+{
+  /* No parent to aggregate to, clean the stats */
+  reset_transactions_stats();
 }
 
 void PFS_user::aggregate_memory(bool alive)

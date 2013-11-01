@@ -44,6 +44,8 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 #include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
@@ -13544,6 +13546,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
     global_sid_lock->rdlock();
     sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
     global_sid_lock->unlock();
+    MYSQL_SET_TRANSACTION_GTID(thd_arg->m_transaction_psi, &sid, &spec);
   }
   else
     sid.clear();

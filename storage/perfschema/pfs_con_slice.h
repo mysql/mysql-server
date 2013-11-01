@@ -27,6 +27,7 @@
 struct PFS_single_stat;
 struct PFS_stage_stat;
 struct PFS_statement_stat;
+struct PFS_transaction_stat;
 struct PFS_memory_stat;
 
 /**
@@ -58,6 +59,14 @@ struct PFS_connection_slice
     @return statement statistics for this slice.
   */
   static PFS_statement_stat *alloc_statements_slice(uint sizing);
+
+  /**
+    Allocate memory for transaction statistics.
+    @param sizing the number of transaction classes.
+    @return transaction statistics for this slice.
+  */
+  static PFS_transaction_stat *alloc_transactions_slice(uint sizing);
+
   /**
     Allocate memory for memory statistics.
     @param sizing the number of memory classes.
@@ -71,6 +80,7 @@ struct PFS_connection_slice
     reset_waits_stats();
     reset_stages_stats();
     reset_statements_stats();
+    reset_transactions_stats();
     rebase_memory_stats();
   }
 
@@ -80,6 +90,8 @@ struct PFS_connection_slice
   void reset_stages_stats();
   /** Reset all statements statistics. */
   void reset_statements_stats();
+  /** Reset all transactions statistics. */
+  void reset_transactions_stats();
   /** Reset all memory statistics. */
   void rebase_memory_stats();
 
@@ -106,6 +118,14 @@ struct PFS_connection_slice
     Immutable, safe to use without internal lock.
   */
   PFS_statement_stat *m_instr_class_statements_stats;
+
+  /**
+    Per connection slice transactions aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_BY_*_BY_EVENT_NAME.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_transaction_stat *m_instr_class_transactions_stats;
 
   /**
     Per connection slice memory aggregated statistics.
