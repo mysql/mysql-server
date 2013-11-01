@@ -548,7 +548,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
   */
-  query_cache.invalidate(thd, table_list, FALSE);
+  query_cache.invalidate_single(thd, insert_table_ref, false);
   if (error)
   {
     if (read_file_from_client)
