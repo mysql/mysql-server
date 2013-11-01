@@ -19514,6 +19514,114 @@ static void test_wl6797()
   mysql_stmt_close(stmt);
 }
 
+
+static void test_wl6791()
+{
+  int        rc;
+  uint       idx;
+  MYSQL      *l_mysql;
+  enum mysql_option
+  uint_opts[] = {
+    MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
+    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE
+  },
+  my_bool_opts[] = {
+    MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
+    MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
+    MYSQL_SECURE_AUTH, MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+    MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_SSL_ENFORCE,
+    MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+  },
+  const_char_opts[] = {
+    MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
+    MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+    /* mysql_options() is a no-op on non-supporting platforms. */
+    MYSQL_SHARED_MEMORY_BASE_NAME,
+#endif
+    MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+    MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH,
+    MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_SERVER_PUBLIC_KEY
+  },
+  err_opts[] = {
+    MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
+    MYSQL_OPT_CONNECT_ATTR_DELETE, MYSQL_INIT_COMMAND
+  };
+
+  myheader("test_wl6791");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  for (idx= 0; idx < sizeof(uint_opts) / sizeof(enum mysql_option); idx++)
+  {
+    uint opt_before= 1, opt_after= 0;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing uint option #%d (%d)\n", idx,
+              (int) uint_opts[idx]);
+    rc= mysql_options(l_mysql, uint_opts[idx], &opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, uint_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before == opt_after);
+  }
+
+  for (idx= 0; idx < sizeof(my_bool_opts) / sizeof(enum mysql_option); idx++)
+  {
+    my_bool opt_before = TRUE, opt_after = FALSE;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing my_bool option #%d (%d)\n", idx,
+      (int)my_bool_opts[idx]);
+
+    rc = mysql_options(l_mysql, my_bool_opts[idx], &opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, my_bool_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before == opt_after);
+  }
+
+  for (idx= 0; idx < sizeof(const_char_opts) / sizeof(enum mysql_option); idx++)
+  {
+    const char *opt_before = "TEST", *opt_after = NULL;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing const char * option #%d (%d)\n", idx,
+      (int)const_char_opts[idx]);
+
+    rc = mysql_options(l_mysql, const_char_opts[idx], opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, const_char_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before && opt_after &&
+               0 == strcmp(opt_before, opt_after));
+  }
+
+  for (idx= 0; idx < sizeof(err_opts) / sizeof(enum mysql_option); idx++)
+  {
+    void *dummy_arg;
+    if (!opt_silent)
+      fprintf(stdout, "testing invalid option #%d (%d)\n", idx,
+      (int)err_opts[idx]);
+
+    rc = mysql_get_option(l_mysql, err_opts[idx], &dummy_arg);
+    DIE_UNLESS(rc != 0);
+  }
+
+  /* clean up */
+  mysql_close(l_mysql);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -19785,6 +19893,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl6587", test_wl6587 },
   { "test_wl5928", test_wl5928 },
   { "test_wl6797", test_wl6797 },
+  { "test_wl6791", test_wl6791 },
   { 0, 0 }
 };
 
