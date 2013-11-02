@@ -64,7 +64,7 @@ function usage() {
   "   -r <n>  :  Repeat tests #n times (default 1, n<0: forever)\n" +
   "   --trace :\n" +
   "   -t      :  Enable trace output\n" +
-  "   --set other=value: set property other to value"
+  "   --set prop=value: set connection property prop to value"
   ;
   console.log(msg);
   process.exit(1);
@@ -131,8 +131,11 @@ function parse_command_line(options) {
       i++;  // next argument
       pair = process.argv[i].split('=');
       if(pair.length === 2) {
+        if(isFinite(parseInt(pair[1]))) {
+          pair[1] = parseInt(pair[1])
+        }
         JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
-        global[pair[0]] = pair[1];
+        options.setProp[pair[0]] = pair[1];
       }
       else {
         console.log("Invalid --set option " + process.argv[i]);
@@ -271,10 +274,11 @@ function main() {
     'stats': false,
     'spi': false,
     'log': false,
-    'nRuns': 1
+    'nRuns': 1,
+    'setProp' : {}
   };
 
-  /* Options from config file; connection_properties are handled below */
+  /* Options from config file */
   try {
     var config_file = require("./jscrund.config");
     config_file_exists = true;
@@ -300,6 +304,7 @@ function main() {
     process.exit(0);
   }
 
+  /* Fetch the backend implementation */
   if(options.spi) {
     JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
   } else if(options.adapter == 'sql') {
@@ -310,9 +315,10 @@ function main() {
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   }
 
+  /* Get default connection properties */
   var properties = JSCRUND.implementation.getDefaultProperties(options.adapter);
 
-  /* Connection properties from jscrund.config */
+  /* Then mix in connection properties from jscrund.config */
   if(config_file_exists) {
     for(var i in config_file.connection_properties) {
       if(config_file.connection_properties.hasOwnProperty(i)) {
@@ -320,9 +326,19 @@ function main() {
       }
     }
   }
-  var logFile = new ResultLog(options.log);
+
+  /* Then mix in properties from the command line */
   properties.database = options.database;
-  options.properties = properties; // properties for getSession
+  for(i in options.setProp) {
+    if(options.setProp.hasOwnProperty(i)) {
+      properties[i] = options.setProp[i];
+    }
+  }
+
+  /* Finally store the complete properties object in the options */
+  options.properties = properties;
+
+  var logFile = new ResultLog(options.log);
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
   new JSCRUND.mynode.TableMapping("b").applyToClass(B);
   options.annotations = [ A, B ];
