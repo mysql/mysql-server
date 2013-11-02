@@ -86,14 +86,24 @@ var implementation = function() {
   var connection = null;
 };
 
+implementation.prototype.getDefaultProperties = function() {
+  return {
+    mysql_host      : 'localhost',
+    mysql_port      : 3306,
+    mysql_user      : 'root',
+    mysql_password  : '',
+    database        : 'test'
+  };
+};
+
 implementation.prototype.initialize = function(options, callback) {
   JSCRUND.udebug.log_detail('jscrund_sql.initialize', this);
   var impl = this;
   // set up the session
   var properties = {};
   // set up mysql properties
-  properties.host = options.properties.mysql_host || 'localhost';
-  properties.port = options.properties.mysql_port || 3306;
+  properties.host = options.properties.mysql_host;
+  properties.port = options.properties.mysql_port;
   properties.user = options.properties.mysql_user;
   properties.password = options.properties.mysql_password;
   properties.database = options.properties.database;
