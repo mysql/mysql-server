@@ -31,6 +31,13 @@ implementation.prototype = {
   batch       :  null
 };
 
+implementation.prototype.getDefaultProperties = function() {
+  return {
+    mysql_user : "root",   /* For CREATE TABLE */
+    database   : "test"
+  };
+};
+
 implementation.prototype.close = function(callback) {
   callback(null);
 };

@@ -37,6 +37,11 @@ implementation.prototype = {
   operations        :  null,
 };
 
+implementation.prototype.getDefaultProperties = function(adapter) {
+  this.dbServiceProvider = spi.getDBServiceProvider(adapter);
+  return this.dbServiceProvider.getDefaultConnectionProperties();
+};
+
 implementation.prototype.close = function(callback) {
   var impl = this;
   impl.dbSession.close(function() { impl.dbConnPool.close(callback); });
@@ -47,8 +52,6 @@ implementation.prototype.initialize = function(options, callback) {
   var impl = this;
   var mappings = options.annotations;
   var nmappings = mappings.length;
-
-  impl.dbServiceProvider = spi.getDBServiceProvider(options.adapter);
 
   function getMapping(n) {
     function gotMapping(err, tableMetadata) {

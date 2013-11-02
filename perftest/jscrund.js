@@ -285,8 +285,8 @@ function main() {
     }
   }
   catch(e) {
-    console.log(e);
     if (e.message.indexOf('Cannot find module') === -1) {
+      console.log(e);
       console.log(e.name, 'reading jscrund.config:', e.message, '\nPlease correct this error and try again.\n');
       process.exit(0);
     }
@@ -300,27 +300,23 @@ function main() {
     process.exit(0);
   }
 
-  var properties = {};
-  if (options.adapter === 'ndb' || options.adapter === 'mysql') {
-    properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
-    if(options.spi) {
-      JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
-    } else { 
-      JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
-    }
-  } else if (options.adapter === 'sql') {
-    properties = new JSCRUND.mynode.ConnectionProperties('mysql');
+  if(options.spi) {
+    JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
+  } else if(options.adapter == 'sql') {
     JSCRUND.implementation = new JSCRUND.sqlAdapter.implementation();
-  }
-  else if (options.adapter === 'null') {
-    properties = new JSCRUND.mynode.ConnectionProperties('mysql'); // for CREATE
+  } else if(options.adapter == 'null') {
     JSCRUND.implementation = new JSCRUND.nullAdapter.implementation();
+  } else {
+    JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   }
+
+  var properties = JSCRUND.implementation.getDefaultProperties(options.adapter);
+
   /* Connection properties from jscrund.config */
   if(config_file_exists) {
     for(var i in config_file.connection_properties) {
       if(config_file.connection_properties.hasOwnProperty(i)) {
-        properties[i]  = config_file.connection_properties[i];
+        properties[i] = config_file.connection_properties[i];
       }
     }
   }
