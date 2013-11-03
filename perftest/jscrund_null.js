@@ -30,6 +30,7 @@ function implementation() {
   var b = new Buffer(4);
   this.inBatchMode   = false;
   this.batch         = null;
+  this.buffers       = null;
   this.properties    = null;
   this.debug_msg     = "debug message ";
   this.bounds_helper = [ b,1,true,b,1,false,0 ]; // Index Bounds Helper Spec
@@ -45,7 +46,9 @@ implementation.prototype.getDefaultProperties = function() {
     debug_messages       : 0,       // log_debug messages per operation
     debug_message_length : 20,      // length of debug messages
     ndbapi_calls         : 0,       // NDB API calls per operation
-    system_calls         : 0        // System calls per operation
+    system_calls         : 0,       // System calls per operation
+    new_buffers          : 0,       // Allocate node Buffers per operation
+    new_buffer_size      : 32,      // Size of allocation
   };
 };
 
@@ -64,7 +67,7 @@ implementation.prototype.initialize = function(options, callback) {
 };
 
 implementation.prototype.execOneOperation = function(callback, value) {
-  var n;
+  var b, n;
 
   /* Debug Messages */
   for(n = 0 ; n < this.properties.debug_messages ; n++) {
@@ -79,7 +82,15 @@ implementation.prototype.execOneOperation = function(callback, value) {
 
   /* System calls */
   for(n = 0 ; n < this.properties.system_calls ; n++) {
-    os.loadavg();
+    os.loadavg();          // calls sysctl() or sysinfo()
+  }
+
+  /* Buffers */
+  for(n = 0 ; n < this.properties.new_buffers ; n++) {
+    b = new Buffer(this.properties.new_buffer_size);
+    if(this.inBatchMode) {
+      this.buffers.push(b);
+    }
   }
 
   /* Run operation or add it to batch */
@@ -112,6 +123,7 @@ implementation.prototype.remove = function(parameters, callback) {
 
 implementation.prototype.createBatch = function(callback) {
   this.batch = [];
+  this.buffers = [];
   this.inBatchMode = true;
   callback(null);
 };
