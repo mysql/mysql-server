@@ -20,17 +20,22 @@
 
 'use strict';
 
-var unified_debug  = require('../Adapter/api/unified_debug.js'),
+var spi            = require('../Adapter/impl/SPI.js'),
+    adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+    os             = require('os'),
+    unified_debug  = require('../Adapter/api/unified_debug.js'),
     udebug         = unified_debug.getLogger('jscrund_null.js');
 
 function implementation() {
+  var b = new Buffer(4);
+  this.inBatchMode   = false;
+  this.batch         = null;
+  this.properties    = null;
+  this.debug_msg     = "debug message ";
+  this.bounds_helper = [ b,1,true,b,1,false,0 ]; // Index Bounds Helper Spec
 };
 
 implementation.prototype = {
-  inBatchMode : false,
-  batch       : null,
-  properties  : null,
-  debug_msg   : "debug message "
 };
 
 implementation.prototype.getDefaultProperties = function() {
@@ -39,6 +44,8 @@ implementation.prototype.getDefaultProperties = function() {
     database             : "test",
     debug_messages       : 0,       // log_debug messages per operation
     debug_message_length : 20,      // length of debug messages
+    ndbapi_calls         : 0,       // NDB API calls per operation
+    system_calls         : 0        // System calls per operation
   };
 };
 
@@ -48,6 +55,7 @@ implementation.prototype.close = function(callback) {
 
 implementation.prototype.initialize = function(options, callback) {
   var n;
+  spi.getDBServiceProvider("ndb");   // To call ndb_init()
   this.properties = options.properties;
   while(this.debug_msg.length < this.properties.debug_message_length) {
     this.debug_msg += "x";
@@ -56,10 +64,25 @@ implementation.prototype.initialize = function(options, callback) {
 };
 
 implementation.prototype.execOneOperation = function(callback, value) {
-  for(var n = 0 ; n < this.properties.debug_messages ; n++) {
+  var n;
+
+  /* Debug Messages */
+  for(n = 0 ; n < this.properties.debug_messages ; n++) {
     udebug.log(this.debug_msg);
   }
 
+  /* NDBAPI calls */
+  /* Marshal/Unmarshal arguments and call into native code */
+  for(n = 0 ; n < this.properties.ndbapi_calls ; n++) {
+    adapter.impl.IndexBound.create(this.bounds_helper);
+  }
+
+  /* System calls */
+  for(n = 0 ; n < this.properties.system_calls ; n++) {
+    os.loadavg();
+  }
+
+  /* Run operation or add it to batch */
   if(this.inBatchMode) {
     this.batch.push({ 'cb': callback, 'val': value });
   }
