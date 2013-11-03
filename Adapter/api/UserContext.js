@@ -60,15 +60,7 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
  */
 exports.UserContext = function(user_arguments, required_parameter_count, returned_parameter_count,
     session, session_factory, execute) {
-  if (arguments.length !== 6) {
-    if (arguments.length === 5) {
-      this.execute = true;
-    } else {
-    throw new Error(
-        'Fatal internal exception: wrong parameter count ' + arguments.length + ' for UserContext constructor' +
-        '; expected 5 or 6)');
-    }
-  }
+  this.execute = (typeof execute === 'boolean' ? execute : true);
   this.user_arguments = user_arguments;
   this.user_callback = user_arguments[required_parameter_count - 1];
   this.required_parameter_count = required_parameter_count;
