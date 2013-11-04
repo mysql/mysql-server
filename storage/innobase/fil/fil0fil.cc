@@ -718,11 +718,9 @@ fil_node_open_file(
 			/* The following call prints an error message */
 			os_file_get_last_error(true);
 
-			ut_print_timestamp(stderr);
-
-			ib_logf(IB_LOG_LEVEL_WARN, "InnoDB: Error: cannot "
-				"open %s\n. InnoDB: Have you deleted .ibd "
-				"files under a running mysqld server?\n",
+			ib_logf(IB_LOG_LEVEL_WARN, "Cannot open '%s'."
+				" Have you deleted .ibd files under a"
+				" running mysqld server?",
 				node->name);
 
 			return(false);
@@ -4477,27 +4475,25 @@ fil_load_single_table_tablespace(
 			return;
 		}
 no_good_file:
-		fprintf(stderr,
-			"InnoDB: We do not continue the crash recovery,"
-			" because the table may become\n"
-			"InnoDB: corrupt if we cannot apply the log"
-			" records in the InnoDB log to it.\n"
-			"InnoDB: To fix the problem and start mysqld:\n"
-			"InnoDB: 1) If there is a permission problem"
-			" in the file and mysqld cannot\n"
-			"InnoDB: open the file, you should"
-			" modify the permissions.\n"
-			"InnoDB: 2) If the table is not needed, or you"
-			" can restore it from a backup,\n"
-			"InnoDB: then you can remove the .ibd file,"
-			" and InnoDB will do a normal\n"
-			"InnoDB: crash recovery and ignore that table.\n"
-			"InnoDB: 3) If the file system or the"
-			" disk is broken, and you cannot remove\n"
-			"InnoDB: the .ibd file, you can set"
-			" innodb_force_recovery > 0 in my.cnf\n"
-			"InnoDB: and force InnoDB to continue crash"
-			" recovery here.\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"We do not continue the crash recovery, because"
+			" the table may become corrupt if we cannot apply"
+			" the log records in the InnoDB log to it."
+			"To fix the problem and start mysqld:");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"1) If there is a permission problem in the file"
+			" and mysqld cannot open the file, you should"
+			" modify the permissions.");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"2) If the table is not needed, or you can restore"
+			" it from a backup, then you can remove the .ibd"
+			" file, and InnoDB will do a normal crash recovery"
+			" and ignore that table.");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"3) If the file system or the disk is broken, and"
+			" you cannot remove the .ibd file, you can set"
+			" innodb_force_recovery > 0 in my.cnf and force"
+			" InnoDB to continue crash recovery here.\n");
 will_not_choose:
 		ut_free(tablename);
 		ut_free(remote.filepath);
@@ -4641,11 +4637,11 @@ will_not_choose:
 
 	if (!file_space_create_success) {
 		if (srv_force_recovery > 0) {
-			fprintf(stderr,
-				"InnoDB: innodb_force_recovery was set"
-				" to %lu. Continuing crash recovery\n"
-				"InnoDB: even though the tablespace"
-				" creation of this table failed.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"innodb_force_recovery was set to %lu."
+				" Continuing crash recovery even though"
+				" the tablespace creation of this table"
+				" failed.",
 				srv_force_recovery);
 			goto func_exit;
 		}
@@ -5449,10 +5445,8 @@ fil_node_prepare_for_io(
 	ut_ad(mutex_own(&(system->mutex)));
 
 	if (system->n_open > system->max_n_open + 5) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Warning: open files %lu"
-			" exceeds the limit %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Open files %lu exceeds the limit %lu",
 			(ulong) system->n_open,
 			(ulong) system->max_n_open);
 	}
