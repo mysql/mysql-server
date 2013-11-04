@@ -1282,13 +1282,13 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 }
 
 extern "C"
-void *thd_alloc(MYSQL_THD thd, unsigned int size)
+void *thd_alloc(MYSQL_THD thd, size_t size)
 {
   return thd->alloc(size);
 }
 
 extern "C"
-void *thd_calloc(MYSQL_THD thd, unsigned int size)
+void *thd_calloc(MYSQL_THD thd, size_t size)
 {
   return thd->calloc(size);
 }
@@ -1300,14 +1300,14 @@ char *thd_strdup(MYSQL_THD thd, const char *str)
 }
 
 extern "C"
-char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size)
+char *thd_strmake(MYSQL_THD thd, const char *str, size_t size)
 {
   return thd->strmake(str, size);
 }
 
 extern "C"
 LEX_STRING *thd_make_lex_string(THD *thd, LEX_STRING *lex_str,
-                                const char *str, unsigned int size,
+                                const char *str, size_t size,
                                 int allocate_lex_string)
 {
   return thd->make_lex_string(lex_str, str, size,
@@ -1315,7 +1315,7 @@ LEX_STRING *thd_make_lex_string(THD *thd, LEX_STRING *lex_str,
 }
 
 extern "C"
-void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size)
+void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 {
   return thd->memdup(str, size);
 }
@@ -2039,7 +2039,7 @@ void THD::cleanup_after_query()
 
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
-                     LEX_STRING *lex_str, const char* str, uint length,
+                     LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string)
 {
   if (allocate_lex_string)
@@ -2062,7 +2062,7 @@ make_lex_string_root(MEM_ROOT *mem_root,
   @return  NULL on failure, or pointer to the LEX_STRING object
 */
 LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
-                                 const char* str, uint length,
+                                 const char* str, size_t length,
                                  bool allocate_lex_string)
 {
   return make_lex_string_root (mem_root, lex_str, str,
