@@ -4933,3 +4933,15 @@ my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
   return (*mysql->methods->read_query_result)(mysql);
 }
 
+int STDCALL
+mysql_reset_connection(MYSQL *mysql)
+{
+  DBUG_ENTER("mysql_reset_connection");
+  if(simple_command(mysql,COM_RESET_CONNECTION,0,0,0))
+    DBUG_RETURN(1);
+  else
+  {
+    mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
+    DBUG_RETURN(0);
+  }
+}
