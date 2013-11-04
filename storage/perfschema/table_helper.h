@@ -466,6 +466,33 @@ struct PFS_sp_stat_row
   }
 };
 
+/** Row fragment for transaction statistics columns. */
+struct PFS_transaction_stat_row
+{
+  PFS_stat_row m_timer1_row;
+  PFS_stat_row m_read_write_row;
+  PFS_stat_row m_read_only_row;
+  ulonglong m_savepoint_count;
+  ulonglong m_rollback_to_savepoint_count;
+  ulonglong m_release_savepoint_count;
+
+  /** Build a row from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_transaction_stat *stat)
+  {
+    /* Combine read write/read only stats */
+    PFS_single_stat all;
+    all.aggregate(&stat->m_read_only_stat);
+    all.aggregate(&stat->m_read_write_stat);
+
+    m_timer1_row.set(normalizer, &all);
+    m_read_write_row.set(normalizer, &stat->m_read_write_stat);
+    m_read_only_row.set(normalizer, &stat->m_read_only_stat);
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
 /** Row fragment for connection statistics. */
 struct PFS_connection_stat_row
 {
@@ -487,6 +514,8 @@ void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type);
 void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type);
 void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration);
 void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status);
+void set_field_isolation_level(Field *f, enum_isolation_level iso_level);
+void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state);
 
 /** Row fragment for socket io statistics columns. */
 struct PFS_socket_io_stat_row

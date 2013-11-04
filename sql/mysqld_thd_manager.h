@@ -26,6 +26,15 @@
 
 class THD;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+void thd_lock_thread_count(THD *thd);
+void thd_unlock_thread_count(THD *thd);
+#ifdef __cplusplus
+}
+#endif
+
 
 /**
   Base class to perform actions on all thds in the thd list.
@@ -161,98 +170,7 @@ public:
     @return my_thread_id Returns the thread id counter value
     @note                This is a dirty read.
   */
-  my_thread_id get_thread_id() const { return thread_id; }
-
-  /**
-    Acquires LOCK_THD_count mutex.
-  */
-  void acquire_thd_lock()
-  {
-    mysql_mutex_lock(&LOCK_thd_count);
-  }
-
-  /**
-    Releases LOCK_THD_count mutex.
-  */
-  void release_thd_lock()
-  {
-    mysql_mutex_unlock(&LOCK_thd_count);
-  }
-
-  /**
-    Asserts if caller acquired LOCK_THD_count mutex.
-    It is used in THD::release_resources(), THD::~THD()
-    to verify whether mutex is not acquired.
-  */
-  void assert_if_not_mutex_owner() const
-  {
-    mysql_mutex_assert_owner(&LOCK_thd_count);
-  }
-
-  /**
-    Asserts if caller did not acquire LOCK_THD_count mutex.
-    It is used in handle_connection_in_main_thread(),
-    create_thread_to_handle_connection(), thd_new_connection_setup()
-    to verify whether mutex is acquired.
-  */
-  void assert_if_mutex_owner() const
-  {
-    mysql_mutex_assert_not_owner(&LOCK_thd_count);
-  }
-
-  /**
-    Waits on COND_THD_count.
-  */
-  void wait_thd()
-  {
-    assert_if_not_mutex_owner();
-    mysql_cond_wait(&COND_thd_count, &LOCK_thd_count);
-  }
-
-  /**
-    Waits on COND_thread_cache.
-  */
-  void wait_thread_cache()
-  {
-    assert_if_not_mutex_owner();
-    mysql_cond_wait(&COND_thread_cache, &LOCK_thd_count);
-  }
-
-  /**
-    Waits on COND_flush_thread_cache.
-  */
-  void wait_flush_thread_cache()
-  {
-    assert_if_not_mutex_owner();
-    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thd_count);
-  }
-
-  /**
-    It sends broadcast to all threads waiting on COND_THD_count.
-  */
-  void notify_all_thd()
-  {
-    mysql_cond_broadcast(&COND_thd_count);
-  }
-
-  /**
-    Sends signal to all threads which waits on COND_thread_cache.
-  */
-  void notify_thread_cache(bool broadcastflag)
-  {
-    if (broadcastflag)
-      mysql_cond_broadcast(&COND_thread_cache);
-    else
-      mysql_cond_signal(&COND_thread_cache);
-  }
-
-  /**
-    Sends signal to thread which waits on COND_flush_thread_cache.
-  */
-  void notify_flush_thread_cache()
-  {
-    mysql_cond_signal(&COND_flush_thread_cache);
-  }
+  my_thread_id get_thread_id() const { return static_cast<my_thread_id>(thread_id); }
 
   /**
     Retrieves total number of items in global THD list.
@@ -303,8 +221,6 @@ private:
   std::set<THD*> *thd_list;  // Protected by LOCK_thd_count.
 
   mysql_cond_t COND_thd_count;
-  mysql_cond_t COND_thread_cache;
-  mysql_cond_t COND_flush_thread_cache;
 
   // Mutex that guards thd_list.
   mysql_mutex_t LOCK_thd_count;
@@ -315,6 +231,8 @@ private:
 
   // Guards thread_running statistics.
   my_atomic_rwlock_t thread_running_lock;
+  // Guards thread_id
+  my_atomic_rwlock_t thread_id_lock;
 
   // Count of active threads which are running queries in the system.
   int num_thread_running;          // Protected by thread_running_lock.
@@ -323,10 +241,13 @@ private:
   ulonglong thread_created;        // Protected by LOCK_thread_created.
 
   // Counter to assign thread id.
-  my_thread_id thread_id;          // Protected by LOCK_thd_count.
+  volatile int64 thread_id;        // Protected by thread_id_lock.
 
   // Used during unit test to bypass creating real THD object.
   bool unit_test;
+
+  friend void thd_lock_thread_count(THD *);
+  friend void thd_unlock_thread_count(THD *);
 };
 
 #endif /* MYSQLD_INCLUDED */

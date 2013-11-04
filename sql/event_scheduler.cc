@@ -20,7 +20,6 @@
 #include "event_data_objects.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
-#include "sql_connect.h"         // init_new_connection_handler_thread
 #include "auth_common.h"             // SUPER_ACL
 #include "log.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager
@@ -139,8 +138,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 bool
 post_init_event_thread(THD *thd)
 {
-  (void) init_new_connection_handler_thread();
-  if (init_thr_lock() || thd->store_globals())
+  if (my_thread_init() || init_thr_lock() || thd->store_globals())
   {
     return TRUE;
   }

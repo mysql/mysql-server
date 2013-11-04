@@ -1925,32 +1925,25 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 }
 
 
-/*
+/**
   check of key (primary or unique) presence in updatable view
 
-  SYNOPSIS
-    check_key_in_view()
-    thd     thread handler
-    view    view for check with opened table
+  If the table to be checked is a view and the query has LIMIT clause,
+  then check that the view fulfills one of the following constraints:
+   1) it contains the primary key of the underlying updatable table.
+   2) it contains a unique key of the underlying updatable table whose
+      columns are all non-nullable.
+   3) it contains all columns of the underlying updatable table.
 
-  DESCRIPTION
-    If it is VIEW and query have LIMIT clause then check that underlying
-    table of view contain one of following:
-      1) primary key of underlying table
-      2) unique key underlying table with fields for which NULL value is
-         impossible
-      3) all fields of underlying table
+  @param thd       thread handler
+  @param view      view for check with opened table
+  @param table_ref underlying updatable table of the view
 
-  RETURN
-    FALSE   OK
-    TRUE    view do not contain key or all fields
+  @return false is success, true if error
 */
 
-bool check_key_in_view(THD *thd, TABLE_LIST *view)
+bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
 {
-  TABLE *table;
-  Field_translator *trans, *end_of_trans;
-  KEY *key_info, *key_info_end;
   DBUG_ENTER("check_key_in_view");
 
   /*
@@ -1960,14 +1953,14 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   if ((!view->view && !view->belong_to_view) ||
       thd->lex->sql_command == SQLCOM_INSERT ||
       thd->lex->select_lex->select_limit == 0)
-    DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
-  table= view->table;
-  view= view->top_table();
-  trans= view->field_translation;
-  key_info_end= (key_info= table->key_info)+ table->s->keys;
+    DBUG_RETURN(false); /* it is normal table or query without LIMIT */
 
-  end_of_trans=  view->field_translation_end;
-  DBUG_ASSERT(table != 0 && view->field_translation != 0);
+  TABLE *const table = table_ref->table;
+  view= view->top_table();
+  Field_translator *const trans= view->field_translation;
+  Field_translator *const end_of_trans= view->field_translation_end;
+  KEY *key_info= table->key_info;
+  KEY *const key_info_end= key_info + table->s->keys;
 
   {
     /*

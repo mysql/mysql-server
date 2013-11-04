@@ -452,6 +452,9 @@ mtr_t::start(bool sync, bool read_only)
 
 	m_commit_lsn = 0;
 
+	new(&m_impl.m_log) mtr_buf_t();
+	new(&m_impl.m_memo) mtr_buf_t();
+
 	m_impl.m_mtr = this;
 	m_impl.m_log_mode = MTR_LOG_ALL;
 	m_impl.m_inside_ibuf = false;

@@ -857,6 +857,82 @@ void PFS_connection_all_statement_visitor::visit_thread(PFS_thread *pfs)
   visit_connection_slice(pfs);
 }
 
+PFS_connection_transaction_visitor
+::PFS_connection_transaction_visitor(PFS_transaction_class *klass)
+{
+  m_index= klass->m_event_name_index;
+}
+
+PFS_connection_transaction_visitor::~PFS_connection_transaction_visitor()
+{}
+
+void PFS_connection_transaction_visitor::visit_global()
+{
+  m_stat.aggregate(&global_transaction_stat);
+}
+
+void PFS_connection_transaction_visitor::visit_host(PFS_host *pfs)
+{
+  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+}
+
+void PFS_connection_transaction_visitor::visit_user(PFS_user *pfs)
+{
+  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+}
+
+void PFS_connection_transaction_visitor::visit_account(PFS_account *pfs)
+{
+  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+}
+
+void PFS_connection_transaction_visitor::visit_thread(PFS_thread *pfs)
+{
+  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+}
+
+/** Disabled pending code review */
+#if 0
+/** Instance wait visitor */
+PFS_connection_all_transaction_visitor
+::PFS_connection_all_transaction_visitor()
+{}
+
+PFS_connection_all_transaction_visitor::~PFS_connection_all_transaction_visitor()
+{}
+
+void PFS_connection_all_transaction_visitor::visit_global()
+{
+  m_stat.aggregate(&global_transaction_stat);
+}
+
+void PFS_connection_all_transaction_visitor::visit_connection_slice(PFS_connection_slice *pfs)
+{
+  PFS_transaction_stat *stat= pfs->m_instr_class_transactions_stats;
+  m_stat.aggregate(stat);
+}
+
+void PFS_connection_all_transaction_visitor::visit_host(PFS_host *pfs)
+{
+  visit_connection_slice(pfs);
+}
+
+void PFS_connection_all_transaction_visitor::visit_user(PFS_user *pfs)
+{
+  visit_connection_slice(pfs);
+}
+
+void PFS_connection_all_transaction_visitor::visit_account(PFS_account *pfs)
+{
+  visit_connection_slice(pfs);
+}
+
+void PFS_connection_all_transaction_visitor::visit_thread(PFS_thread *pfs)
+{
+  visit_connection_slice(pfs);
+}
+#endif
+
 PFS_connection_stat_visitor::PFS_connection_stat_visitor()
 {}
 

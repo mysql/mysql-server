@@ -153,6 +153,16 @@ a	b
 0	10
 1	11
 drop table t11, t12, t2;
+# sql_safe_updates mode with multi-table DELETE
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES(10),(20);
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES(10),(20);
+SET SESSION sql_safe_updates=1;
+DELETE t1 FROM t1 JOIN t2 WHERE t1.a = 10;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+SET SESSION sql_safe_updates=default;
+DROP TABLE t1, t2;
 create table t1 (a int, b int, unique key (a), key (b));
 insert into t1 values (3, 3), (7, 7);
 delete t1 from t1 where a = 3;

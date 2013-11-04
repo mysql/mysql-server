@@ -25,7 +25,7 @@
 #include "pfs_events_waits.h"
 #include "pfs_digest.h"
 
-#define COUNT_SETUP_CONSUMERS 12
+#define COUNT_SETUP_CONSUMERS 15
 
 static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
 {
@@ -62,6 +62,24 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
   {
     { C_STRING_WITH_LEN("events_statements_history_long") },
     &flag_events_statements_history_long,
+    false,
+    false
+  },
+  {
+    { C_STRING_WITH_LEN("events_transactions_current") },
+    &flag_events_transactions_current,
+    false,
+    false
+  },
+  {
+    { C_STRING_WITH_LEN("events_transactions_history") },
+    &flag_events_transactions_history,
+    false,
+    false
+  },
+  {
+    { C_STRING_WITH_LEN("events_transactions_history_long") },
+    &flag_events_transactions_history_long,
     false,
     false
   },

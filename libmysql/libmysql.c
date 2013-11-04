@@ -2070,9 +2070,9 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   buff[4]= (char) stmt->flags;
   int4store(buff+5, 1);                         /* iteration count */
 
-  res= test(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
-                                 (uchar*) packet, length, 1, stmt) ||
-            (*mysql->methods->read_query_result)(mysql));
+  res= MY_TEST(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
+                                    (uchar*) packet, length, 1, stmt) ||
+               (*mysql->methods->read_query_result)(mysql));
   stmt->affected_rows= mysql->affected_rows;
   stmt->server_status= mysql->server_status;
   stmt->insert_id= mysql->insert_id;
@@ -2559,7 +2559,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
     reinit_result_set_metadata(stmt);
     prepare_to_fetch_result(stmt);
   }
-  DBUG_RETURN(test(stmt->last_errno));
+  DBUG_RETURN(MY_TEST(stmt->last_errno));
 }
 
 
@@ -3179,7 +3179,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     float fdata= (float) data;
-    *param->error= (fdata != data) | test(err);
+    *param->error= (fdata != data) | MY_TEST(err);
     floatstore(buffer, fdata);
     break;
   }
@@ -3187,7 +3187,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   {
     int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
-    *param->error= test(err);
+    *param->error= MY_TEST(err);
     doublestore(buffer, data);
     break;
   }
@@ -3196,7 +3196,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     str_to_time(value, length, tm, &status);
-    *param->error= test(status.warnings);
+    *param->error= MY_TEST(status.warnings);
     break;
   }
   case MYSQL_TYPE_DATE:
@@ -3206,7 +3206,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
-    *param->error= test(status.warnings) &&
+    *param->error= MY_TEST(status.warnings) &&
                    (param->buffer_type == MYSQL_TYPE_DATE &&
                     tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
@@ -3331,7 +3331,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     int error;
     value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
                               &error);
-    *param->error= test(error);
+    *param->error= MY_TEST(error);
     break;
   }
   default:
@@ -3678,7 +3678,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
                                  uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uchar data= **row;
   *(uchar *)param->buffer= data;
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX8;
@@ -3688,7 +3688,7 @@ static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ushort data= (ushort) sint2korr(*row);
   shortstore(param->buffer, data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX16;
@@ -3699,7 +3699,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
                                MYSQL_FIELD *field __attribute__((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uint32 data= (uint32) sint4korr(*row);
   longstore(param->buffer, data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX32;
@@ -3710,7 +3710,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
                                MYSQL_FIELD *field __attribute__((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
   *param->error= param->is_unsigned != field_is_unsigned && data > LONGLONG_MAX;
   longlongstore(param->buffer, data);
@@ -4741,7 +4741,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   my_free(stmt->extension);
   my_free(stmt);
 
-  DBUG_RETURN(test(rc));
+  DBUG_RETURN(MY_TEST(rc));
 }
 
 /*

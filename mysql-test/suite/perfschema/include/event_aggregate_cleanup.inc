@@ -36,6 +36,12 @@ drop prepare dump_statements_host;
 drop prepare dump_statements_history;
 drop prepare dump_statements_global;
 
+drop prepare dump_transactions_account;
+drop prepare dump_transactions_user;
+drop prepare dump_transactions_host;
+drop prepare dump_transactions_history;
+drop prepare dump_transactions_global;
+
 drop prepare dump_users;
 drop prepare dump_hosts;
 drop prepare dump_accounts;
