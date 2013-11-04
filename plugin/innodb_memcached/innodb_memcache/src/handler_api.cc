@@ -43,6 +43,7 @@ Created 3/14/2011 Jimmy Yang
 #include "transaction.h"
 #include "sql_handler.h"
 #include "handler.h"
+#include "mysqld_thd_manager.h"
 
 #include "log_event.h"
 #include "innodb_config.h"
@@ -87,8 +88,9 @@ handler_create_thd(
 	}
 
 	my_net_init(&thd->net,(st_vio*) 0);
-	thd->variables.pseudo_thread_id = thread_id++;
-	thd->thread_id = thd->variables.pseudo_thread_id;
+        Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+        thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+        thd->thread_id= thd->variables.pseudo_thread_id;
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
