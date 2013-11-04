@@ -3308,9 +3308,9 @@ i_s_fts_index_cache_fill_one_index(
 		if (index_charset != system_charset_info) {
 			conv_str.f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str.f_str),
-				conv_str.f_len, system_charset_info,
+				uint32(conv_str.f_len), system_charset_info,
 				reinterpret_cast<char*>(word->text.f_str),
-				word->text.f_len, index_charset, &dummy_errors);
+				uint32(word->text.f_len), index_charset, &dummy_errors);
 			ut_ad(conv_str.f_n_char <= conv_str.f_len);
 			conv_str.f_str[conv_str.f_n_char] = 0;
 			word_str = reinterpret_cast<char*>(conv_str.f_str);
@@ -3664,9 +3664,10 @@ i_s_fts_index_table_fill_one_fetch(
 		if (index_charset != system_charset_info) {
 			conv_str->f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str->f_str),
-				conv_str->f_len, system_charset_info,
+				uint32(conv_str->f_len), system_charset_info,
 				reinterpret_cast<char*>(word->text.f_str),
-				word->text.f_len, index_charset, &dummy_errors);
+				uint32(word->text.f_len), index_charset,
+				&dummy_errors);
 			ut_ad(conv_str->f_n_char <= conv_str->f_len);
 			conv_str->f_str[conv_str->f_n_char] = 0;
 			word_str = reinterpret_cast<char*>(conv_str->f_str);
@@ -3700,21 +3701,19 @@ i_s_fts_index_table_fill_one_fetch(
 						word_str));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
-						(longlong) node->first_doc_id,
-						true));
+						longlong(node->first_doc_id), true));
 
 					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
-						(longlong) node->last_doc_id,
-						true));
+						longlong(node->last_doc_id), true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						node->doc_count));
+						double(node->doc_count)));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
-						(longlong) doc_id, true));
+						longlong(doc_id), true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						pos));
+						double(pos)));
 
 					OK(schema_table_store_record(
 						thd, table));
