@@ -232,6 +232,7 @@ struct arg {
     bool do_prepare;
     bool prelock_updates;
     bool track_thread_performance;
+    bool wrap_in_parent;
 };
 
 static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
@@ -246,6 +247,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->do_prepare = false;
     arg->prelock_updates = false;
     arg->track_thread_performance = true;
+    arg->wrap_in_parent = false;
 }
 
 enum operation_type {
@@ -568,6 +570,7 @@ static void *worker(void *arg_v) {
     arg->random_data = &random_data;
     DB_ENV *env = arg->env;
     DB_TXN *txn = nullptr;
+    DB_TXN *ptxn = nullptr;
     if (verbose) {
         toku_pthread_t self = toku_pthread_self();
         uintptr_t intself = (uintptr_t) self;
@@ -575,11 +578,13 @@ static void *worker(void *arg_v) {
     }
     if (arg->cli->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
+    } else if (arg->wrap_in_parent) {
+        r = env->txn_begin(env, 0, &ptxn, arg->txn_flags); CKERR(r);
     }
     while (run_test) {
         lock_worker_op(we);
         if (!arg->cli->single_txn) {
-            r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
+            r = env->txn_begin(env, ptxn, &txn, arg->txn_flags); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r==0 && !arg->cli->single_txn && arg->do_prepare) {
@@ -616,6 +621,9 @@ static void *worker(void *arg_v) {
     if (arg->cli->single_txn) {
         int flags = get_commit_flags(arg->cli);
         int chk_r = txn->commit(txn, flags); CKERR(chk_r);
+    } else if (arg->wrap_in_parent) {
+        int flags = get_commit_flags(arg->cli);
+        int chk_r = ptxn->commit(ptxn, flags); CKERR(chk_r);
     }
     if (verbose) {
         toku_pthread_t self = toku_pthread_self();
