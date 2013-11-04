@@ -17,6 +17,7 @@
 
 #include "connection_handler_manager.h"
 
+#include "mysql/thread_pool_priv.h"    // create_thd
 #include "mysqld_error.h"              // ER_*
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
@@ -29,7 +30,6 @@
 ulong Connection_handler_manager::aborted_connects= 0;
 uint Connection_handler_manager::connection_count= 0;
 ulong Connection_handler_manager::max_used_connections= 0;
-ulong Connection_handler_manager::thread_created= 0;
 uint Connection_handler_manager::max_threads= 0;
 THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
@@ -207,14 +207,6 @@ void dec_connection_count()
   mysql_mutex_lock(&LOCK_connection_count);
   Connection_handler_manager::connection_count--;
   mysql_mutex_unlock(&LOCK_connection_count);
-}
-
-
-void inc_thread_created()
-{
-  mysql_mutex_lock(&LOCK_thread_created);
-  Connection_handler_manager::thread_created++;
-  mysql_mutex_unlock(&LOCK_thread_created);
 }
 
 

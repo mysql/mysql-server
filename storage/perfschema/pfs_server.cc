@@ -174,12 +174,6 @@ static void cleanup_performance_schema(void)
 
   cleanup_instrument_config();
 
-// Waiting for Bug#56666 / WL#6407
-//
-// #define HAVE_WL6407
-
-#ifdef HAVE_WL6407
-
   /*
     All the LF_HASH
   */
@@ -237,7 +231,6 @@ static void cleanup_performance_schema(void)
   cleanup_instruments();
 
   PFS_atomic::cleanup();
-#endif
 }
 
 void shutdown_performance_schema(void)
@@ -264,7 +257,6 @@ void shutdown_performance_schema(void)
   global_metadata_class.m_enabled= false;
 
   cleanup_performance_schema();
-#if 0
   /*
     Be careful to not delete un-initialized keys,
     this would affect key 0, which is THR_KEY_mysys,
@@ -275,7 +267,6 @@ void shutdown_performance_schema(void)
     pthread_key_delete(THR_PFS);
     THR_PFS_initialized= false;
   }
-#endif
 }
 
 /**

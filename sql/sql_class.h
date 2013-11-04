@@ -162,8 +162,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
-extern bool volatile shutdown_in_progress;
-
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
 extern "C" char **thd_query(MYSQL_THD thd);
 
@@ -2519,6 +2517,15 @@ public:
     }
     return first_successful_insert_id_in_prev_stmt;
   }
+  inline void reset_first_successful_insert_id()
+  {
+    arg_of_last_insert_id_function= FALSE;
+    first_successful_insert_id_in_prev_stmt= 0;
+    first_successful_insert_id_in_cur_stmt= 0;
+    first_successful_insert_id_in_prev_stmt_for_binlog= 0;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+  }
+
   /*
     Used by Intvar_log_event::do_apply_event() and by "SET INSERT_ID=#"
     (mysqlbinlog). We'll soon add a variant which can take many intervals in
@@ -2973,13 +2980,11 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thread_count,
+    We want to minimize the time we hold LOCK_thd_count,
     so when destroying a global thread, do:
 
     thd->release_resources()
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->remove_thd();
     delete thd;
    */
   ~THD();
@@ -3456,7 +3461,7 @@ public:
     int err= killed_errno();
     if (err && !get_stmt_da()->is_set())
     {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+      if ((err == KILL_CONNECTION) && !abort_loop)
         err = KILL_QUERY;
       /*
         KILL is fatal because:

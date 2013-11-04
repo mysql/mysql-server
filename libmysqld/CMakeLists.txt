@@ -62,6 +62,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/event_parse_data.cc
   ../sql/hash_filo.cc
   ../sql/log_event.cc
+  ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc
   ../sql/rpl_injector.cc
   ../sql/rpl_record.cc

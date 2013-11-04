@@ -25,10 +25,10 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_union.h"     // mysql_union_prepare_and_optimize
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
-#include "global_threads.h"  // LOCK_thread_count
 #include "debug_sync.h"    // DEBUG_SYNC
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 typedef qep_row::extra extra;
 
@@ -2206,6 +2206,32 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_RETURN(res || ethd->is_error());
 }
 
+/**
+  Callback function used by mysql_explain_other() to find thd based
+  on the thread id.
+
+  @note It acquires LOCK_thd_data mutex and LOCK_query_plan mutex,
+  when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_query_lock: public Find_THD_Impl
+{
+public:
+  Find_thd_query_lock(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      mysql_mutex_lock(&thd->LOCK_query_plan);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
+
 
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
@@ -2247,21 +2273,10 @@ void mysql_explain_other(THD *thd)
   // Pick thread
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD *tmp= *it;
-      if (tmp->thread_id != thd->lex->query_id)
-        continue;
-      query_thd= tmp;
-      unlock_thd_data= true;
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      mysql_mutex_lock(&tmp->LOCK_query_plan);
-      break;
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Find_thd_query_lock find_thd_query_lock(thd->lex->query_id);
+    query_thd= Global_THD_manager::
+               get_instance()->find_thd(&find_thd_query_lock);
+    if (query_thd) unlock_thd_data= true;
   }
 
   if (!query_thd)

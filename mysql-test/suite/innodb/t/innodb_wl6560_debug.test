@@ -60,7 +60,7 @@ let crash = $args --innodb-force-recovery-crash;
 --list_files $MYSQL_DATA_DIR/ ibtmp*
 --echo --innodb-force-recovery-crash=100
 --echo "Next stmt will crash server"
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=100
 let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
 --source include/search_pattern_in_file.inc
