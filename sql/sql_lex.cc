@@ -2502,14 +2502,7 @@ void st_select_lex::print_order(String *str,
 {
   for (; order; order= order->next)
   {
-    if (order->counter_used)
-    {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
-    }
-    else
-      (*order->item)->print_for_order(str, query_type, order->used_alias);
+    (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)

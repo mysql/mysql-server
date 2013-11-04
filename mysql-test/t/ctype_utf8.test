@@ -1167,8 +1167,8 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 explain
-  select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
-select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
+  select substr(z.a,-1), z.a from t1 as y join t1 as z on y.a=z.a order by 1;
+select substr(z.a,-1), z.a from t1 as y join t1 as z on y.a=z.a order by 1;
 drop table t1;
 
 #

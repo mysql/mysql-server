@@ -185,8 +185,10 @@ select 'zz-1',NULL,'cc-2', 'filler-data' from t2 order by a limit 500;
 explain 
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using where; Using MRR
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	range	idx1	idx1	29	NULL	10	80.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (isnull(`test`.`t4`.`a`) and isnull(`test`.`t4`.`b`) and (isnull(`test`.`t4`.`c`) or (`test`.`t4`.`c` = 'no-such-row1') or (`test`.`t4`.`c` = 'no-such-row2')))
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -207,8 +209,10 @@ NULL	NULL	NULL	NULL-2
 NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using where; Using MRR
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	range	idx1	idx1	29	NULL	21	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (((`test`.`t4`.`a` = 'b-1') or (`test`.`t4`.`a` = 'bb-1')) and isnull(`test`.`t4`.`b`) and ((`test`.`t4`.`c` = 'c-1') or (`test`.`t4`.`c` = 'cc-2')))
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -345,10 +349,11 @@ FROM t2
 WHERE t2.int_key IS NULL
 GROUP BY t2.pk
 );
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	ref	int_key	int_key	5	const	1	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	NULL	ref	int_key	int_key	5	const	1	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` where 0
 DROP TABLE t1, t2;
 #
@@ -361,8 +366,10 @@ insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t
 update t1 set b=repeat(char(65+a), 20) where a < 25;
 This must show range + using index condition:
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	x	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	x	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` < 10) and (`test`.`t1`.`b` = repeat(char((65 + `test`.`t1`.`a`)),20)))
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 a	b	filler
 0	AAAAAAAAAAAAAAAAAAAA	filler
@@ -385,8 +392,10 @@ create table t1 (a int, b int, key(a));
 insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C;
 This mustn't show "Using MRR":
 explain select * from t1 where a < 20  order by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	20	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 20) order by `test`.`t1`.`a`
 drop table t0, t1;
 set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;
@@ -402,8 +411,10 @@ from t1 A, t1 B, t1 C;
 EXPLAIN select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k1	k1	9	NULL	92	Using where; Using MRR
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	92	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select count((length(`test`.`t2`.`a`) + length(`test`.`t2`.`filler`))) AS `count(length(a) + length(filler))` from `test`.`t2` FORCE INDEX (`k1`) where ((`test`.`t2`.`a` >= 'a-1000-a') and (`test`.`t2`.`a` < 'a-1001-a'))
 select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
@@ -414,8 +425,10 @@ create table t2 (a char(100), b char(100), c char(100), d int,
 filler char(10), key(d), primary key (a,b,c));
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 explain select * from t2 force index (d) where d < 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	d	d	5	NULL	#	Using where; Using MRR
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	d	d	5	NULL	#	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`d`) where (`test`.`t2`.`d` < 10)
 drop table t2;
 drop table t1;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
@@ -493,8 +506,10 @@ id
 60
 This must show type=index, extra=Using where
 explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	ind_parent_id	PRIMARY	4	NULL	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	ind_parent_id	PRIMARY	4	NULL	1	400.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`parent_id` AS `parent_id`,`test`.`t1`.`name` AS `name` from `test`.`t1` where (`test`.`t1`.`parent_id` is not null) order by `test`.`t1`.`id` desc limit 1
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 id	parent_id	name
 60	40	F
@@ -541,8 +556,10 @@ FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
 WHERE t2.i1 > 5
 AND t2.pk IS  NULL
 ORDER BY i1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	/* select#1 */ select '9' AS `i1` from dual where 0 order by '9'
 SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
 WHERE t2.i1 > 5
@@ -567,9 +584,11 @@ INSERT INTO t2 VALUES ('v'), ('c');
 EXPLAIN SELECT STRAIGHT_JOIN t1.c1
 FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using MRR
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	1	0.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`c1` AS `c1` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`c1` = `test`.`t2`.`c1`) and (`test`.`t1`.`pk` > 176))
 SELECT STRAIGHT_JOIN t1.c1
 FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
@@ -594,8 +613,10 @@ INSERT INTO t1 VALUES (0,1),(1,2),(2,3);
 EXPLAIN SELECT i1
 FROM t1
 WHERE i2 > 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i2	i2	4	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i2	i2	4	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (`test`.`t1`.`i2` > 2)
 SELECT i1
 FROM t1
 WHERE i2 > 2;
@@ -659,12 +680,14 @@ ON t2.c1 = t4.c3)
 ON t1.c1 = t4.c2)
 RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
 WHERE t1.i1 = 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	10	NULL
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	ALL	k1	NULL	NULL	NULL	0	Range checked for each record (index map: 0x2)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	k1	NULL	NULL	NULL	0	0.00	Range checked for each record (index map: 0x2)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c1` AS `c1`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c1_key` AS `c1_key`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`c3` AS `c3`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c1` AS `c1` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t4`.`c3` = `test`.`t2`.`c1`) and (`test`.`t4`.`c2` = `test`.`t1`.`c1`) and (`test`.`t1`.`i1` = 1) and (`test`.`t2`.`c2` <= `test`.`t5`.`c1`) and (convert(`test`.`t3`.`c1` using utf8) <= `test`.`t4`.`c1_key`))
 SELECT STRAIGHT_JOIN *
 FROM 
 (t1 LEFT JOIN 

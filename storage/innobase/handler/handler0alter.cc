@@ -4171,7 +4171,8 @@ oom:
 	DEBUG_SYNC_C("inplace_after_index_build");
 
 	DBUG_EXECUTE_IF("create_index_fail",
-			error = DB_DUPLICATE_KEY;);
+			error = DB_DUPLICATE_KEY;
+			prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -6117,6 +6118,9 @@ foreign_fail:
 
 			if (index->type & DICT_FTS) {
 				DBUG_ASSERT(index->type == DICT_FTS);
+				/* We reset DICT_TF2_FTS here because the bit
+				is left unset when a drop proceeds the add. */
+				DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 				fts_add_index(index, ctx->new_table);
 				add_fts = true;
 			}

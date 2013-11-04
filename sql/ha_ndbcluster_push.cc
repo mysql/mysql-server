@@ -39,13 +39,13 @@
 
 
 /*
-  Explain why an operation could not be pushed when using 'explain extended'
+  Explain why an operation could not be pushed
   @param[in] msgfmt printf style format string.
 */
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
+  if (unlikely(current_thd->lex->describe))   \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \
