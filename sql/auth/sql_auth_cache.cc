@@ -872,7 +872,8 @@ ulong acl_get(const char *host, const char *ip,
 
   copy_length= (size_t) (strlen(ip ? ip : "") +
                  strlen(user ? user : "") +
-                 strlen(db ? db : ""));
+                 strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid  
+                                               buffer overflow at strmov()*/
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
