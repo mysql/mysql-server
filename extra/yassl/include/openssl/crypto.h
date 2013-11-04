@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2005, 2007 MySQL AB
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 /* crypto.h for openSSL */
 
-#ifndef ysSSL_crypto_h__
+#ifndef yaSSL_crypto_h__
 #define yaSSL_crypto_h__
 
 #ifdef YASSL_PREFIX

@@ -195,6 +195,28 @@ static void die(const char *file, int line, const char *expr)
 #define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 #define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 
+/* Silence unused function warnings for some of the static functions. */
+static int cmp_double(double *a, double *b) __attribute__((unused));
+static void verify_col_data(const char *table, const char *col,
+                            const char *exp_data) __attribute__((unused));
+static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
+                                    const char *name, const char *org_name,
+                                    enum enum_field_types type,
+                                    const char *table, const char *org_table,
+                                    const char *db, unsigned long length,
+                                    const char *def, const char *file,
+                                    int line) __attribute__((unused));
+static void verify_st_affected_rows(MYSQL_STMT *stmt,
+                                    ulonglong exp_count) __attribute__((unused));
+static void verify_affected_rows(ulonglong exp_count) __attribute__((unused));
+static void verify_field_count(MYSQL_RES *result,
+                               uint exp_count) __attribute__((unused));
+#ifndef EMBEDDED_LIBRARY
+static void execute_prepare_query(const char *query,
+                                  ulonglong exp_count) __attribute__((unused));
+#endif
+static my_bool thread_query(const char *query) __attribute__((unused));
+
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
 

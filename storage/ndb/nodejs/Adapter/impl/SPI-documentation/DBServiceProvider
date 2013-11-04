@@ -1,13 +1,6 @@
 
 /* This is the top level of the Database Storage Service Provider Interface.
    Its methods correspond to top-level methods in the API. 
-
-   METHODS:
-     getDefaultConnectionProperties()
-     connectSync(properties)
-     connect(properties, callback)
-     getFactoryKey(properties)
-     loadRequiredModules()
 */
 
 

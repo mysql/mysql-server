@@ -1775,15 +1775,13 @@ done:
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* DTRACE instrumentation, end */
-  if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
+  if (MYSQL_QUERY_DONE_ENABLED() && command == COM_QUERY)
   {
-    int res __attribute__((unused));
-    res= (int) thd->is_error();
-    if (command == COM_QUERY)
-    {
-      MYSQL_QUERY_DONE(res);
-    }
-    MYSQL_COMMAND_DONE(res);
+    MYSQL_QUERY_DONE(thd->is_error());
+  }
+  if (MYSQL_COMMAND_DONE_ENABLED())
+  {
+    MYSQL_COMMAND_DONE(thd->is_error());
   }
 
   /* SHOW PROFILE instrumentation, end */
@@ -5536,7 +5534,6 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
   order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->used_alias= false;
   order->used=0;
-  order->counter_used= 0;
   list.link_in_list(order, &order->next);
   DBUG_RETURN(0);
 }

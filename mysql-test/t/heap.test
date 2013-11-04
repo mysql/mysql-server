@@ -347,26 +347,26 @@ select count(*) from t1 where v='a  ';
 select count(*) from t1 where c='a  ';
 select count(*) from t1 where t='a  ';
 select count(*) from t1 where v between 'a' and 'a ';
---replace_column 9 #
+--replace_column 10 #
 select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where v='a  ';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where c='a  ';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where t='a  ';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where v like 'a%';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where v between 'a' and 'a ';
---replace_column 9 #
+--replace_column 10 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 
 --error ER_DUP_ENTRY
 alter table t1 add unique(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a' order by length(concat('*',v,'*',c,'*',t,'*'));
 # Number of rows is not constant for b-trees keys
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where v='a';
 
 drop table t1;

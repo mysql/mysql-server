@@ -1840,15 +1840,19 @@ a
 
 c
 EXPLAIN SELECT a FROM t1 WHERE a=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1004	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 0)
 SELECT a FROM t1 WHERE a=0;
 a
 
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 EXPLAIN SELECT a FROM t1 WHERE a=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	1	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where ('' = 0)
 SELECT a FROM t1 WHERE a=0;
 a
 

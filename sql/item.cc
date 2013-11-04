@@ -704,7 +704,18 @@ void Item::print_for_order(String *str,
     append_identifier(current_thd, str, item_name);
   }
   else
-    print(str,query_type);
+  {
+    if (type() == Item::INT_ITEM && basic_const_item())
+    {
+      /*
+        "ORDER BY N" means "order by the N-th element". To avoid such
+        interpretation we write "ORDER BY ''", which is equivalent.
+      */
+      str->append("''");
+    }
+    else
+      print(str,query_type);
+  }
 }
 
 
@@ -4595,7 +4606,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   if (mark_item)
     mark_item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe)
   {
     /*
       UNION's result has select_number == INT_MAX which is printed as -1 and
