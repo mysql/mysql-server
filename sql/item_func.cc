@@ -631,18 +631,19 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
 /**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
 */
 
 void Item_func::count_decimal_length()
 {
   int max_int_part= 0;
   decimals= 0;
-  unsigned_flag= 1;
   for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(decimals, args[i]->decimals);
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
-    set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
@@ -652,18 +653,18 @@ void Item_func::count_decimal_length()
 
 
 /**
-  Set max_length of if it is maximum length of its arguments.
+  Set char_length to the maximum number of characters required by any
+  of this function's arguments.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
 */
 
 void Item_func::count_only_length(Item **item, uint nitems)
 {
   uint32 char_length= 0;
-  unsigned_flag= 1;
   for (uint i= 0; i < nitems; i++)
-  {
     set_if_bigger(char_length, item[i]->max_char_length());
-    set_if_smaller(unsigned_flag, item[i]->unsigned_flag);
-  }
   fix_char_length(char_length);
 }
 
