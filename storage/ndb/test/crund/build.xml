@@ -389,7 +389,7 @@
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
       <arg line="-p crundRun.properties"/>
-      <arg line="-p crundNdbjtie.properties"/>
+      <arg line="-p crundNdb.properties"/>
     </java>
   </target>
   <target name="run.ndbjtie.opt" depends="set.run.opt,run.ndbjtie"/>
@@ -1160,11 +1160,13 @@ Note that the enhancement process for subclasses introduces dependencies on -
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
       <arg line="-p crundRun.properties"/>
-      <arg line="-p crundNdbjtie.properties"/>
+      <arg line="-p crundNdb.properties"/>
       <arg line="-p crundClusterj.properties"/>
       <arg line="-p crundMysql.properties"/>
       <arg line="-p crundOpenjpa.properties"/>
     </java>
   </target>
   <target name="run.crund.opt" depends="set.run.opt,run.crund"/>
+
+  <target name="run.jcrund" depends="run.crund.opt"/>
 </project>
