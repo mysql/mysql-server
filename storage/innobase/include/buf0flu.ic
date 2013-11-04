@@ -57,38 +57,36 @@ UNIV_INLINE
 void
 buf_flush_note_modification(
 /*========================*/
-	buf_block_t*	block,	/*!< in: block which is modified */
-	mtr_t*		mtr)	/*!< in: mtr */
+	buf_block_t*	block,		/*!< in: block which is modified */
+	lsn_t		start_lsn,	/*!< in: start lsn of the mtr that
+					modified this block */
+	lsn_t		end_lsn)	/*!< in: end lsn of the mtr that
+					modified this block */
 {
-	buf_pool_t*	buf_pool = buf_pool_from_block(block);
+#ifdef UNIV_DEBUG
+	{
+		ut_ad(!srv_read_only_mode);
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		ut_ad(block->page.buf_fix_count > 0);
 
-	ut_ad(!srv_read_only_mode);
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->page.buf_fix_count > 0);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own_flagged(&block->lock,
-				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
+		buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
-	ut_ad(!buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	ut_ad(!mtr->made_dirty || log_flush_order_mutex_own());
+		ut_ad(!buf_pool_mutex_own(buf_pool));
+		ut_ad(!buf_flush_list_mutex_own(buf_pool));
+	}
+#endif /* UNIV_DEBUG */
 
-	ut_ad(mtr->start_lsn != 0);
-	ut_ad(mtr->modifications);
+	mutex_enter(&block->mutex);
 
-	buf_page_mutex_enter(block);
-	ut_ad(block->page.newest_modification <= mtr->end_lsn);
+	ut_ad(block->page.newest_modification <= end_lsn);
+	block->page.newest_modification = end_lsn;
 
-	block->page.newest_modification = mtr->end_lsn;
+	if (block->page.oldest_modification == 0) {
+		buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
-	if (!block->page.oldest_modification) {
-		ut_a(mtr->made_dirty);
-		ut_ad(log_flush_order_mutex_own());
-		buf_flush_insert_into_flush_list(
-			buf_pool, block, mtr->start_lsn);
+		buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
 	} else {
-		ut_ad(block->page.oldest_modification <= mtr->start_lsn);
+		ut_ad(block->page.oldest_modification <= start_lsn);
 	}
 
 	buf_page_mutex_exit(block);
@@ -108,26 +106,29 @@ buf_flush_recv_note_modification(
 	lsn_t		end_lsn)	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 {
-	buf_pool_t*	buf_pool = buf_pool_from_block(block);
+#ifdef UNIV_DEBUG
+	{
+		ut_ad(!srv_read_only_mode);
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		ut_ad(block->page.buf_fix_count > 0);
 
-	ut_ad(!srv_read_only_mode);
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->page.buf_fix_count > 0);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+		buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
-	ut_ad(!buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	ut_ad(log_flush_order_mutex_own());
+		ut_ad(!buf_pool_mutex_own(buf_pool));
+		ut_ad(!buf_flush_list_mutex_own(buf_pool));
 
-	ut_ad(start_lsn != 0);
-	ut_ad(block->page.newest_modification <= end_lsn);
+		ut_ad(start_lsn != 0);
+		ut_ad(block->page.newest_modification <= end_lsn);
+	}
+#endif /* UNIV_DEBUG */
 
 	buf_page_mutex_enter(block);
+
 	block->page.newest_modification = end_lsn;
 
 	if (!block->page.oldest_modification) {
+		buf_pool_t*	buf_pool = buf_pool_from_block(block);
+
 		buf_flush_insert_sorted_into_flush_list(
 			buf_pool, block, start_lsn);
 	} else {

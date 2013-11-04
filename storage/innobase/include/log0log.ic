@@ -25,10 +25,14 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "os0file.h"
 #include "mach0data.h"
-#include "mtr0mtr.h"
 #include "srv0mon.h"
 
+#ifdef UNIV_LOG_LSN_DEBUG
+#include "mtr0types.h"
+#endif /* UNIV_LOG_LSN_DEBUG */
+
 #ifdef UNIV_LOG_DEBUG
+
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
@@ -337,8 +341,6 @@ log_reserve_and_write_fast(
 		/* The string does not fit within the current log block
 		or the log block would become full */
 
-		log_mutex_exit();
-
 		return(0);
 	}
 
@@ -348,24 +350,29 @@ log_reserve_and_write_fast(
 	{
 		/* Write the LSN pseudo-record. */
 		byte* b = &log_sys->buf[log_sys->buf_free];
+
 		*b++ = MLOG_LSN | (MLOG_SINGLE_REC_FLAG & *(const byte*) str);
+
 		/* Write the LSN in two parts,
 		as a pseudo page number and space id. */
 		b += mach_write_compressed(b, log_sys->lsn >> 32);
 		b += mach_write_compressed(b, log_sys->lsn & 0xFFFFFFFFUL);
 		ut_a(b - lsn_len == &log_sys->buf[log_sys->buf_free]);
 
-		memcpy(b, str, len);
+		::memcpy(b, str, len);
+
 		len += lsn_len;
 	}
 #else /* UNIV_LOG_LSN_DEBUG */
-	memcpy(log_sys->buf + log_sys->buf_free, str, len);
+	::memcpy(log_sys->buf + log_sys->buf_free, str, len);
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	log_block_set_data_len((byte*) ut_align_down(log_sys->buf
-						     + log_sys->buf_free,
-						     OS_FILE_LOG_BLOCK_SIZE),
-			       data_len);
+	log_block_set_data_len(
+                reinterpret_cast<byte*>(ut_align_down(
+                        log_sys->buf + log_sys->buf_free,
+                        OS_FILE_LOG_BLOCK_SIZE)),
+                data_len);
+
 #ifdef UNIV_LOG_DEBUG
 	log_sys->old_buf_free = log_sys->buf_free;
 	log_sys->old_lsn = log_sys->lsn;
