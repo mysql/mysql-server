@@ -51,6 +51,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((1,2,(3,4)) in ((3,2,(3,4)),(1,2,(3,NULL)))) AS `row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))`
+select row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(4,5)));
+row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(4,5)))
+0
+select row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(3,5)));
+row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(3,5)))
+NULL
 SELECT (1,2,3)=(0,NULL,3);
 (1,2,3)=(0,NULL,3)
 0
@@ -131,7 +137,7 @@ ROW(c,2,3) IN(row(1,b,a), row(2,3,1))
 0
 0
 1
-NULL
+0
 select ROW(a,b,c) IN(row(1,2,3), row(3,2,1)) from t1;
 ROW(a,b,c) IN(row(1,2,3), row(3,2,1))
 1
