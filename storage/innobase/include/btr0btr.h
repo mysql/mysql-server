@@ -327,7 +327,7 @@ void
 btr_free_but_not_root(
 	const page_id_t&	root_page_id,
 	const page_size_t&	page_size,
-	ulint			logging_mode);
+	mtr_log_t		logging_mode);
 
 /** Frees the B-tree root page. Other tree MUST already have been freed.
 @param[in] root_page_id id of the root page
@@ -673,7 +673,7 @@ btr_validate_index(
 	dict_index_t*	index,	/*!< in: index */
 	const trx_t*	trx,	/*!< in: transaction or 0 */
 	bool		lockout)/*!< in: true if X-latch index is intended */
-	__attribute__((nonnull(1), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
