@@ -209,6 +209,7 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mysqld.cc
+  mysqld_thd_manager.cc
   sql_client.cc
   )
 

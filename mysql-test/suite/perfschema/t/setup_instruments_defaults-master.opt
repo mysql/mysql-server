@@ -10,7 +10,7 @@
 --loose-performance-schema-instrument='  wait/synch/mutex/sql/%   =  OFF  '
 --loose-performance-schema-instrument='wait/synch/mutex/sql/% = OFF '
 --loose-performance-schema-instrument='wait/synch/mutex/sql/LOCK% = ON'
---loose-performance-schema-instrument='wait/synch/mutex/sql/LOCK_thread_count=OFF'
+--loose-performance-schema-instrument='wait/synch/mutex/sql/LOCK_thd_count=OFF'
 --loose-performance-schema-instrument=' wait/synch/mutex/sql/LOCK_user_conn    = COUNTED'
 --loose-performance-schema-instrument='wait%/synch/mutex/sql/LOCK_uu%_genera%/= COUNTED'
 --loose-performance-schema-instrument='%%wait/synch/mutex/sql/LOCK_xid_cache=COUNTED'

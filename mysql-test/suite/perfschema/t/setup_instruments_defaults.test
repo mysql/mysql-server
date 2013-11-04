@@ -21,7 +21,7 @@ AND enabled = 'yes' AND timed = 'no'
 ORDER BY name;
 
 SELECT * FROM performance_schema.setup_instruments
-WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count'
+WHERE name = 'wait/synch/mutex/sql/LOCK_thd_count'
 AND enabled = 'no' AND timed = 'no';
 
 SELECT * FROM performance_schema.setup_instruments

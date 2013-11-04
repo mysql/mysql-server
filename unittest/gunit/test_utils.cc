@@ -19,7 +19,7 @@
 
 #include "test_utils.h"
 #include "rpl_handler.h"                        // delegates_init()
-#include "global_threads.h"                     // LOCK_thread_count
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 namespace my_testing {
 
@@ -83,9 +83,9 @@ void Server_initializer::SetUp()
   lex_start(m_thd);
   m_thd->set_current_time();
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  m_thd->thread_id= m_thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  m_thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  m_thd->thread_id= m_thd->variables.pseudo_thread_id;
 
   my_pthread_setspecific_ptr(THR_THD, m_thd);
 }

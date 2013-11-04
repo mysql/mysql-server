@@ -19,6 +19,5 @@
 #include "my_global.h"                          /* ulong */
 
 void unireg_init(ulong options);
-void unireg_end(void) __attribute__((noreturn));
 
 #endif /* INIT_INCLUDED */

@@ -46,13 +46,13 @@ class Per_thread_connection_handler : public Connection_handler
 
   /**
     List of pending channel info objects to be picked by idle
-    threads. Protected by LOCK_thread_count.
+    threads. Protected by LOCK_thd_count.
   */
   static std::list<Channel_info*> *waiting_channel_info_list;
 
 public:
   // Status variables related to Per_thread_connection_handler
-  static ulong blocked_pthread_count;    // Protected by LOCK_thread_count
+  static ulong blocked_pthread_count;    // Protected by LOCK_thd_count
   static ulong slow_launch_threads;
   // System variable
   static ulong max_blocked_pthreads;
