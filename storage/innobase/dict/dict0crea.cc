@@ -323,7 +323,7 @@ dict_build_tablespace(
 					    : table->dir_path_of_temp_table;
 
 		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
-		ut_ad(!dict_table_zip_size(table)
+		ut_ad(!dict_table_page_size(table).is_compressed()
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
 		err = fil_create_new_single_table_tablespace(
@@ -754,7 +754,6 @@ dict_create_index_tree_step(
 
 
 	dberr_t		err = DB_SUCCESS;
-	ulint		zip_size = dict_table_zip_size(index->table);
 
 	if (node->index->table->ibd_file_missing
 	    || dict_table_is_discarded(node->index->table)) {
@@ -762,7 +761,8 @@ dict_create_index_tree_step(
 		node->page_no = FIL_NULL;
 	} else {
 		node->page_no = btr_create(
-			index->type, index->space, zip_size,
+			index->type, index->space,
+			dict_table_page_size(index->table),
 			index->id, index, NULL, &mtr);
 
 		if (node->page_no == FIL_NULL) {
@@ -814,7 +814,6 @@ dict_create_index_tree_in_mem(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	dberr_t		err = DB_SUCCESS;
-	ulint		zip_size = dict_table_zip_size(index->table);
 
 	/* Currently this function is being used by temp-tables only.
 	Import/Discard of temp-table is blocked and so this assert. */
@@ -822,7 +821,8 @@ dict_create_index_tree_in_mem(
 	      && !dict_table_is_discarded(index->table));
 
 	page_no = btr_create(
-		index->type, index->space, zip_size,
+		index->type, index->space,
+		dict_table_page_size(index->table),
 		index->id, index, NULL, &mtr);
 
 	index->page = page_no;
@@ -862,7 +862,6 @@ dict_drop_index_tree(
 	const byte*	ptr;
 	ulint		len;
 	ulint		space;
-	ulint		zip_size;
 	ulint		root_page_no;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -886,16 +885,20 @@ dict_drop_index_tree(
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
-	zip_size = fil_space_get_zip_size(space);
 
-	if (zip_size == ULINT_UNDEFINED) {
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space,
+								  &found));
+
+	if (!found) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
 		return(FIL_NULL);
 	}
 
-	if (is_drop && fil_index_tree_is_freed(space, root_page_no, zip_size)) {
+	if (is_drop && fil_index_tree_is_freed(space, root_page_no,
+					       page_size)) {
 		/* The tree has already been freed but not marked */
 		page_rec_write_field(
 			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
@@ -906,17 +909,17 @@ dict_drop_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	const page_id_t	root_page_id(space, root_page_no, zip_size);
+	const page_id_t	root_page_id(space, root_page_no);
 
-	btr_free_but_not_root(root_page_id, mtr_get_log_mode(mtr));
+	btr_free_but_not_root(root_page_id, page_size, mtr_get_log_mode(mtr));
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
 	record: this mini-transaction marks the B-tree totally freed */
-	btr_block_get(root_page_id, RW_X_LATCH, NULL, mtr);
+	btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
-	btr_free_root(root_page_id, mtr);
+	btr_free_root(root_page_id, page_size, mtr);
 
 	if (is_drop) {
 		page_rec_write_field(
@@ -946,26 +949,28 @@ dict_drop_index_tree_in_mem(
 
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	ulint	root_page_no = page_no;
-	ulint	space = index->space;
-	ulint	zip_size = fil_space_get_zip_size(space);
+	ulint			root_page_no = page_no;
+	ulint			space = index->space;
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space,
+								  &found));
 
 	/* If tree has already been freed or it is a single table
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
-	if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
+	if (root_page_no != FIL_NULL && found) {
 
-		const page_id_t	root_page_id(space, root_page_no, zip_size);
+		const page_id_t	root_page_id(space, root_page_no);
 
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 		btr_free_but_not_root(
-			root_page_id,
+			root_page_id, page_size,
 			(dict_table_is_temporary(index->table)
 			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
 		/* Then we free the root page. */
-		btr_free_root(root_page_id, &mtr);
+		btr_free_root(root_page_id, page_size, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -1005,10 +1010,12 @@ dict_recreate_index_tree(
 
 	ut_a(table->space == mtr_read_ulint(ptr, MLOG_4BYTES, mtr));
 
-	ulint	space = table->space;
-	ulint	zip_size = fil_space_get_zip_size(space);
+	ulint			space = table->space;
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space,
+								  &found));
 
-	if (zip_size == ULINT_UNDEFINED) {
+	if (!found) {
 		/* It is a single table tablespae and the .ibd file is
 		missing: do nothing. */
 
@@ -1045,8 +1052,8 @@ dict_recreate_index_tree(
 				return(FIL_NULL);
 			} else {
 				root_page_no = btr_create(
-					type, space, zip_size, index_id, index,
-					NULL, mtr);
+					type, space, page_size, index_id,
+					index, NULL, mtr);
 				index->page = (unsigned int) root_page_no;
 				return(root_page_no);
 			}
@@ -1094,9 +1101,11 @@ dict_truncate_index_tree_in_mem(
 		truncate = true;
 	}
 
-	ulint	zip_size = fil_space_get_zip_size(space);
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space,
+								  &found));
 
-	if (zip_size == ULINT_UNDEFINED) {
+	if (!found) {
 
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
@@ -1115,10 +1124,10 @@ dict_truncate_index_tree_in_mem(
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 
-		const page_id_t	root_page_id(space, root_page_no, zip_size);
+		const page_id_t	root_page_id(space, root_page_no);
 
 		btr_free_but_not_root(
-			root_page_id,
+			root_page_id, page_size,
 			(dict_table_is_temporary(index->table)
 			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
@@ -1127,9 +1136,9 @@ dict_truncate_index_tree_in_mem(
 		appropriate field in the SYS_INDEXES record: this
 		mini-transaction marks the B-tree totally truncated */
 
-		btr_block_get(root_page_id, RW_X_LATCH, NULL, &mtr);
+		btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
 
-		btr_free_root(root_page_id, &mtr);
+		btr_free_root(root_page_id, page_size, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -1139,7 +1148,7 @@ dict_truncate_index_tree_in_mem(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	root_page_no = btr_create(
-		type, space, zip_size, index->id, index, NULL, &mtr);
+		type, space, page_size, index->id, index, NULL, &mtr);
 
 	DBUG_EXECUTE_IF("ib_err_trunc_temp_recreate_index",
 			root_page_no = FIL_NULL;);

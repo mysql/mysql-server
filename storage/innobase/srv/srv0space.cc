@@ -677,8 +677,11 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
+		const page_size_t&	page_size
+			= fsp_flags_get_page_size(flags);
+
 		if (check_tablespace_attributes
-		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
+		    && !page_size.equals_to(univ_page_size)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"%sData file \"%s\" uses page size %lu, "
@@ -686,8 +689,8 @@ Tablespace::read_lsn_and_check_flags(
 				"--innodb-page-size=%lu",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 				it->m_filename,
-				fsp_flags_get_page_size(flags),
-				UNIV_PAGE_SIZE);
+				page_size.bytes(),
+				univ_page_size.bytes());
 
 			return(DB_ERROR);
 		}

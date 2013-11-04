@@ -273,6 +273,7 @@ void
 btr_cur_latch_leaves(
 	buf_block_t*		block,
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ulint			latch_mode,
 	btr_cur_t*		cursor,
 	mtr_t*			mtr)
@@ -290,7 +291,8 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_LEAF:
 	case BTR_SEARCH_TREE:
 		mode = latch_mode == BTR_MODIFY_LEAF ? RW_X_LATCH : RW_S_LATCH;
-		get_block = btr_block_get(page_id, mode, cursor->index, mtr);
+		get_block = btr_block_get(page_id, page_size, mode,
+					  cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -307,10 +309,8 @@ btr_cur_latch_leaves(
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
-				page_id_t(page_id.space(),
-					  left_page_no,
-					  page_id.zip_size()),
-				RW_X_LATCH, cursor->index, mtr);
+				page_id_t(page_id.space(), left_page_no),
+				page_size, RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -321,7 +321,7 @@ btr_cur_latch_leaves(
 		}
 
 		get_block = btr_block_get(
-			page_id, RW_X_LATCH, cursor->index, mtr);
+			page_id, page_size, RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -331,10 +331,8 @@ btr_cur_latch_leaves(
 
 		if (right_page_no != FIL_NULL) {
 			get_block = btr_block_get(
-				page_id_t(page_id.space(),
-					  right_page_no,
-					  page_id.zip_size()),
-				RW_X_LATCH, cursor->index, mtr);
+				page_id_t(page_id.space(), right_page_no),
+				page_size, RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -356,10 +354,8 @@ btr_cur_latch_leaves(
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
-				page_id_t(page_id.space(),
-					  left_page_no,
-					  page_id.zip_size()),
-				mode, cursor->index, mtr);
+				page_id_t(page_id.space(), left_page_no),
+				page_size, mode, cursor->index, mtr);
 			cursor->left_block = get_block;
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
@@ -370,7 +366,8 @@ btr_cur_latch_leaves(
 			get_block->check_index_page_at_flush = TRUE;
 		}
 
-		get_block = btr_block_get(page_id, mode, cursor->index, mtr);
+		get_block = btr_block_get(page_id, page_size, mode,
+					  cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -448,7 +445,7 @@ Detects whether the modifying record might need a modifying tree structure.
 @param lock_intention	in: lock intention for the tree operation
 @param rec		in: record (current node_ptr)
 @param rec_size		in: size of the record or max size of node_ptr
-@param zip_size		in: compressed page size in bytes
+@param page_size		in: compressed page size in bytes
 			    or 0 for uncompressed pages
 @param mtr		in: mtr
 @return true if tree modification is needed */
@@ -460,7 +457,7 @@ btr_cur_will_modify_tree(
 	btr_intention_t	lock_intention,
 	const rec_t*	rec,
 	ulint		rec_size,
-	ulint		zip_size,
+	const page_size_t&	page_size,
 	mtr_t*		mtr)
 {
 	ut_ad(!page_is_leaf(page));
@@ -543,8 +540,8 @@ btr_cur_will_modify_tree(
 		also compressed page page_zip_available() if already in the
 		buffer pool */
 		/* needs 2 records' space also for worst compress rate. */
-		if (zip_size
-		    && page_zip_empty_size(index->n_fields, zip_size)
+		if (page_size.is_compressed()
+		    && page_zip_empty_size(index->n_fields, page_size.bytes())
 		       < rec_size * 2 + page_get_data_size(page)
 			 + page_dir_calc_reserved_space(
 				page_get_n_recs(page) + 2) + 1) {
@@ -817,11 +814,11 @@ btr_cur_search_to_nth_level(
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	const ulint	space = dict_index_get_space(index);
-	const ulint	zip_size = dict_table_zip_size(index->table);
+	const ulint		space = dict_index_get_space(index);
+	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	/* Start with the root page. */
-	page_id_t	page_id(space, dict_index_get_page(index), zip_size);
+	page_id_t		page_id(space, dict_index_get_page(index));
 
 	if (root_leaf_rw_latch == RW_X_LATCH) {
 		node_ptr_max_size = dict_index_node_ptr_max_size(index);
@@ -887,9 +884,8 @@ search_loop:
 retry_page_get:
 	ut_ad(n_blocks < BTR_MAX_LEVELS);
 	tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-	block = buf_page_get_gen(
-		page_id, rw_latch, guess, buf_mode,
-		file, line, mtr);
+	block = buf_page_get_gen(page_id, page_size, rw_latch, guess,
+				 buf_mode, file, line, mtr);
 	tree_blocks[n_blocks] = block;
 
 	if (block == NULL) {
@@ -905,7 +901,7 @@ retry_page_get:
 			ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
 
 			if (ibuf_insert(IBUF_OP_INSERT, tuple, index,
-					page_id, cursor->thr)) {
+					page_id, page_size, cursor->thr)) {
 
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 
@@ -917,7 +913,8 @@ retry_page_get:
 			ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
 
 			if (ibuf_insert(IBUF_OP_DELETE_MARK, tuple,
-					index, page_id, cursor->thr)) {
+					index, page_id, page_size,
+					cursor->thr)) {
 
 				cursor->flag = BTR_CUR_DEL_MARK_IBUF;
 
@@ -935,7 +932,7 @@ retry_page_get:
 				/* The record cannot be purged yet. */
 				cursor->flag = BTR_CUR_DELETE_REF;
 			} else if (ibuf_insert(IBUF_OP_DELETE, tuple,
-					       index, page_id,
+					       index, page_id, page_size,
 					       cursor->thr)) {
 
 				/* The purge was buffered. */
@@ -981,10 +978,8 @@ retry_page_get:
 			prev_tree_savepoints[prev_n_blocks]
 				= mtr_set_savepoint(mtr);
 			get_block = buf_page_get_gen(
-				page_id_t(page_id.space(),
-					  left_page_no,
-					  zip_size),
-				rw_latch, NULL, buf_mode,
+				page_id_t(page_id.space(), left_page_no),
+				page_size, rw_latch, NULL, buf_mode,
 				file, line, mtr);
 			prev_tree_blocks[prev_n_blocks] = get_block;
 			prev_n_blocks++;
@@ -1000,8 +995,8 @@ retry_page_get:
 			tree_blocks[n_blocks]);
 
 		tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-		block = buf_page_get_gen(page_id, rw_latch, NULL, buf_mode,
-				file, line, mtr);
+		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+					 buf_mode, file, line, mtr);
 		tree_blocks[n_blocks] = block;
 	}
 
@@ -1059,7 +1054,8 @@ retry_page_get:
 		if (rw_latch == RW_NO_LATCH) {
 
 			btr_cur_latch_leaves(
-				block, page_id, latch_mode, cursor, mtr);
+				block, page_id, page_size, latch_mode,
+				cursor, mtr);
 		}
 
 		switch (latch_mode) {
@@ -1145,9 +1141,7 @@ retry_page_get:
 
 			lock_intention = BTR_INTENTION_BOTH;
 
-			page_id = page_id_t(space,
-					    dict_index_get_page(index),
-					    zip_size);
+			page_id = page_id_t(space, dict_index_get_page(index));
 			up_match = 0;
 			low_match = 0;
 			height = ULINT_UNDEFINED;
@@ -1223,7 +1217,7 @@ retry_page_get:
 		    && latch_mode == BTR_MODIFY_TREE
 		    && !btr_cur_will_modify_tree(
 				index, page, lock_intention, node_ptr,
-				node_ptr_max_size, zip_size, mtr)) {
+				node_ptr_max_size, page_size, mtr)) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			ut_ad(n_releases <= n_blocks);
 
@@ -1303,8 +1297,7 @@ retry_page_get:
 
 				page_id = page_id_t(
 					space,
-					tree_blocks[idx]->page.id.page_no(),
-					zip_size);
+					tree_blocks[idx]->page.id.page_no());
 
 				for (ulint i = n_blocks
 					       - (leftmost_from_level - 1);
@@ -1335,8 +1328,7 @@ retry_page_get:
 		/* Go to the child node */
 		page_id = page_id_t(
 			space,
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			zip_size);
+			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
 		n_blocks++;
 
@@ -1361,11 +1353,13 @@ retry_page_get:
 
 			if (latch_mode == BTR_CONT_MODIFY_TREE) {
 				child_block = btr_block_get(
-					page_id, RW_X_LATCH, index, mtr);
+					page_id, page_size, RW_X_LATCH,
+					index, mtr);
 			} else {
 				ut_ad(latch_mode == BTR_CONT_SEARCH_TREE);
 				child_block = btr_block_get(
-					page_id, RW_SX_LATCH, index, mtr);
+					page_id, page_size, RW_SX_LATCH,
+					index, mtr);
 			}
 
 			btr_assert_not_corrupted(child_block, index);
@@ -1531,9 +1525,9 @@ btr_cur_open_at_index_side_func(
 	page_cursor = btr_cur_get_page_cur(cursor);
 	cursor->index = index;
 
-	page_id_t	page_id(dict_index_get_space(index),
-				dict_index_get_page(index),
-				dict_table_zip_size(index->table));
+	page_id_t		page_id(dict_index_get_space(index),
+					dict_index_get_page(index));
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	if (root_leaf_rw_latch == RW_X_LATCH) {
 		node_ptr_max_size = dict_index_node_ptr_max_size(index);
@@ -1557,8 +1551,8 @@ btr_cur_open_at_index_side_func(
 		}
 
 		tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-		block = buf_page_get_gen(page_id, rw_latch, NULL, BUF_GET,
-					 file, line, mtr);
+		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+					 BUF_GET, file, line, mtr);
 		tree_blocks[n_blocks] = block;
 
 		page = buf_block_get_frame(block);
@@ -1600,12 +1594,12 @@ btr_cur_open_at_index_side_func(
 		if (height == level) {
 			if (srv_read_only_mode) {
 				btr_cur_latch_leaves(
-					block, page_id,
+					block, page_id, page_size,
 					latch_mode, cursor, mtr);
 			} else if (height == 0) {
 				if (rw_latch == RW_NO_LATCH) {
 					btr_cur_latch_leaves(
-						block, page_id,
+						block, page_id, page_size,
 						latch_mode, cursor, mtr);
 				}
 				/* In versions <= 3.23.52 we had
@@ -1726,8 +1720,7 @@ btr_cur_open_at_index_side_func(
 			lock_intention = BTR_INTENTION_BOTH;
 
 			page_id = page_id_t(page_id.space(),
-					    dict_index_get_page(index),
-					    page_id.zip_size());
+					    dict_index_get_page(index));
 
 			height = ULINT_UNDEFINED;
 
@@ -1740,7 +1733,7 @@ btr_cur_open_at_index_side_func(
 		if (latch_mode == BTR_MODIFY_TREE
 		    && !btr_cur_will_modify_tree(
 				cursor->index, page, lock_intention, node_ptr,
-				node_ptr_max_size, page_id.zip_size(), mtr)) {
+				node_ptr_max_size, page_size, mtr)) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			ut_ad(n_releases <= n_blocks);
 
@@ -1781,8 +1774,7 @@ btr_cur_open_at_index_side_func(
 		/* Go to the child node */
 		page_id = page_id_t(
 			page_id.space(),
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			page_id.zip_size());
+			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
 		n_blocks++;
 	}
@@ -1862,9 +1854,9 @@ btr_cur_open_at_rnd_pos_func(
 	page_cursor = btr_cur_get_page_cur(cursor);
 	cursor->index = index;
 
-	page_id_t	page_id(dict_index_get_space(index),
-				dict_index_get_page(index),
-				dict_table_zip_size(index->table));
+	page_id_t		page_id(dict_index_get_space(index),
+					dict_index_get_page(index));
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	if (root_leaf_rw_latch == RW_X_LATCH) {
 		node_ptr_max_size = dict_index_node_ptr_max_size(index);
@@ -1887,8 +1879,8 @@ btr_cur_open_at_rnd_pos_func(
 		}
 
 		tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-		block = buf_page_get_gen(page_id, rw_latch, NULL, BUF_GET,
-					 file, line, mtr);
+		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+					 BUF_GET, file, line, mtr);
 		tree_blocks[n_blocks] = block;
 
 		page = buf_block_get_frame(block);
@@ -1924,7 +1916,7 @@ btr_cur_open_at_rnd_pos_func(
 			if (rw_latch == RW_NO_LATCH
 			    || srv_read_only_mode) {
 				btr_cur_latch_leaves(
-					block, page_id,
+					block, page_id, page_size,
 					latch_mode, cursor, mtr);
 			}
 
@@ -1990,8 +1982,7 @@ btr_cur_open_at_rnd_pos_func(
 			lock_intention = BTR_INTENTION_BOTH;
 
 			page_id = page_id_t(page_id.space(),
-					    dict_index_get_page(index),
-					    page_id.zip_size());
+					    dict_index_get_page(index));
 
 			height = ULINT_UNDEFINED;
 
@@ -2004,7 +1995,7 @@ btr_cur_open_at_rnd_pos_func(
 		if (latch_mode == BTR_MODIFY_TREE
 		    && !btr_cur_will_modify_tree(
 				cursor->index, page, lock_intention, node_ptr,
-				node_ptr_max_size, page_id.zip_size(), mtr)) {
+				node_ptr_max_size, page_size, mtr)) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			ut_ad(n_releases <= n_blocks);
 
@@ -2045,8 +2036,7 @@ btr_cur_open_at_rnd_pos_func(
 		/* Go to the child node */
 		page_id = page_id_t(
 			page_id.space(),
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			page_id.zip_size());
+			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
 		n_blocks++;
 	}
@@ -2215,7 +2205,6 @@ btr_cur_optimistic_insert(
 	ibool		leaf;
 	ibool		reorg;
 	ibool		inherit;
-	ulint		zip_size;
 	ulint		rec_size;
 	dberr_t		err;
 
@@ -2231,11 +2220,12 @@ btr_cur_optimistic_insert(
 	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(dtuple_check_typed(entry));
 
-	zip_size = block->page.id.zip_size();
+	const page_size_t&	page_size = block->page.size;
+
 #ifdef UNIV_DEBUG_VALGRIND
-	if (zip_size) {
-		UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
-		UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
+	if (page_size.is_compressed()) {
+		UNIV_MEM_ASSERT_RW(page, univ_page_size.bytes());
+		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
@@ -2245,7 +2235,7 @@ btr_cur_optimistic_insert(
 	rec_size = rec_get_converted_size(index, entry, n_ext);
 
 	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
-				   dtuple_get_n_fields(entry), zip_size)) {
+				   dtuple_get_n_fields(entry), page_size)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -2259,12 +2249,12 @@ btr_cur_optimistic_insert(
 		rec_size = rec_get_converted_size(index, entry, n_ext);
 	}
 
-	if (zip_size) {
+	if (page_size.is_compressed()) {
 		/* Estimate the free space of an empty compressed page.
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
 		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, zip_size);
+			cursor->index->n_fields, page_size.bytes());
 		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
 
 		ut_ad(dict_table_is_comp(index->table));
@@ -2304,7 +2294,7 @@ too_big:
 	LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
 				      goto fail);
 
-	if (leaf && zip_size
+	if (leaf && page_size.is_compressed()
 	    && (page_get_data_size(page) + rec_size
 		>= dict_index_zip_pad_optimal_page_size(index))) {
 		/* If compression padding tells us that insertion will
@@ -2341,7 +2331,7 @@ fail_err:
 	we have to split the page to reserve enough free space for
 	future updates of records. */
 
-	if (leaf && !zip_size && dict_index_is_clust(index)
+	if (leaf && !page_size.is_compressed() && dict_index_is_clust(index)
 	    && page_get_n_recs(page) >= 2
 	    && dict_index_get_space_reserve() + rec_size > max_size
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy)
@@ -2376,7 +2366,7 @@ fail_err:
 	}
 
 	if (*rec) {
-	} else if (zip_size) {
+	} else if (page_size.is_compressed()) {
 		/* Reset the IBUF_BITMAP_FREE bits, because
 		page_cur_tuple_insert() will have attempted page
 		reorganize before failing. */
@@ -2443,7 +2433,7 @@ fail_err:
 		committed mini-transaction, because in crash recovery,
 		the free bits could momentarily be set too high. */
 
-		if (zip_size) {
+		if (page_size.is_compressed()) {
 			/* Update the bits in the same mini-transaction. */
 			ibuf_update_free_bits_zip(block, mtr);
 		} else {
@@ -2492,7 +2482,6 @@ btr_cur_pessimistic_insert(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	dict_index_t*	index		= cursor->index;
-	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
 	dberr_t		err;
 	ibool		dummy_inh;
@@ -2541,7 +2530,7 @@ btr_cur_pessimistic_insert(
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
 				   dict_table_is_comp(index->table),
 				   dtuple_get_n_fields(entry),
-				   zip_size)) {
+				   dict_table_page_size(index->table))) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 
@@ -3294,12 +3283,10 @@ btr_cur_pess_upd_restore_supremum(
 
 	const ulint		prev_page_no = btr_page_get_prev(page, mtr);
 
-	const page_id_t	page_id(block->page.id.space(),
-				prev_page_no,
-				block->page.id.zip_size());
+	const page_id_t	page_id(block->page.id.space(), prev_page_no);
 
 	ut_ad(prev_page_no != FIL_NULL);
-	prev_block = buf_page_get_with_no_latch(page_id, mtr);
+	prev_block = buf_page_get_with_no_latch(page_id, block->page.size, mtr);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_next(prev_block->frame, mtr)
 	     == page_get_page_no(page));
@@ -3497,13 +3484,13 @@ btr_cur_pessimistic_update(
 			    rec_get_converted_size(index, new_entry, n_ext),
 			    TRUE,
 			    dict_index_get_n_fields(index),
-			    page_zip_get_size(page_zip))) {
+			    page_size_t(page_zip_get_size(page_zip), true))) {
 
 			goto make_external;
 		}
 	} else if (page_zip_rec_needs_ext(
 			   rec_get_converted_size(index, new_entry, n_ext),
-			   page_is_comp(page), 0, 0)) {
+			   page_is_comp(page), 0, univ_page_size)) {
 make_external:
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
@@ -4500,9 +4487,14 @@ btr_estimate_n_rows_in_range_on_level(
 	average from the pages scanned so far */
 #	define N_PAGES_READ_LIMIT	10
 
-	page_id_t	page_id(dict_index_get_space(index),
-				slot1->page_no,
-				dict_table_zip_size(index->table));
+	page_id_t		page_id(
+		dict_index_get_space(index), slot1->page_no);
+
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(
+		dict_index_get_space(index), &found);
+
+	ut_ad(found);
 
 	level = slot1->page_level;
 
@@ -4518,7 +4510,7 @@ btr_estimate_n_rows_in_range_on_level(
 		attempting to read a page that is no longer part of
 		the B-tree. We pass BUF_GET_POSSIBLY_FREED in order to
 		silence a debug assertion about this. */
-		block = buf_page_get_gen(page_id, RW_S_LATCH,
+		block = buf_page_get_gen(page_id, page_size, RW_S_LATCH,
 					 NULL, BUF_GET_POSSIBLY_FREED,
 					 __FILE__, __LINE__, &mtr);
 
@@ -4555,8 +4547,7 @@ btr_estimate_n_rows_in_range_on_level(
 		}
 
 		page_id = page_id_t(page_id.space(),
-				    btr_page_get_next(page, &mtr),
-				    page_id.zip_size());
+				    btr_page_get_next(page, &mtr));
 
 		mtr_commit(&mtr);
 
@@ -5381,7 +5372,6 @@ btr_store_big_rec_extern_fields(
 	ulint		store_len;
 	ulint		page_no;
 	ulint		space_id;
-	ulint		zip_size;
 	ulint		prev_page_no;
 	ulint		hint_page_no;
 	ulint		i;
@@ -5404,12 +5394,13 @@ btr_store_big_rec_extern_fields(
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
 	ut_a(dict_index_is_clust(index));
 
+	const page_size_t&	page_size = rec_block->page.size;
+
+	ut_a(dict_table_page_size(index->table).equals_to(page_size));
+
 	page_zip = buf_block_get_page_zip(rec_block);
-	ut_a(dict_table_zip_size(index->table)
-	     == rec_block->page.id.zip_size());
 
 	space_id = rec_block->page.id.space();
-	zip_size = rec_block->page.id.zip_size();
 	rec_page_no = rec_block->page.id.page_no();
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 
@@ -5555,10 +5546,8 @@ alloc_another:
 				page_t*		prev_page;
 
 				prev_block = buf_page_get(
-					page_id_t(space_id,
-						  prev_page_no,
-						  zip_size),
-					RW_X_LATCH, &mtr);
+					page_id_t(space_id, prev_page_no),
+					page_size, RW_X_LATCH, &mtr);
 
 				buf_block_dbg_add_level(prev_block,
 							SYNC_EXTERN_STORAGE);
@@ -5668,10 +5657,8 @@ alloc_another:
 
 				if (alloc_mtr == &mtr) {
 					rec_block = buf_page_get(
-						page_id_t(space_id,
-							  rec_page_no,
-							  zip_size),
-						RW_X_LATCH, &mtr);
+						page_id_t(space_id, rec_page_no),
+						page_size, RW_X_LATCH, &mtr);
 
 					buf_block_dbg_add_level(
 						rec_block,
@@ -5753,10 +5740,8 @@ next_zip_page:
 
 				if (alloc_mtr == &mtr) {
 					rec_block = buf_page_get(
-						page_id_t(space_id,
-							  rec_page_no,
-							  zip_size),
-						RW_X_LATCH, &mtr);
+						page_id_t(space_id, rec_page_no),
+						page_size, RW_X_LATCH, &mtr);
 
 					buf_block_dbg_add_level(
 						rec_block,
@@ -5920,8 +5905,6 @@ btr_free_externally_stored_field(
 		field_ref + BTR_EXTERN_SPACE_ID);
 	const ulint	start_page	= mach_read_from_4(
 		field_ref + BTR_EXTERN_PAGE_NO);
-	ulint		rec_zip_size = dict_table_zip_size(index->table);
-	ulint		ext_zip_size;
 	ulint		page_no;
 	ulint		next_page_no;
 	mtr_t		mtr;
@@ -5946,12 +5929,13 @@ btr_free_externally_stored_field(
 
 	ut_ad(space_id == index->space);
 
-	ext_zip_size = rec_zip_size;
-
-	if (!rec) {
+	const page_size_t	ext_page_size(dict_table_page_size(index->table));
+	const page_size_t&	rec_page_size(rec == NULL
+					      ? univ_page_size
+					      : ext_page_size);
+	if (rec == NULL) {
 		/* This is a call from row_purge_upd_exist_or_extern(). */
 		ut_ad(!page_zip);
-		rec_zip_size = 0;
 	}
 
 	for (;;) {
@@ -5966,13 +5950,12 @@ btr_free_externally_stored_field(
 		const page_t*	p = page_align(field_ref);
 
 		const page_id_t	page_id(page_get_space_id(p),
-					page_get_page_no(p),
-					rec_zip_size);
+					page_get_page_no(p));
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =
 #endif /* UNIV_SYNC_DEBUG */
-		buf_page_get(page_id, RW_X_LATCH, &mtr);
+		buf_page_get(page_id, rec_page_size, RW_X_LATCH, &mtr);
 
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
@@ -5998,13 +5981,13 @@ btr_free_externally_stored_field(
 		}
 
 		ext_block = buf_page_get(
-			page_id_t(space_id, page_no, ext_zip_size),
+			page_id_t(space_id, page_no), ext_page_size,
 			RW_X_LATCH, &mtr);
 
 		buf_block_dbg_add_level(ext_block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(ext_block);
 
-		if (ext_zip_size) {
+		if (ext_page_size.is_compressed()) {
 			/* Note that page_zip will be NULL
 			in row_purge_upd_exist_or_extern(). */
 			switch (fil_page_get_type(page)) {
@@ -6173,8 +6156,8 @@ btr_copy_blob_prefix(
 
 		mtr_start(&mtr);
 
-		block = buf_page_get(page_id_t(space_id, page_no, 0),
-				     RW_S_LATCH, &mtr);
+		block = buf_page_get(page_id_t(space_id, page_no),
+				     univ_page_size, RW_S_LATCH, &mtr);
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(block);
 
@@ -6217,7 +6200,7 @@ btr_copy_zblob_prefix(
 	byte*		buf,	/*!< out: the externally stored part of
 				the field, or a prefix of it */
 	ulint		len,	/*!< in: length of buf, in bytes */
-	ulint		zip_size,/*!< in: compressed BLOB page size */
+	const page_size_t&	page_size,/*!< in: compressed BLOB page size */
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
@@ -6237,9 +6220,7 @@ btr_copy_zblob_prefix(
 	heap = mem_heap_create(40000);
 	page_zip_set_alloc(&d_stream, heap);
 
-	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size >= UNIV_ZIP_SIZE_MIN);
-	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(page_size.is_compressed());
 	ut_ad(space_id);
 
 	err = inflateInit(&d_stream);
@@ -6253,8 +6234,8 @@ btr_copy_zblob_prefix(
 		bpage is protected by the B-tree page latch that
 		is being held on the clustered index record, or,
 		in row_merge_copy_blobs(), by an exclusive table lock. */
-		bpage = buf_page_get_zip(
-			page_id_t(space_id, page_no, zip_size));
+		bpage = buf_page_get_zip(page_id_t(space_id, page_no),
+					 page_size);
 
 		if (UNIV_UNLIKELY(!bpage)) {
 			ut_print_timestamp(stderr);
@@ -6291,7 +6272,7 @@ btr_copy_zblob_prefix(
 		}
 
 		d_stream.next_in = bpage->zip.data + offset;
-		d_stream.avail_in = (uInt) (zip_size - offset);
+		d_stream.avail_in = (uInt) (page_size.bytes() - offset);
 
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
@@ -6372,20 +6353,21 @@ btr_copy_externally_stored_field_prefix_low(
 	byte*		buf,	/*!< out: the externally stored part of
 				the field, or a prefix of it */
 	ulint		len,	/*!< in: length of buf, in bytes */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
 	ulint		space_id,/*!< in: space id of the first BLOB page */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
-	if (UNIV_UNLIKELY(len == 0)) {
+	if (len == 0) {
 		return(0);
 	}
 
-	if (zip_size) {
-		return(btr_copy_zblob_prefix(buf, len, zip_size,
+	if (page_size.is_compressed()) {
+		return(btr_copy_zblob_prefix(buf, len, page_size,
 					     space_id, page_no, offset));
 	} else {
+		ut_ad(page_size.equals_to(univ_page_size));
 		return(btr_copy_blob_prefix(buf, len, space_id,
 					    page_no, offset));
 	}
@@ -6402,7 +6384,7 @@ btr_copy_externally_stored_field_prefix(
 /*====================================*/
 	byte*		buf,	/*!< out: the field, or a prefix of it */
 	ulint		len,	/*!< in: length of buf, in bytes */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
 	const byte*	data,	/*!< in: 'internally' stored part of the
 				field containing also the reference to
@@ -6445,7 +6427,7 @@ btr_copy_externally_stored_field_prefix(
 	return(local_len
 	       + btr_copy_externally_stored_field_prefix_low(buf + local_len,
 							     len - local_len,
-							     zip_size,
+							     page_size,
 							     space_id, page_no,
 							     offset));
 }
@@ -6463,7 +6445,7 @@ btr_copy_externally_stored_field(
 				field containing also the reference to
 				the external part; must be protected by
 				a lock or a page latch */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
 	ulint		local_len,/*!< in: length of data */
 	mem_heap_t*	heap)	/*!< in: mem heap */
@@ -6495,7 +6477,7 @@ btr_copy_externally_stored_field(
 	*len = local_len
 		+ btr_copy_externally_stored_field_prefix_low(buf + local_len,
 							      extern_len,
-							      zip_size,
+							      page_size,
 							      space_id,
 							      page_no, offset);
 
@@ -6512,7 +6494,7 @@ btr_rec_copy_externally_stored_field(
 	const rec_t*	rec,	/*!< in: record in a clustered index;
 				must be protected by a lock or a page latch */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
 	ulint		no,	/*!< in: field number */
 	ulint*		len,	/*!< out: length of the field */
@@ -6547,6 +6529,6 @@ btr_rec_copy_externally_stored_field(
 	}
 
 	return(btr_copy_externally_stored_field(len, data,
-						zip_size, local_len, heap));
+						page_size, local_len, heap));
 }
 #endif /* !UNIV_HOTBACKUP */

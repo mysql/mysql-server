@@ -1421,15 +1421,15 @@ dict_stats_analyze_index_below_cur(
 	offsets_rec = rec_get_offsets(rec, index, offsets1,
 				      ULINT_UNDEFINED, &heap);
 
-	page_id_t	page_id(dict_index_get_space(index),
-				btr_node_ptr_get_child_page_no(
-					rec, offsets_rec),
-				dict_table_zip_size(index->table));
+	page_id_t		page_id(dict_index_get_space(index),
+					btr_node_ptr_get_child_page_no(
+						rec, offsets_rec));
+	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
 
-		block = buf_page_get_gen(page_id, RW_S_LATCH,
+		block = buf_page_get_gen(page_id, page_size, RW_S_LATCH,
 					 NULL /* no guessed block */,
 					 BUF_GET, __FILE__, __LINE__, mtr);
 
@@ -1471,8 +1471,7 @@ dict_stats_analyze_index_below_cur(
 
 		page_id = page_id_t(page_id.space(),
 				    btr_node_ptr_get_child_page_no(
-					    rec, offsets_rec),
-				    page_id.zip_size());
+					    rec, offsets_rec));
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */

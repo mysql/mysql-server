@@ -75,8 +75,7 @@ in thrashing. */
 /* @} */
 
 /******************************************************************//**
-Increases flush_list size in bytes with zip_size for compressed page,
-UNIV_PAGE_SIZE for uncompressed page in inline function */
+Increases flush_list size in bytes with the page size in inline function */
 static inline
 void
 incr_flush_list_size_in_bytes(
@@ -85,8 +84,14 @@ incr_flush_list_size_in_bytes(
 	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
 {
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
-	ulint zip_size = page_zip_get_size(&block->page.zip);
-	buf_pool->stat.flush_list_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	const page_size_t&	page_size = block->page.size;
+
+	ut_ad(!page_size.is_compressed()
+	      || page_size.bytes() == page_zip_get_size(&block->page.zip));
+
+	buf_pool->stat.flush_list_bytes += page_size.bytes();
+
 	ut_ad(buf_pool->stat.flush_list_bytes <= buf_pool->curr_pool_size);
 }
 
@@ -325,16 +330,15 @@ buf_flush_insert_into_flush_list(
 	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	{
-		const ulint	zip_size = block->page.id.zip_size();
+	const page_size_t&	page_size = block->page.size;
 
-		if (zip_size > 0) {
-			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
-		} else {
-			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
-		}
+	if (page_size.is_compressed()) {
+		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
+	} else {
+		UNIV_MEM_ASSERT_RW(block->frame, page_size.bytes());
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -385,14 +389,12 @@ buf_flush_insert_sorted_into_flush_list(
 	block->page.oldest_modification = lsn;
 
 #ifdef UNIV_DEBUG_VALGRIND
-	{
-		const ulint	zip_size = block->page.id.zip_size();
+	const page_size_t&	page_size = block->page.size;
 
-		if (zip_size > 0) {
-			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
-		} else {
-			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
-		}
+	if (page_size.is_compressed()) {
+		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
+	} else {
+		UNIV_MEM_ASSERT_RW(block->frame, page_size.bytes());
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
@@ -524,7 +526,6 @@ buf_flush_remove(
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-	ulint		zip_size;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
@@ -567,8 +568,10 @@ buf_flush_remove(
 	because we assert on in_flush_list in comparison function. */
 	ut_d(bpage->in_flush_list = FALSE);
 
-	zip_size = page_zip_get_size(&bpage->zip);
-	buf_pool->stat.flush_list_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
+	ut_ad(!bpage->size.is_compressed()
+	      || bpage->size.bytes() == page_zip_get_size(&bpage->zip));
+
+	buf_pool->stat.flush_list_bytes -= bpage->size.bytes();
 
 	bpage->oldest_modification = 0;
 
@@ -692,13 +695,13 @@ void
 buf_flush_update_zip_checksum(
 /*==========================*/
 	buf_frame_t*	page,		/*!< in/out: Page to update */
-	ulint		zip_size,	/*!< in: Compressed page size */
+	ulint		size,	/*!< in: Compressed page size */
 	lsn_t		lsn)		/*!< in: Lsn to stamp on the page */
 {
-	ut_a(zip_size > 0);
+	ut_a(size > 0);
 
 	ib_uint32_t	checksum = page_zip_calc_checksum(
-		page, zip_size,
+		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
 	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
@@ -723,14 +726,14 @@ buf_flush_init_for_writing(
 
 	if (page_zip_) {
 		page_zip_des_t*	page_zip;
-		ulint		zip_size;
+		ulint		size;
 
 		page_zip = static_cast<page_zip_des_t*>(page_zip_);
-		zip_size = page_zip_get_size(page_zip);
+		size = page_zip_get_size(page_zip);
 
-		ut_ad(zip_size);
-		ut_ad(ut_is_2pow(zip_size));
-		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+		ut_ad(size);
+		ut_ad(ut_is_2pow(size));
+		ut_ad(size <= UNIV_ZIP_SIZE_MAX);
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
@@ -739,14 +742,14 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
 			/* These are essentially uncompressed pages. */
-			memcpy(page_zip->data, page, zip_size);
+			memcpy(page_zip->data, page, size);
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
 
 			buf_flush_update_zip_checksum(
-				page_zip->data, zip_size, newest_lsn);
+				page_zip->data, size, newest_lsn);
 
 			return;
 		}
@@ -754,9 +757,9 @@ buf_flush_init_for_writing(
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: ERROR: The compressed page to be written"
 		      " seems corrupt:", stderr);
-		ut_print_buf(stderr, page, zip_size);
+		ut_print_buf(stderr, page, size);
 		fputs("\nInnoDB: Possibly older version of the page:", stderr);
-		ut_print_buf(stderr, page_zip->data, zip_size);
+		ut_print_buf(stderr, page_zip->data, size);
 		putc('\n', stderr);
 		ut_error;
 	}
@@ -882,7 +885,7 @@ buf_flush_write_block_low(
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
 
-		ut_a(page_zip_verify_checksum(frame, bpage->id.zip_size()));
+		ut_a(page_zip_verify_checksum(frame, bpage->size.bytes()));
 
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
@@ -903,8 +906,7 @@ buf_flush_write_block_low(
 
 	if (!srv_use_doublewrite_buf || !buf_dblwr) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       sync, bpage->id, 0,
-		       page_size_from_zip_size(bpage->id.zip_size()),
+		       sync, bpage->id, bpage->size, 0, bpage->size.bytes(),
 		       frame, bpage);
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);
@@ -1167,13 +1169,22 @@ buf_flush_try_neighbors(
 			/* adjust 'low' and 'high' to limit
 			   for contiguous dirty area */
 			if (page_id.page_no() > low) {
-				for (i = page_id.page_no() - 1;
-				     i >= low
-				     && buf_flush_check_neighbor(
-					     page_id_t(page_id.space(), i, 0),
-					     flush_type);
-				     i--) {
-					/* do nothing */
+				for (i = page_id.page_no() - 1; i >= low; i--) {
+					if (!buf_flush_check_neighbor(
+						page_id_t(page_id.space(), i),
+						flush_type)) {
+
+						break;
+					}
+
+					if (i == low) {
+						/* Avoid overwrap when low == 0
+						and calling
+						buf_flush_check_neighbor() with
+						i == (ulint) -1 */
+						i--;
+						break;
+					}
 				}
 				low = i + 1;
 			}
@@ -1181,7 +1192,7 @@ buf_flush_try_neighbors(
 			for (i = page_id.page_no() + 1;
 			     i < high
 			     && buf_flush_check_neighbor(
-				     page_id_t(page_id.space(), i, 0),
+				     page_id_t(page_id.space(), i),
 				     flush_type);
 			     i++) {
 				/* do nothing */
@@ -1190,8 +1201,9 @@ buf_flush_try_neighbors(
 		}
 	}
 
-	if (high > fil_space_get_size(page_id.space())) {
-		high = fil_space_get_size(page_id.space());
+	const ulint	space_size = fil_space_get_size(page_id.space());
+	if (high > space_size) {
+		high = space_size;
 	}
 
 	DBUG_PRINT("ib_buf", ("flush " UINT32PF ":%u..%u",
@@ -1217,7 +1229,7 @@ buf_flush_try_neighbors(
 			}
 		}
 
-		const page_id_t	cur_page_id(page_id.space(), i, 0);
+		const page_id_t	cur_page_id(page_id.space(), i);
 
 		buf_pool = buf_pool_get(cur_page_id);
 

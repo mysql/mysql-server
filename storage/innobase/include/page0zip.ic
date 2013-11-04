@@ -170,12 +170,11 @@ page_zip_rec_needs_ext(
 	ulint	rec_size,	/*!< in: length of the record in bytes */
 	ulint	comp,		/*!< in: nonzero=compact format */
 	ulint	n_fields,	/*!< in: number of fields in the record;
-				ignored if zip_size == 0 */
-	ulint	zip_size)	/*!< in: compressed page size in bytes, or 0 */
+				ignored if tablespace is not compressed */
+	const page_size_t&	page_size)	/*!< in: compressed page size in bytes, or 0 */
 {
 	ut_ad(rec_size > comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES);
-	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(comp || !zip_size);
+	ut_ad(comp || !page_size.is_compressed());
 
 #if UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE
 	if (rec_size >= REC_MAX_DATA_SIZE) {
@@ -183,7 +182,7 @@ page_zip_rec_needs_ext(
 	}
 #endif
 
-	if (zip_size) {
+	if (page_size.is_compressed()) {
 		ut_ad(comp);
 		/* On a compressed page, there is a two-byte entry in
 		the dense page directory for every record.  But there
@@ -192,7 +191,7 @@ page_zip_rec_needs_ext(
 		the encoded heap number.  Check also the available space
 		on the uncompressed page. */
 		return(rec_size - (REC_N_NEW_EXTRA_BYTES - 2 - 1)
-		       >= page_zip_empty_size(n_fields, zip_size)
+		       >= page_zip_empty_size(n_fields, page_size.bytes())
 		       || rec_size >= page_get_free_space_of_empty(TRUE) / 2);
 	}
 

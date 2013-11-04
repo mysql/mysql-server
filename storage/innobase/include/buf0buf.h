@@ -203,9 +203,9 @@ struct buf_pools_list_size_t {
 	ulint	flush_list_bytes;	/*!< flush_list size in bytes */
 };
 
-#if PAGE_ZIP_SSIZE_MAX >= UNIV_ZIP_SIZE_MIN
-#error Unable to distinguish whether a zip size is in bytes or is power of 2
-#endif
+//#if PAGE_ZIP_SSIZE_MAX >= UNIV_ZIP_SIZE_MIN
+//#error Unable to distinguish whether a zip size is in bytes or is power of 2
+//#endif
 
 class page_id_t {
 private:
@@ -217,23 +217,49 @@ private:
 
 	mutable ulint	m_fold;
 
-	ulint		m_zip_size;
-
 public:
-	page_id_t(ulint space, ulint page_no, ulint zip_sz)
+#if 0
+	page_id_t(
+		ulint	space,
+		ulint	page_no,
+		ulint	zip_sz)
 		:
 		m_space (space),
 		m_page_no (page_no),
 		m_fold (ULINT_UNDEFINED),
-		m_zip_size (
+		m_page_size (
 			zip_sz <= PAGE_ZIP_SSIZE_MAX
 			? (zip_sz != 0
 			   ? (UNIV_ZIP_SIZE_MIN >> 1) << zip_sz
-			   : 0)
-			: zip_sz)
+			   : UNIV_PAGE_SIZE)
+			: zip_sz),
+		m_is_compressed (zip_sz != 0)
 	{
-		ut_ad(ut_is_2pow(m_zip_size) || m_zip_size == ULINT_UNDEFINED);
+		ut_ad(ut_is_2pow(m_page_size)
+		      || m_page_size == ULINT_UNDEFINED);
 	}
+#endif
+
+	page_id_t(ulint space, ulint page_no)
+		:
+		m_space(space),
+		m_page_no(page_no),
+		m_fold(ULINT_UNDEFINED)/*,
+		m_page_size(page_size_t(0, false))
+		*/
+	{
+	}
+
+#if 0
+	page_id_t(ulint space, ulint page_no, const page_size_t& page_size)
+		:
+		m_space(space),
+		m_page_no(page_no),
+		m_fold(ULINT_UNDEFINED),
+		m_page_size(page_size)
+	{
+	}
+#endif
 
 	inline ib_uint32_t space() const
 	{
@@ -254,12 +280,6 @@ public:
 		}
 
 		return(m_fold);
-	}
-
-	inline ulint zip_size() const
-	{
-		ut_ad(m_zip_size != ULINT_UNDEFINED);
-		return(m_zip_size);
 	}
 
 	inline bool operator==(const page_id_t& a) const
@@ -385,16 +405,16 @@ buf_frame_copy(
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
-#define buf_page_get(ID, LA, MTR)	\
-	buf_page_get_gen(ID, LA, NULL, BUF_GET, __FILE__, __LINE__, MTR)
+#define buf_page_get(ID, SIZE, LA, MTR)	\
+	buf_page_get_gen(ID, SIZE, LA, NULL, BUF_GET, __FILE__, __LINE__, MTR)
 /**************************************************************//**
 Use these macros to bufferfix a page with no latching. Remember not to
 read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#define buf_page_get_with_no_latch(ID, MTR)	\
-	buf_page_get_gen(ID, RW_NO_LATCH, NULL, BUF_GET_NO_LATCH, \
+#define buf_page_get_with_no_latch(ID, SIZE, MTR)	\
+	buf_page_get_gen(ID, SIZE, RW_NO_LATCH, NULL, BUF_GET_NO_LATCH, \
 			 __FILE__, __LINE__, MTR)
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
@@ -460,7 +480,8 @@ the same set of mutexes or latches.
 @return pointer to the block */
 buf_page_t*
 buf_page_get_zip(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /** This is the general function used to get access to a database page.
 @param[in] page_id page id
@@ -475,6 +496,7 @@ BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
 buf_block_t*
 buf_page_get_gen(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ulint			rw_latch,
 	buf_block_t*		guess,
 	ulint			mode,
@@ -492,6 +514,7 @@ FILE_PAGE (the other is buf_page_get_gen).
 buf_block_t*
 buf_page_create(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
 #else /* !UNIV_HOTBACKUP */
@@ -675,8 +698,7 @@ buf_page_is_corrupted(
 	bool		check_lsn,	/*!< in: true if we need to check the
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size	/*!< in: size of compressed page;
-					0 for uncompressed pages */
+	const page_size_t&	page_size
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
 	,ullint		page_no,	/*!< in: page number of
@@ -688,8 +710,7 @@ buf_page_is_corrupted(
 	FILE*		log_file	/*!< in: file pointer to
 					log_file*/
 #endif /* UNIV_INNOCHECKSUM */
-)
-	__attribute__((nonnull, warn_unused_result));
+) __attribute__((warn_unused_result));
 #ifndef UNIV_INNOCHECKSUM
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
@@ -767,12 +788,10 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size,	/*!< in: compressed page size, or
-					0 for uncompressed pages */
-	ulint		flags)		/*!< in: 0 or
+	const page_size_t&	page_size,
+	ulint		flags);		/*!< in: 0 or
 					BUF_PAGE_PRINT_NO_CRASH or
 					BUF_PAGE_PRINT_NO_FULL */
-	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Decompress a block.
 @return TRUE if successful */
@@ -1164,6 +1183,7 @@ buf_page_init_for_read(
 	dberr_t*		err,
 	ulint			mode,
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			unzip,
 	ib_int64_t		tablespace_version);
 
@@ -1383,7 +1403,7 @@ void
 buf_flush_update_zip_checksum(
 /*==========================*/
 	buf_frame_t*	page,		/*!< in/out: Page to update */
-	ulint		zip_size,	/*!< in: Compressed page size */
+	ulint		size,	/*!< in: Compressed page size */
 	lsn_t		lsn);		/*!< in: Lsn to stamp on the page */
 
 #endif /* !UNIV_HOTBACKUP */
@@ -1394,7 +1414,8 @@ for compressed and uncompressed frames */
 /** Number of bits used for buffer page states. */
 #define BUF_PAGE_STATE_BITS	3
 
-struct buf_page_t{
+class buf_page_t {
+public:
 	/** @name General fields
 	None of these bit-fields must be modified without holding
 	buf_page_get_mutex() [buf_block_t::mutex or
@@ -1405,6 +1426,8 @@ struct buf_page_t{
 
 	/** Page id. Protected by buf_pool mutex. */
 	page_id_t	id;
+
+	page_size_t	size;
 
 	unsigned	state:BUF_PAGE_STATE_BITS;
 					/*!< state of the control block; also
@@ -2246,14 +2269,6 @@ struct	CheckUnzipLRUAndLRUList {
 	}
 };
 #endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */
-
-/** Calculate the actual page size, given a zip_size.
-@param[in] zip_size zip size, could be 0
-@return corresponding page size */
-UNIV_INLINE
-ulint
-page_size_from_zip_size(
-	ulint	zip_size);
 
 #ifndef UNIV_NONINL
 #include "buf0buf.ic"

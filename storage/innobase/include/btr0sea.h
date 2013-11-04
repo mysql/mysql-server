@@ -147,7 +147,8 @@ buffer pool or freed in a file segment.
 @param[in] page_id page id */
 void
 btr_search_drop_page_hash_when_freed(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */

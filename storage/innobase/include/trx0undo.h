@@ -107,6 +107,7 @@ UNIV_INLINE
 page_t*
 trx_undo_page_get(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
 /** Gets an undo log page and s-latches it.
@@ -117,6 +118,7 @@ UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
 /******************************************************************//**
@@ -194,8 +196,7 @@ trx_undo_rec_t*
 trx_undo_get_first_rec(
 /*===================*/
 	ulint	space,	/*!< in: undo log header space */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	page_no,/*!< in: undo log header page number */
 	ulint	offset,	/*!< in: undo log header offset on page */
 	ulint	mode,	/*!< in: latching mode: RW_S_LATCH or RW_X_LATCH */
@@ -427,7 +428,7 @@ trx_undo_mem_free(
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
-struct trx_undo_t{
+struct trx_undo_t {
 	/*-----------------------------*/
 	ulint		id;		/*!< undo log slot number within the
 					rollback segment */
@@ -454,8 +455,7 @@ struct trx_undo_t{
 	/*-----------------------------*/
 	ulint		space;		/*!< space id where the undo log
 					placed */
-	ulint		zip_size;	/*!< compressed page size of space
-					in bytes, or 0 for uncompressed */
+	page_size_t	page_size;
 	ulint		hdr_page_no;	/*!< page number of the header page in
 					the undo log */
 	ulint		hdr_offset;	/*!< header offset of the undo log on

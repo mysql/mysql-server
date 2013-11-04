@@ -247,9 +247,8 @@ typedef	byte	fseg_inode_t;
 	(16 + 3 * FLST_BASE_NODE_SIZE			\
 	 + FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE)
 
-#define FSP_SEG_INODES_PER_PAGE(zip_size)		\
-	(((zip_size ? zip_size : UNIV_PAGE_SIZE)	\
-	  - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
+#define FSP_SEG_INODES_PER_PAGE(page_size)		\
+	((page_size.bytes() - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
 				/* Number of segment inodes which fit on a
 				single page */
 
@@ -376,14 +375,14 @@ ulint
 fsp_header_get_flags(
 /*=================*/
 	const page_t*	page);	/*!< in: first page of a tablespace */
-/**********************************************************************//**
-Reads the compressed page size from the first page of a tablespace.
-@return compressed page size in bytes, or 0 if uncompressed */
 
-ulint
-fsp_header_get_zip_size(
-/*====================*/
-	const page_t*	page);	/*!< in: first page of a tablespace */
+/** Reads the page size from the first page of a tablespace.
+@param[in] page first page of a tablespace
+@return page size */
+page_size_t
+fsp_header_get_page_size(
+	const page_t*	page);
+
 /**********************************************************************//**
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
@@ -622,7 +621,8 @@ fseg_free_step_not_header(
 UNIV_INLINE
 ibool
 fsp_descr_page(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /***********************************************************//**
 Parses a redo log record of a file page init.
@@ -700,8 +700,7 @@ UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
 /*=======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	offset);	/*!< in: page offset */
 
 /********************************************************************//**
@@ -718,11 +717,10 @@ xdes_t*
 xdes_get_descriptor(
 /*================*/
 	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
 	ulint	offset,		/*!< in: page offset; if equal to the
 				free limit, we try to add new extents
 				to the space free list */
+	const page_size_t&	page_size,
 	mtr_t*	mtr)		/*!< in/out: mini-transaction */
 	__attribute__((warn_unused_result));
 /**********************************************************************//**
@@ -744,30 +742,28 @@ UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(
 /*======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	offset);	/*!< in: page offset */
 
 #endif /* !UNIV_INNOCHECKSUM */
 
-/********************************************************************//**
-Extract the zip size from tablespace flags.  A tablespace has only one
+/** Extract the raw page size from tablespace flags - only looking at the
+page_ssize field, without taking compression into account.
+@param[in] flags tablespace flags
+@return raw page size of the file-per-table tablespace */
+UNIV_INLINE
+ulint
+fsp_flags_get_raw_page_size(
+	ulint	flags);
+
+/** Extract the page size from tablespace flags. A tablespace has only one
 physical page size whether that page is compressed or not.
-@return compressed page size of the file-per-table tablespace in bytes,
-or zero if the table is not compressed.  */
+@param[in] flags tablespace flags
+@return page size of the file-per-table tablespace */
 UNIV_INLINE
-ulint
-fsp_flags_get_zip_size(
-/*====================*/
-	ulint	flags);		/*!< in: tablespace flags */
-/********************************************************************//**
-Extract the page size from tablespace flags.
-@return page size of the tablespace in bytes */
-UNIV_INLINE
-ulint
+const page_size_t
 fsp_flags_get_page_size(
-/*====================*/
-	ulint	flags);		/*!< in: tablespace flags */
+	ulint	flags);
 
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"

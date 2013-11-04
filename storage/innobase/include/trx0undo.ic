@@ -163,9 +163,11 @@ UNIV_INLINE
 page_t*
 trx_undo_page_get(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
-	buf_block_t*	block = buf_page_get(page_id, RW_X_LATCH, mtr);
+	buf_block_t*	block = buf_page_get(page_id, page_size,
+					     RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
 	return(buf_block_get_frame(block));
@@ -179,9 +181,11 @@ UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
-	buf_block_t*	block = buf_page_get(page_id, RW_S_LATCH, mtr);
+	buf_block_t*	block = buf_page_get(page_id, page_size,
+					     RW_S_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
 	return(buf_block_get_frame(block));
