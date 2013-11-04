@@ -1589,9 +1589,7 @@ recv_read_in_area(
 
 		recv_addr = recv_get_fil_addr_struct(page_id.space(), page_no);
 
-		const page_id_t	cur_page_id(page_id.space(),
-					    page_no,
-					    page_id.zip_size());
+		const page_id_t	cur_page_id(page_id.space(), page_no);
 
 		if (recv_addr && !buf_page_peek(cur_page_id)) {
 
@@ -1666,10 +1664,14 @@ loop:
 		     recv_addr = static_cast<recv_addr_t*>(
 				HASH_GET_NEXT(addr_hash, recv_addr))) {
 
-			const page_id_t	page_id(
-				recv_addr->space,
-				recv_addr->page_no,
-				fil_space_get_zip_size(recv_addr->space));
+			const page_id_t		page_id(recv_addr->space,
+							recv_addr->page_no);
+			bool			found;
+			const page_size_t&	page_size
+				= fil_space_get_page_size(recv_addr->space,
+							  &found);
+
+			ut_ad(found);
 
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
@@ -1690,7 +1692,8 @@ loop:
 					mtr_start(&mtr);
 
 					block = buf_page_get(
-						page_id, RW_X_LATCH, &mtr);
+						page_id, page_size,
+						RW_X_LATCH, &mtr);
 
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);
@@ -1807,10 +1810,12 @@ recv_apply_log_recs_for_backup(void)
 
 		while (recv_addr != NULL) {
 
-			ulint	zip_size
-				= fil_space_get_zip_size(recv_addr->space);
+			bool			found;
+			const page_size_t&	page_size
+				= fil_space_get_page_size(recv_addr->space,
+							  &found);
 
-			if (zip_size == ULINT_UNDEFINED) {
+			if (!found) {
 #if 0
 				fprintf(stderr,
 					"InnoDB: Warning: cannot apply"
@@ -1833,10 +1838,8 @@ recv_apply_log_recs_for_backup(void)
 			the block. */
 
 			buf_page_init_for_backup_restore(
-				page_id_t(recv_addr->space,
-					  recv_addr->page_no,
-					  zip_size),
-				block);
+				page_id_t(recv_addr->space, recv_addr->page_no),
+				page_size, block);
 
 			/* Extend the tablespace's last file if the page_no
 			does not fall inside its bounds; we assume the last
@@ -1857,12 +1860,11 @@ recv_apply_log_recs_for_backup(void)
 			fil0fil.cc routines */
 
 			const page_id_t	page_id(recv_addr->space,
-						recv_addr->page_no,
-						zip_size);
+						recv_addr->page_no);
 
-			if (zip_size) {
+			if (page_size.is_compressed()) {
 				error = fil_io(OS_FILE_READ, true, page_id,
-					       0, zip_size,
+					       page_size, 0, page_size.bytes(),
 					       block->page.zip.data, NULL);
 
 				if (error == DB_SUCCESS
@@ -1871,7 +1873,7 @@ recv_apply_log_recs_for_backup(void)
 				}
 			} else {
 				error = fil_io(OS_FILE_READ, true, page_id,
-					       0, UNIV_PAGE_SIZE,
+					       page_size, 0, page_size.bytes(),
 					       block->frame, NULL);
 			}
 
@@ -1893,13 +1895,13 @@ recv_apply_log_recs_for_backup(void)
 				block->frame, buf_block_get_page_zip(block),
 				mach_read_from_8(block->frame + FIL_PAGE_LSN));
 
-			if (zip_size) {
+			if (page_size.is_compressed()) {
 				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, zip_size,
+					       0, page_size.bytes(),
 					       block->page.zip.data, NULL);
 			} else {
 				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, UNIV_PAGE_SIZE,
+					       0, page_size.bytes(),
 					       block->frame, NULL);
 			}
 skip_this_recv_addr:
@@ -2822,9 +2824,9 @@ recv_recovery_from_checkpoint_start(
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */
 
-	const page_id_t	page_id(max_cp_group->space_id, 0, 0);
+	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true, page_id, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, page_id, univ_page_size, 0,
 	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
@@ -2853,8 +2855,9 @@ recv_recovery_from_checkpoint_start(
 		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 		       ' ', 4);
 		/* Write to the log file to wipe over the label */
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, page_id, 0,
-		       OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf, max_cp_group);
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, page_id,
+		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
+		       max_cp_group);
 	}
 
 	/* Start reading the log groups from the checkpoint lsn up. The

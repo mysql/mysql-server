@@ -191,6 +191,7 @@ UNIV_INLINE
 buf_block_t*
 btr_block_get_func(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ulint			mode,
 	const char*		file,
 	ulint			line,
@@ -201,37 +202,36 @@ btr_block_get_func(
 
 # ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
 @param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the block descriptor */
-#  define btr_block_get(page_id, mode, index, mtr)	\
-	btr_block_get_func(page_id, mode, __FILE__,__LINE__, index, mtr)
+#  define btr_block_get(page_id, page_size, mode, index, mtr)	\
+	btr_block_get_func(page_id, page_size, mode,		\
+			   __FILE__, __LINE__, index, mtr)
 # else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
-@param idx index tree, may be NULL if not the insert buffer tree
+@param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the block descriptor */
-#  define btr_block_get(page_id, mode, index, mtr)	\
-	btr_block_get_func(page_id, mode, __FILE__, __LINE__, mtr)
+#  define btr_block_get(page_id, page_size, mode, index, mtr)	\
+	btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
 # endif /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
-@param idx index tree, may be NULL if not the insert buffer tree
+@param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(page_id, mode, index, mtr)	\
-	buf_block_get_frame(btr_block_get(page_id, mode, index, mtr))
+# define btr_page_get(page_id, page_size, mode, index, mtr)	\
+	buf_block_get_frame(btr_block_get(page_id, page_size,	\
+					  mode, index, mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -307,9 +307,7 @@ btr_create(
 /*=======*/
 	ulint			type,		/*!< in: type of the index */
 	ulint			space,		/*!< in: space where created */
-	ulint			zip_size,	/*!< in: compressed page size
-						in bytes or 0 for uncompressed
-						pages */
+	const page_size_t&	page_size,
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
 						applying TRNCATE log 
@@ -328,6 +326,7 @@ this by calling btr_free_root.
 void
 btr_free_but_not_root(
 	const page_id_t&	root_page_id,
+	const page_size_t&	page_size,
 	ulint			logging_mode);
 
 /** Frees the B-tree root page. Other tree MUST already have been freed.
@@ -336,6 +335,7 @@ btr_free_but_not_root(
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
+	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
 /*************************************************************//**

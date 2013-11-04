@@ -1212,7 +1212,8 @@ buffer pool or freed in a file segment.
 @param[in] page_id page id */
 void
 btr_search_drop_page_hash_when_freed(
-	const page_id_t&	page_id)
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
 	buf_block_t*	block;
 	mtr_t		mtr;
@@ -1227,7 +1228,7 @@ btr_search_drop_page_hash_when_freed(
 	are possibly holding, we cannot s-latch the page, but must
 	(recursively) x-latch it, even though we are only reading. */
 
-	block = buf_page_get_gen(page_id, RW_X_LATCH, NULL,
+	block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
 				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
 				 &mtr);
 
@@ -1908,7 +1909,7 @@ btr_search_validate(void)
 
 				if (n_page_dumps < 20) {
 					buf_page_print(
-						page, 0,
+						page, univ_page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 					n_page_dumps++;
 				}

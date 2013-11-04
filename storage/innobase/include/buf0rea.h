@@ -38,7 +38,8 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -48,7 +49,8 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page_async(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /** Applies a random read-ahead in buf_pool if there are at least a threshold
 value of accessed pages from the random read-ahead area. Does not read any
@@ -67,6 +69,7 @@ get read even if we return a positive value! */
 ulint
 buf_read_ahead_random(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			inside_ibuf);
 
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
@@ -97,6 +100,7 @@ which could result in a deadlock if the OS does not support asynchronous io.
 ulint
 buf_read_ahead_linear(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			inside_ibuf);
 
 /********************************************************************//**

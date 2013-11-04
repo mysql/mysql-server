@@ -263,7 +263,8 @@ ibuf_inside(
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
-	const page_id_t&	page_id);
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==TRUE.
@@ -278,6 +279,7 @@ new transaction is created.
 ibool
 ibuf_page_low(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 #ifdef UNIV_DEBUG
 	ibool			x_latch,
 #endif /* UNIV_DEBUG */
@@ -289,23 +291,21 @@ __attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
 pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes, or 0
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mtr mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
-# define ibuf_page(page_id, mtr)	\
-	ibuf_page_low(page_id, TRUE, __FILE__, __LINE__, mtr)
+# define ibuf_page(page_id, page_size, mtr)	\
+	ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
 #else /* UVIV_DEBUG */
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
 pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes, or 0
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mtr mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
-# define ibuf_page(page_id, mtr)	\
-	ibuf_page_low(page_id, __FILE__, __LINE__, mtr)
+# define ibuf_page(page_id, page_size, mtr)	\
+	ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
 #endif /* UVIV_DEBUG */
 /***********************************************************************//**
 Frees excess pages from the ibuf free list. This function is called when an OS
@@ -331,6 +331,7 @@ ibuf_insert(
 	const dtuple_t*		entry,
 	dict_index_t*		index,
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	que_thr_t*		thr);
 
 /** When an index page is read from a disk to the buffer pool, this function
@@ -349,6 +350,7 @@ void
 ibuf_merge_or_delete_for_page(
 	buf_block_t*		block,
 	const page_id_t&	page_id,
+	const page_size_t*	page_size,
 	ibool			update_ibuf_bitmap);
 
 /*********************************************************************//**

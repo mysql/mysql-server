@@ -1838,7 +1838,7 @@ lock_sec_rec_some_has_impl(
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx = 0;
@@ -4733,7 +4733,7 @@ lock_rec_print(
 
 	const buf_block_t*	block;
 
-	block = buf_page_try_get(page_id_t(space, page_no, 0), &mtr);
+	block = buf_page_try_get(page_id_t(space, page_no), &mtr);
 
 	for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
@@ -5083,12 +5083,14 @@ lock_rec_fetch_page(
 {
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	ulint	space	= lock->un_member.rec_lock.space;
-	ulint	zip_size = fil_space_get_zip_size(space);
-	ulint	page_no = lock->un_member.rec_lock.page_no;
+	ulint			space = lock->un_member.rec_lock.space;
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+	ulint			page_no = lock->un_member.rec_lock.page_no;
 
 	/* Check if the .ibd file exists. */
-	if (zip_size != ULINT_UNDEFINED) {
+	if (found) {
 		mtr_t	mtr;
 
 		lock_mutex_exit();
@@ -5098,7 +5100,7 @@ lock_rec_fetch_page(
 		mtr_start(&mtr);
 
 		buf_page_get_with_no_latch(
-			page_id_t(space, page_no, zip_size), &mtr);
+			page_id_t(space, page_no), page_size, &mtr);
 
 		mtr_commit(&mtr);
 
@@ -5653,10 +5655,15 @@ lock_rec_block_validate(
 	trying to access the page. */
 	if (!fil_inc_pending_ops(space)) {
 		mtr_start(&mtr);
+
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space, &found);
+
+		ut_ad(found);
+
 		block = buf_page_get_gen(
-			page_id_t(space,
-				  page_no,
-				  fil_space_get_zip_size(space)),
+			page_id_t(space, page_no), page_size,
 			RW_X_LATCH, NULL,
 			BUF_GET_POSSIBLY_FREED,
 			__FILE__, __LINE__, &mtr);

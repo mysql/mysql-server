@@ -458,15 +458,14 @@ trx_undo_page_fetch_ext(
 					data and BLOB pointer */
 	ulint		prefix_len,	/*!< in: prefix size to store
 					in the undo log */
-	ulint		zip_size,	/*!< compressed page size in bytes,
-					or 0 for uncompressed BLOB  */
+	const page_size_t&	page_size,
 	const byte*	field,		/*!< in: an externally stored column */
 	ulint*		len)		/*!< in: length of field;
 					out: used length of ext_buf */
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
-		ext_buf, prefix_len, zip_size, field, *len);
+		ext_buf, prefix_len, page_size, field, *len);
 	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
@@ -492,8 +491,7 @@ trx_undo_page_report_modify_ext(
 					a longer prefix */
 	ulint		prefix_len,	/*!< prefix size to store in the
 					undo log */
-	ulint		zip_size,	/*!< compressed page size in bytes,
-					or 0 for uncompressed BLOB  */
+	const page_size_t&	page_size,
 	const byte**	field,		/*!< in/out: the locally stored part of
 					the externally stored column */
 	ulint*		len)		/*!< in/out: length of field, in bytes */
@@ -509,8 +507,8 @@ trx_undo_page_report_modify_ext(
 
 		ptr += mach_write_compressed(ptr, *len);
 
-		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len, zip_size,
-						 *field, len);
+		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len,
+						 page_size, *field, len);
 
 		ptr += mach_write_compressed(ptr, *len);
 	} else {
@@ -718,7 +716,7 @@ trx_undo_page_report_modify(
 					&& !ignore_prefix
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
-					dict_table_zip_size(table),
+					dict_table_page_size(table),
 					&field, &flen);
 
 				/* Notify purge that it eventually has to
@@ -810,7 +808,7 @@ trx_undo_page_report_modify(
 						flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 						&& !ignore_prefix
 						? ext_buf : NULL, prefix_len,
-						dict_table_zip_size(table),
+						dict_table_page_size(table),
 						&field, &flen);
 				} else {
 					ptr += mach_write_compressed(
@@ -1323,7 +1321,7 @@ trx_undo_report_row_operation(
 	page_no = undo->last_page_no;
 
 	undo_block = buf_page_get_gen(
-		page_id_t(undo->space, page_no, undo->zip_size),
+		page_id_t(undo->space, page_no), undo->page_size,
 		RW_X_LATCH, undo->guess_block, BUF_GET, __FILE__, __LINE__,
 		&mtr);
 
@@ -1463,7 +1461,7 @@ trx_undo_get_undo_rec_low(
 	mtr_start(&mtr);
 
 	undo_page = trx_undo_page_get_s_latched(
-		page_id_t(rseg->space, page_no, rseg->zip_size),
+		page_id_t(rseg->space, page_no), rseg->page_size,
 		&mtr);
 
 	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);

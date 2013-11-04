@@ -953,7 +953,7 @@ buf_pool_get(
         /* 2log of BUF_READ_AHEAD_AREA (64) */
         ulint		ignored_page_no = page_id.page_no() >> 6;
 
-        page_id_t	id(page_id.space(), ignored_page_no, 0);
+        page_id_t	id(page_id.space(), ignored_page_no);
 
         ulint		i = id.fold() % srv_buf_pool_instances;
 
@@ -1299,21 +1299,6 @@ buf_get_nth_chunk_block(
 	chunk = buf_pool->chunks + n;
 	*chunk_size = chunk->size;
 	return(chunk->blocks);
-}
-
-/** Calculate the actual page size, given a zip_size.
-@param[in] zip_size zip size, could be 0
-@return corresponding page size */
-UNIV_INLINE
-ulint
-page_size_from_zip_size(
-	ulint	zip_size)
-{
-	const ulint	page_size = zip_size > 0 ? zip_size : UNIV_PAGE_SIZE;
-
-	ut_ad(ut_is_2pow(page_size));
-
-	return(page_size);
 }
 
 #endif /* !UNIV_HOTBACKUP */

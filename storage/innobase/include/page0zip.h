@@ -93,8 +93,8 @@ page_zip_rec_needs_ext(
 	ulint	rec_size,	/*!< in: length of the record in bytes */
 	ulint	comp,		/*!< in: nonzero=compact format */
 	ulint	n_fields,	/*!< in: number of fields in the record;
-				ignored if zip_size == 0 */
-	ulint	zip_size)	/*!< in: compressed page size in bytes, or 0 */
+				ignored if tablespace is not compressed */
+	const page_size_t&	page_size)	/*!< in: compressed page size in bytes, or 0 */
 	__attribute__((const));
 
 /**********************************************************************//**

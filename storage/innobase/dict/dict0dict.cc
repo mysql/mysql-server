@@ -2190,7 +2190,6 @@ dict_index_too_big_for_tree(
 	const dict_table_t*	table,		/*!< in: table */
 	const dict_index_t*	new_index)	/*!< in: index */
 {
-	ulint	zip_size;
 	ulint	comp;
 	ulint	i;
 	/* maximum possible storage size of a record */
@@ -2211,20 +2210,22 @@ dict_index_too_big_for_tree(
 		return(FALSE););
 
 	comp = dict_table_is_comp(table);
-	zip_size = dict_table_zip_size(table);
 
-	if (zip_size && zip_size < UNIV_PAGE_SIZE) {
+	const page_size_t	page_size(dict_table_page_size(table));
+
+	if (page_size.is_compressed()
+	    && page_size.bytes() < univ_page_size.bytes()) {
 		/* On a compressed page, two records must fit in the
-		uncompressed page modification log.  On compressed
-		pages with zip_size == UNIV_PAGE_SIZE, this limit will
-		never be reached. */
+		uncompressed page modification log. On compressed pages
+		with size.bytes() == univ_page_size.bytes(), this limit
+		will never be reached. */
 		ut_ad(comp);
 		/* The maximum allowed record size is the size of
 		an empty page, minus a byte for recoding the heap
 		number in the page modification log.  The maximum
 		allowed node pointer size is half that. */
 		page_rec_max = page_zip_empty_size(new_index->n_fields,
-						   zip_size);
+						   page_size.bytes());
 		if (page_rec_max) {
 			page_rec_max--;
 		}

@@ -1333,8 +1333,8 @@ end_of_index:
 				block = page_cur_get_block(cur);
 				block = btr_block_get(
 					page_id_t(block->page.id.space(),
-						  next_page_no,
-						  block->page.id.zip_size()),
+						  next_page_no),
+					block->page.size,
 					BTR_SEARCH_LEAF,
 					clust_index, &mtr);
 
@@ -2131,7 +2131,7 @@ row_merge_copy_blobs(
 /*=================*/
 	const mrec_t*	mrec,	/*!< in: merge record */
 	const ulint*	offsets,/*!< in: offsets of mrec */
-	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	const page_size_t&	page_size,
 	dtuple_t*	tuple,	/*!< in/out: data tuple */
 	mem_heap_t*	heap)	/*!< in/out: memory heap */
 {
@@ -2155,7 +2155,7 @@ row_merge_copy_blobs(
 		BLOB pointers are read (row_merge_read_clustered_index())
 		and dereferenced (below). */
 		data = btr_rec_copy_externally_stored_field(
-			mrec, offsets, zip_size, i, &len, heap);
+			mrec, offsets, page_size, i, &len, heap);
 		/* Because we have locked the table, any records
 		written by incomplete transactions must have been
 		rolled back already. There must not be any incomplete
@@ -2273,7 +2273,7 @@ row_merge_insert_index_tuples(
 				row_log_table_blob_free(). */
 				row_merge_copy_blobs(
 					mrec, offsets,
-					dict_table_zip_size(old_table),
+					dict_table_page_size(old_table),
 					dtuple, tuple_heap);
 			}
 

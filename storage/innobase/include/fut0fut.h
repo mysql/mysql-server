@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,8 +41,7 @@ byte*
 fut_get_ptr(
 /*========*/
 	ulint		space,	/*!< in: space id */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	fil_addr_t	addr,	/*!< in: file address */
 	ulint		rw_latch, /*!< in: RW_S_LATCH, RW_X_LATCH */
 	mtr_t*		mtr);	/*!< in: mtr handle */

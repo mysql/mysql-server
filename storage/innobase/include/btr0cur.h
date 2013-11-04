@@ -673,8 +673,7 @@ btr_copy_externally_stored_field_prefix(
 /*====================================*/
 	byte*		buf,	/*!< out: the field, or a prefix of it */
 	ulint		len,	/*!< in: length of buf, in bytes */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
+	const page_size_t&	page_size,
 	const byte*	data,	/*!< in: 'internally' stored part of the
 				field containing also the reference to
 				the external part; must be protected by
@@ -693,8 +692,7 @@ btr_copy_externally_stored_field(
 				field containing also the reference to
 				the external part; must be protected by
 				a lock or a page latch */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
+	const page_size_t&	page_size,
 	ulint		local_len,/*!< in: length of data */
 	mem_heap_t*	heap);	/*!< in: mem heap */
 /*******************************************************************//**
@@ -707,8 +705,7 @@ btr_rec_copy_externally_stored_field(
 	const rec_t*	rec,	/*!< in: record in a clustered index;
 				must be protected by a lock or a page latch */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
+	const page_size_t&	page_size,
 	ulint		no,	/*!< in: field number */
 	ulint*		len,	/*!< out: length of the field */
 	mem_heap_t*	heap);	/*!< in: mem heap */

@@ -47,8 +47,7 @@ ulint
 trx_rseg_header_create(
 /*===================*/
 	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	max_size,	/*!< in: max size in pages */
 	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
 	mtr_t*	mtr)		/*!< in: mtr */
@@ -77,7 +76,7 @@ trx_rseg_header_create(
 	page_no = block->page.id.page_no();
 
 	/* Get the rollback segment file page */
-	rsegf = trx_rsegf_get_new(space, zip_size, page_no, mtr);
+	rsegf = trx_rsegf_get_new(space, page_no, page_size, mtr);
 
 	/* Initialize max size field */
 	mlog_write_ulint(rsegf + TRX_RSEG_MAX_SIZE, max_size,
@@ -178,8 +177,7 @@ trx_rseg_mem_create(
 	ulint		id,		/*!< in: rollback segment id */
 	ulint		space,		/*!< in: space where the segment
 					placed */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint		page_no,	/*!< in: page number of the segment
 					header */
 	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
@@ -198,7 +196,7 @@ trx_rseg_mem_create(
 
 	rseg->id = id;
 	rseg->space = space;
-	rseg->zip_size = zip_size;
+	rseg->page_size.copy_from(page_size);
 	rseg->page_no = page_no;
 
 	if (space == srv_tmp_space.space_id()) {
@@ -214,7 +212,7 @@ trx_rseg_mem_create(
 
 	*((trx_rseg_t**) rseg_array + rseg->id) = rseg;
 
-	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);
+	rseg_header = trx_rsegf_get_new(space, page_no, page_size, mtr);
 
 	rseg->max_size = mtr_read_ulint(
 		rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, mtr);
@@ -239,8 +237,8 @@ trx_rseg_mem_create(
 		rseg->last_offset = node_addr.boffset;
 
 		undo_log_hdr = trx_undo_page_get(
-			page_id_t(rseg->space, node_addr.page, rseg->zip_size),
-			mtr) + node_addr.boffset;
+			page_id_t(rseg->space, node_addr.page),
+			rseg->page_size, mtr) + node_addr.boffset;
 
 		rseg->last_trx_no = mach_read_from_8(
 			undo_log_hdr + TRX_UNDO_TRX_NO);
@@ -289,16 +287,19 @@ trx_rseg_schedule_pending_purge(
 		this is an upgrade scenario. trx_rseg_mem_create
 		will add rseg to purge queue if needed. */
 
-		ulint		zip_size;
-		trx_rseg_t*	rseg = NULL;
+		trx_rseg_t*		rseg = NULL;
+		bool			found = true;
+		const page_size_t&	page_size
+			= Tablespace::is_system_tablespace(space)
+			? univ_page_size
+			: fil_space_get_page_size(space, &found);
 
-		zip_size = !Tablespace::is_system_tablespace(space)
-			? fil_space_get_zip_size(space) : 0;
+		ut_ad(found);
 
 		trx_rseg_t** rseg_array =
 			((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
 		rseg = trx_rseg_mem_create(
-			slot, space, zip_size, page_no,
+			slot, space, page_size, page_no,
 			purge_queue, rseg_array, mtr);
 
 		ut_a(rseg->id == slot);
@@ -339,21 +340,25 @@ trx_rseg_create_instance(
 
 		if (page_no != FIL_NULL) {
 			ulint		space;
-			ulint		zip_size;
 			trx_rseg_t*	rseg = NULL;
 
 			ut_a(!trx_rseg_get_on_id(i, true));
 
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
-			zip_size = !Tablespace::is_system_tablespace(space)
-				   ? fil_space_get_zip_size(space) : 0;
+			bool			found = true;
+			const page_size_t&	page_size
+				= Tablespace::is_system_tablespace(space)
+				? univ_page_size
+				: fil_space_get_page_size(space, &found);
+
+			ut_ad(found);
 
 			trx_rseg_t** rseg_array =
 				static_cast<trx_rseg_t**>(trx_sys->rseg_array);
 
 			rseg = trx_rseg_mem_create(
-				i, space, zip_size, page_no,
+				i, space, page_size, page_no,
 				purge_queue, rseg_array, mtr);
 
 			ut_a(rseg->id == i);
@@ -390,11 +395,10 @@ trx_rseg_create(
 	if (slot_no != ULINT_UNDEFINED) {
 		ulint		id;
 		ulint		page_no;
-		ulint		zip_size;
 		trx_sysf_t*	sys_header;
 
 		page_no = trx_rseg_header_create(
-			space, 0, ULINT_MAX, slot_no, &mtr);
+			space, univ_page_size, ULINT_MAX, slot_no, &mtr);
 
 		ut_a(page_no != FIL_NULL);
 
@@ -403,14 +407,19 @@ trx_rseg_create(
 		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
 		ut_a(trx_sys_is_noredo_rseg_slot(slot_no) || id == space);
 
-		zip_size = !Tablespace::is_system_tablespace(space)
-			? fil_space_get_zip_size(space) : 0;
+		bool			found = true;
+		const page_size_t&	page_size
+			= Tablespace::is_system_tablespace(space)
+			? univ_page_size
+			: fil_space_get_page_size(space, &found);
+
+		ut_ad(found);
 
 		trx_rseg_t** rseg_array =
 			((trx_rseg_t**) trx_sys->rseg_array);
 
 		rseg = trx_rseg_mem_create(
-			slot_no, space, zip_size, page_no,
+			slot_no, space, page_size, page_no,
 			purge_sys->purge_queue, rseg_array, &mtr);
 	}
 

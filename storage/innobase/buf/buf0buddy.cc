@@ -531,7 +531,7 @@ buf_buddy_relocate(
 					buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
-	const ulint	size	= BUF_BUDDY_LOW << i;
+	const ulint	size = BUF_BUDDY_LOW << i;
 	ulint		space;
 	ulint		offset;
 
@@ -554,7 +554,7 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
-	bpage = buf_page_hash_get(buf_pool, page_id_t(space, offset, size));
+	bpage = buf_page_hash_get(buf_pool, page_id_t(space, offset));
 
 	if (!bpage || bpage->zip.data != src) {
 		/* The block has probably been freshly
