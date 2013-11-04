@@ -211,6 +211,37 @@ bool foreign_key_prefix(Key *a, Key *b)
 ****************************************************************************/
 
 /**
+  Release resources of the THD, prior to destruction.
+
+  @param    THD   pointer to THD object.
+*/
+
+void thd_release_resources(THD *thd)
+{
+  thd->release_resources();
+}
+
+/**
+  Reset the context associated from THD with the thread.
+
+  @param    THD   pointer to THD object.
+*/
+void restore_globals(THD *thd)
+{
+  thd->restore_globals();
+}
+
+/**
+  Delete the THD object.
+
+  @param    THD   pointer to THD object.
+*/
+void destroy_thd(THD *thd)
+{
+  delete thd;
+}
+
+/**
   Get reference to scheduler data object
 
   @param thd            THD object
@@ -511,14 +542,14 @@ extern "C" int mysql_tmpfile(const char *prefix)
 extern "C"
 int thd_in_lock_tables(const THD *thd)
 {
-  return test(thd->in_lock_tables);
+  return MY_TEST(thd->in_lock_tables);
 }
 
 
 extern "C"
 int thd_tablespace_op(const THD *thd)
 {
-  return test(thd->tablespace_op);
+  return MY_TEST(thd->tablespace_op);
 }
 
 
@@ -561,7 +592,9 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
                       const char *calling_file,
                       const unsigned int calling_line)
 {
-  DBUG_PRINT("THD::enter_stage", ("%s:%d", calling_file, calling_line));
+  DBUG_PRINT("THD::enter_stage",
+             ("'%s' %s:%d", new_stage ? new_stage->m_name : "",
+              calling_file, calling_line));
 
   if (old_stage != NULL)
   {
@@ -687,12 +720,6 @@ void thd_inc_row_count(THD *thd)
   @param length length of buffer
   @param max_query_len how many chars of query to copy (0 for all)
 
-  @req LOCK_thd_count
-  
-  @note LOCK_thd_count mutex is not necessary when the function is invoked on
-   the currently running thread (current_thd) or if the caller in some other
-   way guarantees that access to thd->query is serialized.
- 
   @return Pointer to string
 */
 
@@ -856,12 +883,13 @@ THD::THD(bool enable_plugins)
    table_map_for_update(0),
    m_examined_row_count(0),
    m_statement_psi(NULL),
+   m_transaction_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
    next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
-   is_fatal_sub_stmt_error(0),
+   is_fatal_sub_stmt_error(false),
    rand_used(0),
    time_zone_used(0),
    in_lock_tables(0),
@@ -1522,7 +1550,6 @@ void THD::cleanup(void)
  */
 void THD::release_resources()
 {
-  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   DBUG_ASSERT(m_release_resources_done == false);
 
   mysql_mutex_lock(&LOCK_status);
@@ -1564,7 +1591,6 @@ void THD::release_resources()
 
 THD::~THD()
 {
-  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
@@ -2521,7 +2547,7 @@ void select_to_file::send_error(uint errcode,const char *err)
 
 bool select_to_file::send_eof()
 {
-  int error= test(end_io_cache(&cache));
+  int error= MY_TEST(end_io_cache(&cache));
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
     error= true;
 
@@ -2698,8 +2724,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     escape_char= (int) (uchar) (*exchange->escaped)[0];
   else
     escape_char= -1;
-  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
-  is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
+  is_ambiguous_field_sep= MY_TEST(strchr(ESCAPE_CHARS, field_sep_char));
+  is_unsafe_field_sep= MY_TEST(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
                  (int) (uchar) (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
@@ -3973,7 +3999,8 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
-  mark_transaction_to_rollback(thd, all);
+  DBUG_ASSERT(thd);
+  thd->mark_transaction_to_rollback(all);
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
@@ -4201,13 +4228,21 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   limit_found_rows= backup->limit_found_rows;
   set_sent_row_count(backup->sent_row_count);
   client_capabilities= backup->client_capabilities;
+
   /*
     If we've left sub-statement mode, reset the fatal error flag.
     Otherwise keep the current value, to propagate it up the sub-statement
     stack.
+
+    NOTE: is_fatal_sub_stmt_error can be set only if we've been in the
+    sub-statement mode.
   */
+
+  DBUG_ASSERT((is_fatal_sub_stmt_error && !in_sub_stmt) ||
+              !is_fatal_sub_stmt_error);
+
   if (!in_sub_stmt)
-    is_fatal_sub_stmt_error= FALSE;
+    is_fatal_sub_stmt_error= false;
 
   if ((variables.option_bits & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
        !is_current_stmt_binlog_format_row())
@@ -4460,27 +4495,30 @@ void THD::get_definer(LEX_USER *definer)
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
-  @param  thd   Thread handle
   @param  all   TRUE <=> rollback main transaction.
 */
 
-void mark_transaction_to_rollback(THD *thd, bool all)
+void THD::mark_transaction_to_rollback(bool all)
 {
-  if (thd)
-  {
-    thd->is_fatal_sub_stmt_error= TRUE;
-    thd->transaction_rollback_request= all;
-    /*
-      Aborted transactions can not be IGNOREd.
-      Switch off the IGNORE flag for the current
-      SELECT_LEX. This should allow my_error()
-      to report the error and abort the execution
-      flow, even in presence
-      of IGNORE clause.
-    */
-    if (thd->lex->current_select())
-      thd->lex->current_select()->no_error= FALSE;
-  }
+  /*
+    There is no point in setting is_fatal_sub_stmt_error unless
+    we are actually in_sub_stmt.
+  */
+  if (in_sub_stmt)
+    is_fatal_sub_stmt_error= true;
+
+  transaction_rollback_request= all;
+
+  /*
+    Aborted transactions can not be IGNOREd.
+    Switch off the IGNORE flag for the current
+    SELECT_LEX. This should allow my_error()
+    to report the error and abort the execution
+    flow, even in presence
+    of IGNORE clause.
+  */
+  if (lex->current_select())
+    lex->current_select()->no_error= false;
 }
 
 

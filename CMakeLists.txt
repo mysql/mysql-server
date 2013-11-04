@@ -511,6 +511,8 @@ IF(NOT WITHOUT_SERVER)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-uln)
+  ADD_SUBDIRECTORY(packaging/rpm-oel)
+  ADD_SUBDIRECTORY(packaging/rpm-fedora)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

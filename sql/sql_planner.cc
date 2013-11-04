@@ -239,7 +239,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     // fulltext indexes require special treatment
     if (!ft_key)
     {
-      *found_condition|= test(found_part);
+      *found_condition|= MY_TEST(found_part);
 
       // Check if we found full key
       if (found_part == LOWER_BITS(key_part_map,
@@ -327,6 +327,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               prefix_rowcount *
               table->file->index_only_read_time(key, tmp_fanout);
           }
+          else if (key == table->s->primary_key &&
+                   table->file->primary_key_is_clustered())
+          {
+            cur_read_cost= prefix_rowcount *
+              table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+          }
           else
             cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
         }
@@ -386,7 +392,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         double tmp_fanout= 0.0;
         if (table->quick_keys.is_set(key) && !table_deps &&          //(C1)
             table->quick_key_parts[key] == cur_used_keyparts &&      //(C2)
-            table->quick_n_ranges[key] == 1+test(ref_or_null_part))  //(C3)
+            table->quick_n_ranges[key] == 1+MY_TEST(ref_or_null_part))  //(C3)
         {
           tmp_fanout= cur_fanout= (double) table->quick_rows[key];
         }
@@ -489,7 +495,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               table->quick_key_parts[key] <= cur_used_keyparts &&
               const_part &
               ((key_part_map)1 << table->quick_key_parts[key]) &&
-              table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
+              table->quick_n_ranges[key] == 1 + MY_TEST(ref_or_null_part &
                                                      const_part) &&
               cur_fanout > (double) table->quick_rows[key])
           {
@@ -505,6 +511,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           // we can use only index tree
           cur_read_cost= prefix_rowcount *
             table->file->index_only_read_time(key, tmp_fanout);
+        }
+        else if (key == table->s->primary_key &&
+                 table->file->primary_key_is_clustered())
+        {
+          cur_read_cost= prefix_rowcount *
+            table->file->read_time(key, 1, (ha_rows)tmp_fanout);
         }
         else
           cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
@@ -1297,7 +1309,7 @@ bool Optimize_table_order::choose_table_order()
 
   reset_nj_counters(join->join_list);
 
-  const bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
+  const bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
 
   if (emb_sjm_nest)

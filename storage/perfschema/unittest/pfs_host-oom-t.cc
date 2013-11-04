@@ -66,6 +66,7 @@ void test_oom()
   stub_alloc_fails_after_count= 1000;
 
   init_event_name_sizing(& param);
+  register_global_classes();
   rc= init_stage_class(param.m_stage_class_sizing);
   ok(rc == 0, "init stage class");
   rc= init_statement_class(param.m_statement_class_sizing);
@@ -93,6 +94,11 @@ void test_oom()
   ok(rc == 1, "oom (host statements)");
   cleanup_host();
 
+  stub_alloc_fails_after_count= 5;
+  rc= init_host(& param);
+  ok(rc == 1, "oom (host transactions)");
+  cleanup_host();
+
   cleanup_statement_class();
   cleanup_stage_class();
 }
@@ -108,7 +114,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(7);
   MY_INIT("pfs_host-oom-t");
   do_all_tests();
   return 0;

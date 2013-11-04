@@ -26,6 +26,7 @@ typedef class st_select_lex SELECT_LEX;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+                          const TABLE_LIST *update_table_ref,
                           Item **conds, uint order_num, ORDER *order);
 bool mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
                   List<Item> &values,Item *conds,

@@ -46,6 +46,7 @@ static PFS_single_stat *account_instr_class_waits_array= NULL;
 static PFS_stage_stat *account_instr_class_stages_array= NULL;
 static PFS_statement_stat *account_instr_class_statements_array= NULL;
 static PFS_memory_stat *account_instr_class_memory_array= NULL;
+static PFS_transaction_stat *account_instr_class_transactions_array= NULL;
 
 LF_HASH account_hash;
 static bool account_hash_inited= false;
@@ -67,10 +68,12 @@ int init_account(const PFS_global_param *param)
   account_instr_class_waits_array= NULL;
   account_instr_class_stages_array= NULL;
   account_instr_class_statements_array= NULL;
+  account_instr_class_transactions_array= NULL;
   account_instr_class_memory_array= NULL;
   uint waits_sizing= account_max * wait_class_max;
   uint stages_sizing= account_max * stage_class_max;
   uint statements_sizing= account_max * statement_class_max;
+  uint transactions_sizing= account_max * transaction_class_max;
   uint memory_sizing= account_max * memory_class_max;
 
   if (account_max > 0)
@@ -105,6 +108,14 @@ int init_account(const PFS_global_param *param)
       return 1;
   }
 
+  if (transactions_sizing > 0)
+  {
+    account_instr_class_transactions_array=
+      PFS_connection_slice::alloc_transactions_slice(transactions_sizing);
+    if (unlikely(account_instr_class_transactions_array == NULL))
+      return 1;
+  }
+
   if (memory_sizing > 0)
   {
     account_instr_class_memory_array=
@@ -121,6 +132,8 @@ int init_account(const PFS_global_param *param)
       &account_instr_class_stages_array[index * stage_class_max];
     account_array[index].m_instr_class_statements_stats=
       &account_instr_class_statements_array[index * statement_class_max];
+    account_array[index].m_instr_class_transactions_stats=
+      &account_instr_class_transactions_array[index * transaction_class_max];
     account_array[index].m_instr_class_memory_stats=
       &account_instr_class_memory_array[index * memory_class_max];
   }
@@ -352,6 +365,7 @@ void PFS_account::aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host
   aggregate_waits(safe_user, safe_host);
   aggregate_stages(safe_user, safe_host);
   aggregate_statements(safe_user, safe_host);
+  aggregate_transactions(safe_user, safe_host);
   aggregate_memory(alive, safe_user, safe_host);
   aggregate_stats(safe_user, safe_host);
 }
@@ -496,6 +510,56 @@ void PFS_account::aggregate_statements(PFS_user *safe_user, PFS_host *safe_host)
   */
   aggregate_all_statements(m_instr_class_statements_stats,
                            global_instr_class_statements_array);
+  return;
+}
+
+void PFS_account::aggregate_transactions(PFS_user *safe_user, PFS_host *safe_host)
+{
+  if (likely(safe_user != NULL && safe_host != NULL))
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               &global_transaction_stat);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+    */
+    aggregate_all_transactions(m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  /*
+    Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
+    -  EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  */
+  aggregate_all_transactions(m_instr_class_transactions_stats,
+                             &global_transaction_stat);
   return;
 }
 

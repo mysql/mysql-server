@@ -156,4 +156,18 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	100
 Sort_scan	1
-DROP TABLE t1, tmp;
+FLUSH STATUS;
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (0), (0);
+SELECT * FROM t2 where f1 =
+(SELECT f2 from t1 where t1.f1 = t2.f1 ORDER BY f1 LIMIT 1);
+f1
+0
+0
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	2
+Sort_scan	2
+DROP TABLE t1, t2, tmp;

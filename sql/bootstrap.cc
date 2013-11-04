@@ -1,0 +1,232 @@
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
+#include "bootstrap.h"
+
+#include "log.h"                 // sql_print_warning
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql_bootstrap.h"       // MAX_BOOTSTRAP_QUERY_SIZE
+#include "sql_class.h"           // THD
+#include "sql_connect.h"         // close_connection
+#include "sql_parse.h"           // mysql_parse
+
+static MYSQL_FILE *bootstrap_file= NULL;
+static int bootstrap_error= 0;
+
+
+static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE* input, int *error)
+{
+  char *line= mysql_file_fgets(buffer, size, input);
+  if (error)
+    *error= (line == NULL) ? ferror(input->m_file) : 0;
+  return line;
+}
+
+
+static void handle_bootstrap_impl(THD *thd)
+{
+  MYSQL_FILE *file= bootstrap_file;
+  char buffer[MAX_BOOTSTRAP_QUERY_SIZE];
+
+  DBUG_ENTER("handle_bootstrap");
+
+  thd->thread_stack= (char*) &thd;
+  thd->security_ctx->user= (char*) my_strdup(key_memory_Security_context,
+                                             "boot", MYF(MY_WME));
+  thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]= 0;
+  /*
+    Make the "client" handle multiple results. This is necessary
+    to enable stored procedures with SELECTs and Dynamic SQL
+    in init-file.
+  */
+  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
+
+  thd->init_for_queries();
+
+  buffer[0]= '\0';
+
+  for ( ; ; )
+  {
+    int length;
+    int error= 0;
+    int rc= read_bootstrap_query(buffer, &length, file, fgets_fn, &error);
+
+    if (rc == READ_BOOTSTRAP_EOF)
+      break;
+    /*
+      Check for bootstrap file errors. SQL syntax errors will be
+      caught below.
+    */
+    if (rc != READ_BOOTSTRAP_SUCCESS)
+    {
+      /*
+        mysql_parse() may have set a successful error status for the previous
+        query. We must clear the error status to report the bootstrap error.
+      */
+      thd->get_stmt_da()->reset_diagnostics_area();
+
+      /* Get the nearest query text for reference. */
+      char *err_ptr= buffer + (length <= MAX_BOOTSTRAP_ERROR_LEN ?
+                                        0 : (length - MAX_BOOTSTRAP_ERROR_LEN));
+      switch (rc)
+      {
+      case READ_BOOTSTRAP_ERROR:
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "Bootstrap file error, return code (%d). "
+                        "Nearest query: '%s'", MYF(0), error, err_ptr);
+        break;
+
+      case READ_BOOTSTRAP_QUERY_SIZE:
+        my_printf_error(ER_UNKNOWN_ERROR, "Bootstrap file error. Query size "
+                        "exceeded %d bytes near '%s'.", MYF(0),
+                        MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
+        break;
+
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+
+      thd->protocol->end_statement();
+      bootstrap_error= 1;
+      break;
+    }
+
+    char *query= (char *) thd->memdup_w_gap(buffer, length + 1,
+                                            thd->db_length + 1 +
+                                            QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
+    thd->set_query_and_id(query, length, thd->charset(), next_query_id());
+    DBUG_PRINT("query",("%-.4096s",thd->query()));
+#if defined(ENABLED_PROFILING)
+    thd->profiling.start_new_query();
+    thd->profiling.set_query_source(thd->query(), length);
+#endif
+
+    thd->set_time();
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), length))
+    {
+      thd->protocol->end_statement();
+      bootstrap_error= 1;
+      break;
+    }
+
+    mysql_parse(thd, thd->query(), length, &parser_state);
+
+    bootstrap_error= thd->is_error();
+    thd->protocol->end_statement();
+
+#if defined(ENABLED_PROFILING)
+    thd->profiling.finish_current_query();
+#endif
+
+    if (bootstrap_error)
+      break;
+
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute commands from bootstrap_file.
+
+  Used when creating the initial grant tables.
+*/
+
+namespace {
+pthread_handler_t handle_bootstrap(void *arg)
+{
+  THD *thd=(THD*) arg;
+
+  mysql_thread_set_psi_id(thd->thread_id);
+
+  /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
+  if (my_thread_init() || thd->store_globals())
+  {
+#ifndef EMBEDDED_LIBRARY
+    close_connection(thd, ER_OUT_OF_RESOURCES);
+#endif
+    thd->fatal_error();
+    bootstrap_error= 1;
+    net_end(&thd->net);
+  }
+  else
+  {
+    Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+    thd_manager->add_thd(thd);
+
+    handle_bootstrap_impl(thd);
+
+    net_end(&thd->net);
+    thd->release_resources();
+    thd_manager->remove_thd(thd);
+  }
+  my_thread_end();
+  return 0;
+}
+} // namespace
+
+
+int bootstrap(MYSQL_FILE *file)
+{
+  DBUG_ENTER("bootstrap");
+
+  THD *thd= new THD;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->bootstrap= 1;
+  my_net_init(&thd->net,(st_vio*) 0);
+  thd->max_client_packet_length= thd->net.max_packet;
+  thd->security_ctx->master_access= ~(ulong)0;
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
+
+  bootstrap_file=file;
+
+  pthread_attr_t thr_attr;
+  pthread_attr_init(&thr_attr);
+  pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
+  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
+  int error;
+#ifdef _WIN32
+  HANDLE boot_handle= NULL;
+  pthread_t bootstrap_thread= 0;
+  error= pthread_create_get_handle(&bootstrap_thread, &thr_attr,
+                                   handle_bootstrap, thd, &boot_handle);
+#else
+  error= mysql_thread_create(key_thread_bootstrap,
+                             &thd->real_id, &thr_attr, handle_bootstrap, thd);
+#endif
+  if (error)
+  {
+    sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
+                      error);
+    DBUG_RETURN(-1);
+  }
+  /* Wait for thread to die */
+#ifdef _WIN32
+  pthread_join_with_handle(boot_handle);
+#else
+  pthread_join(thd->real_id, NULL);
+#endif
+  delete thd;
+  DBUG_RETURN(bootstrap_error);
+}

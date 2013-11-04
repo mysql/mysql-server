@@ -233,8 +233,8 @@ static my_bool execute_buffer_conversion_done= 0;
   The same is true for stderr.
 */
 static uint win_is_console_cache= 
-  (test(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
-  (test(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+  (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
 static inline my_bool
 my_win_is_console_cached(FILE *file)
@@ -4953,17 +4953,7 @@ init_connection_options(MYSQL *mysql)
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*) &opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(mysql);
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);

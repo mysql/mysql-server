@@ -80,6 +80,10 @@ struct PFS_sizing_data
   ulong m_events_statements_history_sizing;
   /** Default value for @c PFS_param.m_events_statements_history_long_sizing. */
   ulong m_events_statements_history_long_sizing;
+  /** Default value for @c PFS_param.m_events_transactions_history_sizing. */
+  ulong m_events_transactions_history_sizing;
+  /** Default value for @c PFS_param.m_events_transactions_history_long_sizing. */
+  ulong m_events_transactions_history_long_sizing;
   /** Default value for @c PFS_param.m_digest_sizing. */
   ulong m_digest_sizing;
   /** Default value for @c PFS_param.m_session_connect_attrs_sizing. */
@@ -128,7 +132,7 @@ PFS_sizing_data small_data=
   /* Account / user / host */
   10, 5, 20,
   /* History sizes */
-  5, 100, 5, 100, 5, 100,
+  5, 100, 5, 100, 5, 100, 5, 100,
   /* Digests */
   1000,
   /* Session connect attrs. */
@@ -144,7 +148,7 @@ PFS_sizing_data medium_data=
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
-  10, 1000, 10, 1000, 10, 1000,
+  10, 1000, 10, 1000, 10, 1000, 10, 1000,
   /* Digests */
   5000,
   /* Session connect attrs. */
@@ -160,7 +164,7 @@ PFS_sizing_data large_data=
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
-  10, 10000, 10, 10000, 10, 10000,
+  10, 10000, 10, 10000, 10, 10000, 10, 10000,
   /* Digests */
   10000,
   /* Session connect attrs. */
@@ -270,6 +274,16 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   if (p->m_digest_sizing < 0)
   {
     p->m_digest_sizing= h->m_digest_sizing;
+  }
+
+  if (p->m_events_transactions_history_sizing < 0)
+  {
+    p->m_events_transactions_history_sizing= h->m_events_transactions_history_sizing;
+  }
+
+  if (p->m_events_transactions_history_long_sizing < 0)
+  {
+    p->m_events_transactions_history_long_sizing= h->m_events_transactions_history_long_sizing;
   }
 
   if (p->m_session_connect_attrs_sizing < 0)
@@ -423,6 +437,8 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
+  DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
+  DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
 
   DBUG_ASSERT(param->m_mutex_sizing >= 0);
