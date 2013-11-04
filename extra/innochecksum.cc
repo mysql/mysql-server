@@ -296,7 +296,9 @@ ulong read_file(
 		bytes = UNIV_ZIP_SIZE_MIN;
 	}
 
-	return bytes + fread(buf, 1, physical_page_size, fil_in);
+	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
+
+	return bytes;
 }
 
 /*****************************************************************//*
@@ -1204,7 +1206,7 @@ int main(
 #endif /* _WIN32 */
 
 		/* Read the minimum page size. */
-		bytes = fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in);
+		bytes = ulong(fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in));
 		partial_page_read = true;
 
 		if (bytes != UNIV_ZIP_SIZE_MIN) {
