@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
@@ -19,11 +19,11 @@ echo "--> $0"
 
 outdir="logs"
 newdir="$outdir/xxx"
-findir="$outdir/$1"
+dstdir="$outdir/$1"
 out="$newdir/out.txt"
 
 if [ $# -ne 1 ] ; then
-    echo "usage: $0 <run.crund.opt|...>"
+    echo "usage: $0 <run.c++crund|run.jcrund|...>"
     exit 1
 fi
 
@@ -31,15 +31,18 @@ if [ -d "$newdir" ] ; then
     echo "dir already exists: $newdir"
     exit 1
 fi
-if [ -d "$findir" ] ; then
-    echo "dir already exists: $findir"
+if [ -d "$dstdir" ] ; then
+    echo "dir already exists: $dstdir"
     exit 1
 fi
 
 mkdir -p "$newdir"
 touch "$out"
 echo "" | tee -a "$out"
-hwprefs -v cpu_count 2>&1 | tee -a "$out"
+if command -v hwprefs >> "$out" 2>&1 ; then
+    hwprefs -v os_type machine_type cpu_type cpu_freq cpu_bus_freq cpu_count \
+	2>&1 | tee -a "$out"
+fi
 echo "" | tee -a "$out"
 #./restart_cluster.sh 2>&1 | tee -a "$out"
 
@@ -50,9 +53,12 @@ pid=$!
 echo "" | tee -a "$out"
 ./mysql.sh -v < ../src/crund_schema.sql 2>&1 | tee -a "$out"
 
-
 echo "RUNNING CRUND ..." | tee -a "$out"
-( cd .. ; ant $1 ) > "$out" 2>&1
+if [[ "$1" = "run.c++"* ]] ; then
+    ( cd .. ; make $1 ) >> "$out" 2>&1
+elif [[ "$1" = "run.j"* ]] ; then
+    ( cd .. ; ant $1 ) >> "$out" 2>&1
+fi
 echo "... DONE CRUND" | tee -a "$out"
 
 sleep 6
@@ -60,7 +66,7 @@ kill -9 $pid
 
 mv -v "$out" *stat*.txt ../log*.txt "$newdir"
 cp -v ../*.properties ../build.xml ../config.ini ../my.cnf "$newdir"
-mv -v "$newdir" "$findir"
+mv -v "$newdir" "$dstdir"
 
 echo
 echo "<-- $0"
