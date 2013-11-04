@@ -210,7 +210,7 @@ xdes_mtr_get_bit(
 				0 ... FSP_EXTENT_SIZE - 1 */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
 
 	return(xdes_get_bit(descr, bit, offset));
@@ -1572,7 +1572,7 @@ fsp_free_page(
 		fsp_free_extent(page_id, page_size, mtr);
 	}
 
-	mtr->n_freed_pages++;
+	mtr->add_freed_pages();
 }
 
 /** Returns an extent to the free list of a space.
@@ -3190,7 +3190,7 @@ crash:
 		fsp_free_extent(page_id, page_size, mtr);
 	}
 
-	mtr->n_freed_pages++;
+	mtr->add_freed_pages();
 }
 
 /**********************************************************************//**

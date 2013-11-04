@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,22 +17,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/log0recv.ic
-Recovery
+@file include/dyn0types.h
+The dynamically allocated buffer types and constants
 
-Created 9/20/1997 Heikki Tuuri
+Created 2013-03-16 Sunny Bains
 *******************************************************/
 
-#include "univ.i"
+#ifndef dyn0types_h
+#define dyn0types_h
 
-/*******************************************************************//**
-Returns TRUE if recovery is currently running.
-@return recv_recovery_on */
-UNIV_INLINE
-ibool
-recv_recovery_is_on()
-/*=================*/
-{
-	return(recv_recovery_on);
-}
+/** Value of dyn_block_t::magic_n */
+#define DYN_BLOCK_MAGIC_N	375767
 
+/** This is the initial 'payload' size of a dynamic array;
+this must be > MLOG_BUF_MARGIN + 30! */
+#define	DYN_ARRAY_DATA_SIZE	512
+
+/** Flag for dyn_block_t::used that indicates a full block */
+#define DYN_BLOCK_FULL_FLAG	0x1000000UL
+
+#endif /* dyn0types_h */
