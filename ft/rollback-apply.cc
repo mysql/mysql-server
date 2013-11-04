@@ -143,17 +143,14 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
     //printf("%s:%d abort\n", __FILE__, __LINE__);
 
     BLOCKNUM next_log      = ROLLBACK_NONE;
-    uint32_t next_log_hash = 0;
 
     bool is_current = false;
     if (txn_has_current_rollback_log(txn)) {
         next_log      = txn->roll_info.current_rollback;
-        next_log_hash = txn->roll_info.current_rollback_hash;
         is_current = true;
     }
     else if (txn_has_spilled_rollback_logs(txn)) {
         next_log      = txn->roll_info.spilled_rollback_tail;
-        next_log_hash = txn->roll_info.spilled_rollback_tail_hash;
     }
 
     uint64_t last_sequence = txn->roll_info.num_rollback_nodes;
@@ -161,7 +158,7 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
     while (next_log.b != ROLLBACK_NONE.b) {
         ROLLBACK_LOG_NODE log;
         //pin log
-        toku_get_and_pin_rollback_log(txn, next_log, next_log_hash, &log);
+        toku_get_and_pin_rollback_log(txn, next_log, &log);
         toku_rollback_verify_contents(log, txn->txnid, last_sequence - 1);
 
         toku_maybe_prefetch_previous_rollback_log(txn, log);
@@ -180,23 +177,19 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
             assert(log->sequence == 0);
         }
         next_log      = log->previous;
-        next_log_hash = log->previous_hash;
         {
             //Clean up transaction structure to prevent
             //toku_txn_close from double-freeing
             if (is_current) {
                 txn->roll_info.current_rollback      = ROLLBACK_NONE;
-                txn->roll_info.current_rollback_hash = 0;
                 is_current = false;
             }
             else {
                 txn->roll_info.spilled_rollback_tail      = next_log;
-                txn->roll_info.spilled_rollback_tail_hash = next_log_hash;
             }
             if (found_head) {
                 assert(next_log.b == ROLLBACK_NONE.b);
                 txn->roll_info.spilled_rollback_head      = next_log;
-                txn->roll_info.spilled_rollback_head_hash = next_log_hash;
             }
         }
         bool give_back = false;
@@ -228,13 +221,11 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
                 num_nodes--; //Don't count the in-progress rollback log.
             }
             toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid, num_nodes,
-                                                      txn->roll_info.spilled_rollback_head, txn->roll_info.spilled_rollback_head_hash,
-                                                      txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash);
+                                                      txn->roll_info.spilled_rollback_head,
+                                                      txn->roll_info.spilled_rollback_tail);
             //Remove ownership from child.
             txn->roll_info.spilled_rollback_head      = ROLLBACK_NONE; 
-            txn->roll_info.spilled_rollback_head_hash = 0; 
             txn->roll_info.spilled_rollback_tail      = ROLLBACK_NONE; 
-            txn->roll_info.spilled_rollback_tail_hash = 0; 
         }
         // if we're commiting a child rollback, put its entries into the parent
         // by pinning both child and parent and then linking the child log entry
@@ -247,8 +238,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
 
             //Pin child log
             ROLLBACK_LOG_NODE child_log;
-            toku_get_and_pin_rollback_log(txn, txn->roll_info.current_rollback, 
-                    txn->roll_info.current_rollback_hash, &child_log);
+            toku_get_and_pin_rollback_log(txn, txn->roll_info.current_rollback, &child_log);
             toku_rollback_verify_contents(child_log, txn->txnid, txn->roll_info.num_rollback_nodes - 1);
 
             // Append the list to the front of the parent.
@@ -284,7 +274,6 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
                 toku_rollback_log_unpin_and_remove(txn, child_log);
             }
             txn->roll_info.current_rollback = ROLLBACK_NONE;
-            txn->roll_info.current_rollback_hash = 0;
 
             toku_maybe_spill_rollbacks(txn->parent, parent_log);
             toku_rollback_log_unpin(txn->parent, parent_log);

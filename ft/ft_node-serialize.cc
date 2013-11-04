@@ -2763,8 +2763,7 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
 }
 
 static int
-deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *log_p,
-                                    FT h, struct rbuf *rb) {
+deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p, struct rbuf *rb) {
     ROLLBACK_LOG_NODE MALLOC(result);
     int r;
     if (result==NULL) {
@@ -2793,13 +2792,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBA
         r = toku_db_badformat();
         goto died0;
     }
-    result->hash    = toku_cachetable_hash(h->cf, result->blocknum);
-    if (result->hash != fullhash) {
-        r = toku_db_badformat();
-        goto died0;
-    }
     result->previous       = rbuf_blocknum(rb);
-    result->previous_hash  = toku_cachetable_hash(h->cf, result->previous);
     result->rollentry_resident_bytecount = rbuf_ulonglong(rb);
 
     size_t arena_initial_size = rbuf_ulonglong(rb);
@@ -2840,13 +2833,13 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBA
 }
 
 static int
-deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknum, uint32_t fullhash,
+deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknum,
                                               ROLLBACK_LOG_NODE *log,
-                                              FT h, struct rbuf *rb) {
+                                              struct rbuf *rb) {
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
     invariant(version==FT_LAYOUT_VERSION); //Rollback log nodes do not survive version changes.
-    r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, h, rb);
+    r = deserialize_rollback_log_from_rbuf(blocknum, &rollback_log_node, rb);
     if (r==0) {
         *log = rollback_log_node;
     }
@@ -3022,8 +3015,7 @@ cleanup:
 
 // Read rollback log node from file into struct.  Perform version upgrade if necessary.
 int
-toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash,
-                                    ROLLBACK_LOG_NODE *logp, FT h) {
+toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT h) {
     int layout_version = 0;
     int r;
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
@@ -3037,7 +3029,6 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash
         ROLLBACK_LOG_NODE XMALLOC(log);
         rollback_empty_log_init(log);
         log->blocknum.b = blocknum.b;
-        log->hash = fullhash;
         r = 0;
         *logp = log;
         goto cleanup;
@@ -3054,7 +3045,7 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash
         }
     }
 
-    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, fullhash, logp, h, &rb);
+    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, logp, &rb);
 
 cleanup:
     if (rb.buf) toku_free(rb.buf);
