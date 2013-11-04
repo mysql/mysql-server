@@ -183,7 +183,7 @@ public:
 					the index
 	@param space_id			space id where we have to create
 					the index
-	@param zip_size			page size of the .ibd file
+	@param page_ize			page size of the .ibd file
 	@param index_type		type of index to truncate
 	@param index_id			id of index to truncate
 	@param btr_redo_create_info	control info for ::btr_create()
@@ -193,7 +193,7 @@ public:
 	ulint create_index(
 		const char*	table_name,
 		ulint		space_id,
-		ulint		zip_size,
+		const page_size_t&	page_size,
 		ulint		index_type,
 		index_id_t      index_id,
 		btr_create_t&	btr_redo_create_info,
@@ -203,14 +203,14 @@ public:
 
 	@param table_name	table name, for which to create the indexes
 	@param space_id		space id where we have to create the indexes
-	@param zip_size		page size of the .ibd file
+	@param page_size	page size of the .ibd file
 	@param flags		tablespace flags
 	@param format_flags	page format flags
 	@return DB_SUCCESS or error code. */
 	dberr_t create_indexes(
 		const char*	table_name,
 		ulint		space_id,
-		ulint		zip_size,
+		const page_size_t&	page_size,
 		ulint		flags,
 		ulint		format_flags);
 

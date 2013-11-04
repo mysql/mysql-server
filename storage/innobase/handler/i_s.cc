@@ -4113,7 +4113,7 @@ innodb_temp_table_populate_cache(
 		strcpy(cache->m_per_table_tablespace, "TRUE");
 	}
 
-	if (dict_table_zip_size(table) != 0) {
+	if (dict_table_page_size(table).is_compressed()) {
 		strcpy(cache->m_is_compressed, "TRUE");
 	} else {
 		strcpy(cache->m_is_compressed, "FALSE");
@@ -6179,12 +6179,13 @@ i_s_dict_fill_sys_tables(
 	dict_table_t*	table,		/*!< in: table */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	Field**		fields;
-	ulint	compact		= DICT_TF_GET_COMPACT(table->flags);
-	ulint	atomic_blobs	= DICT_TF_HAS_ATOMIC_BLOBS(table->flags);
-	ulint	zip_size	= dict_tf_get_zip_size(table->flags);
-	const char* file_format;
-	const char* row_format;
+	Field**			fields;
+	ulint			compact = DICT_TF_GET_COMPACT(table->flags);
+	ulint			atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(
+								table->flags);
+	const page_size_t&	page_size = dict_tf_get_page_size(table->flags);
+	const char*		file_format;
+	const char*		row_format;
 
 	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (!compact) {
@@ -6215,7 +6216,9 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store((double) zip_size));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(
+			(double) page_size.is_compressed()
+			? page_size.bytes() : 0));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7909,12 +7912,11 @@ i_s_dict_fill_sys_tablespaces(
 	ulint		flags,		/*!< in: tablespace flags */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	Field**	fields;
-	ulint	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
-	ulint	page_size	= fsp_flags_get_page_size(flags);;
-	ulint	zip_size	= fsp_flags_get_zip_size(flags);
-	const char* file_format;
-	const char* row_format;
+	Field**			fields;
+	ulint			atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const char*		file_format;
+	const char*		row_format;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
@@ -7941,9 +7943,13 @@ i_s_dict_fill_sys_tablespaces(
 	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
 			      row_format));
 
-	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store((double) page_size));
+	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(
+			(double) univ_page_size.bytes()));
 
-	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store((double) zip_size));
+	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(
+			(double) (page_size.is_compressed()
+				  ? page_size.bytes()
+				  : 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

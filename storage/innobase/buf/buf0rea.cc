@@ -116,6 +116,7 @@ buf_read_page_low(
 	bool			sync,
 	ulint			mode,
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			unzip,
 	ib_int64_t 		tablespace_version)
 {
@@ -140,7 +141,7 @@ buf_read_page_low(
 		return(0);
 	}
 
-	if (ibuf_bitmap_page(page_id) || trx_sys_hdr_page(page_id)) {
+	if (ibuf_bitmap_page(page_id, page_size) || trx_sys_hdr_page(page_id)) {
 
 		/* Trx sys header is so low in the latching order that we play
 		safe and do not leave the i/o-completion to an asynchronous
@@ -155,17 +156,17 @@ buf_read_page_low(
 	or is being dropped; if we succeed in initing the page in the buffer
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
-	bpage = buf_page_init_for_read(err, mode, page_id, unzip,
-				       tablespace_version);
+	bpage = buf_page_init_for_read(err, mode, page_id, page_size,
+				       unzip, tablespace_version);
 	if (bpage == NULL) {
 
 		return(0);
 	}
 
-	DBUG_PRINT("ib_buf", ("read page %u:%u zip=%u unzip=%u,%s",
+	DBUG_PRINT("ib_buf", ("read page %u:%u size=%u unzip=%u,%s",
 			      (unsigned) page_id.space(),
 			      (unsigned) page_id.page_no(),
-			      (unsigned) page_id.zip_size(),
+			      (unsigned) page_size.bytes(),
 			      (unsigned) unzip,
 			      sync ? "sync" : "async"));
 
@@ -175,19 +176,18 @@ buf_read_page_low(
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	}
 
-	if (page_id.zip_size() > 0) {
-		*err = fil_io(
-			OS_FILE_READ | wake_later | ignore_nonexistent_pages,
-			sync, page_id, 0, page_id.zip_size(),
-			bpage->zip.data, bpage);
+	void*	dst;
+
+	if (page_size.is_compressed()) {
+		dst = bpage->zip.data;
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-
-		*err = fil_io(
-			OS_FILE_READ | wake_later | ignore_nonexistent_pages,
-			sync, page_id, 0, UNIV_PAGE_SIZE,
-			((buf_block_t*) bpage)->frame, bpage);
+		dst = ((buf_block_t*) bpage)->frame;
 	}
+
+	*err = fil_io(OS_FILE_READ | wake_later | ignore_nonexistent_pages,
+		      sync, page_id, page_size, 0, page_size.bytes(), dst,
+		      bpage);
 
 	if (sync) {
 		thd_wait_end(NULL);
@@ -243,6 +243,7 @@ get read even if we return a positive value! */
 ulint
 buf_read_ahead_random(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			inside_ibuf)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
@@ -266,7 +267,7 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	if (ibuf_bitmap_page(page_id) || trx_sys_hdr_page(page_id)) {
+	if (ibuf_bitmap_page(page_id, page_size) || trx_sys_hdr_page(page_id)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
 		no read-ahead, as that could break the ibuf page access
@@ -306,13 +307,10 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
-		const buf_page_t* bpage =
-			buf_page_hash_get(buf_pool,
-					  page_id_t(page_id.space(),
-						    i,
-						    page_id.zip_size()));
+		const buf_page_t*	bpage = buf_page_hash_get(
+			buf_pool, page_id_t(page_id.space(), i));
 
-		if (bpage
+		if (bpage != NULL
 		    && buf_page_is_accessed(bpage)
 		    && buf_page_peek_if_young(bpage)) {
 
@@ -346,15 +344,13 @@ read_ahead:
 		/* It is only sensible to do read-ahead in the non-sync aio
 		mode: hence FALSE as the first parameter */
 
-		const page_id_t	cur_page_id(page_id.space(),
-					    i,
-					    page_id.zip_size());
+		const page_id_t	cur_page_id(page_id.space(), i);
 
-		if (!ibuf_bitmap_page(cur_page_id)) {
+		if (!ibuf_bitmap_page(cur_page_id, page_size)) {
 			count += buf_read_page_low(
 				&err, false,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				cur_page_id, FALSE,
+				cur_page_id, page_size, FALSE,
 				tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
 				ib_logf(IB_LOG_LEVEL_WARN,
@@ -398,7 +394,8 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page(
-	const page_id_t&	page_id)
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
 	ib_int64_t	tablespace_version;
 	ulint		count;
@@ -410,7 +407,7 @@ buf_read_page(
 	switches: hence TRUE */
 
 	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, page_id,
-				  FALSE, tablespace_version);
+				  page_size, FALSE, tablespace_version);
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -433,7 +430,8 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page_async(
-	const page_id_t&	page_id)
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
 	ib_int64_t	tablespace_version;
 	ulint		count;
@@ -444,7 +442,7 @@ buf_read_page_async(
 	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
-				  page_id, FALSE,
+				  page_id, page_size, FALSE,
 				  tablespace_version);
 	srv_stats.buf_pool_reads.add(count);
 
@@ -486,6 +484,7 @@ which could result in a deadlock if the OS does not support asynchronous io.
 ulint
 buf_read_ahead_linear(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ibool			inside_ibuf)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
@@ -528,7 +527,7 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (ibuf_bitmap_page(page_id) || trx_sys_hdr_page(page_id)) {
+	if (ibuf_bitmap_page(page_id, page_size) || trx_sys_hdr_page(page_id)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
 		no read-ahead, as that could break the ibuf page access
@@ -577,10 +576,8 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(
-			buf_pool, page_id_t(page_id.space(),
-					    i,
-					    page_id.zip_size()));
+		bpage = buf_page_hash_get(buf_pool,
+					  page_id_t(page_id.space(), i));
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -701,15 +698,12 @@ buf_read_ahead_linear(
 		/* It is only sensible to do read-ahead in the non-sync
 		aio mode: hence FALSE as the first parameter */
 
-		const page_id_t	cur_page_id(page_id.space(),
-					    i,
-					    page_id.zip_size());
+		const page_id_t	cur_page_id(page_id.space(), i);
 
-		if (!ibuf_bitmap_page(cur_page_id)) {
+		if (!ibuf_bitmap_page(cur_page_id, page_size)) {
 			count += buf_read_page_low(
-				&err, false,
-				ibuf_mode,
-				cur_page_id, FALSE, tablespace_version);
+				&err, false, ibuf_mode, cur_page_id,
+				page_size, FALSE, tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"linear readahead trying to access "
@@ -778,36 +772,38 @@ buf_read_ibuf_merge_pages(
 #endif
 
 	for (i = 0; i < n_stored; i++) {
-		dberr_t			err;
-		buf_pool_t*		buf_pool;
+		const page_id_t	page_id(space_ids[i], page_nos[i]);
 
-		const ulint		zip_size = fil_space_get_zip_size(
-			space_ids[i]);
+		buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
-		const page_id_t	page_id(space_ids[i], page_nos[i], zip_size);
+		bool			found;
+		const page_size_t	page_size(fil_space_get_page_size(
+			space_ids[i], &found));
 
-		buf_pool = buf_pool_get(page_id);
+		if (!found) {
+			/* The tablespace was not found, remove the
+			entries for that page */
+			ibuf_merge_or_delete_for_page(NULL, page_id,
+						      NULL, FALSE);
+			continue;
+		}
 
 		while (buf_pool->n_pend_reads
 		       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 			os_thread_sleep(500000);
 		}
 
-		if (zip_size == ULINT_UNDEFINED) {
-
-			goto tablespace_deleted;
-		}
+		dberr_t	err;
 
 		buf_read_page_low(&err, sync && (i + 1 == n_stored),
-				  BUF_READ_ANY_PAGE, page_id,
+				  BUF_READ_ANY_PAGE, page_id, page_size,
 				  TRUE, space_versions[i]);
 
 		if (err == DB_TABLESPACE_DELETED) {
-tablespace_deleted:
 			/* We have deleted or are deleting the single-table
 			tablespace: remove the entries for that page */
-
-			ibuf_merge_or_delete_for_page(NULL, page_id, FALSE);
+			ibuf_merge_or_delete_for_page(NULL, page_id,
+						      &page_size, FALSE);
 		}
 	}
 
@@ -839,13 +835,15 @@ buf_read_recv_pages(
 	ulint		n_stored)	/*!< in: number of page numbers
 					in the array */
 {
-	ib_int64_t	tablespace_version;
-	ulint		count;
-	dberr_t		err;
-	ulint		i;
-	ulint		zip_size = fil_space_get_zip_size(space);
+	ib_int64_t		tablespace_version;
+	ulint			count;
+	dberr_t			err;
+	ulint			i;
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space,
+								  &found));
 
-	if (zip_size == ULINT_UNDEFINED) {
+	if (!found) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
@@ -856,7 +854,7 @@ buf_read_recv_pages(
 
 	for (i = 0; i < n_stored; i++) {
 		buf_pool_t*		buf_pool;
-		const page_id_t	cur_page_id(space, page_nos[i], zip_size);
+		const page_id_t	cur_page_id(space, page_nos[i]);
 
 		count = 0;
 
@@ -880,12 +878,12 @@ buf_read_recv_pages(
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, true, BUF_READ_ANY_PAGE,
-					  cur_page_id, TRUE,
+					  cur_page_id, page_size, TRUE,
 					  tablespace_version);
 		} else {
 			buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
-					  cur_page_id, TRUE,
+					  cur_page_id, page_size, TRUE,
 					  tablespace_version);
 		}
 	}

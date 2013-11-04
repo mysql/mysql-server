@@ -47,6 +47,7 @@ UNIV_INLINE
 buf_block_t*
 btr_block_get_func(
 	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	ulint			mode,
 	const char*		file,
 	ulint			line,
@@ -58,7 +59,7 @@ btr_block_get_func(
 	buf_block_t*	block;
 
 	block = buf_page_get_gen(
-		page_id, mode, NULL, BUF_GET, file, line, mtr);
+		page_id, page_size, mode, NULL, BUF_GET, file, line, mtr);
 
 	if (mode != RW_NO_LATCH) {
 
@@ -264,7 +265,7 @@ btr_node_ptr_get_child_page_no(
 			"InnoDB: a nonsensical page number 0"
 			" in a node ptr record at offset %lu\n",
 			(ulong) page_offset(rec));
-		buf_page_print(page_align(rec), 0, 0);
+		buf_page_print(page_align(rec), univ_page_size, 0);
 		ut_ad(0);
 	}
 

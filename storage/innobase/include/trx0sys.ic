@@ -103,8 +103,8 @@ trx_sysf_get(
 
 	ut_ad(mtr);
 
-	block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0),
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
+			     univ_page_size, RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
 	header = TRX_SYS + buf_block_get_frame(block);

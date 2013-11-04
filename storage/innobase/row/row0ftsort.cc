@@ -731,7 +731,6 @@ fts_parallel_tokenization(
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
 	doc_id_t		last_doc_id = 0;
-	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	dict_table_t*		table = psort_info->psort_common->new_table;
@@ -761,7 +760,8 @@ fts_parallel_tokenization(
 				? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
-	zip_size = dict_table_zip_size(table);
+
+	const page_size_t&	page_size = dict_table_page_size(table);
 
 	row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
@@ -791,7 +791,7 @@ loop:
 				doc.text.f_str =
 					btr_copy_externally_stored_field(
 						&doc.text.f_len, data,
-						zip_size, data_len, blob_heap);
+						page_size, data_len, blob_heap);
 			} else {
 				doc.text.f_str = data;
 				doc.text.f_len = data_len;

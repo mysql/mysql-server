@@ -423,12 +423,6 @@ btr_pcur_move_to_next_page(
 	page = btr_pcur_get_page(cursor);
 	next_page_no = btr_page_get_next(page, mtr);
 
-	buf_block_t*	block = btr_pcur_get_block(cursor);
-
-	page_id_t	next_page_id(block->page.id.space(),
-				     next_page_no,
-				     block->page.id.zip_size());
-
 	ut_ad(next_page_no != FIL_NULL);
 
 	mode = cursor->latch_mode;
@@ -439,8 +433,14 @@ btr_pcur_move_to_next_page(
 	case BTR_MODIFY_TREE:
 		mode = BTR_MODIFY_LEAF;
 	}
-	next_block = btr_block_get(next_page_id, mode,
-				   btr_pcur_get_btr_cur(cursor)->index, mtr);
+
+	buf_block_t*	block = btr_pcur_get_block(cursor);
+
+	next_block = btr_block_get(
+		page_id_t(block->page.id.space(), next_page_no),
+		block->page.size, mode,
+		btr_pcur_get_btr_cur(cursor)->index, mtr);
+
 	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));

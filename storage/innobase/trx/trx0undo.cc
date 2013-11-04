@@ -165,7 +165,6 @@ trx_undo_get_prev_rec_from_prev_page(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	space;
-	ulint	zip_size;
 	ulint	prev_page_no;
 	page_t* prev_page;
 	page_t*	undo_page;
@@ -182,10 +181,15 @@ trx_undo_get_prev_rec_from_prev_page(
 	}
 
 	space = page_get_space_id(undo_page);
-	zip_size = fil_space_get_zip_size(space);
+
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+
+	ut_ad(found);
 
 	buf_block_t*	block = buf_page_get(
-		page_id_t(space, prev_page_no, zip_size),
+		page_id_t(space, prev_page_no), page_size,
 		shared ? RW_S_LATCH : RW_X_LATCH, mtr);
 
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
@@ -232,8 +236,7 @@ trx_undo_rec_t*
 trx_undo_get_next_rec_from_next_page(
 /*=================================*/
 	ulint	space,	/*!< in: undo log header space */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	page_t*	undo_page, /*!< in: undo log page */
 	ulint	page_no,/*!< in: undo log header page number */
 	ulint	offset,	/*!< in: undo log header offset on page */
@@ -264,13 +267,14 @@ trx_undo_get_next_rec_from_next_page(
 		return(NULL);
 	}
 
-	const page_id_t	next_page_id(space, next_page_no, zip_size);
+	const page_id_t	next_page_id(space, next_page_no);
 
 	if (mode == RW_S_LATCH) {
-		next_page = trx_undo_page_get_s_latched(next_page_id, mtr);
+		next_page = trx_undo_page_get_s_latched(
+			next_page_id, page_size, mtr);
 	} else {
 		ut_ad(mode == RW_X_LATCH);
-		next_page = trx_undo_page_get(next_page_id, mtr);
+		next_page = trx_undo_page_get(next_page_id, page_size, mtr);
 	}
 
 	return(trx_undo_page_get_first_rec(next_page, page_no, offset));
@@ -289,7 +293,6 @@ trx_undo_get_next_rec(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint		space;
-	ulint		zip_size;
 	trx_undo_rec_t*	next_rec;
 
 	next_rec = trx_undo_page_get_next_rec(rec, page_no, offset);
@@ -299,9 +302,14 @@ trx_undo_get_next_rec(
 	}
 
 	space = page_get_space_id(page_align(rec));
-	zip_size = fil_space_get_zip_size(space);
 
-	return(trx_undo_get_next_rec_from_next_page(space, zip_size,
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+
+	ut_ad(found);
+
+	return(trx_undo_get_next_rec_from_next_page(space, page_size,
 						    page_align(rec),
 						    page_no, offset,
 						    RW_S_LATCH, mtr));
@@ -315,8 +323,7 @@ trx_undo_rec_t*
 trx_undo_get_first_rec(
 /*===================*/
 	ulint	space,	/*!< in: undo log header space */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	page_no,/*!< in: undo log header page number */
 	ulint	offset,	/*!< in: undo log header offset on page */
 	ulint	mode,	/*!< in: latching mode: RW_S_LATCH or RW_X_LATCH */
@@ -325,12 +332,13 @@ trx_undo_get_first_rec(
 	page_t*		undo_page;
 	trx_undo_rec_t*	rec;
 
-	const page_id_t	page_id(space, page_no, zip_size);
+	const page_id_t	page_id(space, page_no);
 
 	if (mode == RW_S_LATCH) {
-		undo_page = trx_undo_page_get_s_latched(page_id, mtr);
+		undo_page = trx_undo_page_get_s_latched(
+			page_id, page_size, mtr);
 	} else {
-		undo_page = trx_undo_page_get(page_id, mtr);
+		undo_page = trx_undo_page_get(page_id, page_size, mtr);
 	}
 
 	rec = trx_undo_page_get_first_rec(undo_page, page_no, offset);
@@ -339,7 +347,7 @@ trx_undo_get_first_rec(
 		return(rec);
 	}
 
-	return(trx_undo_get_next_rec_from_next_page(space, zip_size,
+	return(trx_undo_get_next_rec_from_next_page(space, page_size,
 						    undo_page, page_no, offset,
 						    mode, mtr));
 }
@@ -921,8 +929,8 @@ trx_undo_add_page(
 	}
 
 	header_page = trx_undo_page_get(
-		page_id_t(undo->space, undo->hdr_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->hdr_page_no),
+		undo->page_size, mtr);
 
 	if (!fsp_reserve_free_extents(&n_reserved, undo->space, 1,
 				      FSP_UNDO, mtr)) {
@@ -983,18 +991,15 @@ trx_undo_free_page(
 	fil_addr_t	last_addr;
 	trx_rsegf_t*	rseg_header;
 	ulint		hist_size;
-	ulint		zip_size;
 
 	ut_a(hdr_page_no != page_no);
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	zip_size = rseg->zip_size;
-
 	undo_page = trx_undo_page_get(
-		page_id_t(space, page_no, zip_size), mtr);
+		page_id_t(space, page_no), rseg->page_size, mtr);
 
 	header_page = trx_undo_page_get(
-		page_id_t(space, hdr_page_no, zip_size), mtr);
+		page_id_t(space, hdr_page_no), rseg->page_size, mtr);
 
 	flst_remove(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_PAGE_LIST,
 		    undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
@@ -1007,7 +1012,7 @@ trx_undo_free_page(
 	rseg->curr_size--;
 
 	if (in_history) {
-		rseg_header = trx_rsegf_get(space, zip_size,
+		rseg_header = trx_rsegf_get(space, rseg->page_size,
 					    rseg->page_no, mtr);
 
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
@@ -1054,8 +1059,7 @@ void
 trx_undo_empty_header_page(
 /*=======================*/
 	ulint	space,		/*!< in: space */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	hdr_page_no,	/*!< in: header page number */
 	ulint	hdr_offset,	/*!< in: header offset */
 	mtr_t*	mtr)		/*!< in: mtr */
@@ -1065,7 +1069,7 @@ trx_undo_empty_header_page(
 	ulint		end;
 
 	header_page = trx_undo_page_get(
-		page_id_t(space, hdr_page_no, zip_size), mtr);
+		page_id_t(space, hdr_page_no), page_size, mtr);
 
 	log_hdr = header_page + hdr_offset;
 
@@ -1106,8 +1110,8 @@ trx_undo_truncate_end_func(
 		last_page_no = undo->last_page_no;
 
 		undo_page = trx_undo_page_get(
-			page_id_t(undo->space, last_page_no, undo->zip_size),
-			&mtr);
+			page_id_t(undo->space, last_page_no),
+			undo->page_size, &mtr);
 
 		rec = trx_undo_page_get_last_rec(undo_page, undo->hdr_page_no,
 						 undo->hdr_offset);
@@ -1180,7 +1184,7 @@ trx_undo_truncate_start(
 loop:
 	mtr_start(&mtr);
 
-	rec = trx_undo_get_first_rec(space, rseg->zip_size,
+	rec = trx_undo_get_first_rec(space, rseg->page_size,
 				     hdr_page_no, hdr_offset,
 				     RW_X_LATCH, &mtr);
 	if (rec == NULL) {
@@ -1205,7 +1209,7 @@ loop:
 	page_no = page_get_page_no(undo_page);
 
 	if (page_no == hdr_page_no) {
-		trx_undo_empty_header_page(space, rseg->zip_size,
+		trx_undo_empty_header_page(space, rseg->page_size,
 					   hdr_page_no, hdr_offset,
 					   &mtr);
 	} else {
@@ -1241,11 +1245,10 @@ trx_undo_seg_free(
 
 		mutex_enter(&(rseg->mutex));
 
-		seg_header = trx_undo_page_get(
-			page_id_t(undo->space,
-				  undo->hdr_page_no,
-				  undo->zip_size),
-			&mtr) + TRX_UNDO_SEG_HDR;
+		seg_header = trx_undo_page_get(page_id_t(undo->space,
+							 undo->hdr_page_no),
+					       undo->page_size, &mtr)
+			+ TRX_UNDO_SEG_HDR;
 
 		file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
 
@@ -1254,7 +1257,7 @@ trx_undo_seg_free(
 		if (finished) {
 			/* Update the rseg header */
 			rseg_header = trx_rsegf_get(
-				rseg->space, rseg->zip_size, rseg->page_no,
+				rseg->space, rseg->page_size, rseg->page_no,
 				&mtr);
 			trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL,
 					       &mtr);
@@ -1304,8 +1307,7 @@ trx_undo_mem_create_at_db_start(
 	}
 
 	undo_page = trx_undo_page_get(
-		page_id_t(rseg->space, page_no, rseg->zip_size),
-		mtr);
+		page_id_t(rseg->space, page_no), rseg->page_size, mtr);
 
 	page_header = undo_page + TRX_UNDO_PAGE_HDR;
 
@@ -1359,8 +1361,8 @@ trx_undo_mem_create_at_db_start(
 	undo->top_page_no = last_addr.page;
 
 	last_page = trx_undo_page_get(
-		page_id_t(rseg->space, undo->last_page_no, rseg->zip_size),
-		mtr);
+		page_id_t(rseg->space, undo->last_page_no),
+		rseg->page_size, mtr);
 
 	rec = trx_undo_page_get_last_rec(last_page, page_no, offset);
 
@@ -1417,7 +1419,7 @@ trx_undo_lists_init(
 	mtr_start(&mtr);
 
 	rseg_header = trx_rsegf_get_new(
-		rseg->space, rseg->zip_size, rseg->page_no, &mtr);
+		rseg->space, rseg->page_no, rseg->page_size, &mtr);
 
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
 		ulint	page_no;
@@ -1444,7 +1446,7 @@ trx_undo_lists_init(
 			mtr_start(&mtr);
 
 			rseg_header = trx_rsegf_get(
-				rseg->space, rseg->zip_size, rseg->page_no,
+				rseg->space, rseg->page_size, rseg->page_no,
 				&mtr);
 
 			/* Found a used slot */
@@ -1502,7 +1504,7 @@ trx_undo_mem_create(
 	undo->rseg = rseg;
 
 	undo->space = rseg->space;
-	undo->zip_size = rseg->zip_size;
+	undo->page_size.copy_from(rseg->page_size);
 	undo->hdr_page_no = page_no;
 	undo->hdr_offset = offset;
 	undo->last_page_no = page_no;
@@ -1598,8 +1600,8 @@ trx_undo_create(
 
 	rseg->curr_size++;
 
-	rseg_header = trx_rsegf_get(rseg->space, rseg->zip_size, rseg->page_no,
-				    mtr);
+	rseg_header = trx_rsegf_get(rseg->space, rseg->page_size,
+				    rseg->page_no, mtr);
 
 	err = trx_undo_seg_create(rseg, rseg_header, type, &id,
 				  &undo_page, mtr);
@@ -1689,8 +1691,8 @@ trx_undo_reuse_cached(
 	}
 
 	undo_page = trx_undo_page_get(
-		page_id_t(undo->space, undo->hdr_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->hdr_page_no),
+		undo->page_size, mtr);
 
 	if (type == TRX_UNDO_INSERT) {
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
@@ -1731,8 +1733,8 @@ trx_undo_mark_as_dict_operation(
 	page_t*	hdr_page;
 
 	hdr_page = trx_undo_page_get(
-		page_id_t(undo->space, undo->hdr_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->hdr_page_no),
+		undo->page_size, mtr);
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -1855,8 +1857,8 @@ trx_undo_set_state_at_finish(
 	}
 
 	undo_page = trx_undo_page_get(
-		page_id_t(undo->space, undo->hdr_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->hdr_page_no),
+		undo->page_size, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
@@ -1906,8 +1908,8 @@ trx_undo_set_state_at_prepare(
 	}
 
 	undo_page = trx_undo_page_get(
-		page_id_t(undo->space, undo->hdr_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->hdr_page_no),
+		undo->page_size, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 

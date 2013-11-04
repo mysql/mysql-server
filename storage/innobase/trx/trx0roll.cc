@@ -858,8 +858,8 @@ trx_roll_pop_top_rec(
 	ut_ad(mutex_own(&trx->undo_mutex));
 
 	page_t*	undo_page = trx_undo_page_get_s_latched(
-		page_id_t(undo->space, undo->top_page_no, undo->zip_size),
-		mtr);
+		page_id_t(undo->space, undo->top_page_no),
+		undo->page_size, mtr);
 
 	ulint	offset = undo->top_offset;
 

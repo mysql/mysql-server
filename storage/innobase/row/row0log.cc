@@ -887,7 +887,7 @@ row_log_table_get_pk_old_col(
 @param rec clustered index leaf page record in the old table
 @param offsets rec_get_offsets(rec)
 @param i rec field corresponding to col
-@param zip_size compressed page size of the old table, or 0 for uncompressed
+@param page_size page size of the old table
 @param max_len maximum length of dfield
 @retval DB_INVALID_NULL if a NULL value is encountered
 @retval DB_TOO_BIG_INDEX_COL if the maximum prefix length is exceeded */
@@ -902,13 +902,11 @@ row_log_table_get_pk_col(
 	const rec_t*		rec,
 	const ulint*		offsets,
 	ulint			i,
-	ulint			zip_size,
+	const page_size_t&	page_size,
 	ulint			max_len)
 {
 	const byte*	field;
 	ulint		len;
-
-	ut_ad(ut_is_2pow(zip_size));
 
 	field = rec_get_nth_field(rec, offsets, i, &len);
 
@@ -931,7 +929,7 @@ row_log_table_get_pk_col(
 			mem_heap_alloc(heap, field_len));
 
 		len = btr_copy_externally_stored_field_prefix(
-			blob_field, field_len, zip_size, field, len);
+			blob_field, field_len, page_size, field, len);
 		if (len >= max_len + 1) {
 			return(DB_TOO_BIG_INDEX_COL);
 		}
@@ -1018,7 +1016,9 @@ row_log_table_get_pk(
 		dtuple_set_n_fields_cmp(tuple, new_n_uniq);
 
 		const ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(new_table);
-		const ulint zip_size = dict_table_zip_size(index->table);
+
+		const page_size_t&	page_size
+			= dict_table_page_size(index->table);
 
 		for (ulint new_i = 0; new_i < new_n_uniq; new_i++) {
 			dict_field_t*	ifield;
@@ -1045,7 +1045,7 @@ row_log_table_get_pk(
 
 				log->error = row_log_table_get_pk_col(
 					col, ifield, dfield, *heap,
-					rec, offsets, i, zip_size, max_len);
+					rec, offsets, i, page_size, max_len);
 
 				if (log->error != DB_SUCCESS) {
 err_exit:
@@ -1281,7 +1281,7 @@ row_log_table_apply_convert_mrec(
 			if (row) {
 				data = btr_rec_copy_externally_stored_field(
 					mrec, offsets,
-					dict_table_zip_size(index->table),
+					dict_table_page_size(index->table),
 					i, &len, heap);
 				ut_a(data);
 			}

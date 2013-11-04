@@ -35,8 +35,7 @@ trx_rsegf_t*
 trx_rsegf_get(
 /*==========*/
 	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
+	const page_size_t&	page_size,
 	ulint	page_no,	/*!< in: page number of the header */
 	mtr_t*	mtr)		/*!< in: mtr */
 {
@@ -44,7 +43,7 @@ trx_rsegf_get(
 	trx_rsegf_t*	header;
 
 	block = buf_page_get(
-		page_id_t(space, page_no, zip_size), RW_X_LATCH, mtr);
+		page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
 
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 
@@ -53,24 +52,25 @@ trx_rsegf_get(
 	return(header);
 }
 
-/******************************************************************//**
-Gets a newly created rollback segment header.
+/** Gets a newly created rollback segment header.
+@param[in] space space where placed
+@param[in] page_no page number of the header
+@param[in] page_size page size of the space
+@param[in,out] mtr mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr)		/*!< in: mtr */
+	ulint			space,
+	ulint			page_no,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
 {
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
 	block = buf_page_get(
-		page_id_t(space, page_no, zip_size), RW_X_LATCH, mtr);
+		page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
 
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 
