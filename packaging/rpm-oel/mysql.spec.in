@@ -39,7 +39,7 @@
 %global libmysqld_so_long     0.0.1
 
 # Version for compat libs
-%global compatver             5.1.70
+%global compatver             5.1.72
 
 %global src_dir               %{src_base}-%{version}
 

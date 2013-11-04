@@ -500,8 +500,8 @@ from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 = 1 or a.key2 = 1)
 and   (b.key1 = 1 or b.key2 = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using union(i1,i2); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	#	Using union(i1,i2); Using where
+1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	#	Using union(i1,i2); Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` = 1) or (`test`.`a`.`key2` = 1)) and ((`test`.`b`.`key1` = 1) or (`test`.`b`.`key2` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -539,12 +539,12 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	76.67	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	76.67	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 drop table t1;
@@ -992,49 +992,49 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	76.12	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	#	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt12a,stb_swt1b	12,8	NULL	#	76.12	Using intersect(sta_swt12a,stb_swt1b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt12a,stb_swt1b	12,8	NULL	#	#	Using intersect(sta_swt12a,stb_swt1b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt21a`) where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,stb_swt1b,sta_swt2a	8,8,8	NULL	#	75.00	Using intersect(sta_swt1a,stb_swt1b,sta_swt2a); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,stb_swt1b,sta_swt2a	8,8,8	NULL	#	#	Using intersect(sta_swt1a,stb_swt1b,sta_swt2a); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt12a`) IGNORE INDEX (`sta_swt21a`) where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,st_b	sta_swt1a,sta_swt2a,st_b	8,8,4	NULL	#	75.28	Using intersect(sta_swt1a,sta_swt2a,st_b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,st_b	sta_swt1a,sta_swt2a,st_b	8,8,4	NULL	#	#	Using intersect(sta_swt1a,sta_swt2a,st_b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1b`) IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt12a`) IGNORE INDEX (`sta_swt21a`) where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	76.12	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	#	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	75.28	Using intersect(sta_swt1a,stb_swt1b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	#	Using intersect(sta_swt1a,stb_swt1b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	75.28	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	#	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	75.28	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	#	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 drop table t0,t1;

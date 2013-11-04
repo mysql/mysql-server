@@ -42,10 +42,9 @@ template <template <typename> class Policy>
 bool
 TTASEventMutex<Policy>::wait(const char* filename, ulint line) UNIV_NOTHROW
 {
-	sync_array_t*	sync_arr = sync_array_get();
-
-	sync_cell_t*	cell = sync_array_reserve_cell(
-		sync_arr, this, SYNC_MUTEX, filename, line);
+	sync_cell_t*	cell;
+	sync_array_t*	sync_arr = sync_array_get_and_reserve_cell(
+				this, SYNC_MUTEX, filename, line, &cell);
 
 	/* The memory order of the array reservation and
 	the change in the waiters field is important: when
