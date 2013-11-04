@@ -70,11 +70,11 @@ public abstract class Driver {
     // driver resources
     protected boolean hasIgnoredSettings;
     protected PrintWriter log;
-    protected boolean logHeader;
-    protected StringBuilder header;
-    protected StringBuilder rtimes;
-    protected StringBuilder musage;
-    protected StringBuilder errors; // collected errors if failOnError
+    protected boolean logHeader = true;
+    protected StringBuilder header = new StringBuilder();
+    protected StringBuilder rtimes = new StringBuilder();
+    protected StringBuilder musage = new StringBuilder();
+    protected StringBuilder errors = new StringBuilder();
     protected long t0 = 0, t1 = 0, ta = 0;
     protected long m0 = 0, m1 = 0, ma = 0;
     protected final List<Load> loads = new ArrayList<Load>();
@@ -88,8 +88,8 @@ public abstract class Driver {
      */
     static protected void exitUsage() {
         out.println("usage: [options]");
-        out.println("    [-p <file name>]...    a properties file name");
-        out.println("    [-l <file name>]       log file name for data output");
+        out.println("    [-p <file name>]...    properties file name");
+        out.println("    [-l <file name>]       log file name for results");
         out.println("    [-h|--help]            print usage message and exit");
         out.println();
         System.exit(1); // return an error code
@@ -154,7 +154,7 @@ public abstract class Driver {
     // driver intializers/finalizers
     // ----------------------------------------------------------------------
 
-    // loads a dynamically linked system library and reports any failures
+    // loads a dynamically linked system library
     static protected void loadSystemLibrary(String name) {
         out.print("loading libary ...");
         out.flush();
@@ -178,20 +178,7 @@ public abstract class Driver {
         out.println("              [ok: " + name + "]");
     }
 
-    protected void addLoad(Load load) {
-        assert load != null;
-        loads.add(load);
-    }
-
-    protected Load createLoad(String className) throws Exception {
-        Load load;
-        final Class<?> a = Class.forName(className);
-        final Class<? extends Load> c = a.asSubclass(Load.class);
-        load = c.getConstructor(CrundDriver.class).newInstance(this);
-        return load;
-    }
-
-    // initializes the driver's resources.
+    // initializes the driver's resources
     protected void init() throws Exception {
         loadProperties();
         initProperties();
@@ -199,55 +186,13 @@ public abstract class Driver {
         writeProperties();
         openLogFile();
         clearLogBuffers();
-        errors = new StringBuilder();
-
-        out.println();
-        if (loads.isEmpty()) {
-            for (String s : loadClassNames) {
-                final StringBuilder msg = new StringBuilder();
-                out.print("instantiating load ...");
-                try {
-                    loads.add(createLoad(s));
-                } catch (Exception e) {
-                    msg.append("caught " + e + eol);
-                    msg.append("[SKIPPING] load class:          " + s + eol);
-                    hasIgnoredSettings = true;
-                }
-                if (msg.length() == 0) {
-                    final String c = s.replaceAll(".*\\.", "");
-                    out.println("          [ok: " + c + "]");
-                } else {
-                    out.println();
-                    out.print(msg.toString());
-                }
-            }
-        } else {
-            for (Load l : loads) {
-                final String c = l.getClass().getName();
-                out.println("found instantiated load ...     [ok: "
-                            + c.replaceAll(".*\\.", "") + "]");
-            }
-        }
-
-        if (loads.isEmpty())
-            out.println("++++++++++  NOTHING TO TO, NO LOAD CLASSES GIVEN  ++++++++++");
-        for (Load l : loads)
-            l.init();
+        initLoads();
     }
 
-    // releases the driver's resources.
+    // releases the driver's resources
     protected void close() throws Exception {
-        for (Load l : loads)
-            l.close();
-        loads.clear();
-
-        // release log buffers
-        logHeader = false;
-        header = null;
-        rtimes = null;
-        musage = null;
-        errors = null;
-
+        closeLoads();
+        clearLogBuffers();
         closeLogFile();
         props.clear();
     }
@@ -268,13 +213,11 @@ public abstract class Driver {
         }
     }
 
-    // retrieves a property's value and parses it as a boolean
     protected boolean parseBoolean(String k, boolean vdefault) {
         final String v = props.getProperty(k);
         return (v == null ? vdefault : Boolean.parseBoolean(v));
     }
 
-    // retrieves a property's value and parses it as a signed decimal integer
     protected int parseInt(String k, int vdefault) {
         final String v = props.getProperty(k);
         try {
@@ -288,7 +231,6 @@ public abstract class Driver {
         }
     }
 
-    // initializes the benchmark properties
     protected void initProperties() {
         out.println();
         out.print("reading driver properties ...");
@@ -302,7 +244,6 @@ public abstract class Driver {
         nRuns = parseInt("nRuns", 1);
         if (nRuns < 1) {
             msg.append("[IGNORED] nRuns:                " + nRuns + eol);
-            hasIgnoredSettings = true;
             nRuns = 1;
         }
 
@@ -327,12 +268,12 @@ public abstract class Driver {
         if (msg.length() == 0) {
             out.println("   [ok: nRuns=" + nRuns + "]");
         } else {
+            hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
     }
 
-    // prints the benchmark's properties
     protected void printProperties() {
         out.println();
         out.println("driver settings ...");
@@ -349,7 +290,6 @@ public abstract class Driver {
             out.println("                                " + s);
     }
 
-    // writes the benchmark's properties
     protected void writeProperties() {
         final String fileName = "logging.properties";
         final File logger = new File(fileName);
@@ -368,14 +308,12 @@ public abstract class Driver {
         }
     }
 
-    // opens the benchmark's data log file
     private void openLogFile() throws IOException {
         out.println();
         out.println("writing results to file:        " + logFileName);
         log = new PrintWriter(new FileWriter(logFileName, false));
     }
 
-    // closes the benchmark's data log file
     private void closeLogFile() throws IOException {
         out.println();
         out.print("closing files ...");
@@ -385,6 +323,58 @@ public abstract class Driver {
             log = null;
         }
         out.println("               [ok]");
+    }
+
+    protected void addLoad(Load load) {
+        loads.add(load);
+    }
+
+    protected Load createLoad(String className) throws Exception {
+        Load load;
+        final Class<?> a = Class.forName(className);
+        final Class<? extends Load> c = a.asSubclass(Load.class);
+        load = c.getConstructor(CrundDriver.class).newInstance(this);
+        return load;
+    }
+
+    protected void addLoads() throws Exception {
+        for (String s : loadClassNames) {
+            final StringBuilder msg = new StringBuilder();
+            out.print("instantiating load ...");
+            try {
+                createLoad(s);
+            } catch (Exception e) {
+                msg.append("caught " + e + eol);
+                msg.append("[SKIPPING] load class:          " + s + eol);
+            }
+            if (msg.length() == 0) {
+                final String c = s.replaceAll(".*\\.", "");
+                out.println("          [ok: " + c + "]");
+            } else {
+                hasIgnoredSettings = true;
+                out.println();
+                out.print(msg.toString());
+            }
+        }
+    }
+
+    protected void initLoads() throws Exception {
+        out.println();
+
+        if (loads.isEmpty())
+            addLoads();
+
+        if (loads.isEmpty())
+            out.println("++++++++++  NOTHING TO TO, NO LOAD CLASSES GIVEN  ++++++++++");
+
+        for (Load l : loads)
+            l.init();
+    }
+
+    protected void closeLoads() throws Exception {        
+        for (Load l : loads)
+            l.close();
+        loads.clear();
     }
 
     // ----------------------------------------------------------------------
@@ -424,28 +414,51 @@ public abstract class Driver {
         }
     }
 
+    protected void logError(String load, String op, Exception e) {
+        out.println("!!! ERRORS OCCURRED, SEE LOG FILE: " + logFileName);
+        errors.append(eol + "****************************************" + eol);
+        errors.append("Error in load: " + load + eol);
+        errors.append("operation: " + op + eol);
+        errors.append("exception: " + e + eol + eol);
+        final StringWriter s = new StringWriter();
+        e.printStackTrace(new PrintWriter(s));
+        errors.append(s);
+
+        if (failOnError)
+            abortIfErrors();
+    }
+
+    protected void abortIfErrors() {
+        if (errors.length() != 0) {
+            log.println("!!! ERRORS OCCURRED:");
+            log.println(errors.toString() + eol);
+            log.close();
+            String msg = "Errors occurred, see log file " + logFileName;
+            throw new RuntimeException(msg);
+        }
+    }
+
     protected void clearLogBuffers() {
         logHeader = true;
         header = new StringBuilder();
-        if (logRealTime) {
-            rtimes = new StringBuilder();
-        }
-        if (logMemUsage) {
-            musage = new StringBuilder();
-        }
+        rtimes = new StringBuilder();
+        musage = new StringBuilder();
+        errors = new StringBuilder();
     }
 
     protected void writeLogBuffers(String prefix) {
         if (logRealTime) {
-            log.println(prefix + ", rtime[ms]"
+            log.println("rtime[ms]," + prefix
                         + header.toString() + eol
                         + rtimes.toString() + eol);
         }
         if (logMemUsage) {
-            log.println(prefix + ", net musage[KiB]"
+            log.println("net_mem_usage[KiB]," + prefix
                         + header.toString() + eol
                         + musage.toString() + eol);
         }
+        abortIfErrors();
+        clearLogBuffers();
     }
 
     protected void beginOps(int nOps) {
@@ -542,26 +555,5 @@ public abstract class Driver {
         }
         if (logHeader)
             header.append("\t" + name);
-    }
-
-    protected void abortIfErrors() {
-        if (errors.length() != 0) {
-            log.println("!!! ERRORS OCCURRED:");
-            log.println(errors.toString() + eol);
-            log.close();
-            String msg = "Errors occurred, see log file " + logFileName;
-            throw new RuntimeException(msg);
-        }
-    }
-
-    protected void logError(String load, String op, Exception e) {
-        out.println("!!! ERRORS OCCURRED, SEE LOG FILE.");
-        errors.append(eol + "****************************************" + eol);
-        errors.append("Error in load: " + load + eol);
-        errors.append("operation: " + op + eol);
-        errors.append("exception: " + e + eol + eol);
-        final StringWriter s = new StringWriter();
-        e.printStackTrace(new PrintWriter(s));
-        errors.append(s);
     }
 }
