@@ -48,7 +48,7 @@ public class CrundDriver extends Driver {
     enum LockMode { none, shared, exclusive };
 
     // benchmark settings
-    protected final EnumSet<XMode> xMode = EnumSet.noneOf(XMode.class);
+    protected final EnumSet<XMode> xModes = EnumSet.noneOf(XMode.class);
     protected LockMode lockMode;
     protected boolean renewConnection;
     protected int nOpsStart;
@@ -60,8 +60,6 @@ public class CrundDriver extends Driver {
     protected int maxTextChars;
     protected final Set<String> include = new HashSet<String>();
     protected final Set<String> exclude = new HashSet<String>();
-
-    public CrundDriver() {}
 
     static public void main(String[] args) throws Exception {
         parseArguments(args);
@@ -102,10 +100,9 @@ public class CrundDriver extends Driver {
         for (int i = 0; i < xm.length; i++) {
             try {
                 if (!xm[i].isEmpty())
-                    xMode.add(XMode.valueOf(XMode.class, xm[i]));
+                    xModes.add(XMode.valueOf(XMode.class, xm[i]));
             } catch (IllegalArgumentException e) {
                 msg.append("[IGNORED] xMode:                " + xm[i] + eol);
-                hasIgnoredSettings = true;
             }
         }
 
@@ -114,7 +111,6 @@ public class CrundDriver extends Driver {
             lockMode = LockMode.valueOf(lm);
         } catch (IllegalArgumentException e) {
             msg.append("[IGNORED] lockMode:             " + lm + eol);
-            hasIgnoredSettings = true;
             lockMode = LockMode.none;
         }
 
@@ -123,19 +119,16 @@ public class CrundDriver extends Driver {
         nOpsStart = parseInt("nOpsStart", 1000);
         if (nOpsStart < 1) {
             msg.append("[IGNORED] nOpsStart:            " + nOpsStart + eol);
-            hasIgnoredSettings = true;
             nOpsStart = 1000;
         }
         nOpsEnd = parseInt("nOpsEnd", nOpsStart);
         if (nOpsEnd < nOpsStart) {
             msg.append("[IGNORED] nOpsEnd:              "+ nOpsEnd + eol);
-            hasIgnoredSettings = true;
             nOpsEnd = nOpsStart;
         }
         nOpsScale = parseInt("nOpsScale", 10);
         if (nOpsScale < 2) {
             msg.append("[IGNORED] nOpsScale:            " + nOpsScale + eol);
-            hasIgnoredSettings = true;
             nOpsScale = 10;
         }
 
@@ -143,14 +136,12 @@ public class CrundDriver extends Driver {
         if (maxVarbinaryBytes < 0) {
             msg.append("[IGNORED] maxVarbinaryBytes:    "
                        + maxVarbinaryBytes + eol);
-            hasIgnoredSettings = true;
             maxVarbinaryBytes = 100;
         }
         maxVarcharChars = parseInt("maxVarcharChars", 100);
         if (maxVarcharChars < 0) {
             msg.append("[IGNORED] maxVarcharChars:      "
                        + maxVarcharChars + eol);
-            hasIgnoredSettings = true;
             maxVarcharChars = 100;
         }
 
@@ -158,14 +149,12 @@ public class CrundDriver extends Driver {
         if (maxBlobBytes < 0) {
             msg.append("[IGNORED] maxBlobBytes:         "
                        + maxBlobBytes + eol);
-            hasIgnoredSettings = true;
             maxBlobBytes = 1000;
         }
         maxTextChars = parseInt("maxTextChars", 1000);
         if (maxTextChars < 0) {
             msg.append("[IGNORED] maxTextChars:         "
                        + maxTextChars + eol);
-            hasIgnoredSettings = true;
             maxTextChars = 1000;
         }
 
@@ -183,6 +172,7 @@ public class CrundDriver extends Driver {
             out.println("    [ok: "
                         + "nOps=" + nOpsStart + ".." + nOpsEnd + "]");
         } else {
+            hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
@@ -192,7 +182,7 @@ public class CrundDriver extends Driver {
         super.printProperties();
         out.println();
         out.println("crund settings ...");
-        out.println("xMode:                          " + xMode);
+        out.println("xModes:                         " + xModes);
         out.println("lockMode:                       " + lockMode);
         out.println("renewConnection:                " + renewConnection);
         out.println("nOpsStart:                      " + nOpsStart);
@@ -268,7 +258,6 @@ public class CrundDriver extends Driver {
         }
 
         writeLogBuffers(load.getName());
-        clearLogBuffers();
     }
 
     protected void runOperations(Load load, int nOps) throws Exception {
