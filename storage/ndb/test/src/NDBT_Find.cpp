@@ -35,10 +35,16 @@ NDBT_find_binary_from_path(BaseString& name,
   char * copy = strdup(_path);
 
   // Loop the list of paths and see if the binary exists
-  char * s = copy, *n;
-  while ((n = strstr(s, PATH_SEPARATOR)) != NULL)
+  char *n = copy;
+  while (n != NULL)
   {
-    * n = 0;
+    char * s = n; 
+    n = strstr(s, PATH_SEPARATOR);
+    if (n != NULL)
+    {
+      * n = 0;
+      n += strlen(PATH_SEPARATOR);
+    }
     BaseString path;
     path.assfmt("%s/%s", s, binary_name);
     if (access(path.c_str(), F_OK) == 0)
@@ -67,7 +73,6 @@ NDBT_find_binary_from_path(BaseString& name,
       printf("found %s\n", name.c_str());
       return;
     }
-    s = n + strlen(PATH_SEPARATOR);
   }
 
   // Failed to find the binary in any of the supplied paths

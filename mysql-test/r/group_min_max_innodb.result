@@ -67,11 +67,15 @@ stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	5	NULL	4	Using index; Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `a`,`test`.`t1`.`f1` AS `b` from `test`.`t1`
 explain select distinct f1, f2 from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`
 drop table t1;
 create table t1(pk int primary key) engine=innodb;
 create view v1 as select pk from t1 where pk < 20;
@@ -102,8 +106,10 @@ End of 5.1 tests
 CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	2	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	2	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` where (`test`.`t1`.`b` = 'b')
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 COUNT(DISTINCT a)
 1
@@ -112,8 +118,10 @@ CREATE TABLE t1 (a CHAR(1) NOT NULL, b CHAR(1) NOT NULL, UNIQUE KEY (a,b))
 ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	2	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a	a	2	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` where (`test`.`t1`.`b` = 'b')
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 COUNT(DISTINCT a)
 1

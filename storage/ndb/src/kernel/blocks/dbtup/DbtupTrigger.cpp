@@ -32,6 +32,7 @@
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 423
@@ -1168,24 +1169,6 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   }
 }
 
-void Dbtup::executeTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList, 
-                            Operationrec* regOperPtr,
-                            bool disk)
-{
-  TriggerPtr trigPtr;
-  triggerList.first(trigPtr);
-  while (trigPtr.i != RNIL) {
-    jam();
-    executeTrigger(req_struct,
-                   trigPtr.p,
-                   regOperPtr,
-                   disk);
-    triggerList.next(trigPtr);
-
-  }
-}
-
 bool
 Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
                           const TupTriggerData* trigPtrP,
@@ -1207,7 +1190,7 @@ Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
     return false;
   case Fragrecord::FS_REORG_COMMIT:
   case Fragrecord::FS_REORG_COMPLETE:
-    return req_struct->m_reorg == 0;
+    return req_struct->m_reorg == ScanFragReq::REORG_ALL;
   default:
     return true;
   }
@@ -1223,7 +1206,7 @@ Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
   case Fragrecord::FS_REORG_COMMIT_NEW:
   case Fragrecord::FS_REORG_COMPLETE_NEW:
     jam();
-    if (flag == 2)
+    if (flag == ScanFragReq::REORG_MOVED)
     {
       jam();
       return true;
@@ -1270,7 +1253,7 @@ Dbtup::check_fire_suma(const KeyReqStruct *req_struct,
     return true;
   case Fragrecord::FS_REORG_COMPLETE:
     jam();
-    if (flag != 1)
+    if (flag != ScanFragReq::REORG_NOT_MOVED)
     {
       jam();
       return true;

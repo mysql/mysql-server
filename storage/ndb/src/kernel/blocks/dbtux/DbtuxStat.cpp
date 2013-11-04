@@ -455,7 +455,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
     {
       Index& index = *c_indexPool.getPtr(rep->indexId);
       FragPtr fragPtr;
-      findFrag(index, rep->fragId, fragPtr);
+      findFrag(jamBuffer(), index, rep->fragId, fragPtr);
       ndbrequire(fragPtr.i != RNIL);
       // index.m_statFragPtrI need not be defined yet
       D("loadTime" << V(index.m_statLoadTime) << " ->" << V(rep->loadTime));
@@ -506,7 +506,7 @@ Dbtux::statMonStart(Signal* signal, StatMon& mon)
   if (req->fragId != ZNIL)
   {
     jam();
-    findFrag(index, req->fragId, fragPtr);
+    findFrag(jamBuffer(), index, req->fragId, fragPtr);
   }
 
   if (fragPtr.i != RNIL)

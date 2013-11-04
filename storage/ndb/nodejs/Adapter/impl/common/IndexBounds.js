@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+"use strict";
+var udebug             = unified_debug.getLogger("IndexBounds.js");
 
 /* Evaluation of IndexBounds from a Query
 
@@ -28,12 +30,15 @@
    (-Infinity, +Infinity).  Knowing this, we can evaluate a query tree with 
    respect to "age" and generate an interval from every comparator node.
    
+   If expressions are represented as intervals, then logical operations on 
+   them can be translated into operations on the intervals:  conjunction as 
+   intersection, disjunction as union, and negation as a complement.
    If comparator A returns interval Ia, and comparator B returns interval Ib,
    then the conjuction (A AND B) evaluates to the intersection of Ia and Ib.
    The disjunction (A OR B) evaluates to the union of Ia and Ib.  If Ia and Ib
    do not intersect, this union is the set {Ia, Ib}; if not, it is the one
    segment that spans from the least lower bound to the greater upper bound.
-   
+
    The NOT operator evaluates to the complement of an interval.  If Ia is 
    a finite inclusive interval [0, 30], then its complement is the pair of
    exclusive intervals (-Infinity, 0) and (30, +Infinity).
@@ -41,6 +46,10 @@
    The Unary Comparators "age IS NULL" and "age IS NOT NULL" seem to tell us 
    nothing, so they evaluate to (-Infinity, +Infinty).
 
+   The end result is that a predicate tree, evaluated with regard to an 
+   index column, is transformed into the set of ranges (segments) of the index
+   which must be scanned to evaluate the predicate.
+   
    Calculating the intersections and unions of intervals requires us to 
    compare two values for an indexed column.  Implementing this would be 
    easy if all indexed columns were numbers, but in fact we also have 
@@ -50,16 +59,32 @@
       (Date() < Infinity) == false 
    isFinite() also cannot be used with strings and dates.
 
-   For any two values encoded as data in buffers, NdbSqlUtil can compare them.
+   In some cases, JavaScript simply cannot compare two values at all:
+   for instance, it cannot compare two strings according to particular
+   MySQL collation rules.  So, we introduce the concept of an EncodedValue,
+   for values that JavaScript cannot compare and whose comparison is delegated 
+   elsewhere.
+   
+   EncodedValue.compare(otherValue) should return -1, 0, or +1 according to 
+   whether the stored value compares less, equal, or greater than otherValue.
 */
 
-"use strict";
+//////// EncodedValue             /////////////////
 
-var adapter            = require(path.join(build_dir, "ndb_adapter.node")),
-    NdbScanFilter      = adapter.ndb.ndbapi.NdbScanFilter,
-    IndexBound         = adapter.ndb.impl.IndexBound,
-    udebug             = unified_debug.getLogger("IndexBounds.js");
+function EncodedValue() {
+}
 
+EncodedValue.prototype = {
+  isEncodedValue : true,
+  compare : function(that) {
+    console.log("EncodedValue must implement compare()");
+    process.exit();
+  }
+};
+
+
+/* Utility functions 
+*/
 function blah() {
   console.log("BLAH");
   console.log.apply(null, arguments);
@@ -70,30 +95,27 @@ function isBoolean(x) {
   return (typeof x === 'boolean');
 }
 
-/* An EncodedValue holds a value that has been encoded in a buffer for 
-   a particular column
+
+//////// Endpoint                  /////////////////
+
+/* An Endpoint holds a value (either EncodedValue or plain JavaScript value), 
+   and, as the endpoint of a range of values, is either inclusive of the point 
+   value itself or not.  
+   "inclusive" defaults to true for values other than Infinity and -Infinity
 */
-function EncodedValue(column, buffer, size) {
-  this.column = column;
-  this.buffer = buffer;
-  this.size = size;
+function Endpoint(value, inclusive) {
+  this.value = value;
+  this.isFinite = (typeof value === 'number') ? isFinite(value) : true;
+  
+  if(typeof inclusive === 'boolean') 
+    this.inclusive = inclusive;
+  else 
+    this.inclusive = this.isFinite;
 }
 
-EncodedValue.prototype = {
-  isEncodedValue : true
-};
+Endpoint.prototype.isEndpoint = true;
 
-
-/* A point holds a value (either EncodedValue or plain JavaScript value), and, 
-   as the endpoint of a range, is either inclusive of the point itself
-   or not
-*/
-function Point(value, inclusive) {
-  this.value     = value;
-  this.inclusive = inclusive;
-}
-
-Point.prototype.asString = function(close) {
+Endpoint.prototype.asString = function(close) {
   var s = "";
   if(close) {
     s += this.value;
@@ -113,7 +135,8 @@ Point.prototype.asString = function(close) {
      false if the values are equal and either point is exclusive
    Caller is encouraged to test the return value with isBoolean().
 */
-Point.prototype.compare = function(that) {
+Endpoint.prototype.compare = function(that) {
+  assert(that.isEndpoint);
   var cmp;
 
   /* First compare to infinity */
@@ -125,9 +148,8 @@ Point.prototype.compare = function(that) {
     return 1;
   }
 
-  if(typeof this.value === 'object' && this.isEncodedValue) {
-    /* Compare Encoded Values */
-    cmp = 0; // cmp = xxx.compare( ... )
+  if(typeof this.value === 'object' && this.value.isEncodedValue) {
+    cmp = this.value.compare(that);
   }
   else {
     /* Compare JavaScript values */
@@ -139,22 +161,28 @@ Point.prototype.compare = function(that) {
   return (cmp === 0) ? (this.inclusive && that.inclusive) : cmp;
 };
 
-/* complement flips Point between inclusive and exclusive
+/* complement flips Endpoint between inclusive and exclusive
    Used in complementing number lines.
    e.g. the complement of [4,10] is (-Inf, 4) and (10, Inf)
 */
-Point.prototype.complement = function() {
-   this.inclusive = ! this.inclusive;
+Endpoint.prototype.complement = function() {
+  if(this.isFinite) 
+    this.inclusive = ! this.inclusive;
 };
 
+/* Create (non-inclusive) endpoints for negative and positive infinity.
+*/
+var negInf = new Endpoint(-Infinity);
+var posInf = new Endpoint(Infinity);
 
-var negInf = new Point(-Infinity, false);
-var posInf = new Point(Infinity, false);
 
+//////// Segment                   /////////////////
 
-/* A Segment is created from two points on the line
+/* A Segment is created from two endpoints on the line.
 */
 function Segment(point1, point2) {
+  assert(point1.isEndpoint && point2.isEndpoint);
+
   if(point1.compare(point2) === -1) {
     this.low = point1;
     this.high = point2;
@@ -165,6 +193,8 @@ function Segment(point1, point2) {
   }
 }
 
+Segment.prototype.isSegment = true;
+
 Segment.prototype.toString = function() {
   var s = "";
   s += this.low.asString(0) + "," + this.high.asString(1);
@@ -172,6 +202,8 @@ Segment.prototype.toString = function() {
 };
 
 Segment.prototype.contains = function(point) {
+  assert(point.isEndpoint);
+
   var hi = this.high.compare(point);
   var lo = this.low.compare(point);
   return(   ((lo === true) || (lo === -1))
@@ -179,14 +211,16 @@ Segment.prototype.contains = function(point) {
 };
 
 Segment.prototype.intersects = function(that) {
+  assert(that.isSegment);
+  
   return (this.contains(that.low) || this.contains(that.high));
 };
 
-/* compare() returns 0 if segments intersect. 
-   otherwise like Point.compare()
+/* compare() returns 0 if segments intersect.  Otherwise like Endpoint.compare()
 */
-Segment.prototype.compare = function(that) {
+Segment.prototype.compare = function(that) {  
   var r = 0; 
+  assert(that.isSegment);
   if(! this.intersects(that)) {
     r = this.low.compare(that.low);
   }
@@ -198,6 +232,7 @@ Segment.prototype.compare = function(that) {
 Segment.prototype.intersection = function(that) {
   var s = null;
   var lp, hp;
+  assert(that.isSegment);
   if(this.intersects(that)) {
     lp = (this.low.compare(that.low) == 1) ? this.low : that.low;
     hp = (this.high.compare(that.high) == -1) ? this.high : that.high;
@@ -211,6 +246,7 @@ Segment.prototype.intersection = function(that) {
 Segment.prototype.span = function(that) {
   var s = null;
   var lp, hp;
+  assert(that.isSegment);
   if(this.intersects(that)) {
     lp = (this.low.compare(that.low) == -1) ? this.low : that.low;
     hp = (this.high.compare(that.high) == 1) ? this.high : that.high;
@@ -219,20 +255,15 @@ Segment.prototype.span = function(that) {
   return s;
 };
 
-/* Process an inclusive BETWEEN operator 
-*/
-function createSegmentBetween(a, b) {
-  var p1 = new Point(a, true);
-  var p2 = new Point(b, true);
-  return new Segment(p1, p2);
-}
 
-
+//////// NumberLine                 /////////////////
 
 /* A number line represents a set of line segments on a key space
    stretching from -Infinity to +Infinity
    
    The line is stored as an ordered list of transition points. 
+   
+   The segments on the line are from P0 to P1, P2 to P3, etc.
  
    The constructor "new NumberLine()" returns the full line from
    -Infinity +Infinity.
@@ -241,6 +272,8 @@ function createSegmentBetween(a, b) {
 function NumberLine() {
   this.transitions = [negInf, posInf];
 } 
+
+NumberLine.prototype.isNumberLine = true;
 
 NumberLine.prototype.setEmpty = function() {
   this.transitions = [];
@@ -251,26 +284,14 @@ NumberLine.prototype.isEmpty = function() {
   return (this.transitions.length == 0);
 };
 
-NumberLine.prototype.complement = function() {
-  var i;
-  if(this.transitions[0].value == -Infinity) {
-    this.transitions.unshift();
-  }
-  else {
-    this.transitions.shift(negInf);
-  }
-  for(i = 1; i < this.transitions.length; i ++) {
-    this.transitions[i].complement();
-  }
-  return this;
-};
-
 NumberLine.prototype.upperBound = function() {
-  return (this.isEmpty() ? negInf : this.transitions[this.transitions.length - 1]);
+  if(this.isEmpty()) return negInf;
+  return this.transitions[this.transitions.length - 1];
 };
 
 NumberLine.prototype.lowerBound = function() {
-  return (this.isEmpty() ? posInf : this.transitions[0]);
+  if(this.isEmpty()) return posInf;
+  return this.transitions[0];
 };
 
 NumberLine.prototype.toString = function() {
@@ -284,13 +305,11 @@ NumberLine.prototype.toString = function() {
   return str;
 };
 
-// FIXME
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
 */
 function NumberLineIterator(numberLine) {
   this.line = numberLine;
   this.list = numberLine.transitions;
-  this.length = this.list.length / 2;
   this.n = 0;
 }
 
@@ -315,13 +334,38 @@ NumberLineIterator.prototype.getSplicePoint = function() {
   return idx;
 };
 
-
 NumberLine.prototype.getIterator = function() { 
   return new NumberLineIterator(this);
 };
 
-/* A NumberLine intersects segment S if any of its segments 
-   intersects S.
+/* Complement of a number line (Negation of an expression)
+*/
+NumberLine.prototype.complement = function() {
+  if(this.lowerBound().value == -Infinity) {
+    this.transitions.shift();
+  }
+  else {
+    this.transitions.unshift(negInf);
+  }
+  
+  if(this.upperBound().value == Infinity) {
+    this.transitions.pop();
+  }
+  else {
+    this.transitions.push(posInf);
+  }
+
+  assert(this.transitions.length % 2 == 0);
+
+  this.transitions.forEach(function(p) { p.complement(); });
+
+  return this;
+};
+
+
+/* A NumberLine intersects segment S if any of its segments intersects S.
+   Returns false if no segment intersects S.
+    
 */
 NumberLine.prototype.intersects = function(segment) {
   var i = this.getIterator(); 
@@ -366,55 +410,91 @@ NumberLine.prototype.insertSegment = function(segment) {
 
 function createNumberLineFromSegment(segment) {
   var line = new NumberLine();
-  if(segment.low !== -Infinity) {
-    line.list.push(segment.low);
-    line.hasNegInf = false;
-  }
-  if(segment.high !== Infinity) {
-    line.list.push(segment.high);
-  }
+  line.transitions[0] = segment.low;
+  line.transitions[1] = segment.high;
   return line;
 }
 
 /* Create a segment for a comparison expression */
 function createNumberLine(operator, value) {
-  var lp = new Point(-Infinity, false);
-  var hp = new Point(Infinity, false);
+  var lp = new Endpoint(-Infinity, false);
+  var hp = new Endpoint(Infinity, false);
   var s;
   var l = null;
 
-  if(operator < COND_EQ) {
-    switch(operator) {
-      case COND_LE:
-        hp.inclusive = true;
-        /* fall through */
-      case COND_LT:
-        hp.value = value;
-        break;
-
-      case COND_GE:
-        lp.inclusive = true;
-        /* fall through */
-      case COND_GT:
-        lp.value = value;
-        break;
-    
-    }
-    s = new Segment(lp, hp);
-    return createNumberLineFromSegment(s);
-  }
-
-  if(operator < COND_LIKE) { /* EQ and NE */
-    lp.value = value;
-    lp.inclusive = (operator === COND_EQ);
-    l = new LineNumber();
-    l.list.push(lp);
-    l.list.push(lp);  /* Push it twice */
-    l.hasNegInf = (operator === COND_NE);
-    return l;
-  }
+//  if(operator < COND_EQ) {
+//    switch(operator) {
+//      case COND_LE:
+//        hp.inclusive = true;
+//        /* fall through */
+//      case COND_LT:
+//        hp.value = value;
+//        break;
+//
+//      case COND_GE:
+//        lp.inclusive = true;
+//        /* fall through */
+//      case COND_GT:
+//        lp.value = value;
+//        break;
+//    
+//    }
+//    s = new Segment(lp, hp);
+//    return createNumberLineFromSegment(s);
+//  }
+//
+//  if(operator < COND_LIKE) { /* EQ and NE */
+//    lp.value = value;
+//    lp.inclusive = (operator === COND_EQ);
+//    l = new LineNumber();
+//    l.list.push(lp);
+//    l.list.push(lp);  /* Push it twice */
+//    l.hasNegInf = (operator === COND_NE);
+//    return l;
+//  }
 }
 
+
+/* Process an inclusive BETWEEN operator 
+*/
+function createSegmentBetween(a, b) {
+  var p1 = new Endpoint(a);
+  var p2 = new Endpoint(b);
+  return new Segment(p1, p2);
+}
+
+
+/* Certain data types imply a set of bounds
+*/
+function getBoundingSegmentForDataType(columnMetadata) {
+  var lowBound = -Infinity;
+  var highBound = Infinity;
+
+  if(columnMetadata.isUnsigned) lowBound = 0;
+
+  if(columnMetadata.isIntegral) {
+    if(columnMetadata.isUnsigned) {
+      switch(columnMetadata.intSize) {
+        case 1:   highBound = 255;        break;
+        case 2:   highBound = 65535;      break;
+        case 3:   highBound = 16777215;   break;
+        case 4:   highBound = 4294967295; break;
+        default:  break;
+      }
+    }
+    else {
+      switch(columnMetadata.intSize) {
+        case 1:   highBound = 127;        lowBound = -128;        break;
+        case 2:   highBound = 32767;      lowBound = -32768;      break;
+        case 3:   highBound = 8338607;    lowBound = -8338608;    break;
+        case 4:   highBound = 2147483647; lowBound = -2147483648; break;
+        default:  break;
+      }
+    }
+  }
+
+  return new Segment(new Endpoint(lowBound, highBound));
+}
 
 
 

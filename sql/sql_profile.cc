@@ -61,7 +61,7 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
 
   DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
 
-  WARN_DEPRECATED(thd, old, "Performance Schema");
+  push_deprecated_warn(thd, old, "Performance Schema");
   return(thd->profiling.fill_statistics_info(thd, tables, cond));
 #else
   my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
