@@ -88,6 +88,25 @@ PFS_connection_slice::alloc_statements_slice(uint sizing)
   return slice;
 }
 
+PFS_transaction_stat *
+PFS_connection_slice::alloc_transactions_slice(uint sizing)
+{
+  PFS_transaction_stat *slice= NULL;
+  uint index;
+
+  if (sizing > 0)
+  {
+    slice= PFS_MALLOC_ARRAY(sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
+    if (unlikely(slice == NULL))
+      return NULL;
+
+    for (index= 0; index < sizing; index++)
+      slice[index].reset();
+  }
+
+  return slice;
+}
+
 PFS_memory_stat *
 PFS_connection_slice::alloc_memory_slice(uint sizing)
 {
@@ -128,6 +147,14 @@ void PFS_connection_slice::reset_statements_stats()
   PFS_statement_stat *stat= m_instr_class_statements_stats;
   PFS_statement_stat *stat_last= stat + statement_class_max;
   for ( ; stat < stat_last; stat++)
+    stat->reset();
+}
+
+void PFS_connection_slice::reset_transactions_stats()
+{
+  PFS_transaction_stat *stat=
+                    &m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
+  if (stat)
     stat->reset();
 }
 

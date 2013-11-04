@@ -1967,7 +1967,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return test(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
 }
 
 
@@ -7170,9 +7170,10 @@ uint Field_string::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_string::max_packed_col_length(uint max_length)
+uint Field_string::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -7570,11 +7571,6 @@ uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
   return (uint) *data_ptr + 1;
 }
 
-
-uint Field_varstring::max_packed_col_length(uint max_length)
-{
-  return (max_length > 255 ? 2 : 1)+max_length;
-}
 
 uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
 {
@@ -8317,9 +8313,12 @@ uint Field_blob::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_blob::max_packed_col_length(uint max_length)
+uint Field_blob::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  // We do not use addon fields for blobs.
+  DBUG_ASSERT(false);
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -9659,7 +9658,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + test(length & 7);
+      key_length= pack_length + MY_TEST(length & 7);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:

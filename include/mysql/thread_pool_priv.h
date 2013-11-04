@@ -153,8 +153,6 @@ bool do_command(THD *thd);
   ensure that the proper MySQL Server logic attached to these events is
   executed.
 */
-/* Initialise a new connection handler thread */
-bool init_new_connection_handler_thread();
 /* Prepare connection as part of connection set-up */
 bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */

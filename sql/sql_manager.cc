@@ -74,7 +74,6 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
   my_thread_init();
   DBUG_ENTER("handle_manager");
 
-  pthread_detach_this_thread();
   manager_thread = pthread_self();
   manager_thread_in_use = 1;
 

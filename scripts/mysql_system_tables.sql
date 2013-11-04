@@ -296,7 +296,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -327,7 +327,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -358,7 +358,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -1065,7 +1065,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1087,7 +1087,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1109,7 +1109,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1256,7 +1256,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1309,7 +1309,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1362,7 +1362,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1554,6 +1554,253 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_ev
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_CURRENT
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_current("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY_LONG
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history_long("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_thread_by_event_name("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

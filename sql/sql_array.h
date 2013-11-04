@@ -33,6 +33,9 @@
 template <typename Element_type> class Bounds_checked_array
 {
 public:
+  // Convenience typedef, same typedef name as std::vector
+  typedef Element_type value_type;
+
   Bounds_checked_array() : m_array(NULL), m_size(0) {}
 
   Bounds_checked_array(Element_type *el, size_t size)
@@ -69,6 +72,19 @@ public:
     DBUG_ASSERT(n < m_size);
     return m_array[n];
   }
+
+  typedef Element_type *iterator;
+  typedef const Element_type *const_iterator;
+
+  /// begin : Returns a pointer to the first element in the array.
+  iterator begin() { return m_array; }
+  /// end   : Returns a pointer to the past-the-end element in the array.
+  iterator end()   { return m_array + size(); }
+
+  /// begin : Returns a pointer to the first element in the array.
+  const_iterator begin() const { return m_array; }
+  /// end   : Returns a pointer to the past-the-end element in the array.
+  const_iterator end()   const { return m_array + size(); }
 
   size_t element_size() const { return sizeof(Element_type); }
   size_t size() const         { return m_size; }

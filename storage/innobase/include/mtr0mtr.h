@@ -144,11 +144,11 @@ Checks if a mini-transaction is dirtying a clean page.
 
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {
-	/** type of the stored object (MTR_MEMO_S_LOCK, ...) */
-	ulint		type;
-
 	/** pointer to the object */
 	void*		object;
+
+	/** type of the stored object (MTR_MEMO_S_LOCK, ...) */
+	ulint		type;
 };
 
 /** Mini-transaction handle and buffer */

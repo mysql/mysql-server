@@ -4557,13 +4557,13 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 8))
 explain extended select * from t2 where b > 5 and b < 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 7))
 explain partitions select * from t2 where b > 5 and b < 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	96	100.00	Using index condition
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 7))
@@ -4854,7 +4854,6 @@ explain partitions select 1 from t1 union all select 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` union all /* select#2 */ select 2 AS `2`

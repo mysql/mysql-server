@@ -19,26 +19,22 @@
   Functions to authenticate and handle requests for a connection
 */
 
-#include "my_global.h"
-#include "sql_priv.h"
-#include "sql_audit.h"
 #include "sql_connect.h"
-#include "my_global.h"
-#include "probes_mysql.h"
-#include "unireg.h"                    // REQUIRED: for other includes
-#include "sql_parse.h"                          // sql_command_flags,
-                                                // execute_init_command,
-                                                // do_command
-#include "sql_db.h"                             // mysql_change_db
-#include "hostname.h" // inc_host_errors, ip_to_hostname,
-                      // reset_host_errors
-#include "auth_common.h"                // SUPER_ACL, acl_check_host
-                                        // acl_getroot, NO_ACCESS
-#include "sql_callback.h"
-#include "log.h"
-#include "connection_handler_manager.h" // inc_aborted_connects
+
+#include "hash.h"                       // HASH
+#include "m_string.h"                   // my_stpcpy
+#include "probes_mysql.h"               // MYSQL_CONNECTION_START
+#include "auth_common.h"                // SUPER_ACL
+#include "hostname.h"                   // Host_errors
+#include "log.h"                        // sql_print_information
+#include "mysqld.h"                     // LOCK_user_conn
+#include "structs.h"                    // user_conn
+#include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql_class.h"                  // THD
+#include "sql_parse.h"                  // sql_command_flags
 
 #include <algorithm>
+#include <string.h>
 
 using std::min;
 using std::max;
@@ -477,21 +473,6 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
 }
 
 
-/*
-  Initialize connection threads
-*/
-
-bool init_new_connection_handler_thread()
-{
-  pthread_detach_this_thread();
-  if (my_thread_init())
-  {
-    connection_errors_internal++;
-    return 1;
-  }
-  return 0;
-}
-
 #ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
@@ -708,7 +689,7 @@ static int check_connection(THD *thd)
 */
 
 
-bool login_connection(THD *thd)
+static bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
   int error;
@@ -729,7 +710,6 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    inc_aborted_connects();
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -785,7 +765,7 @@ void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-void prepare_new_connection_state(THD* thd)
+static void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 

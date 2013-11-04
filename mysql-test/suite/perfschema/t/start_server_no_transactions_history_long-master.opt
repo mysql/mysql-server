@@ -1,0 +1,2 @@
+--loose-enable-performance-schema
+--loose-performance_schema_events_transactions_history_long_size=0

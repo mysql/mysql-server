@@ -36,6 +36,8 @@ struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
+struct PSI_transaction_locker;
+typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
@@ -183,6 +185,10 @@ struct PSI_statement_info_v2
 {
   int placeholder;
 };
+struct PSI_transaction_info_v2
+{
+  int placeholder;
+};
 struct PSI_idle_locker_state_v2
 {
   int placeholder;
@@ -211,6 +217,10 @@ struct PSI_statement_locker_state_v2
 {
   int placeholder;
 };
+struct PSI_transaction_locker_state_v2
+{
+  int placeholder;
+};
 struct PSI_socket_locker_state_v2
 {
   int placeholder;
@@ -227,6 +237,7 @@ typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
 typedef struct PSI_stage_info_v2 PSI_stage_info;
 typedef struct PSI_statement_info_v2 PSI_statement_info;
+typedef struct PSI_transaction_info_v2 PSI_transaction_info;
 typedef struct PSI_socket_info_v2 PSI_socket_info;
 typedef struct PSI_idle_locker_state_v2 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
@@ -235,6 +246,7 @@ typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
+typedef struct PSI_transaction_locker_state_v2 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
 typedef struct PSI_metadata_locker_state_v2 PSI_metadata_locker_state;
