@@ -12650,7 +12650,7 @@ innodb_buffer_pool_evict_update(
 
 					mutex_enter(&block->mutex);
 					buf_LRU_free_block(&block->page,
-							   FALSE, FALSE);
+							   FALSE, TRUE);
 					mutex_exit(&block->mutex);
 					block = prev_block;
 				}
