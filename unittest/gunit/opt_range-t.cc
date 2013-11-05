@@ -99,7 +99,7 @@ public:
     Creates a Fake_RANGE_OPT_PARAM and optionally a Fake_TABLE.
 
     @note The Fake_TABLE is always created, but with zero columns if
-    number_columns is zero. However, it wont be used since
+    number_columns is zero. However, it won't be used since
     Fake_RANGE_OPT_PARAM::table is NULL.
     
     @param number_columns If non-zero, a Fake_TABLE is created with
@@ -187,8 +187,8 @@ public:
     add_key(index_list);
   }
 
-  /// Creates an index over all columns in the table.
-  void add_key(TABLE *table)
+  /// Creates an index over all columns in the RANGE_OPT_PARAM's table.
+  void add_key()
   {
     List<Field> index_list;
     for (uint i= 0; i < table->s->fields; ++i)
@@ -211,9 +211,7 @@ public:
 class OptRangeTest : public ::testing::Test
 {
 protected:
-  OptRangeTest() : m_table(NULL), m_opt_param(NULL)
-  {
-  }
+  OptRangeTest() : m_opt_param(NULL) {}
 
   virtual void SetUp()
   {
@@ -242,7 +240,7 @@ protected:
   {
     create_table(nbr_fields);
     for (int i= 0; i < nbr_fields; i++)
-      m_opt_param->add_key(m_table->field[i]);
+      m_opt_param->add_key(m_opt_param->table->field[i]);
   }
 
   /**
@@ -255,7 +253,7 @@ protected:
   {
     m_opt_param=
       new Fake_RANGE_OPT_PARAM(thd(), &m_alloc, nbr_fields, columns_nullable);
-    m_table= m_opt_param->table;
+    m_opt_param->table= m_opt_param->table;
   }
 
 
@@ -424,7 +422,6 @@ protected:
   Server_initializer initializer;
   MEM_ROOT           m_alloc;
 
-  TABLE *m_table;
   Fake_RANGE_OPT_PARAM *m_opt_param;
 };
 
@@ -622,7 +619,7 @@ TEST_F(OptRangeTest, XorCondIndexes)
 {
   create_table(1);
 
-  Field *field_long= m_table->field[0];
+  Field *field_long= m_opt_param->table->field[0];
   m_opt_param->add_key(field_long);
   /*
     XOR is not range optimizible ATM and is treated as
@@ -640,11 +637,11 @@ TEST_F(OptRangeTest, XorCondWithIndexes)
 {
   create_table(5);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
-  Field *field_long4= m_table->field[3];
-  Field *field_long5= m_table->field[4];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
+  Field *field_long4= m_opt_param->table->field[3];
+  Field *field_long5= m_opt_param->table->field[4];
   m_opt_param->add_key(field_long1);
   m_opt_param->add_key(field_long2);
   m_opt_param->add_key(field_long3);
@@ -725,7 +722,7 @@ TEST_F(OptRangeTest, GetMMTreeSingleColIndex)
   // Create a single-column table with index
   create_table_singlecol_idx(1);
 
-  Field *field_long= m_table->field[0];
+  Field *field_long= m_opt_param->table->field[0];
 
   // Expected result of next test:
   const char expected[]= "result keys[0]: (42 <= field_1 <= 42)\n";
@@ -797,7 +794,7 @@ TEST_F(OptRangeTest, GetMMTreeMultipleSingleColIndex)
   // Create a single-column table without index
   create_table(1);
 
-  Field *field_long= m_table->field[0];
+  Field *field_long= m_opt_param->table->field[0];
 
   // Add two indexes covering the same field
   m_opt_param->add_key(field_long);
@@ -822,8 +819,8 @@ TEST_F(OptRangeTest, GetMMTreeOneTwoColIndex)
 {
   create_table(2);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
 
   m_opt_param->add_key(field_long1, field_long2);
 
@@ -857,9 +854,9 @@ TEST_F(OptRangeTest, GetMMTreeNonApplicableKeypart)
 {
   create_table(3);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   List<Field> index_list;
   index_list.push_back(field_long1);
@@ -935,9 +932,9 @@ TEST_F(OptRangeTest, treeAndSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -1015,9 +1012,9 @@ TEST_F(OptRangeTest, treeOrSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -1095,9 +1092,9 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -1157,9 +1154,9 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2)
 {
   create_table_singlecol_idx(3);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
-  Field *field_long3= m_table->field[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Single-index predicates
   const char exp_f2_eq1[]=  "result keys[1]: (1 <= field_2 <= 1)\n";
@@ -1291,8 +1288,8 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3)
 {
   create_table_singlecol_idx(2);
 
-  Field *field_long1= m_table->field[0];
-  Field *field_long2= m_table->field[1];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
 
   // Single-index predicates
   const char exp_f1_eq10[]=  "result keys[0]: (10 <= field_1 <= 10)\n";
@@ -1778,13 +1775,13 @@ TEST_F(OptRangeTest, RowConstructorIn2)
 {
   create_table(2);
 
-  m_opt_param->add_key(m_table);
+  m_opt_param->add_key();
 
   // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
   List<Item> all_args;
   all_args.push_front(new_Item_row(1, 2));
   all_args.push_front(new_Item_row(3, 4));
-  all_args.push_front(new_Item_row(m_table->field, 2));
+  all_args.push_front(new_Item_row(m_opt_param->table->field, 2));
   Item_func_in *cond= new Item_func_in(all_args);
 
   // ... and resolve it.
@@ -1808,13 +1805,13 @@ TEST_F(OptRangeTest, RowConstructorIn3)
 {
   create_table(3);
 
-  m_opt_param->add_key(m_table);
+  m_opt_param->add_key();
 
   // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
   List<Item> all_args;
   all_args.push_front(new_Item_row(1, 2, 3));
   all_args.push_front(new_Item_row(4, 5, 6));
-  all_args.push_front(new_Item_row(m_table->field, 3));
+  all_args.push_front(new_Item_row(m_opt_param->table->field, 3));
   Item_func_in *cond= new Item_func_in(all_args);
 
   // ... and resolve it.
