@@ -1,6 +1,7 @@
 # uint global
 --source include/not_windows.inc
 --source include/not_embedded.inc
+--source include/have_pool_of_threads.inc
 SET @start_global_value = @@global.thread_pool_size;
 
 #

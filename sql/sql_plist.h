@@ -75,6 +75,11 @@ class I_P_List : public C, public I
   */
 public:
   I_P_List() : I(&m_first), m_first(NULL) {};
+  /*
+    empty() is used in many places in the code instead of a constructor, to
+    initialize a bzero-ed I_P_List instance.
+  */
+
   inline void empty()      { m_first= NULL; C::reset(); I::set_last(&m_first); }
   inline bool is_empty() const { return (m_first == NULL); }
   inline void push_front(T* a)
