@@ -365,9 +365,7 @@ static int
 toku_apply_rollinclude (TXNID_PAIR      xid,
                         uint64_t   num_nodes,
                         BLOCKNUM   spilled_head,
-                        uint32_t   spilled_head_hash __attribute__((__unused__)),
                         BLOCKNUM   spilled_tail,
-                        uint32_t   spilled_tail_hash,
                         TOKUTXN    txn,
                         LSN        oplsn,
                         apply_rollback_item func) {
@@ -375,7 +373,6 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
     struct roll_entry *item;
 
     BLOCKNUM next_log      = spilled_tail;
-    uint32_t next_log_hash = spilled_tail_hash;
     uint64_t last_sequence = num_nodes;
 
     bool found_head = false;
@@ -383,7 +380,7 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
     while (next_log.b != ROLLBACK_NONE.b) {
         //pin log
         ROLLBACK_LOG_NODE log;
-        toku_get_and_pin_rollback_log(txn, next_log, next_log_hash, &log);
+        toku_get_and_pin_rollback_log(txn, next_log, &log);
         toku_rollback_verify_contents(log, xid, last_sequence - 1);
         last_sequence = log->sequence;
         
@@ -400,16 +397,13 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
             assert(log->sequence == 0);
         }
         next_log      = log->previous;
-        next_log_hash = log->previous_hash;
         {
             //Clean up transaction structure to prevent
             //toku_txn_close from double-freeing
             spilled_tail      = next_log;
-            spilled_tail_hash = next_log_hash;
             if (found_head) {
                 assert(next_log.b == ROLLBACK_NONE.b);
                 spilled_head      = next_log;
-                spilled_head_hash = next_log_hash;
             }
         }
         toku_rollback_log_unpin_and_remove(txn, log);
@@ -421,15 +415,13 @@ int
 toku_commit_rollinclude (TXNID_PAIR      xid,
                          uint64_t   num_nodes,
                          BLOCKNUM   spilled_head,
-                         uint32_t   spilled_head_hash,
                          BLOCKNUM   spilled_tail,
-                         uint32_t   spilled_tail_hash,
                          TOKUTXN    txn,
                          LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
-                               spilled_head, spilled_head_hash,
-                               spilled_tail, spilled_tail_hash,
+                               spilled_head,
+                               spilled_tail,
                                txn, oplsn,
                                toku_commit_rollback_item);
     return r;
@@ -439,15 +431,13 @@ int
 toku_rollback_rollinclude (TXNID_PAIR      xid,
                            uint64_t   num_nodes,
                            BLOCKNUM   spilled_head,
-                           uint32_t   spilled_head_hash,
                            BLOCKNUM   spilled_tail,
-                           uint32_t   spilled_tail_hash,
                            TOKUTXN    txn,
                            LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
-                               spilled_head, spilled_head_hash,
-                               spilled_tail, spilled_tail_hash,
+                               spilled_head,
+                               spilled_tail,
                                txn, oplsn,
                                toku_abort_rollback_item);
     return r;

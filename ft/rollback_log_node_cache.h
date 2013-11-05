@@ -108,7 +108,6 @@ public:
 
 private:
     BLOCKNUM* m_avail_blocknums;
-    uint32_t* m_hashes;
     uint32_t m_first;
     uint32_t m_num_avail;
     uint32_t m_max_num_avail;
