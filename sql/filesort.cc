@@ -2148,10 +2148,8 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
     num_fields++;
   }
   if (0 == num_fields)
-  {
-    DBUG_ASSERT(false);                       /* purecov: inspected */
-    return NULL;                              /* purecov: inspected */
-  }
+    return NULL;
+
   total_length+= (null_fields + 7) / 8;
 
   *ppackable_length= packable_length;
