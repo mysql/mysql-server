@@ -2188,6 +2188,9 @@ void st_select_lex_unit::exclude_level()
         if (s->context.outer_context == &sl->context)
           s->context.outer_context= sl->context.outer_context;
       }
+      if (u->fake_select_lex &&
+          u->fake_select_lex->context.outer_context == &sl->context)
+        u->fake_select_lex->context.outer_context= sl->context.outer_context;
       u->master= master;
       last= &(u->next);
     }
