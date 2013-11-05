@@ -956,6 +956,15 @@ bool multi_delete::send_data(List<Item> &values)
         table->file->print_error(error, error_flags);
         DBUG_RETURN(true);
       }
+      else
+      {
+      /**
+        If IGNORE keyword is used, then 'error' variable will have the error
+        number which is ignored. Reset the 'error' variable if IGNORE is used.
+        This is necessary to call my_ok().
+      */
+        error= 0;
+      }
     }
     else
     {
