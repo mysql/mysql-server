@@ -209,15 +209,12 @@ struct txn_roll_info {
     // the spilled rollback head is the block number of the first rollback node
     // that makes up the rollback log chain
     BLOCKNUM spilled_rollback_head;
-    uint32_t spilled_rollback_head_hash;
     // the spilled rollback is the block number of the last rollback node that
     // makes up the rollback log chain. 
     BLOCKNUM spilled_rollback_tail;
-    uint32_t spilled_rollback_tail_hash;
     // the current rollback node block number we may use. if this is ROLLBACK_NONE,
     // then we need to create one and set it here before using it.
     BLOCKNUM current_rollback; 
-    uint32_t current_rollback_hash;
 };
 
 struct tokutxn {
