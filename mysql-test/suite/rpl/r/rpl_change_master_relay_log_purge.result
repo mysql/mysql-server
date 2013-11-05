@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+List all the relay log files
+
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
+SELECT @index;
+@index
+slave-relay-bin.000001
+slave-relay-bin.000002
+
+
+We now stop the SQL thread and ensure that the relaylog files
+are not deleted on doing a change master with a running IO thread.
+
+include/stop_slave_sql.inc
+CHANGE MASTER to master_delay=20;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
+SELECT @index;
+@index
+slave-relay-bin.000001
+slave-relay-bin.000002
+
+
+We now stop the IO thread and ensure that the relaylog files
+are not deleted on doing a change master with a running SQL thread.
+
+include/start_slave_sql.inc
+include/stop_slave_io.inc
+CHANGE MASTER to master_heartbeat_period=20;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
+SELECT @index;
+@index
+slave-relay-bin.000001
+slave-relay-bin.000002
+
+
+With both the threads stopped, relay logs should be deleted.
+
+include/stop_slave.inc
+CHANGE MASTER to master_heartbeat_period=20;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
+SELECT @index;
+@index
+NULL
+
+cleanup
+
+CHANGE MASTER to master_delay=0;
+CHANGE MASTER to master_heartbeat_period=60;
+include/start_slave.inc
+include/rpl_end.inc

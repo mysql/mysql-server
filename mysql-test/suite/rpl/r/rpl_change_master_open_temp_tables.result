@@ -1,0 +1,14 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create temporary table t1(a int);
+include/stop_slave_io.inc
+change master to master_heartbeat_period= 10;
+ERROR HY000: This operation is not allowed when the slave applier has open temporary tables. Wait until slave_open_temp_tables = 0. You can force the slave applier to drop its temporary tables by issuing STOP SLAVE SQL_THREAD.
+include/stop_slave_sql.inc
+change master to master_heartbeat_period= 10;
+include/start_slave.inc
+drop temporary table t1;
+include/rpl_end.inc

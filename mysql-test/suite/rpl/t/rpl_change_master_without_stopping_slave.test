@@ -4,12 +4,12 @@
 
 # ==== Purpose ====
 #
-# This test script serves as the functionality testing for the
+# This test script serves as the functionality testing for
 # WL#6120- Change master without stopping Slave threads.
 #
 # This test script does the following:
 
-#  - Ensure that he behavior does not change for CHANGE MASTER when both the
+#  - Ensure that the behavior does not change for CHANGE MASTER when both the
 #    IO and SQL threads are stopped.
 #  - We have two types of options- receiver options and applier options under
 #    CHANGE MASTER
