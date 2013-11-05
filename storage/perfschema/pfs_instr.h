@@ -49,6 +49,10 @@ struct PFS_socket_class;
 #include "pfs_column_types.h"
 #include "mdl.h"
 
+extern PFS_single_stat *thread_instr_class_waits_array_start;
+extern PFS_single_stat *thread_instr_class_waits_array_end;
+
+
 /**
   @addtogroup Performance_schema_buffers
   @{
