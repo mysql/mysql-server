@@ -213,7 +213,7 @@ reset master;
 create table t1 (id tinyint auto_increment primary key);
 insert into t1 values(5);
 set insert_id=128;
---error 167
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 values(null) /* Not binlogged */;
 
 # The followin insert ignore will be put in binlog
@@ -235,7 +235,7 @@ drop table t1;
 
 create table t1 (id tinyint auto_increment primary key) engine=myisam;
 set insert_id=128;
---error 167
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 values(5),(null) /* Insert_id 128 */;
 
 # The followin insert ignore will be put in binlog

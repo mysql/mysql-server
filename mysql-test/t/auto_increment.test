@@ -104,7 +104,7 @@ explain extended select last_insert_id();
 --error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();
---error 167
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -113,7 +113,7 @@ create table t1 (i tinyint unsigned not null auto_increment, key (i));
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
---error 167
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -354,7 +354,7 @@ INSERT INTO t1 VALUES (18446744073709551601);
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=10;
 
 SELECT @@SESSION.AUTO_INCREMENT_OFFSET;
---error 167
+--error HA_ERR_AUTOINC_ERANGE
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 SELECT * FROM t1;
 

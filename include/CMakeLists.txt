@@ -52,6 +52,7 @@ SET(HEADERS
   my_attribute.h 
   my_compiler.h
   handler_state.h
+  handler_ername.h
 )
 
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
