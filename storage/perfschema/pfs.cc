@@ -1304,7 +1304,9 @@ static inline PFS_thread*
 my_pthread_get_THR_PFS()
 {
   DBUG_ASSERT(THR_PFS_initialized);
-  return my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
+  return thread;
 }
 
 static inline void
@@ -3720,6 +3722,9 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     uint index= mutex->m_class->m_event_name_index;
   
     DBUG_ASSERT(index <= wait_class_max);
+    DBUG_ASSERT(sanitize_thread(thread) != NULL);
+    DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
+    DBUG_ASSERT(event_name_array < thread_instr_class_waits_array_end);
 
     if (flags & STATE_FLAG_TIMED)
     {
