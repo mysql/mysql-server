@@ -64,7 +64,7 @@ sync_array_get_and_reserve_cell(
 	ulint		line,	/*!< in: line where requested */
 	sync_cell_t**	cell)	/*!< out: the cell reserved, never NULL */
 {
-	sync_array_t*	sync_arr;
+	sync_array_t*	sync_arr = NULL;
 
 	*cell = NULL;
 	for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
