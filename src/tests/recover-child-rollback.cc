@@ -127,61 +127,22 @@ static void
 stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
     // the threads that we want:
-    //   - one thread constantly updating random values
-    //   - one thread doing table scan with bulk fetch
-    //   - one thread doing table scan without bulk fetch
-    //   - one thread doing random point queries
-    //
+    //   - one (or more) thread(s) constantly updating random values, wrapped in a persistent parent transaction.
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
+    const int num_threads = cli_args->num_update_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
     }
-    struct scan_op_extra soe[4];
-
-    // make the forward fast scanner
-    soe[0].fast = true;
-    soe[0].fwd = true;
-    soe[0].prefetch = false;
-    myargs[0].operation_extra = &soe[0];
-    myargs[0].operation = scan_op;
-
-    // make the forward slow scanner
-    soe[1].fast = false;
-    soe[1].fwd = true;
-    soe[1].prefetch = false;
-    myargs[1].operation_extra = &soe[1];
-    myargs[1].operation = scan_op;
-
-    // make the backward fast scanner
-    soe[2].fast = true;
-    soe[2].fwd = false;
-    soe[2].prefetch = false;
-    myargs[2].operation_extra = &soe[2];
-    myargs[2].operation = scan_op;
-
-    // make the backward slow scanner
-    soe[3].fast = false;
-    soe[3].fwd = false;
-    soe[3].prefetch = false;
-    myargs[3].operation_extra = &soe[3];
-    myargs[3].operation = scan_op;
 
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     // make the guy that updates the db
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+    for (int i = 0; i < cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
         myargs[i].do_prepare = true;
         myargs[i].wrap_in_parent = true;
-    }
-
-    // make the guy that does point queries
-    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
-        myargs[i].operation = ptquery_op;
-        myargs[i].do_prepare = true;
     }
 
     run_workers(myargs, num_threads, cli_args->num_seconds, true, cli_args);
@@ -191,6 +152,10 @@ int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args();
     args.num_seconds = 5;
+    //args.txn_size = 64;   // 100 * 256 is more than enough to spill (4096) byte rollback nodes for parent and child.
+    //args.val_size = 512;  // Large values to overflow a rollback log node fast.
+    //args.env_args.node_size = 4*1024*1024;  // Large nodes to prevent spending much time
+    //args.env_args.basement_node_size = 128*1024;  // Large nodes to prevent spending much time
     args.env_args.checkpointing_period = 1;
     parse_stress_test_args(argc, argv, &args);
     if (args.do_test_and_crash) {
