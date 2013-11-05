@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 
 void rollback_log_node_cache::init (uint32_t max_num_avail_nodes) {
     XMALLOC_N(max_num_avail_nodes, m_avail_blocknums);
-    XMALLOC_N(max_num_avail_nodes, m_hashes);
     m_max_num_avail = max_num_avail_nodes;
     m_first = 0;
     m_num_avail = 0;
@@ -110,7 +109,6 @@ void rollback_log_node_cache::init (uint32_t max_num_avail_nodes) {
 void rollback_log_node_cache::destroy() {
     toku_mutex_destroy(&m_mutex);
     toku_free(m_avail_blocknums);
-    toku_free(m_hashes);
 }
 
 // returns true if rollback log node was successfully added,
@@ -125,7 +123,6 @@ bool rollback_log_node_cache::give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_N
             index -= m_max_num_avail;
         }
         m_avail_blocknums[index].b = log->blocknum.b;
-        m_hashes[index] = log->hash;
         m_num_avail++;
     }
     toku_mutex_unlock(&m_mutex);
@@ -144,11 +141,9 @@ bool rollback_log_node_cache::give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_N
 // for getting a rollback log node
 void rollback_log_node_cache::get_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE* log){
     BLOCKNUM b = ROLLBACK_NONE;
-    uint32_t hash;
     toku_mutex_lock(&m_mutex);
     if (m_num_avail > 0) {
         b.b = m_avail_blocknums[m_first].b;
-        hash = m_hashes[m_first];
         m_num_avail--;
         if (++m_first >= m_max_num_avail) {
             m_first = 0;
@@ -156,7 +151,7 @@ void rollback_log_node_cache::get_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NO
     }
     toku_mutex_unlock(&m_mutex);
     if (b.b != ROLLBACK_NONE.b) {
-        toku_get_and_pin_rollback_log(txn, b, hash, log);
+        toku_get_and_pin_rollback_log(txn, b, log);
         invariant(rollback_log_is_unused(*log));
     } else {
         *log = NULL;

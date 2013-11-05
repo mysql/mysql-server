@@ -219,13 +219,13 @@ void toku_rollback_flush_callback (
     }
 }
 
-int toku_rollback_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM logname, uint32_t fullhash,
+int toku_rollback_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM logname, uint32_t fullhash UU(),
                                  void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     FT CAST_FROM_VOIDP(h, extraargs);
     assert(h->cf == cachefile);
     ROLLBACK_LOG_NODE *result = (ROLLBACK_LOG_NODE*)rollback_pv;
-    r = toku_deserialize_rollback_log_from(fd, logname, fullhash, result, h);
+    r = toku_deserialize_rollback_log_from(fd, logname, result, h);
     if (r==0) {
         (*result)->ct_pair = p;
         *sizep = rollback_memory_size(*result);

@@ -103,8 +103,8 @@ void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t sta
 // is a current rollback node to use, pin it, otherwise create one.
 void toku_get_and_pin_rollback_log_for_new_entry(TOKUTXN txn, ROLLBACK_LOG_NODE *log);
 
-// get a specific rollback by blocknum and hash
-void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash, ROLLBACK_LOG_NODE *log);
+// get a specific rollback by blocknum
+void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log);
 
 // unpin a rollback node from the cachetable
 void toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log);
@@ -155,11 +155,9 @@ struct rollback_log_node {
     // the sequence is between 0 and totalnodes-1
     uint64_t           sequence;
     BLOCKNUM           blocknum; // on which block does this node live?
-    uint32_t           hash;
     // which block number is the previous in the chain of rollback nodes 
     // that make up this rollback log?
     BLOCKNUM           previous; 
-    uint32_t           previous_hash;
     struct roll_entry *oldest_logentry;
     struct roll_entry *newest_logentry;
     MEMARENA           rollentry_arena;

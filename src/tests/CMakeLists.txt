@@ -146,6 +146,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       recover-2483
       recover-3113
       recover-5146
+      recover-child-rollback
       recover-compare-db
       recover-compare-db-descriptor
       recover-del-multiple
