@@ -8408,7 +8408,7 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  thread_mask= SLAVE_IO | SLAVE_SQL;
+  init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
 
   THD_STAGE_INFO(thd, stage_changing_master);
   /*
@@ -8424,6 +8424,12 @@ bool change_master(THD* thd, Master_info* mi)
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
+
+  /*
+    Before global_init_info() call, set thread_mask to indicate stopped threads.
+  */
+  init_thread_mask(&thread_mask,mi,1);
+
   if (global_init_info(mi, false, thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));

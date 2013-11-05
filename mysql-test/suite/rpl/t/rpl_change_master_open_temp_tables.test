@@ -1,0 +1,40 @@
+#
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+#
+
+# ==== Purpose ====
+#
+# This test script serves as the functionality testing for
+# WL#6120- Change master without stopping Slave threads.
+#
+# This test script does the following:
+
+#  - Temporary table(s) should NOT be dropped if applier is running during
+#    CHANGE MASTER. Should throw an error.
+#  - Ensure that CHANGE MASTER is allowed if there are open temporary
+#    tables and both receiver and applier threads are stopped.
+#
+#  ==== Related Worklog(s) And Bug(s)====
+#
+#  WL#6120- Change master without stopping Slave threads.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+create temporary table t1(a int);
+sync_slave_with_master;
+
+--source include/stop_slave_io.inc
+--error ER_OPEN_TEMP_TABLES_MUST_BE_ZERO
+change master to master_heartbeat_period= 10;
+
+--source include/stop_slave_sql.inc
+change master to master_heartbeat_period= 10;
+
+--source include/start_slave.inc
+--connection master
+drop temporary table t1;
+sync_slave_with_master;
+
+--source include/rpl_end.inc
