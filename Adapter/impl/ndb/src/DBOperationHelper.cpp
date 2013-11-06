@@ -36,12 +36,16 @@ enum {
   HELPER_KEY_RECORD,
   HELPER_LOCK_MODE,
   HELPER_COLUMN_MASK,
-  HELPER_VALUE_OBJECT
+  HELPER_VALUE_OBJECT,
+  HELPER_OPCODE,
+  HELPER_NDBTRANSACTION,
+  HELPER_IS_VO,
+  HELPER_DBOPERATION
 };
 
 
-Handle<Value> DBOperationHelper_VO(const Arguments &);
-Handle<Value> DBOperationHelper_NonVO(const Arguments &);
+Handle<Value> DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
+Handle<Value> DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
 Handle<Value> buildNdbOperation(Operation &, int, NdbTransaction *);
 void setKeysInOp(Handle<Object> spec, Operation & op);
 
@@ -50,16 +54,36 @@ void setKeysInOp(Handle<Object> spec, Operation & op);
    in NdbOperation.js
    It takes a HelperSpec object, and returns a fully-prepared Operation
    arg0: DBOperation HelperSpec
-   arg1: opcode
-   arg2: NdbTransaction *
-   arg3: boolean isValueObject
+XXX   arg1: opcode
+XXX   arg2: NdbTransaction *
+XXX   arg3: boolean isValueObject
 */
 
 Handle<Value> DBOperationHelper(const Arguments &args) {
-  return
-    args[3]->ToBoolean()->Value() ?
-      DBOperationHelper_VO(args) : DBOperationHelper_NonVO(args);
+  HandleScope scope;
+
+  const Local<Object> spec = args[0]->ToObject();
+
+  int opcode = spec->Get(HELPER_OPCODE)->Int32Value();
+  bool is_vo = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(
+    spec->Get(HELPER_NDBTRANSACTION)->ToObject());
+
+  return is_vo ?
+      DBOperationHelper_VO(spec, opcode, tx):
+      DBOperationHelper_NonVO(spec, opcode, tx);
 }
+
+
+/* BulkDBOperationHelper takes an array of HelperSpecs. 
+   In each, it sets op.ndbop. 
+   It returns null.
+*/
+//Handle<Value> BulkDBOperationHelper(const Arguments &args) {
+//
+//
+//}
+
 
 
 void setKeysInOp(Handle<Object> spec, Operation & op) {
@@ -110,11 +134,11 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
 }
 
 
-Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
+Handle<Value> DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
+                                      NdbTransaction *tx) {
   HandleScope scope;
   Operation op;
 
-  const Local<Object> spec = args[0]->ToObject();
   Local<Value> v;
   Local<Object> o;
 
@@ -147,24 +171,19 @@ Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
     }
   }
   
-  int opcode = args[1]->Int32Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
   DEBUG_PRINT("Non-VO opcode: %d mask: %u", opcode, op.u.maskvalue);
 
   return scope.Close(buildNdbOperation(op, opcode, tx));
 }
 
-Handle<Value> DBOperationHelper_VO(const Arguments &args) {
+Handle<Value> DBOperationHelper_VO(Handle<Object> spec, int opcode,
+                                   NdbTransaction *tx) {
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
   Handle<Value> returnVal;
   Operation op;
-
-  const Local<Object> spec = args[0]->ToObject();
-  int opcode = args[1]->Int32Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
   /* NdbOperation.prepare() just verified that this is really a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
@@ -202,16 +221,21 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
 void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
+//  DEFINE_JS_FUNCTION(target, "BulkDBOperationHelper", BulkDBOperationHelper);
 
   Persistent<Object> OpHelper = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("OpHelper")), OpHelper);
-  DEFINE_JS_INT(OpHelper, "row_buffer",  HELPER_ROW_BUFFER);
-  DEFINE_JS_INT(OpHelper, "key_buffer",  HELPER_KEY_BUFFER);
-  DEFINE_JS_INT(OpHelper, "row_record",  HELPER_ROW_RECORD);
-  DEFINE_JS_INT(OpHelper, "key_record",  HELPER_KEY_RECORD);
-  DEFINE_JS_INT(OpHelper, "lock_mode",   HELPER_LOCK_MODE);
-  DEFINE_JS_INT(OpHelper, "column_mask", HELPER_COLUMN_MASK);
-  DEFINE_JS_INT(OpHelper, "value_obj",   HELPER_VALUE_OBJECT);
+  DEFINE_JS_INT(OpHelper, "row_buffer",   HELPER_ROW_BUFFER);
+  DEFINE_JS_INT(OpHelper, "key_buffer",   HELPER_KEY_BUFFER);
+  DEFINE_JS_INT(OpHelper, "row_record",   HELPER_ROW_RECORD);
+  DEFINE_JS_INT(OpHelper, "key_record",   HELPER_KEY_RECORD);
+  DEFINE_JS_INT(OpHelper, "lock_mode",    HELPER_LOCK_MODE);
+  DEFINE_JS_INT(OpHelper, "column_mask",  HELPER_COLUMN_MASK);
+  DEFINE_JS_INT(OpHelper, "value_obj",    HELPER_VALUE_OBJECT);
+  DEFINE_JS_INT(OpHelper, "opcode",       HELPER_OPCODE);
+  DEFINE_JS_INT(OpHelper, "ndb_tx",       HELPER_NDBTRANSACTION);
+  DEFINE_JS_INT(OpHelper, "is_value_obj", HELPER_IS_VO);
+  DEFINE_JS_INT(OpHelper, "db_operation", HELPER_DBOPERATION);
 
   Persistent<Object> LockModes = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("LockModes")), LockModes);
