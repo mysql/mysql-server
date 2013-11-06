@@ -284,14 +284,11 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   function prepareOperations() {
     udebug.log("executeNonScan prepareOperations", self.moniker);
     var i, op, fatalError;
+    ndboperation.prepareOperations(self.ndbtx, dbOperationList);
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
-      fatalError = op.prepare(self.ndbtx);
-      if(! op.ndbop) {
-        fatalError = self.ndbtx.getNdbError();
-      }
-      if(fatalError) {
-        callback(new ndboperation.DBOperationError(fatalError), self);
+      if(op.error) {
+        callback(new ndboperation.DBOperationError(op.error), self);
         return;  /* is that correct? */
       }
     }

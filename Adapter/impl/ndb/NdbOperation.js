@@ -221,17 +221,17 @@ function HelperSpec() {
 }
 
 HelperSpec.prototype.clear = function() {
-  this[OpHelper.row_buffer]   = null;
-  this[OpHelper.key_buffer]   = null;
-  this[OpHelper.row_record]   = null;
-  this[OpHelper.key_record]   = null;
-  this[OpHelper.lock_mode]    = null;
-  this[OpHelper.column_mask]  = null;
-  this[OpHelper.value_obj]    = null;
-  this[OpHelper.opcode]       = null;
-  this[OpHelper.ndb_tx]       = null;
-  this[OpHelper.is_value_obj] = null;
-  this[OpHelper.db_operation] = null;
+  this[0]  = null;  // row_buffer
+  this[1]  = null;  // key_buffer
+  this[2]  = null;  // row_record
+  this[3]  = null;  // key_record
+  this[4]  = null;  // lock_mode
+  this[5]  = null;  // column_mask
+  this[6]  = null;  // value_obj
+  this[7]  = null;  // opcode
+  this[8]  = null;  // ndb_tx
+  this[9]  = null;  // is_value_obj
+  this[10] = null;  // db_operation
 };
 
 var helperSpec = new HelperSpec();
@@ -364,6 +364,13 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
   helper[OpHelper.db_operation] = this;
 }
 
+function prepareOperations(ndbTransaction, dbOperationList) {
+  var i;
+  for(i = 0 ; i < dbOperationList.length ; i++) {
+    dbOperationList[i].prepare(ndbTransaction);
+  }
+}
+
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   /* There is one global helperSpec */
@@ -373,8 +380,15 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   this.buildOpHelper(helperSpec, ndbTransaction);
 
   /* Use the HelperSpec to build the NdbOperation */
-  this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
-  this.state = doc.OperationStates[1];  // PREPARED
+  if(! this.error) {
+    this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
+    if(this.ndbop) {
+      this.state = doc.OperationStates[1];  // PREPARED
+    } else {
+      this.error = ndbTransaction.getNdbError();
+    }
+  }
+
   return this.error;
 };
 
@@ -816,3 +830,4 @@ exports.newWriteOperation   = newWriteOperation;
 exports.newScanOperation    = newScanOperation;
 exports.completeExecutedOps = completeExecutedOps;
 exports.getScanResults      = getScanResults;
+exports.prepareOperations   = prepareOperations;
