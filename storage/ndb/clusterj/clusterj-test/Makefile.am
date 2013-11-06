@@ -148,6 +148,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetModel.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetSjis.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetUtf8.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/ConversationSummary.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CrazyDelegate.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Customer.java \
   $(clusterj_test_src)/testsuite/clusterj/model/DateAsSqlDateTypes.java \
