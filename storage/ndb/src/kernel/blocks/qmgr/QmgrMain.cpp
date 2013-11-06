@@ -5495,6 +5495,7 @@ Qmgr::stateArbitInit(Signal* signal)
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
+  arbitRec.setTimestamp();  // Init arbitration timer 
   arbitRec.state = ARBIT_FIND;
   arbitRec.newstate = true;
   stateArbitFind(signal);

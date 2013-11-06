@@ -14593,8 +14593,8 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::checkGcpStopLab(Signal* signal) 
 {
-  Uint32 cnt0 = ++m_gcp_monitor.m_gcp_save.m_counter;
-  Uint32 cnt1 = ++m_gcp_monitor.m_micro_gcp.m_counter;
+  const Uint32 cnt0 = ++m_gcp_monitor.m_gcp_save.m_counter;
+  const Uint32 cnt1 = ++m_gcp_monitor.m_micro_gcp.m_counter;
 
   if (m_gcp_monitor.m_gcp_save.m_gci == m_gcp_save.m_gci)
   {
@@ -14644,7 +14644,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     }
 
     Uint32 threshold = 10; // seconds
-    if (cnt1 && ((cnt0 % (threshold * 10)) == 0))
+    if (cnt1 && ((cnt1 % (threshold * 10)) == 0))
     {
       if (m_gcp_monitor.m_micro_gcp.m_max_lag)
       {
