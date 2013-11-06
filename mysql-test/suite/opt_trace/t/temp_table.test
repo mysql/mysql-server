@@ -52,3 +52,34 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1, tmp;
+
+--echo #
+--echo # Bug#17231940: THE OPTIMIZER STILL USES FIXED LENGTH TEMPORARY TABLES
+--echo #               ON DISK
+--echo #
+CREATE TABLE t1 (
+  c1 INT AUTO_INCREMENT PRIMARY KEY,
+  c2 VARCHAR(250)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO t1(c2) VALUES ('b'),('b');
+INSERT INTO t1(c2) SELECT t1.c2 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+
+SET @@max_heap_table_size=1;
+SET @@group_concat_max_len= 500;
+
+# This query creates 4 tmp tables, 3 of them aren''t packed without this
+# fix. 
+# Purpose        Format without fix / with fix
+# union result               fixed      packed
+# derived tbl result         fixed      packed
+# join materialization       fixed      packed
+# group_concat internal tbl  packed     packed (not shown in the opt trace)
+SELECT c1,GROUP_CONCAT(c2) cc FROM
+  (SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
+  GROUP BY c1
+  ORDER BY cc;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+DROP TABLE t1;
+--echo #
+
