@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #

@@ -109,6 +109,8 @@ ndb_async_callback callback_close;    // just call worker_close()
    It must either call yield() or reschedule(), and is also responsible for 
    closing the transaction.  The signature is in ndb_worker.h: 
 
+   FIXME: yield() and reschedule() no longer exist --- what must it do ?????
+
    typedef void worker_step(NdbTransaction *, workitem *);
 */
 
@@ -407,7 +409,7 @@ op_status_t WorkerStep1::do_write() {
   if(! tx) {
     logger->log(LOG_WARNING, 0, "tx: %s \n", 
                 wqitem->ndb_instance->db->getNdbError().message);
-    DEBUG_ASSERT(false);
+    return op_failed;
   }
   
   if(wqitem->base.verb == OPERATION_REPLACE) {
@@ -529,8 +531,12 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
   
   /* Start a transaction */
   tx = op.startTransaction(wqitem->ndb_instance->db);
-  DEBUG_ASSERT(tx);
-  return true;
+  if(tx) {
+    return true;
+  }
+  logger->log(LOG_WARNING, 0, "tx: %s \n", 
+              wqitem->ndb_instance->db->getNdbError().message);
+  return tx ? true : false;
 }
 
 
@@ -915,7 +921,9 @@ void worker_append(NdbTransaction *tx, workitem *item) {
   */  
   Operation readop(item->plan, OP_READ);
   readop.buffer = item->row_buffer_1;
-  assert(readop.nValues() == 1);
+  if(readop.nValues() != 1) {
+    return worker_close(tx, item);
+  }
   readop.getStringValueNoCopy(COL_STORE_VALUE + 0, & current_val, & current_len);
     
   /* Generate a new CAS */
@@ -964,9 +972,7 @@ void worker_append(NdbTransaction *tx, workitem *item) {
     /* Error case; operation has not been built */
     DEBUG_PRINT("NDB operation failed.  workitem %d.%d", item->pipeline->id,
                 item->id);
-    tx->close();
-    // pipeline->scheduler->close(item);
-    workitem_free(item);
+    worker_close(tx, item);
   }
 }
 

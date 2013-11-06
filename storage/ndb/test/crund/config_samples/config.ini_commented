@@ -134,7 +134,7 @@ FragmentLogFileSize=64M
 #TimeBetweenEpochs=100			# default
 # timeout (ms) for synchronization epochs for mysql cluster replication
 # (increase for long-running transactions or set to 0 to disable GCP stops)
-#TimeBetweenEpochsTimeout=0		# disabled, default >=7.2.1
+TimeBetweenEpochsTimeout=0		# disabled, default >=7.2.1
 
 [ndb_mgmd default]
 
