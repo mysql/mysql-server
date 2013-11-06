@@ -910,15 +910,14 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 
   ndbout << name << " started [" << getDate() << "]" << endl;
 
+  testSuiteTimer.doStart();
   if(!runonce)
   {
-    testSuiteTimer.doStart();
     for (int t=0; t < NDBT_Tables::getNumTables(); t++){
       const NdbDictionary::Table* ptab = NDBT_Tables::getTable(t);
       ndbout << "|- " << ptab->getName() << endl;
       execute(con, ptab, _testname);
     }
-    testSuiteTimer.doStop();
   }
   else
   {
@@ -940,6 +939,7 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
         execute(con, pt, pTab);
     }
   }
+  testSuiteTimer.doStop();
   return reportAllTables(_testname);
 }
 
