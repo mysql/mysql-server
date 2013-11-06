@@ -17,10 +17,11 @@
 
 #include "TwsDriver.hpp"
 
+#include <cstddef>
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <cassert>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
@@ -28,14 +29,8 @@
 using std::cout;
 using std::flush;
 using std::endl;
-using std::ios_base;
 using std::ostringstream;
 using std::string;
-using std::wstring;
-
-using utils::toBool;
-using utils::toInt;
-using utils::toString;
 
 // ---------------------------------------------------------------------------
 // Helper Macros & Functions
@@ -59,11 +54,11 @@ TwsDriver::initProperties() {
 
     ostringstream msg;
 
-    renewConnection = toBool(props[L"renewConnection"], false);
-    renewOperations = toBool(props[L"renewOperations"], false);
-    logSumOfOps = toBool(props[L"logSumOfOps"], true);
+    renewConnection = toB(props[L"renewConnection"], false);
+    renewOperations = toB(props[L"renewOperations"], false);
+    logSumOfOps = toB(props[L"logSumOfOps"], true);
 
-    string lm = toString(props[L"lockMode"]);
+    string lm = toS(props[L"lockMode"]);
     if (lm.empty()) {
         lockMode = READ_COMMITTED;
     } else if (lm.compare("READ_COMMITTED") == 0) {
@@ -77,33 +72,33 @@ TwsDriver::initProperties() {
         lockMode = READ_COMMITTED;
     }
 
-    nOpsStart = toInt(props[L"nOpsStart"], 256, 0);
+    nOpsStart = toI(props[L"nOpsStart"], 256, 0);
     if (nOpsStart < 1) {
         msg << "[ignored] nOpsStart:            '"
-            << toString(props[L"nOpsStart"]) << "'" << endl;
+            << toS(props[L"nOpsStart"]) << "'" << endl;
         nOpsStart = 256;
     }
-    nOpsEnd = toInt(props[L"nOpsEnd"], nOpsStart, 0);
+    nOpsEnd = toI(props[L"nOpsEnd"], nOpsStart, 0);
     if (nOpsEnd < nOpsStart) {
         msg << "[ignored] nOpsEnd:              '"
-            << toString(props[L"nOpsEnd"]) << "'" << endl;
+            << toS(props[L"nOpsEnd"]) << "'" << endl;
         nOpsEnd = nOpsStart;
     }
-    nOpsScale = toInt(props[L"nOpsScale"], 2, 0);
+    nOpsScale = toI(props[L"nOpsScale"], 2, 0);
     if (nOpsScale < 2) {
         msg << "[ignored] nOpsScale:            '"
-            << toString(props[L"nOpsScale"]) << "'" << endl;
+            << toS(props[L"nOpsScale"]) << "'" << endl;
         nOpsScale = 2;
     }
 
-    doInsert = toBool(props[L"doInsert"], true);
-    doLookup = toBool(props[L"doLookup"], true);
-    doUpdate = toBool(props[L"doUpdate"], true);
-    doDelete = toBool(props[L"doDelete"], true);
-    doBulk = toBool(props[L"doBulk"], true);
-    doEach = toBool(props[L"doEach"], true);
-    doIndy = toBool(props[L"doIndy"], true);
-    doVerify = toBool(props[L"doVerify"], true);
+    doInsert = toB(props[L"doInsert"], true);
+    doLookup = toB(props[L"doLookup"], true);
+    doUpdate = toB(props[L"doUpdate"], true);
+    doDelete = toB(props[L"doDelete"], true);
+    doBulk = toB(props[L"doBulk"], true);
+    doEach = toB(props[L"doEach"], true);
+    doIndy = toB(props[L"doIndy"], true);
+    doVerify = toB(props[L"doVerify"], true);
 
     if (!msg.tellp()) {
         cout << "      [ok: "
@@ -116,11 +111,6 @@ TwsDriver::initProperties() {
 void
 TwsDriver::printProperties() {
     Driver::printProperties();
-
-    const ios_base::fmtflags f = cout.flags();
-    // no effect calling manipulator function, not sure why
-    //cout << ios_base::boolalpha;
-    cout.flags(ios_base::boolalpha);
 
     cout << endl << "tws settings..." << endl;
     cout << "renewConnection:                " << renewConnection << endl;
@@ -138,8 +128,6 @@ TwsDriver::printProperties() {
     cout << "doEach:                         " << doEach << endl;
     cout << "doIndy:                         " << doIndy << endl;
     cout << "doVerify:                       " << doVerify << endl;
-
-    cout.flags(f);
 }
 
 // ----------------------------------------------------------------------
