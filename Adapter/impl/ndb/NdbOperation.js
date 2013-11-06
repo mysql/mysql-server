@@ -220,13 +220,17 @@ function HelperSpec() {
 }
 
 HelperSpec.prototype.clear = function() {
-  this[OpHelper.row_buffer]  = null;
-  this[OpHelper.key_buffer]  = null;
-  this[OpHelper.row_record]  = null;
-  this[OpHelper.key_record]  = null;
-  this[OpHelper.lock_mode]   = null;
-  this[OpHelper.column_mask] = null;
-  this[OpHelper.value_obj]   = null;
+  this[OpHelper.row_buffer]   = null;
+  this[OpHelper.key_buffer]   = null;
+  this[OpHelper.row_record]   = null;
+  this[OpHelper.key_record]   = null;
+  this[OpHelper.lock_mode]    = null;
+  this[OpHelper.column_mask]  = null;
+  this[OpHelper.value_obj]    = null;
+  this[OpHelper.opcode]       = null;
+  this[OpHelper.ndb_tx]       = null;
+  this[OpHelper.is_value_obj] = null;
+  this[OpHelper.db_operation] = null;
 };
 
 var helperSpec = new HelperSpec();
@@ -355,10 +359,14 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       }
     }
   }
-  
-  /* Use the HelperSpec and opcode to build the NdbOperation */
-  this.ndbop = 
-    adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
+
+  helperSpec[OpHelper.opcode]       = code;
+  helperSpec[OpHelper.ndb_tx]       = ndbTransaction;
+  helperSpec[OpHelper.is_value_obj] = isVOwrite;
+  helperSpec[OpHelper.db_operation] = this;
+
+  /* Use the HelperSpec to build the NdbOperation */
+  this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
   this.state = doc.OperationStates[1];  // PREPARED
   return error;
 };
