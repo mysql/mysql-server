@@ -42,6 +42,7 @@ FROM performance_schema.events_transactions_current
 WHERE (THREAD_ID = @con1_thread_id OR (@all_threads = 1))
 ORDER BY event_id;
 
+--disable_parsing
 --echo
 --echo EVENTS_TRANSACTIONS_HISTORY
 --echo
@@ -60,9 +61,7 @@ SELECT THREAD_ID, EVENT_ID,
 FROM performance_schema.events_transactions_history
 WHERE (THREAD_ID = @con1_thread_id OR (@all_threads = 1))
 ORDER BY event_id;
-
---disable_parsing
-# Unreliable under load
+--enable_parsing
 
 --echo
 --echo EVENTS_TRANSACTIONS_HISTORY_LONG
@@ -83,6 +82,7 @@ FROM performance_schema.events_transactions_history_long
 WHERE (THREAD_ID = @con1_thread_id OR (@all_threads = 1))
 ORDER BY event_id;
 
+--disable_parsing
 --echo
 --echo EVENTS_STATEMENTS_HISTORY_LONG
 --echo
@@ -158,7 +158,7 @@ ORDER BY t.event_id, s.event_id;
 --echo
 --echo ## Combined statement and transaction event history ordered by event id
 --echo
---echo EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+--echo EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 --echo
 
 --replace_column 1 event_id 3 nesting_event_id
@@ -168,7 +168,7 @@ SELECT EVENT_ID,
   NESTING_EVENT_ID,
   RPAD(IFNULL(NESTING_EVENT_TYPE, 'NULL'), 18, ' ') NESTING_EVENT_TYPE,
   '<transaction started>' AS SQL_TXT
-FROM performance_schema.events_transactions_history t
+FROM performance_schema.events_transactions_history_long t
 WHERE t.thread_id = @con1_thread_id
 UNION
 SELECT EVENT_ID,

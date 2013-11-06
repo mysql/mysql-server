@@ -76,8 +76,8 @@ INSERT INTO t2 SELECT * FROM t2;
 RETURN x+y;
 END	db2	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT addition(1234,9876)	db2	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t2 SELECT * FROM t2	db2	FUNCTION	db2	addition	STATEMENT	1
-statement/sp/freturn	NULL	db2	FUNCTION	db2	addition	STATEMENT	1
+statement/sp/stmt	INSERT INTO t2 SELECT * FROM t2	db2	FUNCTION	db2	addition	TRANSACTION	1
+statement/sp/freturn	NULL	db2	FUNCTION	db2	addition	TRANSACTION	1
 statement/sql/change_db	USE db3	db3	NULL	NULL	NULL	NULL	0
 statement/sql/create_table	CREATE TABLE t(
 i INT NOT NULL,
@@ -91,7 +91,7 @@ statement/sql/insert	INSERT INTO t VALUES ( 10,1000 )	db3	NULL	NULL	NULL	NULL	0
 statement/sql/create_trigger	CREATE TRIGGER trg AFTER INSERT ON t FOR EACH ROW
 INSERT INTO t3 SELECT * FROM t3	db3	NULL	NULL	NULL	NULL	0
 statement/sql/insert	INSERT INTO t VALUES ( 20,2000)	db3	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t3 SELECT * FROM t3	db3	TRIGGER	db3	trg	STATEMENT	1
+statement/sp/stmt	INSERT INTO t3 SELECT * FROM t3	db3	TRIGGER	db3	trg	TRANSACTION	1
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
 # Clean-up
