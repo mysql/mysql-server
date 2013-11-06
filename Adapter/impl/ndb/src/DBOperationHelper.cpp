@@ -54,9 +54,6 @@ void setKeysInOp(Handle<Object> spec, Operation & op);
    in NdbOperation.js
    It takes a HelperSpec object, and returns a fully-prepared Operation
    arg0: DBOperation HelperSpec
-XXX   arg1: opcode
-XXX   arg2: NdbTransaction *
-XXX   arg3: boolean isValueObject
 */
 
 Handle<Value> DBOperationHelper(const Arguments &args) {

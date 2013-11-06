@@ -315,44 +315,41 @@ DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
   this.scan.index_bound_helpers = allHelpers;  // maintain a reference 
   return allHelpers;
 };
-       
 
-DBOperation.prototype.prepare = function(ndbTransaction) {
+
+DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
   var code = this.opcode;
   var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
   var error = null;
-
-  /* There is one global helperSpec */
-  helperSpec.clear();
 
   /* All operations but insert use a key. */
   if(code !== 2) {
     allocateKeyBuffer(this);
     encodeKeyBuffer(this);
-    helperSpec[OpHelper.key_record]  = this.index.record;
-    helperSpec[OpHelper.key_buffer]  = this.buffers.key;
+    helper[OpHelper.key_record]  = this.index.record;
+    helper[OpHelper.key_buffer]  = this.buffers.key;
   }
   
   /* If this is an update-after-read operation on a Value Object, 
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    helperSpec[OpHelper.value_obj] = this.values;
+    helper[OpHelper.value_obj] = this.values;
   }  
   else {
     /* All non-VO operations get a row record */
-    helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
+    helper[OpHelper.row_record] = this.tableHandler.dbTable.record;
     
     /* All but delete get an allocated row buffer, and column mask */
     if(code !== 16) {
       allocateRowBuffer(this);
-      helperSpec[OpHelper.row_buffer]  = this.buffers.row;
-      helperSpec[OpHelper.column_mask] = this.columnMask;
+      helper[OpHelper.row_buffer]  = this.buffers.row;
+      helper[OpHelper.column_mask] = this.columnMask;
 
       /* Read gets a lock mode; 
          writes get the data encoded into the row buffer. */
       if(code === 1) {
-        helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
+        helper[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
         error = encodeRowBuffer(this);
@@ -360,10 +357,23 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
     }
   }
 
-  helperSpec[OpHelper.opcode]       = code;
-  helperSpec[OpHelper.ndb_tx]       = ndbTransaction;
-  helperSpec[OpHelper.is_value_obj] = isVOwrite;
-  helperSpec[OpHelper.db_operation] = this;
+  helper[OpHelper.opcode]       = code;
+  helper[OpHelper.ndb_tx]       = ndbTransaction;
+  helper[OpHelper.is_value_obj] = isVOwrite;
+  helper[OpHelper.db_operation] = this;
+
+  return error;
+}
+
+
+DBOperation.prototype.prepare = function(ndbTransaction) {
+  var error;
+
+  /* There is one global helperSpec */
+  helperSpec.clear();
+
+  /* Prepare it for this operation */
+  error = this.buildOpHelper(helperSpec, ndbTransaction);
 
   /* Use the HelperSpec to build the NdbOperation */
   this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
