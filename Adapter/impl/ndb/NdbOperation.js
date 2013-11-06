@@ -102,6 +102,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   }
   
   /* NDB Impl-specific properties */
+  this.error        = null;
   this.query        = null;
   this.ndbop        = null;
   this.autoinc      = null;
@@ -352,7 +353,7 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
         helper[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        error = encodeRowBuffer(this);
+        this.error = encodeRowBuffer(this);
       }
     }
   }
@@ -361,24 +362,20 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
   helper[OpHelper.ndb_tx]       = ndbTransaction;
   helper[OpHelper.is_value_obj] = isVOwrite;
   helper[OpHelper.db_operation] = this;
-
-  return error;
 }
 
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
-  var error;
-
   /* There is one global helperSpec */
   helperSpec.clear();
 
   /* Prepare it for this operation */
-  error = this.buildOpHelper(helperSpec, ndbTransaction);
+  this.buildOpHelper(helperSpec, ndbTransaction);
 
   /* Use the HelperSpec to build the NdbOperation */
   this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
   this.state = doc.OperationStates[1];  // PREPARED
-  return error;
+  return this.error;
 };
 
 
