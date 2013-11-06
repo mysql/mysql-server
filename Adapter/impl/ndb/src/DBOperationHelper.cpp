@@ -38,7 +38,6 @@ enum {
   HELPER_COLUMN_MASK,
   HELPER_VALUE_OBJECT,
   HELPER_OPCODE,
-  HELPER_NDBTRANSACTION,
   HELPER_IS_VO,
   HELPER_DBOPERATION
 };
@@ -54,17 +53,17 @@ void setKeysInOp(Handle<Object> spec, Operation & op);
    in NdbOperation.js
    It takes a HelperSpec object, and returns a fully-prepared Operation
    arg0: DBOperation HelperSpec
+   arg1: NdbTransaction *
 */
 
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
 
   const Local<Object> spec = args[0]->ToObject();
-
   int opcode = spec->Get(HELPER_OPCODE)->Int32Value();
   bool is_vo = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(
-    spec->Get(HELPER_NDBTRANSACTION)->ToObject());
+
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[1]->ToObject());
 
   return is_vo ?
       DBOperationHelper_VO(spec, opcode, tx):
@@ -230,7 +229,6 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "column_mask",  HELPER_COLUMN_MASK);
   DEFINE_JS_INT(OpHelper, "value_obj",    HELPER_VALUE_OBJECT);
   DEFINE_JS_INT(OpHelper, "opcode",       HELPER_OPCODE);
-  DEFINE_JS_INT(OpHelper, "ndb_tx",       HELPER_NDBTRANSACTION);
   DEFINE_JS_INT(OpHelper, "is_value_obj", HELPER_IS_VO);
   DEFINE_JS_INT(OpHelper, "db_operation", HELPER_DBOPERATION);
 

@@ -221,17 +221,16 @@ function HelperSpec() {
 }
 
 HelperSpec.prototype.clear = function() {
-  this[0]  = null;  // row_buffer
-  this[1]  = null;  // key_buffer
-  this[2]  = null;  // row_record
-  this[3]  = null;  // key_record
-  this[4]  = null;  // lock_mode
-  this[5]  = null;  // column_mask
-  this[6]  = null;  // value_obj
-  this[7]  = null;  // opcode
-  this[8]  = null;  // ndb_tx
-  this[9]  = null;  // is_value_obj
-  this[10] = null;  // db_operation
+  this[0] = null;  // row_buffer
+  this[1] = null;  // key_buffer
+  this[2] = null;  // row_record
+  this[3] = null;  // key_record
+  this[4] = null;  // lock_mode
+  this[5] = null;  // column_mask
+  this[6] = null;  // value_obj
+  this[7] = null;  // opcode
+  this[8] = null;  // is_value_obj
+  this[9] = null;  // db_operation
 };
 
 var helperSpec = new HelperSpec();
@@ -364,33 +363,53 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
   helper[OpHelper.db_operation] = this;
 }
 
+//function prepareOperations(ndbTransaction, dbOperationList) {
+//  switch(dbOperationList.length) {
+//    case 0:
+//      return;
+//    case 1:
+//      prepareOneOperation(dbOperationList[0], ndbTransaction);
+//      return;
+//    default:  /* More than one */
+//      prepareBulkOperations(dbOperationList, ndbTransaction);
+//  }
+//}
+
+
 function prepareOperations(ndbTransaction, dbOperationList) {
   var i;
   for(i = 0 ; i < dbOperationList.length ; i++) {
-    dbOperationList[i].prepare(ndbTransaction);
+    prepareOneOperation(dbOperationList[i],ndbTransaction);
+  }
+}
+
+function prepareOneOperation(op, ndbTransaction) {
+  /* Reuse the global helperSpec */
+  helperSpec.clear();
+
+  /* Prepare it for this operation */
+  op.buildOpHelper(helperSpec);
+
+  /* Use the HelperSpec to build the NdbOperation */
+  if(! op.error) {
+    op.ndbop = adapter.impl.DBOperationHelper(helperSpec, ndbTransaction);
+    if(op.ndbop) {
+      op.state = doc.OperationStates[1];  // PREPARED
+    } else {
+      op.error = ndbTransaction.getNdbError();
+    }
   }
 }
 
 
-DBOperation.prototype.prepare = function(ndbTransaction) {
-  /* There is one global helperSpec */
-  helperSpec.clear();
-
-  /* Prepare it for this operation */
-  this.buildOpHelper(helperSpec, ndbTransaction);
-
-  /* Use the HelperSpec to build the NdbOperation */
-  if(! this.error) {
-    this.ndbop = adapter.impl.DBOperationHelper(helperSpec);
-    if(this.ndbop) {
-      this.state = doc.OperationStates[1];  // PREPARED
-    } else {
-      this.error = ndbTransaction.getNdbError();
-    }
+function prepareBulkOperations(opList, ndbTransaction) {
+  var n, specs;
+  specs = new Array(opList.length);
+  for(n = 0 ; n < opList.length ; n++) {
+    specs[n] = new HelperSpec();
+    opList[n].buildOpHelper(specs[n], ndbTransaction);
   }
-
-  return this.error;
-};
+}
 
 
 /* Prepare a scan operation.
