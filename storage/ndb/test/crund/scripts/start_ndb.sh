@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
@@ -56,7 +56,7 @@ for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo
 timeout=60
 echo
 echo "waiting ($timeout s) for ndbd to start up..."
-./waiter.sh -t $timeout
+"$MYSQL_BIN/ndb_waiter" -c "$NDB_CONNECT" -t $timeout
 
 # need some extra time
 for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo
