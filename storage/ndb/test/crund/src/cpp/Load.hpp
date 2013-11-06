@@ -15,30 +15,39 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.cluster.crund;
+#ifndef Load_hpp
+#define Load_hpp
 
-import java.io.PrintWriter;
+#include <string>
 
-abstract public class Load {
-    // console
-    static protected final PrintWriter out = Driver.out;
-    static protected final PrintWriter err = Driver.err;
+using std::string;
 
-    // short descriptor
-    protected String name;
-    public String getName() {
-        return name;
-    }
+class Load {
+    Load(const Load&);
+    Load& operator=(const Load&);
+
+protected:
+    // short name of load
+    string name;
+
+public:
+
+    // usage
+    Load(const string& name) : name(name) {}
+    virtual ~Load() {};
+    virtual string getName() { return name; }
 
     // intializers/finalizers
-    abstract public void init() throws Exception;
-    abstract public void close() throws Exception;
+    virtual void init() = 0;
+    virtual void close() = 0;
 
     // datastore operations
-    abstract public void initConnection() throws Exception;
-    abstract public void closeConnection() throws Exception;
-    abstract public void clearData() throws Exception;
+    virtual void initConnection() = 0;
+    virtual void closeConnection() = 0;
+    virtual void clearData() = 0;
 
     // benchmark operations
-    abstract public void runOperations(int nOps) throws Exception;
-}
+    virtual void runOperations(int nOps) = 0;
+};
+
+#endif // Load_hpp
