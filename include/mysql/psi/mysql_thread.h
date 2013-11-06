@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -988,7 +988,7 @@ static inline int inline_mysql_cond_wait(
 static inline int inline_mysql_cond_timedwait(
   mysql_cond_t *that,
   mysql_mutex_t *mutex,
-  struct timespec *abstime
+  const struct timespec *abstime
 #ifdef HAVE_PSI_INTERFACE
   , const char *src_file, uint src_line
 #endif
