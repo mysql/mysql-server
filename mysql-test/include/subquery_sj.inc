@@ -1712,12 +1712,6 @@ DROP TABLE t0;
 
 --echo # End of bug#46556
 
-
-# The following test case fails when executed with subquery materialization
-# (Bug#54281).  Hence, skip it if semijoin=off and materialization=on
-if (`select (locate('materialization', @@optimizer_switch) = 0) OR locate('semijoin=on', @@optimizer_switch) + locate('materialization=off', @@optimizer_switch) > 0`) 
-{
-
 --echo
 --echo Bug#48834: Procedure with view + subquery + semijoin=on 
 --echo            crashes on second call.
@@ -1756,8 +1750,6 @@ DROP VIEW v1,v2;
 DROP PROCEDURE p1;
 
 --echo # End of BUG#48834
-}
-
 
 --echo #
 --echo # Bug#46692 "Crash occurring on queries with nested FROM subqueries 
