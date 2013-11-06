@@ -42,6 +42,7 @@ enum {
   HELPER_DBOPERATION
 };
 
+Handle<String> K_ndbop, K_error, K_state, K_PREPARED;
 
 Handle<Value> DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
 Handle<Value> DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
@@ -59,15 +60,28 @@ void setKeysInOp(Handle<Object> spec, Operation & op);
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
 
-  const Local<Object> spec = args[0]->ToObject();
-  int opcode = spec->Get(HELPER_OPCODE)->Int32Value();
-  bool is_vo = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
-
   NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[1]->ToObject());
 
-  return is_vo ?
+  const Local<Object> spec = args[0]->ToObject();
+  int opcode     = spec->Get(HELPER_OPCODE)->Int32Value();
+  bool is_vo     = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
+  Handle<Object> JS_DBOperation = spec->Get(HELPER_DBOPERATION)->ToObject();
+  bool op_ok     = JS_DBOperation->Get(K_error)->IsNull();
+
+  if(op_ok) {
+    Handle<Value> wrappedNdbOperation = is_vo ?
       DBOperationHelper_VO(spec, opcode, tx):
       DBOperationHelper_NonVO(spec, opcode, tx);
+
+    if(wrappedNdbOperation->IsUndefined()) {
+      JS_DBOperation->Set(K_error, NdbError_Wrapper(tx->getNdbError()));
+    } else {
+      JS_DBOperation->Set(K_ndbop, wrappedNdbOperation);
+      JS_DBOperation->Set(K_state, K_PREPARED);
+    }
+  }
+
+  return Undefined();
 }
 
 
@@ -106,7 +120,7 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
   const NdbOperation * ndbop;
     
   switch(opcode) {
-    case 1:   // OP_READ:
+    case 1:  // OP_READ:
       ndbop = op.readTuple(tx);
       break;
     case 2:  // OP_INSERT:
@@ -118,7 +132,7 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
     case 8:  // OP_WRITE:
       ndbop = op.writeTuple(tx);
       break;
-    case 16:  // OP_DELETE:
+    case 16: // OP_DELETE:
       ndbop = op.deleteTuple(tx);
       break;
     default:
@@ -218,6 +232,11 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
 //  DEFINE_JS_FUNCTION(target, "BulkDBOperationHelper", BulkDBOperationHelper);
+
+  K_ndbop    = Persistent<String>::New(String::NewSymbol("ndbop"));
+  K_error    = Persistent<String>::New(String::NewSymbol("error"));
+  K_state    = Persistent<String>::New(String::NewSymbol("state"));
+  K_PREPARED = Persistent<String>::New(String::NewSymbol("PREPARED"));
 
   Persistent<Object> OpHelper = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("OpHelper")), OpHelper);
