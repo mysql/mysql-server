@@ -375,7 +375,6 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
 //  }
 //}
 
-
 function prepareOperations(ndbTransaction, dbOperationList) {
   var i;
   for(i = 0 ; i < dbOperationList.length ; i++) {
@@ -391,16 +390,8 @@ function prepareOneOperation(op, ndbTransaction) {
   op.buildOpHelper(helperSpec);
 
   /* Use the HelperSpec to build the NdbOperation */
-  if(! op.error) {
-    op.ndbop = adapter.impl.DBOperationHelper(helperSpec, ndbTransaction);
-    if(op.ndbop) {
-      op.state = doc.OperationStates[1];  // PREPARED
-    } else {
-      op.error = ndbTransaction.getNdbError();
-    }
-  }
+  adapter.impl.DBOperationHelper(helperSpec, ndbTransaction);
 }
-
 
 function prepareBulkOperations(opList, ndbTransaction) {
   var n, specs;
