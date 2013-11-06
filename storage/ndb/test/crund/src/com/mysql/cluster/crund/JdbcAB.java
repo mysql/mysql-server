@@ -98,11 +98,12 @@ public class JdbcAB extends CrundLoad {
         if (msg.length() == 0) {
             out.println("     [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->" + url.substring(0, 10); // shortcut will do
+        name = url.substring(0, 10); // shortcut will do
     }
 
     protected void printProperties() {
@@ -118,14 +119,15 @@ public class JdbcAB extends CrundLoad {
     // JDBC operations
     // ----------------------------------------------------------------------
 
-    // model assumptions: relationships: identity 1:1
+    // current model assumption: relationships only 1:1 identity
+    // (target id of a navigation operation is verified against source id)
     protected abstract class JdbcOp extends Op {
         protected String sql;
         protected PreparedStatement ps;
         protected XMode xMode;
 
         public JdbcOp(String name, XMode m, String sql) {
-            super(name + (m == null ? "" : m));
+            super(name + "," + m);
             this.sql = sql;
             this.xMode = m;
         }
@@ -282,12 +284,12 @@ public class JdbcAB extends CrundLoad {
         out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : driver.xMode) {
+        for (XMode m : driver.xModes) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
 
             ops.add(
-                new WriteOp("A_insAttr_", xMode,
+                new WriteOp("A_insAttr", xMode,
                             "INSERT INTO A (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -296,7 +298,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_insAttr_", xMode,
+                new WriteOp("B_insAttr", xMode,
                             "INSERT INTO B (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -305,7 +307,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_setAttr_", xMode,
+                new WriteOp("A_setAttr", xMode,
                             "UPDATE A a SET a.cint = ?, a.clong = ?, a.cfloat = ?, a.cdouble = ? WHERE (a.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(setAttrA(ps, 1, id), id);
@@ -313,7 +315,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_setAttr_", xMode,
+                new WriteOp("B_setAttr", xMode,
                             "UPDATE B b SET b.cint = ?, b.clong = ?, b.cfloat = ?, b.cdouble = ? WHERE (b.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(setAttrB(ps, 1, id), id);
@@ -321,7 +323,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("A_getAttr_", xMode,
+                new ReadOp("A_getAttr", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE (id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -334,7 +336,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getAttr_", xMode,
+                new ReadOp("B_getAttr", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM B WHERE (id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -347,7 +349,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("A_getAttr_wherein_", xMode,
+                new ReadOp("A_getAttr_wherein", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id in (?) ORDER BY id") {
                     protected String getQueries(int[] id) throws SQLException {
                         return whereInIdList(id);
@@ -365,7 +367,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getAttr_wherein_", xMode,
+                new ReadOp("B_getAttr_wherein", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id in (?) ORDER BY id") {
                     protected String getQueries(int[] id) throws SQLException {
                         return whereInIdList(id);
@@ -390,7 +392,7 @@ public class JdbcAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarbin_" + l + "_", xMode,
+                    new WriteOp("B_setVarbin_" + l, xMode,
                                 "UPDATE B b SET b.cvarbinary_def = ? WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setBytes(1, b);
@@ -399,7 +401,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getVarbin_" + l + "_", xMode,
+                    new ReadOp("B_getVarbin_" + l, xMode,
                                "SELECT cvarbinary_def FROM B WHERE (id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -411,7 +413,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarbin_" + l + "_", xMode,
+                    new WriteOp("B_clearVarbin_" + l, xMode,
                                 "UPDATE B b SET b.cvarbinary_def = NULL WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -427,7 +429,7 @@ public class JdbcAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarchar_" + l + "_", xMode,
+                    new WriteOp("B_setVarchar_" + l, xMode,
                                 "UPDATE B b SET b.cvarchar_def = ? WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setString(1, s);
@@ -436,7 +438,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getVarchar_" + l + "_", xMode,
+                    new ReadOp("B_getVarchar_" + l, xMode,
                                "SELECT cvarchar_def FROM B WHERE (id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -448,7 +450,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarchar_" + l + "_", xMode,
+                    new WriteOp("B_clearVarchar_" + l, xMode,
                                 "UPDATE B b SET b.cvarchar_def = NULL WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -464,7 +466,7 @@ public class JdbcAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setBlob_" + l + "_", xMode,
+                    new WriteOp("B_setBlob_" + l, xMode,
                                 "UPDATE B b SET b.cblob_def = ? WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setBytes(1, b);
@@ -473,7 +475,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getBlob_" + l + "_", xMode,
+                    new ReadOp("B_getBlob_" + l, xMode,
                                "SELECT cblob_def FROM B WHERE (id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -485,7 +487,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearBlob_" + l + "_", xMode,
+                    new WriteOp("B_clearBlob_" + l, xMode,
                                 "UPDATE B b SET b.cblob_def = NULL WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -501,7 +503,7 @@ public class JdbcAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setText_" + l + "_", xMode,
+                    new WriteOp("B_setText_" + l, xMode,
                                 "UPDATE B b SET b.ctext_def = ? WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setString(1, s);
@@ -510,7 +512,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getText_" + l + "_", xMode,
+                    new ReadOp("B_getText_" + l, xMode,
                                "SELECT ctext_def FROM B WHERE (id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -522,7 +524,7 @@ public class JdbcAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearText_" + l + "_", xMode,
+                    new WriteOp("B_clearText_" + l, xMode,
                                 "UPDATE B b SET b.ctext_def = NULL WHERE (b.id = ?)") {
                         protected void setParams(int id) throws SQLException {
                             ps.setInt(1, id);
@@ -531,7 +533,7 @@ public class JdbcAB extends CrundLoad {
             }
 
             ops.add(
-                new WriteOp("B_setA_", xMode,
+                new WriteOp("B_setA", xMode,
                             "UPDATE B b SET b.a_id = ? WHERE (b.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         final int aId = id;
@@ -541,7 +543,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getA_joinproj_", xMode,
+                new ReadOp("B_getA_joinproj", xMode,
                            "SELECT a.id, a.cint, a.clong, a.cfloat, a.cdouble FROM A a, b b WHERE (a.id = b.a_id AND b.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -554,7 +556,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getA_subsel_", xMode,
+                new ReadOp("B_getA_subsel", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id = (SELECT b.a_id FROM B b WHERE b.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -567,7 +569,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("A_getBs_", xMode,
+                new ReadOp("A_getBs", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM B WHERE (a_id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -580,7 +582,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_clearA_", xMode,
+                new WriteOp("B_clearA", xMode,
                             "UPDATE B b SET b.a_id = NULL WHERE (b.id = ?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -589,7 +591,7 @@ public class JdbcAB extends CrundLoad {
 
             ops.add(
                 // MySQL rejects this syntax: "DELETE FROM B b WHERE b.id = ?"
-                new WriteOp("B_del_", xMode,
+                new WriteOp("B_del", xMode,
                             "DELETE FROM B WHERE id = ?") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -598,7 +600,7 @@ public class JdbcAB extends CrundLoad {
 
             ops.add(
                 // MySQL rejects this syntax: "DELETE FROM A a WHERE a.id = ?"
-                new WriteOp("A_del_", xMode,
+                new WriteOp("A_del", xMode,
                             "DELETE FROM A WHERE id = ?") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -606,7 +608,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_ins_", xMode,
+                new WriteOp("A_ins", xMode,
                             "INSERT INTO A (id) VALUES (?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -614,7 +616,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_ins_", xMode,
+                new WriteOp("B_ins", xMode,
                             "INSERT INTO B (id) VALUES (?)") {
                     protected void setParams(int id) throws SQLException {
                         ps.setInt(1, id);
@@ -622,7 +624,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_delAll", null,
+                new WriteOp("B_delAll", XMode.bulk,
                             "DELETE FROM B") {
                     public void run(int[] id) throws SQLException {
                         final int n = id.length;
@@ -633,7 +635,7 @@ public class JdbcAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_delAll", null,
+                new WriteOp("A_delAll", XMode.bulk,
                             "DELETE FROM A") {
                     public void run(int[] id) throws SQLException {
                         final int n = id.length;
