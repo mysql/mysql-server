@@ -1102,6 +1102,14 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
+/** Get the last non-delete-marked record on a page.
+@param[in]	page	index tree leaf page
+@return the last record, not delete-marked
+@retval infimum record if all records are delete-marked */
+
+const rec_t*
+page_find_rec_max_not_deleted(
+	const page_t*	page);
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL
