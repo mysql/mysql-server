@@ -5311,25 +5311,40 @@ func_exit:
 	return(value);
 }
 
-/*******************************************************************//**
-Get the last row.
-@return	current rec or NULL */
+/** Get the maximum and non-delete-marked record in an index.
+@param[in]	index	index tree
+@param[in,out]	mtr	mini-transaction (may be committed and restarted)
+@return maximum record, page s-latched in mtr
+@retval NULL if there are no records, or if all of them are delete-marked */
 static
 const rec_t*
-row_search_autoinc_get_rec(
-/*=======================*/
-	btr_pcur_t*	pcur,		/*!< in: the current cursor */
-	mtr_t*		mtr)		/*!< in: mini transaction */
+row_search_get_max_rec(
+	dict_index_t*	index,
+	mtr_t*		mtr)
 {
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	/* Open at the high/right end (false), and init cursor */
+	btr_pcur_open_at_index_side(
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, mtr);
+
 	do {
-		const rec_t* rec = btr_pcur_get_rec(pcur);
+		const page_t*	page;
+
+		page = btr_pcur_get_page(&pcur);
+		rec = page_find_rec_max_not_deleted(page);
 
 		if (page_rec_is_user_rec(rec)) {
-			return(rec);
+			break;
+		} else {
+			rec = NULL;
 		}
-	} while (btr_pcur_move_to_prev(pcur, mtr));
+		btr_pcur_move_before_first_on_page(&pcur);
+	} while (btr_pcur_move_to_prev(&pcur, mtr));
 
-	return(NULL);
+	btr_pcur_close(&pcur);
+
+	return(rec);
 }
 
 /*******************************************************************//**
@@ -5344,55 +5359,30 @@ row_search_max_autoinc(
 	const char*	col_name,	/*!< in: name of autoinc column */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
 {
-	ulint		i;
-	ulint		n_cols;
-	dict_field_t*	dfield = NULL;
+	dict_field_t*	dfield = dict_index_get_nth_field(index, 0);
 	dberr_t		error = DB_SUCCESS;
-
-	n_cols = dict_index_get_n_ordering_defined_by_user(index);
-
-	/* Search the index for the AUTOINC column name */
-	for (i = 0; i < n_cols; ++i) {
-		dfield = dict_index_get_nth_field(index, i);
-
-		if (strcmp(col_name, dfield->name) == 0) {
-			break;
-		}
-	}
-
 	*value = 0;
 
-	/* Must find the AUTOINC column name */
-	if (i < n_cols && dfield) {
+	if (strcmp(col_name, dfield->name) != 0) {
+		error = DB_RECORD_NOT_FOUND;
+	} else {
 		mtr_t		mtr;
-		btr_pcur_t	pcur;
+		const rec_t*	rec;
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (false), and init cursor */
-		btr_pcur_open_at_index_side(
-			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
+		rec = row_search_get_max_rec(index, &mtr);
 
-		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
-			const rec_t*	rec;
+		if (rec != NULL) {
+			ibool unsigned_type = (
+				dfield->col->prtype & DATA_UNSIGNED);
 
-			rec = row_search_autoinc_get_rec(&pcur, &mtr);
-
-			if (rec != NULL) {
-				ibool unsigned_type = (
-					dfield->col->prtype & DATA_UNSIGNED);
-
-				*value = row_search_autoinc_read_column(
-					index, rec, i,
-					dfield->col->mtype, unsigned_type);
-			}
+			*value = row_search_autoinc_read_column(
+				index, rec, 0,
+				dfield->col->mtype, unsigned_type);
 		}
 
-		btr_pcur_close(&pcur);
-
 		mtr_commit(&mtr);
-	} else {
-		error = DB_RECORD_NOT_FOUND;
 	}
 
 	return(error);
