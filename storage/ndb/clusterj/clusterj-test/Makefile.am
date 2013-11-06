@@ -45,6 +45,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/BinaryTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BitTypesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/Bug17200163Test.java \
   $(clusterj_test_src)/testsuite/clusterj/BlobTest.java \
   $(clusterj_test_src)/testsuite/clusterj/CharsetTest.java \
   $(clusterj_test_src)/testsuite/clusterj/ConnectionPoolTest.java \
