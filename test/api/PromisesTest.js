@@ -20,15 +20,15 @@
 
 "use strict";
 
-var properties = global.test_conn_properties;
+var good_properties = global.test_conn_properties;
 
 var bad_properties = {
-  "implementation"    : "mysql",
+  "implementation"    : global.test_conn_properties.implementation,
   "mysql_host"        : "localhost",
   "mysql_port"        : "3306",
-  "mysql_socket"      : null,
   "mysql_user"        : "_BAD_USER_",
   "mysql_password"    : "_NOT_A_REAL_PASSWORD!_", 
+  "ndb_connectstring" : "this_host_does_not_exist"
 }
 
 var tests = [];
@@ -47,14 +47,15 @@ t_222.run = function() {
 
   function onSession(session) {
     n++;
-    test.errorIfUnset("onFulfilled gets a value", session);
-    test.errorIfNotEqual("calls to onFulfilled", n, 1);
+    test.errorIfUnset("onFulfilled gets a value", session);   // 2.2.2.1
+    test.errorIfNotEqual("calls to onFulfilled", n, 1);       // 2.2.2.3
     test.errorIfNotEqual("Not a session", typeof session.find, "function");
+    test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
 
     session.close(function() { test.failOnError() });
   }
   
-  p = mynode.openSession(properties, null);
+  p = mynode.openSession(good_properties, null);
   if(typeof p === 'object') {
     p.then(onSession);
   } else {
@@ -86,6 +87,8 @@ t_223.run = function() {
     n++;
     test.errorIfUnset("onRejected must get a reason", e);
     test.errorIfNotEqual("calls to onRejected", n, 1);
+    test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
+    test.failOnError();
   }
   
   p = mynode.openSession(bad_properties, null);
@@ -98,5 +101,96 @@ t_223.run = function() {
 tests.push(t_223);
 
 
+/*  2.2.6 then may be called multiple times on the same promise.
+      2.2.6.1 If/when promise is fulfilled, all respective onFulfilled callbacks
+              must execute in the order of their originating calls to then.
+      2.2.6.2 If/when promise is rejected, all respective onRejected callbacks 
+              must execute in the order of their originating calls to then.
+*/
+var t_2261 = new harness.ConcurrentTest("2.2.6.1"); 
+t_2261.run = function() {
+  var n, p, test;
+  n = 0;
+  test = this;
+  
+  function onSession_1(s) {
+    n++;
+    test.errorIfNotEqual("Wrong order", n, 1);
+  }
+
+  function onSession_2(s) {
+    n++;
+    test.errorIfNotEqual("Wrong order", n, 2);
+    s.close(function() { test.failOnError(); });
+  }
+
+  p = mynode.openSession(good_properties, null);
+  if(typeof p === 'object') {
+    p.then(onSession_1);
+    p.then(onSession_2);
+  } else {
+    this.fail("not thenable");
+  }  
+};
+tests.push(t_2261);
+
+var t_2262 = new harness.ConcurrentTest("2.2.6.2");
+t_2262.run = function() {
+  var n, p, test;
+  n = 0;
+  test = this;
+
+  function onSession(s) {
+    test.fail("openSession should fail");
+    s.close();
+  }
+
+  function onErr_1(e) {
+    n++;
+    test.errorIfNotEqual("Wrong order", n, 1);
+  }
+  
+  function onErr_2(e) {
+    n++;
+    test.errorIfNotEqual("Wrong order", n, 2);
+    test.failOnError();
+  }
+
+  p = mynode.openSession(bad_properties, null);
+  if(typeof p === 'object') {
+    p.then(onSession, onErr_1);
+    p.then(onSession, onErr_2);
+  } else {
+    this.fail("not thenable");
+  }
+};
+tests.push(t_2262);
+
+
+/* 2.2.7 "then" must return a promise
+*/
+var t_227 = new harness.ConcurrentTest("2.2.7"); 
+t_227.run = function() {
+  var p1, p2, test;
+  test = this;
+  
+  function onSession(s) {
+    s.close(function() { test.failOnError(); });
+  }
+
+  p1 = mynode.openSession(good_properties, null);
+  if(typeof p1 !== 'object' || typeof p1.then !== 'function') {
+    this.fail("p1 not thenable");
+  } else {
+    p2 = p1.then(onSession);
+    if(typeof p1 !== 'object' || typeof p1.then !== 'function') {
+      this.appendErrorMessage("p2 not thenable");
+    }
+  }
+};
+tests.push(t_227);
+
+
 
 module.exports.tests = tests;
+
