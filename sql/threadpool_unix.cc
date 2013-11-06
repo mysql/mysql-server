@@ -149,6 +149,7 @@ struct thread_group_t
 
 static thread_group_t *all_groups;
 static uint group_count;
+static int32 shutdown_group_count;
 
 /**
  Used for printing "pool blocked" message, see
@@ -928,6 +929,8 @@ void thread_group_destroy(thread_group_t *thread_group)
       thread_group->shutdown_pipe[i]= -1;
     }
   }
+  if (my_atomic_add32(&shutdown_group_count, -1) == 1)
+    my_free(all_groups);
 }
 
 /**
@@ -1551,11 +1554,11 @@ void tp_end()
     DBUG_VOID_RETURN;
 
   stop_timer(&pool_timer);
+  shutdown_group_count= threadpool_max_size;
   for (uint i= 0; i < threadpool_max_size; i++)
   {
     thread_group_close(&all_groups[i]);
   }
-  my_free(all_groups);
   threadpool_started= false;
   DBUG_VOID_RETURN;
 }
