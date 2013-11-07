@@ -6401,12 +6401,12 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   DBUG_EXECUTE_IF ("simulate_invalid_address",
-                   db_len = (4294967294U););
+                   db_len = data_len;);
   fname = db + db_len + 1;
-  if (fname > buf_end)
+  if ((db_len > data_len) || (fname > buf_end))
     goto err;
   fname_len = (uint) strlen(fname);
-  if (fname + fname_len > buf_end)
+  if ((fname_len > data_len) || (fname + fname_len > buf_end))
     goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0
 
