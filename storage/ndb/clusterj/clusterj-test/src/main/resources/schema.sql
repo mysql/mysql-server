@@ -4,6 +4,20 @@ drop table if exists t_basic;
 select id from t_basic where id = 9999;
 # the following statements are delimited by semicolon
 
+DROP TABLE IF EXISTS conversation_summary;
+CREATE TABLE conversation_summary (
+  source_user_id bigint(11) NOT NULL,
+  destination_user_id bigint(11) NOT NULL,
+  last_message_user_id bigint(11) NOT NULL,
+  text_summary varchar(255) NOT NULL DEFAULT '',
+  query_history_id bigint(20) NOT NULL DEFAULT '0',
+  answerer_id bigint(11) NOT NULL,
+  viewed bit(1) NOT NULL,
+  updated_at bigint(20) NOT NULL,
+  PRIMARY KEY (source_user_id,destination_user_id,query_history_id),
+  KEY IX_updated_at (updated_at)
+) ENGINE=ndbcluster;
+
 DROP TABLE IF EXISTS twopk;
 CREATE TABLE IF NOT EXISTS twopk (
   id int not null,
