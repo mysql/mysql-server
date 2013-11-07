@@ -1391,7 +1391,6 @@ public:
   Item *find_item(String *str);
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
-  void agg_num_lengths(Item *arg);
 };
 
 /*
