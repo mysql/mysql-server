@@ -70,7 +70,8 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/ndb/src/Ndb_wrapper.cpp
   Adapter/impl/ndb/src/NdbError_wrapper.cpp
   Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp
-  Adapter/impl/ndb/src/NdbOperation_wrapper.cpp
+  Adapter/impl/ndb/src/NdbScanOperation_wrapper.cpp
+  Adapter/impl/ndb/src/PendingOperationSet_wrapper.cpp
   Adapter/impl/ndb/src/NdbRecordObject.cpp
   Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp
   Adapter/impl/ndb/src/NdbTransaction_wrapper.cpp

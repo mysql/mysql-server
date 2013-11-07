@@ -28,6 +28,7 @@
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NdbRecordObject.h"
+#include "PendingOperationSet.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -42,58 +43,62 @@ enum {
   HELPER_DBOPERATION
 };
 
-Handle<String> K_ndbop, K_error, K_state, K_PREPARED;
+Handle<String> K_error;
 
-Handle<Value> DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
-Handle<Value> DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
-Handle<Value> buildNdbOperation(Operation &, int, NdbTransaction *);
+const NdbOperation * DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
+const NdbOperation * DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
+const NdbOperation * buildNdbOperation(Operation &, int, NdbTransaction *);
+const NdbOperation * _Helper(Handle<Object>, NdbTransaction *);
+
 void setKeysInOp(Handle<Object> spec, Operation & op);
 
 
-/* DBOperationHelper() is the C++ companion to DBOperation.prepare
-   in NdbOperation.js
-   It takes a HelperSpec object, and returns a fully-prepared Operation
-   arg0: DBOperation HelperSpec
-   arg1: NdbTransaction *
-*/
+/* DBOperationHelper takes an array of HelperSpecs.
+   arg0: Length of Array
+   arg1: Array of HelperSpecs
+   arg2: NdbTransaction *
 
+   Returns: a wrapped PendingOperationSet
+   The set has the same length as the array that came in
+*/
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
 
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[1]->ToObject());
+  int length = args[0]->Int32Value();
+  const Local<Object> array = args[1]->ToObject();
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
-  const Local<Object> spec = args[0]->ToObject();
-  int opcode     = spec->Get(HELPER_OPCODE)->Int32Value();
-  bool is_vo     = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
-  Handle<Object> JS_DBOperation = spec->Get(HELPER_DBOPERATION)->ToObject();
-  bool op_ok     = JS_DBOperation->Get(K_error)->IsNull();
+  PendingOperationSet * opList = new PendingOperationSet(length);
 
-  if(op_ok) {
-    Handle<Value> wrappedNdbOperation = is_vo ?
-      DBOperationHelper_VO(spec, opcode, tx):
-      DBOperationHelper_NonVO(spec, opcode, tx);
-
-    if(wrappedNdbOperation->IsUndefined()) {
-      JS_DBOperation->Set(K_error, NdbError_Wrapper(tx->getNdbError()));
-    } else {
-      JS_DBOperation->Set(K_ndbop, wrappedNdbOperation);
-      JS_DBOperation->Set(K_state, K_PREPARED);
-    }
+  for(int i = 0 ; i < length ; i++) {
+    const NdbOperation *op = _Helper(array->Get(i)->ToObject(), tx);
+    opList->setNdbOperation(i, op);
   }
-
-  return Undefined();
+  return PendingOperationSet_Wrapper(opList);
 }
 
 
-/* BulkDBOperationHelper takes an array of HelperSpecs. 
-   In each, it sets op.ndbop. 
-   It returns null.
-*/
-//Handle<Value> BulkDBOperationHelper(const Arguments &args) {
-//
-//
-//}
+const NdbOperation *  _Helper(Handle<Object> spec, NdbTransaction *tx) {
+  Handle<Object> JS_DBOperation = spec->Get(HELPER_DBOPERATION)->ToObject();
 
+  int opcode     = spec->Get(HELPER_OPCODE)->Int32Value();
+  bool is_vo     = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
+  bool op_ok     = JS_DBOperation->Get(K_error)->IsNull();
+
+  const NdbOperation * op = NULL;
+
+  if(op_ok) {
+    op = is_vo ?
+      DBOperationHelper_VO(spec, opcode, tx):
+      DBOperationHelper_NonVO(spec, opcode, tx);
+
+    if(! op) {
+      JS_DBOperation->Set(K_error, NdbError_Wrapper(tx->getNdbError()));
+    }
+  }
+
+  return op;
+}
 
 
 void setKeysInOp(Handle<Object> spec, Operation & op) {
@@ -116,7 +121,8 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
 }
 
 
-Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
+const NdbOperation * buildNdbOperation(Operation &op,
+                                       int opcode, NdbTransaction *tx) {
   const NdbOperation * ndbop;
     
   switch(opcode) {
@@ -137,15 +143,15 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
       break;
     default:
       assert("Unhandled opcode" == 0);
-      return Undefined();
+      return NULL;
   }
 
-  return NdbOperation_Wrapper(ndbop);
+  return ndbop;
 }
 
 
-Handle<Value> DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
-                                      NdbTransaction *tx) {
+const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
+                                             NdbTransaction *tx) {
   HandleScope scope;
   Operation op;
 
@@ -183,16 +189,16 @@ Handle<Value> DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
   
   DEBUG_PRINT("Non-VO opcode: %d mask: %u", opcode, op.u.maskvalue);
 
-  return scope.Close(buildNdbOperation(op, opcode, tx));
+  return buildNdbOperation(op, opcode, tx);
 }
 
-Handle<Value> DBOperationHelper_VO(Handle<Object> spec, int opcode,
-                                   NdbTransaction *tx) {
+const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
+                                          NdbTransaction *tx) {
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
-  Handle<Value> returnVal;
+  const NdbOperation * ndbOp;
   Operation op;
 
   /* NdbOperation.prepare() just verified that this is really a VO */
@@ -201,7 +207,7 @@ Handle<Value> DBOperationHelper_VO(Handle<Object> spec, int opcode,
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
   /* The VO may have values that are not yet encoded to its buffer. */
-  returnVal = nro->prepare();  // do something with this?
+  nro->prepare();  // FIXME: prepare() could return an error
   
   /* Set the key record and key buffer from the helper spec */
   setKeysInOp(spec, op);
@@ -220,23 +226,19 @@ Handle<Value> DBOperationHelper_VO(Handle<Object> spec, int opcode,
 
   DEBUG_PRINT("  VO   opcode: %d mask: %u", opcode, op.u.maskvalue);
 
-  returnVal = buildNdbOperation(op, opcode, tx);
+  ndbOp = buildNdbOperation(op, opcode, tx);
   
   nro->resetMask(); 
 
-  return scope.Close(returnVal);
+  return ndbOp;
 }
 
 
 void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
-//  DEFINE_JS_FUNCTION(target, "BulkDBOperationHelper", BulkDBOperationHelper);
 
-  K_ndbop    = Persistent<String>::New(String::NewSymbol("ndbop"));
   K_error    = Persistent<String>::New(String::NewSymbol("error"));
-  K_state    = Persistent<String>::New(String::NewSymbol("state"));
-  K_PREPARED = Persistent<String>::New(String::NewSymbol("PREPARED"));
 
   Persistent<Object> OpHelper = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("OpHelper")), OpHelper);
