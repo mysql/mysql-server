@@ -127,6 +127,8 @@ SET(CPACK_RPM_test_PACKAGE_PROVIDES "MySQL-test mysql-test")
 MACRO(ALTERNATIVE_NAME real alt)
   SET(p "CPACK_RPM_${real}_PACKAGE_PROVIDES")
   SET(${p} "${${p}} ${alt} ${alt}(x86-32) ${alt}(x86-64) config(${alt})")
+  SET(o "CPACK_RPM_${real}_PACKAGE_OBSOLETES")
+  SET(${o} "${${o}} ${alt}")
 ENDMACRO(ALTERNATIVE_NAME)
 
 IF(RPM MATCHES "(rhel|centos)5")
