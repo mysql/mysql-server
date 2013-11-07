@@ -390,7 +390,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [AC_HELP_STRING([--with-javac-target],
                               [Java compiler target version to be used])],
               [javac_target="$withval"],
-              [javac_target="1.5"])
+              [javac_target="1.6"])
 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
