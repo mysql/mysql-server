@@ -1664,7 +1664,7 @@ CHARSET_INFO my_charset_utf16_general_ci=
 CHARSET_INFO my_charset_utf16_bin=
 {
   55,0,0,              /* number       */
-  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,
+  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
   "utf16",             /* cs name      */
   "utf16_bin",         /* name         */
   "UTF-16 Unicode",    /* comment      */
