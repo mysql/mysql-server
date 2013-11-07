@@ -38,7 +38,7 @@ rpl_gno Certifier::certify(Transaction_context_log_event* tcle)
     seq_no= get_seqno(*it);
     DBUG_PRINT("info", ("sequence number in certifier: %llu", seq_no));
     DBUG_PRINT("info", ("snapshot timestamp in certifier: %llu", tcle->get_snapshot_timestamp()));
-    if(seq_no > 0 && (seq_no < tcle->get_snapshot_timestamp()))
+    if(seq_no > tcle->get_snapshot_timestamp())
       DBUG_RETURN(0);
   }
   next_seqno++;
