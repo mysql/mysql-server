@@ -63,6 +63,14 @@ Completed by Sunny Bains and Marko Makela
 # define posix_fadvise(fd, offset, len, advice) /* nothing */
 #endif /* __WIN__ */
 
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
+
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
 /* @{ */
@@ -2593,8 +2601,15 @@ row_merge_rename_tables(
 	/* The following calls will also rename the .ibd data files if
 	the tables are stored in a single-table tablespace */
 
-	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)
-	    || !dict_table_rename_in_cache(new_table, old_name, FALSE)) {
+	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)) {
+
+		err = DB_ERROR;
+		goto err_exit;
+	}
+
+	DEBUG_SYNC_C("row_merge_rename_tables_between_renames");
+
+	if (!dict_table_rename_in_cache(new_table, old_name, FALSE)) {
 
 		err = DB_ERROR;
 		goto err_exit;

@@ -365,6 +365,10 @@ struct dict_field_struct{
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_struct{
 	index_id_t	id;	/*!< id of the index */
+	rw_lock_t*	search_latch; /*!< latch protecting the AHI partition
+				      corresponding to this index */
+	hash_table_t*	search_table; /*!< hash table protected by
+				      search_latch */
 	mem_heap_t*	heap;	/*!< memory heap */
 	const char*	name;	/*!< index name */
 	const char*	table_name;/*!< table name */

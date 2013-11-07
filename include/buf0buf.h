@@ -1714,7 +1714,6 @@ struct buf_block_struct{
 					complete, though: there may
 					have been hash collisions,
 					record deletions, etc. */
-	volatile rw_lock_t*     btr_search_latch;
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */

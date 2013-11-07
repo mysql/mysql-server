@@ -49,12 +49,14 @@ the kernel mutex */
 extern ulint	trx_n_prepared;
 
 /********************************************************************//**
-Releases the search latch if trx has reserved it. */
-UNIV_INTERN
+In XtraDB it is impossible for a transaction to own a search latch outside of
+InnoDB code, so there is nothing to release on demand.  We keep this function to
+simplify maintenance.*/
+UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
-	trx_t*	   trx); /*!< in: transaction */
+	trx_t*	   trx __attribute__((unused))); /*!< in: transaction */
 /******************************************************************//**
 Set detailed error message for the transaction. */
 UNIV_INTERN
@@ -555,8 +557,8 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		has_search_latch;
-					/* TRUE if this trx has latched the
+	ibool		has_search_latch;
+					/* TRUE if this trx has latched any
 					search system latch in S-mode */
 	ulint		deadlock_mark;	/*!< a mark field used in deadlock
 					checking algorithm.  */

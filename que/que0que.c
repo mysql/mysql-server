@@ -1417,7 +1417,7 @@ que_eval_sql(
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* fake_changes should not access to system tables */
 		fprintf(stderr, "InnoDB: ERROR: innodb_fake_changes tried to access to system tables.\n");
 		return(DB_ERROR);

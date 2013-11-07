@@ -1607,7 +1607,8 @@ row_upd_sec_index_entry(
 	}
 
 	search_result = row_search_index_entry(index, entry,
-					       trx->fake_changes ? BTR_SEARCH_LEAF : mode,
+					       UNIV_UNLIKELY(trx->fake_changes)
+					       ? BTR_SEARCH_LEAF : mode,
 					       &pcur, &mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -1855,7 +1856,7 @@ row_upd_clust_rec_by_insert(
 		the previous invocation of this function. Mark the
 		off-page columns in the entry inherited. */
 
-		if (!(trx->fake_changes)) {
+		if (UNIV_LIKELY(!trx->fake_changes)) {
 		change_ownership = row_upd_clust_rec_by_insert_inherit(
 			NULL, NULL, entry, node->update);
 		ut_a(change_ownership);
@@ -1889,7 +1890,8 @@ err_exit:
 		delete-marked old record, mark them disowned by the
 		old record and owned by the new entry. */
 
-		if (rec_offs_any_extern(offsets) && !(trx->fake_changes)) {
+		if (rec_offs_any_extern(offsets)
+		    && UNIV_LIKELY(!(trx->fake_changes))) {
 			change_ownership = row_upd_clust_rec_by_insert_inherit(
 				rec, offsets, entry, node->update);
 
@@ -2019,9 +2021,10 @@ row_upd_clust_rec(
 	the same transaction do not modify the record in the meantime.
 	Therefore we can assert that the restoration of the cursor succeeds. */
 
-	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes
-				       ? BTR_SEARCH_TREE : BTR_MODIFY_TREE,
-				       pcur, mtr));
+	ut_a(btr_pcur_restore_position(
+		(UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)
+		 ? BTR_SEARCH_TREE : BTR_MODIFY_TREE),
+		pcur, mtr));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
@@ -2032,7 +2035,8 @@ row_upd_clust_rec(
 		 node->cmpl_info, thr, mtr);
 
 	/* skip store extern for fake_changes */
-	if (err == DB_SUCCESS && big_rec && !(thr_get_trx(thr)->fake_changes)) {
+	if (err == DB_SUCCESS && big_rec
+	    && UNIV_LIKELY(!(thr_get_trx(thr)->fake_changes))) {
 		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*	rec;
 		rec_offs_init(offsets_);
@@ -2192,8 +2196,10 @@ row_upd_clust_step(
 
 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
 
-	success = btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF,
-					    pcur, mtr);
+	success = btr_pcur_restore_position(
+		(UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)
+		 ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF),
+		pcur, mtr);
 
 	if (!success) {
 		err = DB_RECORD_NOT_FOUND;
