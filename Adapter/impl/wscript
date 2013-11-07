@@ -32,7 +32,8 @@ def build(ctx):
   "ndb/src/Ndb_wrapper.cpp " +\
   "ndb/src/NdbError_wrapper.cpp " +\
   "ndb/src/NdbTransaction_wrapper.cpp " +\
-  "ndb/src/NdbOperation_wrapper.cpp " +\
+  "ndb/src/NdbScanOperation_wrapper.cpp " +\
+  "ndb/src/PendingOperationSet_wrapper.cpp" +\
   "ndb/src/NdbInterpretedCode_wrapper.cpp " +\
   "ndb/src/NdbScanFilter_wrapper.cpp " +\
   "ndb/src/AsyncNdbContext.cpp " +\

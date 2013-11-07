@@ -104,7 +104,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   /* NDB Impl-specific properties */
   this.error        = null;
   this.query        = null;
-  this.ndbop        = null;
+  this.ndbScanOp    = null;
   this.autoinc      = null;
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
@@ -317,7 +317,7 @@ DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
 };
 
 
-DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
+DBOperation.prototype.buildOpHelper = function(helper) {
   var code = this.opcode;
   var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
   var error = null;
@@ -358,48 +358,27 @@ DBOperation.prototype.buildOpHelper = function(helper, ndbTransaction) {
   }
 
   helper[OpHelper.opcode]       = code;
-  helper[OpHelper.ndb_tx]       = ndbTransaction;
   helper[OpHelper.is_value_obj] = isVOwrite;
   helper[OpHelper.db_operation] = this;
-}
+};
 
-//function prepareOperations(ndbTransaction, dbOperationList) {
-//  switch(dbOperationList.length) {
-//    case 0:
-//      return;
-//    case 1:
-//      prepareOneOperation(dbOperationList[0], ndbTransaction);
-//      return;
-//    default:  /* More than one */
-//      prepareBulkOperations(dbOperationList, ndbTransaction);
-//  }
-//}
 
 function prepareOperations(ndbTransaction, dbOperationList) {
-  var i;
-  for(i = 0 ; i < dbOperationList.length ; i++) {
-    prepareOneOperation(dbOperationList[i],ndbTransaction);
+  var n, length, specs, pendingOpSet;
+  length = dbOperationList.length;
+  if(length == 1) {
+    specs = [ helperSpec ];  /* Reuse the global helperSpec */
+    helperSpec.clear();
+    dbOperationList[0].buildOpHelper(helperSpec);
   }
-}
-
-function prepareOneOperation(op, ndbTransaction) {
-  /* Reuse the global helperSpec */
-  helperSpec.clear();
-
-  /* Prepare it for this operation */
-  op.buildOpHelper(helperSpec);
-
-  /* Use the HelperSpec to build the NdbOperation */
-  adapter.impl.DBOperationHelper(helperSpec, ndbTransaction);
-}
-
-function prepareBulkOperations(opList, ndbTransaction) {
-  var n, specs;
-  specs = new Array(opList.length);
-  for(n = 0 ; n < opList.length ; n++) {
-    specs[n] = new HelperSpec();
-    opList[n].buildOpHelper(specs[n], ndbTransaction);
+  else {
+    specs = new Array(length);
+    for(n = 0 ; n < dbOperationList.length ; n++) {
+      specs[n] = new HelperSpec();
+      dbOperationList[n].buildOpHelper(specs[n], ndbTransaction);
+    }
   }
+  return adapter.impl.DBOperationHelper(length, specs, ndbTransaction);
 }
 
 
@@ -583,7 +562,7 @@ function getScanResults(scanop, userCallback) {
   function fetch() {
     buffer = new Buffer(recordSize);
     results.push(new ResultConstructor(buffer));  // Optimistic
-    fetchResults(dbSession, scanop.ndbop, buffer);
+    fetchResults(dbSession, scanop.ndbScanOp, buffer);
   }
 
   /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
@@ -610,7 +589,7 @@ function getScanResults(scanop, userCallback) {
     while(status === 0 && results.length < maxRow) {
       udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
-      status = scanop.ndbop.nextResult(buffer);
+      status = scanop.ndbScanOp.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
       }
@@ -641,18 +620,22 @@ function getScanResults(scanop, userCallback) {
 }
 
 
-function buildOperationResult(transactionHandler, op, execMode) {
+function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
   udebug.log("buildOperationResult");
-  var op_ndb_error, result_code;
-  
-  if(! op.ndbop) {
+  var result_code;
+
+  /* TRUE from getOperationError() means "NdbOperation is null"  */
+  if(op_ndb_error === true) {
     op.result.success = false;
     op.result.error = new IndirectError(transactionHandler.error);
     return;
   }
-  
-  op_ndb_error = op.ndbop.getNdbError();
-  result_code = op_ndb_error.code;
+  else if(op_ndb_error === null) {   // NULL means "No Error"
+    result_code = 0;
+  }
+  else {
+    result_code = op_ndb_error.code;
+  }
 
   if(execMode !== ROLLBACK) {
     /* Error Handling */
@@ -698,16 +681,23 @@ function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log_detail("buildOperationResult finished:", op.result);
 }
 
-function completeExecutedOps(dbTxHandler, execMode, operationsList) {
-  udebug.log("completeExecutedOps mode:", execMode, 
-             "operations: ", operationsList.length);
-  var op;
-  while(op = operationsList.shift()) {
-    assert(op.state === "PREPARED");
+function completeExecutedOps(dbTxHandler, execMode, operations) {
+  /* operations is an object: 
+     {
+        "operationList"       : operationList,
+        "pendingOperationSet" : pendingOpsSet
+      };
+  */
+  udebug.log("completeExecutedOps mode:", execMode,
+             "operations: ", operations.operationList.length);
+  var n, op, op_err;
+  for(n = 0 ; n < operations.operationList.length ; n++) {
+    op = operations.operationList[n];
 
     if(! op.isScanOperation()) {
+      op_err = operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
-      buildOperationResult(dbTxHandler, op, execMode);
+      buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
     }
 
