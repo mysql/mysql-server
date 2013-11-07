@@ -221,48 +221,14 @@ private:
 	mutable ulint	m_fold;
 
 public:
-#if 0
-	page_id_t(
-		ulint	space,
-		ulint	page_no,
-		ulint	zip_sz)
-		:
-		m_space (space),
-		m_page_no (page_no),
-		m_fold (ULINT_UNDEFINED),
-		m_page_size (
-			zip_sz <= PAGE_ZIP_SSIZE_MAX
-			? (zip_sz != 0
-			   ? (UNIV_ZIP_SIZE_MIN >> 1) << zip_sz
-			   : UNIV_PAGE_SIZE)
-			: zip_sz),
-		m_is_compressed (zip_sz != 0)
-	{
-		ut_ad(ut_is_2pow(m_page_size)
-		      || m_page_size == ULINT_UNDEFINED);
-	}
-#endif
 
 	page_id_t(ulint space, ulint page_no)
 		:
 		m_space(space),
 		m_page_no(page_no),
-		m_fold(ULINT_UNDEFINED)/*,
-		m_page_size(page_size_t(0, false))
-		*/
+		m_fold(ULINT_UNDEFINED)
 	{
 	}
-
-#if 0
-	page_id_t(ulint space, ulint page_no, const page_size_t& page_size)
-		:
-		m_space(space),
-		m_page_no(page_no),
-		m_fold(ULINT_UNDEFINED),
-		m_page_size(page_size)
-	{
-	}
-#endif
 
 	inline ib_uint32_t space() const
 	{
