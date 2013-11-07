@@ -6138,7 +6138,8 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
 CHARSET_INFO my_charset_utf8_bin=
 {
     83,0,0,             /* number       */
-    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE, /* state  */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_STRNXFRM|
+    MY_CS_UNICODE, /* state  */
     "utf8",             /* cs name      */
     "utf8_bin",         /* name         */
     "",                 /* comment      */
@@ -8561,7 +8562,8 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
 CHARSET_INFO my_charset_utf8mb4_bin=
 {
   46,0,0,             /* number       */
-  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT, /* state  */
+  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_STRNXFRM|
+  MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT, /* state  */
   MY_UTF8MB4,         /* cs name      */
   MY_UTF8MB4_BIN,     /* name         */
   "UTF-8 Unicode",    /* comment      */
