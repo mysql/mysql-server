@@ -914,6 +914,88 @@ ORDER BY cc	{
             } /* join_optimization */
           },
           {
+            "join_preparation": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_optimization": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "``.``",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "``.``",
+                      "table_scan": {
+                        "rows": 0,
+                        "cost": 10
+                      } /* table_scan */
+                    }
+                  ] /* rows_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ] /* plan_prefix */,
+                      "table": "``.``",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 0,
+                            "cost": 10,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 10,
+                      "rows_for_plan": 0,
+                      "chosen": true
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "table": "``.``",
+                        "attached": null
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "``.``",
+                      "access_type": "table_scan"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
             "table_dependencies": [
               {
                 "table": " `tt`",
@@ -1063,88 +1145,6 @@ ORDER BY cc	{
             } /* join_execution */
           },
           {
-            "join_preparation": {
-              "select#": "fake",
-              "steps": [
-                {
-                  "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_optimization": {
-              "select#": "fake",
-              "steps": [
-                {
-                  "table_dependencies": [
-                    {
-                      "table": "``.``",
-                      "row_may_be_null": false,
-                      "map_bit": 0,
-                      "depends_on_map_bits": [
-                      ] /* depends_on_map_bits */
-                    }
-                  ] /* table_dependencies */
-                },
-                {
-                  "rows_estimation": [
-                    {
-                      "table": "``.``",
-                      "table_scan": {
-                        "rows": 132,
-                        "cost": 2
-                      } /* table_scan */
-                    }
-                  ] /* rows_estimation */
-                },
-                {
-                  "considered_execution_plans": [
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "``.``",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "scan",
-                            "rows": 132,
-                            "cost": 29.045,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 29.045,
-                      "rows_for_plan": 132,
-                      "chosen": true
-                    }
-                  ] /* considered_execution_plans */
-                },
-                {
-                  "attaching_conditions_to_tables": {
-                    "original_condition": null,
-                    "attached_conditions_computation": [
-                    ] /* attached_conditions_computation */,
-                    "attached_conditions_summary": [
-                      {
-                        "table": "``.``",
-                        "attached": null
-                      }
-                    ] /* attached_conditions_summary */
-                  } /* attaching_conditions_to_tables */
-                },
-                {
-                  "refine_plan": [
-                    {
-                      "table": "``.``",
-                      "access_type": "table_scan"
-                    }
-                  ] /* refine_plan */
-                }
-              ] /* steps */
-            } /* join_optimization */
-          },
-          {
             "join_execution": {
               "select#": "fake",
               "steps": [
@@ -1182,8 +1182,8 @@ ORDER BY cc	{
               "rows": 132,
               "examined_rows": 132,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 109482,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_buffer_size": 109488,
+              "sort_mode": "<sort_key, packed_additional_fields>"
             } /* filesort_summary */
           },
           {
@@ -1229,7 +1229,7 @@ ORDER BY cc	{
               "rows": 66,
               "examined_rows": 66,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 77140,
+              "sort_buffer_size": 77144,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
