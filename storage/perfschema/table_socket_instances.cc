@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ int table_socket_instances::rnd_pos(const void *pos)
 
 void table_socket_instances::make_row(PFS_socket *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_socket_class *safe_class;
 
   m_row_exists= false;
