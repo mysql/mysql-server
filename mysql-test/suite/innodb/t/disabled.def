@@ -10,4 +10,3 @@
 #
 ##############################################################################
 
-innodb_mysql    : Bug#17720294 2013-11-04 agopi Failing consistently after push for wl#6987
