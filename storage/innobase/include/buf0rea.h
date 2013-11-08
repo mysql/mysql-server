@@ -50,10 +50,11 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 
 ibool
-buf_read_page_async(
-/*================*/
+buf_read_page_background(
+/*=====================*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
+	ulint	offset, /*!< in: page number */
+	bool	sync);	/*!< in: true if synchronous aio is desired */
 /********************************************************************//**
 Applies a random read-ahead in buf_pool if there are at least a threshold
 value of accessed pages from the random read-ahead area. Does not read any
