@@ -131,6 +131,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 MODIFY COLUMN i INT NOT NULL;
 DROP TABLE t1;
-SET @@global.default_storage_engine = MyISAM;
-SET @@session.default_storage_engine = MyISAM;
+SET @@global.default_storage_engine = InnoDB;
+SET @@session.default_storage_engine = InnoDB;
 # 
