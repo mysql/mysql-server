@@ -70,6 +70,9 @@ struct srv_stats_t {
 	/** Number of physical writes to the log performed */
 	ulint_ctr_1_t		log_writes;
 
+	/** Amount of data padded for log write ahead */
+	ulint_ctr_1_t		log_padded;
+
 	/** Amount of data written to the log files in bytes */
 	lsn_ctr_1_t		os_log_written;
 
@@ -246,6 +249,7 @@ extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+extern ulong	srv_log_write_ahead_size;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
