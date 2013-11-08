@@ -6168,7 +6168,13 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
         // DBUG_PRINT("trans", ("starting transaction all "));
-        if ((error = txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level), thd))) {
+        uint32_t txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
+#if 50614 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+        if (thd_tx_is_read_only(thd)) {
+            txn_begin_flags |= DB_TXN_READ_ONLY;
+        }
+#endif
+        if ((error = txn_begin(db_env, NULL, &trx->all, txn_begin_flags, thd))) {
             trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
         }
@@ -6614,9 +6620,11 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
         create_info->row_type = get_row_type();
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
         if (create_info->row_type == ROW_TYPE_TOKU_ZLIB && THDVAR(ha_thd(), hide_default_row_format) != 0) {
             create_info->row_type = ROW_TYPE_DEFAULT;
         }
+#endif
     }
 }
 
