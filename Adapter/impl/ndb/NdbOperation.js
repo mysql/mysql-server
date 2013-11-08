@@ -230,7 +230,7 @@ HelperSpec.prototype.clear = function() {
   this[6] = null;  // value_obj
   this[7] = null;  // opcode
   this[8] = null;  // is_value_obj
-  this[9] = null;  // db_operation
+  this[9] = null;  // is_valid
 };
 
 var helperSpec = new HelperSpec();
@@ -359,7 +359,7 @@ DBOperation.prototype.buildOpHelper = function(helper) {
 
   helper[OpHelper.opcode]       = code;
   helper[OpHelper.is_value_obj] = isVOwrite;
-  helper[OpHelper.db_operation] = this;
+  helper[OpHelper.is_valid]     = this.error ? false : true;
 };
 
 
