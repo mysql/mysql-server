@@ -40,15 +40,12 @@ enum {
   HELPER_VALUE_OBJECT,
   HELPER_OPCODE,
   HELPER_IS_VO,
-  HELPER_DBOPERATION
+  HELPER_IS_VALID
 };
-
-Handle<String> K_error;
 
 const NdbOperation * DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
 const NdbOperation * DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
 const NdbOperation * buildNdbOperation(Operation &, int, NdbTransaction *);
-const NdbOperation * _Helper(Handle<Object>, NdbTransaction *);
 
 void setKeysInOp(Handle<Object> spec, Operation & op);
 
@@ -71,33 +68,28 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   PendingOperationSet * opList = new PendingOperationSet(length);
 
   for(int i = 0 ; i < length ; i++) {
-    const NdbOperation *op = _Helper(array->Get(i)->ToObject(), tx);
-    opList->setNdbOperation(i, op);
-  }
-  return PendingOperationSet_Wrapper(opList);
-}
+    Handle<Object> spec = array->Get(i)->ToObject();
 
+    int opcode  = spec->Get(HELPER_OPCODE)->Int32Value();
+    bool is_vo  = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
+    bool op_ok  = spec->Get(HELPER_IS_VALID)->ToBoolean()->Value();
 
-const NdbOperation *  _Helper(Handle<Object> spec, NdbTransaction *tx) {
-  Handle<Object> JS_DBOperation = spec->Get(HELPER_DBOPERATION)->ToObject();
+    const NdbOperation * op = NULL;
 
-  int opcode     = spec->Get(HELPER_OPCODE)->Int32Value();
-  bool is_vo     = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
-  bool op_ok     = JS_DBOperation->Get(K_error)->IsNull();
+    if(op_ok) {
+      op = is_vo ?
+        DBOperationHelper_VO(spec, opcode, tx):
+        DBOperationHelper_NonVO(spec, opcode, tx);
 
-  const NdbOperation * op = NULL;
-
-  if(op_ok) {
-    op = is_vo ?
-      DBOperationHelper_VO(spec, opcode, tx):
-      DBOperationHelper_NonVO(spec, opcode, tx);
-
-    if(! op) {
-      JS_DBOperation->Set(K_error, NdbError_Wrapper(tx->getNdbError()));
+      if(op)    opList->setNdbOperation(i, op);
+      else      opList->setError(i, tx->getNdbError());
+    }
+    else {
+      opList->setNdbOperation(i, NULL);
     }
   }
 
-  return op;
+  return PendingOperationSet_Wrapper(opList);
 }
 
 
@@ -238,8 +230,6 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
 
-  K_error    = Persistent<String>::New(String::NewSymbol("error"));
-
   Persistent<Object> OpHelper = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("OpHelper")), OpHelper);
   DEFINE_JS_INT(OpHelper, "row_buffer",   HELPER_ROW_BUFFER);
@@ -251,7 +241,7 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "value_obj",    HELPER_VALUE_OBJECT);
   DEFINE_JS_INT(OpHelper, "opcode",       HELPER_OPCODE);
   DEFINE_JS_INT(OpHelper, "is_value_obj", HELPER_IS_VO);
-  DEFINE_JS_INT(OpHelper, "db_operation", HELPER_DBOPERATION);
+  DEFINE_JS_INT(OpHelper, "is_valid",     HELPER_IS_VALID);
 
   Persistent<Object> LockModes = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("LockModes")), LockModes);

@@ -59,14 +59,13 @@ Handle<Value> getOperationError(const Arguments & args) {
   PendingOperationSet * set = unwrapPointer<PendingOperationSet *>(args.This());
   int n = args[0]->Int32Value();
 
-  const NdbOperation * op = set->getNdbOperation(n);
-  if(op == NULL) return True();
+  const NdbError * err = set->getOperationError(n);
 
-  const NdbError & err = op->getNdbError();
-  if(err.code == 0) return Null();
-
-  return NdbError_Wrapper(err);
+  if(err == 0) return True();
+  if(err->code == 0) return Null();
+  return scope.Close(NdbError_Wrapper(*err));
 }
+
 
 
 

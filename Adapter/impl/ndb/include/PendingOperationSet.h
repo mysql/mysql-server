@@ -28,26 +28,42 @@ public:
   PendingOperationSet(int size);
   ~PendingOperationSet();
   void setNdbOperation(int n, const NdbOperation *op);
-  const NdbOperation * getNdbOperation(int n);
+  void setError(int n, const NdbError &);
+  const NdbError * getOperationError(int n);
 
 private:
   int size;
   const NdbOperation ** const ops;
+  const NdbError ** const errors;
 };
 
 inline PendingOperationSet::PendingOperationSet(int _sz) :
-  size(_sz), ops(new const NdbOperation *[_sz]) {};
+  size(_sz),
+  ops(new const NdbOperation *[_sz]),
+  errors(new const NdbError *[_sz])                    {};
 
 inline PendingOperationSet::~PendingOperationSet() {
   delete[] ops;
+  delete[] errors;
 }
 
 inline void PendingOperationSet::setNdbOperation(int n, const NdbOperation *op) {
-  if(n < size) ops[n] = op;
+  if(n < size) {
+    ops[n] = op;
+    errors[n] = NULL;
+  }
 }
 
-inline const NdbOperation * PendingOperationSet::getNdbOperation(int n) {
-  return n < size ? ops[n] : NULL;
+inline void PendingOperationSet::setError(int n, const NdbError & err) {
+  if(n < size) {
+    errors[n] = & err;
+    ops[n] = NULL;
+  }
+}
+
+inline const NdbError * PendingOperationSet::getOperationError(int n) {
+  assert(n < size);
+  return (ops[n] ? & ops[n]->getNdbError() : errors[n]);
 }
 
 #endif
