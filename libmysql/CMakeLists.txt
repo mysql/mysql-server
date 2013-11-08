@@ -339,6 +339,7 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 # to run if not all of these symbols are exported by the library.
 #
 ADD_EXECUTABLE(libmysql_api_test ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(DISABLE_SHARED)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})

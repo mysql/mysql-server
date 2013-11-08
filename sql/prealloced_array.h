@@ -64,8 +64,8 @@ class Prealloced_array
   }
 public:
   explicit Prealloced_array(PSI_memory_key psi_key)
-    : m_psi_key(psi_key),
-      m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
@@ -75,8 +75,8 @@ public:
     An object instance "owns" its array, so we do deep copy here.
    */
   Prealloced_array(const Prealloced_array &that)
-    : m_psi_key(that.m_psi_key),
-      m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(that.m_psi_key)
   {
     if (this->reserve(that.capacity()))
       return;
@@ -235,11 +235,12 @@ public:
   }
 
 private:
-  PSI_memory_key m_psi_key;
   size_t         m_size;
   size_t         m_capacity;
+  // This buffer must be properly aligned. Two size_t above should ensure it.
   char           m_buff[Prealloc * sizeof(Element_type)];
   Element_type  *m_array_ptr;
+  PSI_memory_key m_psi_key;
 
   // Not (yet) implemented.
   Prealloced_array &operator=(const Prealloced_array&);
