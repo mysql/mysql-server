@@ -382,6 +382,9 @@ log_group_write_buf(
 	byte*		buf,		/*!< in: buffer */
 	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
+#ifdef UNIV_DEBUG
+	ulint		pad_len,	/*!< in: pad len in the buffer len */
+#endif /* UNIV_DEBUG */
 	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
