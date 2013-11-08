@@ -14,6 +14,8 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
+# Rebuild on OL5/RHEL5 needs following rpmbuild options:
+#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -39,9 +41,17 @@
 %global libmysqld_so_long     0.0.1
 
 # Version for compat libs
+%if 0%{?rhel} == 5
+%global compatver             5.0.96
+%global compatlib             15
+%global compatsrc             http://downloads.mysql.com/archives/mysql-5.0/mysql-%{compatver}.tar.gz
+%else
 %global compatver             5.1.72
+%global compatlib             16
+%global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
+%endif
 
-%global src_dir               %{src_base}-%{version}
+%global src_dir               %{src_base}-@VERSION@
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -78,7 +88,7 @@ Source3:        mysql.conf
 Source4:        my_config.h
 Source5:        mysql_config.sh
 Source6:        mysql-embedded-check.c
-Source7:        https://cdn.mysql.com/Downloads/MySQL-5.5/mysql-%{compatver}.tar.gz
+Source7:        %{compatsrc}
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.6.14-mysql-install.patch
@@ -324,26 +334,36 @@ fi
 # Build compat libs
 (
 export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
-export CXXFLAGS="$CFLAGS -felide-constructors -fno-rtti -fno-exceptions"
+export CXXFLAGS="$CFLAGS %{?el6:-felide-constructors} -fno-rtti -fno-exceptions"
 pushd mysql-%{compatver}
 %configure \
     --with-readline \
-    --with-ssl=%{_prefix} \
     --without-debug \
     --enable-shared \
-    --with-embedded-server \
     --localstatedir=/var/lib/mysql \
     --with-unix-socket-path=/var/lib/mysql/mysql.sock \
     --with-mysqld-user="mysql" \
     --with-extra-charsets=all \
+    --enable-local-infile \
+    --enable-largefile \
+    --enable-thread-safe-client \
+%if 0%{?rhel} == 6
+    --with-ssl=%{_prefix} \
+    --with-embedded-server \
     --with-big-tables \
     --with-pic \
     --with-plugin-innobase \
     --with-plugin-innodb_plugin \
     --with-plugin-partition \
-    --enable-local-infile \
-    --enable-largefile \
-    --enable-thread-safe-client \
+%else
+    --with-openssl \
+    --with-bench \
+     -with-innodb \
+    --with-berkeley-db \
+    --enable-community-features \
+    --enable-profiling \
+    --with-named-thread-libs="-lpthread" \
+%endif
     --disable-dependency-tracking
 make %{?_smp_mflags}
 popd
@@ -718,10 +738,10 @@ fi
 %defattr(-, root, root, -)
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.16
-%{_libdir}/mysql/libmysqlclient.so.16.0.0
-%{_libdir}/mysql/libmysqlclient_r.so.16
-%{_libdir}/mysql/libmysqlclient_r.so.16.0.0
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.0.0
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.0.0
 
 %files test
 %defattr(-, root, root, -)
@@ -748,6 +768,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Fri Nov 08 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-2
+- Add el5 build option
+
 * Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
 - Fixed uln advanced rpm libyassl.a error
 - Updated to 5.6.15
@@ -887,7 +910,7 @@ fi
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
-- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+- Replace "/var/lib/mysql" by the spec file variable "%%{mysqldatadir}".
 
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
@@ -1147,7 +1170,7 @@ fi
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}",
+- Call "make install" using "benchdir_root=%%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
@@ -1243,7 +1266,7 @@ fi
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
 - Compile MySQL with bundled zlib
-- Fixed %packager name to "MySQL Production Engineering Team"
+- Fixed %%packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
@@ -1274,7 +1297,7 @@ fi
 - Give mode arguments the same way in all places
 lenz@mysql.com>
 
-- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+- fixed the removing of the RPM_BUILD_ROOT in the %%clean section (the
   $RBR variable did not get expanded, thus leaving old build roots behind)
 
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>
