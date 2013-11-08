@@ -1,7 +1,3 @@
-#Start server with MyISAM
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # WL#6219: Deprecate and remove YEAR(2) type
 #
