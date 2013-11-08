@@ -263,6 +263,24 @@ String *Item::val_str_ascii(String *str)
 }
 
 
+String *Item::val_str(String *str, String *converter, CHARSET_INFO *cs)
+{
+  String *res= val_str(str);
+  if (null_value)
+    return (String *) 0;
+
+  if (!cs)
+    return res;
+
+  uint errors;
+  if ((null_value= converter->copy(res->ptr(), res->length(),
+                                   collation.collation, cs,  &errors)))
+    return (String *) 0;
+
+  return converter;
+}
+
+
 String *Item::val_string_from_real(String *str)
 {
   double nr= val_real();

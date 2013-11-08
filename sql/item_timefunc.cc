@@ -3096,13 +3096,25 @@ get_date_time_result_type(const char *format, uint length)
 
 void Item_func_str_to_date::fix_length_and_dec()
 {
+  if (agg_arg_charsets(collation, args, 2, MY_COLL_ALLOW_CONV, 1))
+    return;
+  if (collation.collation->mbminlen > 1)
+  {
+#if MYSQL_VERSION_ID > 50500
+    internal_charset= &my_charset_utf8mb4_general_ci;
+#else
+    internal_charset= &my_charset_utf8_general_ci;
+#endif
+  }
+
   cached_field_type= MYSQL_TYPE_DATETIME;
   decimals= NOT_FIXED_DEC;
   if ((const_item= args[1]->const_item()))
   {
     char format_buff[64];
     String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
-    String *format= args[1]->val_str(&format_str);
+    String *format= args[1]->val_str(&format_str, &format_converter,
+                                     internal_charset);
     decimals= 0;
     if (!args[1]->null_value)
     {
@@ -3140,8 +3152,8 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin),
     *format;
 
-  val=    args[0]->val_str(&val_string);
-  format= args[1]->val_str(&format_str);
+  val=    args[0]->val_str(&val_string, &subject_converter, internal_charset);
+  format= args[1]->val_str(&format_str, &format_converter, internal_charset);
   if (args[0]->null_value || args[1]->null_value)
     return (null_value=1);
 
