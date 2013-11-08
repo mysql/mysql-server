@@ -13991,11 +13991,8 @@ int Transaction_context_log_event::get_data_size()
 
   int size= POST_HEADER_LENGTH;
   size += strlen(server_uuid);
-
-  for (std::list<const char*>::iterator it=write_set.begin();
-       it != write_set.end();
-       ++it)
-    size += ENCODED_READ_WRITE_SET_ITEM_LEN + strlen(*it);
+  size += get_data_set_size(&write_set);
+  size += get_data_set_size(&read_set);
 
   DBUG_RETURN(size);
 }
@@ -14072,6 +14069,19 @@ char *Transaction_context_log_event::read_data_set(char *pos,
   }
 
   DBUG_RETURN(pos);
+}
+
+int Transaction_context_log_event::get_data_set_size(std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::get_data_set_size");
+  int size= 0;
+
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+    size += ENCODED_READ_WRITE_SET_ITEM_LEN + strlen(*it);
+
+  DBUG_RETURN(size);
 }
 
 void Transaction_context_log_event::add_write_set(const char *hash)

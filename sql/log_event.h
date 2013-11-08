@@ -5203,9 +5203,11 @@ private:
   bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
 #endif
 
-  char *read_data_set(char *pos, uint16 set_len, std::list<const char*> *set);
+  static char *read_data_set(char *pos, uint16 set_len, std::list<const char*> *set);
 
-  void clear_set(std::list<const char*> *set);
+  static int get_data_set_size(std::list<const char*> *set);
+
+  static void clear_set(std::list<const char*> *set);
 
 public:
   static const int POST_HEADER_LENGTH= 21;
