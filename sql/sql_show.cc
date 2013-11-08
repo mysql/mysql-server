@@ -2280,19 +2280,20 @@ void remove_status_vars(SHOW_VAR *list)
 
     for (; list->name; list++)
     {
-      int res= 0, a= 0, b= all_status_vars.elements, c= (a+b)/2;
-      for (; b-a > 0; c= (a+b)/2)
+      int first= 0, last= ((int) all_status_vars.elements) - 1;
+      for ( ; first <= last; )
       {
-        res= show_var_cmp(list, all+c);
-        if (res < 0)
-          b= c;
+        int res, middle= (first + last) / 2;
+        if ((res= show_var_cmp(list, all + middle)) < 0)
+          last= middle - 1;
         else if (res > 0)
-          a= c;
+          first= middle + 1;
         else
+        {
+          all[middle].type= SHOW_UNDEF;
           break;
+        }
       }
-      if (res == 0)
-        all[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
     pthread_mutex_unlock(&LOCK_status);
