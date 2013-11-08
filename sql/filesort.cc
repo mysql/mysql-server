@@ -276,8 +276,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
 
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows= table->file->estimate_rows_upper_bound();
-  if (num_rows < MERGEBUFF2)
-    num_rows= HA_POS_ERROR;
 
   if (multi_byte_charset &&
       !(param.tmp_buffer= (char*) my_malloc(key_memory_Sort_param_tmp_buffer,
@@ -341,7 +339,8 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
     while (memory_available >= min_sort_memory)
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
-      param.max_keys_per_buffer= (uint) min(num_rows, keys);
+      // If the table is empty, allocate space for one row.
+      param.max_keys_per_buffer= (uint) min(num_rows > 0 ? num_rows : 1, keys);
       if (table_sort.sort_buffer_size() > 0)
       {
         // If we have already allocated a buffer, it better have same size!
