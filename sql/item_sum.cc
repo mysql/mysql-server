@@ -3216,10 +3216,11 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  const size_t order_array_sz= ALIGN_SIZE(sizeof(ORDER *) * arg_count_order);
+  if (!(order= (ORDER **) thd->alloc(order_array_sz +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  tmp= (ORDER *)((uchar*)order + order_array_sz);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     /*

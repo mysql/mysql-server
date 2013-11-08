@@ -187,9 +187,9 @@ using std::vector;
 #include <sys/mman.h>
 #if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
     && defined(_XOPEN_SOURCE)
-extern int getpagesizes(size_t *, int);
-extern int getpagesizes2(size_t *, int);
-extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
+extern "C" int getpagesizes(size_t *, int);
+extern "C" int getpagesizes2(size_t *, int);
+extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
