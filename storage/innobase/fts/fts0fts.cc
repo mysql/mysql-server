@@ -1608,7 +1608,8 @@ fts_rename_aux_tables(
 				new_name, old_table_name, trx);
 
 			DBUG_EXECUTE_IF("fts_rename_failure",
-					err = DB_DEADLOCK;);
+					err = DB_DEADLOCK;
+					fts_sql_rollback(trx););
 
 			mem_free(old_table_name);
 
