@@ -10,7 +10,8 @@ shutdown=1
 install=1
 startup=1
 s3bucket=tokutek-mysql-build
-builtins="mysqlbuild shutdown install startup s3bucket"
+sleeptime=60
+builtins="mysqlbuild shutdown install startup s3bucket sleeptime"
 mysqld_args="--user=mysql --core-file --core-file-size=unlimited"
 defaultsfile=""
 if [ -f /etc/$(whoami).my.cnf ] ; then
@@ -50,7 +51,7 @@ if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     system=${BASH_REMATCH[3]}
     arch=${BASH_REMATCH[4]}
 else
-    exit 1
+    echo $muysqlbuild is not a tokudb build
 fi
 mysqltarball=$mysqlbuild.tar.gz
 
@@ -79,6 +80,12 @@ if [ $? -ne 0 ] ; then
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
 
+# set ldpath
+ldpath=""
+if [ -d /usr/local/gcc-4.7/lib64 ] ; then
+    ldpath="export LD_LIBRARY_PATH=/usr/local/gcc-4.7/lib64:\$LD_LIBRARY_PATH;"
+fi
+
 # shutdown mysql
 if [ $shutdown -ne 0 ] ; then
     if [ -x /etc/init.d/mysql ] ; then
@@ -86,7 +93,7 @@ if [ $shutdown -ne 0 ] ; then
     else
         /usr/local/mysql/bin/mysqladmin shutdown
     fi
-    sleep 60
+    sleep $sleeptime
 fi
 
 pushd /usr/local
@@ -112,6 +119,9 @@ if [ ! -d $mysqlbuild ] || [ $install -ne 0 ] ; then
     tar xzf $basedir/$mysqltarball
     if [ $? -ne 0 ] ; then exit 1; fi
     ln -s $mysqldir /usr/local/mysql
+    if [ $? -ne 0 ] ; then exit 1; fi
+    ln -s $mysqldir /usr/local/$mysqlbuild
+    if [ $? -ne 0 ] ; then exit 1; fi
 
     installdb=$mysqlbuild/bin/mysql_install_db
     if [ ! -f $installdb ] ; then
@@ -126,16 +136,18 @@ if [ ! -d $mysqlbuild ] || [ $install -ne 0 ] ; then
 	ln $mysqlbuild/bin/mysqld-debug $mysqlbuild/bin/mysqld
     fi
 
-    if [ -z "$defaultsfile" ] ; then
-        sudo $installdb --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data
+    if [ -z "$defaultsfile" ] ; then 
+        default_arg=""
     else
-        sudo $installdb --defaults-file=$defaultsfile --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data
+        default_arg="--defaults-file=$defaultsfile"
     fi
+    sudo bash -c "$ldpath $installdb $default_arg --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data"
     if [ $? -ne 0 ] ; then exit 1; fi
-    
 else
     # create link
     ln -s $mysqldir /usr/local/mysql
+    if [ $? -ne 0 ] ; then exit 1; fi
+    ln -s $mysqldir /usr/local/$mysqlbuild
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
 popd
@@ -151,9 +163,14 @@ if [ $startup -ne 0 ] ; then
     if [ -x /etc/init.d/mysql ] ; then
         sudo setsid /etc/init.d/mysql start
     else
-        sudo -b /usr/local/mysql/bin/mysqld_safe $mysqld_args >/dev/null 2>&1 &
+        if [ -z "$defaultsfile" ] ; then
+            default_arg=""
+        else
+            default_arg="--defaults-file=$defaultsfile"
+        fi
+        sudo -b bash -c "$ldpath /usr/local/mysql/bin/mysqld_safe $default_arg $mysqld_args" >/dev/null 2>&1 &
     fi
-    sleep 60
+    sleep $sleeptime
 
     # add mysql grants
     /usr/local/mysql/bin/mysql -u root -e "grant all on *.* to tokubuild@localhost"
