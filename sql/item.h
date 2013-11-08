@@ -794,6 +794,10 @@ public:
   */
   virtual String *val_str(String *str)=0;
   /*
+    Returns the val_str() value converted to the given character set.
+  */
+  String *val_str(String *str, String *converter, CHARSET_INFO *to);
+  /*
     Return decimal representation of item with fixed point.
 
     SYNOPSIS
