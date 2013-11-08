@@ -143,10 +143,10 @@ protected:
   {}
 
   void clear_object_columns();
-  int make_table_object_columns(volatile PFS_events_waits *wait);
-  int make_file_object_columns(volatile PFS_events_waits *wait);
-  int make_socket_object_columns(volatile PFS_events_waits *wait);
-  int make_metadata_lock_object_columns(volatile PFS_events_waits *wait);
+  int make_table_object_columns(PFS_events_waits *wait);
+  int make_file_object_columns(PFS_events_waits *wait);
+  int make_socket_object_columns(PFS_events_waits *wait);
+  int make_metadata_lock_object_columns(PFS_events_waits *wait);
 
   void make_row(PFS_events_waits *wait);
 

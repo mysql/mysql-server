@@ -260,6 +260,7 @@ find_or_create_account(PFS_thread *thread,
   const uint retry_max= 3;
   uint index;
   uint attempts= 0;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_account**>
@@ -286,72 +287,69 @@ search:
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % account_max;
     pfs= account_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      if (username_length > 0)
+        pfs->m_username= &pfs->m_key.m_hash_key[0];
+      else
+        pfs->m_username= NULL;
+      pfs->m_username_length= username_length;
+
+      if (hostname_length > 0)
+        pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
+      else
+        pfs->m_hostname= NULL;
+      pfs->m_hostname_length= hostname_length;
+
+      pfs->m_user= find_or_create_user(thread, username, username_length);
+      pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
+
+      pfs->init_refcount();
+      pfs->reset_stats();
+      pfs->m_disconnected_count= 0;
+
+      if (username_length > 0 && hostname_length > 0)
       {
-        pfs->m_key= key;
-        if (username_length > 0)
-          pfs->m_username= &pfs->m_key.m_hash_key[0];
-        else
-          pfs->m_username= NULL;
-        pfs->m_username_length= username_length;
-
-        if (hostname_length > 0)
-          pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
-        else
-          pfs->m_hostname= NULL;
-        pfs->m_hostname_length= hostname_length;
-
-        pfs->m_user= find_or_create_user(thread, username, username_length);
-        pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
-
-        pfs->init_refcount();
-        pfs->reset_stats();
-        pfs->m_disconnected_count= 0;
-
-        if (username_length > 0 && hostname_length > 0)
-        {
-          lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
-                             & pfs->m_enabled);
-        }
-        else
-          pfs->m_enabled= true;
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&account_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          return pfs;
-        }
-
-        if (pfs->m_user)
-        {
-          pfs->m_user->release();
-          pfs->m_user= NULL;
-        }
-        if (pfs->m_host)
-        {
-          pfs->m_host->release();
-          pfs->m_host= NULL;
-        }
-
-        pfs->m_lock.allocated_to_free();
-
-        if (res > 0)
-        {
-          if (++retry_count > retry_max)
-          {
-            account_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        account_lost++;
-        return NULL;
+        lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
+                           & pfs->m_enabled);
       }
+      else
+        pfs->m_enabled= true;
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&account_hash, pins, &pfs);
+      if (likely(res == 0))
+      {
+        return pfs;
+      }
+
+      if (pfs->m_user)
+      {
+        pfs->m_user->release();
+        pfs->m_user= NULL;
+      }
+      if (pfs->m_host)
+      {
+        pfs->m_host->release();
+        pfs->m_host= NULL;
+      }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        if (++retry_count > retry_max)
+        {
+          account_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      account_lost++;
+      return NULL;
     }
   }
 

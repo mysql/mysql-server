@@ -95,7 +95,7 @@ table_accounts::table_accounts()
 
 void table_accounts::make_row(PFS_account *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
   pfs->m_lock.begin_optimistic_lock(&lock);

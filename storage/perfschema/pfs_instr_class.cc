@@ -69,12 +69,12 @@ static void init_instr_class(PFS_instr_class *klass,
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 mutex_class_dirty_count= 0;
-static volatile uint32 mutex_class_allocated_count= 0;
-static volatile uint32 rwlock_class_dirty_count= 0;
-static volatile uint32 rwlock_class_allocated_count= 0;
-static volatile uint32 cond_class_dirty_count= 0;
-static volatile uint32 cond_class_allocated_count= 0;
+static uint32 mutex_class_dirty_count= 0;
+static uint32 mutex_class_allocated_count= 0;
+static uint32 rwlock_class_dirty_count= 0;
+static uint32 rwlock_class_allocated_count= 0;
+static uint32 cond_class_dirty_count= 0;
+static uint32 cond_class_allocated_count= 0;
 
 /** Size of the mutex class array. @sa mutex_class_array */
 ulong mutex_class_max= 0;
@@ -134,8 +134,8 @@ PFS_cond_class *cond_class_array= NULL;
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 thread_class_dirty_count= 0;
-static volatile uint32 thread_class_allocated_count= 0;
+static uint32 thread_class_dirty_count= 0;
+static uint32 thread_class_allocated_count= 0;
 
 static PFS_thread_class *thread_class_array= NULL;
 
@@ -191,28 +191,28 @@ LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
 
-static volatile uint32 file_class_dirty_count= 0;
-static volatile uint32 file_class_allocated_count= 0;
+static uint32 file_class_dirty_count= 0;
+static uint32 file_class_allocated_count= 0;
 
 PFS_file_class *file_class_array= NULL;
 
-static volatile uint32 stage_class_dirty_count= 0;
-static volatile uint32 stage_class_allocated_count= 0;
+static uint32 stage_class_dirty_count= 0;
+static uint32 stage_class_allocated_count= 0;
 
 static PFS_stage_class *stage_class_array= NULL;
 
-static volatile uint32 statement_class_dirty_count= 0;
-static volatile uint32 statement_class_allocated_count= 0;
+static uint32 statement_class_dirty_count= 0;
+static uint32 statement_class_allocated_count= 0;
 
 static PFS_statement_class *statement_class_array= NULL;
 
-static volatile uint32 socket_class_dirty_count= 0;
-static volatile uint32 socket_class_allocated_count= 0;
+static uint32 socket_class_dirty_count= 0;
+static uint32 socket_class_allocated_count= 0;
 
 static PFS_socket_class *socket_class_array= NULL;
 
-static volatile uint32 memory_class_dirty_count= 0;
-static volatile uint32 memory_class_allocated_count= 0;
+static uint32 memory_class_dirty_count= 0;
+static uint32 memory_class_allocated_count= 0;
 
 static PFS_memory_class *memory_class_array= NULL;
 
@@ -1423,6 +1423,7 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1465,47 +1466,44 @@ search:
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
     pfs= table_share_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+      pfs->m_schema_name_length= schema_name_length;
+      pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+      pfs->m_table_name_length= table_name_length;
+      pfs->m_enabled= enabled;
+      pfs->m_timed= timed;
+      pfs->init_refcount();
+      pfs->m_table_stat.fast_reset();
+      set_keys(pfs, share);
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&table_share_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_key= key;
-        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-        pfs->m_schema_name_length= schema_name_length;
-        pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-        pfs->m_table_name_length= table_name_length;
-        pfs->m_enabled= enabled;
-        pfs->m_timed= timed;
-        pfs->init_refcount();
-        pfs->m_table_stat.fast_reset();
-        set_keys(pfs, share);
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&table_share_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          return pfs;
-        }
-
-        pfs->m_lock.allocated_to_free();
-
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            table_share_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        /* OOM in lf_hash_insert */
-        table_share_lost++;
-        return NULL;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        /* Duplicate insert by another thread */
+        if (++retry_count > retry_max)
+        {
+          /* Avoid infinite loops */
+          table_share_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      /* OOM in lf_hash_insert */
+      table_share_lost++;
+      return NULL;
     }
   }
 
