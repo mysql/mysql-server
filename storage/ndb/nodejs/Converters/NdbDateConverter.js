@@ -20,16 +20,16 @@
 
 
 
-var MySQLTime = require("./MySQLTime.js"),
+var MySQLTime = require(path.join(spi_dir,"common","MySQLTime.js")),
     unified_debug = require(path.join(api_dir, "unified_debug")),
     udebug = unified_debug.getLogger("NdbDateConverter.js");
 
 
 exports.toDB = function(jsdate) {
-  return new MySQLTime().initializeFromJsDateUTC(jsdate);
+  return new MySQLTime().initializeFromDateString(jsdate);
 };
 
 exports.fromDB = function(dbTime) {
-  return MySQLTime.initializeFromNdb(dbTime).toJsDateUTC();
+  return MySQLTime.initializeFromNdb(dbTime).toDateString();
 };
 

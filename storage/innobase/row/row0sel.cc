@@ -30,8 +30,6 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL
@@ -58,6 +56,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "ha_prototypes.h"
+#include "srv0mon.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -3240,55 +3240,78 @@ sel_restore_position_for_mysql(
 	mtr_t*		mtr)		/*!< in: mtr; CAUTION: may commit
 					mtr temporarily! */
 {
-	ibool	success;
-	ulint	relative_position;
-
-	relative_position = pcur->rel_pos;
+	ibool		success;
 
 	success = btr_pcur_restore_position(latch_mode, pcur, mtr);
 
 	*same_user_rec = success;
 
-	if (relative_position == BTR_PCUR_ON) {
-		if (success) {
-			return(FALSE);
-		}
-
-		if (moves_up) {
-			btr_pcur_move_to_next(pcur, mtr);
-		}
-
-		return(TRUE);
+	ut_ad(!success || pcur->rel_pos == BTR_PCUR_ON);
+#ifdef UNIV_DEBUG
+	if (pcur->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
+		ut_ad(pcur->rel_pos == BTR_PCUR_BEFORE
+		      || pcur->rel_pos == BTR_PCUR_AFTER);
+	} else {
+		ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+		ut_ad((pcur->rel_pos == BTR_PCUR_ON)
+		      == btr_pcur_is_on_user_rec(pcur));
 	}
+#endif
 
-	/* success can only be TRUE for BTR_PCUR_ON! */
-	ut_ad(!success);
+	/* The position may need be adjusted for rel_pos and moves_up. */
 
-	/* BTR_PCUR_BEFORE -> the position is now set to the record before
-	pcur->old_rec.
-	BTR_PCUR_AFTER-> positioned to record after pcur->old_rec. */
-
-	if (relative_position == BTR_PCUR_AFTER
-	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
-
-		if (moves_up) {
+	switch (pcur->rel_pos) {
+	case BTR_PCUR_ON:
+		if (!success && moves_up) {
+next:
+			btr_pcur_move_to_next(pcur, mtr);
 			return(TRUE);
 		}
-
-		if (btr_pcur_is_on_user_rec(pcur)) {
+		return(!success);
+	case BTR_PCUR_AFTER_LAST_IN_TREE:
+	case BTR_PCUR_BEFORE_FIRST_IN_TREE:
+		return(TRUE);
+	case BTR_PCUR_AFTER:
+		/* positioned to record after pcur->old_rec. */
+		pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+prev:
+		if (btr_pcur_is_on_user_rec(pcur) && !moves_up) {
 			btr_pcur_move_to_prev(pcur, mtr);
 		}
-
 		return(TRUE);
+	case BTR_PCUR_BEFORE:
+		/* For non optimistic restoration:
+		The position is now set to the record before pcur->old_rec.
+
+		For optimistic restoration:
+		The position also needs to take the previous search_mode into
+		consideration. */
+
+		switch (pcur->pos_state) {
+		case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
+			pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+			if (pcur->search_mode == PAGE_CUR_GE) {
+				/* Positioned during Greater or Equal search
+				with BTR_PCUR_BEFORE. Optimistic restore to
+				the same record. If scanning for lower then
+				we must move to previous record.
+				This can happen with:
+				HANDLER READ idx a = (const);
+				HANDLER READ idx PREV; */
+				goto prev;
+			}
+			return(TRUE);
+		case BTR_PCUR_IS_POSITIONED:
+			if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
+				goto next;
+			}
+			return(TRUE);
+		case BTR_PCUR_WAS_POSITIONED:
+		case BTR_PCUR_NOT_POSITIONED:
+			break;
+		}
 	}
-
-	ut_ad(relative_position == BTR_PCUR_BEFORE
-	      || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
-
-	if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
-		btr_pcur_move_to_next(pcur, mtr);
-	}
-
+	ut_ad(0);
 	return(TRUE);
 }
 
@@ -5278,25 +5301,40 @@ func_exit:
 	return(value);
 }
 
-/*******************************************************************//**
-Get the last row.
-@return current rec or NULL */
+/** Get the maximum and non-delete-marked record in an index.
+@param[in]	index	index tree
+@param[in,out]	mtr	mini-transaction (may be committed and restarted)
+@return maximum record, page s-latched in mtr
+@retval NULL if there are no records, or if all of them are delete-marked */
 static
 const rec_t*
-row_search_autoinc_get_rec(
-/*=======================*/
-	btr_pcur_t*	pcur,		/*!< in: the current cursor */
-	mtr_t*		mtr)		/*!< in: mini transaction */
+row_search_get_max_rec(
+	dict_index_t*	index,
+	mtr_t*		mtr)
 {
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	/* Open at the high/right end (false), and init cursor */
+	btr_pcur_open_at_index_side(
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, mtr);
+
 	do {
-		const rec_t* rec = btr_pcur_get_rec(pcur);
+		const page_t*	page;
+
+		page = btr_pcur_get_page(&pcur);
+		rec = page_find_rec_max_not_deleted(page);
 
 		if (page_rec_is_user_rec(rec)) {
-			return(rec);
+			break;
+		} else {
+			rec = NULL;
 		}
-	} while (btr_pcur_move_to_prev(pcur, mtr));
+		btr_pcur_move_before_first_on_page(&pcur);
+	} while (btr_pcur_move_to_prev(&pcur, mtr));
 
-	return(NULL);
+	btr_pcur_close(&pcur);
+
+	return(rec);
 }
 
 /*******************************************************************//**
@@ -5311,55 +5349,30 @@ row_search_max_autoinc(
 	const char*	col_name,	/*!< in: name of autoinc column */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
 {
-	ulint		i;
-	ulint		n_cols;
-	dict_field_t*	dfield = NULL;
+	dict_field_t*	dfield = dict_index_get_nth_field(index, 0);
 	dberr_t		error = DB_SUCCESS;
-
-	n_cols = dict_index_get_n_ordering_defined_by_user(index);
-
-	/* Search the index for the AUTOINC column name */
-	for (i = 0; i < n_cols; ++i) {
-		dfield = dict_index_get_nth_field(index, i);
-
-		if (strcmp(col_name, dfield->name) == 0) {
-			break;
-		}
-	}
-
 	*value = 0;
 
-	/* Must find the AUTOINC column name */
-	if (i < n_cols && dfield) {
+	if (strcmp(col_name, dfield->name) != 0) {
+		error = DB_RECORD_NOT_FOUND;
+	} else {
 		mtr_t		mtr;
-		btr_pcur_t	pcur;
+		const rec_t*	rec;
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (false), and init cursor */
-		btr_pcur_open_at_index_side(
-			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
+		rec = row_search_get_max_rec(index, &mtr);
 
-		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
-			const rec_t*	rec;
+		if (rec != NULL) {
+			ibool unsigned_type = (
+				dfield->col->prtype & DATA_UNSIGNED);
 
-			rec = row_search_autoinc_get_rec(&pcur, &mtr);
-
-			if (rec != NULL) {
-				ibool unsigned_type = (
-					dfield->col->prtype & DATA_UNSIGNED);
-
-				*value = row_search_autoinc_read_column(
-					index, rec, i,
-					dfield->col->mtype, unsigned_type);
-			}
+			*value = row_search_autoinc_read_column(
+				index, rec, 0,
+				dfield->col->mtype, unsigned_type);
 		}
 
-		btr_pcur_close(&pcur);
-
 		mtr_commit(&mtr);
-	} else {
-		error = DB_RECORD_NOT_FOUND;
 	}
 
 	return(error);

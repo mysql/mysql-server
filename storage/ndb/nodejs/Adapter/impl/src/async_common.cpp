@@ -49,12 +49,11 @@ void work_thd_run(uv_work_t *req) {
   m->handleErrors();
 }
 
-void main_thd_complete(uv_work_t *req) {
+
+void main_thd_complete_async_call(AsyncCall *m) {
   v8::HandleScope scope;
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-
-  AsyncCall *m = (AsyncCall *) req->data;
 
   m->doAsyncCallback(v8::Context::GetCurrent()->Global());
 
@@ -65,6 +64,12 @@ void main_thd_complete(uv_work_t *req) {
 
   /* cleanup */
   delete m;
+}
+
+
+void main_thd_complete(uv_work_t *req) {
+  AsyncCall *m = (AsyncCall *) req->data;
+  main_thd_complete_async_call(m);
   delete req;
 }
 

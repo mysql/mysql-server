@@ -2601,11 +2601,6 @@ private:
                             Operationrec* regOperPtr,
                             bool disk);
 
-  void executeTriggers(KeyReqStruct *req_struct,
-                       DLList<TupTriggerData>& triggerList,
-                       Operationrec* regOperPtr,
-                       bool disk);
-
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
@@ -2966,7 +2961,8 @@ private:
 //----------------------------------------------------------------------------
   
 // Public methods
-  void allocConsPages(Uint32 noOfPagesToAllocate,
+  void allocConsPages(EmulatedJamBuffer* jamBuf,
+                      Uint32 noOfPagesToAllocate,
                       Uint32& noOfPagesAllocated,
                       Uint32& allocPageRef);
   void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
@@ -2987,7 +2983,8 @@ private:
   Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(Uint32 * err, Fragrecord* regFragPtr);
+  Uint32 allocFragPage(EmulatedJamBuffer* jamBuf, Uint32 * err, 
+                       Fragrecord* regFragPtr);
   Uint32 allocFragPage(Uint32 * err, Tablerec*, Fragrecord*, Uint32 page_no);
   void releaseFragPage(Fragrecord* regFragPtr, Uint32 logicalPageId, PagePtr);
   void rebuild_page_free_list(Signal*);
@@ -3043,7 +3040,7 @@ private:
 
   void validate_page(Tablerec*, Var_page* page);
   
-  Uint32* alloc_fix_rec(Uint32 * err,
+  Uint32* alloc_fix_rec(EmulatedJamBuffer* jamBuf, Uint32* err,
                         Fragrecord*const, Tablerec*const, Local_key*,
                         Uint32*);
   void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
@@ -3277,7 +3274,8 @@ private:
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Disk_alloc_info&, Ptr<Page>, Int32 estimate);
-  void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>, Int32 delta);
+  void update_extent_pos(EmulatedJamBuffer* jamBuf, Disk_alloc_info&, 
+                         Ptr<Extent_info>, Int32 delta);
 
   void disk_page_move_page_request(Disk_alloc_info& alloc,
                                    Ptr<Extent_info>,
@@ -3299,9 +3297,11 @@ public:
   
   void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+  int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
+                                Uint32 tableId, Uint32 fragId, 
 				const Local_key* key, Uint32 pages);
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+  void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
+                              Uint32 tableId, Uint32 fragId,
 			      const Local_key*, Uint32 bits);
   void disk_restart_undo(Signal* signal, Uint64 lsn,
 			 Uint32 type, const Uint32 * ptr, Uint32 len);
@@ -3624,7 +3624,8 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
 class Dbtup_client
 {
   friend class DbtupProxy;
-  Uint32 m_block;
+  // jam buffer of caller block.
+  EmulatedJamBuffer* const m_jamBuf;
   class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
   Dbtup* m_dbtup;
   DEBUG_OUT_DEFINES(DBTUP);

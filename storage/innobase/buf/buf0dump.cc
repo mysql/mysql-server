@@ -462,7 +462,7 @@ buf_load()
 
 	/* If dump is larger than the buffer pool(s), then we ignore the
 	extra trailing. This could happen if a dump is made, then buffer
-	pool is shrunk and then load it attempted. */
+	pool is shrunk and then load is attempted. */
 	total_buffer_pools_pages = buf_pool_get_n_pages()
 		* srv_buf_pool_instances;
 	if (dump_n > total_buffer_pools_pages) {
@@ -543,8 +543,8 @@ buf_load()
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		buf_read_page_async(BUF_DUMP_SPACE(dump[i]),
-				    BUF_DUMP_PAGE(dump[i]));
+		buf_read_page_background(BUF_DUMP_SPACE(dump[i]),
+					 BUF_DUMP_PAGE(dump[i]), true);
 
 		if (i % 64 == 63) {
 			os_aio_simulated_wake_handler_threads();

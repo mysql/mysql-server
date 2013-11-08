@@ -3704,7 +3704,7 @@ static my_bool check_if_option_is_deprecated(int optid,
 {
   if (optid == -1)
   {
-    WARN_DEPRECATED(NULL, opt->name, (opt->name + strlen("plugin-")));
+    push_deprecated_warn(NULL, opt->name, (opt->name + strlen("plugin-")));
   }
   return 0;
 }

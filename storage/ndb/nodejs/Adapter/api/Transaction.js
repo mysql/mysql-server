@@ -23,7 +23,7 @@
 "use strict";
 
 var     udebug     = unified_debug.getLogger("Transaction.js");
-var userContext    = require('../impl/common/UserContext.js');
+var userContext    = require("./UserContext.js");
 
 /** Transaction is implemented as a state machine. 
  * States are:

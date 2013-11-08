@@ -929,10 +929,12 @@ void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
+  EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
-    jam();
+    thrjam(jamBuf);
     if (regTabPtr->fragid[i] == fragId) {
-      jam();
+      thrjam(jamBuf);
       regFragPtr.i= regTabPtr->fragrec[i];
       ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
       return;

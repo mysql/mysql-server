@@ -601,7 +601,7 @@ public:
   THD *thd;
   int read_keys_and_merge();
 
-  bool clustered_pk_range() { return test(pk_quick_select); }
+  bool clustered_pk_range() { return MY_TEST(pk_quick_select); }
 
   virtual bool is_valid()
   {
@@ -907,16 +907,24 @@ private:
 };
 
 
+/**
+  This class represents a single-table access method for a range scan
+  with all relevant cost information and the object quick is used for
+  data access. The function test_quick_select() runs the range
+  optimizer, chooses the best range scan access method, stores the
+  cost information for the chosen method and constructs a "quick
+  select" object that represents it.
+*/
 class SQL_SELECT :public Sql_alloc {
  public:
-  QUICK_SELECT_I *quick;	// If quick-select used
-  Item		*cond;		// where condition
-  Item		*icp_cond;	// conditions pushed to index
+  QUICK_SELECT_I *quick;	///< Non-NULL if quick-select used.
+  Item		*cond;		///< Where condition.
+  Item		*icp_cond;	///< Conditions pushed to index.
   TABLE	*head;
-  IO_CACHE file;		// Positions to used records
-  ha_rows records;		// Records in use if read from file
-  double read_time;		// Time to read rows
-  key_map needed_reg;		// Possible quick keys after prev tables.
+  IO_CACHE file;		///< Positions to used records.
+  ha_rows records;		///< Records in use if read from file.
+  double read_time;		///< Time to read rows.
+  key_map needed_reg;		///< Possible quick keys after prev tables.
   table_map const_tables,read_tables;
   bool	free_cond;
 

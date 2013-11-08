@@ -131,6 +131,11 @@ AsyncIoThread::run()
   NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
 
+  EmulatedJamBuffer jamBuffer;
+  jamBuffer.theEmulatedJamIndex = 0;
+  // This key is needed by jamNoBlock().
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &jamBuffer);
+
   while (1)
   {
     request = theMemoryChannelPtr->readChannel();

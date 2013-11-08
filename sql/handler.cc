@@ -38,6 +38,8 @@
 #include "probes_mysql.h"
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
@@ -1238,7 +1240,8 @@ void ha_close_connection(THD* thd)
     times per transaction.
 
 */
-void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
+void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
+                       const ulonglong *trxid)
 {
   THD_TRANS *trans;
   Ha_trx_info *ha_info;
@@ -1265,6 +1268,28 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 
   trans->no_2pc|=(ht_arg->prepare==0);
   thd->transaction.xid_state.set_query_id(thd->query_id);
+/*
+  Register transaction start in performance schema if not done already.
+  By doing this, we handle cases when the transaction is started implicitly in
+  autocommit=0 mode, and cases when we are in normal autocommit=1 mode and the
+  executed statement is a single-statement transaction.
+
+  Explicitly started transactions are handled in trans_begin().
+
+  Do not register transactions in which binary log is the only participating
+  transactional storage engine.
+*/
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi == NULL &&
+      ht_arg->db_type != DB_TYPE_BINLOG)
+  {
+    const XID *xid= thd->transaction.xid_state.get_xid();
+    my_bool autocommit= !thd->in_multi_stmt_transaction_mode();
+    thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                         xid, trxid, thd->tx_isolation,
+                                         thd->tx_read_only, autocommit);
+  }
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1460,6 +1485,12 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
+    DBUG_EXECUTE_IF("dbug.enabled_commit",
+                    {
+                      const char act[]= "now signal Reached wait_for signal.commit_continue";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     if (rw_trans && !ignore_global_read_lock)
     {
       /*
@@ -1506,6 +1537,18 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     error= 1;
     goto end;
   }
+/*
+  Mark multi-statement (any autocommit mode) or single-statement
+  (autocommit=1) transaction as rolled back
+*/
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (is_real_trans && thd->m_transaction_psi != NULL)
+  {
+    MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
+  
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
@@ -1692,6 +1735,17 @@ int ha_rollback_trans(THD *thd, bool all)
 
   if (tc_log)
     error= tc_log->rollback(thd, all);
+  /*
+    Mark multi-statement (any autocommit mode) or single-statement
+    (autocommit=1) transaction as rolled back
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (all || !thd->in_active_multi_stmt_transaction())
+  {
+    MYSQL_ROLLBACK_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
@@ -1813,6 +1867,12 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trans->ha_list= sv->ha_list;
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(thd->m_transaction_psi, 1);
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -1887,6 +1947,11 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
   */
   sv->ha_list= trans->ha_list;
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (!error && thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_SAVEPOINTS(thd->m_transaction_psi, 1);
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -1911,6 +1976,11 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
     }
   }
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+    MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(thd->m_transaction_psi, 1);
+#endif
   DBUG_RETURN(error);
 }
 
@@ -2486,6 +2556,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
@@ -2500,6 +2571,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last_map(buf, key, keypart_map); })
@@ -2521,6 +2593,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
@@ -2546,6 +2619,7 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next(buf); })
@@ -2571,6 +2645,7 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_prev(buf); })
@@ -2596,6 +2671,7 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_first(buf); })
@@ -2621,6 +2697,7 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_last(buf); })
@@ -2648,6 +2725,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next_same(buf, key, keylen); })
@@ -2677,6 +2755,7 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read(buf, key, key_len, find_flag); })
@@ -2704,6 +2783,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last(buf, key, key_len); })
@@ -5626,7 +5706,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
   DBUG_ENTER("handler::multi_range_read_init");
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
   mrr_funcs= *seq_funcs;
-  mrr_is_output_sorted= test(mode & HA_MRR_SORTED);
+  mrr_is_output_sorted= MY_TEST(mode & HA_MRR_SORTED);
   mrr_have_range= FALSE;
   DBUG_RETURN(0);
 }
@@ -5682,7 +5762,7 @@ scan_it_again:
                                  &mrr_cur_range.start_key : 0,
                                mrr_cur_range.end_key.keypart_map ?
                                  &mrr_cur_range.end_key : 0,
-                               test(mrr_cur_range.range_flag & EQ_RANGE),
+                               MY_TEST(mrr_cur_range.range_flag & EQ_RANGE),
                                mrr_is_output_sorted);
       if (result != HA_ERR_END_OF_FILE)
         break;
@@ -5779,7 +5859,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 
   rowids_buf= buf->buffer;
 
-  is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
+  is_mrr_assoc= !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
 
   if (is_mrr_assoc)
     table->in_use->status_var.ha_multi_range_read_init_count++;
@@ -6017,7 +6097,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
 
   if (res && res != HA_ERR_END_OF_FILE)
     DBUG_RETURN(res); 
-  dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
+  dsmrr_eof= MY_TEST(res == HA_ERR_END_OF_FILE);
 
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
@@ -6070,7 +6150,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     if (is_mrr_assoc)
       memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar*));
 
-    rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
+    rowids_buf_cur += h->ref_length + sizeof(void*) * MY_TEST(is_mrr_assoc);
     if (h2->mrr_funcs.skip_record &&
 	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
       continue;
@@ -6294,7 +6374,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   double index_read_cost;
 
   const uint elem_size= h->ref_length + 
-                        sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
+                        sizeof(void*) * (!MY_TEST(flags & HA_MRR_NO_ASSOCIATION));
   const ha_rows max_buff_entries= *buffer_size / elem_size;
 
   if (!max_buff_entries)
@@ -7023,25 +7103,20 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
 
-  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
-      MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
-      MYSQL_HANDLER_UNLOCK_START_ENABLED())
+  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() && lock_type == F_RDLCK)
   {
-    if (lock_type == F_RDLCK)
-    {
-      MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
-    else if (lock_type == F_WRLCK)
-    {
-      MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
-    else if (lock_type == F_UNLCK)
-    {
-      MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
+    MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
+  }
+  else if (MYSQL_HANDLER_WRLOCK_START_ENABLED() && lock_type == F_WRLCK)
+  {
+    MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
+  }
+  else if (MYSQL_HANDLER_UNLOCK_START_ENABLED() && lock_type == F_UNLCK)
+  {
+    MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
   }
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
@@ -7064,22 +7139,17 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     cached_table_flags= table_flags();
   }
 
-  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
-      MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||
-      MYSQL_HANDLER_UNLOCK_DONE_ENABLED())
+  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
   {
-    if (lock_type == F_RDLCK)
-    {
-      MYSQL_HANDLER_RDLOCK_DONE(error);
-    }
-    else if (lock_type == F_WRLCK)
-    {
-      MYSQL_HANDLER_WRLOCK_DONE(error);
-    }
-    else if (lock_type == F_UNLCK)
-    {
-      MYSQL_HANDLER_UNLOCK_DONE(error);
-    }
+    MYSQL_HANDLER_RDLOCK_DONE(error);
+  }
+  else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
+  {
+    MYSQL_HANDLER_WRLOCK_DONE(error);
+  }
+  else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
+  {
+    MYSQL_HANDLER_UNLOCK_DONE(error);
   }
   DBUG_RETURN(error);
 }

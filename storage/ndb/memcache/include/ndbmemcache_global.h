@@ -61,8 +61,7 @@ typedef enum {
   op_failed,
   op_bad_key,
   op_overflow,
-  op_async_prepared,
-  op_async_sent
+  op_prepared,
 } op_status_t;
 
 

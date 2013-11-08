@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -199,6 +199,7 @@ void GetTableCall::run() {
   if(ndb_table) {
     /* Ndb object used to create NdbRecords and to cache auto-increment values */
     per_table_ndb = new Ndb(& ndb->get_ndb_cluster_connection());
+    DEBUG_PRINT("per_table_ndb %s.%s %p\n", dbName, tableName, per_table_ndb);
     per_table_ndb->init();
 
     /* List the indexes */
@@ -254,7 +255,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   if(ndb_table && ! return_val) {
 
     Local<Object> table = NdbDictTableEnv.newWrapper();
-    wrapPointerInObject(ndb_table, NdbDictTableEnv, table);
+    const NdbDictionary::Table * js_ndb_table = ndb_table;
+    wrapPointerInObject(js_ndb_table, NdbDictTableEnv, table);
 
     // database
     table->Set(String::NewSymbol("database"), String::New(arg1));
@@ -626,14 +628,14 @@ Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
 Handle<Value> getRecordForMapping(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
-  NdbDictionary::Table *table = 
-    unwrapPointer<NdbDictionary::Table *>(args[0]->ToObject());
+  const NdbDictionary::Table *table = 
+    unwrapPointer<const NdbDictionary::Table *>(args[0]->ToObject());
   Ndb * ndb = unwrapPointer<Ndb *>(args[1]->ToObject());
   unsigned int nColumns = args[2]->Int32Value();
   Record * record = new Record(ndb->getDictionary(), nColumns);
   for(unsigned int i = 0 ; i < nColumns ; i++) {
-    NdbDictionary::Column * col = 
-      unwrapPointer<NdbDictionary::Column *>
+    const NdbDictionary::Column * col = 
+      unwrapPointer<const NdbDictionary::Column *>
         (args[3]->ToObject()->Get(i)->ToObject());
     record->addColumn(col);
   }

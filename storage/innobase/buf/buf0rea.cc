@@ -435,10 +435,11 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 
 ibool
-buf_read_page_async(
-/*================*/
+buf_read_page_background(
+/*=====================*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
+	ulint	offset,	/*!< in: page number */
+	bool	sync)	/*!< in: true if synchronous aio is desired */
 {
 	ulint		zip_size;
 	ib_int64_t	tablespace_version;
@@ -453,7 +454,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, sync, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,

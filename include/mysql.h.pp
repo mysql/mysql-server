@@ -11,7 +11,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID,
+  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
   COM_END
 };
 struct st_vio;
@@ -316,7 +316,8 @@ enum mysql_option
   MYSQL_OPT_CONNECT_ATTR_DELETE,
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+  MYSQL_OPT_SSL_ENFORCE
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -518,6 +519,8 @@ int mysql_options(MYSQL *mysql,enum mysql_option option,
           const void *arg);
 int mysql_options4(MYSQL *mysql,enum mysql_option option,
                                        const void *arg1, const void *arg2);
+int mysql_get_option(MYSQL *mysql, enum mysql_option option,
+                                         const void *arg);
 void mysql_free_result(MYSQL_RES *result);
 void mysql_data_seek(MYSQL_RES *result,
      my_ulonglong offset);
@@ -542,6 +545,7 @@ void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
 my_bool mysql_read_query_result(MYSQL *mysql);
+int mysql_reset_connection(MYSQL *mysql);
 enum enum_mysql_stmt_state
 {
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,

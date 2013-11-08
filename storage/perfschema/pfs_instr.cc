@@ -98,7 +98,7 @@ ulong events_statements_history_per_thread= 0;
 uint statement_stack_max= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
-/** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
+/** Number of statements lost. @sa STATEMENT_STACK_SIZE. */
 ulong statement_lost= 0;
 /** Size of connection attribute storage per thread */
 ulong session_connect_attrs_size_per_thread;
@@ -109,6 +109,8 @@ ulong metadata_lock_max;
 ulong metadata_lock_lost;
 /** True when @c metadata_lock_array is full. */
 bool metadata_lock_full;
+/** Number of EVENTS_TRANSACTIONS_HISTORY records per thread. */
+ulong events_transactions_history_per_thread= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -178,17 +180,23 @@ static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
 static uint thread_instr_class_waits_sizing= 0;
 static uint thread_instr_class_stages_sizing= 0;
 static uint thread_instr_class_statements_sizing= 0;
+static uint thread_instr_class_transactions_sizing= 0;
 static uint thread_instr_class_memory_sizing= 0;
 static PFS_single_stat *thread_instr_class_waits_array= NULL;
 static PFS_stage_stat *thread_instr_class_stages_array= NULL;
 static PFS_statement_stat *thread_instr_class_statements_array= NULL;
+static PFS_transaction_stat *thread_instr_class_transactions_array= NULL;
 static PFS_memory_stat *thread_instr_class_memory_array= NULL;
 
 static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
 static PFS_events_statements *thread_statements_history_array= NULL;
 static PFS_events_statements *thread_statements_stack_array= NULL;
+static PFS_events_transactions *thread_transactions_history_array= NULL;
 static char *thread_session_connect_attrs_array= NULL;
+
+PFS_single_stat *thread_instr_class_waits_array_start= NULL;
+PFS_single_stat *thread_instr_class_waits_array_end= NULL;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -206,6 +214,7 @@ int init_instruments(const PFS_global_param *param)
   uint thread_stages_history_sizing;
   uint thread_statements_history_sizing;
   uint thread_statements_stack_sizing;
+  uint thread_transactions_history_sizing;
   uint thread_session_connect_attrs_sizing;
   uint index;
 
@@ -258,11 +267,19 @@ int init_instruments(const PFS_global_param *param)
   statement_stack_max= param->m_statement_stack_sizing;
   thread_statements_stack_sizing= param->m_thread_sizing * statement_stack_max;
 
+  events_transactions_history_per_thread= param->m_events_transactions_history_sizing;
+  thread_transactions_history_sizing= param->m_thread_sizing
+    * events_transactions_history_per_thread;
+
   thread_instr_class_stages_sizing= param->m_thread_sizing
     * param->m_stage_class_sizing;
 
   thread_instr_class_statements_sizing= param->m_thread_sizing
     * param->m_statement_class_sizing;
+
+  /* Transaction class is global with fixed size, no m_transaction_sizing */
+  thread_instr_class_transactions_sizing= param->m_thread_sizing
+    * transaction_class_max;
 
   thread_instr_class_memory_sizing= param->m_thread_sizing
     * param->m_memory_class_sizing;
@@ -285,9 +302,11 @@ int init_instruments(const PFS_global_param *param)
   thread_stages_history_array= NULL;
   thread_statements_history_array= NULL;
   thread_statements_stack_array= NULL;
+  thread_transactions_history_array= NULL;
   thread_instr_class_waits_array= NULL;
   thread_instr_class_stages_array= NULL;
   thread_instr_class_statements_array= NULL;
+  thread_instr_class_transactions_array= NULL;
   thread_instr_class_memory_array= NULL;
   thread_internal_id_counter.m_u64= 0;
 
@@ -371,6 +390,9 @@ int init_instruments(const PFS_global_param *param)
     if (unlikely(thread_instr_class_waits_array == NULL))
       return 1;
 
+    thread_instr_class_waits_array_start= &thread_instr_class_waits_array[0];
+    thread_instr_class_waits_array_end= &thread_instr_class_waits_array[thread_instr_class_waits_sizing];
+
     for (index= 0; index < thread_instr_class_waits_sizing; index++)
       thread_instr_class_waits_array[index].reset();
   }
@@ -426,6 +448,27 @@ int init_instruments(const PFS_global_param *param)
       thread_instr_class_statements_array[index].reset();
   }
 
+  if (thread_transactions_history_sizing > 0)
+  {
+    thread_transactions_history_array=
+      PFS_MALLOC_ARRAY(thread_transactions_history_sizing, PFS_events_transactions,
+                       MYF(MY_ZEROFILL));
+    if (unlikely(thread_transactions_history_array == NULL))
+      return 1;
+  }
+
+  if (thread_instr_class_transactions_sizing > 0)
+  {
+    thread_instr_class_transactions_array=
+      PFS_MALLOC_ARRAY(thread_instr_class_transactions_sizing,
+                       PFS_transaction_stat, MYF(MY_ZEROFILL));
+    if (unlikely(thread_instr_class_transactions_array == NULL))
+      return 1;
+
+    for (index= 0; index < thread_instr_class_transactions_sizing; index++)
+      thread_instr_class_transactions_array[index].reset();
+  }
+
   if (thread_instr_class_memory_sizing > 0)
   {
     thread_instr_class_memory_array=
@@ -462,6 +505,10 @@ int init_instruments(const PFS_global_param *param)
       &thread_statements_stack_array[index * statement_stack_max];
     thread_array[index].m_instr_class_statements_stats=
       &thread_instr_class_statements_array[index * statement_class_max];
+    thread_array[index].m_transactions_history=
+      &thread_transactions_history_array[index * events_transactions_history_per_thread];
+    thread_array[index].m_instr_class_transactions_stats=
+      &thread_instr_class_transactions_array[index * transaction_class_max];
     thread_array[index].m_instr_class_memory_stats=
       &thread_instr_class_memory_array[index * memory_class_max];
     thread_array[index].m_session_connect_attrs=
@@ -545,6 +592,8 @@ void cleanup_instruments(void)
   thread_statements_history_array= NULL;
   pfs_free(thread_statements_stack_array);
   thread_statements_stack_array= NULL;
+  pfs_free(thread_transactions_history_array);
+  thread_transactions_history_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
   pfs_free(thread_instr_class_stages_array);
@@ -553,6 +602,8 @@ void cleanup_instruments(void)
   thread_instr_class_statements_array= NULL;
   pfs_free(thread_instr_class_memory_array);
   thread_instr_class_memory_array= NULL;
+  pfs_free(thread_instr_class_transactions_array);
+  thread_instr_class_transactions_array= NULL;
   pfs_free(global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
@@ -850,7 +901,7 @@ PFS_thread* PFS_thread::get_current_thread()
 void PFS_thread::reset_session_connect_attrs()
 {
   m_session_connect_attrs_length= 0;
-  m_session_connect_attrs_cs= NULL;
+  m_session_connect_attrs_cs_number= 0;
 
   if ((m_session_connect_attrs != NULL) &&
       (session_connect_attrs_size_per_thread > 0) )
@@ -953,6 +1004,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_stages_history_index= 0;
         pfs->m_statements_history_full= false;
         pfs->m_statements_history_index= 0;
+        pfs->m_transactions_history_full= false;
+        pfs->m_transactions_history_index= 0;
 
         pfs->reset_stats();
         pfs->reset_session_connect_attrs();
@@ -998,7 +1051,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         child_stage->m_nesting_event_id= 0;
 
         pfs->m_events_statements_count= 0;
-
+        pfs->m_transaction_current.m_event_id= 0;
+        
         pfs->m_lock.dirty_to_allocated();
         return pfs;
       }
@@ -1921,6 +1975,35 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   }
 }
 
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array_1,
+                                PFS_transaction_stat *to_array_2)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array_1 != NULL);
+  DBUG_ASSERT(to_array_2 != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array_1->aggregate(from_array);
+    to_array_2->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
                           PFS_memory_stat *to_array)
@@ -2019,6 +2102,10 @@ void aggregate_thread(PFS_thread *thread,
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  aggregate_thread_transactions(thread, safe_account, safe_user, safe_host);
 #endif
   }
 
@@ -2217,6 +2304,70 @@ void aggregate_thread_statements(PFS_thread *thread,
   */
   aggregate_all_statements(thread->m_instr_class_statements_stats,
                            global_instr_class_statements_array);
+}
+
+void aggregate_thread_transactions(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host)
+{
+  if (likely(safe_account != NULL))
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                          safe_account->m_instr_class_transactions_stats);
+
+    return;
+  }
+
+  if ((safe_user != NULL) && (safe_host != NULL))
+  {
+    /*
+      Aggregate EVENTS_TRANSACTION_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTION_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTION_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               &global_transaction_stat);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  /*
+    Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+    to EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME.
+  */
+  aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                             &global_transaction_stat);
 }
 
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
@@ -2506,7 +2657,7 @@ void update_instruments_derived_flags()
   update_table_derived_flags();
   update_socket_derived_flags();
   update_metadata_derived_flags();
-  /* nothing for stages and statements (no instances) */
+  /* nothing for stages, statements and transactions (no instances) */
 }
 
 /** @} */

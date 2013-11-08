@@ -256,6 +256,9 @@ public:
   void set_state(xa_states state)
   { xa_state= state; }
 
+  enum xa_states get_state()
+  { return xa_state; }
+
   bool has_state(xa_states state) const
   { return xa_state == state; }
 

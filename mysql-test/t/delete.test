@@ -136,6 +136,23 @@ delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 drop table t11, t12, t2;
 
+--echo # sql_safe_updates mode with multi-table DELETE
+
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES(10),(20);
+
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES(10),(20);
+
+SET SESSION sql_safe_updates=1;
+
+-- error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE t1 FROM t1 JOIN t2 WHERE t1.a = 10;
+
+SET SESSION sql_safe_updates=default;
+
+DROP TABLE t1, t2;
+
 #
 # Bug #4198: deletion and KEYREAD
 #

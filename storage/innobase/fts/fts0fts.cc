@@ -899,7 +899,7 @@ fts_drop_index(
 
 		current_doc_id = table->fts->cache->next_doc_id;
 		first_doc_id = table->fts->cache->first_doc_id;
-		fts_cache_clear(table->fts->cache, TRUE);
+		fts_cache_clear(table->fts->cache);
 		fts_cache_destroy(table->fts->cache);
 		table->fts->cache = fts_cache_create(table);
 		table->fts->cache->next_doc_id = current_doc_id;
@@ -1098,16 +1098,11 @@ fts_words_free(
 }
 
 /*********************************************************************//**
-Clear cache. If the shutdown flag is TRUE then the cache can contain
-data that needs to be freed. For regular clear as part of normal
-working we assume the caller has freed all resources. */
-
+Clear cache. */
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,		/*!< in: cache */
-	ibool		free_words)	/*!< in: TRUE if free in memory
-					word cache. */
+	fts_cache_t*	cache)		/*!< in: cache */
 {
 	ulint		i;
 
@@ -1118,11 +1113,7 @@ fts_cache_clear(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
-		if (free_words) {
-			fts_words_free(index_cache->words);
-		}
-
-		ut_a(rbt_empty(index_cache->words));
+		fts_words_free(index_cache->words);
 
 		rbt_free(index_cache->words);
 
@@ -1636,7 +1627,8 @@ fts_rename_aux_tables(
 				new_name, old_table_name, trx);
 
 			DBUG_EXECUTE_IF("fts_rename_failure",
-					err = DB_DEADLOCK;);
+					err = DB_DEADLOCK;
+					fts_sql_rollback(trx););
 
 			ut_free(old_table_name);
 
@@ -2842,7 +2834,7 @@ fts_update_sync_doc_id(
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"BEGIN "
-		"UPDATE %s SET value = :doc_id"
+		"UPDATE \"%s\" SET value = :doc_id"
 		" WHERE key = 'synced_doc_id';");
 
 	error = fts_eval_sql(trx, graph);
@@ -4246,7 +4238,7 @@ fts_is_word_in_index(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word = :word "
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
@@ -4388,10 +4380,8 @@ fts_sync_commit(
 	}
 
 	/* We need to do this within the deleted lock since fts_delete() can
-	attempt to add a deleted doc id to the cache deleted id array. Set
-	the shutdown flag to FALSE, signifying that we don't want to release
-	all resources. */
-	fts_cache_clear(cache, FALSE);
+	attempt to add a deleted doc id to the cache deleted id array. */
+	fts_cache_clear(cache);
 	fts_cache_init(cache);
 	rw_lock_x_unlock(&cache->lock);
 
@@ -5571,7 +5561,7 @@ fts_free(
 	ut_ad(!fts->add_wq);
 
 	if (fts->cache) {
-		fts_cache_clear(fts->cache, TRUE);
+		fts_cache_clear(fts->cache);
 		fts_cache_destroy(fts->cache);
 		fts->cache = NULL;
 	}
@@ -5974,6 +5964,9 @@ fts_savepoint_rollback(
 
 		/* Make sure we don't delete the implied savepoint. */
 		ut_a(ib_vector_size(savepoints) > 0);
+
+		/* Restore the savepoint. */
+		fts_savepoint_take(trx, trx->fts_trx, name);
 	}
 }
 

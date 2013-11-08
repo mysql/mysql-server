@@ -336,7 +336,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
         sum_req += alloc;
     doalloc:
 	Chunk chunk;
-	allocConsPages(alloc, chunk.pageCount, chunk.pageId);
+	allocConsPages(jamBuffer(), alloc, chunk.pageCount, chunk.pageId);
 	ndbrequire(chunk.pageCount <= alloc);
 	if(chunk.pageCount != 0){
 	  chunks.push_back(chunk);

@@ -67,6 +67,8 @@ struct st_mysql_options_extention {
   char *server_public_key_path;
   size_t connection_attributes_length;
   my_bool enable_cleartext_plugin;
+  /** false if it is possible to fall back on unencrypted connections */
+  my_bool ssl_enforce;
 };
 
 typedef struct st_mysql_methods
@@ -97,6 +99,7 @@ typedef struct st_mysql_methods
   const char *(*read_statistics)(MYSQL *mysql);
   my_bool (*next_result)(MYSQL *mysql);
   int (*read_rows_from_cursor)(MYSQL_STMT *stmt);
+  void (*free_rows)(MYSQL_DATA *cur);
 #endif
 } MYSQL_METHODS;
 

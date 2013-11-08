@@ -265,7 +265,7 @@ TableMapping.prototype.applyToClass = function(ctor) {
     throw new Error("applyToClass() parameter must be constructor");
   }
   
-  return this;
+  return ctor;
 };
 
 

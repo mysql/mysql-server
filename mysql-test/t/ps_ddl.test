@@ -686,7 +686,8 @@ execute stmt;
 call p_verify_reprepare_count(0);
 
 drop view t1;
-# Since the IS table has been substituted in, the statement still works
+# t1 still refers to the, now deleted, view - no reprepare has been done.
+--error ER_NO_SUCH_TABLE
 execute stmt;
 call p_verify_reprepare_count(0);
 

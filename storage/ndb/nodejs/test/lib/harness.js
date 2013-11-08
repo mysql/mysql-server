@@ -186,16 +186,35 @@ Test.prototype.run = function() {
   };
 };
 
+function getType(obj) {
+  var type = typeof(obj);
+  console.log(util.inspect(obj));
+  if (type === 'object') return obj.constructor.name;
+  return type;
+}
+
+function compare(o1, o2) {
+  if (o1 == o2) return true;
+  if (o1 == null && o2 == null) return true;
+  if (typeof(o1) === 'undefined' && typeof(o2) === 'undefined') return true;
+  if (o1.toString() === o2.toString()) return true;
+  return false;
+}
+
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
-	if (o1 != o2) {
-    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+	if (!compare(o1, o2)) {
+	  var o1type = getType(o1);
+	  var o2type = getType(o2);
+    message += ': expected (' + o1type + ') ' + o1 + '; actual (' + o2type + ') ' + o2 + '\n';
 		this.errorMessages += message;
 	}
 };
 
 Test.prototype.errorIfNotStrictEqual = function(message, o1, o2) {
   if(o1 !== o2) {
-    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+    var o1type = getType(o1);
+    var o2type = getType(o2);
+    message += ': expected (' + o1type + ') ' + o1 + '; actual (' + o2type + ') ' + o2 + '\n';
 		this.errorMessages += message;
 	}
 };
@@ -210,6 +229,13 @@ Test.prototype.errorIfTrue = function(message, o1) {
 Test.prototype.errorIfNotTrue = function(message, o1) {
   if (o1 !== true) {
     message += ': expected true; actual ' + o1 + '\n';
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfNotError = function(message, o1) {
+  if (!o1) {
+    message += ' did not occur.\n';
     this.errorMessages += message;
   }
 };
@@ -242,6 +268,10 @@ Test.prototype.errorIfUnset = function(message, value) {
     this.errorMessages += message;
   }
   return ! r;
+};
+
+Test.prototype.hasNoErrors = function() {
+  return this.errorMessages.length === 0;
 };
 
 /** Suite
@@ -558,14 +588,18 @@ Listener.prototype.fail = function(t, e) {
   var message = "";
   this.ended++;
   delete this.runningTests[t.fullName()];
-  if(e) {
-    message = e.toString();
+  if (e) {
+    if (typeof(e.stack) !== 'undefined') {
+      t.stack = e.stack;
+    }
     if (typeof(e.message) !== 'undefined') {
       message = e.message;
-    } 
+    } else {
+      message = e.toString();
+    }
   }
-  if ((this.printStackTraces) && typeof(e.stack) !== 'undefined') {
-    message = e.stack;
+  if ((this.printStackTraces) && typeof(t.stack) !== 'undefined') {
+    message = t.stack;
   }
 
   if(t.phase === 0) {
@@ -624,9 +658,7 @@ Result.prototype.pass = function(t) {
 };
 
 Result.prototype.fail = function(t, e) {
-  if(t.phase > 0) {  // i.e. not a SmokeTest
-    this.failed.push(t.name);
-  }
+  this.failed.push(t.name);
   this.listener.fail(t, e);
   this.driver.testCompleted(t);
 };
@@ -655,8 +687,9 @@ var runSQL = function(sqlPath, source, callback) {
     }
   }
 
-///work here
-  var cmd = 'cat ./' + global.engine + '.sql ' + sqlPath + ' | mysql';
+  // prepend the file containing the engine.sql (ndb.sql or innodb.sql) to the file containing the sql commands 
+  var enginesqlPath = path.join(suites_dir, global.engine + '.sql ');
+  var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
   
   var p = test_conn_properties;
   if(p) {

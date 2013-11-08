@@ -92,12 +92,11 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
   const int keyLen     = sig->getKeyLength(requestInfo);
   const int attrInThis = sig->getAIInTcKeyReq(requestInfo);
   const int attrLen = sig->getAttrinfoLen(sig->attrLen);
-  const int apiVer = sig->getAPIVersion(sig->attrLen);
   fprintf(output, 
 	  " keyLen: %d, attrLen: %d, AI in this: %d, tableId: %d, "
-	  "tableSchemaVer: %d, API Ver: %d\n",
+	  "tableSchemaVer: %d\n",
 	  keyLen, attrLen, attrInThis, 
-	  sig->tableId, sig->tableSchemaVersion, apiVer);
+	  sig->tableId, sig->tableSchemaVersion);
     
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n -- Variable Data --\n", 
 	  sig->transId1, sig->transId2);

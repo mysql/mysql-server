@@ -126,13 +126,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     available.
   */
   ha_rows distinct_keys_est= tab->records/MATCHING_ROWS_IN_OTHER_TABLE;
-  /*
-    Cost of ref access on current index. Calculated as follows:
-    cost_ref_for_one_value * prefix_rowcount
-  */
-  double cur_read_cost= DBL_MAX;
-  // Fanout for ref access using this index
-  double cur_fanout= DBL_MAX;
 
   // Test how we can use keys
   for (Key_use *keyuse= tab->keyuse; keyuse->table == table; )
@@ -141,6 +134,13 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     key_part_map found_part= 0;
     // Bitmap of keyparts where the ref access is over 'keypart=const'
     key_part_map const_part= 0;
+    /*
+      Cost of ref access on current index. Calculated as follows:
+      cost_ref_for_one_value * prefix_rowcount
+    */
+    double cur_read_cost;
+    // Fanout for ref access using this index
+    double cur_fanout;
     uint cur_used_keyparts= 0;  // number of used keyparts
     // tables 'ref' access on this index depends on
     table_map table_deps= 0;
@@ -232,13 +232,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       table_deps|= cur_keypart_table_deps;
     }
 
-    if (!found_part && !ft_key)
-    {
-      // Nothing usable found
-      trace_access_idx.add("usable", false).add("chosen", false);
-      continue;
-    }
-
     if (distinct_keys_est < MATCHING_ROWS_IN_OTHER_TABLE)
       // Fix for small tables
       distinct_keys_est= MATCHING_ROWS_IN_OTHER_TABLE;
@@ -246,7 +239,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     // fulltext indexes require special treatment
     if (!ft_key)
     {
-      *found_condition= test(found_part);
+      *found_condition|= MY_TEST(found_part);
 
       // Check if we found full key
       if (found_part == LOWER_BITS(key_part_map,
@@ -334,191 +327,205 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               prefix_rowcount *
               table->file->index_only_read_time(key, tmp_fanout);
           }
+          else if (key == table->s->primary_key &&
+                   table->file->primary_key_is_clustered())
+          {
+            cur_read_cost= prefix_rowcount *
+              table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+          }
           else
             cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
         }
       }
-      else
+      else if ((found_part & 1) &&
+               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
+                found_part == LOWER_BITS(key_part_map,
+                                         actual_key_parts(keyinfo))))
       {
         /*
           Use as many key-parts as possible and a uniqe key is better
           than a not unique key.
           Set cur_fanout to (previous record count) * (records / combination)
         */
-        if ((found_part & 1) &&
-            (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-             found_part == LOWER_BITS(key_part_map,
-                                      actual_key_parts(keyinfo))))
+
+        cur_used_keyparts= max_part_bit(found_part);
+        /*
+          ReuseRangeEstimateForRef-3:
+          We're now considering a ref[or_null] access via
+          (t.keypart1=e1 AND ... AND t.keypartK=eK) [ OR  
+          (same-as-above but with one cond replaced 
+          with "t.keypart_i IS NULL")]  (**)
+
+          Try re-using E(#rows) from "range" optimizer:
+          We can do so if "range" optimizer used the same intervals as
+          in (**). The intervals used by range optimizer may be not 
+          available at this point (as "range" access might have choosen to
+          create quick select over another index), so we can't compare
+          them to (**). We'll make indirect judgements instead.
+          The sufficient conditions for re-use are:
+          (C1) All e_i in (**) are constants, i.e. table_deps==FALSE. (if
+          this is not satisfied we have no way to know which ranges
+          will be actually scanned by 'ref' until we execute the
+          join)
+          (C2) max #key parts in 'range' access == K == max_key_part (this
+          is apparently a necessary requirement)
+
+          We also have a property that "range optimizer produces equal or
+          tighter set of scan intervals than ref(const) optimizer". Each
+          of the intervals in (**) are "tightest possible" intervals when
+          one limits itself to using keyparts 1..K (which we do in #2).
+
+          From here it follows that range access uses either one or
+          both of the (I1) and (I2) intervals:
+
+          (t.keypart1=c1 AND ... AND t.keypartK=eK)  (I1)
+          (same-as-above but with one cond replaced
+          with "t.keypart_i IS NULL")               (I2)
+
+          The remaining part is to exclude the situation where range
+          optimizer used one interval while we're considering
+          ref-or-null and looking for estimate for two intervals. This
+          is done by last limitation:
+
+          (C3) "range optimizer used (have ref_or_null?2:1) intervals"
+        */
+        double tmp_fanout= 0.0;
+        if (table->quick_keys.is_set(key) && !table_deps &&          //(C1)
+            table->quick_key_parts[key] == cur_used_keyparts &&      //(C2)
+            table->quick_n_ranges[key] == 1+MY_TEST(ref_or_null_part))  //(C3)
         {
-          cur_used_keyparts= max_part_bit(found_part);
+          tmp_fanout= cur_fanout= (double) table->quick_rows[key];
+        }
+        else
+        {
+          // Check if we have statistic about the distribution
+          if ((cur_fanout= keyinfo->rec_per_key[cur_used_keyparts-1]))
+          {
+            /*
+              Fix for the case where the index statistics is too
+              optimistic:
+              If
+              (1) We're considering ref(const) and there is quick select
+              on the same index,
+              (2) and that quick select uses more keyparts (i.e. it will
+              scan equal/smaller interval then this ref(const))
+              (3) and E(#rows) for quick select is higher then our
+              estimate,
+              Then use E(#rows) from quick select.
+
+              One observation is that when there are multiple
+              indexes with a common prefix (eg (b) and (b, c)) we
+              are not always selecting (b, c) even when this can
+              use more keyparts. Inaccuracies in statistics from
+              the storage engines can cause the record estimate
+              for the quick object for (b) to be lower than the
+              record estimate for the quick object for (b,c).
+
+              Q: Why do we choose to use 'ref'? Won't quick select be
+              cheaper in some cases ?
+              TODO: figure this out and adjust the plan choice if needed.
+            */
+            if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
+                table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
+                cur_fanout < (double)table->quick_rows[key])        // (3)
+              cur_fanout= (double)table->quick_rows[key];
+
+            tmp_fanout= cur_fanout;
+          }
+          else
+          {
+            /*
+              Assume that the first key part matches 1% of the file
+              and that the whole key matches 10 (duplicates) or 1
+              (unique) records.
+              Assume also that more key matches proportionally more
+              records
+              This gives the formula:
+              records = (x * (b-a) + a*c-b)/(c-1)
+
+              b = records matched by whole key
+              a = records matched by first key part (1% of all records?)
+              c = number of key parts in key
+              x = used key parts (1 <= x <= c)
+            */
+            double rec_per_key;
+            if (!(rec_per_key= (double)
+                  keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
+              rec_per_key= (double) tab->records/distinct_keys_est+1;
+
+            if (tab->records == 0)
+              tmp_fanout= 0;
+            else if (rec_per_key / (double) tab->records >= 0.01)
+              tmp_fanout= rec_per_key;
+            else
+            {
+              const double a= tab->records * 0.01;
+              if (keyinfo->user_defined_key_parts > 1)
+                tmp_fanout=
+                  (cur_used_keyparts * (rec_per_key - a) +
+                   a * keyinfo->user_defined_key_parts - rec_per_key) /
+                  (keyinfo->user_defined_key_parts - 1);
+              else
+                tmp_fanout= a;
+              set_if_bigger(tmp_fanout, 1.0);
+            }
+            cur_fanout= (ulong) tmp_fanout;
+          }
+
+          if (ref_or_null_part)
+          {
+            // We need to do two key searches to find key
+            tmp_fanout*= 2.0;
+            cur_fanout*= 2.0;
+          }
+
           /*
-            ReuseRangeEstimateForRef-3:
-            We're now considering a ref[or_null] access via
-            (t.keypart1=e1 AND ... AND t.keypartK=eK) [ OR  
-            (same-as-above but with one cond replaced 
-            with "t.keypart_i IS NULL")]  (**)
+            ReuseRangeEstimateForRef-4:  We get here if we could not reuse
+            E(#rows) from range optimizer. Make another try:
 
-            Try re-using E(#rows) from "range" optimizer:
-            We can do so if "range" optimizer used the same intervals as
-            in (**). The intervals used by range optimizer may be not 
-            available at this point (as "range" access might have choosen to
-            create quick select over another index), so we can't compare
-            them to (**). We'll make indirect judgements instead.
-            The sufficient conditions for re-use are:
-            (C1) All e_i in (**) are constants, i.e. table_deps==FALSE. (if
-            this is not satisfied we have no way to know which ranges
-            will be actually scanned by 'ref' until we execute the
-            join)
-            (C2) max #key parts in 'range' access == K == max_key_part (this
-            is apparently a necessary requirement)
+            If range optimizer produced E(#rows) for a prefix of the ref 
+            access we're considering, and that E(#rows) is lower then our
+            current estimate, make the adjustment.
 
-            We also have a property that "range optimizer produces equal or
-            tighter set of scan intervals than ref(const) optimizer". Each
-            of the intervals in (**) are "tightest possible" intervals when
-            one limits itself to using keyparts 1..K (which we do in #2).
-
-            From here it follows that range access uses either one or
-            both of the (I1) and (I2) intervals:
-
-            (t.keypart1=c1 AND ... AND t.keypartK=eK)  (I1)
-            (same-as-above but with one cond replaced
-            with "t.keypart_i IS NULL")               (I2)
-
-            The remaining part is to exclude the situation where range
-            optimizer used one interval while we're considering
-            ref-or-null and looking for estimate for two intervals. This
-            is done by last limitation:
-
-            (C3) "range optimizer used (have ref_or_null?2:1) intervals"
+            The decision whether we can re-use the estimate from the range
+            optimizer is the same as in ReuseRangeEstimateForRef-3,
+            applied to first table->quick_key_parts[key] key parts.
           */
-          double tmp_fanout= 0.0;
-          if (table->quick_keys.is_set(key) && !table_deps &&          //(C1)
-              table->quick_key_parts[key] == cur_used_keyparts &&      //(C2)
-              table->quick_n_ranges[key] == 1+test(ref_or_null_part))  //(C3)
+          if (table->quick_keys.is_set(key) &&
+              table->quick_key_parts[key] <= cur_used_keyparts &&
+              const_part &
+              ((key_part_map)1 << table->quick_key_parts[key]) &&
+              table->quick_n_ranges[key] == 1 + MY_TEST(ref_or_null_part &
+                                                     const_part) &&
+              cur_fanout > (double) table->quick_rows[key])
           {
             tmp_fanout= cur_fanout= (double) table->quick_rows[key];
           }
-          else
-          {
-            // Check if we have statistic about the distribution
-            if ((cur_fanout= keyinfo->rec_per_key[cur_used_keyparts-1]))
-            {
-              /*
-                Fix for the case where the index statistics is too
-                optimistic:
-                If
-                 (1) We're considering ref(const) and there is quick select
-                     on the same index,
-                 (2) and that quick select uses more keyparts (i.e. it will
-                     scan equal/smaller interval then this ref(const))
-                 (3) and E(#rows) for quick select is higher then our
-                     estimate,
-                Then use E(#rows) from quick select.
+        }
 
-                One observation is that when there are multiple
-                indexes with a common prefix (eg (b) and (b, c)) we
-                are not always selecting (b, c) even when this can
-                use more keyparts. Inaccuracies in statistics from
-                the storage engines can cause the record estimate
-                for the quick object for (b) to be lower than the
-                record estimate for the quick object for (b,c).
-
-                Q: Why do we choose to use 'ref'? Won't quick select be
-                cheaper in some cases ?
-                TODO: figure this out and adjust the plan choice if needed.
-              */
-              if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
-                  table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                  cur_fanout < (double)table->quick_rows[key])        // (3)
-                cur_fanout= (double)table->quick_rows[key];
-
-              tmp_fanout= cur_fanout;
-            }
-            else
-            {
-              /*
-                Assume that the first key part matches 1% of the file
-                and that the whole key matches 10 (duplicates) or 1
-                (unique) records.
-                Assume also that more key matches proportionally more
-                records
-                This gives the formula:
-                records = (x * (b-a) + a*c-b)/(c-1)
-
-                b = records matched by whole key
-                a = records matched by first key part (1% of all records?)
-                c = number of key parts in key
-                x = used key parts (1 <= x <= c)
-              */
-              double rec_per_key;
-              if (!(rec_per_key= (double)
-                    keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
-                rec_per_key= (double) tab->records/distinct_keys_est+1;
-
-              if (tab->records == 0)
-                tmp_fanout= 0;
-              else if (rec_per_key / (double) tab->records >= 0.01)
-                tmp_fanout= rec_per_key;
-              else
-              {
-                const double a= tab->records * 0.01;
-                if (keyinfo->user_defined_key_parts > 1)
-                  tmp_fanout=
-                    (cur_used_keyparts * (rec_per_key - a) +
-                     a * keyinfo->user_defined_key_parts - rec_per_key) /
-                    (keyinfo->user_defined_key_parts - 1);
-                else
-                  tmp_fanout= a;
-                set_if_bigger(tmp_fanout, 1.0);
-              }
-              cur_fanout= (ulong) tmp_fanout;
-            }
-
-            if (ref_or_null_part)
-            {
-              // We need to do two key searches to find key
-              tmp_fanout*= 2.0;
-              cur_fanout*= 2.0;
-            }
-
-            /*
-              ReuseRangeEstimateForRef-4:  We get here if we could not reuse
-              E(#rows) from range optimizer. Make another try:
-
-              If range optimizer produced E(#rows) for a prefix of the ref 
-              access we're considering, and that E(#rows) is lower then our
-              current estimate, make the adjustment.
-
-              The decision whether we can re-use the estimate from the range
-              optimizer is the same as in ReuseRangeEstimateForRef-3,
-              applied to first table->quick_key_parts[key] key parts.
-            */
-            if (table->quick_keys.is_set(key) &&
-                table->quick_key_parts[key] <= cur_used_keyparts &&
-                const_part &
-                ((key_part_map)1 << table->quick_key_parts[key]) &&
-                table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
-                                                       const_part) &&
-                cur_fanout > (double) table->quick_rows[key])
-            {
-              tmp_fanout= cur_fanout= (double) table->quick_rows[key];
-            }
-          }
-
-          // Limit the number of matched rows
-          set_if_smaller(tmp_fanout,
-                         (double) thd->variables.max_seeks_for_key);
-          if (table->covering_keys.is_set(key))
-          {
-            // we can use only index tree
-            cur_read_cost= prefix_rowcount *
-              table->file->index_only_read_time(key, tmp_fanout);
-          }
-          else
-            cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+        // Limit the number of matched rows
+        set_if_smaller(tmp_fanout,
+                       (double) thd->variables.max_seeks_for_key);
+        if (table->covering_keys.is_set(key))
+        {
+          // we can use only index tree
+          cur_read_cost= prefix_rowcount *
+            table->file->index_only_read_time(key, tmp_fanout);
+        }
+        else if (key == table->s->primary_key &&
+                 table->file->primary_key_is_clustered())
+        {
+          cur_read_cost= prefix_rowcount *
+            table->file->read_time(key, 1, (ha_rows)tmp_fanout);
         }
         else
-          cur_read_cost= best_ref_cost;                    // Do nothing
+          cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+      }
+      else
+      {
+        // No useful predicates on the first keypart; cannot use key
+        trace_access_idx.add("usable", false).add("chosen", false);
+        continue;
       }
     }
     else
@@ -534,7 +541,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     start_key->fanout= cur_fanout;
     start_key->read_cost= cur_read_cost;
 
-    const double cur_ref_cost= cur_read_cost + cur_fanout * ROW_EVALUATE_COST;
+    const double cur_ref_cost=
+      cur_read_cost + prefix_rowcount * cur_fanout * ROW_EVALUATE_COST;
     trace_access_idx.add("rows", cur_fanout).add("cost", cur_ref_cost);
     if (cur_ref_cost < best_ref_cost)
     {
@@ -1301,7 +1309,7 @@ bool Optimize_table_order::choose_table_order()
 
   reset_nj_counters(join->join_list);
 
-  const bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
+  const bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
 
   if (emb_sjm_nest)

@@ -379,7 +379,7 @@ btr_pcur_commit_specify_mtr(
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
 	mtr_t*		mtr)	/*!< in: mtr to commit */
 {
-	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	pcur->latch_mode = BTR_NO_LATCHES;
 
@@ -583,4 +583,20 @@ btr_pcur_close(
 	cursor->pos_state = BTR_PCUR_NOT_POSITIONED;
 
 	cursor->trx_if_known = NULL;
+}
+
+/*********************************************************//**
+Moves the persistent cursor to the infimum record on the same page. */
+UNIV_INLINE
+void
+btr_pcur_move_before_first_on_page(
+/*===============================*/
+	btr_pcur_t*	cursor) /*!< in/out: persistent cursor */
+{
+	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
+
+	page_cur_set_before_first(btr_pcur_get_block(cursor),
+		btr_pcur_get_page_cur(cursor));
+
+	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 }

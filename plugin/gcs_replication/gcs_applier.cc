@@ -15,7 +15,7 @@
 
 #include "gcs_applier.h"
 #include <mysqld.h>
-#include <global_threads.h>
+#include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <thr_alarm.h>
 #include <rpl_slave.h>
 #include <gcs_replication.h>
@@ -94,7 +94,7 @@ Applier_module::set_applier_thread_context()
   applier_thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
   applier_thd->security_ctx->skip_grants();
 
-  add_global_thread(applier_thd);
+  Global_THD_manager::get_instance()->add_thd(applier_thd);
 
   applier_thd->init_for_queries();
   set_slave_thread_options(applier_thd);
@@ -105,7 +105,7 @@ Applier_module::clean_applier_thread_context()
 {
   applier_thd->release_resources();
   THD_CHECK_SENTRY(applier_thd);
-  remove_global_thread(applier_thd);
+  Global_THD_manager::get_instance()->remove_thd(applier_thd);
 
   delete applier_thd;
 
@@ -121,7 +121,6 @@ Applier_module::applier_thread_handle()
 
   //set the thread context
   set_applier_thread_context();
-  pthread_detach_this_thread();
 
   Packet *packet= NULL;
   int error= 0;

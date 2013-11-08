@@ -74,7 +74,8 @@ Uint32* Dbtup::alloc_var_rec(Uint32 * err,
   /**
    * TODO alloc fix+var part
    */
-  Uint32 *ptr = alloc_fix_rec(err, fragPtr, tabPtr, key, out_frag_page_id);
+  Uint32 *ptr = alloc_fix_rec(jamBuffer(), err, fragPtr, tabPtr, key,
+                              out_frag_page_id);
   if (unlikely(ptr == 0))
   {
     return 0;
@@ -430,7 +431,7 @@ Dbtup::get_empty_var_page(Fragrecord* fragPtr)
 {
   PagePtr ptr;
   Uint32 cnt;
-  allocConsPages(1, cnt, ptr.i);
+  allocConsPages(jamBuffer(), 1, cnt, ptr.i);
   fragPtr->noOfVarPages+= cnt;
   if (unlikely(cnt == 0))
   {

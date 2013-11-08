@@ -33,13 +33,13 @@
 // current implementation.
 // 
 // Public methods
-// bool
-// alloc_fix_rec(Fragrecord* const regFragPtr, # In
+// Uint32*
+// alloc_fix_rec(EmulatedJamBuffer* jamBuf,    # In/out
+//               Uint32 * err,                 # Out
+//               Fragrecord* const regFragPtr, # In
 //               Tablerec* const regTabPtr,    # In
-//               Uint32 pageType,              # In
-//               Signal* signal,               # In
-//               Uint32& pageOffset,           # Out
-//               PagePtr& pagePtr)             # In/Out
+//		 Local_key* key,               # Out
+//		 Uint32 * out_frag_page_id)    # Out
 // This method allocates a fixed size and the pagePtr is a reference
 // to the page and pageOffset is the offset in the page of the tuple.
 //
@@ -65,7 +65,8 @@
 // fragment.
 // 
 Uint32*
-Dbtup::alloc_fix_rec(Uint32 * err,
+Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
+                     Uint32 * err,
                      Fragrecord* const regFragPtr,
 		     Tablerec* const regTabPtr,
 		     Local_key* key,
@@ -81,9 +82,9 @@ Dbtup::alloc_fix_rec(Uint32 * err,
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
-    pagePtr.i = allocFragPage(err, regFragPtr);
+    pagePtr.i = allocFragPage(jamBuf, err, regFragPtr);
     if (pagePtr.i != RNIL) {
-      jam();
+      thrjam(jamBuf);
 /* ---------------------------------------------------------------- */
 // We found empty pages on the fragment. Allocate an empty page and
 // convert it into a tuple header page and put it in thFreeFirst-list.
@@ -96,14 +97,14 @@ Dbtup::alloc_fix_rec(Uint32 * err,
       LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
       free_pages.addFirst(pagePtr);
     } else {
-      jam();
+      thrjam(jamBuf);
 /* ---------------------------------------------------------------- */
 /*       THERE ARE NO EMPTY PAGES. MEMORY CAN NOT BE ALLOCATED.     */
 /* ---------------------------------------------------------------- */
       return 0;
     }
   } else {
-    jam();
+    thrjam(jamBuf);
 /* ---------------------------------------------------------------- */
 /*       THIS SHOULD BE THE COMMON PATH THROUGH THE CODE, FREE      */
 /*       COPY PAGE EXISTED.                                         */
@@ -166,7 +167,7 @@ Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
   Uint32 idx= regPagePtr->alloc_record();
   if(regPagePtr->free_space == 0)
   {
-    jam();
+    jamNoBlock();
 /* ---------------------------------------------------------------- */
 /*       THIS WAS THE LAST TUPLE HEADER IN THIS PAGE. REMOVE IT FROM*/
 /*       THE TUPLE HEADER FREE LIST OR TH COPY FREE LIST. ALSO SET  */

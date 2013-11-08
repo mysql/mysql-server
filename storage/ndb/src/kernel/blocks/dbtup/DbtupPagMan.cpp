@@ -60,7 +60,8 @@
 //
 // The following routines are part of the external interface:
 // void
-// allocConsPages(Uint32  noOfPagesToAllocate, #In
+// allocConsPages(EmulatedJamBuffer *jamBuff   #In/out
+//                Uint32  noOfPagesToAllocate, #In
 //                Uint32& noOfPagesAllocated,  #Out
 //                Uint32& retPageRef)          #Out
 // void
@@ -121,12 +122,13 @@ void Dbtup::initializePage()
 {
 }//Dbtup::initializePage()
 
-void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
+void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
+                           Uint32 noOfPagesToAllocate,
                            Uint32& noOfPagesAllocated,
                            Uint32& allocPageRef)
 {
   if (noOfPagesToAllocate == 0){ 
-    jam();
+    thrjam(jamBuf);
     noOfPagesAllocated = 0;
     return;
   }//if
@@ -135,7 +137,7 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
   m_ctx.m_mm.get_resource_limit_nolock(RG_DATAMEM, rl);
   if (rl.m_curr + m_minFreePages + noOfPagesToAllocate > rl.m_max)
   {
-    jam();
+    thrjam(jamBuf);
     noOfPagesAllocated = 0;
     return;
   }

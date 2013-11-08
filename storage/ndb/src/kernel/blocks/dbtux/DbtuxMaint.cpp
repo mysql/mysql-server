@@ -66,7 +66,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  findFrag(*indexPtr.p, fragId, fragPtr);
+  findFrag(jamBuffer(), *indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up search entry

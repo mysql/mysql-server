@@ -248,7 +248,7 @@ Lex_input_stream::reset(char *buffer, unsigned int length)
   m_cpp_utf8_processed_ptr= NULL;
   next_state= MY_LEX_START;
   found_semicolon= NULL;
-  ignore_space= test(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  ignore_space= MY_TEST(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
   stmt_prepare_mode= FALSE;
   multi_statements= TRUE;
   in_comment=NO_COMMENT;
@@ -2002,6 +2002,7 @@ st_select_lex_unit::st_select_lex_unit(enum_parsing_context parsing_context) :
   item(NULL),
   thd(NULL),
   fake_select_lex(NULL),
+  saved_fake_select_lex(NULL),
   union_distinct(NULL)
 {
   switch (parsing_context)
@@ -2187,6 +2188,9 @@ void st_select_lex_unit::exclude_level()
         if (s->context.outer_context == &sl->context)
           s->context.outer_context= sl->context.outer_context;
       }
+      if (u->fake_select_lex &&
+          u->fake_select_lex->context.outer_context == &sl->context)
+        u->fake_select_lex->context.outer_context= sl->context.outer_context;
       u->master= master;
       last= &(u->next);
     }
@@ -2345,6 +2349,73 @@ set_explain_marker_from(const st_select_lex_unit *u)
 }
 
 
+ha_rows st_select_lex::get_offset()
+{
+  ulonglong val= 0;
+
+  if (offset_limit)
+  {
+    // see comment for st_select_lex::get_limit()
+    bool fix_fields_successful= true;
+    if (!offset_limit->fixed)
+    {
+      fix_fields_successful= !offset_limit->fix_fields(master->thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
+  }
+
+  return (ha_rows)val;
+}
+
+
+ha_rows st_select_lex::get_limit()
+{
+  ulonglong val= HA_POS_ERROR;
+
+  if (select_limit)
+  {
+    /*
+      fix_fields() has not been called for select_limit. That's due to the
+      historical reasons -- this item could be only of type Item_int, and
+      Item_int does not require fix_fields(). Thus, fix_fields() was never
+      called for select_limit.
+
+      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
+      However, the fix_fields() behavior was not updated, which led to a crash
+      in some cases.
+
+      There is no single place where to call fix_fields() for LIMIT / OFFSET
+      items during the fix-fields-phase. Thus, for the sake of readability,
+      it was decided to do it here, on the evaluation phase (which is a
+      violation of design, but we chose the lesser of two evils).
+
+      We can call fix_fields() here, because select_limit can be of two
+      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
+      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
+      has the following properties:
+        1) it does not affect other items;
+        2) it does not fail.
+
+      Nevertheless DBUG_ASSERT was added to catch future changes in
+      fix_fields() implementation. Also added runtime check against a result
+      of fix_fields() in order to handle error condition in non-debug build.
+    */
+    bool fix_fields_successful= true;
+    if (!select_limit->fixed)
+    {
+      fix_fields_successful= !select_limit->fix_fields(master->thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
+  }
+
+  return (ha_rows)val;
+}
+
+
 bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, order_list, item, asc);
@@ -2493,6 +2564,8 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     }
     fake_select_lex->print_limit(thd, str, query_type);
   }
+  else if (saved_fake_select_lex)
+    saved_fake_select_lex->print_limit(thd, str, query_type);
 }
 
 
@@ -2502,14 +2575,7 @@ void st_select_lex::print_order(String *str,
 {
   for (; order; order= order->next)
   {
-    if (order->counter_used)
-    {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
-    }
-    else
-      (*order->item)->print_for_order(str, query_type, order->used_alias);
+    (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
@@ -3332,83 +3398,38 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
   return thd->copy_db_to(p_db, p_db_length);
 }
 
-/*
-  initialize limit counters
 
-  SYNOPSIS
-    st_select_lex_unit::set_limit()
-    values	- SELECT_LEX with initial values for counters
+/**
+  Initialize offset and limit counters.
+
+  @param sl SELECT_LEX to get offset and limit from.
 */
-
 void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
-  ha_rows select_limit_val;
-  ulonglong val;
+  DBUG_ASSERT(!thd->stmt_arena->is_stmt_prepare());
 
-  DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  if (sl->select_limit)
-  {
-    Item *limit_item = sl->select_limit;
-    /*
-      fix_fields() has not been called for sl->select_limit. That's due to the
-      historical reasons -- this item could be only of type Item_int, and
-      Item_int does not require fix_fields(). Thus, fix_fields() was never
-      called for sl->select_limit.
-
-      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
-      However, the fix_fields() behavior was not updated, which led to a crash
-      in some cases.
-
-      There is no single place where to call fix_fields() for LIMIT / OFFSET
-      items during the fix-fields-phase. Thus, for the sake of readability,
-      it was decided to do it here, on the evaluation phase (which is a
-      violation of design, but we chose the lesser of two evils).
-
-      We can call fix_fields() here, because sl->select_limit can be of two
-      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
-      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
-      has the following specific:
-        1) it does not affect other items;
-        2) it does not fail.
-
-      Nevertheless DBUG_ASSERT was added to catch future changes in
-      fix_fields() implementation. Also added runtime check against a result
-      of fix_fields() in order to handle error condition in non-debug build.
-    */
-    bool fix_fields_successful= true;
-    if (!limit_item->fixed)
-    {
-      fix_fields_successful= !limit_item->fix_fields(thd, NULL);
-
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val= fix_fields_successful ? limit_item->val_uint() : HA_POS_ERROR;
-  }
+  offset_limit_cnt= sl->get_offset();
+  select_limit_cnt= sl->get_limit();
+  if (select_limit_cnt + offset_limit_cnt >= select_limit_cnt)
+    select_limit_cnt+= offset_limit_cnt;
   else
-    val= HA_POS_ERROR;
-
-  select_limit_val= (ha_rows)val;
-  if (sl->offset_limit)
-  {
-    Item *offset_item = sl->offset_limit;
-    // see comment for sl->select_limit branch.
-    bool fix_fields_successful= true;
-    if (!offset_item->fixed)
-    {
-      fix_fields_successful= !offset_item->fix_fields(thd, NULL);
-
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val= fix_fields_successful ? offset_item->val_uint() : HA_POS_ERROR;
-  }
-  else
-    val= ULL(0);
-
-  offset_limit_cnt= (ha_rows)val;
-  select_limit_cnt= select_limit_val + offset_limit_cnt;
-  if (select_limit_cnt < select_limit_val)
-    select_limit_cnt= HA_POS_ERROR;		// no limit
+    select_limit_cnt= HA_POS_ERROR;
 }
+
+
+/**
+  Decide if a temporary table is needed for the UNION.
+
+  @retval true  A temporary table is needed.
+  @retval false A temporary table is not needed.
+ */
+bool st_select_lex_unit::union_needs_tmp_table()
+{
+  return union_distinct != NULL ||
+    global_parameters()->order_list.elements != 0 ||
+    thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+    thd->lex->sql_command == SQLCOM_REPLACE_SELECT;
+}  
 
 
 /**
@@ -3652,7 +3673,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     /*
       and from local list if it is not empty
     */
-    if ((*link_to_local= test(select_lex->get_table_list())))
+    if ((*link_to_local= MY_TEST(select_lex->get_table_list())))
     {
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= first->next_local;

@@ -916,7 +916,7 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
 void
 Lgman::execFSWRITEREQ(Signal* signal)
 {
-  jamEntry();
+  jamNoBlock();
   Ptr<Undofile> ptr;
   Ptr<GlobalPage> page_ptr;
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
@@ -951,7 +951,7 @@ Lgman::execFSWRITEREQ(Signal* signal)
 void
 Lgman::execFSOPENREF(Signal* signal)
 {
-  jamEntry();
+  jamNoBlock();
 
   Ptr<Undofile> ptr;  
   Ptr<Logfile_group> lg_ptr;
@@ -2134,7 +2134,7 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
 void
 Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
 {
-  jamEntry();
+  jamBlock(client_block);
 
   LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
   Uint32 lcp_id= ord->lcpId;
@@ -2148,7 +2148,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     File_formats::Undofile::UNDO_LCP : File_formats::Undofile::UNDO_LCP_FIRST;
   if(!ptr.isNull() && ! (ptr.p->m_state & Logfile_group::LG_CUT_LOG_THREAD))
   {
-    jam();
+    jamBlock(client_block);
     ptr.p->m_state |= Logfile_group::LG_CUT_LOG_THREAD;
     signal->theData[0] = LgmanContinueB::CUT_LOG_TAIL;
     signal->theData[1] = ptr.i;

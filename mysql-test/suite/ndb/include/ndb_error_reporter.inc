@@ -9,7 +9,9 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
-my $ndb_error_reporter = my_find_file($basedir,
+# Out of source set MTR_BINDIR
+my $bindir = $ENV{MTR_BINDIR} || $basedir;
+my $ndb_error_reporter = my_find_file($bindir,
                             ["storage/ndb/tools", "bin"],
                             "ndb_error_reporter");
 my $F = IO::File->new("$vardir/tmp/ndb_error_reporter_result.inc", "w") or die;

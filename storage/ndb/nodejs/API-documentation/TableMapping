@@ -8,8 +8,8 @@
  *
  */
 TableMapping = {
-  table                  :  "" ,  /** Table name @property table @type String */
-  database               :  "" ,  /** Database name @property database @type String */
+  table                  :  "" ,  /** Table name @type String */
+  database               :  "" ,  /** Database name @type String */
   mapAllColumns          : true,  /** Create a default FieldMapping for
                                       all columns not listed in fields[].
                                       Specifies that all columns, not explicitly
@@ -35,13 +35,13 @@ TableMapping = {
  */
 FieldMapping = {
   fieldName     :  "" ,    /** Name of the field in the domain object 
-                               @property fieldName @type String */
+                               @type String */
   columnName    :  "" ,    /** Column name where this field is stored  
-                               @property columnName @type String */
-  persistent    : true,    /** Boolean whether this field should be stored in database.
-                               @property persistent @type Boolean @default true */
+                               @type String */
+  persistent    : true,    /** Whether this field should be stored in database.
+                               @type Boolean @default true */
   converter     : null     /** Converter class to use with this field  
-                               @property converter @type Converter @default null */
+                               @type Converter @default null */
 };
 
 

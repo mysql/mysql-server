@@ -62,17 +62,3 @@ MACRO(SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS)
       "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter -Woverloaded-virtual"
       CACHE STRING "C++ warning options used in maintainer builds.")
 ENDMACRO()
-
-# Setup ICC (Intel C Compiler) warning options.
-MACRO(SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS)
-  SET(MY_MAINTAINER_WARNINGS "-Wcheck")
-  SET(MY_MAINTAINER_C_WARNINGS "${MY_MAINTAINER_WARNINGS}"
-      CACHE STRING "C warning options used in maintainer builds.")
-ENDMACRO()
-
-# Setup ICPC (Intel C++ Compiler) warning options.
-MACRO(SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS)
-  SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_WARNINGS}"
-      CACHE STRING "C++ warning options used in maintainer builds.")
-ENDMACRO()
-

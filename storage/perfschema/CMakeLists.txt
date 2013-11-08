@@ -66,6 +66,7 @@ pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
 pfs_events_statements.h
+pfs_events_transactions.h
 pfs_events_waits.h
 pfs_global.h
 pfs_host.h
@@ -94,8 +95,14 @@ table_esms_by_program.h
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
+table_ets_by_account_by_event_name.h
+table_ets_by_host_by_event_name.h
+table_ets_by_thread_by_event_name.h
+table_ets_by_user_by_event_name.h
+table_ets_global_by_event_name.h
 table_events_stages.h
 table_events_statements.h
+table_events_transactions.h
 table_events_waits.h
 table_events_waits_summary.h
 table_ews_by_account_by_event_name.h
@@ -161,6 +168,7 @@ pfs_program.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
+pfs_events_transactions.cc
 pfs_events_waits.cc
 pfs_global.cc
 pfs_host.cc
@@ -187,8 +195,14 @@ table_esms_by_program.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc
+table_ets_by_account_by_event_name.cc
+table_ets_by_host_by_event_name.cc
+table_ets_by_thread_by_event_name.cc
+table_ets_by_user_by_event_name.cc
+table_ets_global_by_event_name.cc
 table_events_stages.cc
 table_events_statements.cc
+table_events_transactions.cc
 table_events_waits.cc
 table_events_waits_summary.cc
 table_ews_by_account_by_event_name.cc
@@ -260,6 +274,7 @@ OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" OF
 OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" OFF)
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
+OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_MUTEX)
 MARK_AS_ADVANCED(DISABLE_PSI_RWLOCK)
@@ -274,4 +289,5 @@ MARK_AS_ADVANCED(DISABLE_PSI_IDLE)
 MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
 MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
+MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
 

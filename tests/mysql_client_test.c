@@ -7658,7 +7658,7 @@ static void test_explain_bug()
   if (!opt_silent)
     fprintf(stdout, "\n total fields in the result: %d",
             mysql_num_fields(result));
-  DIE_UNLESS(10 == mysql_num_fields(result));
+  DIE_UNLESS(12 == mysql_num_fields(result));
 
   verify_prepare_field(result, 0, "id", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 3, 0);
@@ -7669,33 +7669,33 @@ static void test_explain_bug()
   verify_prepare_field(result, 2, "table", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_CHAR_LEN, 0);
 
-  verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 4, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 5, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_CHAR_LEN*MAX_KEY, 0);
 
-  verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 6, "key", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_CHAR_LEN, 0);
 
   if (mysql_get_server_version(mysql) <= 50000)
   {
-    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_LONGLONG, "",
+    verify_prepare_field(result, 7, "key_len", "", MYSQL_TYPE_LONGLONG, "",
                          "", "", 3, 0);
   }
   else
   {
-    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
+    verify_prepare_field(result, 7, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
                          "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
-  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 8, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_CHAR_LEN*16, 0);
 
-  verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
+  verify_prepare_field(result, 9, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 11, "Extra", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 255, 0);
 
   mysql_free_result(result);
@@ -19438,6 +19438,189 @@ static void test_wl5928()
   mysql_stmt_close(stmt);
 }
 
+static void test_wl6797()
+{
+  MYSQL_STMT *stmt;
+  int        rc;
+  const char *stmt_text;
+  my_ulonglong res;
+
+  myheader("test_wl6797");
+
+  if (mysql_get_server_version(mysql) < 50703)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl6797: "
+             "tested feature does not exist in versions before MySQL 5.7.3\n");
+    return;
+  }
+  /* clean up the session */
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+
+  /* do prepare of a query */
+  mysql_query(mysql, "use test");
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "CREATE TABLE t1 (a int)");
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "INSERT INTO t1 VALUES (1), (2)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  /* Execute the insert statement */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /*
+   clean the session this should remove the prepare statement
+   from the cache.
+  */
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+
+  /* this below stmt should report error */
+  rc= mysql_stmt_execute(stmt);
+  DIE_IF(rc == 0);
+
+  /*
+   bug#17653288: MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+  */
+
+  rc= mysql_query(mysql, "CREATE TABLE t2 (a int NOT NULL PRIMARY KEY"\
+                         " auto_increment)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t2 VALUES (null)");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  rc= mysql_query(mysql, "INSERT INTO t2 VALUES (last_insert_id(100))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 100);
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "DROP TABLE IF EXISTS t2");
+  mysql_stmt_close(stmt);
+}
+
+
+static void test_wl6791()
+{
+  int        rc;
+  uint       idx;
+  MYSQL      *l_mysql;
+  enum mysql_option
+  uint_opts[] = {
+    MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
+    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE
+  },
+  my_bool_opts[] = {
+    MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
+    MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
+    MYSQL_SECURE_AUTH, MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+    MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_SSL_ENFORCE,
+    MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+  },
+  const_char_opts[] = {
+    MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
+    MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+    /* mysql_options() is a no-op on non-supporting platforms. */
+    MYSQL_SHARED_MEMORY_BASE_NAME,
+#endif
+    MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+    MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH,
+    MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_SERVER_PUBLIC_KEY
+  },
+  err_opts[] = {
+    MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
+    MYSQL_OPT_CONNECT_ATTR_DELETE, MYSQL_INIT_COMMAND
+  };
+
+  myheader("test_wl6791");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  for (idx= 0; idx < sizeof(uint_opts) / sizeof(enum mysql_option); idx++)
+  {
+    uint opt_before= 1, opt_after= 0;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing uint option #%d (%d)\n", idx,
+              (int) uint_opts[idx]);
+    rc= mysql_options(l_mysql, uint_opts[idx], &opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, uint_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before == opt_after);
+  }
+
+  for (idx= 0; idx < sizeof(my_bool_opts) / sizeof(enum mysql_option); idx++)
+  {
+    my_bool opt_before = TRUE, opt_after = FALSE;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing my_bool option #%d (%d)\n", idx,
+      (int)my_bool_opts[idx]);
+
+    rc = mysql_options(l_mysql, my_bool_opts[idx], &opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, my_bool_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before == opt_after);
+  }
+
+  for (idx= 0; idx < sizeof(const_char_opts) / sizeof(enum mysql_option); idx++)
+  {
+    const char *opt_before = "TEST", *opt_after = NULL;
+
+    if (!opt_silent)
+      fprintf(stdout, "testing const char * option #%d (%d)\n", idx,
+      (int)const_char_opts[idx]);
+
+    rc = mysql_options(l_mysql, const_char_opts[idx], opt_before);
+    DIE_UNLESS(rc == 0);
+
+    rc = mysql_get_option(l_mysql, const_char_opts[idx], &opt_after);
+    DIE_UNLESS(rc == 0);
+
+    DIE_UNLESS(opt_before && opt_after &&
+               0 == strcmp(opt_before, opt_after));
+  }
+
+  for (idx= 0; idx < sizeof(err_opts) / sizeof(enum mysql_option); idx++)
+  {
+    void *dummy_arg;
+    if (!opt_silent)
+      fprintf(stdout, "testing invalid option #%d (%d)\n", idx,
+      (int)err_opts[idx]);
+
+    rc = mysql_get_option(l_mysql, err_opts[idx], &dummy_arg);
+    DIE_UNLESS(rc != 0);
+  }
+
+  /* clean up */
+  mysql_close(l_mysql);
+}
+
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -19709,6 +19892,8 @@ static struct my_tests_st my_tests[]= {
   { "test_wl5924", test_wl5924 },
   { "test_wl6587", test_wl6587 },
   { "test_wl5928", test_wl5928 },
+  { "test_wl6797", test_wl6797 },
+  { "test_wl6791", test_wl6791 },
   { 0, 0 }
 };
 

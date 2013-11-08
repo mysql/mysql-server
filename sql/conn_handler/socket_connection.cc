@@ -32,6 +32,9 @@
 
 using std::max;
 
+ulong Mysqld_socket_listener::connection_errors_select= 0;
+ulong Mysqld_socket_listener::connection_errors_accept= 0;
+ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info stmt_info_new_packet;

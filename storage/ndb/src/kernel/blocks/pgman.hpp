@@ -485,14 +485,16 @@ protected:
 
 private:
   static Uint32 get_sublist_no(Page_state state);
-  void set_page_state(Ptr<Page_entry> ptr, Page_state new_state);
+  void set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr,
+                      Page_state new_state);
 
   bool seize_cache_page(Ptr<GlobalPage>& gptr);
   void release_cache_page(Uint32 i);
 
   bool find_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
   Uint32 seize_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
-  bool get_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
+  bool get_page_entry(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>&, 
+                      Uint32 file_no, Uint32 page_no);
   void release_page_entry(Ptr<Page_entry>&);
 
   void lirs_stack_prune();
@@ -526,9 +528,12 @@ private:
   void fswritereq(Signal*, Ptr<Page_entry>);
   void fswriteconf(Signal*, Ptr<Page_entry>);
 
-  int get_page_no_lirs(Signal*, Ptr<Page_entry>, Page_request page_req);
-  int get_page(Signal*, Ptr<Page_entry>, Page_request page_req);
-  void update_lsn(Ptr<Page_entry>, Uint32 block, Uint64 lsn);
+  int get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
+                       Page_request page_req);
+  int get_page(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
+               Page_request page_req);
+  void update_lsn(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>, Uint32 block, 
+                  Uint64 lsn);
   Uint32 create_data_file();
   Uint32 alloc_data_file(Uint32 file_no);
   void map_file_no(Uint32 file_no, Uint32 fd);
@@ -557,6 +562,7 @@ class Page_cache_client
   Uint32 m_block; // includes instance
   class PgmanProxy* m_pgman_proxy; // set if we go via proxy
   Pgman* m_pgman;
+  EmulatedJamBuffer* const m_jamBuf;
   DEBUG_OUT_DEFINES(PGMAN);
 
 public:

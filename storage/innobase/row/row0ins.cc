@@ -1899,6 +1899,8 @@ row_ins_scan_sec_index_for_duplicate(
 	dberr_t		err		= DB_SUCCESS;
 	ulint		allow_duplicates;
 	ulint*		offsets		= NULL;
+	DBUG_ENTER("row_ins_scan_sec_index_for_duplicate");
+
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
@@ -1914,7 +1916,7 @@ row_ins_scan_sec_index_for_duplicate(
 		if (UNIV_SQL_NULL == dfield_get_len(
 			    dtuple_get_nth_field(entry, i))) {
 
-			return(DB_SUCCESS);
+			DBUG_RETURN(DB_SUCCESS);
 		}
 	}
 
@@ -2023,7 +2025,7 @@ end_scan:
 	/* Restore old value */
 	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
@@ -2613,6 +2615,8 @@ row_ins_sec_index_entry_low(
 				row_log_table_apply(), or 0 */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	DBUG_ENTER("row_ins_sec_index_entry_low");
+
 	btr_cur_t	cursor;
 	ulint		search_mode	= mode;
 	dberr_t		err		= DB_SUCCESS;
@@ -2733,7 +2737,7 @@ row_ins_sec_index_entry_low(
 			}
 			/* fall through */
 		default:
-			return(err);
+			DBUG_RETURN(err);
 		}
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
@@ -2807,7 +2811,7 @@ row_ins_sec_index_entry_low(
 
 func_exit:
 	mtr_commit(&mtr);
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /***************************************************************//**

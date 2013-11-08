@@ -1048,9 +1048,12 @@ static size_t
 my_snprintf_mb2(const CHARSET_INFO *cs __attribute__((unused)),
                 char* to, size_t n, const char* fmt, ...)
 {
+  size_t retval;
   va_list args;
   va_start(args,fmt);
-  return my_vsnprintf_mb2(to, n, fmt, args);
+  retval= my_vsnprintf_mb2(to, n, fmt, args);
+  va_end(args);
+  return retval;
 }
 
 
@@ -2341,9 +2344,12 @@ static size_t
 my_snprintf_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   char* to, size_t n, const char* fmt, ...)
 {
+  size_t retval;
   va_list args;
   va_start(args,fmt);
-  return my_vsnprintf_utf32(to, n, fmt, args);
+  retval= my_vsnprintf_utf32(to, n, fmt, args);
+  va_end(args);
+  return retval;
 }
 
 

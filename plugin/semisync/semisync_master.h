@@ -30,6 +30,8 @@ extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 
 extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
 
+extern unsigned int rpl_semi_sync_master_wait_for_slave_count;
+
 struct TranxNode {
   char             log_name_[FN_REFLEN];
   my_off_t          log_pos_;
@@ -368,6 +370,192 @@ public:
 };
 
 /**
+   AckInfo is a POD. It defines a structure includes information related to an ack:
+   server_id   - which slave the ack comes from.
+   binlog_name - the binlog file name included in the ack.
+   binlog_pos  - the binlog file position included in the ack.
+*/
+struct AckInfo
+{
+  int server_id;
+  char binlog_name[FN_REFLEN];
+  unsigned long long binlog_pos;
+
+  void clear() { binlog_name[0]= '\0'; }
+  bool empty() const { return binlog_name[0] == '\0'; }
+  bool is_server(int server_id) const { return this->server_id == server_id; }
+
+  bool equal_to(const char *log_file_name, my_off_t log_file_pos) const
+  {
+    return (ActiveTranx::compare(binlog_name, binlog_pos,
+                                 log_file_name, log_file_pos) == 0);
+  }
+  bool less_than(const char *log_file_name, my_off_t log_file_pos) const
+  {
+    return (ActiveTranx::compare(binlog_name, binlog_pos,
+                                 log_file_name, log_file_pos) < 0);
+  }
+
+  void set(int server_id, const char *log_file_name, my_off_t log_file_pos)
+  {
+    this->server_id= server_id;
+    update(log_file_name, log_file_pos);
+  }
+  void update(const char *log_file_name, my_off_t log_file_pos)
+  {
+    strcpy(binlog_name, log_file_name);
+    binlog_pos= log_file_pos;
+  }
+};
+
+/**
+   AckContainer stores received acks internally and tell the caller the
+   ack's position when a transaction is fully acknowledged, so it can wake
+   up the waiting transactions.
+ */
+class AckContainer : public Trace
+{
+public:
+  AckContainer() : m_ack_array(NULL), m_size(0), m_empty_slot(0) {}
+  ~AckContainer()
+  {
+    if (m_ack_array)
+      my_free(m_ack_array);
+  }
+
+  /** Clear the content of the ack array */
+  void clear()
+  {
+    if (m_ack_array)
+    {
+      memset(m_ack_array, 0, sizeof(AckInfo) * m_size);
+      m_empty_slot= m_size;
+    }
+    m_greatest_ack.clear();
+  }
+
+  /**
+     Adjust capacity for the container and report the ack to semisync master,
+     if it is full.
+
+     @param[in] size size of the container.
+
+     @return 0 if succeeds, otherwise fails.
+  */
+  int resize(unsigned int size, const AckInfo **ackinfo);
+
+  /**
+     Insert an ack's information into the container and report the minimum
+     ack to semisync master if it is full.
+
+     @param[in] server_id  slave server_id of the ack
+     @param[in] log_file_name  binlog file name of the ack
+     @param[in] log_file_pos   binlog file position of the ack
+
+     @return Pointer of an ack if the ack should be reported to semisync master.
+             Otherwise, NULL is returned.
+  */
+  const AckInfo* insert(int server_id, const char *log_file_name,
+                        my_off_t log_file_pos);
+  const AckInfo* insert(const AckInfo &ackinfo)
+  {
+    return insert(ackinfo.server_id, ackinfo.binlog_name, ackinfo.binlog_pos);
+  }
+
+private:
+  /* The greatest ack of the acks already reported to semisync master. */
+  AckInfo m_greatest_ack;
+
+  AckInfo *m_ack_array;
+  /* size of the array */
+  unsigned int m_size;
+  /* index of an empty slot, it helps improving insert speed. */
+  unsigned int m_empty_slot;
+
+  /* Prohibit to copy AckContainer objects */
+  AckContainer(AckContainer &container);
+  AckContainer& operator= (const AckContainer& container);
+
+  bool full() { return m_empty_slot == m_size; }
+  unsigned int size() { return m_size; }
+
+  /**
+     Remove all acks which equal to the given position.
+
+     @param[in] log_file_name  binlog name of the ack that should be removed
+     @param[in] log_file_pos   binlog position of the ack that should removed
+  */
+  void remove_all(const char *log_file_name, my_off_t log_file_pos)
+  {
+    unsigned int i= m_size;
+    for (i= 0; i < m_size; i++)
+    {
+      if (m_ack_array[i].equal_to(log_file_name, log_file_pos))
+      {
+        m_ack_array[i].clear();
+        m_empty_slot= i;
+      }
+    }
+  }
+
+  /**
+     Update a slave's ack into the container if another ack of the
+     slave is already in it.
+
+     @param[in] server_id      server_id of the ack
+     @param[in] log_file_name  binlog file name of the ack
+     @param[in] log_file_pos   binlog file position of the ack
+
+     @return index of the slot that is updated. if it equals to
+             the size of container, then no slot is updated.
+  */
+  unsigned int updateIfExist(int server_id, const char *log_file_name,
+                             my_off_t log_file_pos)
+  {
+    unsigned int i;
+
+    m_empty_slot= m_size;
+    for (i= 0; i < m_size; i++)
+    {
+      if (m_ack_array[i].empty())
+        m_empty_slot= i;
+      else if (m_ack_array[i].is_server(server_id))
+      {
+        m_ack_array[i].update(log_file_name, log_file_pos);
+        if (trace_level_ & kTraceDetail)
+          sql_print_information("Update an exsiting ack in slot %u", i);
+        break;
+      }
+    }
+    return i;
+  }
+
+  /**
+     Find the minimum ack which is smaller than given position. When more than
+     one slots are minimum acks, it returns the one has smallest index.
+
+     @param[in] log_file_name  binlog file name
+     @param[in] log_file_pos   binlog file position
+
+     @return NULL if no ack is smaller than given position, otherwise
+              return its pointer.
+  */
+  AckInfo *minAck(const char *log_file_name, my_off_t log_file_pos)
+  {
+    unsigned int i;
+    AckInfo *ackinfo= NULL;
+
+    for (i= 0; i < m_size; i++)
+    {
+      if (m_ack_array[i].less_than(log_file_name, log_file_pos))
+        ackinfo= m_ack_array+i;
+    }
+
+    return ackinfo;
+  }
+};
+
+/**
    The extension class for the master of semi-synchronous replication
 */
 class ReplSemiSyncMaster
@@ -435,6 +623,8 @@ class ReplSemiSyncMaster
 
   bool            state_;                    /* whether semi-sync is switched */
 
+  AckContainer ack_container_;
+
   void lock();
   void unlock();
   void cond_broadcast();
@@ -453,10 +643,9 @@ class ReplSemiSyncMaster
   int switch_off();
 
   /* Switch semi-sync on when slaves catch up. */
-  int try_switch_on(int server_id,
-                    const char *log_file_name, my_off_t log_file_pos);
+  int try_switch_on(const char *log_file_name, my_off_t log_file_pos);
+public:
 
- public:
   ReplSemiSyncMaster();
   ~ReplSemiSyncMaster();
 
@@ -465,6 +654,7 @@ class ReplSemiSyncMaster
   }
   void setTraceLevel(unsigned long trace_level) {
     trace_level_ = trace_level;
+    ack_container_.trace_level_= trace_level;
     if (active_tranxs_)
       active_tranxs_->trace_level_ = trace_level;
   }
@@ -499,19 +689,11 @@ class ReplSemiSyncMaster
    * or that was skipped in the master.
    *
    * Input:
-   *  server_id     - (IN)  master server id number
    *  log_file_name - (IN)  binlog file name
    *  end_offset    - (IN)  the offset in the binlog file up to which we have
    *                        the replies from the slave or that was skipped
-   *  skipped_event - (IN)  if the event was skipped
-   *
-   * Return:
-   *  0: success;  non-zero: error
    */
-  int reportReplyBinlog(uint32 server_id,
-                        const char* log_file_name,
-                        my_off_t end_offset,
-                        bool skipped_event= false);
+  void reportReplyBinlog(const char* log_file_name, my_off_t end_offset);
 
   /* Commit a transaction in the final step.  This function is called from
    * InnoDB before returning from the low commit.  If semi-sync is switch on,
@@ -612,6 +794,45 @@ class ReplSemiSyncMaster
    * go off for that.
    */
   int resetMaster();
+
+  /*
+    'SET rpl_semi_sync_master_wait_for_slave_count' command is issued from user
+    and semi-sync need to update rpl_semi_sync_master_wait_for_slave_count and
+    notify ack_container_ to resize itself.
+
+    @param[in] new_value The value users want to set to.
+
+    @return It returns 0 if succeeds, otherwise 1 is returned.
+   */
+  int setWaitSlaveCount(unsigned int new_value);
+
+  /*
+    Update ack_array after receiving an ack from a dump connection. If any
+    binlog pos is already replied by rpl_semi_sync_master_wait_for_slave_count
+    slaves, it will call reportReplyBinlog to increase received binlog
+    position and wake up waiting transactions. It acquires LOCK_binlog_
+    to protect the operation.
+
+    @param[in] server_id  slave server_id of the ack
+    @param[in] log_file_name  binlog file name of the ack
+    @param[in] log_file_pos   binlog file position of the ack
+  */
+  void handleAck(int server_id, const char *log_file_name,
+                 my_off_t log_file_pos)
+  {
+    lock();
+    if (rpl_semi_sync_master_wait_for_slave_count == 1)
+      reportReplyBinlog(log_file_name, log_file_pos);
+    else
+    {
+      const AckInfo *ackinfo= NULL;
+
+      ackinfo= ack_container_.insert(server_id, log_file_name, log_file_pos);
+      if (ackinfo != NULL)
+        reportReplyBinlog(ackinfo->binlog_name, ackinfo->binlog_pos);
+    }
+    unlock();
+  }
 };
 
 /* System and status variables for the master component */
@@ -642,5 +863,4 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
 extern char rpl_semi_sync_master_wait_no_slave;
-
 #endif /* SEMISYNC_MASTER_H */

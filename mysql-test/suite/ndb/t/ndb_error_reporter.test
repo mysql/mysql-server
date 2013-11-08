@@ -2,6 +2,18 @@
 --source suite/ndb/include/ndb_error_reporter.inc
 
 --echo #######################################################
+--echo Running ndb_error_reporter help  
+--echo #######################################################
+--error 1
+--exec perl $NDB_ERROR_REPORTER --help 2>&1
+
+--echo #######################################################
+--echo Running ndb_error_reporter with nonexistent config file
+--echo #######################################################
+--error 1
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter_notexist.ini 2>&1 
+
+--echo #######################################################
 --echo Running ndb_error_reporter with missing config filename
 --echo #######################################################
 --error 1

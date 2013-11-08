@@ -168,7 +168,7 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
   if (index.m_prefAttrs > 0) {
     KeyData prefKey(index.m_keySpec, false, 0);
     prefKey.set_buf(node.getPref(), index.m_prefBytes);
-    jam();
+    thrjam(ctx.jamBuffer);
     readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {

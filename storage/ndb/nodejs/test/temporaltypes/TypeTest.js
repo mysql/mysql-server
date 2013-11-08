@@ -87,7 +87,7 @@ mapping.applyToClass(TestData);
 // cYear
 var t1 = new harness.ConcurrentTest("VerifyYear");
 t1.run = function() {
-  var data = new TestData(1);
+  var data = new TestData(11);
   data.cYear = 1989;
   this.verifier = new ValueVerifier(this, "cYear", 1989);
   fail_openSession(this, InsertFunction(data));
@@ -96,7 +96,7 @@ t1.run = function() {
 // cDatetimeDefault
 var t2 = new harness.ConcurrentTest("VerifyDatetimeDefault");
 t2.run = function() {
-  var data = new TestData(2);
+  var data = new TestData(12);
   var expect = new Date("Thu, 09 Nov 1989 17:00:00"); // the column default
   this.verifier = new ValueVerifier(this, "cDatetimeDefault", expect);
   fail_openSession(this, InsertFunction(data));
@@ -105,7 +105,7 @@ t2.run = function() {
 // cDatetime
 var t3 = new harness.ConcurrentTest("VerifyDatetime");
 t3.run = function() {
-  var data = new TestData(3);
+  var data = new TestData(13);
   var now = new Date();
   now.setMilliseconds(0);
   data.cDatetime = now;
@@ -116,20 +116,17 @@ t3.run = function() {
 // cTime
 var t4 = new harness.ConcurrentTest("VerifyTime");
 t4.run = function() {
-  var data = new TestData(4);
-  var now = Date.now();
-  var plusTenMinutes = now + (10 * 60000);
-  var diff = now - plusTenMinutes;   // A negative number 
-  data.cTime = diff;
-  this.verifier = new ValueVerifier(this, "cTime", diff);
+  var data = new TestData(14);
+  data.cTime = "-00:10:00";
+  this.verifier = new ValueVerifier(this, "cTime", "-00:10:00");
   fail_openSession(this, InsertFunction(data));
 }
 
 // cNullableTimestamp Thu, 01 Jan 1970 00:00:00 GMT
 var t5 = new harness.ConcurrentTest("TimestampZero");
 t5.run = function() {
-  var data = new TestData(5);
-  var dateZero = new Date(0);
+  var data = new TestData(15);
+  var dateZero = new Date(60*60*1000);
   data.cNullableTimestamp = dateZero;
   this.verifier = new ValueVerifier(this, "cNullableTimestamp", dateZero);
   fail_openSession(this, InsertFunction(data));
@@ -139,7 +136,7 @@ t5.run = function() {
 // This should return 22008 INVALID DATETIME
 var t6 = new harness.ConcurrentTest("Timestamp1969");
 t6.run = function() {
-  var data = new TestData(6);
+  var data = new TestData(16);
   var date1969 = new Date(-10000);
   data.cNullableTimestamp = date1969;
   this.insertErrorVerifier = new ErrorVerifier(this, "22007");
@@ -149,7 +146,7 @@ t6.run = function() {
 // cNullableTimestamp 1970
 var t7 = new harness.ConcurrentTest("Timestamp1970");
 t7.run = function() {
-  var data = new TestData(7);
+  var data = new TestData(17);
   var date1970 = new Date(Date.UTC(1970, 0, 1, 3, 34, 30)); // 25 or 6 to 4
   data.cNullableTimestamp = date1970;
   this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1970);
@@ -159,11 +156,31 @@ t7.run = function() {
 // cDate
 var t8 = new harness.ConcurrentTest("Date");
 t8.run = function() {
-  var data = new TestData(8);
-  var now = new Date(Date.UTC(1989, 10, 9));
-  data.cDate = now;
-  this.verifier = new ValueVerifier(this, "cDate", now);
+  var data = new TestData(18);
+  var test_date = "1989-11-09";
+  data.cDate = test_date;
+  this.verifier = new ValueVerifier(this, "cDate", test_date);
   fail_openSession(this, InsertFunction(data));
 }
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
+// cTime: Special case 
+// "nn:nn" must be treated as "HH:MM"
+var t9 = new harness.ConcurrentTest("VerifyTime_HH:MM");
+t9.run = function() {
+  var data = new TestData(19);
+  data.cTime = "13:22";
+  this.verifier = new ValueVerifier(this, "cTime", "13:22:00");
+  fail_openSession(this, InsertFunction(data));
+}
+
+// cTime: 
+// String "nnnn" must be treated as "MM:SS"
+var t10 = new harness.ConcurrentTest("VerifyTime_MMSS");
+t10.run = function() {
+  var data = new TestData(20);
+  data.cTime = "1322";
+  this.verifier = new ValueVerifier(this, "cTime", "00:13:22");
+  fail_openSession(this, InsertFunction(data));
+}
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10];

@@ -23,7 +23,7 @@
 "use strict";
 
 var     udebug     = unified_debug.getLogger("Query.js");
-var userContext    = require('../impl/common/UserContext.js');
+var userContext    = require("./UserContext.js");
 
 var keywords = ['param', 'where', 'field', 'execute'];
 
@@ -103,7 +103,8 @@ QueryField.prototype.between = function(queryParameter1, queryParameter2) {
   return new QueryBetween(this, queryParameter1, queryParameter2);
 };
 
-QueryField.prototype.in = function(queryParameter) {
+// 'in' is a keyword so use alternate syntax
+QueryField.prototype['in'] = function(queryParameter) {
   return new QueryIn(this, queryParameter);
 };
 
@@ -451,16 +452,24 @@ QueryBetween = function(queryField, parameter1, parameter2) {
   this.formalParameters = [];
   this.formalParameters[0] = parameter1;
   this.formalParameters[1] = parameter2;
+  this.parameter1 = parameter1;
+  this.parameter2 = parameter2;
 };
 
 QueryBetween.prototype = new AbstractQueryComparator();
 
 QueryBetween.prototype.mark = function(candidateIndex) {
-  // TODO this needs work to keep two parameters and one column
   var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markGt(columnNumber, parameterName);
+  var parameterName1 = this.parameter1.name;
+  var parameterName2 = this.parameter2.name;
+  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber,
+      'parameterNames:', parameterName1, parameterName2);
+  candidateIndex.markGe(columnNumber, parameterName1);
+  candidateIndex.markLe(columnNumber, parameterName2);
+};
+
+QueryBetween.prototype.toString = function() {
+  return this.queryField.toString() + ' BETWEEN ' + this.parameter1.toString() + ' AND ' + this.parameter2.toString();
 };
 
 QueryBetween.prototype.visit = function(visitor) {
@@ -675,11 +684,15 @@ CandidateIndex.prototype.isUsable = function(numberOfPredicateTerms) {
   var i, columnNumber;
   var numberOfMarkedColumns = 0;
   var numberOfEqualColumns = 0;
+  var firstColumnMarked = false;
   var usable = false;
   // count the number of index columns marked
   for (i = 0; i < this.numberOfColumnsInIndex; ++i) {
     columnNumber = this.dbIndexHandler.dbIndex.columnNumbers[i];
     if (typeof(this.parameterNames[columnNumber]) !== 'undefined') {
+      if (i === 0) {
+        firstColumnMarked = true;
+      }
       ++numberOfMarkedColumns;
       if (this.columnBounds[columnNumber].equal) {
         ++numberOfEqualColumns;
@@ -695,8 +708,8 @@ CandidateIndex.prototype.isUsable = function(numberOfPredicateTerms) {
       usable = true;
     }
   } else if (this.isOrdered) {
-    // any columns must be marked to use a btree index
-    usable = numberOfMarkedColumns > 0;
+    // the first column must be marked to use a btree index
+    usable = firstColumnMarked;
   }
   udebug.log_detail('CandidateIndex.isUsable found ', numberOfMarkedColumns,
       'marked for', this.dbIndexHandler.dbIndex.name, 'with ', this.numberOfColumnsInIndex,

@@ -1681,7 +1681,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.4465,
+                          "cost": 2.8465,
                           "chosen": true
                         },
                         {
@@ -1736,7 +1736,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.4465,
+                          "cost": 2.8465,
                           "chosen": true
                         },
                         {

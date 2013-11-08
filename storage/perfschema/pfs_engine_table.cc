@@ -64,6 +64,13 @@
 #include "table_esms_by_digest.h"
 #include "table_esms_by_program.h"
 
+#include "table_events_transactions.h"
+#include "table_ets_by_thread_by_event_name.h"
+#include "table_ets_by_host_by_event_name.h"
+#include "table_ets_by_user_by_event_name.h"
+#include "table_ets_by_account_by_event_name.h"
+#include "table_ets_global_by_event_name.h"
+
 #include "table_users.h"
 #include "table_accounts.h"
 #include "table_hosts.h"
@@ -158,6 +165,15 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
   &table_esms_by_program::m_share,
+
+  &table_events_transactions_current::m_share,
+  &table_events_transactions_history::m_share,
+  &table_events_transactions_history_long::m_share,
+  &table_ets_by_thread_by_event_name::m_share,
+  &table_ets_by_account_by_event_name::m_share,
+  &table_ets_by_user_by_event_name::m_share,
+  &table_ets_by_host_by_event_name::m_share,
+  &table_ets_global_by_event_name::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -1580,11 +1596,90 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= metadata_lock_max * sizeof(PFS_metadata_lock);
       total_memory+= size;
       break;
+    case 180:
+      name= "events_transactions_history.size";
+      size= sizeof(PFS_events_transactions);
+      break;
+    case 181:
+      name= "events_transactions_history.count";
+      size= events_transactions_history_per_thread * thread_max;
+      break;
+    case 182:
+      name= "events_transactions_history.memory";
+      size= events_transactions_history_per_thread * thread_max
+        * sizeof(PFS_events_transactions);
+      total_memory+= size;
+      break;
+    case 183:
+      name= "events_transactions_history_long.size";
+      size= sizeof(PFS_events_transactions);
+      break;
+    case 184:
+      name= "events_transactions_history_long.count";
+      size= events_transactions_history_long_size;
+      break;
+    case 185:
+      name= "events_transactions_history_long.memory";
+      size= events_transactions_history_long_size * sizeof(PFS_events_transactions);
+      total_memory+= size;
+      break;
+    case 186:
+      name= "events_transactions_summary_by_thread_by_event_name.size";
+      size= sizeof(PFS_transaction_stat);
+      break;
+    case 187:
+      name= "events_transactions_summary_by_thread_by_event_name.count";
+      size= thread_max * transaction_class_max;
+      break;
+    case 188:
+      name= "events_transactions_summary_by_thread_by_event_name.memory";
+      size= thread_max * transaction_class_max * sizeof(PFS_transaction_stat);
+      total_memory+= size;
+      break;
+    case 189:
+      name= "events_transactions_summary_by_account_by_event_name.size";
+      size= sizeof(PFS_transaction_stat);
+      break;
+    case 190:
+      name= "events_transactions_summary_by_account_by_event_name.count";
+      size= account_max * transaction_class_max;
+      break;
+    case 191:
+      name= "events_transactions_summary_by_account_by_event_name.memory";
+      size= account_max * transaction_class_max * sizeof(PFS_transaction_stat);
+      total_memory+= size;
+      break;
+    case 192:
+      name= "events_transactions_summary_by_user_by_event_name.size";
+      size= sizeof(PFS_transaction_stat);
+      break;
+    case 193:
+      name= "events_transactions_summary_by_user_by_event_name.count";
+      size= user_max * transaction_class_max;
+      break;
+    case 194:
+      name= "events_transactions_summary_by_user_by_event_name.memory";
+      size= user_max * transaction_class_max * sizeof(PFS_transaction_stat);
+      total_memory+= size;
+      break;
+    case 195:
+      name= "events_transactions_summary_by_host_by_event_name.size";
+      size= sizeof(PFS_transaction_stat);
+      break;
+    case 196:
+      name= "events_transactions_summary_by_host_by_event_name.count";
+      size= host_max * transaction_class_max;
+      break;
+    case 197:
+      name= "events_transactions_summary_by_host_by_event_name.memory";
+      size= host_max * transaction_class_max * sizeof(PFS_transaction_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 180:
+    case 198:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

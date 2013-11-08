@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
+#include <my_check_opt.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -182,8 +183,6 @@ static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
-
-static char*	fts_server_stopword_table		= NULL;
 
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
@@ -480,7 +479,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
-	(ib_cb_t) ib_ut_strerr
+	(ib_cb_t) ib_ut_strerr,
+	(ib_cb_t) ib_cursor_stmt_begin
 };
 
 /*************************************************************//**
@@ -2256,12 +2256,12 @@ innobase_register_trx(
 	THD*		thd,	/* in: MySQL thd (connection) object */
 	trx_t*		trx)	/* in: transaction to register */
 {
-	trans_register_ha(thd, FALSE, hton);
+	trans_register_ha(thd, FALSE, hton, (const ulonglong *)&trx->id);
 
 	if (!trx_is_registered_for_2pc(trx)
 	    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
-		trans_register_ha(thd, TRUE, hton);
+		trans_register_ha(thd, TRUE, hton, (const ulonglong *)&trx->id);
 	}
 
 	trx_register_for_2pc(trx);
@@ -2984,13 +2984,6 @@ innobase_init(
 		DBUG_RETURN(innobase_init_abort());
 	}
 
-	/* Remember stopword table name supplied at startup */
-	if (innobase_server_stopword_table) {
-		fts_server_stopword_table =
-			my_strdup(PSI_INSTRUMENT_ME,
-                                  innobase_server_stopword_table,  MYF(0));
-	}
-
 	if (innobase_change_buffering) {
 		ulint	use;
 
@@ -3079,6 +3072,23 @@ innobase_change_buffering_inited_ok:
 			"innodb-page-size has been changed "
 			"from the default value %d to %lu.",
 			UNIV_PAGE_SIZE_DEF, srv_page_size);
+	}
+
+	if (srv_log_write_ahead_size > srv_page_size) {
+		srv_log_write_ahead_size = srv_page_size;
+	} else {
+		ulong	srv_log_write_ahead_size_tmp = OS_FILE_LOG_BLOCK_SIZE;
+
+		while (srv_log_write_ahead_size_tmp
+		       < srv_log_write_ahead_size) {
+			srv_log_write_ahead_size_tmp
+				= srv_log_write_ahead_size_tmp * 2;
+		}
+		if (srv_log_write_ahead_size_tmp
+		    != srv_log_write_ahead_size) {
+			srv_log_write_ahead_size
+				= srv_log_write_ahead_size_tmp / 2;
+		}
 	}
 
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
@@ -5190,6 +5200,7 @@ innobase_mysql_fts_get_token(
 	ut_a(cs);
 
 	token->f_n_char = token->f_len = 0;
+	token->f_str = NULL;
 
 	for (;;) {
 
@@ -7842,6 +7853,13 @@ ha_innobase::ft_init_ext(
 		return(NULL);
 	}
 
+	/* If tablespace is discarded, we should return here */
+	if (dict_table_is_discarded(ft_table)) {
+		my_error(ER_NO_SUCH_TABLE, MYF(0), table->s->db.str,
+			 table->s->table_name.str);
+		return(NULL);
+	}
+
 	if (keynr == NO_SUCH_KEY) {
 		/* FIXME: Investigate the NO_SUCH_KEY usage */
 		index = (dict_index_t*) ib_vector_getp(ft_table->fts->indexes, 0);
@@ -8343,9 +8361,6 @@ create_table_def(
 			}
 		}
 
-		/* we assume in dtype_form_prtype() that this fits in
-		two bytes */
-		ut_a(field->type() <= MAX_CHAR_COLL_NUM);
 		col_len = field->pack_length();
 
 		/* The MySQL pack length contains 1 or 2 bytes length field
@@ -8881,7 +8896,7 @@ innobase_fts_load_stopword(
 	THD*		thd)	/*!< in: current thread */
 {
 	return(fts_load_stopword(table, trx,
-				 fts_server_stopword_table,
+				 innobase_server_stopword_table,
 				 THDVAR(thd, ft_user_stopword_table),
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
@@ -11140,13 +11155,12 @@ int
 ha_innobase::check(
 /*===============*/
 	THD*		thd,		/*!< in: user thread handle */
-	HA_CHECK_OPT*	check_opt)	/*!< in: check options, currently
-					ignored */
+	HA_CHECK_OPT*	check_opt)	/*!< in: check options */
 {
 	dict_index_t*	index;
 	ulint		n_rows;
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ibool		is_ok		= TRUE;
+	bool		is_ok		= true;
 	ulint		old_isolation_level;
 	ibool		table_corrupted;
 
@@ -11202,33 +11216,49 @@ ha_innobase::check(
 	do additional check */
 	prebuilt->table->corrupted = FALSE;
 
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	os_increment_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 		char	index_name[MAX_FULL_NAME_LEN + 1];
 
-		/* If this is an index being created or dropped, break */
+		/* If this is an index being created or dropped, skip */
 		if (*index->name == TEMP_INDEX_PREFIX) {
-			break;
-		} else if (!btr_validate_index(index, prebuilt->trx, false)) {
-			is_ok = FALSE;
-
-			innobase_format_name(
-				index_name, sizeof index_name,
-				index->name, TRUE);
-
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_NOT_KEYFILE,
-					    "InnoDB: The B-tree of"
-					    " index %s is corrupted.",
-					    index_name);
 			continue;
+		}
+
+		if (!(check_opt->flags & T_QUICK)) {
+			/* Enlarge the fatal lock wait timeout during
+			CHECK TABLE. */
+			os_increment_counter_by_amount(
+				server_mutex,
+				srv_fatal_semaphore_wait_threshold,
+				SRV_SEMAPHORE_WAIT_EXTENSION);
+			bool valid = btr_validate_index(
+					index, prebuilt->trx, false);
+
+			/* Restore the fatal lock wait timeout after
+			CHECK TABLE. */
+			os_decrement_counter_by_amount(
+				server_mutex,
+				srv_fatal_semaphore_wait_threshold,
+				SRV_SEMAPHORE_WAIT_EXTENSION);
+
+			if (!valid) {
+				is_ok = false;
+
+				innobase_format_name(
+					index_name, sizeof index_name,
+					index->name, TRUE);
+
+				push_warning_printf(
+					thd,
+					Sql_condition::SL_WARNING,
+					ER_NOT_KEYFILE,
+					"InnoDB: The B-tree of"
+					" index %s is corrupted.",
+					index_name);
+				continue;
+			}
 		}
 
 		/* Instead of invoking change_active_index(), set up
@@ -11252,7 +11282,7 @@ ha_innobase::check(
 					"InnoDB: Index %s is marked as"
 					" corrupted",
 					index_name);
-				is_ok = FALSE;
+				is_ok = false;
 			} else {
 				push_warning_printf(
 					thd,
@@ -11301,7 +11331,7 @@ ha_innobase::check(
 				"InnoDB: The B-tree of"
 				" index %s is corrupted.",
 				index_name);
-			is_ok = FALSE;
+			is_ok = false;
 			dict_set_corrupted(
 				index, prebuilt->trx, "CHECK TABLE-check index");
 		}
@@ -11323,7 +11353,7 @@ ha_innobase::check(
 				index->name,
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
-			is_ok = FALSE;
+			is_ok = false;
 			dict_set_corrupted(
 				index, prebuilt->trx,
 				"CHECK TABLE; Wrong count");
@@ -11345,23 +11375,17 @@ ha_innobase::check(
 
 	/* Restore the original isolation level */
 	prebuilt->trx->isolation_level = old_isolation_level;
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	/* We validate the whole adaptive hash index for all tables
+	at every CHECK TABLE only when QUICK flag is not present. */
 
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
-
-	if (!btr_search_validate()) {
+	if (!(check_opt->flags & T_QUICK) && !btr_search_validate()) {
 		push_warning(thd, Sql_condition::SL_WARNING,
 			     ER_NOT_KEYFILE,
 			     "InnoDB: The adaptive hash index is corrupted.");
-		is_ok = FALSE;
+		is_ok = false;
 	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	os_decrement_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -12406,7 +12430,7 @@ innodb_show_status(
 
 	ret_val= stat_print(thd, innobase_hton_name,
 				(uint) strlen(innobase_hton_name),
-				STRING_WITH_LEN(""), str, flen);
+				STRING_WITH_LEN(""), str, uint(flen));
 
 	my_free(str);
 
@@ -13901,45 +13925,6 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
-/****************************************************************//**
-Update global variable fts_server_stopword_table with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_stopword_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	stopword_table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	stopword_table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (stopword_table_name) {
-		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
-                                               stopword_table_name, MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_server_stopword_table = *(char**) var_ptr;
-}
-
 /*************************************************************//**
 Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
@@ -15198,6 +15183,55 @@ buffer_pool_load_abort(
 	}
 }
 
+/****************************************************************//**
+Update the system variable innodb_log_write_ahead_size using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_log_write_ahead_size_update(
+/*===============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+
+	ulong	val = OS_FILE_LOG_BLOCK_SIZE;
+
+	while (val < in_val) {
+		val = val * 2;
+	}
+
+	if (val > UNIV_PAGE_SIZE) {
+		val = UNIV_PAGE_SIZE;
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_log_write_ahead_size cannot"
+				    " be set higher than innodb_page_size.");
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_log_write_ahead_size"
+				    " to %lu",
+				    UNIV_PAGE_SIZE);
+	} else if (val != in_val) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_log_write_ahead_size should be"
+				    " set 2^n value and larger than 512.");
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_log_write_ahead_size"
+				    " to %lu",
+				    val);
+	}
+
+	srv_log_write_ahead_size = val;
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
 	{NullS, NullS, SHOW_LONG}
@@ -15343,10 +15377,10 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   innodb_file_format_max_update, "Antelope");
 
 static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
   "The user supplied stopword table name.",
   innodb_stopword_table_validate,
-  innodb_stopword_table_update,
+  NULL,
   NULL);
 
 static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
@@ -15724,6 +15758,13 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
+static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Redo log write ahead unit size to avoid read-on-write,"
+  " it should match the OS cache block IO size",
+  NULL, innodb_log_write_ahead_size_update,
+  8*1024L, OS_FILE_LOG_BLOCK_SIZE, UNIV_PAGE_SIZE_DEF, OS_FILE_LOG_BLOCK_SIZE);
+
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of the buffer pool to reserve for 'old' blocks.",
@@ -16055,6 +16096,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
+  MYSQL_SYSVAR(log_write_ahead_size),
   MYSQL_SYSVAR(log_group_home_dir),
   MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(max_dirty_pages_pct),

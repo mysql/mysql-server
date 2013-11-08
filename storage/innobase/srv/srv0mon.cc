@@ -837,9 +837,9 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_SYNC},
 
-	{"log_pending_log_writes", "recovery", "Pending log writes",
+	{"log_pending_log_flushes", "recovery", "Pending log flushes",
 	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_WRITE},
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_FLUSH},
 
 	{"log_pending_checkpoint_writes", "recovery", "Pending checkpoints",
 	 MONITOR_NONE,
@@ -866,6 +866,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
+
+	{"log_padded", "recovery",
+	 "Bytes of log padded for log write ahead",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_PADDED},
 
 	/* ========== Counters for Page Compression ========== */
 	{"module_compress", "compression", "Page Compression Info",
@@ -1644,6 +1650,10 @@ srv_mon_process_existing_counter(
 	/* innodb_log_writes */
 	case MONITOR_OVLD_LOG_WRITES:
 		value = srv_stats.log_writes;
+		break;
+
+	case MONITOR_OVLD_LOG_PADDED:
+		value = srv_stats.log_padded;
 		break;
 
 	/* innodb_dblwr_writes */

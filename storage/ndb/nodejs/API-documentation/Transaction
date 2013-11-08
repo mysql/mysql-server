@@ -1,48 +1,51 @@
-    /** Transactions are either automatic or explicit. If automatic,
-     * (autocommit) every operation is performed as part of a new
-     * transaction that is automatically committed.
-     */
+/** Transactions are either automatic or explicit. If automatic,
+  * (autocommit) every operation is performed as part of a new
+  * transaction that is automatically committed.
+  */
 
-    /** Begin a transaction.
-     * 
-     * If a transaction is already active, an exception is thrown.
-     * 
-     */
-    begin();
+/** Begin a transaction.
+ * IMMEDIATE
+ * If a transaction is already active, an exception is thrown.
+ * 
+ */
+begin();
 
-    /** Commit a transaction. Errors are reported in the callback.
-     * 
-     * @param callback 
-     */
-    commit(Function(Object error) callback);
-
-
-    /** Roll back a transaction. Errors are reported in the callback.
-     * 
-     *  ASYNC
-     *
-     * @param callback 
-     */
-    rollback(Function(Object error) callback);
+/** Commit a transaction. Errors are reported in the callback.
+ *  Extra arguments are passed to the callback.
+ *  ASYNC
+ * 
+ * @param callback 
+ */
+commit(Function(error, ... ) callback, ... );
 
 
-    /** Is there a transaction currently active?
-     * IMMEDIATE
-     * @return true if a transaction is active
-     */
-    boolean isActive();
+/** Roll back a transaction. Errors are reported in the callback. 
+ * ASYNC
+ *
+ * @param callback 
+ */
+rollback(Function(error, ... ) callback, ... );
 
 
-    /** Mark this transaction as rollback only. After this method is called,
-     * commit() will roll back the transaction and throw an exception;
-     * rollback() will roll back the transaction and not throw an exception.
-     *
-     * If in autocommit mode, an exception is thrown.
-     */
-    setRollbackOnly();
+/** Is there a transaction currently active?
+ * IMMEDIATE
+ * @return true if a transaction is active
+ */
+boolean isActive();
 
 
-    /** Has this transaction been marked for rollback only?
-     * @return true if the transaction has been marked for rollback only
-     */
-    boolean getRollbackOnly();
+/** Mark this transaction as rollback only. After this method is called,
+ * commit() will roll back the transaction and throw an exception;
+ * rollback() will roll back the transaction and not throw an exception.
+ *
+ * If in autocommit mode, an exception is thrown.
+ * IMMEDIATE
+ */
+setRollbackOnly();
+
+
+/** Has this transaction been marked for rollback only?
+ * @return true if the transaction has been marked for rollback only
+ * IMMEDIATE
+ */
+boolean getRollbackOnly();

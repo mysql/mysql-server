@@ -60,11 +60,6 @@ extern	ibool	log_do_write;
 /** Write to log */
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
-
-/** Wait modes for log_write_up_to @{ */
-#define LOG_NO_WAIT		91
-#define LOG_WAIT_ONE_GROUP	92
-#define	LOG_WAIT_ALL_GROUPS	93
 /* @} */
 /** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
@@ -121,7 +116,9 @@ released with log_release.
 lsn_t
 log_reserve_and_open(
 /*=================*/
-	ulint	len);	/*!< in: length of data to be catenated */
+	ulint		len,		/*!< in: length of data to be written */
+	bool		own_mutex);	/*!< in: true if caller owns
+					the mutex */
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the
 log mutex. */
@@ -129,8 +126,8 @@ log mutex. */
 void
 log_write_low(
 /*==========*/
-	byte*	str,		/*!< in: string */
-	ulint	str_len);	/*!< in: string length */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len);	/*!< in: string length */
 /************************************************************//**
 Closes the log.
 @return lsn */
@@ -203,10 +200,8 @@ log_write_up_to(
 /*============*/
 	lsn_t	lsn,	/*!< in: log sequence number up to which
 			the log should be written, LSN_MAX if not specified */
-	ulint	wait,	/*!< in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
-			or LOG_WAIT_ALL_GROUPS */
-	ibool	flush_to_disk);
-			/*!< in: TRUE if we want the written log
+	bool	flush_to_disk);
+			/*!< in: true if we want the written log
 			also to be flushed to disk */
 /****************************************************************//**
 Does a syncronous flush of the log buffer to disk. */
@@ -223,7 +218,7 @@ the write (+ possible flush) to finish. */
 void
 log_buffer_sync_in_background(
 /*==========================*/
-	ibool	flush);	/*<! in: flush the logs to disk */
+	bool	flush);	/*<! in: flush the logs to disk */
 /******************************************************//**
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
@@ -387,6 +382,9 @@ log_group_write_buf(
 	byte*		buf,		/*!< in: buffer */
 	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
+#ifdef UNIV_DEBUG
+	ulint		pad_len,	/*!< in: pad len in the buffer len */
+#endif /* UNIV_DEBUG */
 	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
@@ -723,8 +721,6 @@ struct log_group_t{
 	lsn_t		lsn;		/*!< lsn used to fix coordinates within
 					the log group */
 	lsn_t		lsn_offset;	/*!< the offset of the above lsn */
-	ulint		n_pending_writes;/*!< number of currently pending flush
-					writes for this log group */
 	byte**		file_header_bufs_ptr;/*!< unaligned buffers */
 	byte**		file_header_bufs;/*!< buffers for each file
 					header in the group */
@@ -797,30 +793,7 @@ struct log_t{
 					groups */
 	volatile bool	is_extending;	/*!< this is set to true during extend
 					the log buffer size */
-	lsn_t		written_to_some_lsn;
-					/*!< first log sequence number not yet
-					written to any log group; for this to
-					be advanced, it is enough that the
-					write i/o has been completed for any
-					one log group */
-	lsn_t		written_to_all_lsn;
-					/*!< first log sequence number not yet
-					written to some log group; for this to
-					be advanced, it is enough that the
-					write i/o has been completed for all
-					log groups.
-					Note that since InnoDB currently
-					has only one log group therefore
-					this value is redundant. Also it
-					is possible that this value
-					falls behind the
-					flushed_to_disk_lsn transiently.
-					It is appropriate to use either
-					flushed_to_disk_lsn or
-					write_lsn which are always
-					up-to-date and accurate. */
-	lsn_t		write_lsn;	/*!< end lsn for the current running
-					write */
+	lsn_t		write_lsn;	/*!< last written lsn */
 	ulint		write_end_offset;/*!< the data in buffer has
 					been written up to this offset
 					when the current write ends:
@@ -831,15 +804,11 @@ struct log_t{
 	lsn_t		flushed_to_disk_lsn;
 					/*!< how far we have written the log
 					AND flushed to disk */
-	ulint		n_pending_writes;/*!< number of currently
-					pending flushes or writes */
-	/* NOTE on the 'flush' in names of the fields below: starting from
-	4.0.14, we separate the write of the log file and the actual fsync()
-	or other method to flush it to disk. The names below shhould really
-	be 'flush_or_write'! */
-	os_event_t	no_flush_event;	/*!< this event is in the reset state
-					when a flush or a write is running;
-					a thread should wait for this without
+	ulint		n_pending_flushes;/*!< number of currently
+					pending flushes */
+	os_event_t	flush_event;	/*!< this event is in the reset state
+					when a flush is running; a thread
+					should wait for this without
 					owning the log mutex, but NOTE that
 					to set or reset this event, the
 					thread MUST own the log mutex! */
@@ -847,15 +816,6 @@ struct log_t{
 					first FALSE and becomes TRUE
 					when one log group has been
 					written or flushed */
-	os_event_t	one_flushed_event;/*!< this event is reset when the
-					flush or write has not yet completed
-					for any log group; e.g., this means
-					that a transaction has been committed
-					when this is set; a thread should wait
-					for this without owning the log mutex,
-					but NOTE that to set or reset this
-					event, the thread MUST own the log
-					mutex! */
 	ulint		n_log_ios;	/*!< number of log i/os initiated thus
 					far */
 	ulint		n_log_ios_old;	/*!< number of log i/o's at the

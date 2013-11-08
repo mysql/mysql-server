@@ -121,8 +121,8 @@ Handle<Value> nroConstructor(const Arguments &args) {
   if(args.IsConstructCall()) {
     /* Unwrap record from mapData */
     Local<Object> mapData = args.Data()->ToObject();
-    Record * record = 
-      unwrapPointer<Record *>(mapData->Get(0)->ToObject());
+    const Record * record = 
+      unwrapPointer<const Record *>(mapData->Get(0)->ToObject());
 
     /* Unwrap Column Handlers from mapData */
     ColumnHandlerSet * handlers = 
@@ -165,7 +165,7 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
   mapData->Set(0, args[0]);
 
   /* Build the ColumnHandlers and store them in the mapData at 1 */
-  Record * record = unwrapPointer<Record *>(args[0]->ToObject());
+  const Record * record = unwrapPointer<const Record *>(args[0]->ToObject());
   const uint32_t ncol = record->getNoOfColumns();
   ColumnHandlerSet *columnHandlers = new ColumnHandlerSet(ncol);
   for(unsigned int i = 0 ; i < ncol ; i++) {

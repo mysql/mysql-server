@@ -48,11 +48,7 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     Uint32 * ptr = reinterpret_cast<Uint32*>(req->mem_buffer);
     ptr += (sizeof(* tux_ctx) + 3) / 4;
 
-    tux_ctx->jamBuffer = new (ptr) EmulatedJamBuffer; // placement new.
-    tux_ctx->jamBuffer->theEmulatedJamIndex = 0;
-    // The TLS key is needed by the jamNoBlock() macro.
-    NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, tux_ctx->jamBuffer);
-    ptr += (sizeof(EmulatedJamBuffer) + 3) / 4;
+    tux_ctx->jamBuffer = getThrJamBuf();
     tux_ctx->c_searchKey = ptr;
     ptr += MaxAttrDataSize;
     tux_ctx->c_entryKey = ptr;
@@ -75,12 +71,7 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
   ctx.tup_ptr = reinterpret_cast<Dbtup*>(req->tup_ptr);
 
   Dbtux* tux = reinterpret_cast<Dbtux*>(req->tux_ptr);
-  const Uint32 result = tux->mt_buildIndexFragment(&ctx);
-  // Set to NULL now to avoid refrering released object.
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, NULL);
-  // jamBuffer was created via placement new, so call desctructor now.
-  tux_ctx->jamBuffer->~EmulatedJamBuffer();
-  return result;
+  return tux->mt_buildIndexFragment(&ctx);
 }
 
 Uint32 // error code
@@ -93,12 +84,10 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  findFrag(*indexPtr.p, fragId, fragPtr);
+  TuxCtx & ctx = * (TuxCtx*)req->tux_ctx_ptr;
+  findFrag(ctx.jamBuffer, *indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-
-  TuxCtx & ctx = * (TuxCtx*)req->tux_ctx_ptr;
-
   Local_key pos;
   Uint32 fragPtrI;
   int err = req->tup_ptr->mt_scan_init(req->tableId, req->fragId,
@@ -123,7 +112,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
 
     if (unlikely(! indexPtr.p->m_storeNullKey) &&
         searchKey.get_null_cnt() == indexPtr.p->m_numAttrs) {
-      jam();
+      thrjam(ctx.jamBuffer);
       continue;
     }
 
@@ -137,7 +126,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
      */
     if (frag.m_freeLoc == NullTupLoc)
     {
-      jam();
+      thrjam(ctx.jamBuffer);
       NodeHandle node(frag);
       err = -(int)allocNode(ctx, node);
 

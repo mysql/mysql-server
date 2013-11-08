@@ -54,28 +54,36 @@ ERROR 1050 (42S01) at line 1075: Table 'events_statements_summary_by_host_by_eve
 ERROR 1050 (42S01) at line 1107: Table 'events_statements_summary_by_user_by_event_name' already exists
 ERROR 1050 (42S01) at line 1140: Table 'events_statements_summary_by_account_by_event_name' already exists
 ERROR 1050 (42S01) at line 1171: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 1180: Table 'hosts' already exists
-ERROR 1050 (42S01) at line 1189: Table 'users' already exists
-ERROR 1050 (42S01) at line 1199: Table 'accounts' already exists
-ERROR 1050 (42S01) at line 1216: Table 'memory_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 1234: Table 'memory_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 1253: Table 'memory_summary_by_account_by_event_name' already exists
-ERROR 1050 (42S01) at line 1271: Table 'memory_summary_by_host_by_event_name' already exists
-ERROR 1050 (42S01) at line 1289: Table 'memory_summary_by_user_by_event_name' already exists
-ERROR 1050 (42S01) at line 1324: Table 'events_statements_summary_by_digest' already exists
-ERROR 1050 (42S01) at line 1362: Table 'events_statements_summary_by_program' already exists
-ERROR 1050 (42S01) at line 1384: Table 'replication_connection_configuration' already exists
-ERROR 1050 (42S01) at line 1394: Table 'replication_connection_nodes' already exists
-ERROR 1050 (42S01) at line 1417: Table 'replication_connection_status' already exists
-ERROR 1050 (42S01) at line 1424: Table 'replication_execute_configuration' already exists
-ERROR 1050 (42S01) at line 1432: Table 'replication_execute_status' already exists
-ERROR 1050 (42S01) at line 1443: Table 'replication_execute_status_by_coordinator' already exists
-ERROR 1050 (42S01) at line 1456: Table 'replication_execute_status_by_worker' already exists
-ERROR 1050 (42S01) at line 1466: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1472: Table 'session_account_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1486: Table 'table_handles' already exists
-ERROR 1050 (42S01) at line 1502: Table 'metadata_locks' already exists
-ERROR 1644 (HY000) at line 2239: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1199: Table 'events_transactions_current' already exists
+ERROR 1050 (42S01) at line 1227: Table 'events_transactions_history' already exists
+ERROR 1050 (42S01) at line 1255: Table 'events_transactions_history_long' already exists
+ERROR 1050 (42S01) at line 1278: Table 'events_transactions_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 1301: Table 'events_transactions_summary_by_host_by_event_name' already exists
+ERROR 1050 (42S01) at line 1324: Table 'events_transactions_summary_by_user_by_event_name' already exists
+ERROR 1050 (42S01) at line 1348: Table 'events_transactions_summary_by_account_by_event_name' already exists
+ERROR 1050 (42S01) at line 1370: Table 'events_transactions_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 1379: Table 'hosts' already exists
+ERROR 1050 (42S01) at line 1388: Table 'users' already exists
+ERROR 1050 (42S01) at line 1398: Table 'accounts' already exists
+ERROR 1050 (42S01) at line 1415: Table 'memory_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 1433: Table 'memory_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 1452: Table 'memory_summary_by_account_by_event_name' already exists
+ERROR 1050 (42S01) at line 1470: Table 'memory_summary_by_host_by_event_name' already exists
+ERROR 1050 (42S01) at line 1488: Table 'memory_summary_by_user_by_event_name' already exists
+ERROR 1050 (42S01) at line 1523: Table 'events_statements_summary_by_digest' already exists
+ERROR 1050 (42S01) at line 1561: Table 'events_statements_summary_by_program' already exists
+ERROR 1050 (42S01) at line 1583: Table 'replication_connection_configuration' already exists
+ERROR 1050 (42S01) at line 1593: Table 'replication_connection_nodes' already exists
+ERROR 1050 (42S01) at line 1616: Table 'replication_connection_status' already exists
+ERROR 1050 (42S01) at line 1623: Table 'replication_execute_configuration' already exists
+ERROR 1050 (42S01) at line 1631: Table 'replication_execute_status' already exists
+ERROR 1050 (42S01) at line 1642: Table 'replication_execute_status_by_coordinator' already exists
+ERROR 1050 (42S01) at line 1655: Table 'replication_execute_status_by_worker' already exists
+ERROR 1050 (42S01) at line 1665: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1671: Table 'session_account_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1685: Table 'table_handles' already exists
+ERROR 1050 (42S01) at line 1701: Table 'metadata_locks' already exists
+ERROR 1644 (HY000) at line 2438: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)

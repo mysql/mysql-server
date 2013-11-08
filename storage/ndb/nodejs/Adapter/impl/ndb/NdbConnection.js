@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -145,8 +145,17 @@ NdbConnection.prototype.connectSync = function(properties) {
 
 NdbConnection.prototype.getAsyncContext = function() {
   var AsyncNdbContext = adapter.ndb.impl.AsyncNdbContext;
-  if(! this.asyncNdbContext) {
-    this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
+
+  if(adapter.ndb.impl.MULTIWAIT_ENABLED) {
+    if(! this.asyncNdbContext) {
+      this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
+    }
+  }
+  else if(this.asyncNdbContext == null) {
+    udebug.log_notice("NDB Async API support is disabled at build-time for " +
+                      "MySQL Cluster 7.3.1 - 7.3.2.  Async API will not be used."
+                     );
+    this.asyncNdbContext = false;
   }
   return this.asyncNdbContext;
 };
@@ -186,7 +195,7 @@ NdbConnection.prototype.close = function(userCallback) {
   else { 
     this.isDisconnecting = true;
 
-    /* This sends a "shutdown" message to the async listener thread */
+    /* Start by sending a "shutdown" message to the async listener thread */
     if(this.asyncNdbContext) { this.asyncNdbContext.shutdown(); }
     
     /* The AsyncNdbContext destructor is synchronous, in that it calls

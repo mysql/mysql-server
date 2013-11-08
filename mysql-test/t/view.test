@@ -345,6 +345,8 @@ update v2 set x=x+1;
 update v1 set x=x+1 limit 1;
 -- error ER_NON_UPDATABLE_TABLE
 update v2 set x=x+1 limit 1;
+-- error ER_NON_UPDATABLE_TABLE
+delete from v2 limit 1;
 set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;

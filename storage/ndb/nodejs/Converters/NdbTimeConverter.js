@@ -22,7 +22,9 @@
   This is the standard TypeConverter class used with TIME columns 
   in the Ndb Adapter.
 
-  On the JavaScript side, this converter takes a number of milliseconds.
+  On the JavaScript side, this converter takes a string formatted as 
+  "HH:MM:SS.sss" with optional sign +/-, and precision after the decimal
+  point up to six digits.
   
   On the database side, TIME columns are read and written using a MySQLTime 
   structure.  MySQL TIME is a signed type, and the sign is preserved.  
@@ -38,30 +40,19 @@
 
 // TODO:  default values?  undefined?
 
-var MySQLTime = require("./MySQLTime.js"),
+var MySQLTime = require(path.join(spi_dir,"common","MySQLTime.js")),
     unified_debug = require(path.join(api_dir, "unified_debug")),
     udebug = unified_debug.getLogger("NdbTimeConverter.js");
 
-
-exports.toDB = function(msec) { 
-  var tm = new MySQLTime();
-  if(msec < 0) {
-    tm.sign = -1;
-    msec = -msec;
+exports.toDB = function(jsValue) {
+  var dbtime = null;
+  if(typeof jsValue === 'string') {
+    dbtime = new MySQLTime().initializeFromTimeString(jsValue);
   }
-  tm.hour = Math.floor(msec / 3600000);    msec %= 3600000;
-  tm.minute = Math.floor(msec / 60000);    msec %= 60000;
-  tm.second = Math.floor(msec / 1000);     msec %= 1000;
-  tm.microsec = msec * 1000;
-  return tm;
+  return dbtime;
 };
 
-exports.fromDB = function(mysqlTime) {
-  var msec = mysqlTime.hour * 3600000
-           + mysqlTime.minute * 60000
-           + mysqlTime.second * 1000
-           + mysqlTime.microsec / 1000;
-  msec *= mysqlTime.sign;
-  return msec;
+exports.fromDB = function(dbTime) {
+  return MySQLTime.initializeFromNdb(dbTime).toTimeString();
 };
 

@@ -64,7 +64,8 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
 
   Local_key key;
   Uint32* ptr, frag_page_id, err;
-  if ((ptr= alloc_fix_rec(&err,fragPtr.p,tablePtr.p, &key, &frag_page_id)) == 0)
+  if ((ptr= alloc_fix_rec(jamBuf, &err,fragPtr.p,tablePtr.p, &key, 
+                          &frag_page_id)) == 0)
   {
     thrjam(jamBuf);
     return err;

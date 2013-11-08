@@ -3197,7 +3197,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     Uint32 attrLen = 0;
     tcKeyReq->setAttrinfoLen(attrLen, 0); // Not required for long signals.
-    tcKeyReq->setAPIVersion(attrLen, NDB_VERSION);
     tcKeyReq->attrLen = attrLen;
 
     Uint32 reqInfo = 0;

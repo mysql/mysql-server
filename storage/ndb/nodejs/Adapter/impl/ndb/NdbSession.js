@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndboperation   = require("./NdbOperation.js"),
     dbtxhandler    = require("./NdbTransactionHandler.js"),
-    ndbconnection  = require("./NdbConnectionPool.js"),
+    ndbconnpool    = require("./NdbConnectionPool.js"),
     util           = require("util"),
     assert         = require("assert"),
     udebug         = unified_debug.getLogger("NdbSession.js"),
@@ -156,7 +156,7 @@ NdbSession.prototype.close = function(userCallback) {
   function defaultCallback() { }
   callback = typeof userCallback === 'function' ? userCallback : defaultCallback;
 
-  ndbconnection.closeNdbSession(this.parentPool, this, callback);
+  ndbconnpool.closeNdbSession(this.parentPool, this, callback);
 };
 
 

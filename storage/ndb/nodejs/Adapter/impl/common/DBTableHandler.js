@@ -100,7 +100,7 @@ proto.appendErrorMessage = function(msg) {
    If the TableMapping is null, default mapping behavior will be used.
    Default mapping behavior is to:
      select all columns when reading
-     use default converters for all data types
+     use default domainTypeConverters for all data types
      perform no remapping between field names and column names
 */
 function DBTableHandler(dbtable, tablemapping, ctor) {
@@ -159,8 +159,15 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[n] = f;
         f.columnNumber = n;
         f.defaultValue = c.defaultValue;
-        f.typeConverter = c.typeConverter;
-        udebug.log_detail('typeConverter for ', f.columnName, ' is ', f.typeConverter);
+        f.databaseTypeConverter = c.databaseTypeConverter;
+        // use converter or default domain type converter
+        if (f.converter) {
+          udebug.log_detail('domain type converter for ', f.columnName, ' is user-specified ', f.converter);
+          f.domainTypeConverter = f.converter;
+        } else {
+          udebug.log_detail('domain type converter for ', f.columnName, ' is system-specified ', c.domainTypeConverter);
+          f.domainTypeConverter = c.domainTypeConverter;
+        }
       } else {
         this.appendErrorMessage(
             'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
@@ -179,8 +186,15 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
-        f.typeConverter = c.typeConverter;
-        udebug.log_detail('typeConverter for ', f.columnName, ' is ', f.typeConverter);
+        f.databaseTypeConverter = c.databaseTypeConverter;
+        // use converter or default domain type converter
+        if (f.converter) {
+          udebug.log_detail('domain type converter for ', f.columnName, ' is user-specified ', f.converter);
+          f.domainTypeConverter = f.converter;
+        } else {
+          udebug.log_detail('domain type converter for ', f.columnName, ' is system-specified ', c.domainTypeConverter);
+          f.domainTypeConverter = c.domainTypeConverter;
+        }
       }
     }
   }
@@ -284,6 +298,8 @@ DBTableHandler.prototype.applyMappingToResult = function(obj, adapter) {
   if (this.newObjectConstructor) {
     // create the domain object from the result
     obj = this.newResultObject(obj, adapter);
+  } else {
+    this.applyFieldConverters(obj, adapter);
   }
   return obj;
 };
@@ -293,14 +309,20 @@ DBTableHandler.prototype.applyMappingToResult = function(obj, adapter) {
  *  IMMEDIATE
  *  Apply the field converters to an existing object
  */ 
-DBTableHandler.prototype.applyFieldConverters = function(obj) {
+DBTableHandler.prototype.applyFieldConverters = function(obj, adapter) {
   var i, f, value, convertedValue;
 
   for (i = 0; i < this.fieldNumberToFieldMap.length; i++) {
     f = this.fieldNumberToFieldMap[i];
-    if(f.converter) {
+    var databaseTypeConverter = f.databaseTypeConverter && f.databaseTypeConverter[adapter];
+    if (databaseTypeConverter) {
       value = obj[f.fieldName];
-      convertedValue = f.converter.fromDB(value);
+      convertedValue = databaseTypeConverter.fromDB(value);
+      obj[f.fieldName] = convertedValue;
+    }
+    if(f.domainTypeConverter) {
+      value = obj[f.fieldName];
+      convertedValue = f.domainTypeConverter.fromDB(value);
       obj[f.fieldName] = convertedValue;
     }
   }
@@ -453,11 +475,16 @@ function chooseIndex(self, keys, uniqueOnly) {
 /** Return the property of obj corresponding to fieldNumber.
  * If resolveDefault is true, replace undefined with the default column value.
  * ResolveDefault is used only for persist, not for write or update.
- * If a column converter is defined, convert the value here.
+ * If a domain type converter and/or database type converter is defined, convert the value here.
+ * If a fieldValueDefinedListener is passed, notify it via setDefined or setUndefined for each column.
+ * Call setDefined if a column value is defined in the object and setUndefined if not.
  */
-DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapter) { 
+DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapter, fieldValueDefinedListener) { 
   udebug.log_detail("get", fieldNumber);
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
+    if (fieldValueDefinedListener) {
+      fieldValueDefinedListener.setDefined(fieldNumber);
+    }
     return obj;
   }
   var f = this.fieldNumberToFieldMap[fieldNumber];
@@ -465,8 +492,8 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
   if (!f) {
     throw new Error('FatalInternalError: field number does not exist: ' + fieldNumber);
   }
-  if(f.converter) {
-    result = f.converter.toDB(obj[f.fieldName]);
+  if(f.domainTypeConverter) {
+    result = f.domainTypeConverter.toDB(obj[f.fieldName]);
   }
   else {
     result = obj[f.fieldName];
@@ -475,19 +502,26 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
     udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
     result = f.defaultValue;
   }
-  var typeConverter = f.typeConverter && f.typeConverter[adapter];
-  if (typeConverter && result !== undefined) {
-    result = typeConverter.toDB(result);
+  var databaseTypeConverter = f.databaseTypeConverter && f.databaseTypeConverter[adapter];
+  if (databaseTypeConverter && result !== undefined) {
+    result = databaseTypeConverter.toDB(result);
+  }
+  if (fieldValueDefinedListener) {
+    if (typeof(result) === 'undefined') {
+      fieldValueDefinedListener.setUndefined(fieldNumber);
+    } else {
+      fieldValueDefinedListener.setDefined(fieldNumber);
+    }
   }
   return result;
 };
 
 
 /* Return an array of values in field order */
-DBTableHandler.prototype.getFields = function(obj, resolveDefault, adapter) {
+DBTableHandler.prototype.getFields = function(obj, resolveDefault, adapter, fieldValueDefinedListener) {
   var i, fields = [];
   for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
-    fields[i] = this.get(obj, i, resolveDefault, adapter);
+    fields[i] = this.get(obj, i, resolveDefault, adapter, fieldValueDefinedListener);
   }
   return fields;
 };
@@ -498,14 +532,14 @@ DBTableHandler.prototype.set = function(obj, fieldNumber, value, adapter) {
   udebug.log_detail("set", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   var userValue = value;
-  var typeConverter;
+  var databaseTypeConverter;
   if(f) {
-    typeConverter = f.typeConverter && f.typeConverter[adapter];
-    if (typeConverter) {
-      userValue = typeConverter.fromDB(value);
+    databaseTypeConverter = f.databaseTypeConverter && f.databaseTypeConverter[adapter];
+    if (databaseTypeConverter) {
+      userValue = databaseTypeConverter.fromDB(value);
     }
-    if(f.converter) {
-      userValue = f.converter.fromDB(userValue);
+    if(f.domainTypeConverter) {
+      userValue = f.domainTypeConverter.fromDB(userValue);
     }
     obj[f.fieldName] = userValue;
     return true; 

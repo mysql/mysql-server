@@ -2601,7 +2601,7 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
 
-    if (error == 0 && test(index_flags(i, 0, 0) & HA_READ_RANGE))
+    if (error == 0 && MY_TEST(index_flags(i, 0, 0) & HA_READ_RANGE))
       btree_keys.set_bit(i);
   }
 
@@ -7694,11 +7694,11 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    trans_register_ha(thd, FALSE, ht);
+    trans_register_ha(thd, FALSE, ht, NULL);
     if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
-        trans_register_ha(thd, TRUE, ht);
+        trans_register_ha(thd, TRUE, ht, NULL);
       thd_ndb->m_handler= NULL;
     }
     else
@@ -8393,7 +8393,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
       of the transaction
     */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
-    mark_transaction_to_rollback(thd, 1);
+    thd->mark_transaction_to_rollback(1);
     my_error(ER_WARN_ENGINE_TRANSACTION_ROLLBACK, MYF(0), "NDB");
     DBUG_RETURN(0);
   }
@@ -10621,15 +10621,15 @@ ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Diction
 {
   DBUG_ENTER("drop_table_and_related");
   DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d",
-                       test(drop_flags & NDBDICT::DropTableCascadeConstraints),
-                       test(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB)));
+                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints),
+                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB)));
 
   /*
     Build list of objects which should be dropped after the table
     unless cascade constraint is used and they will be dropped anyway
   */
   const bool cascade_constraints =
-    test(drop_flags & NDBDICT::DropTableCascadeConstraints);
+    MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints);
 
   List<char> drop_list;
   if (!cascade_constraints &&
@@ -14438,7 +14438,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
 
   m_disable_multi_read= FALSE;
 
-  mrr_is_output_sorted= test(mode & HA_MRR_SORTED);
+  mrr_is_output_sorted= MY_TEST(mode & HA_MRR_SORTED);
   /*
     Copy arguments into member variables
   */
@@ -14447,7 +14447,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_iter= mrr_funcs.init(seq_init_param, n_ranges, mode);
   ranges_in_seq= n_ranges;
   m_range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range);
-  mrr_need_range_assoc = !test(mode & HA_MRR_NO_ASSOCIATION);
+  mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
     ha_statistic_increment(&SSV::ha_multi_range_read_init_count);

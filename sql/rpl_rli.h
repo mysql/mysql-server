@@ -259,8 +259,12 @@ private:
     earlier on in the class constructor.
   */
   bool rli_fake;
+  /* Last gtid retrieved by IO thread */
+  Gtid last_retrieved_gtid;
 
 public:
+  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
+  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
@@ -653,7 +657,7 @@ public:
     if (workers_array_initialized)
       return workers.elements;
     else
-      return workers_copy_pfs.size();
+      return static_cast<uint>(workers_copy_pfs.size());
   }
 
   /*
@@ -915,7 +919,8 @@ public:
     THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
   }
 
-  int32 get_sql_delay() { return sql_delay; }
+  /* Note that this is cast to uint32 in show_slave_status(). */
+  time_t get_sql_delay() { return sql_delay; }
   void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
@@ -1011,7 +1016,7 @@ private:
     slave SQL thread is running, since the SQL thread reads it without
     a lock when executing flush_info().
   */
-  int sql_delay;
+  time_t sql_delay;
 
   /**
     During a delay, specifies the point in time when the delay ends.

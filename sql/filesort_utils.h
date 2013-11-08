@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "my_base.h"
 #include "sql_array.h"
 
+#include <algorithm>
 #include <utility>
 
 class Sort_param;
@@ -32,7 +33,7 @@ class Sort_param;
 
     Calculates cost of merge sort by simulating call to merge_many_buff().
 
-  @retval
+  @returns
     Computed cost of merge sort in disk seeks.
 
   @note
@@ -49,11 +50,24 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 
 /**
   A wrapper class around the buffer used by filesort().
-  The buffer is a contiguous chunk of memory,
-  where the first part is <num_records> pointers to the actual data.
+  The sort buffer is a contiguous chunk of memory,
+  containing both records to be sorted, and pointers to said records:
+
+  <start of buffer       | still unused   |                      end of buffer>
+  |rec 0|record 1  |rec 2|  ............  |ptr to rec2|ptr to rec1|ptr to rec0|
+
+  Records will be inserted "left-to-right". Records are not necessarily
+  fixed-size, they can be packed and stored without any "gaps".
+
+  Record pointers will be inserted "right-to-left", as a side-effect
+  of inserting the actual records.
 
   We wrap the buffer in order to be able to do lazy initialization of the
   pointers: the buffer is often much larger than what we actually need.
+
+  With this allocation scheme, and lazy initialization of the pointers,
+  we are able to pack variable-sized records in the buffer,
+  and thus possibly have space for more records than we initially estimated.
 
   The buffer must be kept available for multiple executions of the
   same sort operation, so we have explicit allocate and free functions,
@@ -63,47 +77,164 @@ class Filesort_buffer
 {
 public:
   Filesort_buffer() :
-    m_idx_array(), m_record_length(0), m_start_of_data(NULL)
+    m_next_rec_ptr(NULL), m_rawmem(NULL), m_record_pointers(NULL),
+    m_sort_keys(NULL),
+    m_num_records(0), m_record_length(0),
+    m_size_in_bytes(0), m_idx(0)
   {}
 
   /** Sort me... */
   void sort_buffer(const Sort_param *param, uint count);
 
-  /// Initializes a record pointer.
-  uchar *get_record_buffer(uint idx)
+  /**
+    Reverses the record pointer array, to avoid recording new results for
+    non-deterministic mtr tests.
+  */
+  void reverse_record_pointers()
   {
-    m_idx_array[idx]= m_start_of_data + (idx * m_record_length);
-    return m_idx_array[idx];
+    if (m_idx < 2) // There is nothing to swap.
+      return;
+    uchar **keys= get_sort_keys();
+    const longlong count= m_idx - 1;
+    for (longlong ix= 0; ix <= count/2; ++ix)
+      std::swap(keys[ix], keys[count - ix]);
   }
 
-  /// Initializes all the record pointers.
+  /**
+    Initializes all the record pointers.
+  */
   void init_record_pointers()
   {
-    for (uint ix= 0; ix < m_idx_array.size(); ++ix)
-      (void) get_record_buffer(ix);
+    init_next_record_pointer();
+    while (m_idx < m_num_records)
+      (void) get_next_record_pointer();
+    reverse_record_pointers();
   }
 
-  /// Returns total size: pointer array + record buffers.
+  /**
+    Prepares the buffer for the next batch of records to process.
+   */
+  void init_next_record_pointer()
+  {
+    m_idx= 0;
+    m_next_rec_ptr= m_rawmem;
+    m_sort_keys= NULL;
+  }
+
+  /**
+    @returns the number of bytes currently in use for data.
+   */
+  size_t space_used_for_data() const
+  {
+    return m_next_rec_ptr ? m_next_rec_ptr - m_rawmem : 0;
+  }
+
+  /**
+    @returns the number of bytes left in the buffer.
+  */
+  size_t spaceleft() const
+  {
+    DBUG_ASSERT(m_next_rec_ptr >= m_rawmem);
+    const size_t spaceused=
+      (m_next_rec_ptr - m_rawmem) +
+      (static_cast<size_t>(m_idx) * sizeof(uchar*));
+    return m_size_in_bytes - spaceused;
+  }
+
+  /**
+    Is the buffer full?
+  */
+  bool isfull() const
+  {
+    if (m_idx < m_num_records)
+      return false;
+    return spaceleft() < (m_record_length + sizeof(uchar*));
+  }
+
+  /**
+    Where should the next record be stored?
+   */
+  uchar *get_next_record_pointer()
+  {
+    uchar *retval= m_next_rec_ptr;
+    // Save the return value in the record pointer array.
+    m_record_pointers[-m_idx]= m_next_rec_ptr;
+    // Prepare for the subsequent request.
+    m_idx++;
+    m_next_rec_ptr+= m_record_length;
+    return retval;
+  }
+
+  /**
+    Adjusts for actual record length. get_next_record_pointer() above was
+    pessimistic, and assumed that the record could not be packed.
+   */
+  void adjust_next_record_pointer(uint val)
+  {
+    m_next_rec_ptr-= (m_record_length - val);
+  }
+
+  /**
+    @returns total size of buffer: pointer array + record buffers.
+  */
   size_t sort_buffer_size() const
   {
-    return m_idx_array.size() * (m_record_length + sizeof(uchar*));
+    return m_size_in_bytes;
   }
 
-  /// Allocates the buffer, but does *not* initialize pointers.
-  uchar **alloc_sort_buffer(uint num_records, uint record_length);
+  /**
+    Allocates the buffer, but does *not* initialize pointers.
+    Total size = (num_records * record_length) + (num_records * sizeof(pointer))
+                  space for records               space for pointer to records
+    Caller is responsible for raising an error if allocation fails.
+
+    @param num_records   Number of records.
+    @param record_length (maximum) size of each record.
+    @returns Pointer to allocated area, or NULL in case of out-of-memory.
+  */
+  uchar *alloc_sort_buffer(uint num_records, uint record_length);
 
   /// What is the <num_records, record_length> for the buffer?
   std::pair<uint, uint> sort_buffer_properties() const
   {
-    return std::make_pair(static_cast<uint>(m_idx_array.size()),
-                          m_record_length);
+    return std::make_pair(m_num_records, m_record_length);
   }
 
   /// Frees the buffer.
-  void free_sort_buffer();
+  void free_sort_buffer()
+  {
+    my_free(m_rawmem);
+    *this= Filesort_buffer();
+  }
 
-  /// Getter, for calling routines which still use the uchar** interface.
-  uchar **get_sort_keys() { return m_idx_array.array(); }
+  /**
+    Used to access the "right-to-left" array of record pointers as an ordinary
+    "left-to-right" array, so that we can pass it directly on to std::sort().
+  */
+  uchar **get_sort_keys()
+  {
+    if (m_idx == 0)
+      return NULL;
+    return &m_record_pointers[1 - m_idx];
+  }
+
+  /**
+    Gets sorted record number ix. @see get_sort_keys()
+    Only valid after buffer has been sorted!
+  */
+  uchar *get_sorted_record(uint ix)
+  {
+    return m_sort_keys[ix];
+  }
+
+  /**
+    @returns The entire buffer, as a character array.
+    This is for reusing the memory for merge buffers.
+   */
+  Bounds_checked_array<uchar> get_raw_buf()
+  {
+    return Bounds_checked_array<uchar>(m_rawmem, m_size_in_bytes);
+  }
 
   /**
     We need an assignment operator, see filesort().
@@ -113,18 +244,40 @@ public:
   */
   Filesort_buffer &operator=(const Filesort_buffer &rhs)
   {
-    m_idx_array= rhs.m_idx_array;
+    m_next_rec_ptr= rhs.m_next_rec_ptr;
+    m_rawmem= rhs.m_rawmem;
+    m_record_pointers= rhs.m_record_pointers;
+    m_sort_keys= rhs.m_sort_keys;
+    m_num_records= rhs.m_num_records;
     m_record_length= rhs.m_record_length;
-    m_start_of_data= rhs.m_start_of_data;
+    m_sort_length= rhs.m_sort_length;
+    m_size_in_bytes= rhs.m_size_in_bytes;
+    m_idx= rhs.m_idx;
     return *this;
   }
 
-private:
-  typedef Bounds_checked_array<uchar*> Idx_array;
+  uint get_sort_length() const { return m_sort_length; }
+  void set_sort_length(uint val) { m_sort_length= val; }
 
-  Idx_array  m_idx_array;
-  uint       m_record_length;
-  uchar     *m_start_of_data;
+private:
+  uchar  *m_next_rec_ptr;    /// The next record will be inserted here.
+  uchar  *m_rawmem;          /// The raw memory buffer.
+  uchar **m_record_pointers; /// The "right-to-left" array of record pointers.
+  uchar **m_sort_keys;       /// Caches the value of get_sort_keys()
+  uint    m_num_records;     /// Saved value from alloc_sort_buffer()
+  uint    m_record_length;   /// Saved value from alloc_sort_buffer()
+  uint    m_sort_length;     /// The length of the sort key.
+  size_t  m_size_in_bytes;   /// Size of raw buffer, in bytes.
+
+  /**
+    This is the index in the "right-to-left" array of the next record to
+    be inserted into the buffer. It is signed, because we use it in signed
+    expressions like:
+        m_record_pointers[-m_idx];
+    It is longlong rather than int, to ensure that it covers UINT_MAX32
+    without any casting/warning.
+  */
+  longlong m_idx;
 };
 
 #endif  // FILESORT_UTILS_INCLUDED

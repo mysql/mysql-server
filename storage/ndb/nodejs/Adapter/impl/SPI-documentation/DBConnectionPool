@@ -3,15 +3,6 @@
 
    Each implementation is expected to require impl-specific properties 
    in the constructor.
-
-   METHODS: 
-     connect(callback)
-     connectSync()
-     isConnected()
-     close()
-     destroy()
-     getDBSession()
-     getDataDictionary()
 */
 
 

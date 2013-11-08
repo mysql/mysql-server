@@ -1655,7 +1655,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 const char*
 Ndbfs::get_filename(Uint32 fd) const
 {
-  jamEntry();
+  jamNoBlock();
   const AsyncFile* openFile = theOpenFiles.find(fd);
   if(openFile)
     return openFile->theFileName.get_base_name();

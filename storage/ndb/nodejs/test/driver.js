@@ -351,6 +351,7 @@ global.fail_openSession = function(testCase, callback) {
     }
     catch(e) {
       testCase.appendErrorMessage(e);
+      testCase.stack = e.stack;
       testCase.failOnError();
     }
  });

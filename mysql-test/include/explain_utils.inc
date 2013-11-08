@@ -35,7 +35,7 @@ if ($select) {
 
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X
+--replace_column 10 X
   }
 }
 --eval EXPLAIN $query
@@ -48,7 +48,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X 10 X
+--replace_column 10 X 11 X
   }
 }
 --eval EXPLAIN EXTENDED $query
@@ -88,7 +88,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X 10 X
+--replace_column 10 X 11 X
   }
 }
 --eval EXPLAIN EXTENDED $select

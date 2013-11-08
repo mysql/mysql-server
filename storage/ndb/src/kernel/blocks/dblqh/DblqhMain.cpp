@@ -797,7 +797,6 @@ void Dblqh::execNDB_STTOR(Signal* signal)
     // Dont setSeqNoReplica
     // Dont setSameClientAndTcFlag
     // Dont setReturnedReadLenAIFlag
-    // Dont setAPIVersion
     LqhKeyReq::setMarkerFlag(preComputedRequestInfoMask, 1);
     LqhKeyReq::setQueueOnRedoProblemFlag(preComputedRequestInfoMask, 1);
     //preComputedRequestInfoMask = 0x003d7fff;
@@ -4812,7 +4811,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
-  regTcPtr->apiVersionNo  = 0; 
   regTcPtr->m_use_rowid   = LqhKeyReq::getRowidFlag(Treqinfo);
   regTcPtr->m_dealloc     = 0;
   if (unlikely(senderVersion < NDBD_ROWID_VERSION))
@@ -5456,7 +5454,6 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   taccreq = taccreq + (regTcPtr.p->lockType << 4);
   taccreq = taccreq + (regTcPtr.p->dirtyOp << 6);
   taccreq = taccreq + (regTcPtr.p->replicaType << 7);
-  taccreq = taccreq + (regTcPtr.p->apiVersionNo << 9);
 /* ************ */
 /*  ACCKEYREQ < */
 /* ************ */
@@ -6280,14 +6277,14 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
    * ----------------------------------------------------------------------- */
   Uint32 page_idx = lkey2;
   Uint32 page_no = lkey1;
-  Uint32 Ttupreq = regTcPtr->dirtyOp;
+  Uint32 Ttupreq = 0;
   Uint32 flags = regTcPtr->m_flags;
-  Ttupreq = Ttupreq + (regTcPtr->opSimple << 1);
-  Ttupreq = Ttupreq + (op << 6);
-  Ttupreq = Ttupreq + (regTcPtr->opExec << 10);
-  Ttupreq = Ttupreq + (regTcPtr->apiVersionNo << 11);
-  Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
-  Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
+  TupKeyReq::setDirtyFlag(Ttupreq, regTcPtr->dirtyOp);
+  TupKeyReq::setSimpleFlag(Ttupreq, regTcPtr->opSimple);
+  TupKeyReq::setOperation(Ttupreq, op);
+  TupKeyReq::setInterpretedFlag(Ttupreq, regTcPtr->opExec);
+  TupKeyReq::setRowidFlag(Ttupreq, regTcPtr->m_use_rowid);
+  TupKeyReq::setReorgFlag(Ttupreq, regTcPtr->m_reorg);
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
@@ -11500,10 +11497,13 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
 			       Uint32 disk_page)
 {
   jam();
-  Uint32 reqinfo = (scanPtr.p->scanLockHold == ZFALSE);
-  reqinfo = reqinfo + (regTcPtr->operation << 6);
-  reqinfo = reqinfo + (regTcPtr->opExec << 10);
-  reqinfo = reqinfo + (regTcPtr->m_reorg << 12);
+  Uint32 reqinfo = 0;
+  TupKeyReq::setDirtyFlag(reqinfo, (scanPtr.p->scanLockHold == ZFALSE));
+  TupKeyReq::setSimpleFlag(reqinfo, 0);
+  TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
+  TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
+  TupKeyReq::setRowidFlag(reqinfo, 0);
+  TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
 
   TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
   
@@ -12130,9 +12130,15 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tTablePtr.i = tabptr.p->primaryTableId;
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
   tcConnectptr.p->m_disk_table = tTablePtr.p->m_disk_table &&
-    (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));  
-  tcConnectptr.p->m_reorg = 
-    req ? ScanFragReq::getReorgFlag(req->requestInfo) : 0;
+    (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));
+  if (req == NULL)
+  {
+    tcConnectptr.p->m_reorg = ScanFragReq::REORG_ALL;
+  }
+  else
+  {
+    tcConnectptr.p->m_reorg = ScanFragReq::getReorgFlag(req->requestInfo);
+  }
 
   tabptr.p->usageCountR++;
 }//Dblqh::initScanTc()
@@ -13763,7 +13769,6 @@ void Dblqh::execCOPY_STATEREQ(Signal* signal)
 void Dblqh::initCopyTc(Signal* signal, Operation_t op) 
 {
   tcConnectptr.p->operation = ZREAD;
-  tcConnectptr.p->apiVersionNo = 0;
   tcConnectptr.p->opExec = 0;	/* NOT INTERPRETED MODE */
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   Uint32 reqinfo = 0;
@@ -21385,7 +21390,6 @@ void Dblqh::initReqinfoExecSr(Signal* signal)
 /*       SET REPLICA TYPE TO PRIMARY AND NUMBER OF REPLICA TO ONE            */
 /* ------------------------------------------------------------------------- */
   regTcPtr->lastReplicaNo = 0;
-  regTcPtr->apiVersionNo = 0;
   regTcPtr->nextSeqNoReplica = 0;
   regTcPtr->opExec = 0;
   regTcPtr->storedProcId = ZNIL;
@@ -21394,7 +21398,7 @@ void Dblqh::initReqinfoExecSr(Signal* signal)
   regTcPtr->nodeAfterNext[1] = ZNIL;
   regTcPtr->dirtyOp = ZFALSE;
   regTcPtr->tcBlockref = cownref;
-  regTcPtr->m_reorg = 0;
+  regTcPtr->m_reorg = ScanFragReq::REORG_ALL;
 }//Dblqh::initReqinfoExecSr()
 
 /* -------------------------------------------------------------------------- 

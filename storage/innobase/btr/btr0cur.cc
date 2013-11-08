@@ -2162,6 +2162,35 @@ btr_cur_ins_lock_and_undo(
 	return(DB_SUCCESS);
 }
 
+/**
+Prefetch siblings of the leaf for the pessimistic operation.
+@param block	leaf page */
+static
+void
+btr_cur_prefetch_siblings(
+	buf_block_t*	block)
+{
+	page_t*	page = buf_block_get_frame(block);
+
+	ut_ad(page_is_leaf(page));
+
+	ulint left_page_no = fil_page_get_prev(page);
+	ulint right_page_no = fil_page_get_next(page);
+
+	if (left_page_no != FIL_NULL) {
+		buf_read_page_background(buf_block_get_space(block),
+					 left_page_no, false);
+	}
+	if (right_page_no != FIL_NULL) {
+		buf_read_page_background(buf_block_get_space(block),
+					 right_page_no, false);
+	}
+	if (left_page_no != FIL_NULL
+	    || right_page_no != FIL_NULL) {
+		os_aio_simulated_wake_handler_threads();
+	}
+}
+
 /*************************************************************//**
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
@@ -2302,6 +2331,12 @@ too_big:
 		insertion. */
 fail:
 		err = DB_FAIL;
+
+		/* prefetch siblings of the leaf for the pessimistic
+		operation, if the page is leaf. */
+		if (page_is_leaf(page)) {
+			btr_cur_prefetch_siblings(block);
+		}
 fail_err:
 
 		if (big_rec_vec) {
@@ -3070,6 +3105,8 @@ btr_cur_optimistic_update(
 	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* This is intended only for leaf page updates */
+	ut_ad(page_is_leaf(page));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -3104,6 +3141,10 @@ btr_cur_optimistic_update(
 any_extern:
 		/* Externally stored fields are treated in pessimistic
 		update */
+
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 
 		return(DB_OVERFLOW);
 	}
@@ -3247,10 +3288,15 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
-	    && page_is_leaf(page)) {
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
+	}
+
+	if (err != DB_SUCCESS) {
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 	}
 
 	return(err);
@@ -4184,13 +4230,16 @@ btr_cur_optimistic_delete_func(
 			/* The change buffer does not handle inserts
 			into non-leaf pages, into clustered indexes,
 			or into the change buffer. */
-			if (page_is_leaf(page)
-			    && !dict_index_is_clust(cursor->index)
+			if (!dict_index_is_clust(cursor->index)
 			    && !dict_table_is_temporary(cursor->index->table)
 			    && !dict_index_is_ibuf(cursor->index)) {
 				ibuf_update_free_bits_low(block, max_ins, mtr);
 			}
 		}
+	} else {
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -5425,17 +5474,17 @@ btr_store_big_rec_extern_fields(
 	if (btr_blob_op_is_update(op)) {
 		/* Avoid reusing pages that have been previously freed
 		in btr_mtr. */
-		if (btr_mtr->n_freed_pages) {
+		if (btr_mtr->has_freed_pages()) {
 			if (heap == NULL) {
 				heap = mem_heap_create(
-					btr_mtr->n_freed_pages
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages);
 			}
 
 			freed_pages = static_cast<buf_block_t**>(
 				mem_heap_alloc(
 					heap,
-					btr_mtr->n_freed_pages
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages));
 			n_freed_pages = 0;
 		}
@@ -5535,7 +5584,8 @@ alloc_another:
 				allocate another page for the BLOB data. */
 				ut_ad(alloc_mtr == btr_mtr);
 				ut_ad(btr_blob_op_is_update(op));
-				ut_ad(n_freed_pages < btr_mtr->n_freed_pages);
+				ut_ad(n_freed_pages
+				      < btr_mtr->get_freed_page_count());
 				freed_pages[n_freed_pages++] = block;
 				goto alloc_another;
 			}

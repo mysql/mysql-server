@@ -206,7 +206,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 --echo This must show range + using index condition:
---replace_column 9 x
+--replace_column 10 x
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 drop table t0,t1;
@@ -271,7 +271,7 @@ insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
---replace_column 9 #
+--replace_column 10 #
 explain select * from t2 force index (d) where d < 10;
 drop table t2;
 

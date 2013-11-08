@@ -19,7 +19,7 @@
  */
 
 #include "uv.h"
-#include "legacy_uv_compat.h"
+#include "compat_uv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +31,10 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+
+  class AsyncCall;
+  void main_thd_complete_async_call(AsyncCall *);
+
 #endif
 
 #ifdef OLDER_UV_AFTER_WORK_CB

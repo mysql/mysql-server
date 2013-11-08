@@ -19,14 +19,18 @@
  */
 
 #include <NdbApi.hpp>
-
+#include "compat_ndb.h"
 #include "ndb_util/NdbWaitGroup.hpp"
 #include "SharedList.h"
 
-/* Limits the number of async operations that can be pending --
-   i.e. that can have been sent with executeAsynch() but not yet polled.
+/* V1 NdbWaitGroup must be created with a fixed maximum size.
+   V2 NdbWaitGroup is created with an initial size and will grow as needed.
 */
-#define MAX_CONCURRENCY 1024
+#ifdef USE_OLD_MULTIWAIT_API
+#define WAIT_GROUP_SIZE 1024
+#else
+#define WAIT_GROUP_SIZE 64
+#endif
 
 #ifdef FORCE_UV_LEGACY_COMPAT
 #define PTHREAD_RETURN_TYPE void *
@@ -83,6 +87,7 @@ private:
   */
   NdbWaitGroup * waitgroup;
 
+#ifdef USE_OLD_MULTIWAIT_API
   /* The sent queue holds Ndbs which have just been sent (executeAsynch). 
   */
   SharedList<Ndb> sent_queue;
@@ -90,6 +95,12 @@ private:
   /* The completed queue holds Ndbs which have returned from execution. 
   */
   SharedList<Ndb> completed_queue;
+#else 
+  /* Shutdown signal 
+  */
+  bool shutdown_flag;
+  uv_rwlock_t shutdown_lock;
+#endif
 
   /* Holds the thread ID of the Listener thread
   */
