@@ -61,6 +61,8 @@ struct innodb_conn_data_struct {
 	void*		result;		/*!< result info */
 	void*		row_buf;	/*!< row buffer to cache row read */
 	ib_ulint_t	row_buf_len;	/*!< row buffer len */
+	void*		cmd_buf;	/*!< buffer for incoming command */
+	ib_ulint_t	cmd_buf_len;	/*!< cmd buffer len */
 	bool		result_in_use;	/*!< result set or above row_buf
 					contain active result set */
 	void*		mul_col_buf;	/*!< buffer to construct final result
