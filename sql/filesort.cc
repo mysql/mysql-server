@@ -489,23 +489,35 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   if (error)
   {
     int kill_errno= thd->killed_errno();
+
     DBUG_ASSERT(thd->is_error() || kill_errno);
+
+    /*
+      Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
+      to client!
+    */
+    const char *cause= kill_errno
+                       ? ((kill_errno == THD::KILL_CONNECTION && !abort_loop)
+                         ? ER(THD::KILL_QUERY)
+                         : ER(kill_errno))
+                       : thd->get_stmt_da()->message_text();
+    const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
+
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
-                    MYF(ME_ERROR + ME_WAITTANG),
-                    ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
-                                 !abort_loop) ? ER(THD::KILL_QUERY) :
-                                                          ER(kill_errno)) :
-                                 thd->get_stmt_da()->message_text());
+                    MYF(0),
+                    msg,
+                    cause);
 
-    sql_print_information("%s, host: %s, user: %s, "
-                          "thread: %lu, query: %-.4096s",
-                          ER_THD(thd, ER_FILSORT_ABORT),
-                          thd->security_ctx->host_or_ip,
-                          &thd->security_ctx->priv_user[0],
-                          (ulong) thd->thread_id,
-                          thd->query());
+    if (thd->is_fatal_error)
+      sql_print_information("%s, host: %s, user: %s, "
+                            "thread: %lu, error: %s, query: %-.4096s",
+                            msg,
+                            thd->security_ctx->host_or_ip,
+                            &thd->security_ctx->priv_user[0],
+                            thd->thread_id,
+                            cause,
+                            thd->query());
   }
   else
     thd->inc_status_sort_rows(num_rows);
