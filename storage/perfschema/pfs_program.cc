@@ -35,8 +35,6 @@
 PFS_program *program_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM. */
 bool flag_programs= true;
-/** Current index in Stat array where new record is to be inserted. */
-volatile uint32 program_index= 0;
 
 /** Max size of the program array. */
 ulong program_max= 0;
