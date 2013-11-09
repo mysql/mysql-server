@@ -315,7 +315,7 @@ static int tokudb_init_func(void *p) {
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
     tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT;
 
-#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
     tokudb_hton->flags |= HTON_SUPPORTS_EXTENDED_KEYS;
 #endif
@@ -324,13 +324,16 @@ static int tokudb_init_func(void *p) {
 #endif
 #endif
 
-#if TOKU_INCLUDE_OTHER_DB_TYPE
-    // we have historically been a dynamic storage engine, so we set db_type according.
-    // however, extended keys is triggered off of the db_type, so tokudb adds another type so that extended keys works
+#if defined(TOKU_USE_DB_TYPE_TOKUDB) && TOKU_USE_DB_TYPE_TOKUDB
+    tokudb_hton->db_type = DB_TYPE_TOKUDB;
+#elif defined(TOKU_USE_DB_TYPE_UNKNOWN) && TOKU_USE_DB_TYPE_UNKNOWN
+    tokudb_hton->db_type = DB_TYPE_UNKNOWN;
+#elif defined(TOKU_USE_OTHER_DB_TYPE) && TOKU_USE_OTHER_DB_TYPE
+    // extended keys is triggered off of the db_type, so tokudb adds another type so that extended keys works
     tokudb_hton->db_type = DB_TYPE_UNKNOWN;
     tokudb_hton->other_db_type = DB_TYPE_TOKUDB;
 #else
-    tokudb_hton->db_type = DB_TYPE_TOKUDB;
+#error
 #endif
 
     tokudb_hton->create = tokudb_create_handler;
@@ -491,8 +494,8 @@ static int tokudb_init_func(void *p) {
 
     {
         const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
-        toku_global_status_variables = (SHOW_VAR*)my_malloc(sizeof(*toku_global_status_variables)*toku_global_status_max_rows, mem_flags);
-        toku_global_status_rows = (TOKU_ENGINE_STATUS_ROW_S*)my_malloc(sizeof(*toku_global_status_rows)*toku_global_status_max_rows, mem_flags);
+        toku_global_status_variables = (SHOW_VAR*)tokudb_my_malloc(sizeof(*toku_global_status_variables)*toku_global_status_max_rows, mem_flags);
+        toku_global_status_rows = (TOKU_ENGINE_STATUS_ROW_S*)tokudb_my_malloc(sizeof(*toku_global_status_rows)*toku_global_status_max_rows, mem_flags);
     }
 
     r = db_create(&metadata_db, db_env, 0);
@@ -550,9 +553,9 @@ error:
 
 static int tokudb_done_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_done_func");
-    my_free(toku_global_status_variables);
+    tokudb_my_free(toku_global_status_variables);
     toku_global_status_variables = NULL;
-    my_free(toku_global_status_rows);
+    tokudb_my_free(toku_global_status_rows);
     toku_global_status_rows = NULL;
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
@@ -604,7 +607,7 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
     if (trx && trx->checkpoint_lock_taken) {
         error = db_env->checkpointing_resume(db_env);
     }
-    my_free(trx);
+    tokudb_my_free(trx);
     return error;
 }
 
@@ -1595,10 +1598,10 @@ static int tokudb_report_fractal_tree_block_map_iterator(uint64_t checkpoint_cou
 
     assert(num_rows > 0);
     if (e->num_rows == 0) {
-        e->checkpoint_counts = (uint64_t *) my_malloc(num_rows * (sizeof *e->checkpoint_counts), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->blocknums = (int64_t *) my_malloc(num_rows * (sizeof *e->blocknums), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->diskoffs = (int64_t *) my_malloc(num_rows * (sizeof *e->diskoffs), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->sizes = (int64_t *) my_malloc(num_rows * (sizeof *e->sizes), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->checkpoint_counts = (uint64_t *) tokudb_my_malloc(num_rows * (sizeof *e->checkpoint_counts), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->blocknums = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->blocknums), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->diskoffs = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->diskoffs), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->sizes = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->sizes), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
         e->num_rows = num_rows;
     }
 
@@ -1678,19 +1681,19 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
 
 exit:
     if (e.checkpoint_counts != NULL) {
-        my_free(e.checkpoint_counts);
+        tokudb_my_free(e.checkpoint_counts);
         e.checkpoint_counts = NULL;
     }
     if (e.blocknums != NULL) {
-        my_free(e.blocknums);
+        tokudb_my_free(e.blocknums);
         e.blocknums = NULL;
     }
     if (e.diskoffs != NULL) {
-        my_free(e.diskoffs);
+        tokudb_my_free(e.diskoffs);
         e.diskoffs = NULL;
     }
     if (e.sizes != NULL) {
-        my_free(e.sizes);
+        tokudb_my_free(e.sizes);
         e.sizes = NULL;
     }
     return error;
@@ -1848,9 +1851,9 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         // set last_lock_timeout
         if (lock_timeout_debug & 1) {
             char *old_lock_timeout = THDVAR(thd, last_lock_timeout);
-            char *new_lock_timeout = my_strdup(log_str.c_ptr(), MY_FAE);
+            char *new_lock_timeout = tokudb_my_strdup(log_str.c_ptr(), MY_FAE);
             THDVAR(thd, last_lock_timeout) = new_lock_timeout;
-            my_free(old_lock_timeout);
+            tokudb_my_free(old_lock_timeout);
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {

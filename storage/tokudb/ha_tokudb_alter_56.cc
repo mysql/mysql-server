@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
 #define TOKU_ALTER_RENAME ALTER_RENAME_56
+#elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
+#define TOKU_ALTER_RENAME ALTER_RENAME
 #elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #define TOKU_ALTER_RENAME ALTER_RENAME
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
@@ -492,7 +494,8 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
     if (error == 0 && ctx->reset_card)
         tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     if (error == 0 && (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL)) {
         error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
     }
@@ -510,7 +513,7 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
 
     // sort keys in add index order
-    KEY *key_info = (KEY*) my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
+    KEY *key_info = (KEY*) tokudb_my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
         KEY *key = &key_info[i];
         *key = ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
@@ -529,7 +532,7 @@ int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *h
         last_dup_key = MAX_KEY;
     }
 
-    my_free(key_info);
+    tokudb_my_free(key_info);
     
     if (error == 0)
         ctx->reset_card = true;
@@ -619,7 +622,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
         4 + num_columns*(1+1+4+1+1+4) + altered_table->s->reclength + // max dynamic row_mutator
         (4 + share->kc_info.num_blobs) + // max static blob size
         (num_columns*(1+4+1+4)); // max dynamic blob size
-    column_extra = (uchar *)my_malloc(max_column_extra_size, MYF(MY_WME));
+    column_extra = (uchar *)tokudb_my_malloc(max_column_extra_size, MYF(MY_WME));
     if (column_extra == NULL) { error = ENOMEM; goto cleanup; }
     
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
@@ -629,7 +632,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
         if (error)
             goto cleanup;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             goto cleanup;
         
@@ -660,7 +663,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
 
     error = 0;
  cleanup:
-    my_free(column_extra);
+    tokudb_my_free(column_extra);
     return error;
 }
 
@@ -674,12 +677,13 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
     bool result = false; // success
 
     if (commit) {
-#if 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
         if (ha_alter_info->group_commit_ctx) {
             ha_alter_info->group_commit_ctx = NULL;
         }
 #endif
-#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599)
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
@@ -753,7 +757,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -766,7 +770,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
             // make the expand variable offsets message
             DBT expand; memset(&expand, 0, sizeof expand);
             expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
-            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            expand.data = tokudb_my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
                 break;
@@ -783,7 +787,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
 
             // and broadcast it into the tree
             error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
-            my_free(expand.data);
+            tokudb_my_free(expand.data);
             if (error)
                 break;
         }
@@ -935,7 +939,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -955,7 +959,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
             expand.size = sizeof operation + sizeof new_offset + sizeof old_length + sizeof new_length;
             if (operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY)
                 expand.size += sizeof pad_char;
-            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            expand.data = tokudb_my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
                 break;
@@ -984,7 +988,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
 
             // and broadcast it into the tree
             error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
-            my_free(expand.data);
+            tokudb_my_free(expand.data);
             if (error)
                 break;
         }
@@ -1014,7 +1018,7 @@ int ha_tokudb::alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -1144,7 +1148,7 @@ int ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inpl
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     row_descriptor->size = get_max_desc_size(ctx->altered_table_kc_info, altered_table);
-    row_descriptor->data = (uchar *) my_malloc(row_descriptor->size, MYF(MY_WME));
+    row_descriptor->data = (uchar *) tokudb_my_malloc(row_descriptor->size, MYF(MY_WME));
     if (row_descriptor->data == NULL) {
         error = ENOMEM;
     } else {

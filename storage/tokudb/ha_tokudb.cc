@@ -183,9 +183,9 @@ static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INF
     //
     // create the field lengths
     //
-    kc_info->field_lengths = (uint16_t *)my_malloc(table_share->fields*sizeof(uint16_t), MYF(MY_WME | MY_ZEROFILL));
-    kc_info->length_bytes= (uchar *)my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
-    kc_info->blob_fields= (uint32_t *)my_malloc(table_share->fields*sizeof(uint32_t), MYF(MY_WME | MY_ZEROFILL));
+    kc_info->field_lengths = (uint16_t *)tokudb_my_malloc(table_share->fields*sizeof(uint16_t), MYF(MY_WME | MY_ZEROFILL));
+    kc_info->length_bytes= (uchar *)tokudb_my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
+    kc_info->blob_fields= (uint32_t *)tokudb_my_malloc(table_share->fields*sizeof(uint32_t), MYF(MY_WME | MY_ZEROFILL));
     
     if (kc_info->field_lengths == NULL || 
         kc_info->length_bytes == NULL || 
@@ -198,9 +198,9 @@ exit:
         for (uint i = 0; MAX_KEY + 1; i++) {
             bitmap_free(&kc_info->key_filters[i]);
         }
-        my_free(kc_info->field_lengths);
-        my_free(kc_info->length_bytes);
-        my_free(kc_info->blob_fields);
+        tokudb_my_free(kc_info->field_lengths);
+        tokudb_my_free(kc_info->length_bytes);
+        tokudb_my_free(kc_info->blob_fields);
     }
     return error;
 }
@@ -227,7 +227,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         // create share and fill it with all zeroes
         // hence, all pointers are initialized to NULL
         //
-        share = (TOKUDB_SHARE *) my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
+        share = (TOKUDB_SHARE *) tokudb_my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
             &share, sizeof(*share),
             &tmp_name, length + 1, 
             NullS
@@ -258,7 +258,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
 exit:
     if (error) {
         pthread_mutex_destroy(&share->mutex);
-        my_free((uchar *) share);
+        tokudb_my_free((uchar *) share);
         share = NULL;
     }
     return share;
@@ -271,13 +271,13 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     }
     
     for (uint i = 0; i < MAX_KEY+1; i++) {
-        my_free(kc_info->cp_info[i]);
+        tokudb_my_free(kc_info->cp_info[i]);
         kc_info->cp_info[i] = NULL; // 3144
     }
     
-    my_free(kc_info->field_lengths);
-    my_free(kc_info->length_bytes);
-    my_free(kc_info->blob_fields);
+    tokudb_my_free(kc_info->field_lengths);
+    tokudb_my_free(kc_info->length_bytes);
+    tokudb_my_free(kc_info->blob_fields);
 }
 
 //
@@ -322,7 +322,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         pthread_mutex_destroy(&share->mutex);
         rwlock_destroy(&share->num_DBs_lock);
 
-        my_free((uchar *) share);
+        tokudb_my_free((uchar *) share);
     }
 
     return result;
@@ -373,7 +373,8 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 }
 
 static inline uint get_key_parts(const KEY *key) {
-#if 50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     return key->user_defined_key_parts;
 #else
     return key->key_parts;
@@ -382,7 +383,8 @@ static inline uint get_key_parts(const KEY *key) {
 
 #if TOKU_INCLUDE_EXTENDED_KEYS
 static inline uint get_ext_key_parts(const KEY *key) {
-#if 50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     return key->actual_key_parts;
 #elif defined(MARIADB_BASE_VERSION)
     return key->ext_key_parts;
@@ -500,7 +502,7 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 
 static int smart_dbt_metacallback (DBT const *key, DBT  const *row, void *context) {
     DBT* val = (DBT *)context;
-    val->data = my_malloc(row->size, MYF(MY_WME|MY_ZEROFILL));
+    val->data = tokudb_my_malloc(row->size, MYF(MY_WME|MY_ZEROFILL));
     if (val->data == NULL) return ENOMEM;
     memcpy(val->data, row->data, row->size);
     val->size = row->size;
@@ -1083,7 +1085,7 @@ static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* tx
     error = 0;
 
 cleanup:
-    my_free(val.data);
+    tokudb_my_free(val.data);
 
     return error;
 }
@@ -1121,7 +1123,7 @@ static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* 
 static int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
     int error;
     tokudb_trx_data* trx = NULL;
-    trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
+    trx = (tokudb_trx_data *) tokudb_my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
     if (!trx) {
         error = ENOMEM;
         goto cleanup;
@@ -1395,7 +1397,7 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
 static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
-    newname = (char *)my_malloc(
+    newname = (char *)tokudb_my_malloc(
         get_max_dict_name_path_length(name), 
         MYF(MY_WME));
     if (newname == NULL) {
@@ -1409,7 +1411,7 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
 
     error = tokudb::open_status(db_env, ptr, newname, txn);
 cleanup:
-    my_free(newname);
+    tokudb_my_free(newname);
     return error;
 }
 
@@ -1421,7 +1423,7 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
     assert(share->file == NULL);
     assert(share->key_file[primary_key] == NULL);
 
-    newname = (char *)my_malloc(
+    newname = (char *)tokudb_my_malloc(
         get_max_dict_name_path_length(name),
         MYF(MY_WME|MY_ZEROFILL)
         );
@@ -1459,7 +1461,7 @@ exit:
             share->key_file[primary_key] = NULL;
         }
     }
-    my_free(newname);
+    tokudb_my_free(newname);
     return error;
 }
 
@@ -1476,7 +1478,7 @@ int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* na
     sprintf(dict_name, "key-%s", key_info->name);
 
     newname_len = get_max_dict_name_path_length(name);
-    newname = (char *)my_malloc(newname_len, MYF(MY_WME|MY_ZEROFILL));
+    newname = (char *)tokudb_my_malloc(newname_len, MYF(MY_WME|MY_ZEROFILL));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -1505,7 +1507,7 @@ cleanup:
             *ptr = NULL;
         }
     }
-    my_free(newname);
+    tokudb_my_free(newname);
     return error;
 }
 
@@ -1515,7 +1517,7 @@ static int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* tabl
     // set up the cp_info
     //
     assert(kc_info->cp_info[keynr] == NULL);
-    kc_info->cp_info[keynr] = (COL_PACK_INFO *)my_malloc(
+    kc_info->cp_info[keynr] = (COL_PACK_INFO *)tokudb_my_malloc(
         table_share->fields*sizeof(COL_PACK_INFO), 
         MYF(MY_WME | MY_ZEROFILL)
         );
@@ -1567,7 +1569,7 @@ exit:
 // reset the kc_info state at keynr
 static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
     bitmap_clear_all(&kc_info->key_filters[keynr]);
-    my_free(kc_info->cp_info[keynr]);
+    tokudb_my_free(kc_info->cp_info[keynr]);
     kc_info->cp_info[keynr] = NULL;
     kc_info->mcp_info[keynr] = (MULTI_COL_PACK_INFO) { 0, 0 };
 }
@@ -1901,7 +1903,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     // the "+ 1" is for the first byte that states +/- infinity
     // multiply everything by 2 to account for clustered keys having a key and primary key together
     max_key_length = 2*(table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar));
-    alloc_ptr = my_multi_malloc(MYF(MY_WME),
+    alloc_ptr = tokudb_my_multi_malloc(MYF(MY_WME),
         &key_buff, max_key_length, 
         &key_buff2, max_key_length, 
         &key_buff3, max_key_length, 
@@ -1918,21 +1920,21 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     }
 
     size_range_query_buff = get_tokudb_read_buf_size(thd);
-    range_query_buff = (uchar *)my_malloc(size_range_query_buff, MYF(MY_WME));
+    range_query_buff = (uchar *)tokudb_my_malloc(size_range_query_buff, MYF(MY_WME));
     if (range_query_buff == NULL) {
         ret_val = 1;
         goto exit;
     }
 
     alloced_rec_buff_length = table_share->rec_buff_length + table_share->fields;
-    rec_buff = (uchar *) my_malloc(alloced_rec_buff_length, MYF(MY_WME));
+    rec_buff = (uchar *) tokudb_my_malloc(alloced_rec_buff_length, MYF(MY_WME));
     if (rec_buff == NULL) {
         ret_val = 1;
         goto exit;
     }
 
     alloced_update_rec_buff_length = alloced_rec_buff_length;
-    rec_update_buff = (uchar *) my_malloc(alloced_update_rec_buff_length, MYF(MY_WME));
+    rec_update_buff = (uchar *) tokudb_my_malloc(alloced_update_rec_buff_length, MYF(MY_WME));
     if (rec_update_buff == NULL) {
         ret_val = 1;
         goto exit;
@@ -1979,13 +1981,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
 exit:
     if (ret_val) {
-        my_free(range_query_buff);
+        tokudb_my_free(range_query_buff);
         range_query_buff = NULL;
-        my_free(alloc_ptr);
+        tokudb_my_free(alloc_ptr);
         alloc_ptr = NULL;
-        my_free(rec_buff);
+        tokudb_my_free(rec_buff);
         rec_buff = NULL;
-        my_free(rec_update_buff);
+        tokudb_my_free(rec_update_buff);
         rec_update_buff = NULL;
         
         if (error) {
@@ -2153,7 +2155,7 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
 
     error = 0;
 cleanup:
-    my_free(frm_data);
+    tokudb_my_free(frm_data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2165,7 +2167,7 @@ static int
 smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
-    stored_frm->data = (uchar *)my_malloc(row->size, MYF(MY_WME));
+    stored_frm->data = (uchar *)tokudb_my_malloc(row->size, MYF(MY_WME));
     assert(stored_frm->data);
     memcpy(stored_frm->data, row->data, row->size);
     return 0;
@@ -2217,8 +2219,8 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
 
     error = 0;
 cleanup:
-    my_free(mysql_frm_data);
-    my_free(stored_frm.data);
+    tokudb_my_free(mysql_frm_data);
+    tokudb_my_free(stored_frm.data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2263,11 +2265,11 @@ int ha_tokudb::__close() {
     TOKUDB_DBUG_ENTER("ha_tokudb::__close %p", this);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         TOKUDB_TRACE("close:%p\n", this);
-    my_free(rec_buff);
-    my_free(rec_update_buff);
-    my_free(blob_buff);
-    my_free(alloc_ptr);
-    my_free(range_query_buff);
+    tokudb_my_free(rec_buff);
+    tokudb_my_free(rec_update_buff);
+    tokudb_my_free(blob_buff);
+    tokudb_my_free(alloc_ptr);
+    tokudb_my_free(range_query_buff);
     for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
         toku_dbt_array_destroy(&mult_key_dbt_array[i]);
     }
@@ -2293,7 +2295,7 @@ int ha_tokudb::__close() {
 bool ha_tokudb::fix_rec_buff_for_blob(ulong length) {
     if (!rec_buff || (length > alloced_rec_buff_length)) {
         uchar *newptr;
-        if (!(newptr = (uchar *) my_realloc((void *) rec_buff, length, MYF(MY_ALLOW_ZERO_PTR))))
+        if (!(newptr = (uchar *) tokudb_my_realloc((void *) rec_buff, length, MYF(MY_ALLOW_ZERO_PTR))))
             return 1;
         rec_buff = newptr;
         alloced_rec_buff_length = length;
@@ -2310,7 +2312,7 @@ bool ha_tokudb::fix_rec_buff_for_blob(ulong length) {
 bool ha_tokudb::fix_rec_update_buff_for_blob(ulong length) {
     if (!rec_update_buff || (length > alloced_update_rec_buff_length)) {
         uchar *newptr;
-        if (!(newptr = (uchar *) my_realloc((void *) rec_update_buff, length, MYF(MY_ALLOW_ZERO_PTR))))
+        if (!(newptr = (uchar *) tokudb_my_realloc((void *) rec_update_buff, length, MYF(MY_ALLOW_ZERO_PTR))))
             return 1;
         rec_update_buff= newptr;
         alloced_update_rec_buff_length = length;
@@ -2447,7 +2449,7 @@ int ha_tokudb::unpack_blobs(
     //
     assert( !((share->kc_info.num_blobs == 0) && (num_bytes > 0)) );
     if (num_bytes > num_blob_bytes) {
-        ptr = (uchar *)my_realloc((void *)blob_buff, num_bytes, MYF(MY_ALLOW_ZERO_PTR));
+        ptr = (uchar *)tokudb_my_realloc((void *)blob_buff, num_bytes, MYF(MY_ALLOW_ZERO_PTR));
         if (ptr == NULL) {
             error = ENOMEM;
             goto exit;
@@ -3775,9 +3777,9 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     //
     //use for testing the packing of keys
     //
-    tmp_pk_key_data = (uchar *)my_malloc(pk_key->size, MYF(MY_WME));
+    tmp_pk_key_data = (uchar *)tokudb_my_malloc(pk_key->size, MYF(MY_WME));
     assert(tmp_pk_key_data);
-    tmp_pk_val_data = (uchar *)my_malloc(pk_val->size, MYF(MY_WME));
+    tmp_pk_val_data = (uchar *)tokudb_my_malloc(pk_val->size, MYF(MY_WME));
     assert(tmp_pk_val_data);
     memcpy(tmp_pk_key_data, pk_key->data, pk_key->size);
     memcpy(tmp_pk_val_data, pk_val->data, pk_val->size);
@@ -3822,7 +3824,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             error = pack_row(&row, (const uchar *) record, keynr);
             assert(error == 0);
             uchar* tmp_buff = NULL;
-            tmp_buff = (uchar *)my_malloc(alloced_rec_buff_length,MYF(MY_WME));
+            tmp_buff = (uchar *)tokudb_my_malloc(alloced_rec_buff_length,MYF(MY_WME));
             assert(tmp_buff);
             row_desc = (uchar *)share->key_file[keynr]->descriptor->dbt.data;
             row_desc += (*(uint32_t *)row_desc);
@@ -3838,7 +3840,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             assert(tmp_num_bytes == row.size);
             cmp = memcmp(tmp_buff,rec_buff,tmp_num_bytes);
             assert(cmp == 0);
-            my_free(tmp_buff);
+            tokudb_my_free(tmp_buff);
         }
     }
 
@@ -3850,8 +3852,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     cmp = memcmp(pk_val->data, tmp_pk_val_data, pk_val->size);    
     assert( cmp == 0);
 
-    my_free(tmp_pk_key_data);
-    my_free(tmp_pk_val_data);
+    tokudb_my_free(tmp_pk_key_data);
+    tokudb_my_free(tmp_pk_val_data);
 }
 
 //
@@ -5218,7 +5220,7 @@ int ha_tokudb::fill_range_query_buf(
         size_needed = sizeof(uint32_t) + key->size;
     }
     if (size_remaining < size_needed) {
-        range_query_buff = (uchar *)my_realloc(
+        range_query_buff = (uchar *)tokudb_my_realloc(
             (void *)range_query_buff, 
             bytes_used_in_range_query_buff+size_needed, 
             MYF(MY_WME)
@@ -6496,6 +6498,8 @@ static inline enum row_type compression_method_to_row_type(enum toku_compression
         return ROW_TYPE_TOKU_FAST;
     case TOKU_SMALL_COMPRESSION_METHOD:
         return ROW_TYPE_TOKU_SMALL;
+#else
+    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
 #endif
     case TOKU_DEFAULT_COMPRESSION_METHOD:
         return ROW_TYPE_DEFAULT;
@@ -6793,10 +6797,10 @@ int ha_tokudb::create_secondary_dictionary(
     
     max_row_desc_buff_size = get_max_desc_size(kc_info,form);
 
-    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
+    row_desc_buff = (uchar *)tokudb_my_malloc(max_row_desc_buff_size, MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
-    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
+    newname = (char *)tokudb_my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
     sprintf(dict_name, "key-%s", key_info->name);
@@ -6828,8 +6832,8 @@ int ha_tokudb::create_secondary_dictionary(
 
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
 cleanup:    
-    my_free(newname);
-    my_free(row_desc_buff);
+    tokudb_my_free(newname);
+    tokudb_my_free(row_desc_buff);
     return error;
 }
 
@@ -6886,10 +6890,10 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     memset(&row_descriptor, 0, sizeof(row_descriptor));
     max_row_desc_buff_size = get_max_desc_size(kc_info, form);
 
-    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
+    row_desc_buff = (uchar *)tokudb_my_malloc(max_row_desc_buff_size, MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
-    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
+    newname = (char *)tokudb_my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
     make_name(newname, name, "main");
@@ -6919,8 +6923,8 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     /* Create the main table that will hold the real rows */
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), false);
 cleanup:    
-    my_free(newname);
-    my_free(row_desc_buff);
+    tokudb_my_free(newname);
+    tokudb_my_free(row_desc_buff);
     return error;
 }
 
@@ -7004,7 +7008,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         }
     }
 
-    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
+    newname = (char *)tokudb_my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
     if (trx && trx->sub_sp_level && thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
@@ -7100,7 +7104,7 @@ cleanup:
             commit_txn(txn,0);
         }
     }
-    my_free(newname);
+    tokudb_my_free(newname);
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -7131,7 +7135,7 @@ int ha_tokudb::delete_or_rename_dictionary( const char* from_name, const char* t
     char* new_to_name = NULL;
     assert(txn);
     
-    new_from_name = (char *)my_malloc(
+    new_from_name = (char *)tokudb_my_malloc(
         get_max_dict_name_path_length(from_name), 
         MYF(MY_WME)
         );
@@ -7141,7 +7145,7 @@ int ha_tokudb::delete_or_rename_dictionary( const char* from_name, const char* t
     }
     if (!is_delete) {
         assert(to_name);
-        new_to_name = (char *)my_malloc(
+        new_to_name = (char *)tokudb_my_malloc(
             get_max_dict_name_path_length(to_name), 
             MYF(MY_WME)
             );
@@ -7177,8 +7181,8 @@ int ha_tokudb::delete_or_rename_dictionary( const char* from_name, const char* t
     if (error) { goto cleanup; }
 
 cleanup:
-    my_free(new_from_name);
-    my_free(new_to_name);
+    tokudb_my_free(new_from_name);
+    tokudb_my_free(new_to_name);
     return error;
 }
 

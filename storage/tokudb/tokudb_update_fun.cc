@@ -485,7 +485,7 @@ static int tokudb_hcad_update_fun(
     extra_pos += sizeof(uint32_t);
 
     max_num_bytes = old_val->size + extra->size + new_len_of_offsets + new_fixed_field_size;
-    new_val_data = (uchar *)my_malloc(
+    new_val_data = (uchar *)tokudb_my_malloc(
         max_num_bytes, 
         MYF(MY_FAE)
         );
@@ -815,7 +815,7 @@ static int tokudb_hcad_update_fun(
     
     error = 0;
 cleanup:
-    my_free(new_val_data);
+    tokudb_my_free(new_val_data);
     return error;    
 }
 
@@ -856,7 +856,7 @@ static int tokudb_expand_variable_offsets(
         uchar *old_val_ptr = (uchar *)old_val->data;
 
         // allocate space for the new val's data
-        uchar *new_val_ptr = (uchar *)my_malloc(number_of_offsets + old_val->size, MYF(MY_FAE));
+        uchar *new_val_ptr = (uchar *)tokudb_my_malloc(number_of_offsets + old_val->size, MYF(MY_FAE));
         if (!new_val_ptr) {
             error = ENOMEM;
             goto cleanup;
@@ -893,7 +893,7 @@ static int tokudb_expand_variable_offsets(
     error = 0;
 
 cleanup:
-    my_free(new_val.data);
+    tokudb_my_free(new_val.data);
     return error;
 }
 
@@ -932,7 +932,7 @@ static int tokudb_expand_int_field(
         uchar *old_val_ptr = (uchar *)old_val->data;
 
         // allocate space for the new val's data
-        uchar *new_val_ptr = (uchar *)my_malloc(old_val->size + (new_length - old_length), MYF(MY_FAE));
+        uchar *new_val_ptr = (uchar *)tokudb_my_malloc(old_val->size + (new_length - old_length), MYF(MY_FAE));
         if (!new_val_ptr) {
             error = ENOMEM;
             goto cleanup;
@@ -980,7 +980,7 @@ static int tokudb_expand_int_field(
     error = 0;
 
 cleanup:
-    my_free(new_val.data);
+    tokudb_my_free(new_val.data);
     return error;
 }
 
@@ -1021,7 +1021,7 @@ static int tokudb_expand_char_field(
         uchar *old_val_ptr = (uchar *)old_val->data;
 
         // allocate space for the new val's data
-        uchar *new_val_ptr = (uchar *)my_malloc(old_val->size + (new_length - old_length), MYF(MY_FAE));
+        uchar *new_val_ptr = (uchar *)tokudb_my_malloc(old_val->size + (new_length - old_length), MYF(MY_FAE));
         if (!new_val_ptr) {
             error = ENOMEM;
             goto cleanup;
@@ -1062,7 +1062,7 @@ static int tokudb_expand_char_field(
     error = 0;
 
 cleanup:
-    my_free(new_val.data);
+    tokudb_my_free(new_val.data);
     return error;
 }
 
