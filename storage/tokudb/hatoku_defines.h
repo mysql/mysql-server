@@ -121,7 +121,13 @@ PATENT RIGHTS GRANT:
 
 #if defined(TOKUDB_PATCHES) && TOKUDB_PATCHES == 0
 
+#elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
+#define TOKU_USE_DB_TYPE_UNKNOWN 1
+#define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_PARTITION_WRITE_FRM_DATA 0
+
 #elif 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#define TOKU_USE_DB_TYPE_TOKUDB 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
 #define TOKU_INCLUDE_XA 1
@@ -133,6 +139,7 @@ PATENT RIGHTS GRANT:
 #endif
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#define TOKU_USE_OTHER_DB_TYPE 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ALTER_55 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
@@ -143,7 +150,6 @@ PATENT RIGHTS GRANT:
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
-#define TOKU_INCLUDE_OTHER_DB_TYPE 1
 #define TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL 1
 #else
 
@@ -353,5 +359,61 @@ void toku_hton_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,con
 
 #undef assert  
 #define assert(expr)      ((expr)      ? (void)0 : toku_hton_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
+
+static inline void *tokudb_my_malloc(size_t s, myf flags) {
+#if 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
+    return my_malloc(0, s, flags);
+#else
+    return my_malloc(s, flags);
+#endif
+}
+
+static inline void *tokudb_my_realloc(void *p, size_t s, myf flags) {
+#if 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
+    return my_realloc(0, p, s, flags);
+#else
+    return my_realloc(p, s, flags);
+#endif
+}
+
+static inline void tokudb_my_free(void *ptr) {
+    my_free(ptr);
+}
+
+static inline char *tokudb_my_strdup(const char *p, myf flags) {
+#if 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
+    return my_strdup(0, p, flags);
+#else
+    return my_strdup(p, flags);
+#endif
+}
+
+static inline void* tokudb_my_multi_malloc(myf myFlags, ...) {
+  va_list args;
+  char **ptr,*start,*res;
+  size_t tot_length,length;
+
+  va_start(args,myFlags);
+  tot_length=0;
+  while ((ptr=va_arg(args, char **))) {
+      length=va_arg(args,uint);
+      tot_length+=ALIGN_SIZE(length);
+  }
+  va_end(args);
+
+  if (!(start=(char *) tokudb_my_malloc(tot_length,myFlags))) {
+      return 0;
+  }
+
+  va_start(args,myFlags);
+  res=start;
+  while ((ptr=va_arg(args, char **))) {
+      *ptr=res;
+      length=va_arg(args,uint);
+      res+=ALIGN_SIZE(length);
+  }
+  va_end(args);
+  return start;
+}
 
 #endif
