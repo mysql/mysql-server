@@ -96,7 +96,7 @@ extern bool flag_events_transactions_history;
 extern bool flag_events_transactions_history_long;
 
 extern bool events_transactions_history_long_full;
-extern volatile uint32 events_transactions_history_long_index;
+extern PFS_cacheline_uint32 events_transactions_history_long_index;
 extern PFS_events_transactions *events_transactions_history_long_array;
 extern ulong events_transactions_history_long_size;
 
