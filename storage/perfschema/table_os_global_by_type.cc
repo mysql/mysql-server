@@ -202,7 +202,7 @@ table_os_global_by_type::rnd_pos(const void *pos)
 
 void table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
 
   m_row_exists= false;
@@ -222,7 +222,7 @@ void table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 
 void table_os_global_by_type::make_table_row(PFS_table_share *share)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
   uint safe_key_count;
 
