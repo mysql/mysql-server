@@ -91,13 +91,15 @@ PATENT RIGHTS GRANT:
 #if TOKU_INCLUDE_ALTER_56
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-#define TOKU_ALTER_RENAME ALTER_RENAME_56
-#elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 #define TOKU_ALTER_RENAME ALTER_RENAME
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE size_t
+#elif (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+      (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
 #define TOKU_ALTER_RENAME ALTER_RENAME
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 #define TOKU_ALTER_RENAME ALTER_RENAME_56
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #else
 #error
 #endif
@@ -838,7 +840,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
         return false;
     if (ctx->changed_fields.elements() > 1)
         return false; // only support one field change
-    for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
@@ -860,7 +862,7 @@ static bool is_sorted(Dynamic_array<uint> &a) {
     bool r = true;
     if (a.elements() > 0) {
         uint lastelement = a.at(0);
-        for (int i = 1; i < a.elements(); i++)
+        for (DYNAMIC_ARRAY_ELEMENTS_TYPE i = 1; i < a.elements(); i++)
             if (lastelement > a.at(i))
                 r = false;
     }
@@ -871,7 +873,7 @@ int ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_in
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(is_sorted(ctx->changed_fields)); // since we build the changed_fields array in field order, it must be sorted
-    for (int ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
         uint expand_field_num = ctx->changed_fields.at(ai);
         error = alter_table_expand_one_column(altered_table, ha_alter_info, expand_field_num);
     }
@@ -1129,7 +1131,7 @@ static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_i
         return false;
     if (ctx->changed_fields.elements() > 1)
         return false; // only support one field change
-    for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE  ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
