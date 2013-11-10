@@ -3034,6 +3034,10 @@ void open_file(const char *name)
       5.try in basedir
     */
 
+#ifdef __WIN__
+    fix_win_paths(curname, sizeof(curname));
+#endif
+
     bool in_overlay= opt_overlay_dir &&
                      !strncmp(curname, opt_overlay_dir, overlay_dir_len);
     bool in_suiteir= opt_overlay_dir && !in_overlay &&
