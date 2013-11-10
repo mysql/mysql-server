@@ -2992,9 +2992,6 @@ void open_file(const char *name)
   char buff[FN_REFLEN];
   size_t length;
   const char *curname= cur_file->file_name;
-#ifdef __WIN__
-  fix_win_paths(curname, sizeof(curname));
-#endif
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
@@ -3036,6 +3033,10 @@ void open_file(const char *name)
       4.try in suite-dir
       5.try in basedir
     */
+
+#ifdef __WIN__
+    fix_win_paths(curname, sizeof(curname));
+#endif
 
     bool in_overlay= opt_overlay_dir &&
                      !strncmp(curname, opt_overlay_dir, overlay_dir_len);
