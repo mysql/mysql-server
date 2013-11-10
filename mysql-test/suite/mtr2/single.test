@@ -5,4 +5,8 @@
 # three times - once for the parent suite, and once for each overlay.
 # even if the test files are not overlayed.
 #
+# overlay.inc is overridden in mtr2-myisam, and there is an rdiff file.
+#
 select 1;
+source overlay.inc;
+
