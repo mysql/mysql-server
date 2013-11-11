@@ -1252,11 +1252,11 @@ void get_delayed_table_estimates(TABLE *table,
    @brief Replaces an expression destructively inside the expression tree of
    the WHERE clase.
 
-   @note Because of current requirements for semijoin flattening, we do not
-   need to recurse here, hence this function will only examine the top-level
-   AND conditions. (see JOIN::prepare, comment starting with "Check if the 
-   subquery predicate can be executed via materialization".
-   
+   @note We substitute AND/OR structure because it was copied by
+   copy_andor_structure and some changes could be done in the copy but
+   should be left permanent, also there could be several layers of AND over
+   AND and OR over OR because ::fix_field() possibly is not called.
+
    @param join The top-level query.
    @param old_cond The expression to be replaced.
    @param new_cond The expression to be substituted.
@@ -1284,12 +1284,19 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
     Item *item;
     while ((item= li++))
     {
-      if (item == old_cond) 
+      if (item == old_cond)
       {
         li.replace(new_cond);
         if (do_fix_fields)
           new_cond->fix_fields(join->thd, li.ref());
         return FALSE;
+      }
+      else if (item->type() == Item::COND_ITEM)
+      {
+        DBUG_ASSERT(!(*expr)->fixed);
+        replace_where_subcondition(join, li.ref(),
+                                   old_cond, new_cond,
+                                   do_fix_fields);
       }
     }
   }

@@ -4647,6 +4647,34 @@ SELECT * FROM t2 LEFT JOIN v1 ON ( c=b AND a IN ( 1,6 ) );
 drop view v1;
 drop table t1,t2;
 
+--echo #
+--echo # MDEV-5153: Server crashes in Item_ref::fix_fields on 2nd execution
+--echo # of PS with LEFT JOIN and MERGE view or SELECT SQ
+--echo #
+
+CREATE TABLE t1 (i1 INT, c1 VARCHAR(6)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
+
+CREATE TABLE t2 (c2 VARCHAR(6)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('foobar'),('qux');
+
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1 WHERE ( c1 ) IN ( SELECT c2 FROM t2 ) AND i1 <= 2 ;
+
+PREPARE stmt FROM 'SELECT * FROM t1 LEFT JOIN v1 ON (v1.i1 = t1.i1)';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+drop view v1;
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1 WHERE ( c1, c1 ) IN ( SELECT c2, c2 FROM t2 ) AND i1 <= 2 ;
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+deallocate prepare stmt;
+drop view v1;
+drop table t1,t2;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

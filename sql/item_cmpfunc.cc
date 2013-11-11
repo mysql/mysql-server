@@ -1436,9 +1436,11 @@ bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  DBUG_ENTER("Item_in_optimizer::fix_left");
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
-    return 1;
+    DBUG_RETURN(1);
+  DBUG_PRINT("info", ("actual fix fields"));
 
   cache->setup(args[0]);
   if (cache->cols() == 1)
@@ -1460,10 +1462,13 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
       {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "SUBQUERY in ROW in left expression of IN/ALL/ANY");
-        return 1;
+        DBUG_RETURN(1);
       }
       if (args[0]->element_index(i)->used_tables())
+      {
 	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
+        cache->set_used_tables(OUTER_REF_TABLE_BIT);
+      }
       else
 	((Item_cache *)cache->element_index(i))->set_used_tables(0);
     }
@@ -1477,7 +1482,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     cache->store(args[0]);
     cache->cache_value();
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
