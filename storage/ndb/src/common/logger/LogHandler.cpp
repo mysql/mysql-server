@@ -117,7 +117,8 @@ char*
 LogHandler::getTimeAsString(char* pStr) const 
 {
   struct tm* tm_now;
-  tm_now = ::localtime(&m_now); //uses the "current" timezone
+  tm tm_buf;
+  tm_now = ::localtime_r(&m_now, &tm_buf); //uses the "current" timezone
 
   BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
 	     "%d-%.2d-%.2d %.2d:%.2d:%.2d",

@@ -59,7 +59,8 @@ TimeModule::setTimeStamp()
 
    time(&now);
 
-   rightnow = localtime(&now);
+   tm tm_buf;
+   rightnow = localtime_r(&now, &tm_buf);
 
    iYear     = rightnow->tm_year+1900; // localtime returns current year -1900
    iMonth    = rightnow->tm_mon+1;     // and month 0-11
