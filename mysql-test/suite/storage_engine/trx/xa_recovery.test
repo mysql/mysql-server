@@ -64,6 +64,7 @@ EOF
 XA RECOVER;
 XA ROLLBACK 'xa1';
 XA COMMIT 'xa2';
+--replace_result \\ /
 SELECT a FROM t1;
 DROP TABLE t1;
 

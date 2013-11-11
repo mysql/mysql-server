@@ -7,6 +7,7 @@
 #       that they are accepted
 # 
 
+--source include/have_symlink.inc
 --source have_engine.inc
 
 --let $data_dir = $MYSQLTEST_VARDIR/storage_engine_data_dir/
