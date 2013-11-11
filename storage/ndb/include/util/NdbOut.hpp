@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -115,8 +115,6 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
 }
 extern "C"
 void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-extern "C"
-void vndbout_c(const char * fmt, va_list ap);
 
 class FilteredNdbOut : public NdbOut {
 public:

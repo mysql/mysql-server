@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -141,15 +141,26 @@ NdbOut::println(const char * fmt, ...){
   va_end(ap);
 }
 
-extern "C"
+static
 void 
-vndbout_c(const char * fmt, va_list ap){
-  char buf[1000];
-  
-  if (fmt != 0)
+vndbout_c(const char * fmt, va_list ap)
+{
+  if (fmt == NULL)
   {
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing an empty newline
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    ndbout << endl; // Empty newline
+    return;
   }
+
+  char buf[1000];
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << buf << endl;
 }
 
