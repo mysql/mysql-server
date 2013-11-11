@@ -60,7 +60,7 @@ macro(hostname out)
     COMMAND hostname
     OUTPUT_VARIABLE fullhostname
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-  string(REGEX REPLACE "\\.tokutek\\.com$" "" ${out} ${fullhostname})
+  string(REGEX REPLACE "\\.tokutek\\.com$" "" ${out} "${fullhostname}")
 endmacro(hostname)
 
 ## gather machine info
