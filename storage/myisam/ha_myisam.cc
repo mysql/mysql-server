@@ -1118,14 +1118,10 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       statistics_done=1;
       if (THDVAR(thd, repair_threads)>1)
       {
-        char buf[40];
         /* TODO: respect myisam_repair_threads variable */
-        my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
-        thd_proc_info(thd, buf);
+        thd_proc_info(thd, "Parallel repair");
         error = mi_repair_parallel(&param, file, fixed_name,
                                    test(param.testflag & T_QUICK));
-        thd_proc_info(thd, "Repair done"); // to reset proc_info, as
-                                      // it was pointing to local buffer
       }
       else
       {
