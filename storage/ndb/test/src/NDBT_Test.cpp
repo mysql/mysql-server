@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1449,6 +1449,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
+  // Save pointer to memory allocated by 'ndb_load_defaults'
+  char** defaults_argv= _argv;
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -1458,6 +1460,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 			       ndb_std_get_one_option)))
   {
     usage();
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -1578,22 +1581,26 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_print == true){
     printExecutionTree();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_html == true){
     printExecutionTreeHTML();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_cases == true){
     printCases();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -1609,6 +1616,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
+  ndb_free_defaults(defaults_argv);
   return NDBT_ProgramExit(res);
 }
 
