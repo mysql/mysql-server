@@ -15,6 +15,7 @@ IF(NOT TOKUDB_OK)
 ENDIF()
 SET(ENV{TOKUDB_VERSION} "7.0.4")
 
+SET(TOKUDB_DEB_FILES "usr/lib/mysql/plugin/ha_tokudb.so\netc/mysql/conf.d/tokudb.cnf\nusr/bin/tokuftdump\nusr/share/doc/mariadb-server-5.5/README-TOKUDB\nusr/share/doc/mariadb-server-5.5/README.md" PARENT_SCOPE)
 SET(USE_BDB OFF CACHE BOOL "")
 SET(USE_VALGRIND OFF CACHE BOOL "")
 SET(BUILD_TESTING  OFF CACHE BOOL "")
@@ -45,12 +46,13 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/toku_include)
 SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
 SET(TOKUDB_SOURCES ha_tokudb.cc)
 MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
-    COMPONENT "tokudb-engine"
     LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
 SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")
 
+SET(CPACK_RPM_server_PACKAGE_OBSOLETES
+  "${CPACK_RPM_server_PACKAGE_OBSOLETES} MariaDB-tokudb-engine < 5.5.34" PARENT_SCOPE)
+
 IF (INSTALL_SYSCONF2DIR)
-  INSTALL(FILES tokudb.cnf DESTINATION ${INSTALL_SYSCONF2DIR} COMPONENT tokudb-engine)
-  SET(CPACK_RPM_tokudb-engine_USER_FILELIST ${ignored} "%config(noreplace) ${INSTALL_SYSCONF2DIR}/*" PARENT_SCOPE)
+  INSTALL(FILES tokudb.cnf DESTINATION ${INSTALL_SYSCONF2DIR} COMPONENT Server)
 ENDIF(INSTALL_SYSCONF2DIR)
 

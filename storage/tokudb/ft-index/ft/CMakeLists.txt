@@ -103,7 +103,7 @@ target_link_libraries(ftverify m)
 
 install(
   TARGETS tokuftdump
-  COMPONENT "tokudb-engine"
+  COMPONENT Server
   DESTINATION ${INSTALL_BINDIR}
   )
 

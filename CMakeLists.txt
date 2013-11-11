@@ -350,6 +350,12 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
 
+IF(DEB)
+  CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/debian/mariadb-server-5.5.files.in
+    ${CMAKE_SOURCE_DIR}/debian/mariadb-server-5.5.files)
+ENDIF(DEB)
+
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 # Source: This can be done during the cmake phase, all information is

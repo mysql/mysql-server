@@ -15,7 +15,7 @@ set -e
 # Buildbot, running the test suite from installed .debs on a clean VM.
 export DEB_BUILD_OPTIONS="nocheck"
 
-export MARIADB_OPTIONAL_DEBS="tokudb-engine"
+#export MARIADB_OPTIONAL_DEBS="tokudb-engine"
 
 # Find major.minor version.
 #

@@ -1,5 +1,0 @@
-etc/mysql/conf.d/tokudb.cnf
-usr/bin/tokuftdump
-usr/lib/mysql/plugin/ha_tokudb.so
-usr/share/doc/mariadb-tokudb-engine-5.5/README-TOKUDB
-usr/share/doc/mariadb-tokudb-engine-5.5/README.md

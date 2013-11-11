@@ -184,12 +184,13 @@ Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), 
 Provides: mariadb-server, mysql-server, virtual-mysql-server
 Conflicts: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1, mysql-server-5.5,
-    mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3
+    mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3,
+    mariadb-tokudb-engine-5.5
 Replaces: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1, mysql-server-5.5,
     mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3,
-    libmariadbclient16 (<< 5.3.4),
-    libmariadbclient-dev (<< 5.5.0)
+    libmariadbclient16 (<< 5.3.4), libmariadbclient-dev (<< 5.5.0),
+    mariadb-tokudb-engine-5.5
 Description: MariaDB database server binaries
  MariaDB is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -233,11 +234,3 @@ Description: MariaDB database regression test suite (metapackage depending on th
  mariadb-test (currently mariadb-test-5.5), as determined by the MariaDB
  maintainers.
 
-Package: mariadb-tokudb-engine-5.5
-Section: database
-Architecture: any
-Depends: mariadb-server-5.5
-Description: TokuDB storage engine for MariaDB
- TokuDB is a highly scalable, zero maintenance downtime, ACID and MVCC
- compliant MariaDB Storage Engine that offers powerful indexing-based query
- acceleration. http://www.tokutek.com/products/tokudb-for-mysql/
