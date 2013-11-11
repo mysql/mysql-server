@@ -9208,6 +9208,11 @@ index_bad:
 		*flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
+	/* Set the flags2 when create table or alter tables */
+	*flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			*flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
 	DBUG_RETURN(true);
 }
 
