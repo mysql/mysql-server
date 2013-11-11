@@ -6308,7 +6308,7 @@ fts_rename_one_aux_table_to_hex_format(
 			aux_table->name, new_name);
 	}
 
-	mem_free(new_name);
+	ut_free(new_name);
 
 	return (error);
 }
