@@ -96,9 +96,9 @@ const char*
 LogHandler::getDefaultHeader(char* pStr, const char* pCategory, 
 			     Logger::LoggerLevel level) const
 {
-  char time[MAX_DATE_TIME_HEADER_LENGTH];
+  char time[64];
   BaseString::snprintf(pStr, MAX_HEADER_LENGTH, "%s [%s] %s -- ", 
-	     getTimeAsString((char*)time),
+                       getTimeAsString(time, sizeof(time)),
 	     pCategory,
 	     Logger::LoggerLevelNames[level]);
  
@@ -114,13 +114,13 @@ LogHandler::getDefaultFooter() const
 
 
 char* 
-LogHandler::getTimeAsString(char* pStr) const 
+LogHandler::getTimeAsString(char* pStr, size_t len) const
 {
   struct tm* tm_now;
   tm tm_buf;
   tm_now = ::localtime_r(&m_now, &tm_buf); //uses the "current" timezone
 
-  BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
+  BaseString::snprintf(pStr, len,
 	     "%d-%.2d-%.2d %.2d:%.2d:%.2d",
 	     tm_now->tm_year + 1900, 
 	     tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
