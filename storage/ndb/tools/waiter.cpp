@@ -246,8 +246,9 @@ getStatus(){
   return -1;
 }
 
+static
 char*
-getTimeAsString(char* pStr)
+getTimeAsString(char* pStr, size_t len)
 {
   time_t now;
   now= ::time((time_t*)NULL);
@@ -260,7 +261,7 @@ getTimeAsString(char* pStr)
   tm_now = ::localtime_r(&now, &tm_buf); //uses the "current" timezone
 #endif
 
-  BaseString::snprintf(pStr, 9,
+  BaseString::snprintf(pStr, len,
 	   "%02d:%02d:%02d",
 	   tm_now->tm_hour,
 	   tm_now->tm_min,
@@ -378,7 +379,7 @@ waitClusterStatus(const char* _addr,
 
     if (!allInState) {
       char time[9];
-      g_info << "[" << getTimeAsString(time) << "] "
+      g_info << "[" << getTimeAsString(time, sizeof(time)) << "] "
              << "Waiting for cluster enter state "
              << ndb_mgm_get_node_status_string(_status) << endl;
     }
