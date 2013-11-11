@@ -156,11 +156,10 @@ static struct my_option my_long_options[]=
    "version\' of the program is the version of the MySQL server with which it "
    "was built/distributed.", &opt_version_check, &opt_version_check, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"write-binlog", OPT_WRITE_BINLOG,
-   "All commands including mysqlcheck are binlogged. Enabled by default;"
-   "use --skip-write-binlog when commands should not be sent to replication slaves.",
+  {"write-binlog", OPT_WRITE_BINLOG, "All commands including those, "
+   "issued by mysqlcheck, are written to the binary log.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
-   1, 0, 0, 0, 0, 0},
+   0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
