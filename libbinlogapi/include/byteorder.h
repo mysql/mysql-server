@@ -55,7 +55,7 @@
 #if !defined(le16toh)
 uint16_t inline le16toh(uint16_t x)
 {
-  #ifndef IS_BIG_ENDIAN
+  #if !(IS_BIG_ENDIAN)
     return x;
   #else
     return ((x >> 8) | (x << 8));
@@ -66,7 +66,7 @@ uint16_t inline le16toh(uint16_t x)
 #if !defined(le32toh)
 uint32_t inline le32toh(uint32_t x)
 {
-  #ifndef IS_BIG_ENDIAN
+  #if !(IS_BIG_ENDIAN)
     return x;
   #else
     return (((x >> 24) & 0xff) |
@@ -80,7 +80,7 @@ uint32_t inline le32toh(uint32_t x)
 #if !defined(be32toh)
 uint32_t inline be32toh(uint32_t x)
 {
-  #ifndef IS_BIG_ENDIAN
+  #if !(IS_BIG_ENDIAN)
      return (((x >> 24) & 0xff) |
              ((x <<  8) & 0xff0000) |
              ((x >>  8) & 0xff00) |
