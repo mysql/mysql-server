@@ -1,0 +1,16 @@
+create user foo@localhost identified by 'foo';
+flush user_statistics;
+set global userstat=1;
+select 1;
+1
+1
+select user, bytes_received from information_schema.user_statistics where user = 'foo';
+user	bytes_received
+foo	18
+connect(localhost,foo,bar,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+select user, bytes_received from information_schema.user_statistics where user = 'foo';
+user	bytes_received
+foo	18
+drop user foo@localhost;
+set global userstat=0;

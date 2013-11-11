@@ -5353,7 +5353,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   lex_start(thd);
   thd->lex->local_file= local_fname;
-  mysql_reset_thd_for_next_command(thd, 0);
+  mysql_reset_thd_for_next_command(thd);
 
   if (!use_rli_only_for_errors)
   {
@@ -7353,7 +7353,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
       as the present method does not call mysql_parse().
     */
     lex_start(thd);
-    mysql_reset_thd_for_next_command(thd, 0);
+    mysql_reset_thd_for_next_command(thd);
     /* old copy may exist already */
     mysql_file_delete(key_file_log_event_data, fname, MYF(0));
     if ((fd= mysql_file_create(key_file_log_event_data,
@@ -8308,7 +8308,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
-    mysql_reset_thd_for_next_command(thd, 0);
+    mysql_reset_thd_for_next_command(thd);
     /*
       The current statement is just about to begin and 
       has not yet modified anything. Note, all.modified is reset

@@ -87,7 +87,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       we need to do any changes to that value after this function.
     */
     lex_start(ev_thd);
-    mysql_reset_thd_for_next_command(ev_thd, 0);
+    mysql_reset_thd_for_next_command(ev_thd);
 
     /*
       This is a row injection, so we flag the "statement" as

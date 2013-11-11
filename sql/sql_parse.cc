@@ -717,7 +717,6 @@ bool do_command(THD *thd)
 
   net_new_transaction(net);
 
-
   /* Save for user statistics */
   thd->start_bytes_received= thd->status_var.bytes_received;
 
@@ -925,6 +924,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
     statistic_increment(thd->status_var.questions, &LOCK_status);
+
+  /* Copy data for user stats */
+  if ((thd->userstat_running= opt_userstat_running))
+  {
+    thd->start_cpu_time= my_getcputime();
+    memcpy(&thd->org_status_var, &thd->status_var, sizeof(thd->status_var));
+    thd->select_commands= thd->update_commands= thd->other_commands= 0;
+  }
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1176,7 +1183,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     packet= arg_end + 1;
-    mysql_reset_thd_for_next_command(thd, opt_userstat_running);
+    mysql_reset_thd_for_next_command(thd);
     lex_start(thd);
     /* Must be before we init the table list. */
     if (lower_case_table_names)
@@ -5446,15 +5453,15 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 
   @todo Call it after we use THD for queries, not before.
 */
-void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
+void mysql_reset_thd_for_next_command(THD *thd)
 {
-  thd->reset_for_next_command(calculate_userstat);
+  thd->reset_for_next_command();
 }
 
-void THD::reset_for_next_command(bool calculate_userstat)
+void THD::reset_for_next_command()
 {
   THD *thd= this;
-  DBUG_ENTER("mysql_reset_thd_for_next_command");
+  DBUG_ENTER("THD::reset_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
   DBUG_ASSERT(thd->transaction.on);
@@ -5499,14 +5506,6 @@ void THD::reset_for_next_command(bool calculate_userstat)
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->accessed_rows_and_keys= 0;
-
-  /* Copy data for user stats */
-  if ((thd->userstat_running= calculate_userstat))
-  {
-    thd->start_cpu_time= my_getcputime();
-    memcpy(&thd->org_status_var, &thd->status_var, sizeof(thd->status_var));
-    thd->select_commands= thd->update_commands= thd->other_commands= 0;
-  }
 
   thd->query_plan_flags= QPLAN_INIT;
   thd->query_plan_fsort_passes= 0;
@@ -5716,7 +5715,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     FIXME: cleanup the dependencies in the code to simplify this.
   */
   lex_start(thd);
-  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
+  mysql_reset_thd_for_next_command(thd);
 
   if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
   {
@@ -5819,7 +5818,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
   if (!(error= parser_state.init(thd, rawbuf, length)))
   {
     lex_start(thd);
-    mysql_reset_thd_for_next_command(thd, opt_userstat_running);
+    mysql_reset_thd_for_next_command(thd);
 
     if (!parse_sql(thd, & parser_state, NULL) &&
         all_tables_not_ok(thd, lex->select_lex.table_list.first))

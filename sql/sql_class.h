@@ -1556,7 +1556,7 @@ public:
   /* Slave applier execution context */
   Relay_log_info* rli_slave;
 
-  void reset_for_next_command(bool calculate_userstat);
+  void reset_for_next_command();
   /*
     Constant for THD::where initialization in the beginning of every query.
 
