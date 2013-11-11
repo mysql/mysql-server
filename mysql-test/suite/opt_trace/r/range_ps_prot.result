@@ -3272,7 +3272,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "using_join_cache": true,
                       "buffers_needed": 1,
                       "rows": 768,
-                      "cost": 6510.7,
+                      "cost": 6511,
                       "chosen": false
                     }
                   ] /* considered_access_paths */

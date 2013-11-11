@@ -5845,7 +5845,7 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1521.2,
+                          "cost": 1521.6,
                           "chosen": false
                         }
                       ]
@@ -5911,7 +5911,7 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1521.2,
+                          "cost": 1521.6,
                           "chosen": false
                         }
                       ]

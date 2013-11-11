@@ -2725,7 +2725,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -2926,7 +2926,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -2965,7 +2965,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1509.9,
+                          "cost": 1510.1,
                           "chosen": false
                         }
                       ] /* considered_access_paths */

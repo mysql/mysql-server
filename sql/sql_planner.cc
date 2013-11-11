@@ -673,17 +673,31 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     else
     {
       /*
-        We read the table as many times as join buffer becomes full.
-        It would be more exact to round the result of the division with
-        floor(), but that takes 5% of time in a 20-table query plan search.
+        IO cost: We read the table as many times as join buffer
+        becomes full. (It would be more exact to round the result of
+        the division with floor(), but that takes 5% of time in a
+        20-table query plan search.)
+
+        CPU cost: For every full join buffer, attached conditions are
+        evaluated for each row in the scanned table. We assume that
+        the conditions evaluate to 'true' for 'rows_after_filtering'
+        number of rows. The rows that pass are then joined with the
+        prefix rows.
+
+        The CPU cost for the rows that do NOT satisfy the attached
+        conditions is considered to be part of the read cost and is
+        added below. The cost of joining the rows that DO satisfy the
+        attached conditions with all prefix rows is added in
+        greedy_search().
       */
       const double buffer_count=
         1.0 + ((double) cache_record_length(join,idx) *
                prefix_rowcount /
                (double) thd->variables.join_buff_size);
 
-      scan_and_filter_cost= buffer_count * single_scan_read_cost +
-         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST;
+      scan_and_filter_cost= buffer_count *
+        (single_scan_read_cost +
+         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST);
 
       trace_access_scan->add("using_join_cache", true);
       trace_access_scan->add("buffers_needed", (ulong)buffer_count);
