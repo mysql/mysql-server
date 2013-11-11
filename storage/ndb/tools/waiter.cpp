@@ -250,23 +250,20 @@ static
 char*
 getTimeAsString(char* pStr, size_t len)
 {
+  // Get current time
   time_t now;
-  now= ::time((time_t*)NULL);
+  time(&now);
 
-  struct tm* tm_now;
+  // Convert to local timezone
   tm tm_buf;
-#ifdef NDB_WIN32
-  tm_now = localtime_r(&now, &tm_buf);
-#else
-  tm_now = ::localtime_r(&now, &tm_buf); //uses the "current" timezone
-#endif
+  localtime_r(&now, &tm_buf);
 
+  // Print to string buffer
   BaseString::snprintf(pStr, len,
-	   "%02d:%02d:%02d",
-	   tm_now->tm_hour,
-	   tm_now->tm_min,
-	   tm_now->tm_sec);
-
+                       "%02d:%02d:%02d",
+                       tm_buf.tm_hour,
+                       tm_buf.tm_min,
+                       tm_buf.tm_sec);
   return pStr;
 }
 
