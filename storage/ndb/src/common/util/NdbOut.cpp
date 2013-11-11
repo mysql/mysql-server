@@ -118,25 +118,52 @@ NdbOut::~NdbOut()
 }
 
 void
-NdbOut::print(const char * fmt, ...){
+NdbOut::print(const char * fmt, ...)
+{
+  if (fmt == NULL)
+  {
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing nothing
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    return;
+  }
+
   va_list ap;
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   *this << buf;
   va_end(ap);
 }
 
 void
-NdbOut::println(const char * fmt, ...){
+NdbOut::println(const char * fmt, ...)
+{
+  if (fmt == NULL)
+  {
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing nothing
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    *this << endl;
+    return;
+  }
+
   va_list ap;
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   *this << buf << endl;
   va_end(ap);
 }
