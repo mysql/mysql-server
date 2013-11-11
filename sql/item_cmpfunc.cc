@@ -1438,9 +1438,11 @@ bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  DBUG_ENTER("Item_in_optimizer::fix_left");
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
-    return 1;
+    DBUG_RETURN(1);
+  DBUG_PRINT("info", ("actual fix fields"));
 
   cache->setup(args[0]);
   if (cache->cols() == 1)
@@ -1466,11 +1468,15 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
       {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "SUBQUERY in ROW in left expression of IN/ALL/ANY");
-        return 1;
+        DBUG_RETURN(1);
       }
       Item *element=args[0]->element_index(i);
       if (element->used_tables() || !element->const_item())
-	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
+      {
+	((Item_cache *)cache->element_index(i))->
+          set_used_tables(OUTER_REF_TABLE_BIT);
+        cache->set_used_tables(OUTER_REF_TABLE_BIT);
+      }
       else
 	((Item_cache *)cache->element_index(i))->set_used_tables(0);
     }
@@ -1484,7 +1490,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     cache->store(args[0]);
     cache->cache_value();
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -5681,6 +5687,12 @@ void Item_equal::add_const(Item *c, Item *f)
     func->quick_fix_field();
     cond_false= !func->val_int();
   }
+  /*
+    TODO: also support the case where Item_equal becomes singular with
+    this->is_cond_true()=1.  When I attempted to mark the item as constant,
+    the optimizer attempted to remove it, however it is still referenced from
+    COND_EQUAL and I got a crash.
+  */
   if (cond_false)
     const_item_cache= 1;
 }
@@ -5885,7 +5897,8 @@ void Item_equal::merge_into_list(List<Item_equal> *list,
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bubble_sort<Item>(&equal_items, compare, arg);
+  if (equal_items.elements > 1)
+    bubble_sort<Item>(&equal_items, compare, arg);
 }
 
 
@@ -5999,6 +6012,12 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
 void Item_equal::update_used_tables()
 {
   not_null_tables_cache= used_tables_cache= 0;
+  /*
+    TODO: also support the case where Item_equal becomes singular with
+    this->is_cond_true()=1.  When I attempted to mark the item as constant,
+    the optimizer attempted to remove it, however it is still referenced from
+    COND_EQUAL and I got a crash.
+  */
   if ((const_item_cache= cond_false))
     return;
   Item_equal_fields_iterator it(*this);
@@ -6048,6 +6067,8 @@ longlong Item_equal::val_int()
 {
   if (cond_false)
     return 0;
+  if (is_cond_true())
+    return 1;
   Item *item= get_const();
   Item_equal_fields_iterator it(*this);
   if (!item)
@@ -6072,6 +6093,11 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NO_PARTICULAR_TAB, NULL);
+  if (!item)
+  {
+    DBUG_ASSERT(is_cond_true()); // it should be the only constant
+    item= equal_items.head();
+  }
   eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }
