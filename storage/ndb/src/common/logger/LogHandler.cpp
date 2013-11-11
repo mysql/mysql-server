@@ -116,20 +116,7 @@ LogHandler::getDefaultFooter() const
 char* 
 LogHandler::getTimeAsString(char* pStr, size_t len) const
 {
-  struct tm* tm_now;
-  tm tm_buf;
-  tm_now = ::localtime_r(&m_now, &tm_buf); //uses the "current" timezone
-
-  BaseString::snprintf(pStr, len,
-	     "%d-%.2d-%.2d %.2d:%.2d:%.2d",
-	     tm_now->tm_year + 1900, 
-	     tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
-	     tm_now->tm_mday,
-	     tm_now->tm_hour,
-	     tm_now->tm_min,
-	     tm_now->tm_sec);
-  
-  return pStr;
+  return Logger::format_timestamp(m_now, pStr, len);
 }
 
 int 

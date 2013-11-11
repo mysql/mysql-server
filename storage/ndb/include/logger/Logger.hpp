@@ -102,6 +102,27 @@ class LogHandlerList;
 class Logger
 {
 public:
+
+
+  static char*
+  format_timestamp(const time_t epoch,
+                   char* str, size_t len)
+  {
+    // convert to local timezone
+    tm tm_buf;
+    localtime_r(&epoch, &tm_buf);
+
+    BaseString::snprintf(str, len,
+                         "%d-%.2d-%.2d %.2d:%.2d:%.2d",
+                         tm_buf.tm_year + 1900,
+                         tm_buf.tm_mon + 1, //month is [0,11]. +1 -> [1,12]
+                         tm_buf.tm_mday,
+                         tm_buf.tm_hour,
+                         tm_buf.tm_min,
+                         tm_buf.tm_sec);
+    return str;
+  }
+
   /** The log levels. NOTE: Could not use the name LogLevel since 
    * it caused conflicts with another class.
    */
