@@ -2358,7 +2358,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
       ulonglong start_utime= tmp->start_time * HRTIME_RESOLUTION + tmp->start_time_sec_part;
-      ulonglong utime= start_utime < unow.val ? unow.val - start_utime : 0;
+      ulonglong utime= start_utime && start_utime < unow.val
+                       ? unow.val - start_utime : 0;
       table->field[5]->store(utime / HRTIME_RESOLUTION, TRUE);
       /* STATE */
       if ((val= thread_state_info(tmp)))
