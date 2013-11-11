@@ -81,7 +81,7 @@ EOF
   # Adding a warning suppression based on what InnoDB currently does
   # when it attempts to access a table without an *.ibd file
   --disable_query_log
-  eval CALL mtr.add_suppression('$storage_engine: Error:.*');
+  eval CALL mtr.add_suppression('$storage_engine: Error:');
   --enable_query_log
 }
 
