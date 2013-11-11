@@ -31,7 +31,7 @@ if [ $1 = 1 ] ; then
   # owns all database files.
   chown -R %{mysqld_user}:%{mysqld_group} $datadir
 
-  if [ ! -e $datadir ]; then
+  if [ ! -e $datadir/mysql ]; then
     # Create data directory
     mkdir -p $datadir/{mysql,test}
 
