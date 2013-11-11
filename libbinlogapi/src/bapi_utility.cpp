@@ -57,7 +57,7 @@ bool event_checksum_test(unsigned char *event_buf, unsigned long event_len,
       /*
         FD event is checksummed and therefore verified w/o the binlog-in-use flag
       */
-      flags= le16toh(*( (uint16_t*)(event_buf + FLAGS_OFFSET)));
+      flags= *((uint16_t*)(event_buf + FLAGS_OFFSET));
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
 #ifndef DBUG_OFF
