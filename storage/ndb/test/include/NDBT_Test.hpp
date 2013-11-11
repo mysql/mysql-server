@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -382,7 +382,7 @@ public:
   /**
    * Returns current date and time in the format of 2002-12-04 10:00:01
    */
-  const char* getDate();
+  const char* getDate(char* str, size_t len);
 
   // Returns true if timing info should be printed
   bool timerIsOn();
