@@ -1664,10 +1664,11 @@ const char* NDBT_TestSuite::getDate(){
   struct tm* tm_now;
   time_t now;
   now = time((time_t*)NULL);
+  tm tm_buf;
 #ifdef NDB_WIN32
-  tm_now = localtime(&now);
+  tm_now = localtime_r(&now, &tm_buf);
 #else
-  tm_now = gmtime(&now);
+  tm_now = gmtime_r(&now, &tm_buf);
 #endif
   
   BaseString::snprintf(theTime, 128,

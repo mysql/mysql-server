@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -253,10 +253,11 @@ getTimeAsString(char* pStr)
   now= ::time((time_t*)NULL);
 
   struct tm* tm_now;
+  tm tm_buf;
 #ifdef NDB_WIN32
-  tm_now = localtime(&now);
+  tm_now = localtime_r(&now, &tm_buf);
 #else
-  tm_now = ::localtime(&now); //uses the "current" timezone
+  tm_now = ::localtime_r(&now, &tm_buf); //uses the "current" timezone
 #endif
 
   BaseString::snprintf(pStr, 9,
