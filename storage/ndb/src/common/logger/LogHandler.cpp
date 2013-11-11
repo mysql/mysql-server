@@ -97,8 +97,10 @@ LogHandler::getDefaultHeader(char* pStr, const char* pCategory,
 			     Logger::LoggerLevel level) const
 {
   char time[64];
+  Logger::format_timestamp(m_now, time, sizeof(time));
+
   BaseString::snprintf(pStr, MAX_HEADER_LENGTH, "%s [%s] %s -- ", 
-                       getTimeAsString(time, sizeof(time)),
+                       time,
 	     pCategory,
 	     Logger::LoggerLevelNames[level]);
  
@@ -112,12 +114,6 @@ LogHandler::getDefaultFooter() const
   return "\n";
 }
 
-
-char* 
-LogHandler::getTimeAsString(char* pStr, size_t len) const
-{
-  return Logger::format_timestamp(m_now, pStr, len);
-}
 
 int 
 LogHandler::getErrorCode() const
