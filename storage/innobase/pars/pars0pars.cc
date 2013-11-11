@@ -1988,6 +1988,12 @@ pars_create_table(
 		}
 	}
 
+	/* Set the flags2 when create table or alter tables */
+	flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
+
 	n_cols = que_node_list_get_len(column_defs);
 
 	table = dict_mem_table_create(

@@ -3487,6 +3487,7 @@ next_rec:
 
 		fts_table.name = table->name;
 		fts_table.id = new_id;
+		fts_table.flags2 = table->flags2;
 
 		err = fts_create_common_tables(
 			trx, &fts_table, table->name, TRUE);
