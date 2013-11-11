@@ -73,7 +73,7 @@ bool event_checksum_test(unsigned char *event_buf, unsigned long event_len,
       */
       do_compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
     }
-    incoming= le32toh(*((uint32_t*)(event_buf + event_len - BINLOG_CHECKSUM_LEN)));
+    incoming= *((uint32_t*)(event_buf + event_len - BINLOG_CHECKSUM_LEN));
     computed= checksum_crc32(0L, NULL, 0);
     /* checksum the event content but not the checksum part itself */
     computed= binary_log::checksum_crc32(computed, (const unsigned char*) event_buf,
