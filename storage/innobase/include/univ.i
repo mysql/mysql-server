@@ -430,7 +430,7 @@ macro ULINTPF. */
 # define UINT32PF	"%lu"
 # define INT64PF	"%lld"
 # define UINT64PF	"%llu"
-# define UINT64PFx	"%016llu" /* TODO: fix Bug#16559254 */
+# define UINT64PFx	"%016llx"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;

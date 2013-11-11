@@ -7033,6 +7033,9 @@ ER_TABLE_CORRUPT
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
 
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
 #
 #  End of 5.6 error messages.
 #
