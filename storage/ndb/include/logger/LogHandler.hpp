@@ -202,13 +202,6 @@ protected:
   virtual void writeFooter() = 0;
   
 private: 
-  /**
-   * Returns a string date and time string.
-   * @note does not update time, uses m_now as time
-   * @param pStr a string.
-   * @return a string with date and time.
-   */
-  char* getTimeAsString(char* pStr, size_t len) const;
   time_t m_now;
 
   /** Prohibit */
