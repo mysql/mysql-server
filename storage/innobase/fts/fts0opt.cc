@@ -1624,10 +1624,12 @@ fts_optimize_create(
 	optim->fts_common_table.parent = table->name;
 	optim->fts_common_table.table_id = table->id;
 	optim->fts_common_table.type = FTS_COMMON_TABLE;
+	optim->fts_common_table.table = table;
 
 	optim->fts_index_table.parent = table->name;
 	optim->fts_index_table.table_id = table->id;
 	optim->fts_index_table.type = FTS_INDEX_TABLE;
+	optim->fts_index_table.table = table;
 
 	/* The common prefix for all this parent table's aux tables. */
 	optim->name_prefix = fts_get_table_name_prefix(
