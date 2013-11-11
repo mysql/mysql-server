@@ -4238,9 +4238,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     sub-statement mode.
   */
 
-  DBUG_ASSERT((is_fatal_sub_stmt_error && !in_sub_stmt) ||
-              !is_fatal_sub_stmt_error);
-
   if (!in_sub_stmt)
     is_fatal_sub_stmt_error= false;
 
