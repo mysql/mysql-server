@@ -28,14 +28,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 namespace binary_log { namespace system {
 
-int proto_get_one_package(MYSQL *mysql, char *buff,
-                           uint8_t *packet_no)
-{
-  ulong packet_length;
-  packet_length= cli_safe_read(mysql);
-  return packet_length;
-}
-
 buffer_source &operator>>(buffer_source &src, Protocol &chunk)
 {
   unsigned int ct= 0;

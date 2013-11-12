@@ -57,7 +57,8 @@ bool event_checksum_test(unsigned char *event_buf, unsigned long event_len,
       /*
         FD event is checksummed and therefore verified w/o the binlog-in-use flag
       */
-      flags= le16toh(*(reinterpret_cast<uint16_t*>(event_buf + FLAGS_OFFSET)));
+      memcpy(&flags, event_buf + FLAGS_OFFSET, sizeof(flags));
+      flags= le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
 #ifndef DBUG_OFF
@@ -73,7 +74,8 @@ bool event_checksum_test(unsigned char *event_buf, unsigned long event_len,
       */
       do_compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
     }
-    incoming= le32toh(*(reinterpret_cast<uint32_t*>(event_buf + event_len - BINLOG_CHECKSUM_LEN)));
+    memcpy(&incoming, event_buf + event_len - BINLOG_CHECKSUM_LEN, sizeof(incoming));
+    incoming= le32toh(incoming);
     computed= checksum_crc32(0L, NULL, 0);
     /* checksum the event content but not the checksum part itself */
     computed= binary_log::checksum_crc32(computed, (const unsigned char*) event_buf,
