@@ -19,6 +19,8 @@
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "auth_common.h"            // SUPER_ACL
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 
 /**
   Check if we have a condition where the transaction state must
@@ -32,7 +34,6 @@
 
 bool trans_check_state(THD *thd)
 {
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("trans_check");
 
   /*
@@ -42,72 +43,15 @@ bool trans_check_state(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.is_empty());
 
   if (unlikely(thd->in_sub_stmt))
+  {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-  if (xa_state != XA_NOTR)
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-  else
-    DBUG_RETURN(FALSE);
-
-  DBUG_RETURN(TRUE);
-}
-
-
-/**
-  Mark a XA transaction as rollback-only if the RM unilaterally
-  rolled back the transaction branch.
-
-  @note If a rollback was requested by the RM, this function sets
-        the appropriate rollback error code and transits the state
-        to XA_ROLLBACK_ONLY.
-
-  @return TRUE if transaction was rolled back or if the transaction
-          state is XA_ROLLBACK_ONLY. FALSE otherwise.
-*/
-static bool xa_trans_rolled_back(XID_STATE *xid_state)
-{
-  if (xid_state->rm_error)
-  {
-    switch (xid_state->rm_error) {
-    case ER_LOCK_WAIT_TIMEOUT:
-      my_error(ER_XA_RBTIMEOUT, MYF(0));
-      break;
-    case ER_LOCK_DEADLOCK:
-      my_error(ER_XA_RBDEADLOCK, MYF(0));
-      break;
-    default:
-      my_error(ER_XA_RBROLLBACK, MYF(0));
-    }
-    xid_state->xa_state= XA_ROLLBACK_ONLY;
+    DBUG_RETURN(true);
   }
 
-  return (xid_state->xa_state == XA_ROLLBACK_ONLY);
-}
+  if (thd->transaction.xid_state.check_in_xa(true))
+    DBUG_RETURN(true);
 
-
-/**
-  Rollback the active XA transaction.
-
-  @note Resets rm_error before calling ha_rollback(), so
-        the thd->transaction.xid structure gets reset
-        by ha_rollback() / THD::transaction::cleanup().
-
-  @return TRUE if the rollback failed, FALSE otherwise.
-*/
-
-static bool xa_trans_force_rollback(THD *thd)
-{
-  /*
-    We must reset rm_error before calling ha_rollback(),
-    so thd->transaction.xid structure gets reset
-    by ha_rollback()/THD::transaction::cleanup().
-  */
-  thd->transaction.xid_state.rm_error= 0;
-  if (ha_rollback_trans(thd, true))
-  {
-    my_error(ER_XAER_RMERR, MYF(0));
-    return true;
-  }
-  return false;
+  DBUG_RETURN(false);
 }
 
 
@@ -143,7 +87,7 @@ bool trans_begin(THD *thd, uint flags)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= test(ha_commit_trans(thd, TRUE));
+    res= MY_TEST(ha_commit_trans(thd, TRUE));
   }
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
@@ -172,7 +116,7 @@ bool trans_begin(THD *thd, uint flags)
       compatibility.
     */
     const bool user_is_super=
-      test(thd->security_ctx->master_access & SUPER_ACL);
+      MY_TEST(thd->security_ctx->master_access & SUPER_ACL);
     if (opt_readonly && !user_is_super)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -190,8 +134,23 @@ bool trans_begin(THD *thd, uint flags)
   /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
+  /*
+    Register transaction start in performance schema if not done already.
+    We handle explicitly started transactions here, implicitly started
+    transactions (and single-statement transactions in autocommit=1 mode)
+    are handled in trans_register_ha().
+    We can't handle explicit transactions in the same way as implicit
+    because we want to correctly attribute statements which follow
+    BEGIN but do not touch any transactional tables.
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi == NULL)
+    thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                                 NULL, NULL, thd->tx_isolation,
+                                                 thd->tx_read_only, false);
+#endif
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -230,7 +189,10 @@ bool trans_commit(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
-  DBUG_RETURN(test(res));
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -267,7 +229,7 @@ bool trans_commit_implicit(THD *thd)
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() &&
               !thd->in_sub_stmt &&
-              thd->transaction.xid_state.xa_state == XA_NOTR);
+              !thd->transaction.xid_state.check_in_xa(false));
 
   if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
@@ -278,13 +240,16 @@ bool trans_commit_implicit(THD *thd)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= test(ha_commit_trans(thd, TRUE));
+    res= MY_TEST(ha_commit_trans(thd, TRUE));
   }
   else if (tc_log)
     tc_log->commit(thd, true);
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
+
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   /*
     Upon implicit commit, reset the current transaction
@@ -334,7 +299,54 @@ bool trans_rollback(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
-  DBUG_RETURN(test(res));
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  DBUG_RETURN(MY_TEST(res));
+}
+
+
+/**
+  Implicitly rollback the current transaction, typically
+  after deadlock was discovered.
+
+  @param thd     Current thread
+
+  @retval False Success
+  @retval True  Failure
+
+  @note ha_rollback_low() which is indirectly called by this
+        function will mark XA transaction for rollback by
+        setting appropriate RM error status if there was
+        transaction rollback request.
+*/
+
+bool trans_rollback_implicit(THD *thd)
+{
+  int res;
+  DBUG_ENTER("trans_rollback_implict");
+
+  /*
+    Always commit/rollback statement transaction before manipulating
+    with the normal one.
+    Don't perform rollback in the middle of sub-statement, wait till
+    its end.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() && !thd->in_sub_stmt);
+
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  res= ha_rollback_trans(thd, true);
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
+
+  /* Rollback should clear transaction_rollback_request flag. */
+  DBUG_ASSERT(!thd->transaction_rollback_request);
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -395,9 +407,13 @@ bool trans_commit_stmt(THD *thd)
   else if (tc_log)
     tc_log->commit(thd, false);
 
+  /* In autocommit=1 mode the transaction should be marked as complete in P_S */
+  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
+              thd->m_transaction_psi == NULL);
+
   thd->transaction.stmt.reset();
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -436,8 +452,6 @@ bool trans_rollback_stmt(THD *thd)
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
-    if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-      ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
     {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
@@ -446,6 +460,10 @@ bool trans_rollback_stmt(THD *thd)
   }
   else if (tc_log)
     tc_log->rollback(thd, false);
+
+  /* In autocommit=1 mode the transaction should be marked as complete in P_S */
+  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
+              thd->m_transaction_psi == NULL);
 
   thd->transaction.stmt.reset();
 
@@ -489,12 +507,8 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-    DBUG_RETURN(TRUE);
-  }
+  if (thd->transaction.xid_state.check_has_uncommitted_xa())
+    DBUG_RETURN(true);
 
   sv= find_savepoint(thd, name);
 
@@ -579,12 +593,8 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
     DBUG_RETURN(TRUE);
   }
 
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-    DBUG_RETURN(TRUE);
-  }
+  if (thd->transaction.xid_state.check_has_uncommitted_xa())
+    DBUG_RETURN(true);
 
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
@@ -603,7 +613,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -633,280 +643,13 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
     DBUG_RETURN(TRUE);
   }
 
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-    DBUG_RETURN(TRUE);
-  }
+  if (thd->transaction.xid_state.check_has_uncommitted_xa())
+    DBUG_RETURN(true);
 
   if (ha_release_savepoint(thd, sv))
     res= TRUE;
 
   thd->transaction.savepoints= sv->prev;
 
-  DBUG_RETURN(test(res));
-}
-
-
-/**
-  Starts an XA transaction with the given xid value.
-
-  @param thd    Current thread
-
-  @retval FALSE  Success
-  @retval TRUE   Failure
-*/
-
-bool trans_xa_start(THD *thd)
-{
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  DBUG_ENTER("trans_xa_start");
-
-  if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
-  {
-    bool not_equal= !thd->transaction.xid_state.xid.eq(thd->lex->xid);
-    if (not_equal)
-      my_error(ER_XAER_NOTA, MYF(0));
-    else
-      thd->transaction.xid_state.xa_state= XA_ACTIVE;
-    DBUG_RETURN(not_equal);
-  }
-
-  /* TODO: JOIN is not supported yet. */
-  if (thd->lex->xa_opt != XA_NONE)
-    my_error(ER_XAER_INVAL, MYF(0));
-  else if (xa_state != XA_NOTR)
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-  else if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
-    my_error(ER_XAER_OUTSIDE, MYF(0));
-  else if (!trans_begin(thd))
-  {
-    DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
-    thd->transaction.xid_state.xa_state= XA_ACTIVE;
-    thd->transaction.xid_state.rm_error= 0;
-    thd->transaction.xid_state.xid.set(thd->lex->xid);
-    if (xid_cache_insert(&thd->transaction.xid_state))
-    {
-      thd->transaction.xid_state.xa_state= XA_NOTR;
-      thd->transaction.xid_state.xid.null();
-      trans_rollback(thd);
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(FALSE);
-  }
-
-  DBUG_RETURN(TRUE);
-}
-
-
-/**
-  Put a XA transaction in the IDLE state.
-
-  @param thd    Current thread
-
-  @retval FALSE  Success
-  @retval TRUE   Failure
-*/
-
-bool trans_xa_end(THD *thd)
-{
-  DBUG_ENTER("trans_xa_end");
-
-  /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
-  if (thd->lex->xa_opt != XA_NONE)
-    my_error(ER_XAER_INVAL, MYF(0));
-  else if (thd->transaction.xid_state.xa_state != XA_ACTIVE)
-    my_error(ER_XAER_RMFAIL, MYF(0),
-             xa_state_names[thd->transaction.xid_state.xa_state]);
-  else if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
-    my_error(ER_XAER_NOTA, MYF(0));
-  else if (!xa_trans_rolled_back(&thd->transaction.xid_state))
-    thd->transaction.xid_state.xa_state= XA_IDLE;
-
-  DBUG_RETURN(thd->is_error() ||
-              thd->transaction.xid_state.xa_state != XA_IDLE);
-}
-
-
-/**
-  Put a XA transaction in the PREPARED state.
-
-  @param thd    Current thread
-
-  @retval FALSE  Success
-  @retval TRUE   Failure
-*/
-
-bool trans_xa_prepare(THD *thd)
-{
-  DBUG_ENTER("trans_xa_prepare");
-
-  if (thd->transaction.xid_state.xa_state != XA_IDLE)
-    my_error(ER_XAER_RMFAIL, MYF(0),
-             xa_state_names[thd->transaction.xid_state.xa_state]);
-  else if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
-    my_error(ER_XAER_NOTA, MYF(0));
-  else if (ha_prepare(thd))
-  {
-    xid_cache_delete(&thd->transaction.xid_state);
-    thd->transaction.xid_state.xa_state= XA_NOTR;
-    my_error(ER_XA_RBROLLBACK, MYF(0));
-  }
-  else
-    thd->transaction.xid_state.xa_state= XA_PREPARED;
-
-  DBUG_RETURN(thd->is_error() ||
-              thd->transaction.xid_state.xa_state != XA_PREPARED);
-}
-
-
-/**
-  Commit and terminate the a XA transaction.
-
-  @param thd    Current thread
-
-  @retval FALSE  Success
-  @retval TRUE   Failure
-*/
-
-bool trans_xa_commit(THD *thd)
-{
-  bool res= TRUE;
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  DBUG_ENTER("trans_xa_commit");
-
-  if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
-  {
-    /*
-      xid_state.in_thd is always true beside of xa recovery procedure.
-      Note, that there is no race condition here between xid_cache_search
-      and xid_cache_delete, since we always delete our own XID
-      (thd->lex->xid == thd->transaction.xid_state.xid).
-      The only case when thd->lex->xid != thd->transaction.xid_state.xid
-      and xid_state->in_thd == 0 is in the function
-      xa_cache_insert(XID, xa_states), which is called before starting
-      client connections, and thus is always single-threaded.
-    */
-    XID_STATE *xs= xid_cache_search(thd->lex->xid);
-    res= !xs || xs->in_thd;
-    if (res)
-      my_error(ER_XAER_NOTA, MYF(0));
-    else
-    {
-      res= xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
-      xid_cache_delete(xs);
-    }
-    DBUG_RETURN(res);
-  }
-
-  if (xa_trans_rolled_back(&thd->transaction.xid_state))
-  {
-    xa_trans_force_rollback(thd);
-    res= thd->is_error();
-  }
-  else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
-  {
-    int r= ha_commit_trans(thd, TRUE);
-    if ((res= test(r)))
-      my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
-  }
-  else if (xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
-  {
-    MDL_request mdl_request;
-
-    /*
-      Acquire metadata lock which will ensure that COMMIT is blocked
-      by active FLUSH TABLES WITH READ LOCK (and vice versa COMMIT in
-      progress blocks FTWRL).
-
-      We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
-    */
-    mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
-                     MDL_TRANSACTION);
-
-    if (thd->mdl_context.acquire_lock(&mdl_request,
-                                      thd->variables.lock_wait_timeout))
-    {
-      ha_rollback_trans(thd, TRUE);
-      my_error(ER_XAER_RMERR, MYF(0));
-    }
-    else
-    {
-      DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
-
-      if (tc_log)
-        res= test(tc_log->commit(thd, /* all */ true));
-      else
-        res= test(ha_commit_low(thd, /* all */ true));
-
-      if (res)
-        my_error(ER_XAER_RMERR, MYF(0));
-    }
-  }
-  else
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-    DBUG_RETURN(TRUE);
-  }
-
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->transaction.all.reset_unsafe_rollback_flags();
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  xid_cache_delete(&thd->transaction.xid_state);
-  thd->transaction.xid_state.xa_state= XA_NOTR;
-
-  DBUG_RETURN(res);
-}
-
-
-/**
-  Roll back and terminate a XA transaction.
-
-  @param thd    Current thread
-
-  @retval FALSE  Success
-  @retval TRUE   Failure
-*/
-
-bool trans_xa_rollback(THD *thd)
-{
-  bool res= TRUE;
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  DBUG_ENTER("trans_xa_rollback");
-
-  if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
-  {
-    XID_STATE *xs= xid_cache_search(thd->lex->xid);
-    if (!xs || xs->in_thd)
-      my_error(ER_XAER_NOTA, MYF(0));
-    else
-    {
-      xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, 0);
-      xid_cache_delete(xs);
-    }
-    DBUG_RETURN(thd->get_stmt_da()->is_error());
-  }
-
-  if (xa_state != XA_IDLE && xa_state != XA_PREPARED && xa_state != XA_ROLLBACK_ONLY)
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-    DBUG_RETURN(TRUE);
-  }
-
-  res= xa_trans_force_rollback(thd);
-
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->transaction.all.reset_unsafe_rollback_flags();
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  xid_cache_delete(&thd->transaction.xid_state);
-  thd->transaction.xid_state.xa_state= XA_NOTR;
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(MY_TEST(res));
 }

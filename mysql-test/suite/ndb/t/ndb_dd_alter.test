@@ -291,9 +291,9 @@ DROP TABLE test.t1;
 # Bug#55618
 create table t1 (a int primary key, b int, c int, index bc (b,c))
 storage disk tablespace ts engine = ndb;
-alter online table t1 drop index bc;
-alter online table t1 add index b (b);
-alter online table t1 drop index b;
+alter table t1 algorithm=inplace, drop index bc;
+alter table t1 algorithm=inplace, add index b (b);
+alter table t1 algorithm=inplace, drop index b;
 drop table t1;
 
 

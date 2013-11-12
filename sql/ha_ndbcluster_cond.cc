@@ -21,8 +21,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
 #include "ha_ndbcluster_cond.h"
 
@@ -1171,7 +1169,8 @@ ha_ndbcluster_cond::cond_clear()
 
 bool
 ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-                                   TABLE *table, const NDBTAB *ndb_table)
+                                   TABLE *table,
+                                   const NDBTAB *ndb_table) const
 {
   DBUG_ENTER("serialize_cond");
   Item *item= (Item *) cond;
@@ -1188,7 +1187,7 @@ ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
 int
 ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond, 
                                                 NdbScanFilter *filter,
-                                                bool negated)
+                                                bool negated) const
 {
   DBUG_ENTER("build_scan_filter_predicate");  
   switch (cond->ndb_item->type) {
@@ -1369,7 +1368,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
         str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
-      uint32 len= str.length();
+      uint32 len=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.length():
+        value->pack_length();
       const char *val=
         ((value->is_const_func() || value->is_cached()) && is_string)?
         str.ptr()
@@ -1398,7 +1400,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
         str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
-      uint32 len= str.length();
+      uint32 len=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.length():
+        value->pack_length();
       const char *val=
         ((value->is_const_func() || value->is_cached()) && is_string)?
         str.ptr()
@@ -1448,7 +1453,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
 
 int
 ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond, 
-                                            NdbScanFilter *filter)
+                                            NdbScanFilter *filter) const
 {
   uint level=0;
   bool negated= FALSE;
@@ -1522,7 +1527,8 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
 
 
 int
-ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
+ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
+                                      NdbScanFilter *filter) const
 {
   bool simple_cond= TRUE;
   DBUG_ENTER("build_scan_filter");  
@@ -1553,7 +1559,7 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 
 int
 ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
-                                         NdbScanOperation::ScanOptions* options)
+                                         NdbScanOperation::ScanOptions* options) const
 {
   DBUG_ENTER("generate_scan_filter");
 
@@ -1591,7 +1597,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
 
 
 int
-ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
+ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
 {
   bool multiple_cond= FALSE;
   DBUG_ENTER("generate_scan_filter_from_cond");
@@ -1633,8 +1639,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
                                                       NdbScanOperation::ScanOptions* options,
                                                       const KEY* key_info, 
                                                       const key_range *start_key,
-                                                      const key_range *end_key,
-                                                      uchar *buf)
+                                                      const key_range *end_key) const
 {
   DBUG_ENTER("generate_scan_filter_from_key");
 
@@ -1794,5 +1799,3 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 
   DBUG_RETURN(0);
 }
-
-#endif

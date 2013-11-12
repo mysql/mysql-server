@@ -226,9 +226,10 @@ fid	AsText(Envelope(g))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point;
 fid	X(g)
@@ -243,9 +244,10 @@ fid	Y(g)
 103	20
 104	20
 explain extended select X(g),Y(g) FROM gis_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `X(g)`,st_y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
 fid	AsText(StartPoint(g))
@@ -278,9 +280,10 @@ fid	IsClosed(g)
 106	1
 107	0
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `GLength(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
 fid	AsText(Centroid(g))
@@ -308,9 +311,10 @@ fid	AsText(InteriorRingN(g, 1))
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, IsClosed(g) FROM gis_multi_line;
 fid	IsClosed(g)
@@ -347,9 +351,10 @@ fid	NumGeometries(g)
 120	2
 121	2
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 fid	AsText(GeometryN(g, 2))
@@ -375,9 +380,10 @@ fid	AsText(GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
@@ -394,10 +400,11 @@ Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using temporary; Using filesort
-1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	#	100.00	Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using temporary; Using filesort
+1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using join buffer (Block Nested Loop)
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -437,27 +444,31 @@ SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
 AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))
 POINT(1 4)
 explain extended SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
 explain extended SELECT AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
 SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 SRID(GeomFromText('LineString(1 1,2 2)',101))
 101
 explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
 explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_issimple(st_multipoint(st_point(3,6),st_point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(st_point(3,6)) AS `issimple(Point(3, 6))`
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
@@ -940,8 +951,10 @@ COUNT(*)
 1
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	p	p	28	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 1
@@ -949,22 +962,28 @@ INSERT INTO t1 VALUES (POINTFROMTEXT('POINT(1 2)'));
 INSERT INTO t2 VALUES (POINTFROMTEXT('POINT(1 2)'));
 EXPLAIN 
 SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	p	p	28	const	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	p	p	28	const	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2

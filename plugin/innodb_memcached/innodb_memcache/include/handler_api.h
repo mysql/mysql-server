@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -120,7 +120,19 @@ handler_rec_setup_int(
 /*==================*/
         void*		my_table,	/*!< in/out: TABLE structure */
         int		field_id,	/*!< in: Field ID for the field */
-        int		value,		/*!< in: value to set */
+	int		value,		/*!< in: value to set */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null);	/*!< in: whether it is null value */
+
+/**********************************************************************//**
+Set up an integer field in TABLE->record[0] */
+void
+handler_rec_setup_uint64(
+/*=====================*/
+        void*		my_table,	/*!< in/out: TABLE structure */
+        int		field_id,	/*!< in: Field ID for the field */
+        unsigned long long
+			value,		/*!< in: value to set */
 	bool		unsigned_flag,	/*!< in: whether it is unsigned */
 	bool		is_null);	/*!< in: whether it is null value */
 

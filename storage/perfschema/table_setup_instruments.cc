@@ -123,6 +123,9 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_STATEMENT:
       instr_class= find_statement_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_TRANSACTION:
+      instr_class= find_transaction_class(m_pos.m_index_2);
+      break;
     case pos_setup_instruments::VIEW_SOCKET:
       instr_class= find_socket_class(m_pos.m_index_2);
       break;
@@ -131,6 +134,9 @@ int table_setup_instruments::rnd_next(void)
       break;
     case pos_setup_instruments::VIEW_MEMORY:
       instr_class= find_memory_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_METADATA:
+      instr_class= find_metadata_class(m_pos.m_index_2);
       break;
     }
     if (instr_class)
@@ -180,6 +186,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
   case pos_setup_instruments::VIEW_STATEMENT:
     instr_class= find_statement_class(m_pos.m_index_2);
     break;
+  case pos_setup_instruments::VIEW_TRANSACTION:
+    instr_class= find_transaction_class(m_pos.m_index_2);
+    break;
   case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_socket_class(m_pos.m_index_2);
     break;
@@ -188,6 +197,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_MEMORY:
     instr_class= find_memory_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)
@@ -294,6 +306,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_STAGE:
     case pos_setup_instruments::VIEW_STATEMENT:
+    case pos_setup_instruments::VIEW_TRANSACTION:
       /* No flag to update. */
       break;
     case pos_setup_instruments::VIEW_SOCKET:
@@ -304,6 +317,9 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_MEMORY:
       /* No flag to update. */
+      break;
+    case pos_setup_instruments::VIEW_METADATA:
+      update_metadata_derived_flags();
       break;
     default:
       DBUG_ASSERT(false);

@@ -10,6 +10,7 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/have_slave_parallel_type_database.inc
 # no format specific tests so we run it only in MIXED mode
 --source include/have_binlog_format_mixed.inc
 

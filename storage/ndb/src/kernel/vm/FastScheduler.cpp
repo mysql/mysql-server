@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #include <signaldata/EventReport.hpp>
 #include "LongSignal.hpp"
 #include <NdbTick.h>
+
+#define JAM_FILE_ID 242
+
 
 #define MIN_NUMBER_OF_SIG_PER_DO_JOB 64
 #define MAX_NUMBER_OF_SIG_PER_DO_JOB 2048
@@ -490,15 +493,14 @@ FastScheduler::traceDumpGetCurrentThread()
 }
 
 bool
-FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
-                               const Uint32 * & thrdTheEmulatedJam,
+FastScheduler::traceDumpGetJam(Uint32 thr_no,
+                               const JamEvent * & thrdTheEmulatedJam,
                                Uint32 & thrdTheEmulatedJamIndex)
 {
   /* Single threaded ndbd scheduler, no threads. */
   assert(thr_no == 0);
 
 #ifdef NO_EMULATED_JAM
-  jamBlockNumber = 0;
   thrdTheEmulatedJam = NULL;
   thrdTheEmulatedJamIndex = 0;
 #else
@@ -506,7 +508,6 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
     (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
-  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
 #endif
   return true;
 }

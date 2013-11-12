@@ -38,7 +38,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
-bool check_key_in_view(THD *thd, TABLE_LIST * view);
+bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
 
 bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
 

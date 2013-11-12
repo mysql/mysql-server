@@ -25,6 +25,7 @@
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
+#include <BlockNumbers.h>
 
 /**
  * TODO 
@@ -1120,6 +1121,36 @@ f_tup_errors[] =
   { -1, 0, 0 }
 };
 
+static
+int
+compare(unsigned block,
+        struct ndb_mgm_events * time0,
+        struct ndb_mgm_events * time1)
+{
+  int diff = 0;
+  for (int i = 0; i < time0->no_of_events; i++)
+  {
+    if (time0->events[i].MemoryUsage.block != block)
+      continue;
+
+    unsigned node = time0->events[i].source_nodeid;
+
+    for (int j = 0; j < time1->no_of_events; j++)
+    {
+      if (time1->events[j].MemoryUsage.block != block)
+        continue;
+
+      if (time1->events[j].source_nodeid != node)
+        continue;
+
+      diff +=
+        time0->events[i].MemoryUsage.pages_used -
+        time1->events[j].MemoryUsage.pages_used;
+    }
+  }
+  return diff;
+}
+
 int
 runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1174,6 +1205,15 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     
     g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+
+    struct ndb_mgm_events * before =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+    if (before == 0)
+    {
+      ndbout_c("ERROR: failed to fetch report!");
+      return NDBT_FAILED;;
+    }
+
     if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
     {
       
@@ -1187,11 +1227,32 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
+
+    struct ndb_mgm_events * after =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+    if (after == 0)
+    {
+      ndbout_c("ERROR: failed to fetch report!");
+      return NDBT_FAILED;;
+    }
+
+    /**
+     * check memory leak
+     */
+    if (compare(DBTUP, before, after) != 0)
+    {
+      ndbout_c("memleak detected!!");
+      return NDBT_FAILED;;
+    }
+    free(before);
+    free(after);
   }
 
   /**
    * update
    */
+  struct ndb_mgm_events * before =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
   hugoTrans.loadTable(pNdb, 5);
   for(i = 0; f_tup_errors[i].op != -1; i++)
   {
@@ -1224,7 +1285,24 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
   }
-  
+  if (hugoTrans.clearTable(pNdb) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  struct ndb_mgm_events * after =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+
+  int diff = compare(DBTUP, before, after);
+  free(before);
+  free(after);
+
+  if (diff != 0)
+  {
+    ndbout_c("memleak detected!!");
+    return NDBT_FAILED;;
+  }
+
   return NDBT_OK;
 }
 
@@ -3281,6 +3359,105 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBugXXX_init(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return NDBT_OK;
+}
+
+int
+runBugXXX_trans(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  while (!ctx->isTestStopped())
+  {
+    runLoadTable(ctx, step);
+    ctx->getPropertyWait("CREATE_INDEX", 1);
+    ctx->setProperty("CREATE_INDEX", Uint32(0));
+    res.insertErrorInAllNodes(8098); // randomly abort trigger ops with 218
+    runClearTable2(ctx, step);
+    res.insertErrorInAllNodes(0);
+  }
+
+  return NDBT_OK;
+}
+
+int
+runBugXXX_createIndex(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  const int loops = ctx->getNumLoops();
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  BaseString name;
+  name.assfmt("%s_PK_IDX", pTab->getName());
+  NdbDictionary::Index pIdx(name.c_str());
+  pIdx.setTable(pTab->getName());
+  pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  for (int c = 0; c < pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey())
+    {
+      pIdx.addIndexColumn(col->getName());
+    }
+  }
+  pIdx.setStoredIndex(false);
+
+  for (int i = 0; i < loops; i++)
+  {
+    res.insertErrorInAllNodes(18000);
+    ctx->setProperty("CREATE_INDEX", 1);
+    pNdb->getDictionary()->createIndex(pIdx);
+    pNdb->getDictionary()->dropIndex(name.c_str(), pTab->getName());
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  ndbout_c("restart initial");
+  restarter.restartAll(true, /* initial */
+                       true, /* nostart */
+                       true  /* abort */ );
+
+  ndbout_c("wait nostart");
+  restarter.waitClusterNoStart();
+  ndbout_c("startAll");
+  restarter.startAll();
+  ndbout_c("wait started");
+  restarter.waitClusterStarted();
+
+  int codes[] = { 5080, 5081 };
+  for (int i = 0, j = 0; i < restarter.getNumDbNodes(); i++, j++)
+  {
+    int code = codes[j % NDB_ARRAY_SIZE(codes)];
+    int nodeId = restarter.getDbNodeId(i);
+    ndbout_c("error %d node: %d", code, nodeId);
+    restarter.insertErrorInNode(nodeId, code);
+  }
+
+  ndbout_c("create tab");
+  pNdb->getDictionary()->createTable(* ctx->getTab());
+
+  ndbout_c("running big trans");
+  HugoOperations ops(* ctx->getTab());
+  ops.startTransaction(pNdb);
+  ops.pkReadRecord(0, 16384);
+  ops.execute_Commit(pNdb, AO_IgnoreError);
+  ops.closeTransaction(pNdb);
+
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -3660,6 +3837,16 @@ TESTCASE("RefreshLocking",
          "Test Refresh locking properties")
 {
   INITIALIZER(runRefreshLocking);
+}
+TESTCASE("BugXXX","")
+{
+  INITIALIZER(runBugXXX_init);
+  STEP(runBugXXX_createIndex);
+  STEP(runBugXXX_trans);
+}
+TESTCASE("Bug16834333","")
+{
+  INITIALIZER(runBug16834333);
 }
 NDBT_TESTSUITE_END(testBasic);
 

@@ -29,6 +29,7 @@
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
+#include "pfs_events_transactions.h"
 #include "pfs_timer.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
@@ -102,6 +103,8 @@ initialize_performance_schema(PFS_global_param *param)
         param->m_events_stages_history_long_sizing) ||
       init_events_statements_history_long(
         param->m_events_statements_history_long_sizing) ||
+      init_events_transactions_history_long(
+        param->m_events_transactions_history_long_sizing) ||
       init_file_hash() ||
       init_table_share_hash() ||
       init_setup_actor(param) ||
@@ -130,18 +133,21 @@ initialize_performance_schema(PFS_global_param *param)
   pfs_initialized= true;
 
   /** Default values for SETUP_CONSUMERS */
-  flag_events_stages_current=          param->m_consumer_events_stages_current_enabled;
-  flag_events_stages_history=          param->m_consumer_events_stages_history_enabled;
-  flag_events_stages_history_long=     param->m_consumer_events_stages_history_long_enabled;
-  flag_events_statements_current=      param->m_consumer_events_statements_current_enabled;
-  flag_events_statements_history=      param->m_consumer_events_statements_history_enabled;
-  flag_events_statements_history_long= param->m_consumer_events_statements_history_long_enabled;
-  flag_events_waits_current=           param->m_consumer_events_waits_current_enabled;
-  flag_events_waits_history=           param->m_consumer_events_waits_history_enabled;
-  flag_events_waits_history_long=      param->m_consumer_events_waits_history_long_enabled;
-  flag_global_instrumentation=         param->m_consumer_global_instrumentation_enabled;
-  flag_thread_instrumentation=         param->m_consumer_thread_instrumentation_enabled;
-  flag_statements_digest=              param->m_consumer_statement_digest_enabled;
+  flag_events_stages_current=            param->m_consumer_events_stages_current_enabled;
+  flag_events_stages_history=            param->m_consumer_events_stages_history_enabled;
+  flag_events_stages_history_long=       param->m_consumer_events_stages_history_long_enabled;
+  flag_events_statements_current=        param->m_consumer_events_statements_current_enabled;
+  flag_events_statements_history=        param->m_consumer_events_statements_history_enabled;
+  flag_events_statements_history_long=   param->m_consumer_events_statements_history_long_enabled;
+  flag_events_transactions_current=      param->m_consumer_events_transactions_current_enabled;
+  flag_events_transactions_history=      param->m_consumer_events_transactions_history_enabled;
+  flag_events_transactions_history_long= param->m_consumer_events_transactions_history_long_enabled;
+  flag_events_waits_current=             param->m_consumer_events_waits_current_enabled;
+  flag_events_waits_history=             param->m_consumer_events_waits_history_enabled;
+  flag_events_waits_history_long=        param->m_consumer_events_waits_history_long_enabled;
+  flag_global_instrumentation=           param->m_consumer_global_instrumentation_enabled;
+  flag_thread_instrumentation=           param->m_consumer_thread_instrumentation_enabled;
+  flag_statements_digest=                param->m_consumer_statement_digest_enabled;
 
   install_default_setup(&PFS_bootstrap);
   return &PFS_bootstrap;
@@ -168,9 +174,58 @@ static void destroy_pfs_thread(void *key)
 
 static void cleanup_performance_schema(void)
 {
+  /*
+    my.cnf options
+  */
+
   cleanup_instrument_config();
-/*  Disabled: Bug#5666
-  cleanup_instruments();
+
+  /*
+    All the LF_HASH
+  */
+
+  cleanup_setup_actor_hash();
+  cleanup_setup_object_hash();
+  cleanup_account_hash();
+  cleanup_host_hash();
+  cleanup_user_hash();
+  cleanup_program_hash();
+  cleanup_table_share_hash();
+  cleanup_file_hash();
+  cleanup_digest_hash();
+
+  /*
+    Then the lookup tables
+  */
+
+  cleanup_setup_actor();
+  cleanup_setup_object();
+
+  /*
+    Then the history tables
+  */
+
+  cleanup_events_waits_history_long();
+  cleanup_events_stages_history_long();
+  cleanup_events_statements_history_long();
+  cleanup_events_transactions_history_long();
+
+  /*
+    Then the various aggregations
+  */
+
+  cleanup_digest();
+  cleanup_account();
+  cleanup_host();
+  cleanup_user();
+
+  /*
+    Then the instrument classes.
+    Once a class is cleaned up,
+    find_XXX_class(key)
+    will return PSI_NOT_INSTRUMENTED
+  */
+  cleanup_program();
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_table_share();
@@ -178,31 +233,41 @@ static void cleanup_performance_schema(void)
   cleanup_stage_class();
   cleanup_statement_class();
   cleanup_socket_class();
-  cleanup_events_waits_history_long();
-  cleanup_events_stages_history_long();
-  cleanup_events_statements_history_long();
-  cleanup_table_share_hash();
-  cleanup_file_hash();
-  cleanup_setup_actor();
-  cleanup_setup_actor_hash();
-  cleanup_setup_object();
-  cleanup_setup_object_hash();
-  cleanup_host();
-  cleanup_host_hash();
-  cleanup_user();
-  cleanup_user_hash();
-  cleanup_account();
-  cleanup_account_hash();
-  cleanup_digest();
+  cleanup_memory_class();
+
+  cleanup_instruments();
+
   PFS_atomic::cleanup();
-*/
 }
 
 void shutdown_performance_schema(void)
 {
   pfs_initialized= false;
+
+  /* disable everything, especially for this thread. */
+  flag_events_stages_current= false;
+  flag_events_stages_history= false;
+  flag_events_stages_history_long= false;
+  flag_events_statements_current= false;
+  flag_events_statements_history= false;
+  flag_events_statements_history_long= false;
+  flag_events_transactions_current= false;
+  flag_events_transactions_history= false;
+  flag_events_transactions_history_long= false;
+  flag_events_waits_current= false;
+  flag_events_waits_history= false;
+  flag_events_waits_history_long= false;
+  flag_global_instrumentation= false;
+  flag_thread_instrumentation= false;
+  flag_statements_digest= false;
+
+  global_table_io_class.m_enabled= false;
+  global_table_lock_class.m_enabled= false;
+  global_idle_class.m_enabled= false;
+  global_metadata_class.m_enabled= false;
+  global_transaction_class.m_enabled= false;
+
   cleanup_performance_schema();
-#if 0
   /*
     Be careful to not delete un-initialized keys,
     this would affect key 0, which is THR_KEY_mysys,
@@ -213,7 +278,6 @@ void shutdown_performance_schema(void)
     pthread_key_delete(THR_PFS);
     THR_PFS_initialized= false;
   }
-#endif
 }
 
 /**
@@ -233,7 +297,7 @@ void init_pfs_instrument_array()
 void cleanup_instrument_config()
 {
   int desired_state= PFS_INSTR_CONFIG_ALLOCATED;
-  
+
   /* Ignore if another thread has already deallocated the array */
   if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
     delete_dynamic(&pfs_instr_config_array);
@@ -251,21 +315,21 @@ void cleanup_instrument_config()
 
 int add_pfs_instr_to_array(const char* name, const char* value)
 {
-  int name_length= strlen(name);
-  int value_length= strlen(value);
+  size_t name_length= strlen(name);
+  size_t value_length= strlen(value);
 
   /* Allocate structure plus string buffers plus null terminators */
   PFS_instr_config* e = (PFS_instr_config*)my_malloc(PSI_NOT_INSTRUMENTED,
                                                      sizeof(PFS_instr_config)
                        + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
-  
+
   /* Copy the instrument name */
   e->m_name= (char*)e + sizeof(PFS_instr_config);
   memcpy(e->m_name, name, name_length);
-  e->m_name_length= name_length;
+  e->m_name_length= (uint)name_length;
   e->m_name[name_length]= '\0';
-  
+
   /* Set flags accordingly */
   if (!my_strcasecmp(&my_charset_latin1, value, "counted"))
   {

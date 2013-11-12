@@ -37,24 +37,12 @@ include/diff_tables.inc [master:d4.t1, slave:d4.t1]
 include/diff_tables.inc [master:d3.t1, slave:d3.t1]
 include/diff_tables.inc [master:d2.t1, slave:d2.t1]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
-drop temporary table tt_8;
-drop temporary table tt_7;
-drop temporary table tt_6;
-drop temporary table tt_5;
-drop temporary table tt_4;
-drop temporary table tt_3;
-drop temporary table tt_2;
-drop temporary table tt_1;
+use d2;
+use d1;
 drop database d2;
 drop database d1;
-drop temporary table tt_8;
-drop temporary table tt_7;
-drop temporary table tt_6;
-drop temporary table tt_5;
-drop temporary table tt_4;
-drop temporary table tt_3;
-drop temporary table tt_2;
-drop temporary table tt_1;
+use d4;
+use d3;
 drop database d4;
 drop database d3;
 include/stop_slave.inc

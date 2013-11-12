@@ -1,3 +1,8 @@
+#Check whether unzip is installed on the system
+#Store the command output into a temp file.
+#Get the value of the  variable from perl, to MTR
+#Check the status is non-zero
+#Remove the temp file tar.inc
 # Set the environmental variables
 # Stop server
 # Copy the remote tablespace & DB zip files from suite location to working location.
@@ -17,6 +22,11 @@ purchase#p#p0#sp#s0.isl
 purchase#p#p0#sp#s1.isl
 purchase#p#p1#sp#s2.isl
 purchase#p#p1#sp#s3.isl
+# Restarting the server with skip-grant-tables option and updating
+# mysql.user table. This is to deal with the restriction imposed on
+# plugin field for users in WL6982.
+# Restart the DB server from unzip location of MySQL Data Dir 
+# Stop server
 # Restart the DB server from unzip location of MySQL Data Dir 
 # Check the DB & tables with DML statements.
 use test;

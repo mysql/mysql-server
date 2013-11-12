@@ -1451,7 +1451,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   */
   if (!func->eqne_op() &&                                             // 1
       !select_lex->master_unit()->uncacheable &&                      // 2
-      (abort_on_null || (upper_item && upper_item->top_level()) ||    // 3
+      (abort_on_null || (upper_item && upper_item->is_top_level_item()) ||    // 3
        (!left_expr->maybe_null && !subquery_maybe_null)))
   {
     if (substitution)
@@ -2444,10 +2444,30 @@ bool Item_subselect::subq_opt_away_processor(uchar *arg)
    Call st_select_lex_unit::exclude_tree() to unlink it from its
    master and to unlink direct st_select_lex children from
    all_selects_list.
+
+   Don't unlink subqueries that are not descendants of the starting
+   point (root) of the removal and cleanup.
  */
 bool Item_subselect::clean_up_after_removal(uchar *arg)
 {
-  unit->exclude_tree();
+  st_select_lex *root=
+    static_cast<st_select_lex*>(static_cast<void*>(arg));
+  st_select_lex *sl= unit->outer_select();
+
+  /*
+    While traversing the item tree with Item::walk(), Item_refs may
+    point to Item_subselects at different positions in the query. We
+    should only exclude units that are descendants of the starting
+    point for the walk.
+
+    Traverse the tree towards the root. Afterwards, we have:
+    1) sl == root: unit is a descendant of the starting point, or
+    2) sl == NULL: unit is not a descendant of the starting point
+  */    
+  while (sl != root && sl != NULL)
+    sl= sl->outer_select();
+  if (sl == root)
+    unit->exclude_tree();
   return false;
 }
 
@@ -3277,7 +3297,7 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 {
   item= si;
   result= res;
-  return select_lex->join->change_result(result);
+  return select_lex->join->change_result(result, NULL);
 }
 
 
@@ -3601,7 +3621,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   */
   materialize_engine->prepare();
   /* Let our engine reuse this query plan for materialization. */
-  materialize_engine->join->change_result(result);
+  materialize_engine->join->change_result(result, NULL);
 
   DBUG_RETURN(FALSE);
 }
@@ -3670,7 +3690,7 @@ bool subselect_hash_sj_engine::exec()
       goto err; /* purecov: inspected */
 
     materialize_engine->join->exec();
-    if ((res= test(materialize_engine->join->error || thd->is_fatal_error)))
+    if ((res= MY_TEST(materialize_engine->join->error || thd->is_fatal_error)))
       goto err;
 
     /*

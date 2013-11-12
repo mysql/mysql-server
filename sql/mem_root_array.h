@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,16 @@ public:
   ~Mem_root_array()
   {
     clear();
+  }
+
+  /**
+    Switches mem-root, in case original mem-root was copied.
+    NOTE: m_root should really be const, i.e. never change after initialization.
+  */
+  void set_mem_root(MEM_ROOT *new_root)
+  {
+    m_root= new_root;
+    DBUG_ASSERT(m_root != NULL);
   }
 
   Element_type &at(size_t n)
@@ -161,7 +171,7 @@ public:
   size_t size()         const { return m_size; }
 
 private:
-  MEM_ROOT *const m_root;
+  MEM_ROOT       *m_root;
   Element_type   *m_array;
   size_t          m_size;
   size_t          m_capacity;

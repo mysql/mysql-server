@@ -588,6 +588,73 @@ static void end_statement_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
+static PSI_transaction_locker*
+get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
+                                   const void *xid NNN,
+                                   const ulonglong *trxid NNN,
+                                   int isolation_level NNN,
+                                   my_bool read_only NNN,
+                                   my_bool autocommit NNN)
+{
+  return NULL;
+}
+
+static void start_transaction_noop(PSI_transaction_locker *locker NNN,
+                                   const char *src_file NNN, uint src_line NNN)
+{
+  return;
+}
+
+static void set_transaction_xid_noop(PSI_transaction_locker *locker NNN,
+                                     const void *xid NNN,
+                                     int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_xa_state_noop(PSI_transaction_locker *locker NNN,
+                                          int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_gtid_noop(PSI_transaction_locker *locker NNN,
+                                      const void *sid NNN,
+                                      const void *gtid_spec NNN)
+{
+  return;
+}
+
+static void set_transaction_trxid_noop(PSI_transaction_locker *locker NNN,
+                                       const ulonglong *trxid NNN)
+{
+  return;
+}
+
+static void inc_transaction_savepoints_noop(PSI_transaction_locker *locker NNN,
+                                            ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_rollback_to_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                       ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                   ulong count NNN)
+{
+  return;
+}
+
+static void end_transaction_noop(PSI_transaction_locker *locker NNN,
+                                 my_bool commit NNN)
+{
+  return;
+}
+
 static PSI_socket_locker*
 start_socket_wait_noop(PSI_socket_locker_state *state NNN,
                        PSI_socket *socket NNN,
@@ -701,6 +768,49 @@ static void memory_free_noop(PSI_memory_key key NNN, size_t size NNN)
   return;
 }
 
+static void unlock_table_noop(PSI_table *table NNN)
+{
+  return;
+}
+
+static PSI_metadata_lock *
+create_metadata_lock_noop(void *identity NNN,
+                          const MDL_key *mdl_key NNN,
+                          opaque_mdl_type mdl_type NNN,
+                          opaque_mdl_duration mdl_duration NNN,
+                          opaque_mdl_status mdl_status NNN,
+                          const char *src_file NNN,
+                          uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+set_metadata_lock_status_noop(PSI_metadata_lock* lock NNN,
+                              opaque_mdl_status mdl_status NNN)
+{
+}
+
+static void
+destroy_metadata_lock_noop(PSI_metadata_lock* lock NNN)
+{
+}
+
+static PSI_metadata_locker *
+start_metadata_wait_noop(PSI_metadata_locker_state *state NNN,
+                         PSI_metadata_lock *mdl NNN,
+                         const char *src_file NNN,
+                         uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+end_metadata_wait_noop(PSI_metadata_locker *locker NNN,
+                       int rc NNN)
+{
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -792,6 +902,16 @@ static PSI PSI_noop=
   set_statement_no_index_used_noop,
   set_statement_no_good_index_used_noop,
   end_statement_noop,
+  get_thread_transaction_locker_noop,
+  start_transaction_noop,
+  set_transaction_xid_noop,
+  set_transaction_xa_state_noop,
+  set_transaction_gtid_noop,
+  set_transaction_trxid_noop,
+  inc_transaction_savepoints_noop,
+  inc_transaction_rollback_to_savepoint_noop,
+  inc_transaction_release_savepoint_noop,
+  end_transaction_noop,
   start_socket_wait_noop,
   end_socket_wait_noop,
   set_socket_state_noop,
@@ -808,7 +928,14 @@ static PSI PSI_noop=
   register_memory_noop,
   memory_alloc_noop,
   memory_realloc_noop,
-  memory_free_noop
+  memory_free_noop,
+
+  unlock_table_noop,
+  create_metadata_lock_noop,
+  set_metadata_lock_status_noop,
+  destroy_metadata_lock_noop,
+  start_metadata_wait_noop,
+  end_metadata_wait_noop
 };
 
 /**

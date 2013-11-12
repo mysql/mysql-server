@@ -63,7 +63,7 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 
 /* The below CRC32 implementation is based on the implementation included with
  * zlib with modifications to process 8 bytes at a time and using SSE 4.2
- * extentions when available.  The polynomial constant has been changed to
+ * extensions when available.  The polynomial constant has been changed to
  * match the one used by SSE 4.2 and does not return the same value as the
  * version used by zlib.  This implementation only supports 64-bit
  * little-endian processors.  The original zlib copyright notice follows. */
@@ -79,6 +79,8 @@ mysys/my_perf.c, contributed by Facebook under the following license.
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 #include <string.h>
 
 #include "univ.i"

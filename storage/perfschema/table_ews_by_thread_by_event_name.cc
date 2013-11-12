@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -156,6 +156,9 @@ int table_ews_by_thread_by_event_name::rnd_next(void)
         case pos_ews_by_thread_by_event_name::VIEW_IDLE:
           instr_class= find_idle_class(m_pos.m_index_3);
           break;
+        case pos_ews_by_thread_by_event_name::VIEW_METADATA:
+          instr_class= find_metadata_class(m_pos.m_index_3);
+          break;
         default:
           DBUG_ASSERT(false);
           instr_class= NULL;
@@ -211,6 +214,9 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
   case pos_ews_by_thread_by_event_name::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_3);
     break;
+  case pos_ews_by_thread_by_event_name::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_3);
+    break;
   default:
     DBUG_ASSERT(false);
     instr_class= NULL;
@@ -227,7 +233,7 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
 void table_ews_by_thread_by_event_name
 ::make_row(PFS_thread *thread, PFS_instr_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   /* Protect this reader against a thread termination */
@@ -241,9 +247,9 @@ void table_ews_by_thread_by_event_name
   PFS_connection_iterator::visit_thread(thread, &visitor);
 
   /*
-     If the aggregation for this class is deferred, then we must pull the
-     current wait stats from the instances associated with this thread.
-  */  
+    If the aggregation for this class is deferred, then we must pull the
+    current wait stats from the instances associated with this thread.
+  */
   if (klass->is_deferred())
   {
     /* Visit instances owned by this thread. Do not visit the class. */

@@ -36,27 +36,6 @@ Created 1/30/1994 Heikki Tuuri
 
 #include "os0thread.h"
 
-#if defined(__GNUC__) && (__GNUC__ > 2)
-/** Test if an assertion fails.
-@param EXPR assertion expression
-@return nonzero if EXPR holds, zero if not */
-# define UT_DBG_FAIL(EXPR) UNIV_UNLIKELY(!((ulint)(EXPR)))
-#else
-/** This is used to eliminate compiler warnings */
-extern ulint	ut_dbg_zero;
-/** Test if an assertion fails.
-@param EXPR assertion expression
-@return nonzero if EXPR holds, zero if not */
-# define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
-#endif
-
-/*************************************************************//**
-Flush stderr and stdout, then abort execution. */
-
-void
-ut_abort(void)
-	UNIV_COLD __attribute__((noreturn));
-
 /*************************************************************//**
 Report a failed assertion. */
 
@@ -66,23 +45,20 @@ ut_dbg_assertion_failed(
 	const char*	expr,	/*!< in: the failed assertion */
 	const char*	file,	/*!< in: source file containing the assertion */
 	ulint		line)	/*!< in: line number of the assertion */
-	UNIV_COLD __attribute__((nonnull(2)));
+	UNIV_COLD __attribute__((nonnull(2), noreturn));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
 #define ut_a(EXPR) do {						\
-	if (UT_DBG_FAIL(EXPR)) {				\
+	if (UNIV_UNLIKELY(!(ulint) (EXPR))) {			\
 		ut_dbg_assertion_failed(#EXPR,			\
 				__FILE__, (ulint) __LINE__);	\
-		ut_abort();					\
 	}							\
 } while (0)
 
 /** Abort execution. */
-#define ut_error do {						\
-	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__);	\
-	ut_abort();						\
-} while (0)
+#define ut_error						\
+	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */

@@ -181,7 +181,6 @@ btr_search_update_hash_on_delete(
 	btr_cur_t*	cursor);/*!< in: cursor which was positioned on the
 				record to delete using btr_cur_search_...,
 				the record is not yet deleted */
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /********************************************************************//**
 Validates the search system.
 @return TRUE if ok */
@@ -189,9 +188,6 @@ Validates the search system.
 ibool
 btr_search_validate(void);
 /*======================*/
-#else
-# define btr_search_validate()	TRUE
-#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /** The search info struct in an index */
 struct btr_search_t{

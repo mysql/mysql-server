@@ -927,9 +927,7 @@ row_prebuilt_free(
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
 
-	if (prebuilt->mysql_template) {
-		mem_free(prebuilt->mysql_template);
-	}
+	ut_free(prebuilt->mysql_template);
 
 	if (prebuilt->ins_graph) {
 		que_graph_free_recursive(prebuilt->ins_graph);
@@ -982,7 +980,7 @@ row_prebuilt_free(
 			}
 		}
 
-		mem_free(base);
+		ut_free(base);
 	}
 
 	dict_table_close(prebuilt->table, dict_locked, TRUE);
@@ -2390,11 +2388,11 @@ err_exit:
 
 	err = trx->error_state;
 
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
+	tablespace was created. */
 	if (!Tablespace::is_system_tablespace(table->space)) {
-		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
+		ut_a(dict_table_use_file_per_table(table));
 
-		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
-		tablespace was created. */
 		if (err == DB_SUCCESS) {
 			char*	path;
 			path = fil_space_get_first_path(table->space);
@@ -2404,7 +2402,7 @@ err_exit:
 				fil_space_get_flags(table->space),
 				path, trx, commit);
 
-			mem_free(path);
+			ut_free(path);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -2635,8 +2633,8 @@ error_handling:
 
 	trx->op_info = "";
 
-	mem_free(table_name);
-	mem_free(index_name);
+	ut_free(table_name);
+	ut_free(index_name);
 
 	return(err);
 }
@@ -2838,9 +2836,9 @@ already_dropped:
 	ut_print_name(stderr, NULL, TRUE, drop->table_name);
 	fputs(" in background drop queue.\n", stderr);
 
-	mem_free(drop->table_name);
+	ut_free(drop->table_name);
 
-	mem_free(drop);
+	ut_free(drop);
 
 	mutex_exit(&row_drop_list_mutex);
 
@@ -2903,7 +2901,7 @@ row_add_table_to_background_drop_list(
 	}
 
 	drop = static_cast<row_mysql_drop_t*>(
-		mem_alloc(sizeof(row_mysql_drop_t)));
+		ut_malloc(sizeof(row_mysql_drop_t)));
 
 	drop->table_name = mem_strdup(name);
 
@@ -3455,20 +3453,23 @@ row_drop_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
+	
+		if (!row_is_mysql_tmp_table_name(name)) {
+			ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, name);
-		fputs(" does not exist in the InnoDB internal\n"
-		      "InnoDB: data dictionary though MySQL is"
-		      " trying to drop it.\n"
-		      "InnoDB: Have you copied the .frm file"
-		      " of the table to the\n"
-		      "InnoDB: MySQL database directory"
-		      " from another database?\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+			fputs("  InnoDB: Error: table ", stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fputs(" does not exist in the InnoDB internal\n"
+			      "InnoDB: data dictionary though MySQL is"
+			      " trying to drop it.\n"
+			      "InnoDB: Have you copied the .frm file"
+			      " of the table to the\n"
+			      "InnoDB: MySQL database directory"
+			      " from another database?\n"
+			      "InnoDB: You can look for further help from\n"
+			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+			      stderr);
+		}
 		goto funct_exit;
 	}
 
@@ -3833,7 +3834,7 @@ check_next_foreign:
 		space_id = table->space;
 		ibd_file_missing = table->ibd_file_missing;
 
-		is_temp = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY);
+		is_temp = dict_table_is_temporary(table);
 
 		/* If there is a temp path then the temp flag is set.
 		However, during recovery, we might have a temp flag but
@@ -4019,9 +4020,8 @@ funct_exit:
 	if (heap) {
 		mem_heap_free(heap);
 	}
-	if (filepath) {
-		mem_free(filepath);
-	}
+
+	ut_free(filepath);
 
 	if (locked_dictionary) {
 		if (trx->state != TRX_STATE_NOT_STARTED) {
@@ -4235,7 +4235,7 @@ loop:
 				"Cannot load table %s from InnoDB internal "
 				"data dictionary during drop database",
 				table_name);
-			mem_free(table_name);
+			ut_free(table_name);
 			err = DB_TABLE_NOT_FOUND;
 			break;
 
@@ -4245,12 +4245,17 @@ loop:
 			/* There could be orphan temp tables left from
 			interrupted alter table. Leave them, and handle
 			the rest.*/
-			ut_a(!table->ibd_file_missing);
 			if (table->can_be_evicted) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Orphan table encountered during "
 					"DROP DATABASE. This is possible if "
 					"'%s.frm' was lost.", table->name);
+			}
+
+			if (table->ibd_file_missing) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Missing %s.ibd file for table %s.",
+					table->name, table->name);
 			}
 		}
 
@@ -4279,7 +4284,7 @@ loop:
 
 			os_thread_sleep(1000000);
 
-			mem_free(table_name);
+			ut_free(table_name);
 
 			goto loop;
 		}
@@ -4294,11 +4299,11 @@ loop:
 				ut_strerr(err));
 			ut_print_name(stderr, trx, TRUE, table_name);
 			putc('\n', stderr);
-			mem_free(table_name);
+			ut_free(table_name);
 			break;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -4562,7 +4567,7 @@ row_rename_table_for_mysql(
 				   "END;\n"
 				   , FALSE, trx);
 
-		mem_free(new_path);
+		ut_free(new_path);
 	}
 	if (err != DB_SUCCESS) {
 		goto end;
@@ -4702,15 +4707,31 @@ row_rename_table_for_mysql(
 		if (err != DB_SUCCESS
 		    && !Tablespace::is_system_tablespace(table->space)) {
 			char*	orig_name = table->name;
+			trx_t*	trx_bg = trx_allocate_for_background();
+
+			/* If the first fts_rename fails, the trx would
+			be rolled back and committed, we can't use it any more,
+			so we have to start a new background trx here. */
+			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+			trx_bg->op_info = "Revert the failing rename "
+					  "for fts aux tables";
+			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			/* If rename fails and table has its own tablespace,
 			we need to call fts_rename_aux_tables again to
 			revert the ibd file rename, which is not under the
 			control of trx. Also notice the parent table name
-			in cache is not changed yet. */
+			in cache is not changed yet. If the reverting fails,
+			the ibd data may be left in the new database, which
+			can be fixed only manually. */
 			table->name = const_cast<char*>(new_name);
-			fts_rename_aux_tables(table, old_name, trx);
+			fts_rename_aux_tables(table, old_name, trx_bg);
 			table->name = orig_name;
+
+			trx_bg->dict_operation_lock_mode = 0;
+			trx_commit_for_mysql(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 	}
 
@@ -4887,7 +4908,8 @@ row_scan_index_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	buf = static_cast<byte*>(mem_alloc(UNIV_PAGE_SIZE));
+	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
+	buf = static_cast<byte*>(ut_malloc(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;
@@ -4909,6 +4931,7 @@ loop:
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
+	case DB_INTERRUPTED:
 		goto func_exit;
 	default:
 	{
@@ -4921,7 +4944,7 @@ loop:
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:
-		mem_free(buf);
+		ut_free(buf);
 		mem_heap_free(heap);
 
 		return(ret);

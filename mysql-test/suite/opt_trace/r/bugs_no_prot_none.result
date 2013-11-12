@@ -421,6 +421,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -441,6 +442,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 1,
                               "cost": 1.2,
                               "chosen": true
@@ -463,6 +465,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -767,6 +770,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -1686,8 +1690,8 @@ ON table2 .col_int_key = table1 .col_int_key
                       "access_type": "scan",
                       "cost": 2.8,
                       "rows": 4,
-                      "cause": "cost",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "cost"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -1705,12 +1709,13 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.4465,
+                          "cost": 2.8465,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 3.4069,
                           "chosen": false
@@ -1740,8 +1745,8 @@ ON table2 .col_int_key = table1 .col_int_key
                       "access_type": "scan",
                       "cost": 2.8,
                       "rows": 4,
-                      "cause": "cost",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "cost"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -1759,12 +1764,13 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.4465,
+                          "cost": 2.8465,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 3.4069,
                           "chosen": false
@@ -2288,8 +2294,8 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           },
                                           {
                                             "access_type": "scan",
-                                            "cause": "covering_index_better_than_full_scan",
-                                            "chosen": false
+                                            "chosen": false,
+                                            "cause": "covering_index_better_than_full_scan"
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,7 +135,7 @@ void make_type(char * to, uint nr,
   if (!nr)
     to[0]=0;
   else
-    (void) strmov(to,get_type(typelib,nr-1));
+    (void) my_stpcpy(to,get_type(typelib,nr-1));
   DBUG_VOID_RETURN;
 } /* make_type */
 

@@ -982,7 +982,7 @@ public:
       TABLE::null_row. 
     */
     if (real_maybe_null())
-      return test(m_null_ptr[row_offset] & null_bit);
+      return MY_TEST(m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable())
       return m_is_tmp_null;
@@ -999,7 +999,7 @@ public:
   bool is_real_null(my_ptrdiff_t row_offset= 0) const
   {
     if (real_maybe_null())
-      return test(m_null_ptr[row_offset] & null_bit);
+      return MY_TEST(m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable())
       return m_is_tmp_null;
@@ -1017,7 +1017,7 @@ public:
   bool is_null_in_record(const uchar *record) const
   {
     if (real_maybe_null())
-      return test(record[null_offset()] & null_bit);
+      return MY_TEST(record[null_offset()] & null_bit);
 
     return is_tmp_nullable() ? m_is_tmp_null : false;
   }
@@ -1247,8 +1247,14 @@ public:
 
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
-  virtual uint max_packed_col_length(uint max_length)
-  { return max_length;}
+
+  /**
+    This is a wrapper around pack_length() used by filesort() to determine
+    how many bytes we need for packing "addon fields".
+    @returns maximum size of a row when stored in the filesort buffer.
+   */
+  virtual uint max_packed_col_length()
+  { return pack_length(); }
 
   uint offset(uchar *record)
   {
@@ -2386,7 +2392,7 @@ protected:
     @retval     false   Conversion went fine, ltime contains a valid time
     @retval     true    Conversion failed, ltime was reset and contains nothing
   */
-  virtual bool convert_str_to_TIME(const char *str, uint len,
+  virtual bool convert_str_to_TIME(const char *str, size_t len,
                                    const CHARSET_INFO *cs,
                                    MYSQL_TIME *ltime, 
                                    MYSQL_TIME_STATUS *status)= 0;
@@ -2556,7 +2562,7 @@ protected:
                                                 int nanoseconds,
                                                 MYSQL_TIME *ltime,
                                                 int *warning);
-  bool convert_str_to_TIME(const char *str, uint len, const CHARSET_INFO *cs,
+  bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   type_conversion_status store_internal_with_round(MYSQL_TIME *ltime,
                                                    int *warnings);
@@ -2938,7 +2944,7 @@ public:
 */
 class Field_time_common :public Field_temporal {
 protected:
-  bool convert_str_to_TIME(const char *str, uint len, const CHARSET_INFO *cs,
+  bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   /**
     @todo: convert_number_to_TIME returns conversion status through
@@ -3353,7 +3359,7 @@ public:
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
-  uint max_packed_col_length(uint max_length);
+  uint max_packed_col_length();
   enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -3445,7 +3451,7 @@ public:
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
   uint packed_col_length(const uchar *to, uint length);
-  uint max_packed_col_length(uint max_length);
+
   uint32 data_length();
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
@@ -3662,7 +3668,7 @@ public:
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
-  uint max_packed_col_length(uint max_length);
+  uint max_packed_col_length();
   void free() { value.free(); }
   inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);
@@ -3884,9 +3890,9 @@ public:
   {
     DBUG_ASSERT(ptr == a || ptr == b);
     if (ptr == a)
-      return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+      return Field_bit::key_cmp(b, bytes_in_rec+MY_TEST(bit_len));
     else
-      return Field_bit::key_cmp(a, bytes_in_rec+test(bit_len)) * -1;
+      return Field_bit::key_cmp(a, bytes_in_rec+MY_TEST(bit_len)) * -1;
   }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
@@ -4154,7 +4160,6 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 #define FIELDFLAG_NO_DEFAULT		16384   /* sql */
 #define FIELDFLAG_SUM			((uint) 32768)// predit: +#fieldflag
 #define FIELDFLAG_MAYBE_NULL		((uint) 32768)// sql
-#define FIELDFLAG_HEX_ESCAPE		((uint) 0x10000)
 #define FIELDFLAG_PACK_SHIFT		3
 #define FIELDFLAG_DEC_SHIFT		8
 #define FIELDFLAG_MAX_DEC		31
@@ -4180,6 +4185,5 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
 #define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
-#define f_is_hex_escape(x)      ((x) & FIELDFLAG_HEX_ESCAPE)
 
 #endif /* FIELD_INCLUDED */

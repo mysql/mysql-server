@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS db (   Host char(60) binary DEFAULT '' NOT NULL, Db c
 -- Remember for later if db table already existed
 set @had_db_table= @@warning_count != 0;
 
-CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT '', authentication_string TEXT, password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT 'mysql_native_password' NOT NULL, authentication_string TEXT, password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -77,10 +77,10 @@ CREATE TABLE IF NOT EXISTS proc (db char(64) collate utf8_bin DEFAULT '' NOT NUL
 CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
 
 -- Create general_log
-CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL, server_id INTEGER UNSIGNED NOT NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment="General log";
+CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL, server_id INTEGER UNSIGNED NOT NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMBLOB NOT NULL) engine=CSV CHARACTER SET utf8 comment="General log";
 
 -- Create slow_log
-CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
+CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, query_time TIME(6) NOT NULL, lock_time TIME(6) NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMBLOB NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
 
 CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', name char(64) CHARACTER SET utf8 NOT NULL default '', body longblob NOT NULL, definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', execute_at DATETIME default NULL, interval_value int(11) default NULL, interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modified TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00', last_executed DATETIME default NULL, starts DATETIME default NULL, ends DATETIME default NULL, status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL default 'ENABLED', on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP', sql_mode  set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL, comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', originator INTEGER UNSIGNED NOT NULL, time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM', character_set_client char(32) collate utf8_bin, collation_connection char(32) collate utf8_bin, db_collation char(32) collate utf8_bin, body_utf8 longblob, PRIMARY KEY (db, name) ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
@@ -296,7 +296,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -327,7 +327,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -358,7 +358,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -1065,7 +1065,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1087,7 +1087,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1109,7 +1109,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1256,7 +1256,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1309,7 +1309,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1362,7 +1362,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1554,6 +1554,253 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_ev
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_CURRENT
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_current("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY_LONG
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history_long("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_thread_by_event_name("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1951,6 +2198,50 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--
+-- TABLE TABLE_HANDLES
+--
+
+SET @cmd="CREATE TABLE performance_schema.table_handles("
+  "OBJECT_TYPE VARCHAR(64) not null,"
+  "OBJECT_SCHEMA VARCHAR(64) not null,"
+  "OBJECT_NAME VARCHAR(64) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "OWNER_THREAD_ID BIGINT unsigned,"
+  "OWNER_EVENT_ID BIGINT unsigned,"
+  "INTERNAL_LOCK VARCHAR(64),"
+  "EXTERNAL_LOCK VARCHAR(64)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE METADATA_LOCKS
+--
+
+SET @cmd="CREATE TABLE performance_schema.metadata_locks("
+  "OBJECT_TYPE VARCHAR(64) not null,"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "LOCK_TYPE VARCHAR(32) not null,"
+  "LOCK_DURATION VARCHAR(32) not null,"
+  "LOCK_STATUS VARCHAR(32) not null,"
+  "SOURCE VARCHAR(64),"
+  "OWNER_THREAD_ID BIGINT unsigned,"
+  "OWNER_EVENT_ID BIGINT unsigned"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
 -- Remember for later if proxies_priv table already existed
@@ -2161,7 +2452,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transporters` (`node_id` INT UNSIGNED,`remote_node_id` INT UNSIGNED,`connection_status` INT UNSIGNED,`remote_address` VARCHAR(512),`bytes_sent` BIGINT UNSIGNED,`bytes_received` BIGINT UNSIGNED) COMMENT="transporter status" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transporters` (`node_id` INT UNSIGNED COMMENT "Node id reporting",`remote_node_id` INT UNSIGNED COMMENT "Node id at other end of link",`connection_status` INT UNSIGNED COMMENT "State of inter-node link",`remote_address` VARCHAR(512) COMMENT "Address of remote node",`bytes_sent` BIGINT UNSIGNED COMMENT "Bytes sent to remote node",`bytes_received` BIGINT UNSIGNED COMMENT "Bytes received from remote node",`connect_count` INT UNSIGNED COMMENT "Number of times connected",`overloaded` INT UNSIGNED COMMENT "Is link reporting overload",`overload_count` INT UNSIGNED COMMENT "Number of overload onsets since connect",`slowdown` INT UNSIGNED COMMENT "Is link requesting slowdown",`slowdown_count` INT UNSIGNED COMMENT "Number of slowdown onsets since connect") COMMENT="transporter status" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -2304,7 +2595,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (627, "MaxDMLOperationsPerTransaction"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (619, "StartNoNodegroupTimeout"), (118, "HeartbeatIntervalDbDb"), (618, "ConnectCheckIntervalDelay"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (9, "TotalSendBufferMemory"), (202, "ReservedSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (628, "ThreadConfig"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads"), (607, "HeartbeatOrder"), (608, "DictTrace"), (609, "MaxStartFailRetries"), (610, "StartFailRetryDelay"), (613, "EventLogBufferSize"), (614, "Numa"), (611, "RedoOverCommitLimit"), (612, "RedoOverCommitCounter"), (615, "LateAlloc"), (616, "TwoPassInitialNodeRestartCopy"), (617, "MaxParallelScansPerFragment"), (620, "IndexStatAutoCreate"), (621, "IndexStatAutoUpdate"), (622, "IndexStatSaveSize"), (623, "IndexStatSaveScale"), (624, "IndexStatTriggerPct"), (625, "IndexStatTriggerScale"), (626, "IndexStatUpdateDelay"), (629, "CrashOnCorruptedTuple"), (630, "MinFreePct")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (627, "MaxDMLOperationsPerTransaction"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (619, "StartNoNodegroupTimeout"), (118, "HeartbeatIntervalDbDb"), (618, "ConnectCheckIntervalDelay"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (632, "NoOfFragmentLogParts"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (203, "ExtraSendBufferMemory"), (9, "TotalSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (628, "ThreadConfig"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads"), (607, "HeartbeatOrder"), (608, "DictTrace"), (609, "MaxStartFailRetries"), (610, "StartFailRetryDelay"), (613, "EventLogBufferSize"), (614, "Numa"), (611, "RedoOverCommitLimit"), (612, "RedoOverCommitCounter"), (615, "LateAlloc"), (616, "TwoPassInitialNodeRestartCopy"), (617, "MaxParallelScansPerFragment"), (620, "IndexStatAutoCreate"), (621, "IndexStatAutoUpdate"), (622, "IndexStatSaveSize"), (623, "IndexStatSaveScale"), (624, "IndexStatTriggerPct"), (625, "IndexStatTriggerScale"), (626, "IndexStatUpdateDelay"), (629, "CrashOnCorruptedTuple"), (630, "MinFreePct")','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -2332,7 +2623,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.transporters
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`transporters` AS SELECT node_id, remote_node_id,  CASE connection_status  WHEN 0 THEN "CONNECTED"  WHEN 1 THEN "CONNECTING"  WHEN 2 THEN "DISCONNECTED"  WHEN 3 THEN "DISCONNECTING"  ELSE NULL  END AS status,  remote_address, bytes_sent, bytes_received FROM `ndbinfo`.`ndb$transporters`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`transporters` AS SELECT node_id, remote_node_id,  CASE connection_status  WHEN 0 THEN "CONNECTED"  WHEN 1 THEN "CONNECTING"  WHEN 2 THEN "DISCONNECTED"  WHEN 3 THEN "DISCONNECTING"  ELSE NULL  END AS status,  remote_address, bytes_sent, bytes_received,  connect_count,  overloaded, overload_count, slowdown, slowdown_count FROM `ndbinfo`.`ndb$transporters`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -2356,7 +2647,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.counters
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  WHEN 25 THEN "LOCAL_WRITES"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.blocks b ON c.block_number = b.block_number','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  WHEN 25 THEN "LOCAL_WRITES"  WHEN 26 THEN "LQHKEY_OVERLOAD"  WHEN 27 THEN "LQHKEY_OVERLOAD_TC"  WHEN 28 THEN "LQHKEY_OVERLOAD_READER"  WHEN 29 THEN "LQHKEY_OVERLOAD_NODE_PEER"  WHEN 30 THEN "LQHKEY_OVERLOAD_SUBSCRIBER"  WHEN 31 THEN "LQHSCAN_SLOWDOWNS"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.blocks b ON c.block_number = b.block_number','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -2444,4 +2735,3 @@ SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0')
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-

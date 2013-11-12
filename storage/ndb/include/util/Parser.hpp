@@ -64,7 +64,7 @@ public:
    */
   class Context {
   public:
-    Context() { m_mutex= NULL; };
+    Context() { m_mutex= NULL; }
     ParserStatus m_status;
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
@@ -79,10 +79,7 @@ public:
   /**
    * Initialize parser
    */
-  Parser(const ParserRow<T> rows[], class InputStream & in = Stdin,
-	 bool breakOnCommand = false, 
-	 bool breakOnEmptyLine = true, 
-	 bool breakOnInvalidArg = false);
+  Parser(const ParserRow<T> rows[], class InputStream & in);
   ~Parser();
   
   /**
@@ -95,15 +92,6 @@ public:
    * the message
    */
   const Properties *parse(Context &, T &);
-
-  bool getBreakOnCommand() const;
-  void setBreakOnCommand(bool v);
-  
-  bool getBreakOnEmptyLine() const;
-  void setBreakOnEmptyLine(bool v);
-
-  bool getBreakOnInvalidArg() const;
-  void setBreakOnInvalidArg(bool v);
   
 private:
   ParserImpl * impl;
@@ -112,7 +100,7 @@ private:
 template<class T>
 struct ParserRow {
 public:
-  enum Type { Cmd, Arg, CmdAlias, ArgAlias };
+  enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
   enum ArgType { String, Int, Properties };
   enum ArgRequired { Mandatory, Optional };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
@@ -141,8 +129,7 @@ public:
   typedef Parser<Dummy>::Context Context;
 
   
-  ParserImpl(const DummyRow rows[], class InputStream & in,
-	     bool b_cmd, bool b_empty, bool b_iarg);
+  ParserImpl(const DummyRow rows[], class InputStream & in);
   ~ParserImpl();
   
   bool run(Context *ctx, const class Properties **, volatile bool *) const ;
@@ -153,18 +140,15 @@ public:
   static bool checkMandatory(Context*, const Properties*);
 private:
   const DummyRow * const m_rows;
-  class ParseInputStream & input;
-  bool m_breakOnEmpty;
-  bool m_breakOnCmd;
-  bool m_breakOnInvalidArg;
+  class InputStream & input;
+
+  void check_parser_rows(const DummyRow* rows) const;
 };
 
 template<class T>
 inline
-Parser<T>::Parser(const ParserRow<T> rows[], class InputStream & in,
-		  bool b_cmd, bool b_empty, bool b_iarg){
-  impl = new ParserImpl((ParserImpl::DummyRow *)rows, in,
-			b_cmd, b_empty, b_iarg);
+Parser<T>::Parser(const ParserRow<T> rows[], class InputStream & in) {
+  impl = new ParserImpl((ParserImpl::DummyRow *)rows, in);
 }
 
 template<class T>
@@ -250,47 +234,6 @@ Parser<T>::parse(Context &ctx, T &t) {
   }
   DEBUG("");
   return NULL;
-}
-
-template<class T>
-inline
-bool 
-Parser<T>::getBreakOnCommand() const{
-  return impl->m_breakOnCmd;
-}
-
-template<class T>
-inline
-void
-Parser<T>::setBreakOnCommand(bool v){
-  impl->m_breakOnCmd = v;
-}
-
-template<class T>
-inline
-bool
-Parser<T>::getBreakOnEmptyLine() const{
-  return impl->m_breakOnEmpty;
-}
-template<class T>
-inline
-void
-Parser<T>::setBreakOnEmptyLine(bool v){
-  impl->m_breakOnEmpty = v;
-}
-
-template<class T>
-inline
-bool
-Parser<T>::getBreakOnInvalidArg() const{
-  return impl->m_breakOnInvalidArg;
-}
-
-template<class T>
-inline
-void
-Parser<T>::setBreakOnInvalidArg(bool v){
-  impl->m_breakOnInvalidArg = v;
 }
 
 #endif

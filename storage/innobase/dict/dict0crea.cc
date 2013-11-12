@@ -287,17 +287,23 @@ dict_build_tablespace(
 	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
-	bool		use_tablespace;
+	bool		use_file_per_table;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-
-	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
 
 	trx->table_id = table->id;
 
-	if (use_tablespace) {
+	use_file_per_table = dict_table_use_file_per_table(table);
+
+	/* Always set this bit for all new created tables */
+	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			DICT_TF2_FLAG_UNSET(table,
+					    DICT_TF2_FTS_AUX_HEX_NAME););
+
+	if (use_file_per_table) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
@@ -307,7 +313,7 @@ dict_build_tablespace(
 			space = ULINT_UNDEFINED;
 		);
 
-		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
+		if (space == ULINT_UNDEFINED) {
 			return(DB_ERROR);
 		}
 
@@ -354,9 +360,15 @@ dict_build_tablespace(
 			table->space = srv_tmp_space.space_id();
 		} else {
 			/* Create in the system tablespace.
-			Disallow compressed page creation as it needs
-			per-tablespace. Update row_format accordingly */
-			table->flags &= DICT_TF_COMPACT;
+			Disallow Barracuda (Dynamic & Compressed)
+			page creation as they need file-per-table.
+			Update table flags accordingly */
+			rec_format_t rec_format = table->flags == 0
+						? REC_FORMAT_REDUNDANT
+						: REC_FORMAT_COMPACT;
+			ulint flags;
+			dict_tf_set(&flags, rec_format, 0, 0);
+			table->flags = static_cast<unsigned int>(flags);
 		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
@@ -813,7 +825,7 @@ dict_create_index_tree_in_mem(
 	/* Currently this function is being used by temp-tables only.
 	Import/Discard of temp-table is blocked and so this assert. */
 	ut_ad(index->table->ibd_file_missing == 0
-	      && dict_table_is_discarded(index->table) == false);
+	      && !dict_table_is_discarded(index->table));
 
 	page_no = btr_create(
 		index->type, index->space, zip_size,

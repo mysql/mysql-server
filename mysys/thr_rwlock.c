@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,8 @@
 /* Synchronization - readers / writer thread locks */
 
 #include "mysys_priv.h"
-#if defined(NEED_MY_RW_LOCK)
-#include <errno.h>
-
 #ifdef _WIN32
+#include <errno.h>
 
 static BOOL have_srwlock= FALSE;
 /* Prototypes and function pointers for windows  functions */
@@ -130,8 +128,6 @@ static int srw_unlock(my_rw_lock_t *rwp)
   return 0;
 }
 
-#endif /*_WIN32 */
-
 /*
   Source base from Sun Microsystems SPILT, simplified for MySQL use
   -- Joshua Chamas
@@ -171,11 +167,22 @@ static int srw_unlock(my_rw_lock_t *rwp)
 *  Mountain View, California  94043
 */
 
+#ifdef SAFE_MUTEX
+#define my_rw_lock_assert_write_owner(A) \
+  DBUG_ASSERT((A)->state == -1 && pthread_equal(pthread_self(), \
+                                                (A)->write_thread))
+#define my_rw_lock_assert_not_write_owner(A) \
+  DBUG_ASSERT((A)->state >= 0 || ! pthread_equal(pthread_self(), \
+                                                 (A)->write_thread))
+#else
+#define my_rw_lock_assert_write_owner(A)
+#define my_rw_lock_assert_not_write_owner(A)
+#endif
+
 int my_rw_init(my_rw_lock_t *rwp)
 {
   pthread_condattr_t	cond_attr;
 
-#ifdef _WIN32
   /*
     Once initialization is used here rather than in my_init(), in order to
     - avoid  my_init() pitfalls- (undefined order in which initialization should
@@ -189,7 +196,6 @@ int my_rw_init(my_rw_lock_t *rwp)
 
   if (have_srwlock)
     return srw_init(rwp);
-#endif
 
   pthread_mutex_init( &rwp->lock, MY_MUTEX_INIT_FAST);
   pthread_condattr_init( &cond_attr );
@@ -209,10 +215,9 @@ int my_rw_init(my_rw_lock_t *rwp)
 
 int my_rw_destroy(my_rw_lock_t *rwp)
 {
-#ifdef _WIN32
   if (have_srwlock)
     return 0; /* no destroy function */
-#endif
+
   DBUG_ASSERT(rwp->state == 0);
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
@@ -223,10 +228,8 @@ int my_rw_destroy(my_rw_lock_t *rwp)
 
 int my_rw_rdlock(my_rw_lock_t *rwp)
 {
-#ifdef _WIN32
   if (have_srwlock)
     return srw_rdlock(rwp);
-#endif
 
   pthread_mutex_lock(&rwp->lock);
 
@@ -243,10 +246,8 @@ int my_rw_tryrdlock(my_rw_lock_t *rwp)
 {
   int res;
 
-#ifdef _WIN32
   if (have_srwlock)
     return srw_tryrdlock(rwp);
-#endif
 
   pthread_mutex_lock(&rwp->lock);
   if ((rwp->state < 0 ) || rwp->waiters)
@@ -263,10 +264,8 @@ int my_rw_tryrdlock(my_rw_lock_t *rwp)
 
 int my_rw_wrlock(my_rw_lock_t *rwp)
 {
-#ifdef _WIN32
   if (have_srwlock)
     return srw_wrlock(rwp);
-#endif
 
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++;				/* another writer queued */
@@ -289,10 +288,8 @@ int my_rw_trywrlock(my_rw_lock_t *rwp)
 {
   int res;
 
-#ifdef _WIN32
   if (have_srwlock)
     return srw_trywrlock(rwp);
-#endif
 
   pthread_mutex_lock(&rwp->lock);
   if (rwp->state)
@@ -312,10 +309,8 @@ int my_rw_trywrlock(my_rw_lock_t *rwp)
 
 int my_rw_unlock(my_rw_lock_t *rwp)
 {
-#ifdef _WIN32
   if (have_srwlock)
     return srw_unlock(rwp);
-#endif
 
   /*
     The DBUG api uses rw locks to protect global debug settings. Calling into
@@ -352,7 +347,7 @@ int my_rw_unlock(my_rw_lock_t *rwp)
   return(0);
 }
 
-#endif /* defined(NEED_MY_RW_LOCK) */
+#endif /*_WIN32 */
 
 
 int rw_pr_init(rw_pr_lock_t *rwlock)

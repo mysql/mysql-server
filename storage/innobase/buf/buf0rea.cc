@@ -125,7 +125,7 @@ buf_read_page_low(
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
-	ibool		ignore_nonexistent_pages;
+	ulint		ignore_nonexistent_pages;
 
 	*err = DB_SUCCESS;
 
@@ -177,17 +177,17 @@ buf_read_page_low(
 	}
 
 	if (zip_size) {
-		*err = fil_io(OS_FILE_READ | wake_later
-			      | ignore_nonexistent_pages,
-			      sync, space, zip_size, offset, 0, zip_size,
-			      bpage->zip.data, bpage);
+		*err = fil_io(
+			OS_FILE_READ | wake_later | ignore_nonexistent_pages,
+			sync, space, zip_size, offset, 0, zip_size,
+			bpage->zip.data, bpage);
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 
-		*err = fil_io(OS_FILE_READ | wake_later
-			      | ignore_nonexistent_pages,
-			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
-			      ((buf_block_t*) bpage)->frame, bpage);
+		*err = fil_io(
+			OS_FILE_READ | wake_later | ignore_nonexistent_pages,
+			sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
+			((buf_block_t*) bpage)->frame, bpage);
 	}
 
 	if (sync) {
@@ -207,7 +207,7 @@ buf_read_page_low(
 				mutex_exit(&recv_sys->mutex);
 			}
 			return(0);
-		} else if (ignore_nonexistent_pages
+		} else if ((ignore_nonexistent_pages != 0)
 			   || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
@@ -435,10 +435,11 @@ released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
 
 ibool
-buf_read_page_async(
-/*================*/
+buf_read_page_background(
+/*=====================*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
+	ulint	offset,	/*!< in: page number */
+	bool	sync)	/*!< in: true if synchronous aio is desired */
 {
 	ulint		zip_size;
 	ib_int64_t	tablespace_version;
@@ -453,7 +454,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, sync, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,

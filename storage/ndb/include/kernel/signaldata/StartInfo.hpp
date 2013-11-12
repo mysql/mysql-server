@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,9 @@
 
 #ifndef START_INFO_HPP
 #define START_INFO_HPP
+
+#define JAM_FILE_ID 9
+
 
 /**
  * This signal is sent from the master DIH to all DIHs
@@ -82,5 +84,8 @@ class StartInfoRef {
 public:
   STATIC_CONST( SignalLength = 3 );
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

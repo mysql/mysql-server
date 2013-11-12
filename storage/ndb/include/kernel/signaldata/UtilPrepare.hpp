@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <SimpleProperties.hpp>
+
+#define JAM_FILE_ID 18
+
 
 #ifdef NDB_WIN32
 #ifdef NO_ERROR
@@ -59,8 +62,8 @@ public:
     Update             = 1,
     Insert             = 2,
     Delete             = 3,
-    Write	       = 4
-
+    Write	       = 4,
+    Probe              = 5  // check existance...
   };
 
   enum KeyValue {
@@ -163,5 +166,8 @@ private:
   Uint32 dictErrCode; // If errorCode == DICT_TAB_INFO_ERROR
 };
 
+
+
+#undef JAM_FILE_ID
 
 #endif

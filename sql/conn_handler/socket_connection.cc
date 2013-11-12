@@ -32,6 +32,9 @@
 
 using std::max;
 
+ulong Mysqld_socket_listener::connection_errors_select= 0;
+ulong Mysqld_socket_listener::connection_errors_accept= 0;
+ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info stmt_info_new_packet;
@@ -590,7 +593,7 @@ public:
 
     memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family= AF_UNIX;
-    strmov(UNIXaddr.sun_path, m_unix_sockname.c_str());
+    my_stpcpy(UNIXaddr.sun_path, m_unix_sockname.c_str());
     (void) unlink(m_unix_sockname.c_str());
 
     // Set socket option SO_REUSEADDR

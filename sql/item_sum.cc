@@ -27,6 +27,7 @@
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs
 #include "sql_optimizer.h"                 // JOIN
+#include "uniques.h"
 
 using std::min;
 using std::max;
@@ -38,8 +39,12 @@ using std::max;
 
 ulonglong Item_sum::ram_limitation(THD *thd)
 {
-  return min(thd->variables.tmp_table_size,
-      thd->variables.max_heap_table_size);
+  ulonglong limitation= min(thd->variables.tmp_table_size,
+                            thd->variables.max_heap_table_size);
+
+  DBUG_EXECUTE_IF("simulate_low_itemsum_ram_limitation", limitation= 32;);
+
+  return limitation;
 }
 
 
@@ -1040,7 +1045,7 @@ bool Aggregator_distinct::add()
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
     if ((error= table->file->ha_write_row(table->record[0])) &&
-        table->file->is_fatal_error(error, HA_CHECK_DUP))
+        !table->file->is_ignorable_error(error))
       return TRUE;
     return FALSE;
   }
@@ -1547,8 +1552,12 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  if (!args[0]->maybe_null || !args[0]->is_null())
-    count++;
+  for (uint i=0; i<arg_count; i++)
+  {
+    if (args[i]->maybe_null && args[i]->is_null())
+      return 0;
+  }
+  count++;
   return 0;
 }
 
@@ -3207,10 +3216,11 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  const size_t order_array_sz= ALIGN_SIZE(sizeof(ORDER *) * arg_count_order);
+  if (!(order= (ORDER **) thd->alloc(order_array_sz +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  tmp= (ORDER *)((uchar*)order + order_array_sz);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     /*
@@ -3264,7 +3274,7 @@ void Item_func_group_concat::cleanup()
 }
 
 
-Field *Item_func_group_concat::make_string_field(TABLE *table)
+Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
@@ -3281,10 +3291,10 @@ Field *Item_func_group_concat::make_string_field(TABLE *table)
                           maybe_null, item_name.ptr(), collation.collation, TRUE);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
-                               maybe_null, item_name.ptr(), table->s, collation.collation);
+                               maybe_null, item_name.ptr(), table_arg->s, collation.collation);
 
   if (field)
-    field->init(table);
+    field->init(table_arg);
   return field;
 }
 
@@ -3435,7 +3445,7 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select();
-  const bool order_or_distinct= test(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 
   /*

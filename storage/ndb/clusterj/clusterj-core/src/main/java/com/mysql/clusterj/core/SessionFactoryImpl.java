@@ -377,7 +377,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     @SuppressWarnings("unchecked")
     protected static <T> Class<T> getClassForProxy(T object) {
         Class cls = object.getClass();
-        if (cls.getName().startsWith("$Proxy")) {
+        if (java.lang.reflect.Proxy.isProxyClass(cls)) {
             cls = proxyClassToDomainClass.get(cls);
         }
         return cls;        

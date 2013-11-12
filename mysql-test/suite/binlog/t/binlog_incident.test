@@ -10,6 +10,11 @@
 source include/have_log_bin.inc;
 source include/have_debug.inc;
 
+CALL mtr.add_suppression("Generate an incident log event before writing the "
+                         "real event to the binary log for testing purposes. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
+
 let $MYSQLD_DATADIR= `select @@datadir`;
 RESET MASTER;
 

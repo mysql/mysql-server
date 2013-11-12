@@ -15,9 +15,10 @@ a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
 explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
@@ -59,42 +60,63 @@ Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 0)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 1)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) >= 0)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) >= 1)
 explain select * from t1 where 0<MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 < (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 1<MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (1 < (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 0<=MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <= (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 1<=MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (1 <= (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '%ll%';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 0) and (`test`.`t1`.`a` like '%ll%'))
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
 explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b
@@ -104,6 +126,7 @@ Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 a	b
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -443,7 +466,6 @@ CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('Offside'),('City Of God');
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city of*' IN BOOLEAN MODE);
 a
-Offside
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of*)' IN BOOLEAN MODE);
 a
@@ -451,7 +473,6 @@ Offside
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a
-Offside
 City Of God
 DROP TABLE t1;
 create table t1(a text,b date,fulltext index(a)) ENGINE = InnoDB;
@@ -468,16 +489,22 @@ INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	b,a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	b,a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (match `test`.`t1`.`a` against ('test' in boolean mode)))
 EXPLAIN SELECT * FROM t1 USE INDEX(a)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` USE INDEX (`a`) where ((`test`.`t1`.`b` = 1) and (match `test`.`t1`.`a` against ('test' in boolean mode)))
 EXPLAIN SELECT * FROM t1 FORCE INDEX(a)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`a`) where ((`test`.`t1`.`b` = 1) and (match `test`.`t1`.`a` against ('test' in boolean mode)))
 EXPLAIN SELECT * FROM t1 IGNORE INDEX(a)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 ERROR HY000: Can't find FULLTEXT index matching the column list
@@ -548,10 +575,13 @@ not exists(
 SELECT 1 FROM t2, t3
 WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
 );
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	fulltext	b2	b2	0	const	1	Using where
-2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	fulltext	b2	b2	0	const	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (match `test`.`t2`.`b2` against ('scargill' in boolean mode))))))
 # should return 0
 SELECT count(*) FROM t1 WHERE 
 not exists(

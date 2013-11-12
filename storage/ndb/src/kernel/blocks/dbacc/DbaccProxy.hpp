@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #include <LocalProxy.hpp>
 #include <signaldata/DropTab.hpp>
 
+#define JAM_FILE_ID 343
+
+
 class DbaccProxy : public LocalProxy {
 public:
   DbaccProxy(Block_context& ctx);
@@ -29,5 +31,8 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

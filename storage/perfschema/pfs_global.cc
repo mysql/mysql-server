@@ -37,7 +37,8 @@
 #endif
 
 bool pfs_initialized= false;
-size_t pfs_allocated_memory= 0;
+size_t pfs_allocated_memory_size= 0;
+size_t pfs_allocated_memory_count= 0;
 
 /**
   Memory allocation for the performance schema.
@@ -80,7 +81,8 @@ void *pfs_malloc(size_t size, myf flags)
     return NULL;
 #endif
 
-  pfs_allocated_memory+= size;
+  pfs_allocated_memory_size+= size;
+  pfs_allocated_memory_count++;
   if (flags & MY_ZEROFILL)
     memset(ptr, 0, size);
   return ptr;

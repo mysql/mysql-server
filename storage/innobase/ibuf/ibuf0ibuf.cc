@@ -335,8 +335,8 @@ ibuf_enter(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(!mtr->inside_ibuf);
-	mtr->inside_ibuf = TRUE;
+	ut_ad(!mtr->is_inside_ibuf());
+	mtr->enter_ibuf();
 }
 
 /******************************************************************//**
@@ -348,8 +348,8 @@ ibuf_exit(
 /*======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mtr->inside_ibuf);
-	mtr->inside_ibuf = FALSE;
+	ut_ad(mtr->is_inside_ibuf());
+	mtr->exit_ibuf();
 }
 
 /**************************************************************//**
@@ -469,7 +469,7 @@ ibuf_close(void)
 	mutex_free(&ibuf_bitmap_mutex);
 	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
 
-	mem_free(ibuf);
+	ut_free(ibuf);
 	ibuf = NULL;
 }
 
@@ -511,7 +511,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(mem_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -2748,6 +2748,10 @@ ibuf_merge(
 
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug) {
+		return(0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 	} else if (table_id == 0) {
 		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
@@ -3928,7 +3932,7 @@ skip_watch:
 
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
-from the insert buffer. 
+from the insert buffer.
 @return newly inserted record */
 static __attribute__((nonnull))
 rec_t*
@@ -4135,6 +4139,23 @@ dump:
 			rec = page_cur_get_rec(&page_cur);
 			row_upd_rec_in_place(rec, index, offsets,
 					     update, page_zip);
+
+			/* Log the update in place operation. During recovery
+			MLOG_COMP_REC_UPDATE_IN_PLACE/MLOG_REC_UPDATE_IN_PLACE
+			expects trx_id, roll_ptr for secondary indexes. So we
+			just write dummy trx_id(0), roll_ptr(0) */
+			btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec,
+						    index, update, 0, 0, mtr);
+
+			DBUG_EXECUTE_IF(
+				"crash_after_log_ibuf_upd_inplace",
+				log_buffer_flush_to_disk();
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Wrote log record for ibuf update in "
+					"place operation");
+				DBUG_SUICIDE();
+			);
+
 			goto updated_in_place;
 		}
 
@@ -4384,15 +4405,6 @@ ibuf_restore_pos(
 
 		rec_print_old(stderr,
 			      page_rec_get_next(btr_pcur_get_rec(pcur)));
-		fflush(stderr);
-
-		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
-
-		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
-		if (!btr_validate_index(ibuf->index, 0, false)) {
-			ut_error;
-		}
-		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
 
 		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
@@ -4437,8 +4449,9 @@ ibuf_delete_rec(
 		an assertion failure after crash recovery. */
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
+
 		ibuf_mtr_commit(mtr);
-		log_write_up_to(LSN_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+		log_write_up_to(LSN_MAX, true);
 		DBUG_SUICIDE();
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4496,14 +4509,14 @@ ibuf_delete_rec(
 			      pcur, mtr)) {
 
 		mutex_exit(&ibuf_mutex);
-		ut_ad(mtr->state == MTR_COMMITTED);
+		ut_ad(mtr->has_committed());
 		goto func_exit;
 	}
 
 	root = ibuf_tree_root_get(mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0,
-				   RB_NONE, mtr);
+				   false, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -4516,7 +4529,7 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	ut_ad(mtr->state == MTR_COMMITTED);
+	ut_ad(mtr->has_committed());
 	btr_pcur_close(pcur);
 
 	return(TRUE);
@@ -4553,8 +4566,8 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
-	ibool		tablespace_being_deleted = FALSE;
-	ibool		corruption_noticed	= FALSE;
+	bool		tablespace_being_deleted = false;
+	bool		corruption_noticed	= false;
 	mtr_t		mtr;
 
 	/* Counts for merged & discarded operations. */
@@ -4658,7 +4671,7 @@ ibuf_merge_or_delete_for_page(
 
 			page_t*	bitmap_page;
 
-			corruption_noticed = TRUE;
+			corruption_noticed = true;
 
 			ut_print_timestamp(stderr);
 
@@ -4847,7 +4860,7 @@ loop:
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
-					ut_ad(mtr.state == MTR_COMMITTED);
+					ut_ad(mtr.has_committed());
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
 					goto loop;
@@ -4871,7 +4884,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		} else if (btr_pcur_is_after_last_on_page(&pcur)) {
 			ibuf_mtr_commit(&mtr);
@@ -5002,7 +5015,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		}
 

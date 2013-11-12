@@ -304,7 +304,7 @@ typedef unsigned short ushort;
 #endif
 
 #define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
-#define test(a)		((a) ? 1 : 0)
+#define MY_TEST(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
@@ -537,10 +537,6 @@ inline unsigned long long my_double2ulonglong(double d)
 
 #ifndef STACK_DIRECTION
 #error "please add -DSTACK_DIRECTION=1 or -1 to your CPPFLAGS"
-#endif
-
-#if !defined(HAVE_STRTOK_R)
-#define strtok_r(A,B,C) strtok((A),(B))
 #endif
 
 /* This is from the old m-machine.h file */

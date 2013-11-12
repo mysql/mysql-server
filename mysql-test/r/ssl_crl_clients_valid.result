@@ -13,5 +13,5 @@ ssl_crlpath
 ssl_key	MYSQL_TEST_DIR/std_data/crl-client-key.pem
 ############ Test mysqladmin ##############
 # Test mysqladmin connecting to a server with an empty crl
-Warning: Using a password on the command line interface can be insecure.
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive

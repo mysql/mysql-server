@@ -189,6 +189,33 @@ public:
  void set_max_adaptive_send_time(Uint32 milliseconds);
  Uint32 get_max_adaptive_send_time();
 
+  /**
+   * Configuration handling of the receiver thread(s).
+   * We can set the number of receiver threads, we can set the cpu to bind
+   * the receiver thread to. We can also set the level of when we activate
+   * the receiver thread as the receiver, before this level the normal
+   * user threads are used to receive signals. If we set the level to
+   * 16 or higher we will never use receive threads as receivers.
+   *
+   * By default we have one receiver thread, this thread is not locked to
+   * any specific CPU and the level is 8.
+   * 
+   * The number of receive threads can only be set at a time before the
+   * connect call is made to connect to the other nodes in the cluster.
+   * The other methods can be called at any time.
+   * Currently we don't support setting number of receive threads to anything
+   * else than 1 and no config variable for setting is implemented yet.
+   *
+   * All methods return -1 as an error indication
+   */
+  int set_num_recv_threads(Uint32 num_recv_threads);
+  int get_num_recv_threads() const;
+  int unset_recv_thread_cpu(Uint32 recv_thread_id);
+  int set_recv_thread_cpu(Uint16 *cpuid_array,
+                          Uint32 array_len,
+                          Uint32 recv_thread_id = 0);
+  int set_recv_thread_activation_threshold(Uint32 threshold);
+  int get_recv_thread_activation_threshold() const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
@@ -213,6 +240,11 @@ public:
   NdbWaitGroup * create_ndb_wait_group(int size);
   bool release_ndb_wait_group(NdbWaitGroup *);
 
+  /**
+   * wait for nodes in list to get connected...
+   * @return #nodes connected, or -1 on error
+   */
+  int wait_until_ready(const int * nodes, int cnt, int timeout);
 #endif
 
 private:

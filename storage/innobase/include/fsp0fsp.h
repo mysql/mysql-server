@@ -538,7 +538,7 @@ only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
 @return TRUE if we were able to make the reservation */
 
-ibool
+bool
 fsp_reserve_free_extents(
 /*=====================*/
 	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we

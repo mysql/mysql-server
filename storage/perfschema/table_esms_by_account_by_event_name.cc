@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -270,8 +270,11 @@ table_esms_by_account_by_event_name::rnd_pos(const void *pos)
 void table_esms_by_account_by_event_name
 ::make_row(PFS_account *account, PFS_statement_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
+
+  if (klass->is_mutable())
+    return;
 
   account->m_lock.begin_optimistic_lock(&lock);
 

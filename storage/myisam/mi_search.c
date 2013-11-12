@@ -82,7 +82,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   }
 
   if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                               test(!(nextflag & SEARCH_SAVE_BUFF)))))
+                               MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
   DBUG_DUMP("page", buff, mi_getint(buff));
 
@@ -125,7 +125,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     uchar *old_buff=buff;
     if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                                 test(!(nextflag & SEARCH_SAVE_BUFF)))))
+                                 MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
       goto err;
     keypos=buff+(keypos-old_buff);
     maxpos=buff+(maxpos-old_buff);
@@ -300,7 +300,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   uint UNINIT_VAR(prefix_len), suffix_len;
   int key_len_skip, UNINIT_VAR(seg_len_pack), key_len_left;
   uchar *end, *kseg, *vseg;
-  uchar *sort_order=keyinfo->seg->charset->sort_order;
+  const uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
   uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
   uchar *UNINIT_VAR(saved_vseg);
@@ -1471,7 +1471,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
-  uchar *start,*end,*key_end,*sort_order;
+  uchar *start,*end,*key_end;
+  const uchar *sort_order;
   my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;

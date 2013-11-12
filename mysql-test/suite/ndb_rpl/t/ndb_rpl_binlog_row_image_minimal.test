@@ -1,0 +1,9 @@
+#
+# check that conflict detection in ndbcluster works as usual
+# with --binlog-row-image=MINIMAL
+# NOTE! Currently ndbcluster only supports binlog-row-image=FULL
+# this is indicated to MySQL Server by setting the handlerton flag
+# HTON_NO_BINLOG_ROW_OPT.
+#
+
+--source ndb_rpl_conflict_max.test

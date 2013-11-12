@@ -46,8 +46,8 @@ static inline bool operator<(const Key_use &a, const Key_use &b)
     return a.key < b.key;
   if (a.keypart != b.keypart)
     return a.keypart < b.keypart;
-  const bool atab = test((a.used_tables & ~OUTER_REF_TABLE_BIT));
-  const bool btab = test((b.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool atab = MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool btab = MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT));
   if (atab != btab)
     return atab < btab;
   return
@@ -66,9 +66,9 @@ static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
     lhs.table->tablenr == rhs.table->tablenr &&
     lhs.key            == rhs.key            &&
     lhs.keypart        == rhs.keypart        &&
-    test((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
+    MY_TEST((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
     ==
-    test((rhs.used_tables & ~OUTER_REF_TABLE_BIT)) &&
+    MY_TEST((rhs.used_tables & ~OUTER_REF_TABLE_BIT)) &&
     (lhs.optimize & KEY_OPTIMIZE_REF_OR_NULL)
     ==
     (rhs.optimize & KEY_OPTIMIZE_REF_OR_NULL);
@@ -104,8 +104,8 @@ inline int sort_keyuse(Key_use *a, Key_use *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
+  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
@@ -350,6 +350,20 @@ TEST_F(MemRootTest, Reserve)
   EXPECT_EQ(sizeof(uint), intarr.element_size());
   EXPECT_EQ(num_pushes, intarr.size());
   EXPECT_LE(num_pushes, intarr.capacity());
+}
+
+
+// Verify that we can swap mem-root, without any leaks.
+// Run with 
+// valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
+TEST_F(MemRootTest, CopyMemRoot)
+{
+  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  // Take a copy, we do *not* free_root(own_root)
+  MEM_ROOT own_root= *m_mem_root_p;
+  intarr.set_mem_root(&own_root);
+  intarr.push_back(42);
+  *m_mem_root_p= own_root;
 }
 
 

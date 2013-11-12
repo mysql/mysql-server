@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,9 @@
 #include <ndb_global.h>
 #include <kernel_types.h>
 
+#define JAM_FILE_ID 41
+
+
 /**
  * Typedef for a Signal Data Print Function
  */
@@ -34,5 +36,8 @@ struct NameFunctionPair {
 
 extern const NameFunctionPair SignalDataPrintFunctions[];
 extern const unsigned short   NO_OF_PRINT_FUNCTIONS;
+
+
+#undef JAM_FILE_ID
 
 #endif

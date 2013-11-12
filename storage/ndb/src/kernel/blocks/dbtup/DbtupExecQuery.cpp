@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,12 @@
 #include <Interpreter.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include <signaldata/TuxMaint.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include <NdbSqlUtil.hpp>
+
+#define JAM_FILE_ID 422
+
 
 // #define TRACE_INTERPRETER
 
@@ -170,11 +175,12 @@ int
 Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
 {
   ndbout_c("Tuple corruption detected."); 
-  if (c_crashOnCorruptedTuple)
+  if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
     ndbrequire(false);
   }
+  (void)ERROR_INSERTED_CLEAR(4036);
   terrorCode= ZTUPLE_CORRUPTED_ERROR;
   tupkeyErrorLab(req_struct);
   return -1;
@@ -272,11 +278,11 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
   Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
 
-  if (unlikely(req_struct->m_reorg))
+  if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
     Uint32 moved = bits & Tuple_header::REORG_MOVE;
-    if (! ((req_struct->m_reorg == 1 && moved == 0) ||
-           (req_struct->m_reorg == 2 && moved != 0)))
+    if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
+           (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
@@ -436,6 +442,13 @@ Dbtup::load_diskpage(Signal* signal,
       flags |= Page_cache_client::DELAY_REQ;
       req.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)3000;
     }
+    if (ERROR_INSERTED(4035) && (rand() % 13) == 0)
+    {
+      // Disk access have to randomly wait max 16ms for a diskpage
+      Uint64 delay = (Uint64)(rand() % 16) + 1;
+      flags |= Page_cache_client::DELAY_REQ;
+      req.m_delay_until_time = NdbTick_CurrentMillisecond()+delay;
+    }
 #endif
     
     Page_cache_client pgman(this, c_pgman);
@@ -590,8 +603,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.fragPtrP = fragptr.p;
    req_struct.operPtrP = operPtr.p;
    req_struct.signal= signal;
-   req_struct.dirty_op= TrequestInfo & 1;
-   req_struct.interpreted_exec= (TrequestInfo >> 10) & 1;
+   req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
+   req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
    req_struct.no_fired_triggers= 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
@@ -613,12 +626,15 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
 
    regOperPtr->fragmentPtr= Rfragptr;
-   regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0x7;
+   regOperPtr->op_struct.op_type= TupKeyReq::getOperation(TrequestInfo);
    regOperPtr->op_struct.delete_insert_flag = false;
-   regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   regOperPtr->op_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+
+   regOperPtr->op_struct.m_disable_fk_checks = tupKeyReq->disable_fk_checks;
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
+   regOperPtr->op_struct.m_physical_only_op = 0;
 
    sig1= tupKeyReq->savePointId;
    sig2= tupKeyReq->primaryReplica;
@@ -637,8 +653,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.TC_index= sig2;
    req_struct.TC_ref= sig3;
    Uint32 pageid = req_struct.frag_page_id= sig4;
-   req_struct.m_use_rowid = (TrequestInfo >> 11) & 1;
-   req_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
+   req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
 
    sig1= tupKeyReq->attrBufLen;
    sig2= tupKeyReq->applRef;
@@ -657,10 +673,12 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    sig1 = tupKeyReq->m_row_id_page_no;
    sig2 = tupKeyReq->m_row_id_page_idx;
    sig3 = tupKeyReq->deferred_constraints;
+   sig4 = tupKeyReq->disable_fk_checks;
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
    req_struct.m_deferred_constraints = sig3;
+   req_struct.m_disable_fk_checks = sig4;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
@@ -797,10 +815,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             *
             * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
             * should be in memory and timeslicing cannot occur.  We must
-            * skip TUX abort triggers since TUX is already aborted.
+            * skip TUX abort triggers since TUX is already aborted.  We
+            * will dealloc the fixed and var parts if necessary.
             */
            signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
+           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
            tupkeyErrorLab(&req_struct);
            return;
          }
@@ -1025,8 +1044,9 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
-      (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) {
+  if (((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
+      ERROR_INSERTED(4036)) {
     jam();
     return corruptedTupleDetected(req_struct);
   }
@@ -1092,11 +1112,11 @@ handle_reorg(Dbtup::KeyReqStruct * req_struct,
     return;
   case Dbtup::Fragrecord::FS_REORG_COMMIT:
   case Dbtup::Fragrecord::FS_REORG_COMPLETE:
-    if (reorg != 1)
+    if (reorg != ScanFragReq::REORG_NOT_MOVED)
       return;
     break;
   case Dbtup::Fragrecord::FS_ONLINE:
-    if (reorg != 2)
+    if (reorg != ScanFragReq::REORG_MOVED)
       return;
     break;
   default:
@@ -1252,7 +1272,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     }
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }
@@ -1843,7 +1863,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (!varalloc)
       {
 	jam();
-	ptr= alloc_fix_rec(&terrorCode,
+	ptr= alloc_fix_rec(jamBuffer(),
+                           &terrorCode,
                            regFragPtr,
 			   regTabPtr,
 			   &regOperPtr.p->m_tuple_location,
@@ -1968,7 +1989,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     disk_ptr->m_base_record_ref= ref.ref();
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }
@@ -2044,10 +2065,17 @@ update_error:
     regOperPtr.p->m_tuple_location.setNull();
   }
 exit_error:
+  if (!regOperPtr.p->m_tuple_location.isNull())
+  {
+    jam();
+    /* Memory allocated, abort insert, releasing memory if appropriate */
+    do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
+  }
   tupkeyErrorLab(req_struct);
   return -1;
 
 disk_prealloc_error:
+  jam();
   base->m_header_bits |= Tuple_header::FREED;
   goto exit_error;
 }
@@ -4266,8 +4294,6 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   }
   return ret;
 }
-
-#include <signaldata/TuxMaint.hpp>
 
 int
 Dbtup::nr_delete(Signal* signal, Uint32 senderData,

@@ -786,8 +786,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
       open_list=0;				// Out of memory
       break;
     }
-    strmov((*start_list)->table=
-	   strmov(((*start_list)->db= (char*) ((*start_list)+1)),
+    my_stpcpy((*start_list)->table=
+	   my_stpcpy(((*start_list)->db= (char*) ((*start_list)+1)),
 		  share->db.str)+1,
 	   share->table_name.str);
     (*start_list)->in_use= 0;
@@ -1522,7 +1522,7 @@ bool close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= test(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= MY_TEST(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
   {
     thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
@@ -1646,10 +1646,10 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 /**
   Test that table is unique (It's only exists once in the table list)
 
-  @param  thd                   thread handle
-  @param  table                 table which should be checked
-  @param  table_list            list of tables
-  @param  check_alias           whether to check tables' aliases
+  @param  thd          thread handle
+  @param  table        table to be checked (must be updatable base table)
+  @param  table_list   list of tables
+  @param  check_alias  whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -1676,21 +1676,16 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   @retval 0 if table is unique
 */
 
-static
-TABLE_LIST* find_dup_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-                           bool check_alias)
+static TABLE_LIST* find_dup_table(THD *thd, const TABLE_LIST *table,
+                                  TABLE_LIST *table_list, bool check_alias)
 {
   TABLE_LIST *res;
   const char *d_name, *t_name, *t_alias;
   DBUG_ENTER("find_dup_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
+  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
   /*
-    If this function called for query which update table (INSERT/UPDATE/...)
-    then we have in table->table pointer to TABLE object which we are
-    updating even if it is VIEW so we need TABLE_LIST of this TABLE object
-    to get right names (even if lower_case_table_names used).
-
     If this function called for CREATE command that we have not opened table
     (table->table equal to 0) and right names is in current TABLE_LIST
     object.
@@ -1701,15 +1696,10 @@ TABLE_LIST* find_dup_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
     DBUG_ASSERT(table->table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
     /* temporary table is always unique */
-    if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
-      DBUG_RETURN(0);
-    table= table->find_underlying_table(table->table);
-    /*
-      as far as we have table->table we have to find real TABLE_LIST of
-      it in underlying tables
-    */
-    DBUG_ASSERT(table);
+    if (table->table->s->tmp_table != NO_TMP_TABLE)
+      DBUG_RETURN(NULL);
   }
+
   d_name= table->db;
   t_name= table->table_name;
   t_alias= table->alias;
@@ -1769,16 +1759,21 @@ next:
   tables of @c table (if any) are listed right after it and that
   their @c parent_l field points at the main table.
 
+  @param  thd        thread handle
+  @param  table      table to be checked (must be updatable base table)
+  @param  table_list List of tables to check against
+  @param  check_alias whether to check tables' aliases
 
   @retval non-NULL The table list element for the table that
                    represents the duplicate. 
   @retval NULL     No duplicates found.
 */
 
-TABLE_LIST*
-unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-             bool check_alias)
+TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+                         TABLE_LIST *table_list, bool check_alias)
 {
+  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
+
   TABLE_LIST *dup;
   if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM)
   {
@@ -2341,9 +2336,10 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
     DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
                 !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    mdl_request_shared.init(&mdl_request->key,
+    MDL_REQUEST_INIT_BY_KEY(&mdl_request_shared,
+                            &mdl_request->key,
                             (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
-                            MDL_SHARED : MDL_SHARED_HIGH_PRIO,
+                              MDL_SHARED : MDL_SHARED_HIGH_PRIO,
                             MDL_TRANSACTION);
     mdl_request= &mdl_request_shared;
   }
@@ -2673,8 +2669,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       if (thd->global_read_lock.can_acquire_protection())
         DBUG_RETURN(TRUE);
 
-      protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                              MDL_STATEMENT);
+      MDL_REQUEST_INIT(&protection_request,
+                       MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_STATEMENT);
 
       /*
         Install error handler which if possible will convert deadlock error
@@ -3874,7 +3871,8 @@ end_unlock:
 /** Open_table_context */
 
 Open_table_context::Open_table_context(THD *thd, uint flags)
-  :m_failed_table(NULL),
+  :m_thd(thd),
+   m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
    m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
              LONG_TIMEOUT : thd->variables.lock_wait_timeout),
@@ -3951,6 +3949,7 @@ request_backoff_action(enum_open_table_action action_arg,
   if (action_arg != OT_REOPEN_TABLES && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
+    m_thd->mark_transaction_to_rollback(true);
     return TRUE;
   }
   /*
@@ -3960,7 +3959,7 @@ request_backoff_action(enum_open_table_action action_arg,
   if (table)
   {
     DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR);
-    m_failed_table= (TABLE_LIST*) current_thd->alloc(sizeof(TABLE_LIST));
+    m_failed_table= (TABLE_LIST*) m_thd->alloc(sizeof(TABLE_LIST));
     if (m_failed_table == NULL)
       return TRUE;
     m_failed_table->init_one_table(table->db, table->db_length,
@@ -3977,8 +3976,6 @@ request_backoff_action(enum_open_table_action action_arg,
 /**
    Recover from failed attempt of open table by performing requested action.
 
-   @param  thd     Thread context
-
    @pre This function should be called only with "action" != OT_NO_ACTION
         and after having called @sa close_tables_for_reopen().
 
@@ -3988,7 +3985,7 @@ request_backoff_action(enum_open_table_action action_arg,
 
 bool
 Open_table_context::
-recover_from_failed_open(THD *thd)
+recover_from_failed_open()
 {
   bool result= FALSE;
   /* Execute the action. */
@@ -4000,31 +3997,31 @@ recover_from_failed_open(THD *thd)
       break;
     case OT_DISCOVER:
       {
-        if ((result= lock_table_names(thd, m_failed_table, NULL,
+        if ((result= lock_table_names(m_thd, m_failed_table, NULL,
                                       get_timeout(), 0)))
           break;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+        tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
                          m_failed_table->table_name, FALSE);
-        ha_create_table_from_engine(thd, m_failed_table->db,
+        ha_create_table_from_engine(m_thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->reset_condition_info(thd);
-        thd->clear_error();                 // Clear error message
-        thd->mdl_context.release_transactional_locks();
+        m_thd->get_stmt_da()->reset_condition_info(m_thd);
+        m_thd->clear_error();                 // Clear error message
+        m_thd->mdl_context.release_transactional_locks();
         break;
       }
     case OT_REPAIR:
       {
-        if ((result= lock_table_names(thd, m_failed_table, NULL,
+        if ((result= lock_table_names(m_thd, m_failed_table, NULL,
                                       get_timeout(), 0)))
           break;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+        tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
                          m_failed_table->table_name, FALSE);
 
-        result= auto_repair_table(thd, m_failed_table);
-        thd->mdl_context.release_transactional_locks();
+        result= auto_repair_table(m_thd, m_failed_table);
+        m_thd->mdl_context.release_transactional_locks();
         break;
       }
     default:
@@ -4671,9 +4668,10 @@ lock_table_names(THD *thd,
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)
         return TRUE;
-      schema_request->init(MDL_key::SCHEMA, table->db, "",
-                           MDL_INTENTION_EXCLUSIVE,
-                           MDL_TRANSACTION);
+      MDL_REQUEST_INIT(schema_request,
+                       MDL_key::SCHEMA, table->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
     }
 
@@ -4684,8 +4682,9 @@ lock_table_names(THD *thd,
     */
     if (thd->global_read_lock.can_acquire_protection())
       return TRUE;
-    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                        MDL_STATEMENT);
+    MDL_REQUEST_INIT(&global_request,
+                     MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
   }
 
@@ -4805,12 +4804,8 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   DBUG_ENTER("open_tables");
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
-  {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+  if (*start && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
-  }
 
   thd->current_tablenr= 0;
 restart:
@@ -4927,7 +4922,7 @@ restart:
             TABLE_LIST element. Altough currently this assumption is valid
             it may change in future.
           */
-          if (ot_ctx.recover_from_failed_open(thd))
+          if (ot_ctx.recover_from_failed_open())
             goto err;
 
           /* Re-open temporary tables after close_tables_for_reopen(). */
@@ -4987,7 +4982,7 @@ restart:
           {
             close_tables_for_reopen(thd, start,
                                     ot_ctx.start_of_statement_svp());
-            if (ot_ctx.recover_from_failed_open(thd))
+            if (ot_ctx.recover_from_failed_open())
               goto err;
 
             /* Re-open temporary tables after close_tables_for_reopen(). */
@@ -5461,7 +5456,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     */
     thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
     table_list->mdl_request.ticket= 0;
-    if (ot_ctx.recover_from_failed_open(thd))
+    if (ot_ctx.recover_from_failed_open())
       break;
   }
 
@@ -6017,7 +6012,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
   share= (TABLE_SHARE*) (tmp_table+1);
   tmp_path= (char*) (share+1);
-  saved_cache_key= strmov(tmp_path, path)+1;
+  saved_cache_key= my_stpcpy(tmp_path, path)+1;
   memcpy(saved_cache_key, cache_key, key_length);
 
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
@@ -8191,7 +8186,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
-  DBUG_RETURN(test(thd->is_error()));
+  DBUG_RETURN(MY_TEST(thd->is_error()));
 }
 
 
@@ -8212,8 +8207,10 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
   {
     if (table->merge_underlying_list)
     {
+      // A mergeable view is not allowed to have a table pointer.
       DBUG_ASSERT(table->view &&
-                  table->effective_algorithm == VIEW_ALGORITHM_MERGE);
+                  table->effective_algorithm == VIEW_ALGORITHM_MERGE &&
+                  table->table == NULL);
       list= make_leaves_list(list, table->merge_underlying_list);
     }
     else
@@ -8755,7 +8752,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   }
 
   thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(test(thd->is_error()));
+  DBUG_RETURN(MY_TEST(thd->is_error()));
 
 err_no_arena:
   select_lex->is_item_list_lookup= save_is_item_list_lookup;

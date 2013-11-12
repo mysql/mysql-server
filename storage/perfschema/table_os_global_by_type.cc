@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -119,7 +119,6 @@ void table_os_global_by_type::reset_position(void)
 
 int table_os_global_by_type::rnd_next(void)
 {
-  PFS_table_share *table_share;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -127,14 +126,32 @@ int table_os_global_by_type::rnd_next(void)
   {
     switch (m_pos.m_index_1) {
     case pos_os_global_by_type::VIEW_TABLE:
-      for ( ; m_pos.m_index_2 < table_share_max; m_pos.m_index_2++)
       {
-        table_share= &table_share_array[m_pos.m_index_2];
-        if (table_share->m_lock.is_populated())
+        PFS_table_share *table_share;
+        for ( ; m_pos.m_index_2 < table_share_max; m_pos.m_index_2++)
         {
-          make_row(table_share);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+          table_share= &table_share_array[m_pos.m_index_2];
+          if (table_share->m_lock.is_populated())
+          {
+            make_table_row(table_share);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+        }
+      }
+      break;
+    case pos_os_global_by_type::VIEW_PROGRAM:
+      {
+        PFS_program *pfs_program;
+        for ( ; m_pos.m_index_2 < program_max; m_pos.m_index_2++)
+        {
+          pfs_program= &program_array[m_pos.m_index_2];
+          if (pfs_program->m_lock.is_populated())
+          {
+            make_program_row(pfs_program);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
       }
       break;
@@ -149,18 +166,31 @@ int table_os_global_by_type::rnd_next(void)
 int
 table_os_global_by_type::rnd_pos(const void *pos)
 {
-  PFS_table_share *table_share;
-
   set_position(pos);
 
   switch (m_pos.m_index_1) {
   case pos_os_global_by_type::VIEW_TABLE:
-    DBUG_ASSERT(m_pos.m_index_2 < table_share_max);
-    table_share= &table_share_array[m_pos.m_index_2];
-    if (table_share->m_lock.is_populated())
     {
-      make_row(table_share);
-      return 0;
+      PFS_table_share *table_share;
+      DBUG_ASSERT(m_pos.m_index_2 < table_share_max);
+      table_share= &table_share_array[m_pos.m_index_2];
+      if (table_share->m_lock.is_populated())
+      {
+        make_table_row(table_share);
+        return 0;
+      }
+    }
+    break;
+  case pos_os_global_by_type::VIEW_PROGRAM:
+    {
+      PFS_program *pfs_program;
+      DBUG_ASSERT(m_pos.m_index_2 < program_max);
+      pfs_program= &program_array[m_pos.m_index_2];
+      if (pfs_program->m_lock.is_populated())
+      {
+        make_program_row(pfs_program);
+        return 0;
+      }
     }
     break;
   default:
@@ -170,9 +200,29 @@ table_os_global_by_type::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_os_global_by_type::make_row(PFS_table_share *share)
+void table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
+  PFS_single_stat cumulated_stat;
+
+  m_row_exists= false;
+
+  pfs_program->m_lock.begin_optimistic_lock(&lock);
+
+  m_row.m_object.make_row(pfs_program);
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  m_row.m_stat.set(normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
+
+  if (! pfs_program->m_lock.end_optimistic_lock(&lock))
+    return;
+
+  m_row_exists= true;
+}
+
+void table_os_global_by_type::make_table_row(PFS_table_share *share)
+{
+  pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
   uint safe_key_count;
 
@@ -180,11 +230,7 @@ void table_os_global_by_type::make_row(PFS_table_share *share)
 
   share->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type= share->get_object_type();
-  memcpy(m_row.m_schema_name, share->m_schema_name, share->m_schema_name_length);
-  m_row.m_schema_name_length= share->m_schema_name_length;
-  memcpy(m_row.m_object_name, share->m_table_name, share->m_table_name_length);
-  m_row.m_object_name_length= share->m_table_name_length;
+  m_row.m_object.make_row(share);
 
   /* This is a dirty read, some thread can write data while we are reading it */
   safe_key_count= sanitize_index_count(share->m_key_count);
@@ -239,15 +285,15 @@ int table_os_global_by_type::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* OBJECT_TYPE */
-        set_field_object_type(f, m_row.m_object_type);
+        set_field_object_type(f, m_row.m_object.m_object_type);
         break;
       case 1: /* SCHEMA_NAME */
-        set_field_varchar_utf8(f, m_row.m_schema_name,
-                               m_row.m_schema_name_length);
+        set_field_varchar_utf8(f, m_row.m_object.m_schema_name,
+                               m_row.m_object.m_schema_name_length);
         break;
       case 2: /* OBJECT_NAME */
-        set_field_varchar_utf8(f, m_row.m_object_name,
-                               m_row.m_object_name_length);
+        set_field_varchar_utf8(f, m_row.m_object.m_object_name,
+                               m_row.m_object.m_object_name_length);
         break;
       case 3: /* COUNT */
         set_field_ulonglong(f, m_row.m_stat.m_count);

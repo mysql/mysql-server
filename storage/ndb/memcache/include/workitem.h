@@ -43,7 +43,7 @@ typedef struct workitem {
     unsigned complete    : 1;  /*! is this operation finished? */
     unsigned _unused_2   : 2;  /*! */
     unsigned reschedule  : 1;  /*! inform scheduler to send and poll again */
-    unsigned cas_owner   : 1;  /*! set if this engine owns the CAS ID */
+    unsigned cas_owner   : 1;  /*! set if the NDB engine must create a CAS ID */
   } base;
   unsigned int id;
   struct workitem *previous;   /*! used to chain workitems in multi-key get */

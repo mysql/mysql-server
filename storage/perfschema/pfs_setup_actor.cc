@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
+#include "pfs_account.h"
 #include "pfs_global.h"
 
 /**
@@ -157,6 +158,8 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
 
 int insert_setup_actor(const String *user, const String *host, const String *role)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   if (setup_actor_max == 0)
     return HA_ERR_RECORD_FILE_FULL;
 
@@ -168,45 +171,43 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint PFS_ALIGNED setup_actor_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_actor *pfs;
+  pfs_dirty_state dirty_state;
 
   while (++attempts <= setup_actor_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& setup_actor_monotonic_index, 1) % setup_actor_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_actor_max;
     pfs= setup_actor_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      set_setup_actor_key(&pfs->m_key,
+                          user->ptr(), user->length(),
+                          host->ptr(), host->length(),
+                          role->ptr(), role->length());
+      pfs->m_username= &pfs->m_key.m_hash_key[0];
+      pfs->m_username_length= user->length();
+      pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
+      pfs->m_hostname_length= host->length();
+      pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
+      pfs->m_rolename_length= role->length();
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        set_setup_actor_key(&pfs->m_key,
-                            user->ptr(), user->length(),
-                            host->ptr(), host->length(),
-                            role->ptr(), role->length());
-        pfs->m_username= &pfs->m_key.m_hash_key[0];
-        pfs->m_username_length= user->length();
-        pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
-        pfs->m_hostname_length= host->length();
-        pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
-        pfs->m_rolename_length= role->length();
-
-        int res;
-        res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          pfs->m_lock.dirty_to_allocated();
-          return 0;
-        }
-
-        pfs->m_lock.dirty_to_free();
-        if (res > 0)
-          return HA_ERR_FOUND_DUPP_KEY;
-        return HA_ERR_OUT_OF_MEM;
+        update_setup_actors_derived_flags(thread);
+        return 0;
       }
+
+      pfs->m_lock.allocated_to_free();
+      if (res > 0)
+        return HA_ERR_FOUND_DUPP_KEY;
+      return HA_ERR_OUT_OF_MEM;
     }
   }
 
@@ -242,6 +243,8 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
 
   lf_hash_search_unpin(pins);
 
+  update_setup_actors_derived_flags(thread);
+
   return 0;
 }
 
@@ -267,6 +270,8 @@ int reset_setup_actor()
       pfs->m_lock.allocated_to_free();
     }
   }
+
+  update_setup_actors_derived_flags(thread);
 
   return 0;
 }
@@ -332,6 +337,11 @@ void lookup_setup_actor(PFS_thread *thread,
   }
   *enabled= false;
   return;
+}
+
+void update_setup_actors_derived_flags(PFS_thread *thread)
+{
+  update_accounts_derived_flags(thread);
 }
 
 /** @} */

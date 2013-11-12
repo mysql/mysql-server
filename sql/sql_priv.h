@@ -26,65 +26,6 @@
 #ifndef SQL_PRIV_INCLUDED
 #define SQL_PRIV_INCLUDED
 
-#ifndef MYSQL_CLIENT
-
-/*
-  Generates a warning that a feature is deprecated. 
-
-  Using it as
-
-  WARN_DEPRECATED(thd, "BAD", "'GOOD'");
-
-  Will result in a warning
- 
-  "The syntax 'BAD' is deprecated and will be removed in a
-   future release. Please use 'GOOD' instead"
-
-   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-*/
-#define WARN_DEPRECATED(Thd,Old,New)                            \
-  do {                                                                      \
-    if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), Sql_condition::SL_WARNING,    \
-                        ER_WARN_DEPRECATED_SYNTAX,                          \
-                        ER(ER_WARN_DEPRECATED_SYNTAX),                      \
-                        (Old), (New));                                      \
-    else                                                                    \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in a future release. Please use %s instead.",      \
-                        (Old), (New));                                      \
-  } while(0)
-
-/*
-  Generates a warning that a feature is deprecated. 
-
-  Using it as
-
-  WARN_DEPRECATED(thd, "old");
-
-  Will result in a warning
- 
-  "The syntax 'old' is deprecated and will be removed in a
-   future release.
-
-   Note that in macro arguments BAD is not quoted.
-*/
-#define WARN_DEPRECARED_NO_REPLACEMENT(Thd,Old)                             \
-  do {                                                                      \
-    if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), Sql_condition::SL_WARNING,         \
-                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,           \
-                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),       \
-                        (Old));                                             \
-    else                                                                    \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in a future release",                              \
-                        (Old));                                             \
-  } while(0) 
-
-/*************************************************************************/
-
-#endif
 
 /*
    This is included in the server and in the client.

@@ -12,6 +12,19 @@ source include/not_embedded.inc;
 source include/have_log_bin.inc;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+CALL mtr.add_suppression("REVOKE/GRANT failed while storing table level "
+                         "and column level grants in the privilege "
+                         "tables. An incident event has been written to "
+                         "the binary log which will stop the slaves.");
+CALL mtr.add_suppression("REVOKE/GRANT failed while granting/revoking "
+                         "privileges in databases. An incident event "
+                         "has been written to the binary log which "
+                         "will stop the slaves.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing table level and column level grants "
+                         "in the privilege tables.");
 
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -357,7 +370,7 @@ DROP TABLE t1,t2;
 # Test update with const tables
 #
 create table `t1` (`p_id` int(10) unsigned NOT NULL auto_increment, `p_code` varchar(20) NOT NULL default '', `p_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`p_id`) );
-create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(10) unsigned NOT NULL default '0', `c2_note` text NOT NULL, `c2_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`c2_id`), KEY `c2_p_id` (`c2_p_id`) );
+create table `t2` (`c2_id` int(10) unsigned NOT NULL auto_increment, `c2_p_id` int(10) unsigned NOT NULL default '0', `c2_note` text NOT NULL, `c2_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`c2_id`), KEY `c2_p_id` (`c2_p_id`) );
 insert into t1 values (0,'A01-Comp',1);
 insert into t1 values (0,'B01-Comp',1);
 insert into t2 values (0,1,'A Note',1);

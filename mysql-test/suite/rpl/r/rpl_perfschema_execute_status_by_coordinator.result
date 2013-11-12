@@ -10,7 +10,7 @@ include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 
 # Testing on fresh slave.
 
-sql thread id extracted from SHOW PROCESSLIST and PS table match.
+include/assert.inc [thread_name should should indicate sql thread.]
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
@@ -73,7 +73,7 @@ SET @@global.slave_parallel_workers=1;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 include/start_slave.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-coordinator's thread id extracted from SHOW PROCESSLIST and PS table match.
+include/assert.inc [thread_name should should indicate sql thread.]
 include/assert.inc [SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]

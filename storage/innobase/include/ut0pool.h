@@ -60,7 +60,7 @@ struct Pool {
 
 		ut_a(m_start == 0);
 
-		m_start = reinterpret_cast<Element*>(mem_zalloc(m_size));
+		m_start = reinterpret_cast<Element*>(ut_zalloc(m_size));
 
 		m_last = m_start;
 
@@ -87,7 +87,7 @@ struct Pool {
 			Factory::destroy(&elem->m_type);
 		}
 
-		mem_free(m_start);
+		ut_free(m_start);
 		m_end = m_last = m_start = 0;
 		m_size = 0;
 	}

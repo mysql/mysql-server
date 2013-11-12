@@ -11,6 +11,10 @@
 # Note that lower case option is required because the
 # partition tables will be stored in mixed (Upper & Lower) format on Linux,
 # but on Windows the partition table names are stored in lower case only.
+# Restarting the server with skip-grant-tables and updating mysql.user
+# table to deal with the restriction added to plugin value for users
+# in WL6982.
+# Stop server
 # Check the DB & tables with DML statements.
 use test;
 SHOW CREATE TABLE emp1;

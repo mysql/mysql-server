@@ -32,9 +32,6 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
 mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-mysql_mutex_t LOCK_localtime_r;
-#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -147,8 +144,10 @@ my_bool my_thread_global_init(void)
 
   DBUG_ASSERT(! THR_KEY_mysys_initialized);
   if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
-  {
-    fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
+  { /* purecov: begin inspected */
+    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
+                     pth_ret);
+    /* purecov: end */
     return 1;
   }
 
@@ -167,10 +166,6 @@ my_bool my_thread_global_init(void)
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
-#endif
 
 #ifdef _MSC_VER
   install_sigabrt_handler();
@@ -200,9 +195,10 @@ void my_thread_global_end(void)
         are killed when we enter here.
       */
       if (THR_thread_count)
-        fprintf(stderr,
-                "Error in my_thread_global_end(): %d threads didn't exit\n",
-                THR_thread_count);
+        /* purecov: begin inspected */
+        my_message_local(ERROR_LEVEL, "Error in my_thread_global_end(): "
+                         "%d threads didn't exit", THR_thread_count);
+        /* purecov: end */
 #endif
       all_threads_killed= 0;
       break;
@@ -232,9 +228,6 @@ void my_thread_global_end(void)
     mysql_mutex_destroy(&THR_LOCK_threads);
     mysql_cond_destroy(&THR_COND_threads);
   }
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
 
   my_thread_global_init_done= 0;
 }
@@ -267,15 +260,16 @@ my_bool my_thread_init(void)
   my_bool error=0;
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
-          (ulong) pthread_self());
+  my_message_local(INFORMATION_LEVEL, "my_thread_init(): thread_id: 0x%lx",
+                   (ulong) pthread_self());
 #endif  
 
   if (_my_thread_var())
   {
 #ifdef EXTRA_DEBUG_THREADS
-    fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
-            (long) pthread_self());
+    my_message_local(WARNING_LEVEL,
+                     "my_thread_init() called more than once in thread 0x%lx",
+                     (long) pthread_self());
 #endif    
     goto end;
   }
@@ -330,9 +324,11 @@ void my_thread_end(void)
   tmp= _my_thread_var();
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
-	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
-#endif  
+    my_message_local(INFORMATION_LEVEL, "my_thread_end(): tmp: 0x%lx  "
+                     "pthread_self: 0x%lx  thread_id: %ld",
+                     (long) tmp, (long) pthread_self(),
+                     tmp ? (long) tmp->id : 0L);
+#endif
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -375,8 +371,9 @@ void my_thread_end(void)
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  if (THR_KEY_mysys_initialized)
+    return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return NULL;
 }
 
 int set_mysys_var(struct st_my_thread_var *mysys_var)

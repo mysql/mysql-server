@@ -43,6 +43,7 @@ typedef char my_bool;
 
 #ifndef my_socket_defined
 #ifdef _WIN32
+#include <winsock2.h>
 #define my_socket SOCKET
 #else
 typedef int my_socket;
@@ -55,6 +56,9 @@ typedef int my_socket;
 #include "mysql_time.h"
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
+
+/* Include declarations of plug-in API */
+#include "mysql/client_plugin.h"
 
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
@@ -155,7 +159,8 @@ enum mysql_option
   MYSQL_OPT_CONNECT_ATTR_DELETE,
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+  MYSQL_OPT_SSL_ENFORCE
 };
 
 /**
@@ -447,6 +452,8 @@ int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const void *arg);
 int		STDCALL mysql_options4(MYSQL *mysql,enum mysql_option option,
                                        const void *arg1, const void *arg2);
+int             STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
+                                         const void *arg);
 void		STDCALL mysql_free_result(MYSQL_RES *result);
 void		STDCALL mysql_data_seek(MYSQL_RES *result,
 					my_ulonglong offset);
@@ -471,7 +478,7 @@ void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
 my_bool		STDCALL mysql_embedded(void);
 my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
-
+int             STDCALL mysql_reset_connection(MYSQL *mysql);
 
 /*
   The following definitions are added for the enhanced 

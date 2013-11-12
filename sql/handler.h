@@ -36,6 +36,7 @@
 #include <keycache.h>
 
 class Alter_info;
+typedef struct xid_t XID;
 
 // the following is for checking tables
 
@@ -363,11 +364,6 @@ static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 
-/* Flags for method is_fatal_error */
-#define HA_CHECK_DUP_KEY 1
-#define HA_CHECK_DUP_UNIQUE 2
-#define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
-
 enum legacy_db_type
 {
   DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
@@ -491,14 +487,6 @@ struct st_system_tablename
   const char *tablename;
 };
 
-
-typedef ulonglong my_xid; // this line is the same as in log_event.h
-#define MYSQL_XID_PREFIX "MySQLXid"
-#define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
-#define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
-#define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
-
-#define XIDDATASIZE MYSQL_XIDDATASIZE
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
@@ -508,84 +496,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 namespace AQP {
   class Join_plan;
 };
-
-/**
-  struct xid_t is binary compatible with the XID structure as
-  in the X/Open CAE Specification, Distributed Transaction Processing:
-  The XA Specification, X/Open Company Ltd., 1991.
-  http://www.opengroup.org/bookstore/catalog/c193.htm
-
-  @see MYSQL_XID in mysql/plugin.h
-*/
-struct xid_t {
-  long formatID;
-  long gtrid_length;
-  long bqual_length;
-  char data[XIDDATASIZE];  // not \0-terminated !
-
-  xid_t() {}                                /* Remove gcc warning */  
-  bool eq(struct xid_t *xid)
-  { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
-  bool eq(long g, long b, const char *d)
-  { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
-  void set(struct xid_t *xid)
-  { memcpy(this, xid, xid->length()); }
-  void set(long f, const char *g, long gl, const char *b, long bl)
-  {
-    formatID= f;
-    memcpy(data, g, gtrid_length= gl);
-    memcpy(data+gl, b, bqual_length= bl);
-  }
-  void set(ulonglong xid)
-  {
-    my_xid tmp;
-    formatID= 1;
-    set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
-    memcpy(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
-    tmp= xid;
-    memcpy(data+MYSQL_XID_OFFSET, &tmp, sizeof(tmp));
-    gtrid_length=MYSQL_XID_GTRID_LEN;
-  }
-  void set(long g, long b, const char *d)
-  {
-    formatID= 1;
-    gtrid_length= g;
-    bqual_length= b;
-    memcpy(data, d, g+b);
-  }
-  bool is_null() { return formatID == -1; }
-  void null() { formatID= -1; }
-  my_xid quick_get_my_xid()
-  {
-    my_xid tmp;
-    memcpy(&tmp, data+MYSQL_XID_OFFSET, sizeof(tmp));
-    return tmp;
-  }
-  my_xid get_my_xid()
-  {
-    return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
-           quick_get_my_xid() : 0;
-  }
-  uint length()
-  {
-    return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
-           gtrid_length+bqual_length;
-  }
-  uchar *key()
-  {
-    return (uchar *)&gtrid_length;
-  }
-  uint key_length()
-  {
-    return sizeof(gtrid_length)+sizeof(bqual_length)+gtrid_length+bqual_length;
-  }
-};
-typedef struct xid_t XID;
-
-/* for recover() handlerton call */
-#define MIN_XID_LIST_SIZE  128
-#define MAX_XID_LIST_SIZE  (1024*128)
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -2193,26 +2103,42 @@ public:
   virtual uint extra_rec_buf_length() const { return 0; }
 
   /**
-    @brief Determine whether an error is fatal or not. 
-    
-    @details This method is used to analyze the error to see whether the 
-    error is fatal or not. Handlers can have different sets of fatal errors, 
-    e.g. the partition handler can get inserts into a range where there 
-    is no partition, and this is an ignorable error.
-    
+    @brief Determine whether an error can be ignored or not.
+
+    @details This method is used to analyze the error to see whether the
+    error is ignorable or not. Such errors will be reported as warnings
+    instead of errors for IGNORE statements. This means that the statement
+    will not abort, but instead continue to the next row.
+
     HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
     same thing as HA_ERR_FOUND_DUP_KEY, but can in some cases lead to
     a slightly different error message.
-     
+
     @param error  error code received from the handler interface (HA_ERR_...)
-    @param flags  indicate whether duplicate key errors should be ignorable
-    
+
+    @return   whether the error is ignorablel or not
+      @retval true  the error is ignorable
+      @retval false the error is not ignorable
+  */
+
+  virtual bool is_ignorable_error(int error);
+
+  /**
+    @brief Determine whether an error is fatal or not.
+
+    @details This method is used to analyze the error to see whether the
+    error is fatal or not. A fatal error is an error that will not be
+    possible to handle with SP handlers and will not be subject to
+    retry attempts on the slave.
+
+    @param error  error code received from the handler interface (HA_ERR_...)
+
     @return   whether the error is fatal or not
       @retval true  the error is fatal
       @retval false the error is not fatal
   */
-  
-  virtual bool is_fatal_error(int error, uint flags);
+
+  virtual bool is_fatal_error(int error);
 
   /**
     Number of rows in table. It will only be called if
@@ -3423,7 +3349,7 @@ static inline const char *ha_resolve_storage_engine_name(const handlerton *db_ty
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
-  return db_type == NULL ? FALSE : test(db_type->flags & flag);
+  return db_type == NULL ? FALSE : MY_TEST(db_type->flags & flag);
 }
 
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
@@ -3479,10 +3405,28 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
-int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
+
+
+/**
+  recover() step of xa.
+
+  @note
+    there are three modes of operation:
+    - automatic recover after a crash
+    in this case commit_list != 0, tc_heuristic_recover==0
+    all xids from commit_list are committed, others are rolled back
+    - manual (heuristic) recover
+    in this case commit_list==0, tc_heuristic_recover != 0
+    DBA has explicitly specified that all prepared transactions should
+    be committed (or rolled back).
+    - no recovery (MySQL did not detect a crash)
+    in this case commit_list==0, tc_heuristic_recover == 0
+    there should be no prepared transactions in this case.
+*/
+
 int ha_recover(HASH *commit_list);
 
 /*
@@ -3506,8 +3450,8 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
-void trans_register_ha(THD *thd, bool all, handlerton *ht);
-
+void trans_register_ha(THD *thd, bool all, handlerton *ht,
+                       const ulonglong *trxid);
 /*
   Storage engine has to assume the transaction will end up with 2pc if
    - there is more than one 2pc-capable storage engine available
@@ -3531,8 +3475,6 @@ int ha_binlog_end(THD *thd);
 const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
-bool mysql_xa_recover(THD *thd);
-
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {

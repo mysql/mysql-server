@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
 
 #include "RestoreProxy.hpp"
 #include "restore.hpp"
+
+#define JAM_FILE_ID 336
+
 
 RestoreProxy::RestoreProxy(Block_context& ctx) :
   LocalProxy(RESTORE, ctx)

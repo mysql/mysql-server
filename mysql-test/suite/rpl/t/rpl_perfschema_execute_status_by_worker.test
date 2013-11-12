@@ -75,50 +75,17 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
-let $assert_text= Worker_Id should be 0;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= Worker_Id should be 1;
+let $assert_cond= "$ps_value"= 1;
 source include/assert.inc;
 
-# To verify that the worker thread_id is correctly shown by PS table, find the
-# row in SHOW PROCESSLIST that corresponds to worker thread and extract the
-# Id field shown in that row.
-# This is implemented by dumping the SHOW PROCESSLIST output in a file
-# and looking for the string "Waiting for an event from Coordinator" in a line
-# in the dumped file. The Id field in the that line is then extracted to obtain
-# the worker thread_id.
+# To verify the correctness of thread_id field, we check for the name of
+# the thread.
 
-let $out_file=$MYSQLTEST_VARDIR/tmp/show_processlist_output.txt;
-exec $MYSQL_SLAVE -e "show processlist" > $out_file;
-let INPUT_FILE= $out_file;
-let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_execute_status_by_worker, Thread_Id, 1);
-let WORKER_THREAD_ID= $ps_value ;
-
-perl;
-use strict;
-my $input_file= $ENV{'INPUT_FILE'} or die "INPUT_FILE not set\n";
-my $worker_thread_id= $ENV{'WORKER_THREAD_ID'} or die "SQL_THREAD_ID not set\n";
-open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
-while (<IN_FILE>)
-{
-  if (/(\d+)(.*?)(Waiting\s+for\s+an\s+event\s+from\s+Coordinator)(.*?)$/)
-  {
-    if ($worker_thread_id == $1)
-    {
-      print "worker thread id extracted from SHOW PROCESSLIST and PS table match.\n";
-    }
-    else
-    {
-      print "worker thread id extracted from SHOW PROCESSLIST and PS table do NOT match.\n";
-    }
-  }
-}
-
-close(IN_FILE);
-EOF
-
-remove_file $out_file;
-
-# End of perl code for worker's thread_id testing.
+let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_execute_status_by_worker)`;
+let $assert_text= thread_name should should indicate worker thread.;
+let $assert_cond= "$thread_name" = "thread/sql/slave_worker";
+source include/assert.inc;
 
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_worker, Service_State, 1);
 let $assert_text= Service_State should be "ON" on a fresh slave server.;
@@ -224,8 +191,8 @@ source include/assert.inc;
 --echo
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
-let $assert_text= Worker_Id should be 0;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= Worker_Id should be 1;
+let $assert_cond= "$ps_value"= 1;
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);

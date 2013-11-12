@@ -25,27 +25,395 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "mtr0mtr.h"
 
-#ifdef UNIV_NONINL
-#include "mtr0mtr.ic"
-#endif
-
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
 
-#ifndef UNIV_HOTBACKUP
-# include "log0recv.h"
+#include "log0recv.h"
 
-/***************************************************//**
+#ifdef UNIV_NONINL
+#include "mtr0mtr.ic"
+#endif /* UNIV_NONINL */
+
+/**
+Iterate over a memo block in reverse. */
+template <typename Functor>
+struct Iterate {
+
+	/** Release specific object */
+	explicit Iterate(Functor& functor)
+		:
+		m_functor(functor)
+	{
+		/* Do nothing */
+	}
+
+	/**
+	@return false if the functor returns false. */
+	bool operator()(mtr_buf_t::block_t* block)
+	{
+		const mtr_memo_slot_t*	start =
+			reinterpret_cast<const mtr_memo_slot_t*>(
+				block->begin());
+
+		mtr_memo_slot_t*	slot =
+			reinterpret_cast<mtr_memo_slot_t*>(
+				block->end());
+
+		ut_ad(!(block->used() % sizeof(*slot)));
+
+		while (slot-- != start) {
+
+			if (!m_functor(slot)) {
+				return(false);
+			}
+		}
+
+		return(true);
+	}
+
+	Functor&	m_functor;
+};
+
+/** Find specific object */
+struct Find {
+
+	/** Constructor */
+	Find(const void* object, ulint type)
+		:
+		m_slot(),
+		m_type(type),
+		m_object(object)
+	{
+		ut_a(object != NULL);
+	}
+
+	/**
+	@return false if the object was found. */
+	bool operator()(mtr_memo_slot_t* slot)
+	{
+		if (m_object == slot->object && m_type == slot->type) {
+			m_slot = slot;
+			return(false);
+		}
+
+		return(true);
+	}
+
+	/** Slot if found */
+	mtr_memo_slot_t*m_slot;
+
+	/** Type of the object to look for */
+	ulint		m_type;
+
+	/** The object instance to look for */
+	const void*	m_object;
+};
+
+/**
+Releases latches and decrements the buffer fix count.
+@param slot	memo slot */
+static
+void
+memo_slot_release(mtr_memo_slot_t* slot)
+{
+	switch (slot->type) {
+	case MTR_MEMO_BUF_FIX:
+	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_SX_FIX:
+	case MTR_MEMO_PAGE_X_FIX: {
+		buf_block_t*	block;
+
+		block = reinterpret_cast<buf_block_t*>(slot->object);
+
+		mutex_enter(&block->mutex);
+
+		ut_a(block->page.buf_fix_count > 0);
+
+		--block->page.buf_fix_count;
+
+		mutex_exit(&block->mutex);
+
+		buf_page_release_latch(block, slot->type);
+		break;
+	}
+
+	case MTR_MEMO_S_LOCK:
+		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		break;
+
+	case MTR_MEMO_SX_LOCK:
+		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		break;
+
+	case MTR_MEMO_X_LOCK:
+		rw_lock_x_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		break;
+
+#ifdef UNIV_DEBUG
+	default:
+		ut_ad(slot->type == MTR_MEMO_MODIFY);
+#endif /* UNIV_DEBUG */
+	}
+
+	slot->object = NULL;
+}
+
+/**
+Unfix a page, does not release the latches on the page.
+@param slot	memo slot */
+static
+void
+memo_block_unfix(mtr_memo_slot_t* slot)
+{
+	switch (slot->type) {
+	case MTR_MEMO_BUF_FIX:
+	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_X_FIX:
+	case MTR_MEMO_PAGE_SX_FIX: {
+		buf_block_t*	block;
+
+		block = reinterpret_cast<buf_block_t*>(slot->object);
+
+		mutex_enter(&block->mutex);
+
+		--block->page.buf_fix_count;
+
+		mutex_exit(&block->mutex);
+		break;
+	}
+
+	case MTR_MEMO_S_LOCK:
+	case MTR_MEMO_X_LOCK:
+	case MTR_MEMO_SX_LOCK:
+		break;
+#ifdef UNIV_DEBUG
+	default:
+#endif /* UNIV_DEBUG */
+		break;
+	}
+}
+/**
+Releases latches represented by a slot.
+@param slot	memo slot */
+static
+void
+memo_latch_release(mtr_memo_slot_t* slot)
+{
+	switch (slot->type) {
+	case MTR_MEMO_BUF_FIX:
+	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_SX_FIX:
+	case MTR_MEMO_PAGE_X_FIX: {
+		buf_block_t*	block;
+
+		block = reinterpret_cast<buf_block_t*>(slot->object);
+
+		memo_block_unfix(slot);
+
+		buf_page_release_latch(block, slot->type);
+
+		slot->object = NULL;
+		break;
+	}
+
+	case MTR_MEMO_S_LOCK:
+		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+	case MTR_MEMO_X_LOCK:
+		rw_lock_x_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+	case MTR_MEMO_SX_LOCK:
+		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+#ifdef UNIV_DEBUG
+	default:
+		ut_ad(slot->type == MTR_MEMO_MODIFY);
+
+		slot->object = NULL;
+#endif /* UNIV_DEBUG */
+	}
+}
+
+/**
+Release the latches acquired by the mini-transaction. */
+struct ReleaseLatches {
+
+	/**
+	@return true always. */
+	bool operator()(mtr_memo_slot_t* slot) const
+	{
+		if (slot->object != NULL) {
+			memo_latch_release(slot);
+		}
+
+		return(true);
+	}
+};
+
+/**
+Release the latches and blocks acquired by the mini-transaction. */
+struct ReleaseAll {
+
+	/**
+	@return true always. */
+	bool operator()(mtr_memo_slot_t* slot) const
+	{
+		if (slot->object != NULL) {
+			memo_slot_release(slot);
+		}
+
+		return(true);
+	}
+};
+
+/**
+Check that all slots have been handled. */
+struct DebugCheck {
+
+	/**
+	@return true always. */
+	bool operator()(const mtr_memo_slot_t* slot) const
+	{
+		ut_a(slot->object == NULL);
+		return(true);
+	}
+};
+
+/**
+Release a resource acquired by the mini-transaction. */
+struct ReleaseBlocks {
+
+	/** Release specific object */
+	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn)
+		:
+		m_end_lsn(end_lsn),
+		m_start_lsn(start_lsn)
+	{
+		/* Do nothing */
+	}
+
+	/**
+	Add the modified page to the buffer flush list. */
+	void add_dirty_page_to_flush_list(mtr_memo_slot_t* slot) const
+	{
+		ut_ad(m_end_lsn > 0);
+		ut_ad(m_start_lsn > 0);
+
+		buf_block_t*	block;
+
+		block = reinterpret_cast<buf_block_t*>(slot->object);
+
+		buf_flush_note_modification(block, m_start_lsn, m_end_lsn);
+	}
+
+	/**
+	@return true always. */
+	bool operator()(mtr_memo_slot_t* slot) const
+	{
+		if (slot->object != NULL) {
+
+			if (slot->type == MTR_MEMO_PAGE_X_FIX
+			    || slot->type == MTR_MEMO_PAGE_SX_FIX) {
+
+				add_dirty_page_to_flush_list(slot);
+			}
+		}
+
+		return(true);
+	}
+
+	/** Mini-transaction REDO start LSN */
+	lsn_t		m_end_lsn;
+
+	/** Mini-transaction REDO end LSN */
+	lsn_t		m_start_lsn;
+};
+
+class mtr_t::Command {
+public:
+	/**
+	Command takes ownership of the m_impl member of mtr and is responsible
+	for deleting it.
+	@param mtr	mini-transaction instance */
+	explicit Command(mtr_t* mtr)
+		:
+		m_locks_released()
+	{
+		init(mtr);
+	}
+
+	void init(mtr_t* mtr)
+	{
+		m_impl = &mtr->m_impl;
+		m_sync = mtr->m_sync;
+	}
+
+	/**
+	Destructor */
+	~Command()
+	{
+		ut_ad(m_impl == 0);
+	}
+
+	/**
+	Write the redo log record, add dirty pages to the flush list and
+	release the resources. */
+	void execute();
+
+	/**
+	Release the blocks used in this mini-transaction. */
+	void release_blocks();
+
+	/**
+	Release the latches acquired by the mini-transaction. */
+	void release_latches();
+
+	/**
+	Release both the latches and blocks used in the mini-transaction. */
+	void release_all();
+
+	/**
+	Release the resources */
+	void release_resources();
+
+private:
+	/**
+	Write the redo log record */
+	void write();
+
+private:
+	/** true if it is a sync mini-transaction. */
+	bool			m_sync;
+
+	/** The mini-transaction state. */
+	mtr_t::Impl*		m_impl;
+
+	/** Set to 1 after the user thread releases the latches. The log
+	writer thread must wait for this to be set to 1. */
+	volatile ulint		m_locks_released;
+
+	/** Start lsn of the possible log entry for this mtr */
+	lsn_t			m_start_lsn;
+
+	/** End lsn of the possible log entry for this mtr */
+	lsn_t			m_end_lsn;
+};
+
+/**
 Checks if a mini-transaction is dirtying a clean page.
-@return TRUE if the mtr is dirtying a clean page. */
+@return true if the mtr is dirtying a clean page. */
 
-ibool
-mtr_block_dirtied(
-/*==============*/
-	const buf_block_t*	block)	/*!< in: block being x-fixed */
+bool
+mtr_t::is_block_dirtied(const buf_block_t* block)
 {
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
@@ -56,170 +424,247 @@ mtr_block_dirtied(
 	return(block->page.oldest_modification == 0);
 }
 
-/*****************************************************************//**
-Releases the item in the slot given. */
-static __attribute__((nonnull))
+/**
+Write the block contents to the REDO log */
+struct mtr_write_log_t {
+	/**
+	@return true - never fails */
+	bool operator()(const mtr_buf_t::block_t* block) const
+	{
+		log_write_low(block->begin(), block->used());
+
+		return(true);
+	}
+};
+
+/**
+Starts a mini-transaction.
+@param sync		true if it is a synchronouse mini-transaction
+@param read_only	true if read only mini-transaction */
 void
-mtr_memo_slot_release_func(
-/*=======================*/
+mtr_t::start(bool sync, bool read_only)
+{
+	UNIV_MEM_INVALID(this, sizeof(*this));
+
+	UNIV_MEM_INVALID(&m_impl, sizeof(m_impl));
+
+	m_sync =  sync;
+
+	m_commit_lsn = 0;
+
+	new(&m_impl.m_log) mtr_buf_t();
+	new(&m_impl.m_memo) mtr_buf_t();
+
+	m_impl.m_mtr = this;
+	m_impl.m_log_mode = MTR_LOG_ALL;
+	m_impl.m_inside_ibuf = false;
+	m_impl.m_modifications = false;
+	m_impl.m_made_dirty = false;
+	m_impl.m_n_log_recs = 0;
+	m_impl.m_n_freed_pages = 0;
+
+	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
+	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
+}
+
+/**
+Release the resources */
+
+void
+mtr_t::Command::release_resources()
+{
+	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+
+	/* Currently only used in commit */
+	ut_ad(m_impl->m_state == MTR_STATE_COMMITTING);
+
 #ifdef UNIV_DEBUG
- 	mtr_t*			mtr,	/*!< in/out: mini-transaction */
-#endif /* UNIV_DEBUG */
-	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
-{
-	void*	object = slot->object;
-	slot->object = NULL;
+	DebugCheck		release;
+	Iterate<DebugCheck>	iterator(release);
 
-	/* slot release is a local operation for the current mtr.
-	We must not be holding the flush_order mutex while
-	doing this. */
-	ut_ad(!log_flush_order_mutex_own());
-
-	switch (slot->type) {
-	case MTR_MEMO_PAGE_S_FIX:
-	case MTR_MEMO_PAGE_X_FIX:
-	case MTR_MEMO_PAGE_SX_FIX:
-	case MTR_MEMO_BUF_FIX:
-		buf_page_release((buf_block_t*) object, slot->type);
-		break;
-	case MTR_MEMO_S_LOCK:
-		rw_lock_s_unlock((rw_lock_t*) object);
-		break;
-	case MTR_MEMO_X_LOCK:
-		rw_lock_x_unlock((rw_lock_t*) object);
-		break;
-	case MTR_MEMO_SX_LOCK:
-		rw_lock_sx_unlock((rw_lock_t*) object);
-		break;
-#ifdef UNIV_DEBUG
-	default:
-		ut_ad(slot->type == MTR_MEMO_MODIFY);
-		ut_ad(mtr_memo_contains_flagged(mtr, object,
-						MTR_MEMO_PAGE_X_FIX
-						| MTR_MEMO_PAGE_SX_FIX));
-#endif /* UNIV_DEBUG */
-	}
-}
-
-#ifdef UNIV_DEBUG
-# define mtr_memo_slot_release(mtr, slot) mtr_memo_slot_release_func(mtr, slot)
-#else /* UNIV_DEBUG */
-# define mtr_memo_slot_release(mtr, slot) mtr_memo_slot_release_func(slot)
+	m_impl->m_memo.for_each_block_in_reverse(iterator);
 #endif /* UNIV_DEBUG */
 
-/**********************************************************//**
-Releases the mlocks and other objects stored in an mtr memo.
-They are released in the order opposite to which they were pushed
-to the memo. */
-static __attribute__((nonnull))
+	/* Reset the mtr buffers */
+	m_impl->m_log.erase();
+
+	m_impl->m_memo.erase();
+
+	ut_d(m_impl->m_state = MTR_STATE_COMMITTED);
+
+	m_impl = 0;
+}
+
+/**
+Commits a mini-transaction. */
+
 void
-mtr_memo_pop_all(
-/*=============*/
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+mtr_t::commit()
 {
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
-					     commit */
+	ut_ad(is_active());
+	ut_ad(!is_inside_ibuf());
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
 
-	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
-	     block;
-	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
-		const mtr_memo_slot_t*	start
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block));
-		mtr_memo_slot_t*	slot
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block)
-				+ dyn_block_get_used(block));
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
 
-		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
+	if (m_impl.m_modifications
+	    && (m_impl.m_n_log_recs > 0
+		|| m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
 
-		while (slot-- != start) {
-			if (slot->object != NULL) {
-				mtr_memo_slot_release(mtr, slot);
-			}
-		}
+		ut_ad(!srv_read_only_mode);
+
+		Command	cmd(this);
+
+		cmd.execute();
+
+	} else {
+		Command	cmd(this);
+
+		cmd.release_all();
+		cmd.release_resources();
 	}
 }
 
-/*****************************************************************//**
-Releases the item in the slot given. */
-static
-void
-mtr_memo_slot_note_modification(
-/*============================*/
-	mtr_t*			mtr,	/*!< in: mtr */
-	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
-{
-	ut_ad(mtr->modifications);
-	ut_ad(!srv_read_only_mode);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+/**
+@return the commit lsn */
 
-	if (buf_block_t* block = static_cast<buf_block_t*>(slot->object)) {
-		switch (slot->type) {
-		case MTR_MEMO_PAGE_X_FIX:
-		case MTR_MEMO_PAGE_SX_FIX:
-			ut_ad(!mtr->made_dirty || log_flush_order_mutex_own());
-			buf_flush_note_modification(block, mtr);
-		}
-	}
+lsn_t
+mtr_t::commit_lsn() const
+{
+	ut_a(m_commit_lsn != 0);
+
+	return(m_commit_lsn);
 }
 
-/**********************************************************//**
-Add the modified pages to the buffer flush list. They are released
-in the order opposite to which they were pushed to the memo. NOTE! It is
-essential that the x-rw-lock on a modified buffer page is not released
-before buf_page_note_modification is called for that page! Otherwise,
-some thread might race to modify it, and the flush list sort order on
-lsn would be destroyed. */
-static
-void
-mtr_memo_note_modifications(
-/*========================*/
-	mtr_t*	mtr)	/*!< in: mtr */
+/**
+Releases an object in the memo stack.
+@return true if released */
+
+bool
+mtr_t::memo_release(const void* object, ulint type)
 {
-	ut_ad(!srv_read_only_mode);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
-					     commit */
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_active());
 
-	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
-	     block;
-	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
-		const mtr_memo_slot_t*	start
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block));
-		mtr_memo_slot_t*	slot
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block)
-				+ dyn_block_get_used(block));
+	/* We cannot release a page that has been written to in the
+	middle of a mini-transaction. */
+	ut_ad(!m_impl.m_modifications || type != MTR_MEMO_PAGE_X_FIX);
 
-		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
+	Find		find(object, type);
+	Iterate<Find>	iterator(find);
 
-		while (slot-- != start) {
-			if (slot->object != NULL) {
-				mtr_memo_slot_note_modification(mtr, slot);
-			}
-		}
+	if (!m_impl.m_memo.for_each_block_in_reverse(iterator)) {
+		memo_slot_release(find.m_slot);
+		return(true);
 	}
+
+	return(false);
 }
 
-/************************************************************//**
-Append the dirty pages to the flush list. */
-static
-void
-mtr_add_dirtied_pages_to_flush_list(
-/*================================*/
-	mtr_t*	mtr)	/*!< in/out: mtr */
-{
-	ut_ad(!srv_read_only_mode);
+/**
+Write the redo log record */
 
-	/* No need to acquire log_flush_order_mutex if this mtr has
-	not dirtied a clean page. log_flush_order_mutex is used to
-	ensure ordered insertions in the flush_list. We need to
-	insert in the flush_list iff the page in question was clean
-	before modifications. */
-	if (mtr->made_dirty) {
+void
+mtr_t::Command::write()
+{
+	byte*	data = m_impl->m_log.front()->begin();
+
+	if (m_impl->m_n_log_recs > 1) {
+		mlog_catenate_ulint(
+			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+	} else {
+		*data = (byte)((ulint) *data | MLOG_SINGLE_REC_FLAG);
+	}
+
+	bool	own_mutex;
+
+	if (m_impl->m_log.is_small()) {
+		ulint	len = (m_impl->m_log_mode != MTR_LOG_NO_REDO)
+			? m_impl->m_log.front()->used() : 0;
+
+		m_end_lsn = log_reserve_and_write_fast(data, len, &m_start_lsn);
+
+		if (m_end_lsn > 0) {
+			return;
+		}
+
+		own_mutex = true;
+	} else {
+		own_mutex = false;
+	}
+
+	/* Open the database log for log_write_low */
+	m_start_lsn = log_reserve_and_open(m_impl->m_log.size(), own_mutex);
+
+	if (m_impl->m_log_mode == MTR_LOG_ALL) {
+		mtr_write_log_t	write_log;
+
+		m_impl->m_log.for_each_block(write_log);
+
+	} else {
+		ut_ad(m_impl->m_log_mode == MTR_LOG_NONE
+		      || m_impl->m_log_mode == MTR_LOG_NO_REDO);
+
+		/* Do nothing */
+	}
+
+	m_end_lsn = log_close();
+}
+
+/**
+Release the latches and blocks acquired by this mini-transaction */
+
+void
+mtr_t::Command::release_all()
+{
+	ReleaseAll release;
+	Iterate<ReleaseAll> iterator(release);
+
+	m_impl->m_memo.for_each_block_in_reverse(iterator);
+
+	/* Note that we have released the latches. */
+	m_locks_released = 1;
+}
+
+/**
+Release the latches acquired by this mini-transaction */
+
+void
+mtr_t::Command::release_latches()
+{
+	ReleaseLatches release;
+	Iterate<ReleaseLatches> iterator(release);
+
+	m_impl->m_memo.for_each_block_in_reverse(iterator);
+
+	/* Note that we have released the latches. */
+	m_locks_released = 1;
+}
+
+/**
+Release the blocks used in this mini-transaction */
+
+void
+mtr_t::Command::release_blocks()
+{
+	ReleaseBlocks release(m_start_lsn, m_end_lsn);
+	Iterate<ReleaseBlocks> iterator(release);
+
+	m_impl->m_memo.for_each_block_in_reverse(iterator);
+}
+
+/**
+Write the redo log record, add dirty pages to the flush list and release
+the resources. */
+
+void
+mtr_t::Command::execute()
+{
+	write();
+
+	if (m_impl->m_made_dirty) {
 		log_flush_order_mutex_enter();
 	}
 
@@ -228,324 +673,117 @@ mtr_add_dirtied_pages_to_flush_list(
 	to insert into the flush list. */
 	log_release();
 
-	if (mtr->modifications) {
-		mtr_memo_note_modifications(mtr);
-	}
+	m_impl->m_mtr->m_commit_lsn = m_end_lsn;
 
-	if (mtr->made_dirty) {
+	release_blocks();
+
+	if (m_impl->m_made_dirty) {
 		log_flush_order_mutex_exit();
 	}
+
+	release_latches();
+
+	release_resources();
 }
-
-/************************************************************//**
-Writes the contents of a mini-transaction log, if any, to the database log. */
-static
-void
-mtr_log_reserve_and_write(
-/*======================*/
-	mtr_t*	mtr)	/*!< in/out: mtr */
-{
-	dyn_array_t*	mlog;
-	ulint		data_size;
-	byte*		first_data;
-
-	ut_ad(!srv_read_only_mode);
-
-	mlog = &(mtr->log);
-
-	first_data = dyn_block_get_data(mlog);
-
-	if (mtr->n_log_recs > 1) {
-		mlog_catenate_ulint(mtr, MLOG_MULTI_REC_END, MLOG_1BYTE);
-	} else {
-		*first_data = (byte)((ulint)*first_data
-				     | MLOG_SINGLE_REC_FLAG);
-	}
-
-	if (mlog->heap == NULL) {
-		ulint	len;
-
-		len = mtr->log_mode != MTR_LOG_NO_REDO
-			? dyn_block_get_used(mlog) : 0;
-
-		mtr->end_lsn = log_reserve_and_write_fast(
-			first_data, len, &mtr->start_lsn);
-
-		if (mtr->end_lsn) {
-
-			/* Success. We have the log mutex.
-			Add pages to flush list and exit */
-			mtr_add_dirtied_pages_to_flush_list(mtr);
-
-			return;
-		}
-	}
-
-	data_size = dyn_array_get_data_size(mlog);
-
-	/* Open the database log for log_write_low */
-	mtr->start_lsn = log_reserve_and_open(data_size);
-
-	if (mtr->log_mode == MTR_LOG_ALL) {
-
-		for (dyn_block_t* block = mlog;
-		     block != 0;
-		     block = dyn_array_get_next_block(mlog, block)) {
-
-			log_write_low(
-				dyn_block_get_data(block),
-				dyn_block_get_used(block));
-		}
-
-	} else {
-		ut_ad(mtr->log_mode == MTR_LOG_NONE
-		      || mtr->log_mode == MTR_LOG_NO_REDO);
-		/* Do nothing */
-	}
-
-	mtr->end_lsn = log_close();
-
-	mtr_add_dirtied_pages_to_flush_list(mtr);
-}
-#endif /* !UNIV_HOTBACKUP */
-
-/***************************************************************//**
-Commits a mini-transaction. */
-
-void
-mtr_commit(
-/*=======*/
-	mtr_t*	mtr)	/*!< in: mini-transaction */
-{
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(!mtr->inside_ibuf);
-	ut_d(mtr->state = MTR_COMMITTING);
-
-#ifndef UNIV_HOTBACKUP
-	/* This is a dirty read, for debugging. */
-	ut_ad(!recv_no_log_write);
-
-	if (mtr->modifications
-	    && (mtr->n_log_recs > 0 || mtr->log_mode == MTR_LOG_NO_REDO)) {
-		ut_ad(!srv_read_only_mode);
-		mtr_log_reserve_and_write(mtr);
-	}
-
-	mtr_memo_pop_all(mtr);
-#endif /* !UNIV_HOTBACKUP */
-
-	dyn_array_free(&(mtr->memo));
-	dyn_array_free(&(mtr->log));
-#ifdef UNIV_DEBUG_VALGRIND
-	/* Declare everything uninitialized except
-	mtr->start_lsn, mtr->end_lsn and mtr->state. */
-	{
-		lsn_t	start_lsn	= mtr->start_lsn;
-		lsn_t	end_lsn		= mtr->end_lsn;
-		UNIV_MEM_INVALID(mtr, sizeof *mtr);
-		mtr->start_lsn = start_lsn;
-		mtr->end_lsn = end_lsn;
-	}
-#endif /* UNIV_DEBUG_VALGRIND */
-	ut_d(mtr->state = MTR_COMMITTED);
-}
-
-#ifndef UNIV_HOTBACKUP
-/***************************************************//**
-Releases an object in the memo stack.
-@return true if released */
-
-bool
-mtr_memo_release(
-/*=============*/
-	mtr_t*	mtr,	/*!< in/out: mini-transaction */
-	void*	object,	/*!< in: object */
-	ulint	type)	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
-{
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-	/* We cannot release a page that has been written to in the
-	middle of a mini-transaction. */
-	ut_ad(!mtr->modifications || !(type & MTR_MEMO_PAGE_X_FIX));
-
-	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
-	     block;
-	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
-		const mtr_memo_slot_t*	start
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block));
-		mtr_memo_slot_t*	slot
-			= reinterpret_cast<mtr_memo_slot_t*>(
-				dyn_block_get_data(block)
-				+ dyn_block_get_used(block));
-
-		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
-
-		while (slot-- != start) {
-			if (object == slot->object && (type & slot->type)) {
-				mtr_memo_slot_release(mtr, slot);
-				return(true);
-			}
-		}
-	}
-
-	return(false);
-}
-
-/**********************************************************//**
-Releases the block in an mtr memo after a savepoint. */
-
-void
-mtr_release_block_at_savepoint(
-/*===========================*/
-	mtr_t*		mtr,		/*!< in: mtr */
-	ulint		savepoint,	/*!< in: savepoint */
-	buf_block_t*	block)		/*!< in: block to release */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	memo = &mtr->memo;
-
-	slot = static_cast<mtr_memo_slot_t*>(
-		dyn_array_get_element(memo, savepoint));
-
-	ut_a(slot->object == block);
-
-	buf_page_release(block, slot->type);
-
-	slot->object = NULL;
-}
-
-/**********************************************************//**
-X-latches the not yet latched block after a savepoint. */
-
-void
-mtr_block_x_latch_at_savepoint(
-/*===========================*/
-	mtr_t*		mtr,		/*!< in: mtr */
-	ulint		savepoint,	/*!< in: savepoint */
-	buf_block_t*	block)		/*!< in: block to X latch */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(!mtr_memo_contains_flagged(mtr, block,
-					 MTR_MEMO_PAGE_S_FIX
-					 | MTR_MEMO_PAGE_X_FIX
-					 | MTR_MEMO_PAGE_SX_FIX));
-
-	memo = &mtr->memo;
-
-	slot = static_cast<mtr_memo_slot_t*>(
-		dyn_array_get_element(memo, savepoint));
-
-	ut_a(slot->object == block);
-	ut_a(slot->type == MTR_MEMO_BUF_FIX); /* == RW_NO_LATCH */
-
-	rw_lock_x_lock(&block->lock);
-
-	if (!mtr->made_dirty) {
-		mtr->made_dirty =
-			mtr_block_dirtied(block);
-	}
-
-	slot->type = MTR_MEMO_PAGE_X_FIX;
-}
-
-/**********************************************************//**
-SX-latches the not yet latched block after a savepoint. */
-
-void
-mtr_block_sx_latch_at_savepoint(
-/*============================*/
-	mtr_t*		mtr,		/*!< in: mtr */
-	ulint		savepoint,	/*!< in: savepoint */
-	buf_block_t*	block)		/*!< in: block to SX latch */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(!mtr_memo_contains_flagged(mtr, block,
-					 MTR_MEMO_PAGE_S_FIX
-					 | MTR_MEMO_PAGE_X_FIX
-					 | MTR_MEMO_PAGE_SX_FIX));
-
-	memo = &mtr->memo;
-
-	slot = static_cast<mtr_memo_slot_t*>(
-		dyn_array_get_element(memo, savepoint));
-
-	ut_a(slot->object == block);
-	ut_a(slot->type == MTR_MEMO_BUF_FIX); /* == RW_NO_LATCH */
-
-	rw_lock_sx_lock(&block->lock);
-
-	if (!mtr->made_dirty) {
-		mtr->made_dirty =
-			mtr_block_dirtied(block);
-	}
-
-	slot->type = MTR_MEMO_PAGE_SX_FIX;
-}
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Checks if memo contains the given page.
-@return TRUE if contains */
-
-ibool
-mtr_memo_contains_page(
-/*===================*/
-	mtr_t*		mtr,	/*!< in: mtr */
-	const byte*	ptr,	/*!< in: pointer to buffer frame */
-	ulint		type)	/*!< in: type of object */
+/**
+Checks if memo contains the given item.
+@return	true if contains */
+bool
+mtr_t::memo_contains(
+	mtr_buf_t*	memo,
+	const void*	object,
+	ulint		type)
 {
-	return(mtr_memo_contains(mtr, buf_block_align(ptr), type));
+	Find		find(object, type);
+	Iterate<Find>	iterator(find);
+
+	return(!memo->for_each_block_in_reverse(iterator));
 }
 
-/**********************************************************//**
+/**
 Checks if memo contains the given page.
+@param memo		info
+@param ptr		record
+@param type		type of
+@return	true if contains */
+
+bool
+mtr_t::memo_contains_page(mtr_buf_t* memo, const byte* ptr, ulint type)
+{
+	return(memo_contains(memo, buf_block_align(ptr), type));
+}
+
+/**
+Debug check for flags */
+struct FlaggedCheck {
+
+	FlaggedCheck(const void* ptr, ulint flags)
+		:
+		m_ptr(ptr),
+		m_flags(flags)
+	{
+		// Do nothing
+	}
+
+	bool operator()(const mtr_memo_slot_t* slot) const
+	{
+		if (m_ptr == slot->object && (m_flags & slot->type)) {
+			return(false);
+		}
+
+		return(true);
+	}
+
+	const void*	m_ptr;
+	ulint		m_flags;
+};
+
+/**
+Checks if memo contains the given item.
+@param object		object to search
+@param flags		specify types of object (can be ORred) of
+			MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */
 
 bool
-mtr_memo_contains_page_flagged(
-/*===========================*/
-	const mtr_t*	mtr,	/*!< in: mtr */
-	const byte*	ptr,	/*!< in: pointer to buffer frame */
-	ulint		flags)	/*!< in: specify types of object with
-				OR of MTR_MEMO_PAGE_S_FIX... values */
+mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 {
-	return(mtr_memo_contains_flagged(mtr, buf_block_align(ptr), flags));
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_committing() || is_active());
+
+	FlaggedCheck		check(ptr, flags);
+	Iterate<FlaggedCheck>	iterator(check);
+
+	return(!m_impl.m_memo.for_each_block_in_reverse(iterator));
 }
 
-/*********************************************************//**
+/**
+Checks if memo contains the given page.
+@param ptr		buffer frame
+@param flags		specify types of object with OR of
+			MTR_MEMO_PAGE_S_FIX... values
+@return true if contains */
+
+bool
+mtr_t::memo_contains_page_flagged(
+	const byte*	ptr,
+	ulint		flags) const
+{
+	return(memo_contains_flagged(buf_block_align(ptr), flags));
+}
+
+/**
 Prints info of an mtr handle. */
 
 void
-mtr_print(
-/*======*/
-	mtr_t*	mtr)	/*!< in: mtr */
+mtr_t::print() const
 {
-	fprintf(stderr,
-		"Mini-transaction handle: memo size %lu bytes"
-		" log size %lu bytes\n",
-		(ulong) dyn_array_get_data_size(&(mtr->memo)),
-		(ulong) dyn_array_get_data_size(&(mtr->log)));
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Mini-transaction handle: memo size %lu bytes "
+		"log size %lu bytes",
+		m_impl.m_memo.size(), get_log()->size());
 }
-# endif /* !UNIV_HOTBACKUP */
+
 #endif /* UNIV_DEBUG */

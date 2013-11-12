@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 #
 # Test of refering to old values
@@ -51,7 +47,7 @@ drop table t1;
 # Test problem with bulk insert and auto_increment on second part keys
 #
 
-create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id));
+create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id)) engine=myisam;
 insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
 select * from t1;
 insert into t1 values ('rts',NULL),('rts',NULL),('test',NULL);
@@ -250,7 +246,7 @@ drop view v1;
 drop table t1,t2;
 
 # Test of INSERT IGNORE and re-using auto_increment values
-create table t1 (id int primary key auto_increment, data int, unique(data));
+create table t1 (id int primary key auto_increment, data int, unique(data)) engine=myisam;
 insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
 insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
 insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);

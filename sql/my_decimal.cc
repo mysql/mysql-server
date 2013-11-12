@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,52 +23,58 @@
 
 #ifndef MYSQL_CLIENT
 /**
-  report result of decimal operation.
+   report result of decimal operation.
 
-  @param result  decimal library return code (E_DEC_* see include/decimal.h)
+   @param mask    bitmask filtering result, most likely E_DEC_FATAL_ERROR
+   @param result  decimal library return code (E_DEC_* see include/decimal.h)
 
-  @todo
-    Fix error messages
-
-  @return
-    result
+   @return
+     result
 */
-
-int decimal_operation_results(int result)
+int my_decimal::check_result(uint mask, int result) const
 {
-  switch (result) {
-  case E_DEC_OK:
-    break;
-  case E_DEC_TRUNCATED:
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-			"", (long)-1);
-    break;
-  case E_DEC_OVERFLOW:
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE),
-			"DECIMAL", "");
-    break;
-  case E_DEC_DIV_ZERO:
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
-    break;
-  case E_DEC_BAD_NUM:
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-			"decimal", "", "", (long)-1);
-    break;
-  case E_DEC_OOM:
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    break;
-  default:
-    DBUG_ASSERT(0);
+  if (result & mask)
+  {
+    int length= DECIMAL_MAX_STR_LENGTH + 1;
+    char strbuff[DECIMAL_MAX_STR_LENGTH + 2];
+
+    switch (result) {
+    case E_DEC_TRUNCATED:
+      // "Data truncated for column \'%s\' at row %ld"
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                          "", -1L);
+      break;
+    case E_DEC_OVERFLOW:
+      // "Truncated incorrect %-.32s value: \'%-.128s\'"
+      decimal2string(this, strbuff, &length, 0, 0, 0);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE),
+                          "DECIMAL", strbuff);
+      break;
+    case E_DEC_DIV_ZERO:
+      // "Division by 0"
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
+      break;
+    case E_DEC_BAD_NUM:
+      // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row %ld"
+      decimal2string(this, strbuff, &length, 0, 0, 0);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          "DECIMAL", strbuff, "", -1L);
+      break;
+    case E_DEC_OOM:
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
   }
   return result;
 }
-
 
 /**
   @brief Converting decimal to string
@@ -110,13 +116,13 @@ int my_decimal2string(uint mask, const my_decimal *d,
                : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
-    return check_result(mask, E_DEC_OOM);
+    return d->check_result(mask, E_DEC_OOM);
   result= decimal2string((decimal_t*) d, (char*) str->ptr(),
                          &length, (int)fixed_prec, fixed_dec,
                          filler);
   str->length(length);
   str->set_charset(&my_charset_numeric);
-  return check_result(mask, result);
+  return d->check_result(mask, result);
 }
 
 
@@ -209,7 +215,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
   err2= decimal2bin(&rounded, bin, prec, scale);
   if (!err2)
     err2= err1;
-  return check_result(mask, err2);
+  return d->check_result(mask, err2);
 }
 
 

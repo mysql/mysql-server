@@ -1,0 +1,52 @@
+#
+# Basic testing of REPLICATE_* filter rules
+#
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+--connection slave
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
+
+--source include/stop_slave_sql.inc
+
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
+
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db3);
+
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db3.`t`, db4.t6);
+
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.t3, db5.t8);
+
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('d%.t%', 'dbt.t');
+
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db%.%');
+
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db3), (db4,db5));
+
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+
+CHANGE REPLICATION FILTER REPLICATE_DO_DB= (one, two, three ), REPLICATE_REWRITE_DB=((db_pair1, db_pair2), (db_pair3, db_pair4)), REPLICATE_DO_TABLE=(db1.`table`), REPLICATE_IGNORE_DB= (four, five, six), REPLICATE_IGNORE_TABLE=(db2.t1), REPLICATE_WILD_DO_TABLE=('sample.table%'), REPLICATE_WILD_IGNORE_TABLE=('sample2.ignore%table', 'dbsampe.%');
+
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+# Reset everything using () syntax
+CHANGE REPLICATION FILTER REPLICATE_DO_DB= (), REPLICATE_REWRITE_DB=(), REPLICATE_DO_TABLE=(), REPLICATE_WILD_DO_TABLE=(), REPLICATE_WILD_IGNORE_TABLE=(), REPLICATE_IGNORE_DB=(), REPLICATE_IGNORE_TABLE=();
+
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+#
+# Check ER_SPECIFIC_ACCESS_DENIED_ERROR
+#
+CREATE USER 'user7057' IDENTIFIED BY 'pass7057';
+--error 1
+--exec $MYSQL -uuser7057 -ppass7057 -S$SLAVE_MYSOCK -P$SLAVE_MYPORT -e "CHANGE REPLICATION FILTER REPLICATE_DO_DB= (db1)" 2>&1 
+DROP USER 'user7057';
+
+--source include/start_slave_sql.inc
+--source include/rpl_end.inc

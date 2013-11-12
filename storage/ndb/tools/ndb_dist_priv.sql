@@ -1,4 +1,4 @@
--- Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ begin
  declare distributed_privileges bool default 0;
  declare first_backup bool default 1;
  declare first_distributed_backup bool default 1;
- select mysql_cluster_privileges_are_distributed()
+ select mysql.mysql_cluster_privileges_are_distributed()
    into distributed_privileges;
  select 0 into first_backup
    from information_schema.tables

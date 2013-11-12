@@ -262,8 +262,8 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-                         bool check_alias);
+TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+                         TABLE_LIST *table_list, bool check_alias);
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
@@ -495,7 +495,7 @@ public:
   };
   Open_table_context(THD *thd, uint flags);
 
-  bool recover_from_failed_open(THD *thd);
+  bool recover_from_failed_open();
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
 
@@ -535,6 +535,8 @@ public:
   }
 
 private:
+  /* THD for which tables are opened. */
+  THD *m_thd;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which

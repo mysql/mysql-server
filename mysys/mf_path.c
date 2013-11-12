@@ -64,7 +64,7 @@ char * my_path(char * to, const char *progname,
     to=strend(to);
     if (to != start && to[-1] != FN_LIBCHAR)
       *to++ = FN_LIBCHAR;
-    (void) strmov(to,own_pathname_part);
+    (void) my_stpcpy(to,own_pathname_part);
   }
   DBUG_PRINT("exit",("to: '%s'",start));
   DBUG_RETURN(start);
@@ -99,7 +99,7 @@ static char *find_file_in_path(char *to, const char *name)
   {
     if (path != pos)
     {
-      strxmov(strnmov(to,path,(uint) (pos-path)),dir,name,ext,NullS);
+      strxmov(my_stpnmov(to,path,(uint) (pos-path)),dir,name,ext,NullS);
       if (!access(to,F_OK))
       {
 	to[(uint) (pos-path)+1]=0;	/* Return path only */

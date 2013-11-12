@@ -264,10 +264,11 @@ int Record::getIntValue(int id, char *data) const {
   int idx = map[id];
   NumericHandler * h = handlers[idx]->native_handler;
   const char * buffer = data + specs[idx].offset;
+  const NdbDictionary::Column * col = specs[idx].column;
   int i = 0;
   
   if(h) {
-    if(h->read_int32(i, buffer) < 0) return 0;
+    if(h->read_int32(i, buffer, col) < 0) return 0;
   }
   else {
     logger->log(LOG_WARNING, 0, "getIntValue() failed for column %s - "
@@ -287,9 +288,10 @@ bool Record::setIntValue(int id, int value, char *data, Uint8 *mask) const {
 
   NumericHandler * h = handlers[idx]->native_handler;
   char * buffer = data + specs[idx].offset;
+  const NdbDictionary::Column * col = specs[idx].column;
   
   if(h) {
-    return (h->write_int32(value,buffer) > 0);
+    return (h->write_int32(value, buffer, col) > 0);
   } 
   else {
     logger->log(LOG_WARNING, 0, "setIntValue() failed for column %s - "
@@ -323,13 +325,21 @@ bool Record::setUint64Value(int id, Uint64 value, char *data, Uint8 *mask) const
     nullmapSetNotNull(idx, data);
   char * buffer = data + specs[idx].offset;
 
-  if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
-    logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
-                specs[idx].column->getName());
-    return false;
+  /* If the column is a BIGINT and the value can be written natively, encode it.
+     Otherwise write out a string value and let the DataTypeHandler do the job.
+  */
+  if((specs[idx].column->getType() == NdbDictionary::Column::Bigunsigned) 
+     || (specs[idx].column->getType() == NdbDictionary::Column::Bigint 
+          && ((Int64) value) > 0))
+  {
+    STORE_FOR_ARCHITECTURE(Uint64, value, buffer);
+  }
+  else {
+    char stringified[32];
+    int len = sprintf(stringified, "%llu", value);
+    handlers[idx]->writeToNdb(specs[idx].column, len, stringified, buffer);
   }
   
-  STORE_FOR_ARCHITECTURE(Uint64, value, buffer);
   return true;
 }  
 

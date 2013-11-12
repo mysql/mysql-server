@@ -972,8 +972,8 @@ INSERT INTO t1 VALUES
 (9,6,6, 't','t'),
 (10,0,0,'c','c');
 
-explain SELECT COUNT(varchar_key) AS X FROM t1 WHERE pk = 8 having 'foo'='bar';
-SELECT COUNT(varchar_key) AS X FROM t1 WHERE pk = 8 having 'foo'='bar';
+explain SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
+SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 drop table t1;
   
 --echo End of 5.0 tests
@@ -1032,7 +1032,7 @@ EXPLAIN SELECT a FROM t1 IGNORE INDEX ();
 # without support for large files the rowid is shorter and its size affects 
 # the cost calculations. This causes the optimizer to choose loose index
 # scan over normal index access.
---replace_column 4 # 7 # 9 # 10 #
+--replace_column 5 # 8 # 10 # 12 #
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
   USE INDEX FOR GROUP BY (i2) GROUP BY a;
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
 #include <signaldata/LqhTransReq.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/EmptyLcp.hpp>
+
+#define JAM_FILE_ID 445
+
 
 class DblqhProxy : public LocalProxy {
 public:
@@ -473,5 +476,8 @@ protected:
     checkSendEMPTY_LCP_CONF_impl(signal);
   }
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -85,7 +85,7 @@ INSERT INTO t2 VALUES (1, 1, 'data');
 
 SET SESSION debug = '+d,only_one_Unique_may_be_created';
 
---replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );

@@ -174,6 +174,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &program_lost, SHOW_LONG},
   {"Performance_schema_nested_statement_lost",
     (char*) &nested_statement_lost, SHOW_LONG},
+  {"Performance_schema_metadata_lock_lost",
+    (char*) &metadata_lock_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -271,7 +273,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
   DBUG_ENTER("ha_perfschema::update_row");
   if (!pfs_initialized)
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-  
+
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_update_count);
   int result= m_table->update_row(table, old_data, new_data, table->field);

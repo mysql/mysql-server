@@ -6093,8 +6093,8 @@ ER_EVENT_CANNOT_ALTER_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
   ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
 ER_SLAVE_INCIDENT
-  eng "The incident %s occured on the master. Message: %-.64s"
-  ger "Der Vorfall %s passierte auf dem Master. Meldung: %-.64s"
+  eng "The incident %s occured on the master. Message: %s"
+  ger "Der Vorfall %s passierte auf dem Master. Meldung: %s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
   eng "Table has no partition for some existing values"
   ger "Tabelle hat für einige bestehende Werte keine Partition"
@@ -7030,6 +7030,12 @@ ER_STOP_SLAVE_IO_THREAD_TIMEOUT
 ER_TABLE_CORRUPT
   eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
 
+ER_TEMP_FILE_WRITE_FAILURE
+  eng "Temporary file write failure."
+
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
 #
 #  End of 5.6 error messages.
 #
@@ -7077,6 +7083,17 @@ ER_EXPLAIN_NOT_SUPPORTED
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
+ER_MISSING_HA_CREATE_OPTION
+        eng "Table storage engine '%-.64s' found required create option missing"
+
+ER_ENGINE_OUT_OF_MEMORY
+  eng "Out of memory in storage engine '%-.64s'."
+
+ER_PASSWORD_EXPIRE_ANONYMOUS_USER
+  eng "The password for anonymous user cannot be expired."
+
+ER_SLAVE_SQL_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
 #
 #  End of 5.7 error messages.
 #

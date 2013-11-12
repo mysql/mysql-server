@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 #include <ndb_types.h>
 #include "mt-asm.h"
+
+#define JAM_FILE_ID 251
+
 
 #if defined (NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
 struct NdbSeqLock
@@ -91,5 +94,8 @@ struct NdbSeqLock
 };
 
 #endif
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -17,16 +17,15 @@
 
 #include "trp_client.hpp"
 #include "TransporterFacade.hpp"
+#include <NdbMem.h>
 
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)), m_facade(0)
 {
-  m_poll.m_waiting = false;
-  m_poll.m_locked = false;
-  m_poll.m_poll_owner = false;
-  m_poll.m_next = 0;
-  m_poll.m_prev = 0;
-  m_poll.m_condition = NdbCondition_Create();
+  m_mutex = NdbMutex_Create();
+
+  m_send_nodes_cnt = 0;
+  m_send_buffers = new TFBuffer[MAX_NODES];
 }
 
 trp_client::~trp_client()
@@ -35,23 +34,44 @@ trp_client::~trp_client()
    * require that trp_client user
    *  doesnt destroy object when holding any locks
    */
-  assert(m_poll.m_locked == 0);
-  assert(m_poll.m_poll_owner == false);
-  assert(m_poll.m_next == 0);
-  assert(m_poll.m_prev == 0);
+  m_poll.assert_destroy();
 
   close();
   NdbCondition_Destroy(m_poll.m_condition);
+  NdbMutex_Destroy(m_mutex);
+
+  assert(m_send_nodes_cnt == 0);
+  delete [] m_send_buffers;
 }
 
 Uint32
-trp_client::open(TransporterFacade* tf, int blockNo)
+trp_client::open(TransporterFacade* tf, int blockNo,
+                 bool receive_thread)
 {
   Uint32 res = 0;
   assert(m_facade == 0);
   if (m_facade == 0)
   {
     m_facade = tf;
+    /**
+      For user threads we only store up to 16 threads before waking
+      them up, for receiver threads we store up to 256 threads before
+      waking them up.
+    */
+    if (receive_thread)
+    {
+      m_poll.m_lock_array_size = 256;
+    }
+    else
+    {
+      m_poll.m_lock_array_size = 16;
+    }
+    m_poll.m_locked_clients = (trp_client**)
+      NdbMem_Allocate(sizeof(trp_client**) * m_poll.m_lock_array_size);
+    if (m_poll.m_locked_clients == NULL)
+    {
+      return 0;
+    }
     res = tf->open_clnt(this, blockNo);
     if (res != 0)
     {
@@ -59,6 +79,8 @@ trp_client::open(TransporterFacade* tf, int blockNo)
     }
     else
     {
+      NdbMem_Free(m_poll.m_locked_clients);
+      m_poll.m_locked_clients = NULL;
       m_facade = 0;
     }
   }
@@ -80,12 +102,20 @@ trp_client::close()
 
     m_facade = 0;
     m_blockNo = ~Uint32(0);
+    if (m_poll.m_locked_clients)
+    {
+      NdbMem_Free(m_poll.m_locked_clients);
+      m_poll.m_locked_clients = NULL;
+    }
   }
 }
 
 void
 trp_client::start_poll()
 {
+  NdbMutex_Lock(m_mutex);
+  assert(m_poll.m_locked == false);
+  m_poll.m_locked = true;
   m_facade->start_poll(this);
 }
 
@@ -98,28 +128,159 @@ trp_client::do_poll(Uint32 to)
 void
 trp_client::complete_poll()
 {
+  assert(m_poll.m_locked == true);
   m_facade->complete_poll(this);
+  m_poll.m_locked = false;
+  NdbMutex_Unlock(m_mutex);
 }
 
 int
 trp_client::do_forceSend(int val)
 {
-  int did_send = 1;
+  /**
+   * since force send is disabled in this "version"
+   *   set forceSend=1 always...
+   */
+  val = 1;
+
   if (val == 0)
   {
-    did_send = m_facade->checkForceSend(m_blockNo);
+    flush_send_buffers();
+    return 0;
   }
   else if (val == 1)
   {
-    m_facade->forceSend(m_blockNo);
+    for (Uint32 i = 0; i < m_send_nodes_cnt; i++)
+    {
+      Uint32 n = m_send_nodes_list[i];
+      TFBuffer* b = m_send_buffers + n;
+      TFBufferGuard g0(* b);
+      m_facade->flush_and_send_buffer(n, b);
+      bzero(b, sizeof(* b));
+    }
+    m_send_nodes_cnt = 0;
+    m_send_nodes_mask.clear();
+    return 1;
   }
-  return did_send;
+  return 0;
+}
+
+int
+trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
+{
+  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
 }
 
 int
 trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
 {
-  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
+  int res;
+  if ((res = safe_noflush_sendSignal(signal, nodeId)) != -1)
+  {
+    m_facade->m_poll_owner->flush_send_buffers();
+  }
+  return res;
+}
+
+Uint32 *
+trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
+                        Uint32 max_use)
+{
+  TFBuffer* b = m_send_buffers+node;
+  TFBufferGuard g0(* b);
+  bool found = m_send_nodes_mask.get(node);
+  if (likely(found))
+  {
+    TFPage * page = b->m_tail;
+    assert(page != 0);
+    if (page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
+    {
+      return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
+    }
+  }
+  else
+  {
+    Uint32 cnt = m_send_nodes_cnt;
+    m_send_nodes_mask.set(node);
+    m_send_nodes_list[cnt] = node;
+    m_send_nodes_cnt = cnt + 1;
+  }
+
+  TFPage* page = m_facade->alloc_sb_page();
+  if (likely(page != 0))
+  {
+    page->init();
+
+    if (b->m_tail == NULL)
+    {
+      assert(!found);
+      b->m_head = page;
+      b->m_tail = page;
+    }
+    else
+    {
+      assert(found);
+      assert(b->m_head != NULL);
+      b->m_tail->m_next = page;
+      b->m_tail = page;
+    }
+    return (Uint32 *)(page->m_data);
+  }
+
+  if (b->m_tail == 0)
+  {
+    assert(!found);
+    m_send_nodes_mask.clear(node);
+    m_send_nodes_cnt--;
+  }
+  else
+  {
+    assert(found);
+  }
+
+  return NULL;
+}
+
+Uint32
+trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
+{
+  TFBuffer* b = m_send_buffers+node;
+  TFBufferGuard g0(* b);
+  assert(m_send_nodes_mask.get(node));
+  assert(b->m_head != 0);
+  assert(b->m_tail != 0);
+
+  TFPage *page = b->m_tail;
+  assert(page->m_bytes + lenBytes <= page->max_data_bytes());
+  page->m_bytes += lenBytes;
+  b->m_bytes_in_buffer += lenBytes;
+  return b->m_bytes_in_buffer;
+}
+
+void
+trp_client::flush_send_buffers()
+{
+  assert(m_poll.m_locked);
+  Uint32 cnt = m_send_nodes_cnt;
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    Uint32 node = m_send_nodes_list[i];
+    assert(m_send_nodes_mask.get(node));
+    TFBuffer* b = m_send_buffers + node;
+    TFBufferGuard g0(* b);
+    m_facade->flush_send_buffer(node, b);
+    bzero(b, sizeof(* b));
+  }
+
+  m_send_nodes_cnt = 0;
+  m_send_nodes_mask.clear();
+}
+
+bool
+trp_client::forceSend(NodeId node)
+{
+  do_forceSend();
+  return true;
 }
 
 #include "NdbImpl.hpp"
@@ -129,6 +290,7 @@ PollGuard::PollGuard(NdbImpl& impl)
   m_clnt = &impl;
   m_waiter= &impl.theWaiter;
   m_clnt->start_poll();
+  m_complete_poll_called = false;
 }
 
 /*
@@ -205,6 +367,11 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
       ret_val= -1;
       break;
     }
+    /**
+     * Ensure any signals sent by receivers are sent by send thread
+     * eventually by flushing buffers to global area.
+     */
+    m_clnt->flush_send_buffers();
   } while (1);
 #ifdef VM_TRACE
   ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
@@ -221,5 +388,9 @@ void PollGuard::wait_for_input(int wait_time)
 
 void PollGuard::unlock_and_signal()
 {
-  m_clnt->complete_poll();
+  if (!m_complete_poll_called)
+  {
+    m_clnt->complete_poll();
+    m_complete_poll_called = true;
+  }
 }

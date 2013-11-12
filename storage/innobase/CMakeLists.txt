@@ -41,7 +41,6 @@ SET(INNOBASE_SOURCES
 	dict/dict0mem.cc
 	dict/dict0stats.cc
 	dict/dict0stats_bg.cc
-	dyn/dyn0dyn.cc
 	eval/eval0eval.cc
 	eval/eval0proc.cc
 	fil/fil0fil.cc
@@ -60,6 +59,7 @@ SET(INNOBASE_SOURCES
 	fts/fts0que.cc
 	fts/fts0sql.cc
 	fts/fts0tlex.cc
+	fts/fts0plugin.cc
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc

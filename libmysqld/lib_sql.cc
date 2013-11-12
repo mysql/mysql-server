@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2000
+ * Copyright (c)  2000, 2013
  * SWsoft  company
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -337,9 +337,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
 
-  res= test(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
-                                 header, sizeof(header), 1, stmt) ||
-            emb_read_query_result(stmt->mysql));
+  res= MY_TEST(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
+                                    header, sizeof(header), 1, stmt) ||
+               emb_read_query_result(stmt->mysql));
   stmt->affected_rows= stmt->mysql->affected_rows;
   stmt->insert_id= stmt->mysql->insert_id;
   stmt->server_status= stmt->mysql->server_status;
@@ -424,11 +424,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thd->store_globals();
   thd->release_resources();
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
-
+  Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
@@ -470,7 +466,8 @@ MYSQL_METHODS embedded_methods=
   emb_free_embedded_thd,
   emb_read_statistics,
   emb_read_query_result,
-  emb_read_rows_from_cursor
+  emb_read_rows_from_cursor,
+  free_rows
 };
 
 /*
@@ -493,7 +490,7 @@ char **copy_arguments(int argc, char **argv)
     for (from=argv ; from != end ;)
     {
       *to++= to_str;
-      to_str= strmov(to_str, *from++)+1;
+      to_str= my_stpcpy(to_str, *from++)+1;
     }
     *to= 0;					// Last ptr should be null
   }
@@ -638,8 +635,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  (void) thr_setconcurrency(concurrency);	// 10 by default
-
   start_handle_manager();
 
   // FIXME initialize binlog_filter and rpl_filter if not already done
@@ -660,7 +655,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= 1;
+  mysqld_server_started= true;
   mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
@@ -708,12 +703,14 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
 void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
-    fprintf(stderr,"store_globals failed.\n");
+    my_message_local(ERROR_LEVEL, "store_globals failed.");
     goto err;
   }
   lex_start(thd);
@@ -739,10 +736,7 @@ void *create_embedded_thd(int client_flag)
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->add_thd(thd);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -823,16 +817,14 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
                  connect_attrs_len + 2);
   if (mysql->options.client_ip)
   {
-    sctx->host= my_strdup(PSI_NOT_INSTRUMENTED,
-                          mysql->options.client_ip, MYF(0));
-    sctx->ip= my_strdup(PSI_NOT_INSTRUMENTED,
-                        sctx->host, MYF(0));
+    sctx->set_host(my_strdup(mysql->options.client_ip, MYF(0)));
+    sctx->set_ip(my_strdup(sctx->get_host()->ptr(), MYF(0)));
   }
   else
-    sctx->host= (char*)my_localhost;
-  sctx->host_or_ip= sctx->host;
+    sctx->set_host((char*)my_localhost);
+  sctx->host_or_ip= sctx->host->ptr();
 
-  if (acl_check_host(sctx->host, sctx->ip))
+  if (acl_check_host(sctx->get_host()->ptr(), sctx->get_ip()->ptr()))
     goto err;
 
   /* construct a COM_CHANGE_USER packet */
@@ -1261,7 +1253,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   if (!thd->mysql)            // bootstrap file handling
   {
-    fprintf(stderr, "ERROR: %d  %s\n", sql_errno, err);
+    my_message_local(ERROR_LEVEL, "%d  %s", sql_errno, err);
     return TRUE;
   }
 
@@ -1276,7 +1268,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                         system_charset_info, &error);
   /* Converted error message is always null-terminated. */
   strmake(ei->info, converted_err, sizeof(ei->info)-1);
-  strmov(ei->sqlstate, sqlstate);
+  my_stpcpy(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;
   return FALSE;

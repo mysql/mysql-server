@@ -101,6 +101,20 @@ EOF
 --echo # partition tables will be stored in mixed (Upper & Lower) format on Linux,
 --echo # but on Windows the partition table names are stored in lower case only.
 
+--echo # Restarting the server with skip-grant-tables and updating mysql.user
+--echo # table to deal with the restriction added to plugin value for users
+--echo # in WL6982.
+
+-- exec echo "restart:--lower_case_table_names=1 --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+-- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
+-- echo # Stop server
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 30
+-- source include/wait_until_disconnected.inc
+
 -- exec echo "restart:--lower_case_table_names=1 --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc

@@ -197,6 +197,6 @@ void workitem_free(workitem *item)
 size_t workitem_get_key_buf_size(int nkey) {
   size_t bufsz;
   bufsz = nkey + 3;       // at least key + 2 length bytes + null terminator
-  return (bufsz < 9) ? 9 : bufsz;  // A packed DECIMAL could ned 9 bytes
+  return (bufsz < 9) ? 9 : bufsz;  // A packed DECIMAL could need 9 bytes
 }
 

@@ -24,7 +24,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `time` date NOT NULL DEFAULT '0000-00-00',
+  `time` date NOT NULL,
   `id2` bigint(20) NOT NULL,
   PRIMARY KEY (`id`,`time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8

@@ -48,9 +48,6 @@ Created 10/4/1994 Heikki Tuuri
 				 "column LIKE 'abc%' ORDER BY column DESC";
 				 we have to find strings which are <= 'abc' or
 				 which extend it */
-#ifdef UNIV_SEARCH_DEBUG
-# define PAGE_CUR_DBG	6	/* As PAGE_CUR_LE, but skips search shortcut */
-#endif /* UNIV_SEARCH_DEBUG */
 
 #ifdef UNIV_DEBUG
 /*********************************************************//**

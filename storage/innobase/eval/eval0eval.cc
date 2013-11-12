@@ -80,14 +80,14 @@ eval_node_alloc_val_buf(
 
 	data = static_cast<byte*>(dfield_get_data(dfield));
 
-	if (data && data != &eval_dummy) {
-		mem_free(data);
+	if (data != &eval_dummy) {
+		ut_free(data);
 	}
 
 	if (size == 0) {
 		data = &eval_dummy;
 	} else {
-		data = static_cast<byte*>(mem_alloc(size));
+		data = static_cast<byte*>(ut_malloc(size));
 	}
 
 	que_node_set_val_buf_size(node, size);
@@ -120,7 +120,7 @@ eval_node_free_val_buf(
 	if (que_node_get_val_buf_size(node) > 0) {
 		ut_a(data);
 
-		mem_free(data);
+		ut_free(data);
 	}
 }
 

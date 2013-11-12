@@ -21,6 +21,7 @@
 #define _CONFIGFACTORY_HPP
 
 #include <util/Properties.hpp>
+#include <kernel/NodeBitmask.hpp>
 
 struct ConfigFactory
 {
@@ -36,40 +37,67 @@ struct ConfigFactory
     return port;
   }
 
+  static Uint32 getNodeId(NodeBitmask & mask, unsigned arr[], unsigned i)
+  {
+    Uint32 nodeId = 0;
+    if (arr != 0)
+    {
+      nodeId = arr[i];
+    }
+    else
+    {
+      nodeId = mask.find_first();
+    }
+
+    assert(mask.get(nodeId));
+    mask.clear(nodeId);
+    return nodeId;
+  }
 
   static Properties create(unsigned mgmds = 1,
                            unsigned ndbds = 1,
-                           unsigned mysqlds = 1)
+                           unsigned mysqlds = 1,
+                           unsigned mgmd_nodeids[] = 0,
+                           unsigned ndbd_nodeids[] = 0,
+                           unsigned mysqld_nodeids[] = 0)
   {
-    Uint32 base_port = get_ndbt_base_port();
+    Uint32 base_port = get_ndbt_base_port() + /* mysqld */ 1;
     Properties config;
     assert(mgmds >= 1 && ndbds >= 1 && mysqlds >= 1);
-    for (unsigned n = 1; n <= ndbds + mgmds + mysqlds; n++)
+    NodeBitmask mask;
+    mask.set();
+    mask.clear(Uint32(0));
+
+    for (unsigned i = 0; i < mgmds; i++)
     {
-      const char* node;
+      Uint32 nodeId = getNodeId(mask, mgmd_nodeids, i);
       Properties node_settings;
+      node_settings.put("NodeId", nodeId);
+      node_settings.put("HostName", "localhost");
+      node_settings.put("PortNumber", base_port + i);
 
-      node_settings.put("NodeId", n);
-
-      if (n <= mgmds)
-      {
-        node = "ndb_mgmd";
-        node_settings.put("HostName", "localhost");
-        node_settings.put("PortNumber", base_port + n);
-      } else if (n <= mgmds + ndbds)
-      {
-        node = "ndbd";
-        if (ndbds == 1)
-          node_settings.put("NoOfReplicas", 1);
-
-      } else if (n <= mgmds + ndbds + mysqlds)
-      {
-        node = "mysqld";
-      } else
-        abort();
-
-      config.put(node, n, &node_settings);
+      config.put("ndb_mgmd", nodeId, &node_settings);
     }
+
+    for (unsigned i = 0; i < ndbds; i++)
+    {
+      Uint32 nodeId = getNodeId(mask, ndbd_nodeids, i);
+      Properties node_settings;
+      node_settings.put("NodeId", nodeId);
+      if (ndbds == 1)
+        node_settings.put("NoOfReplicas", 1);
+
+      config.put("ndbd", nodeId, &node_settings);
+    }
+
+    for (unsigned i = 0; i < mysqlds; i++)
+    {
+      Uint32 nodeId = getNodeId(mask, mysqld_nodeids, i);
+      Properties node_settings;
+      node_settings.put("NodeId", nodeId);
+      config.put("mysqld", nodeId, &node_settings);
+    }
+
     return config;
   }
 

@@ -114,7 +114,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     conv_name= name;
   else
   {
-    strnmov(tmp_name, name, name_len);
+    my_stpnmov(tmp_name, name, name_len);
     tmp_name[name_len]= 0;
     conv_name= tmp_name;
   }
@@ -142,7 +142,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
       if (!length)
         length= 1;
       if (length == 1 && *conv_name == (char) quote)
-      { 
+      {
         if ((end_p - to_p) < 3)
           break;
         *(to_p++)= (char) quote;
@@ -150,7 +150,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
       }
       else if (((long) length) < (end_p - to_p))
       {
-        to_p= strnmov(to_p, conv_name, length);
+        to_p= my_stpnmov(to_p, conv_name, length);
         conv_name+= length;
       }
       else
@@ -163,7 +163,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     }
   }
   else
-    to_p= strnmov(to_p, conv_name, end_p - to_p);
+    to_p= my_stpnmov(to_p, conv_name, end_p - to_p);
   DBUG_RETURN(to_p);
 }
 
@@ -305,21 +305,21 @@ uint explain_filename(THD* thd,
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
+      to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
                                             end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
-      to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
     }
     else
     {
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
-      to_p= strnmov(to_p, ".", end_p - to_p);
+      to_p= my_stpncpy(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
   {
-    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
+    to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
@@ -328,35 +328,35 @@ uint explain_filename(THD* thd,
   if (part_name)
   {
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
-      to_p= strnmov(to_p, " /* ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
-      to_p= strnmov(to_p, " ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " ", end_p - to_p);
     else
-      to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
     if (part_type != NORMAL)
     {
       if (part_type == TEMP)
-        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
+        to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
                       end_p - to_p);
       else
-        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
+        to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
                       end_p - to_p);
-      to_p= strnmov(to_p, " ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " ", end_p - to_p);
     }
-    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
+    to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
                   end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
-      to_p= strnmov(to_p, ", ", end_p - to_p);
-      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
                     end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
-      to_p= strnmov(to_p, " */", end_p - to_p);
+      to_p= my_stpncpy(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
   DBUG_RETURN(to_p - to);
@@ -391,7 +391,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length
       !memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
   {
     /* Temporary table name. */
-    res= (strnmov(to, from, to_length) - to);
+    res= (my_stpnmov(to, from, to_length) - to);
   }
   else
   {
@@ -553,7 +553,7 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
                        db, table_name, ext, flags));
 
   if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
-    tab_len= strnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
+    tab_len= my_stpnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
   else
     tab_len= tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
 
@@ -561,11 +561,11 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
-  char *pos = strnmov(buff, mysql_data_home, bufflen);
+  char *pos = my_stpnmov(buff, mysql_data_home, bufflen);
   size_t rootdir_len= strlen(FN_ROOTDIR);
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
-    pos= strnmov(pos, FN_ROOTDIR, end - pos);
+    pos= my_stpnmov(pos, FN_ROOTDIR, end - pos);
   else
       rootdir_len= 0;
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
@@ -607,7 +607,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 {
   DBUG_ENTER("build_tmptable_filename");
 
-  char *p= strnmov(buff, mysql_tmpdir, bufflen);
+  char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
   my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
               thd->thread_id, thd->tmp_table++);
@@ -2472,7 +2472,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       {
         int new_error;
         /* Delete the table definition file */
-        strmov(end,reg_ext);
+        my_stpcpy(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
@@ -3870,7 +3870,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  with length (unlike blobs, where ft code takes data length from a
 	  data prefix, ignoring column->length).
 	*/
-	column->length=test(f_is_blob(sql_field->pack_flag));
+	column->length= MY_TEST(f_is_blob(sql_field->pack_flag));
       }
       else
       {
@@ -3918,6 +3918,51 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    column->length= 4*sizeof(double);
 	  }
 	}
+        /*
+          Set NO_DEFAULT_VALUE_FLAG for the PRIMARY KEY column if default
+          values is not explicitly provided for the column in CREATE TABLE
+          statement and it is not an AUTO_INCREMENT field.
+
+          Default values for TIMESTAMP/DATETIME needs special handling as:
+
+         a) If default is explicitly specified (lets say this as case 1) :
+              DEFAULT CURRENT_TIMESTAMP
+              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            MySQL does not set sql_field->def flag , but sets
+            Field::TIMESTAMP_DN_FIELD/TIMESTAMP_DNUN_FIELD to the unireg_check.
+            These flags are also set during timestamp column promotion (case2)
+
+            When explicit_defaults_for_timestamp is not set, the behavior
+            expected in both case1 and case2 is to retain the defaults even
+            when the column participates in PRIMARY KEY. When
+            explicit_defaults_for_timestamp is set, the promotion logic
+            is disabled and the above mentioned flags are not used implicitly.
+
+         b) If explicit_defaults_for_timestamp variable is not set:
+             Default value assigned due to first timestamp column promotion is
+             retained.
+             Default constant value assigned due to implicit promotion of second
+             timestamp column is removed.
+        */
+        if (key->type == Key::PRIMARY && !sql_field->def &&
+            !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
+            !(real_type_with_now_as_default(sql_field->sql_type) &&
+              (sql_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
+               sql_field->unireg_check == Field::TIMESTAMP_DNUN_FIELD)))
+        {
+          sql_field->flags|= NO_DEFAULT_VALUE_FLAG;
+          sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
+        }
+        /*
+          Emitting error when field is a part of primary key and is
+          explicitly requested to be NULL by the user.
+        */
+        if ((sql_field->flags & EXPLICIT_NULL_FLAG) &&
+            (key->type == Key::PRIMARY))
+        {
+          my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
+          DBUG_RETURN(true);
+        }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)
@@ -5110,13 +5155,13 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (lower_case_table_names == 2 && file &&
       !(file->ha_table_flags() & HA_FILE_BASED))
   {
-    strmov(tmp_name, old_name);
+    my_stpcpy(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
     build_table_filename(lc_from, sizeof(lc_from) - 1, old_db, tmp_name, "",
                          flags & FN_FROM_IS_TMP);
     from_base= lc_from;
 
-    strmov(tmp_name, new_name);
+    my_stpcpy(tmp_name, new_name);
     my_casedn_str(files_charset_info, tmp_name);
     build_table_filename(lc_to, sizeof(lc_to) - 1, new_db, tmp_name, "",
                          flags & FN_TO_IS_TMP);
@@ -5430,7 +5475,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
   error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
 err:
-  trans_rollback_stmt(thd);
   thd->tablespace_op=FALSE;
 
   if (error == 0)
@@ -7195,7 +7239,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
-                   test(key_info->flags & HA_GENERATED_KEY),
+                   MY_TEST(key_info->flags & HA_GENERATED_KEY),
                    key_parts);
       new_key_list.push_back(key);
     }
@@ -7861,9 +7905,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       MDL_request_list mdl_requests;
       MDL_request target_db_mdl_request;
 
-      target_mdl_request.init(MDL_key::TABLE,
-                              alter_ctx.new_db, alter_ctx.new_name,
-                              MDL_EXCLUSIVE, MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&target_mdl_request,
+                       MDL_key::TABLE,
+                       alter_ctx.new_db, alter_ctx.new_name,
+                       MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(&target_mdl_request);
 
       /*
@@ -7873,9 +7918,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (alter_ctx.is_database_changed())
       {
-        target_db_mdl_request.init(MDL_key::SCHEMA, alter_ctx.new_db, "",
-                                   MDL_INTENTION_EXCLUSIVE,
-                                   MDL_TRANSACTION);
+        MDL_REQUEST_INIT(&target_db_mdl_request,
+                         MDL_key::SCHEMA, alter_ctx.new_db, "",
+                         MDL_INTENTION_EXCLUSIVE,
+                         MDL_TRANSACTION);
         mdl_requests.push_front(&target_db_mdl_request);
       }
 
@@ -8129,7 +8175,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (create_info->index_file_name)
     {
       /* Fix index_file_name to have 'tmp_name' as basename */
-      strmov(index_file, alter_ctx.tmp_name);
+      my_stpcpy(index_file, alter_ctx.tmp_name);
       create_info->index_file_name=fn_same(index_file,
                                            create_info->index_file_name,
                                            1);
@@ -8137,7 +8183,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (create_info->data_file_name)
     {
       /* Fix data_file_name to have 'tmp_name' as basename */
-      strmov(data_file, alter_ctx.tmp_name);
+      my_stpcpy(data_file, alter_ctx.tmp_name);
       create_info->data_file_name=fn_same(data_file,
                                           create_info->data_file_name,
                                           1);
@@ -8915,7 +8961,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
-      if (to->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (!to->file->is_ignorable_error(error))
       {
         /* Not a duplicate key error. */
 	to->file->print_error(error, MYF(0));
@@ -9043,6 +9089,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_checksum_table");
 
+  /*
+    CHECKSUM TABLE returns results and rollbacks statement transaction,
+    so it should not be used in stored function or trigger.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
   field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
@@ -9081,7 +9133,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
         open_and_lock_tables(thd, table, FALSE, 0))
     {
       t= NULL;
-      thd->clear_error();     // these errors shouldn't get client
     }
     else
       t= table->table;
@@ -9095,7 +9146,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       /* Table didn't exist */
       protocol->store_null();
-      thd->clear_error();
     }
     else
     {
@@ -9180,11 +9230,24 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
           t->file->ha_rnd_end();
 	}
       }
-      thd->clear_error();
-      if (! thd->in_sub_stmt)
-        trans_rollback_stmt(thd);
+      trans_rollback_stmt(thd);
       close_thread_tables(thd);
     }
+
+    if (thd->transaction_rollback_request)
+    {
+      /*
+        If transaction rollback was requested we honor it. To do this we
+        abort statement and return error as not only CHECKSUM TABLE is
+        rolled back but the whole transaction in which it was used.
+      */
+      thd->protocol->remove_last_row();
+      goto err;
+    }
+
+    /* Hide errors from client. Return NULL for problematic tables instead. */
+    thd->clear_error();
+
     if (protocol->write())
       goto err;
   }
@@ -9218,7 +9281,7 @@ static bool check_engine(THD *thd, const char *db_name,
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
-        test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+        MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);

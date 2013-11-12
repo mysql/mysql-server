@@ -16,7 +16,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 
-#ifdef HAVE_GETRUSAGE
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
@@ -29,10 +29,6 @@ C_MODE_START
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
 extern PSI_mutex_key key_my_file_info_mutex;
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-extern PSI_mutex_key key_LOCK_localtime_r;
-#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,

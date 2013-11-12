@@ -16,7 +16,7 @@
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 -- 02110-1301  USA
 
--- Configuration version 1.2
+-- Configuration version 1.3
 
 
 CREATE SCHEMA IF NOT EXISTS `ndbmemcache` DEFAULT CHARACTER SET latin1 ;
@@ -183,6 +183,7 @@ CREATE  TABLE IF NOT EXISTS `last_memcached_signon` (
 CREATE TABLE IF NOT EXISTS `demo_table` (
   `mkey` VARCHAR(250) NOT NULL ,
   `math_value` BIGINT UNSIGNED,
+  `flags` INT UNSIGNED,
   `cas_value` BIGINT UNSIGNED, 
   `string_value` VARBINARY(13500),
   PRIMARY KEY USING HASH (mkey)
@@ -198,6 +199,7 @@ CREATE TABLE IF NOT EXISTS `demo_table` (
 
 CREATE TABLE IF NOT EXISTS `demo_table_large` (
   `mkey` VARCHAR(250) NOT NULL,
+  `flags` INT UNSIGNED,
   `cas_value` BIGINT UNSIGNED,
   `string_value` VARBINARY(2000), 
   `ext_id` INT UNSIGNED,
@@ -274,7 +276,7 @@ UPDATE cache_policies set flush_from_db = "true" where policy_name = "ndb-test";
 -- containers table 
 INSERT INTO containers 
   SET name = "demo_table", db_schema = "ndbmemcache", db_table = "demo_table",
-      key_columns = "mkey", value_columns = "string_value", 
+      key_columns = "mkey", value_columns = "string_value", flags = "flags",
       increment_column = "math_value", cas_column = "cas_value";
 
 INSERT INTO containers 
@@ -285,7 +287,7 @@ INSERT INTO containers
 INSERT INTO containers
   SET name = "demo_ext", db_schema = "ndbmemcache", db_table = "demo_table_large",
       key_columns = "mkey", value_columns = "string_value", 
-      cas_column = "cas_value", 
+      cas_column = "cas_value", flags = "flags", 
       large_values_table = "ndbmemcache.external_values";
 
 -- key_prefixes table

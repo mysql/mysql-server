@@ -692,6 +692,15 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
    This has practical importance for views created as
    "CREATE VIEW v SELECT (subq) AS x GROUP BY x"
    (print_order() is used to write the view's definition in the frm file).
+   We make one exception: if the view is merge-able, its ORDER clause will be
+   merged into the parent query's. If an identifier in the merged ORDER clause
+   is allowed to be either an alias or an expression of the view's underlying
+   tables, resolution is difficult: it may be to be found in the underlying
+   tables of the view, or in the SELECT list of the view; unlike other ORDER
+   elements directly originating from the parent query.
+   To avoid this problem, if the view is merge-able, we print the
+   expression. This does not cause problems with only_full_group_by, because a
+   merge-able view never has GROUP BY. @see mysql_register_view().
 */
 void Item::print_for_order(String *str,
                            enum_query_type query_type,
@@ -704,7 +713,18 @@ void Item::print_for_order(String *str,
     append_identifier(current_thd, str, item_name);
   }
   else
-    print(str,query_type);
+  {
+    if (type() == Item::INT_ITEM && basic_const_item())
+    {
+      /*
+        "ORDER BY N" means "order by the N-th element". To avoid such
+        interpretation we write "ORDER BY ''", which is equivalent.
+      */
+      str->append("''");
+    }
+    else
+      print(str,query_type);
+  }
 }
 
 
@@ -1497,7 +1517,8 @@ bool Item::is_blob_field() const
 
   enum_field_types type= field_type();
   return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
-          max_length > CONVERT_IF_BIGGER_TO_BLOB);
+          // Char length, not the byte one, should be taken into account
+          max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB);
 }
 
 
@@ -2535,7 +2556,7 @@ void Item_field::set_field(Field *field_par)
   field_name= field_par->field_name;
   db_name= field_par->table->s->db.str;
   alias_name_used= field_par->table->alias_name_used;
-  unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
+  unsigned_flag= MY_TEST(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   fix_char_length(field_par->char_length());
@@ -2597,13 +2618,13 @@ void Item_ident::print(String *str, enum_query_type query_type)
   {
     if (table_name && table_name[0])
     {
-      strmov(t_name_buff, table_name);
+      my_stpcpy(t_name_buff, table_name);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
     }
     if (db_name && db_name[0])
     {
-      strmov(d_name_buff, db_name);
+      my_stpcpy(d_name_buff, db_name);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name= d_name_buff;
     }
@@ -4594,7 +4615,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   if (mark_item)
     mark_item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe)
   {
     /*
       UNION's result has select_number == INT_MAX which is printed as -1 and
@@ -6080,7 +6101,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_NULL:
-    if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
+    if (fixed_length && max_length <= CONVERT_IF_BIGGER_TO_BLOB)
     {
       field= new Field_string(max_length, maybe_null, item_name.ptr(),
                               collation.collation);

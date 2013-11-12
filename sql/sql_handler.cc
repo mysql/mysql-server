@@ -247,8 +247,9 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED,
-                                MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&hash_tables->mdl_request,
+                   MDL_key::TABLE, db, name, MDL_SHARED,
+                   MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= FRMTYPE_TABLE;
 
@@ -525,10 +526,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (tables && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  if (tables && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
   {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(true);
   }
 
@@ -584,6 +583,13 @@ retry:
     goto err0;
   }
 
+  /*
+     Table->map should be set before we call fix_fields.
+     And we consider that handle statement operate on table number 0.
+  */
+  table->tablenr= 0;
+  table->map= (table_map)1 << table->tablenr;
+
   /* save open_tables state */
   backup_open_tables= thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */
@@ -617,7 +623,10 @@ retry:
     /*
       Always close statement transaction explicitly,
       so that the engine doesn't have to count locks.
+      There should be no need to perform transaction
+      rollback due to deadlock.
     */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
     trans_rollback_stmt(thd);
     mysql_ha_close_table(thd, hash_tables);
     goto retry;

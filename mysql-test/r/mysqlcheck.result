@@ -366,7 +366,7 @@ DROP TABLE bug47205;
 #
 DROP DATABASE IF EXISTS b12688860_db;
 CREATE DATABASE b12688860_db;
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 DROP DATABASE b12688860_db;
 
 End of tests

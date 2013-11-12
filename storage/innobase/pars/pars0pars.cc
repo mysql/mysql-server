@@ -1919,7 +1919,7 @@ pars_create_table(
 		on global variables. There is an inherent race here but
 		that has always existed around this variable. */
 		if (srv_file_per_table) {
-			flags2 |= DICT_TF2_USE_TABLESPACE;
+			flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 		}
 	}
 
@@ -1948,6 +1948,12 @@ pars_create_table(
 			ut_error;
 		}
 	}
+
+	/* Set the flags2 when create table or alter tables */
+	flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
 
 	n_cols = que_node_list_get_len(column_defs);
 

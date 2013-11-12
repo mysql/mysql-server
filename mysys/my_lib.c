@@ -140,7 +140,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
         goto error;
       
       memset(finfo.mystat, 0, sizeof(MY_STAT));
-      (void) strmov(tmp_file,dp->d_name);
+      (void) my_stpcpy(tmp_file,dp->d_name);
       (void) my_stat(tmp_path, finfo.mystat, MyFlags);
       if (!(finfo.mystat->st_mode & MY_S_IREAD))
         continue;
@@ -197,7 +197,7 @@ char * directory_file_name (char * dst, const char *src)
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
-  end= strnmov(dst, src, FN_REFLEN + 1);
+  end= my_stpnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR)
   {
     end[0]=FN_LIBCHAR;				/* Add last '/' */
@@ -236,7 +236,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   tmp_file=tmp_path;
   if (!*path)
     *tmp_file++ ='.';				/* From current dir */
-  tmp_file= strnmov(tmp_file, path, FN_REFLEN-5);
+  tmp_file= my_stpnmov(tmp_file, path, FN_REFLEN-5);
   if (tmp_file[-1] == FN_DEVCHAR)
     *tmp_file++= '.';				/* From current dev-dir */
   if (tmp_file[-1] != FN_LIBCHAR)

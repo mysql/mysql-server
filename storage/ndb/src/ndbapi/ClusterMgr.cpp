@@ -84,13 +84,12 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
 ClusterMgr::~ClusterMgr()
 {
   DBUG_ENTER("ClusterMgr::~ClusterMgr");
-  doStop();
+  assert(theStop == 1);
   if (theArbitMgr != 0)
   {
     delete theArbitMgr;
     theArbitMgr = 0;
   }
-  this->close(); // disconnect from TransporterFacade
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
@@ -193,14 +192,15 @@ void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
   {
+    /* Ensure stop is only executed once */
     Guard g(clusterMgrThreadMutex);
     if(theStop == 1){
       DBUG_VOID_RETURN;
     }
+    theStop = 1;
   }
 
   void *status;
-  theStop = 1;
   if (theClusterMgrThread) {
     NdbThread_WaitFor(theClusterMgrThread, &status);  
     NdbThread_Destroy(&theClusterMgrThread);
@@ -210,6 +210,11 @@ ClusterMgr::doStop( ){
   {
     theArbitMgr->doStop(NULL);
   }
+  {
+    /* Need protection for poll calls in close */
+    Guard g(clusterMgrThreadMutex);
+    this->close(); // disconnect from TransporterFacade
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -217,12 +222,12 @@ ClusterMgr::doStop( ){
 void
 ClusterMgr::forceHB()
 {
-  theFacade.lock_mutex();
+  theFacade.lock_poll_mutex();
 
   if(waitingForHB)
   {
-    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
-    theFacade.unlock_mutex();
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.thePollMutex, 1000);
+    theFacade.unlock_poll_mutex();
     return;
   }
 
@@ -243,7 +248,7 @@ ClusterMgr::forceHB()
     }
   }
   waitForHBFromNodes.bitAND(ndb_nodes);
-  theFacade.unlock_mutex();
+  theFacade.unlock_poll_mutex();
 
 #ifdef DEBUG_REG
   char buf[128];
@@ -273,18 +278,19 @@ ClusterMgr::forceHB()
 #endif
       raw_sendSignal(&signal, nodeId);
     }
+    flush_send_buffers();
     unlock();
   }
   /* Wait for nodes to reply - if any heartbeats was sent */
-  theFacade.lock_mutex();
+  theFacade.lock_poll_mutex();
   if (!waitForHBFromNodes.isclear())
-    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.thePollMutex, 1000);
 
   waitingForHB= false;
 #ifdef DEBUG_REG
   ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
-  theFacade.unlock_mutex();
+  theFacade.unlock_poll_mutex();
 }
 
 void
@@ -298,12 +304,14 @@ ClusterMgr::startup()
 
   lock();
   theFacade.doConnect(nodeId);
+  flush_send_buffers();
   unlock();
 
   for (Uint32 i = 0; i<3000; i++)
   {
     lock();
     theFacade.theTransporterRegistry->update_connections();
+    flush_send_buffers();
     unlock();
     if (theNode.is_connected())
       break;
@@ -345,9 +353,9 @@ ClusterMgr::threadMain()
   {
     /* Sleep at 100ms between each heartbeat check */
     NDB_TICKS before = now;
-    for (Uint32 i = 0; i<10; i++)
+    for (Uint32 i = 0; i<5; i++)
     {
-      NdbSleep_MilliSleep(10);
+      NdbSleep_MilliSleep(20);
       {
         Guard g(clusterMgrThreadMutex);
         /**
@@ -379,9 +387,9 @@ ClusterMgr::threadMain()
     NodeFailRep * nodeFailRep = CAST_PTR(NodeFailRep,
                                          nodeFail_signal.getDataPtrSend());
     nodeFailRep->noOfNodes = 0;
-    NodeBitmask::clear(nodeFailRep->theNodes);
+    NodeBitmask::clear(nodeFailRep->theAllNodes);
 
-    trp_client::lock();
+    lock();
     for (int i = 1; i < MAX_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
@@ -441,15 +449,19 @@ ClusterMgr::threadMain()
       if (cm_node.hbMissed == 4 && cm_node.hbFrequency > 0)
       {
         nodeFailRep->noOfNodes++;
-        NodeBitmask::set(nodeFailRep->theNodes, nodeId);
+        NodeBitmask::set(nodeFailRep->theAllNodes, nodeId);
       }
     }
+    flush_send_buffers();
+    unlock();
 
     if (nodeFailRep->noOfNodes)
     {
+      lock();
       raw_sendSignal(&nodeFail_signal, getOwnNodeId());
+      flush_send_buffers();
+      unlock();
     }
-    trp_client::unlock();
   }
 }
 
@@ -530,7 +542,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      safe_sendSignal(&tSignal, aNodeId);
+      safe_noflush_sendSignal(&tSignal, aNodeId);
     }
     break;
   }
@@ -550,6 +562,11 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
   case GSN_DISCONNECT_REP:
   {
     execDISCONNECT_REP(sig, ptr);
+    return;
+  }
+  case GSN_CLOSE_COMREQ:
+  {
+    theFacade.perform_close_clnt(this);
     return;
   }
   default:
@@ -980,8 +997,8 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
     rep->failNo = 0;
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theNodes);
-    NodeBitmask::set(rep->theNodes, nodeId);
+    NodeBitmask::clear(rep->theAllNodes);
+    NodeBitmask::set(rep->theAllNodes, nodeId);
     execNODE_FAILREP(&signal, 0);
   }
 }
@@ -991,22 +1008,30 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
                              const LinearSectionPtr ptr[])
 {
   const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
+  NodeBitmask mask;
+  if (sig->getLength() == NodeFailRep::SignalLengthLong)
+  {
+    mask.assign(NodeBitmask::Size, rep->theAllNodes);
+  }
+  else
+  {
+    mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+  }
 
   NdbApiSignal signal(sig->theSendersBlockRef);
   signal.theVerId_signalNumber = GSN_NODE_FAILREP;
   signal.theReceiversBlockNumber = API_CLUSTERMGR;
   signal.theTrace  = 0;
   signal.theLength = NodeFailRep::SignalLengthLong;
-  
+
   NodeFailRep * copy = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
   copy->failNo = 0;
   copy->masterNodeId = 0;
   copy->noOfNodes = 0;
-  NodeBitmask::clear(copy->theNodes);
+  NodeBitmask::clear(copy->theAllNodes);
 
-  for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
-       i != NdbNodeBitmask::NotFound;
-       i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+  for (Uint32 i = mask.find_first(); i != NodeBitmask::NotFound;
+       i = mask.find_next(i + 1))
   {
     Node & cm_node = theNodes[i];
     trp_node & theNode = cm_node;
@@ -1018,7 +1043,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
     if (node_failrep == false)
     {
       theNode.m_node_fail_rep = true;
-      NodeBitmask::set(copy->theNodes, i);
+      NodeBitmask::set(copy->theAllNodes, i);
       copy->noOfNodes++;
     }
 
@@ -1435,7 +1460,7 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
   {
     m_clusterMgr.lock();
     m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
+    m_clusterMgr.flush_send_buffers();
     m_clusterMgr.unlock();
   }
 }
-

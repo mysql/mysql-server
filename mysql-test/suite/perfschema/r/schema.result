@@ -27,6 +27,14 @@ events_statements_summary_by_program
 events_statements_summary_by_thread_by_event_name
 events_statements_summary_by_user_by_event_name
 events_statements_summary_global_by_event_name
+events_transactions_current
+events_transactions_history
+events_transactions_history_long
+events_transactions_summary_by_account_by_event_name
+events_transactions_summary_by_host_by_event_name
+events_transactions_summary_by_thread_by_event_name
+events_transactions_summary_by_user_by_event_name
+events_transactions_summary_global_by_event_name
 events_waits_current
 events_waits_history
 events_waits_history_long
@@ -46,6 +54,7 @@ memory_summary_by_host_by_event_name
 memory_summary_by_thread_by_event_name
 memory_summary_by_user_by_event_name
 memory_summary_global_by_event_name
+metadata_locks
 mutex_instances
 objects_summary_global_by_type
 performance_timers
@@ -66,6 +75,7 @@ setup_timers
 socket_instances
 socket_summary_by_event_name
 socket_summary_by_instance
+table_handles
 table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table
 table_lock_waits_summary_by_table
@@ -97,7 +107,7 @@ events_stages_current	CREATE TABLE `events_stages_current` (
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_stages_history;
 Table	Create Table
@@ -111,7 +121,7 @@ events_stages_history	CREATE TABLE `events_stages_history` (
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_stages_history_long;
 Table	Create Table
@@ -125,7 +135,7 @@ events_stages_history_long	CREATE TABLE `events_stages_history_long` (
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_stages_summary_by_host_by_event_name;
 Table	Create Table
@@ -224,7 +234,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history;
@@ -269,7 +279,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history_long;
@@ -314,7 +324,7 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_digest;
@@ -500,6 +510,189 @@ events_statements_summary_global_by_event_name	CREATE TABLE `events_statements_s
   `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_current;
+Table	Create Table
+events_transactions_current	CREATE TABLE `events_transactions_current` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `STATE` enum('ACTIVE','COMMITTED','ROLLED BACK') DEFAULT NULL,
+  `TRX_ID` bigint(20) unsigned DEFAULT NULL,
+  `GTID` varchar(64) DEFAULT NULL,
+  `XID` varchar(132) DEFAULT NULL,
+  `XA_STATE` varchar(64) DEFAULT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `ACCESS_MODE` enum('READ ONLY','READ WRITE') DEFAULT NULL,
+  `ISOLATION_LEVEL` varchar(64) DEFAULT NULL,
+  `AUTOCOMMIT` enum('YES','NO') NOT NULL,
+  `NUMBER_OF_SAVEPOINTS` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_ROLLBACK_TO_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_RELEASE_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_history;
+Table	Create Table
+events_transactions_history	CREATE TABLE `events_transactions_history` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `STATE` enum('ACTIVE','COMMITTED','ROLLED BACK') DEFAULT NULL,
+  `TRX_ID` bigint(20) unsigned DEFAULT NULL,
+  `GTID` varchar(64) DEFAULT NULL,
+  `XID` varchar(132) DEFAULT NULL,
+  `XA_STATE` varchar(64) DEFAULT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `ACCESS_MODE` enum('READ ONLY','READ WRITE') DEFAULT NULL,
+  `ISOLATION_LEVEL` varchar(64) DEFAULT NULL,
+  `AUTOCOMMIT` enum('YES','NO') NOT NULL,
+  `NUMBER_OF_SAVEPOINTS` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_ROLLBACK_TO_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_RELEASE_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_history_long;
+Table	Create Table
+events_transactions_history_long	CREATE TABLE `events_transactions_history_long` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `STATE` enum('ACTIVE','COMMITTED','ROLLED BACK') DEFAULT NULL,
+  `TRX_ID` bigint(20) unsigned DEFAULT NULL,
+  `GTID` varchar(64) DEFAULT NULL,
+  `XID` varchar(132) DEFAULT NULL,
+  `XA_STATE` varchar(64) DEFAULT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `ACCESS_MODE` enum('READ ONLY','READ WRITE') DEFAULT NULL,
+  `ISOLATION_LEVEL` varchar(64) DEFAULT NULL,
+  `AUTOCOMMIT` enum('YES','NO') NOT NULL,
+  `NUMBER_OF_SAVEPOINTS` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_ROLLBACK_TO_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_RELEASE_SAVEPOINT` bigint(20) unsigned DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_summary_by_host_by_event_name;
+Table	Create Table
+events_transactions_summary_by_host_by_event_name	CREATE TABLE `events_transactions_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_summary_by_thread_by_event_name;
+Table	Create Table
+events_transactions_summary_by_thread_by_event_name	CREATE TABLE `events_transactions_summary_by_thread_by_event_name` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_summary_by_user_by_event_name;
+Table	Create Table
+events_transactions_summary_by_user_by_event_name	CREATE TABLE `events_transactions_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_summary_by_account_by_event_name;
+Table	Create Table
+events_transactions_summary_by_account_by_event_name	CREATE TABLE `events_transactions_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_transactions_summary_global_by_event_name;
+Table	Create Table
+events_transactions_summary_global_by_event_name	CREATE TABLE `events_transactions_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_current;
 Table	Create Table
 events_waits_current	CREATE TABLE `events_waits_current` (
@@ -518,7 +711,7 @@ events_waits_current	CREATE TABLE `events_waits_current` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
@@ -541,7 +734,7 @@ events_waits_history	CREATE TABLE `events_waits_history` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
@@ -564,7 +757,7 @@ events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
@@ -714,6 +907,20 @@ memory_summary_global_by_event_name	CREATE TABLE `memory_summary_global_by_event
   `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
   `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
   `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table metadata_locks;
+Table	Create Table
+metadata_locks	CREATE TABLE `metadata_locks` (
+  `OBJECT_TYPE` varchar(64) NOT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `LOCK_TYPE` varchar(32) NOT NULL,
+  `LOCK_DURATION` varchar(32) NOT NULL,
+  `LOCK_STATUS` varchar(32) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `OWNER_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `OWNER_EVENT_ID` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_instances;
 Table	Create Table
@@ -953,6 +1160,18 @@ socket_summary_by_event_name	CREATE TABLE `socket_summary_by_event_name` (
   `MIN_TIMER_MISC` bigint(20) unsigned NOT NULL,
   `AVG_TIMER_MISC` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_MISC` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table table_handles;
+Table	Create Table
+table_handles	CREATE TABLE `table_handles` (
+  `OBJECT_TYPE` varchar(64) NOT NULL,
+  `OBJECT_SCHEMA` varchar(64) NOT NULL,
+  `OBJECT_NAME` varchar(64) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `OWNER_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `OWNER_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `INTERNAL_LOCK` varchar(64) DEFAULT NULL,
+  `EXTERNAL_LOCK` varchar(64) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table table_io_waits_summary_by_index_usage;
 Table	Create Table

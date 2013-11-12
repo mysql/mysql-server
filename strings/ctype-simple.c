@@ -76,7 +76,7 @@ my_strnxfrm_simple(const CHARSET_INFO *cs,
                    uchar *dst, size_t dstlen, uint nweights,
                    const uchar *src, size_t srclen, uint flags)
 {
-  uchar *map= cs->sort_order;
+  const uchar *map= cs->sort_order;
   uchar *d0= dst;
   uint frmlen;
   if ((frmlen= MY_MIN(dstlen, nweights)) > srclen)
@@ -98,12 +98,12 @@ my_strnxfrm_simple(const CHARSET_INFO *cs,
 }
 
 
-int my_strnncoll_simple(const CHARSET_INFO * cs, const uchar *s, size_t slen, 
+int my_strnncoll_simple(const CHARSET_INFO * cs, const uchar *s, size_t slen,
                         const uchar *t, size_t tlen,
                         my_bool t_is_prefix)
 {
   size_t len = ( slen > tlen ) ? tlen : slen;
-  uchar *map= cs->sort_order;
+  const uchar *map= cs->sort_order;
   if (t_is_prefix && slen > tlen)
     slen=tlen;
   while (len--)
@@ -197,7 +197,7 @@ int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
 
 size_t my_caseup_str_8bit(const CHARSET_INFO *cs,char *str)
 {
-  uchar *map= cs->to_upper;
+  const uchar *map= cs->to_upper;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -207,7 +207,7 @@ size_t my_caseup_str_8bit(const CHARSET_INFO *cs,char *str)
 
 size_t my_casedn_str_8bit(const CHARSET_INFO *cs,char *str)
 {
-  uchar *map= cs->to_lower;
+  const uchar *map= cs->to_lower;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -220,7 +220,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen __attribute__((unused)))
 {
   char *end= src + srclen;
-  uchar *map= cs->to_upper;
+  const uchar *map= cs->to_upper;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -233,7 +233,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen __attribute__((unused)))
 {
   char *end= src + srclen;
-  uchar *map=cs->to_lower;
+  const uchar *map=cs->to_lower;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -242,7 +242,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 int my_strcasecmp_8bit(const CHARSET_INFO *cs,const char *s, const char *t)
 {
-  uchar *map=cs->to_upper;
+  const uchar *map=cs->to_upper;
   while (map[(uchar) *s] == map[(uchar) *t++])
     if (!*s++) return 0;
   return ((int) map[(uchar) s[0]] - (int) map[(uchar) t[-1]]);
@@ -264,11 +264,11 @@ int my_wc_mb_8bit(const CHARSET_INFO *cs,my_wc_t wc,
 		  uchar *str,
 		  uchar *end)
 {
-  MY_UNI_IDX *idx;
+  const MY_UNI_IDX *idx;
 
   if (str >= end)
     return MY_CS_TOOSMALL;
-  
+
   for (idx=cs->tab_from_uni; idx->tab ; idx++)
   {
     if (idx->from <= wc && idx->to >= wc)
@@ -305,7 +305,7 @@ void my_hash_sort_simple(const CHARSET_INFO *cs,
 			 const uchar *key, size_t len,
 			 ulong *nr1, ulong *nr2)
 {
-  uchar *sort_order=cs->sort_order;
+  const uchar *sort_order=cs->sort_order;
   const uchar *end;
   ulong tmp1;
   ulong tmp2;
@@ -1169,7 +1169,8 @@ create_fromuni(CHARSET_INFO *cs,
 {
   uni_idx	idx[PLANE_NUM];
   int		i,n;
-  
+  MY_UNI_IDX	*tab_from_uni;
+
   /*
     Check that Unicode map is loaded.
     It can be not loaded when the collation is
@@ -1205,45 +1206,47 @@ create_fromuni(CHARSET_INFO *cs,
   
   /* Sort planes in descending order */
   qsort(&idx,PLANE_NUM,sizeof(uni_idx),&pcmp);
-  
+
   for (i=0; i < PLANE_NUM; i++)
   {
     int ch,numchars;
-    
+    uchar *tab;
+
     /* Skip empty plane */
     if (!idx[i].nchars)
       break;
-    
+
     numchars=idx[i].uidx.to-idx[i].uidx.from+1;
-    if (!(idx[i].uidx.tab= (uchar *)
-                           (loader->once_alloc) (numchars *
-                                                 sizeof(*idx[i].uidx.tab))))
+    if (!(idx[i].uidx.tab= tab= (uchar *)
+                                (loader->once_alloc)
+                                  (numchars * sizeof(*idx[i].uidx.tab))))
       return TRUE;
-    
-    memset(idx[i].uidx.tab, 0, numchars*sizeof(*idx[i].uidx.tab));
-    
+
+    memset(tab, 0, numchars*sizeof(*idx[i].uidx.tab));
+
     for (ch=1; ch < PLANE_SIZE; ch++)
     {
       uint16 wc=cs->tab_to_uni[ch];
       if (wc >= idx[i].uidx.from && wc <= idx[i].uidx.to && wc)
       {
         int ofs= wc - idx[i].uidx.from;
-        idx[i].uidx.tab[ofs]= ch;
+        tab[ofs]= ch;
       }
     }
   }
-  
+
   /* Allocate and fill reverse table for each plane */
   n=i;
-  if (!(cs->tab_from_uni= (MY_UNI_IDX *)
-                          (loader->once_alloc)(sizeof(MY_UNI_IDX) * (n + 1))))
+  if (!(cs->tab_from_uni= tab_from_uni= (MY_UNI_IDX *)
+                                        (loader->once_alloc)
+                                          (sizeof(MY_UNI_IDX) * (n + 1))))
     return TRUE;
 
   for (i=0; i< n; i++)
-    cs->tab_from_uni[i]= idx[i].uidx;
-  
+    tab_from_uni[i]= idx[i].uidx;
+
   /* Set end-of-list marker */
-  memset(&cs->tab_from_uni[i], 0, sizeof(MY_UNI_IDX));
+  memset(&tab_from_uni[i], 0, sizeof(MY_UNI_IDX));
   return FALSE;
 }
 

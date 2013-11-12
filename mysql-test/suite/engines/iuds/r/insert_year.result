@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 CREATE TABLE t1(c1 YEAR(4) NOT NULL, c2 YEAR(4) NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
-CREATE TABLE t2(c1 YEAR(4) NOT NULL, c2 YEAR(4) NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
+CREATE TABLE t2(c1 YEAR(4) NOT NULL, c2 YEAR(4) NOT NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
 CREATE TABLE t3(c1 YEAR(4) NOT NULL, c2 YEAR(4) NULL, c3 DATE, c4 DATETIME, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t4(c1 YEAR(4) NOT NULL, c2 YEAR(4) NULL, c3 DATE, c4 DATETIME);
 INSERT INTO t1 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
@@ -28,6 +28,8 @@ Warnings:
 Note	1265	Data truncated for column 'c3' at row 1
 INSERT INTO t1(c1) VALUES('5');
 INSERT INTO t2(c1) VALUES('5');
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 INSERT INTO t3(c1) VALUES('5');
 INSERT INTO t4(c1,c2) VALUES('0','000');
 INSERT INTO t2 VALUES(1900,2156,'08-01-06','08/01/07');
@@ -3202,6 +3204,8 @@ TRUNCATE TABLE t5;
 DROP TABLE t5;
 INSERT INTO t1 SET c1='00';
 INSERT INTO t2 SET c1=69;
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 INSERT INTO t3 SET c1=70;
 INSERT INTO t4 SET c2=99;
 Warnings:
@@ -3230,7 +3234,7 @@ CREATE TABLE t1(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME, PRIM
 Warnings:
 Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
-CREATE TABLE t2(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
+CREATE TABLE t2(c1 YEAR(2) NOT NULL, c2 YEAR(2) NOT NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
 Warnings:
 Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
@@ -3267,6 +3271,8 @@ Warnings:
 Note	1265	Data truncated for column 'c3' at row 1
 INSERT INTO t1(c1) VALUES('5');
 INSERT INTO t2(c1) VALUES('5');
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 INSERT INTO t3(c1) VALUES('5');
 INSERT INTO t4(c1,c2) VALUES('0','000');
 INSERT INTO t2 VALUES(1900,2156,'08-01-06','08/01/07');
@@ -6345,6 +6351,8 @@ TRUNCATE TABLE t5;
 DROP TABLE t5;
 INSERT INTO t1 SET c1='00';
 INSERT INTO t2 SET c1=69;
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 INSERT INTO t3 SET c1=70;
 INSERT INTO t4 SET c2=99;
 Warnings:

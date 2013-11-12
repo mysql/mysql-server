@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,12 @@
 #include "ndbd.hpp"
 #include "angel.hpp"
 
+#include "../common/util/parse_mask.hpp"
+
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 485
+
 extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
@@ -83,11 +88,11 @@ static struct my_option my_long_options[] =
   { "report-fd", 256,
     "INTERNAL: fd where to write extra shutdown status",
     (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
+    GET_UINT, REQUIRED_ARG, 0, 0, INT_MAX, 0, 0, 0 },
   { "allocated-nodeid", 256,
     "INTERNAL: nodeid allocated by angel process",
     (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
+    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
   { "connect-retries", 'r',
     "Number of times mgmd is contacted at start. -1: eternal retries",
     (uchar**) &opt_retries, (uchar**) &opt_retries, 0,
@@ -114,8 +119,6 @@ static void usage()
 }
 
 extern int g_ndb_init_need_monotonic;
-
-#include "../common/util/parse_mask.hpp"
 
 /**
  * C++ Standard 3.6.1/3:

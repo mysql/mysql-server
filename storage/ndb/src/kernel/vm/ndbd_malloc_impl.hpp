@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #include <assert.h>
 #include "Pool.hpp"
 #include <Vector.hpp>
+
+#define JAM_FILE_ID 291
+
 
 /**
  * 13 -> 8192 words -> 32768 bytes
@@ -212,5 +215,8 @@ Ndbd_mem_manager::check(Uint32 first, Uint32 last)
   return ret;
 }
 
+
+
+#undef JAM_FILE_ID
 
 #endif 

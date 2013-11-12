@@ -92,7 +92,7 @@ trx_rollback_to_savepoint_low(
 	if (savept != NULL) {
 		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 	}  else {
 		assert_trx_nonlocking_or_in_list(trx);
 	}
@@ -224,7 +224,7 @@ trx_rollback_for_mysql(
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 		break;
 	}
 
@@ -317,8 +317,8 @@ trx_roll_savepoint_free(
 {
 	UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-	mem_free(savep->name);
-	mem_free(savep);
+	ut_free(savep->name);
+	ut_free(savep);
 }
 
 /*******************************************************************//**
@@ -468,7 +468,7 @@ trx_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	trx_start_if_not_started_xa(trx, true);
+	trx_start_if_not_started_xa(trx, false);
 
 	savep = trx_savepoint_find(trx, savepoint_name);
 
@@ -477,13 +477,13 @@ trx_savepoint_for_mysql(
 
 		UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-		mem_free(savep->name);
-		mem_free(savep);
+		ut_free(savep->name);
+		ut_free(savep);
 	}
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(mem_alloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 
@@ -567,6 +567,7 @@ trx_rollback_active(
 	dict_table_t*	table;
 	ib_int64_t	rows_to_undo;
 	const char*	unit		= "";
+	trx_id_t	trx_id;
 	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
@@ -603,11 +604,10 @@ trx_rollback_active(
 	}
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Rolling back trx with id " TRX_ID_FMT ", %lu%s"
-		" rows to undo\n",
-		trx->id,
-		(ulong) rows_to_undo, unit);
+	trx_id = trx->id;
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
+		" rows to undo", trx_id, (ulong) rows_to_undo, unit);
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);
@@ -656,7 +656,7 @@ trx_rollback_active(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Rollback of trx with id " TRX_ID_FMT " completed", trx->id);
+		"Rollback of trx with id " TRX_ID_FMT " completed", trx_id);
 
 	mem_heap_free(heap);
 

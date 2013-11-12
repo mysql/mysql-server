@@ -20,6 +20,7 @@
 #include "sql_class.h"
 #include "handler.h"                            /* my_xid */
 
+
 /**
   Transaction Coordinator Log.
 
@@ -311,11 +312,8 @@ enum enum_log_table_type
 
 class File_query_log
 {
-  static const uint MAX_TIME_SIZE= 32;
-
   File_query_log(enum_log_table_type log_type)
-  : m_log_type(log_type), name(NULL), write_error(false), log_open(false),
-    last_time(0)
+  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
   {
     memset(&log_file, 0, sizeof(log_file));
     mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
@@ -363,7 +361,7 @@ class File_query_log
      Write a command to traditional general log file.
      Log given command to normal (not rotatable) log file.
 
-     @param event_time        Command start timestamp
+     @param event_utime       Command start timestamp in micro seconds
      @param user_host         The pointer to the string with user@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
@@ -375,7 +373,7 @@ class File_query_log
 
      @return true if error, false otherwise.
   */
-  bool write_general(time_t event_time, const char *user_host,
+  bool write_general(ulonglong event_utime, const char *user_host,
                      size_t user_host_len, my_thread_id thread_id,
                      const char *command_type, size_t command_type_len,
                      const char *sql_text, size_t sql_text_len);
@@ -384,7 +382,7 @@ class File_query_log
      Log a query to the traditional slow log file.
 
      @param thd               THD of the query
-     @param current_time      Current timestamp
+     @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp
      @param user_host         The pointer to the string with user@host info
      @param user_host_len     Length of the user_host string. this is computed once
@@ -399,7 +397,7 @@ class File_query_log
 
      @return true if error, false otherwise.
 */
-  bool write_slow(THD *thd, time_t current_time, time_t query_start_arg,
+  bool write_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
                   const char *user_host, size_t user_host_len,
                   ulonglong query_utime, ulonglong lock_utime, bool is_command,
                   const char *sql_text, size_t sql_text_len);
@@ -428,9 +426,6 @@ private:
   /** True if the file log is open, false otherwise. */
   volatile bool log_open;
 
-  /** Last timestamp printed. */
-  time_t last_time;
-
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
@@ -455,8 +450,8 @@ public:
      Log a query to the slow log.
 
      @param thd               THD of the query
-     @param current_time      Current timestamp
-     @param query_start_arg   Command start timestamp
+     @param current_utime     Current timestamp in micro seconds
+     @param query_start_arg   Command start timestamp in micro seconds
      @param user_host         The pointer to the string with user@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
@@ -472,8 +467,8 @@ public:
      @retval  false   OK
      @retval  true    error occured
   */
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                        ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, size_t sql_text_len)= 0;
@@ -481,7 +476,7 @@ public:
   /**
      Log command to the general log.
 
-     @param  event_time        Command start timestamp
+     @param  event_utime       Command start timestamp in micro seconds
      @param  user_host         The pointer to the string with user@host info
      @param  user_host_len     Length of the user_host string. this is computed
                                once and passed to all general log event handlers
@@ -504,7 +499,7 @@ public:
      @retval  false   OK
      @retval  true    error occured
   */
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
                            size_t user_host_len, my_thread_id thread_id,
                            const char *command_type, size_t command_type_len,
                            const char *sql_text, size_t sql_text_len,
@@ -517,14 +512,14 @@ class Log_to_csv_event_handler: public Log_event_handler
 {
 public:
   /** @see Log_event_handler::log_slow(). */
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                        ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, size_t sql_text_len);
 
   /** @see Log_event_handler::log_general(). */
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
                            size_t user_host_len, my_thread_id thread_id,
                            const char *command_type, size_t command_type_len,
                            const char *sql_text, size_t sql_text_len,
@@ -559,8 +554,8 @@ public:
      Wrapper around File_query_log::write_slow() for slow log.
      @see Log_event_handler::log_slow().
   */
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                        ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, size_t sql_text_len);
@@ -569,7 +564,7 @@ public:
      Wrapper around File_query_log::write_general() for general log.
      @see Log_event_handler::log_general().
   */
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
                            size_t user_host_len, my_thread_id thread_id,
                            const char *command_type, size_t command_type_len,
                            const char *sql_text, size_t sql_text_len,
@@ -1065,6 +1060,14 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
+
+enum enum_mts_parallel_type {
+  /* Parallel slave based on Database name */
+  MTS_PARALLEL_TYPE_DB_NAME= 0,
+  /* Parallel slave based on group information from Binlog group commit */
+  MTS_PARALLEL_TYPE_LOGICAL_CLOCK= 1
+};
+
 
 #endif // MYSQL_SERVER
 

@@ -31,14 +31,14 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)	NO	PRI		
+ｷｷｷ	char(6)	NO	PRI	NULL	
 ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
   `ｶｶ` char(1) DEFAULT NULL,
-  `ｷｷｷ` char(6) NOT NULL DEFAULT '',
+  `ｷｷｷ` char(6) NOT NULL,
   `ｸｸｸ` char(1) DEFAULT NULL,
   `ｹｹｹ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ｷｷｷ`),
@@ -58,11 +58,11 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)	NO			
+ｷｷｷ	char(6)	NO		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
-  `ｷｷｷ` char(6) NOT NULL DEFAULT ''
+  `ｷｷｷ` char(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
 ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
@@ -80,14 +80,14 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)	NO	PRI		
+ききき	char(6)	NO	PRI	NULL	
 くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
   `かか` char(1) DEFAULT NULL,
-  `ききき` char(6) NOT NULL DEFAULT '',
+  `ききき` char(6) NOT NULL,
   `くくく` char(1) DEFAULT NULL,
   `けけけ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ききき`),
@@ -107,11 +107,11 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)	NO			
+ききき	char(6)	NO		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
-  `ききき` char(6) NOT NULL DEFAULT ''
+  `ききき` char(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
 ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
@@ -129,14 +129,14 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)	NO	PRI		
+丂丂丂	char(6)	NO	PRI	NULL	
 丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
   `丄丄` char(1) DEFAULT NULL,
-  `丂丂丂` char(6) NOT NULL DEFAULT '',
+  `丂丂丂` char(6) NOT NULL,
   `丅丅丅` char(1) DEFAULT NULL,
   `乚乚乚` char(1) DEFAULT NULL,
   PRIMARY KEY (`丂丂丂`),
@@ -156,11 +156,11 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)	NO			
+丂丂丂	char(6)	NO		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
-  `丂丂丂` char(6) NOT NULL DEFAULT ''
+  `丂丂丂` char(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 DROP TABLE `ｱｱｱ`;
 DROP TABLE `ｲｲｲ`;
@@ -193,14 +193,14 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)	NO	PRI		
+ｷｷｷ	char(6)	NO	PRI	NULL	
 ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
   `ｶｶ` char(1) DEFAULT NULL,
-  `ｷｷｷ` char(6) NOT NULL DEFAULT '',
+  `ｷｷｷ` char(6) NOT NULL,
   `ｸｸｸ` char(1) DEFAULT NULL,
   `ｹｹｹ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ｷｷｷ`),
@@ -220,11 +220,11 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)	NO			
+ｷｷｷ	char(6)	NO		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
-  `ｷｷｷ` char(6) NOT NULL DEFAULT ''
+  `ｷｷｷ` char(6) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
 ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
@@ -242,14 +242,14 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)	NO	PRI		
+ききき	char(6)	NO	PRI	NULL	
 くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
   `かか` char(1) DEFAULT NULL,
-  `ききき` char(6) NOT NULL DEFAULT '',
+  `ききき` char(6) NOT NULL,
   `くくく` char(1) DEFAULT NULL,
   `けけけ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ききき`),
@@ -269,11 +269,11 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)	NO			
+ききき	char(6)	NO		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
-  `ききき` char(6) NOT NULL DEFAULT ''
+  `ききき` char(6) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
 ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
@@ -291,14 +291,14 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)	NO	PRI		
+丂丂丂	char(6)	NO	PRI	NULL	
 丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
   `丄丄` char(1) DEFAULT NULL,
-  `丂丂丂` char(6) NOT NULL DEFAULT '',
+  `丂丂丂` char(6) NOT NULL,
   `丅丅丅` char(1) DEFAULT NULL,
   `乚乚乚` char(1) DEFAULT NULL,
   PRIMARY KEY (`丂丂丂`),
@@ -318,11 +318,11 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)	NO			
+丂丂丂	char(6)	NO		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
-  `丂丂丂` char(6) NOT NULL DEFAULT ''
+  `丂丂丂` char(6) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 DROP TABLE `ｱｱｱ`;
 DROP TABLE `ｲｲｲ`;
@@ -355,14 +355,14 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)	NO	PRI		
+ｷｷｷ	char(6)	NO	PRI	NULL	
 ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
   `ｶｶ` char(1) DEFAULT NULL,
-  `ｷｷｷ` char(6) NOT NULL DEFAULT '',
+  `ｷｷｷ` char(6) NOT NULL,
   `ｸｸｸ` char(1) DEFAULT NULL,
   `ｹｹｹ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ｷｷｷ`),
@@ -382,11 +382,11 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)	NO			
+ｷｷｷ	char(6)	NO		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
-  `ｷｷｷ` char(6) NOT NULL DEFAULT ''
+  `ｷｷｷ` char(6) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
 ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
@@ -404,14 +404,14 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)	NO	PRI		
+ききき	char(6)	NO	PRI	NULL	
 くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
   `かか` char(1) DEFAULT NULL,
-  `ききき` char(6) NOT NULL DEFAULT '',
+  `ききき` char(6) NOT NULL,
   `くくく` char(1) DEFAULT NULL,
   `けけけ` char(1) DEFAULT NULL,
   PRIMARY KEY (`ききき`),
@@ -431,11 +431,11 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)	NO			
+ききき	char(6)	NO		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
-  `ききき` char(6) NOT NULL DEFAULT ''
+  `ききき` char(6) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
 ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
@@ -453,14 +453,14 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)	NO	PRI		
+丂丂丂	char(6)	NO	PRI	NULL	
 丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
   `丄丄` char(1) DEFAULT NULL,
-  `丂丂丂` char(6) NOT NULL DEFAULT '',
+  `丂丂丂` char(6) NOT NULL,
   `丅丅丅` char(1) DEFAULT NULL,
   `乚乚乚` char(1) DEFAULT NULL,
   PRIMARY KEY (`丂丂丂`),
@@ -480,11 +480,11 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)	NO			
+丂丂丂	char(6)	NO		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
-  `丂丂丂` char(6) NOT NULL DEFAULT ''
+  `丂丂丂` char(6) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 DROP TABLE `ｱｱｱ`;
 DROP TABLE `ｲｲｲ`;

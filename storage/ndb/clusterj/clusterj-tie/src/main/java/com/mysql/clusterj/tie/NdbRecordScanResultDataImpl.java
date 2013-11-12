@@ -17,11 +17,17 @@
 
 package com.mysql.clusterj.tie;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
 
 /**
  *
@@ -41,40 +47,72 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
     protected final int SCAN_FINISHED = 1;
     protected final int CACHE_EMPTY = 2;
 
+    /** The ClusterTransaction only for executing the lock takeover if any */
+    private final ClusterTransactionImpl clusterTransaction;
+
     /** The NdbOperation that defines the result */
-    private NdbRecordScanOperationImpl scanOperation = null;
+    private final NdbRecordScanOperationImpl scanOperation;
 
     /** The NdbScanOperation */
-    private NdbScanOperation ndbScanOperation = null;
+    private final NdbScanOperation ndbScanOperation;
 
     /** The number to skip */
-    protected long skip = 0;
+    protected final long skip;
 
     /** The limit */
-    protected long limit = Long.MAX_VALUE;
+    protected final long limit;
 
     /** The record counter during the scan */
     protected long recordCounter = 0;
 
+    /** True if records are locked during this scan */
+    private final boolean lockRecordsDuringScan;
+
+    /** True if any records have been locked while scanning the cache */
+    private List<NdbOperationConst> recordsLocked = new ArrayList<NdbOperationConst>();
+
     /** Construct the ResultDataImpl based on an NdbRecordOperationImpl.
      * When used with the compatibility operations, delegate to the NdbRecordOperation
      * to copy data.
+     * @param clusterTransaction the cluster transaction used to take over locks
      * @param operation the NdbRecordOperationImpl
      * @param skip the number of rows to skip
      * @param limit the last row number
      */
-    public NdbRecordScanResultDataImpl(NdbRecordScanOperationImpl scanOperation, long skip, long limit) {
+    public NdbRecordScanResultDataImpl(ClusterTransactionImpl clusterTransaction,
+            NdbRecordScanOperationImpl scanOperation, long skip, long limit) {
         super(scanOperation);
+        this.clusterTransaction = clusterTransaction;
         this.scanOperation = scanOperation;
         this.ndbScanOperation = (NdbScanOperation)scanOperation.ndbOperation;
         this.skip = skip;
         this.limit = limit;
+        this.lockRecordsDuringScan = ndbScanOperation.getLockMode() != LockMode.LM_CommittedRead;
+    }
+
+    /** If any locks were taken over, execute the takeover operations
+     */
+    private void executeIfRecordsLocked() {
+        if (recordsLocked.size() != 0) {
+            clusterTransaction.executeNoCommit(false, true);
+            for (NdbOperationConst ndbOperation: recordsLocked) {
+                NdbErrorConst ndbError = ndbOperation.getNdbError();
+                if (ndbError.code() == 0) {
+                    continue;
+                } else {
+                    String detail = clusterTransaction.db.getNdbErrorDetail(ndbError);
+                    Utility.throwError(null, ndbError, detail);
+                }
+            }
+            recordsLocked.clear();
+        }
     }
 
     @Override
     public boolean next() {
         if (recordCounter >= limit) {
             // the next record is past the limit; we have delivered all the rows
+            executeIfRecordsLocked();
             ndbScanOperation.close(true, true);
             return false;
         }
@@ -89,16 +127,20 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
                     if (++recordCounter > skip) {
                         // this record is past the skip
                         // if scanning with locks, grab the lock for the current transaction
-                        scanOperation.lockCurrentTuple();
+                        if (lockRecordsDuringScan) { 
+                            recordsLocked.add(scanOperation.lockCurrentTuple());
+                        }
                         return true;
                     } else {
                         // skip this record
                         break;
                     }
                 case SCAN_FINISHED:
+                    executeIfRecordsLocked();
                     ndbScanOperation.close(true, true);
                     return false;
                 case CACHE_EMPTY:
+                    executeIfRecordsLocked();
                     fetch = true;
                     break;
                 default:

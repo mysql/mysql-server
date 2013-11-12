@@ -27,7 +27,9 @@
 /** True when the performance schema is initialized. */
 extern bool pfs_initialized;
 /** Total memory allocated by the performance schema, in bytes. */
-extern size_t pfs_allocated_memory;
+extern size_t pfs_allocated_memory_size;
+/** Total memory allocated by the performance schema, in number of blocks. */
+extern size_t pfs_allocated_memory_count;
 
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || defined(HAVE_ALIGNED_MALLOC)
 #define PFS_ALIGNEMENT 64
@@ -40,6 +42,40 @@ extern size_t pfs_allocated_memory;
 */
 #define PFS_ALIGNED
 #endif /* HAVE_POSIX_MEMALIGN || HAVE_MEMALIGN || HAVE_ALIGNED_MALLOC */
+
+#ifdef CPU_LEVEL1_DCACHE_LINESIZE
+#define PFS_CACHE_LINE_SIZE CPU_LEVEL1_DCACHE_LINESIZE
+#else
+#define PFS_CACHE_LINE_SIZE 128
+#endif
+
+/**
+  A uint32 variable, guaranteed to be alone in a CPU cache line.
+  This is for performance, for variables accessed very frequently.
+*/
+struct PFS_cacheline_uint32
+{
+  uint32 m_u32;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint32)];
+
+  PFS_cacheline_uint32()
+  : m_u32(0)
+  {}
+};
+
+/**
+  A uint64 variable, guaranteed to be alone in a CPU cache line.
+  This is for performance, for variables accessed very frequently.
+*/
+struct PFS_cacheline_uint64
+{
+  uint64 m_u64;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint64)];
+
+  PFS_cacheline_uint64()
+  : m_u64(0)
+  {}
+};
 
 void *pfs_malloc(size_t size, myf flags);
 
@@ -106,7 +142,7 @@ inline uint randomized_index(const void *ptr, uint max_size)
   value= (reinterpret_cast<intptr> (ptr)) >> 3;
   value*= 1789;
   value+= seed2 + seed1 + 1;
-  
+
   result= (static_cast<uint> (value)) % max_size;
 
   seed2= seed1*seed1;

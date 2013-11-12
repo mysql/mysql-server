@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +17,14 @@
 #include "Dbtup.hpp"
 #include "DbtupProxy.hpp"
 
+#define JAM_FILE_ID 417
+
+
 Dbtup_client::Dbtup_client(SimulatedBlock* block,
                            SimulatedBlock* dbtup)
+  :m_jamBuf(block->jamBuffer())
 {
-  m_block = numberToBlock(block->number(), block->instance());
-
+  assert(m_jamBuf == getThrJamBuf());
   if (dbtup->isNdbMtLqh() && dbtup->instance() == 0) {
     m_dbtup_proxy = (DbtupProxy*)dbtup;
     m_dbtup = 0;
@@ -55,7 +57,8 @@ Dbtup_client::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
     return
       m_dbtup_proxy->disk_restart_alloc_extent(tableId, fragId, key, pages);
   }
-  return m_dbtup->disk_restart_alloc_extent(tableId, fragId, key, pages);
+  return m_dbtup->disk_restart_alloc_extent(m_jamBuf, tableId, 
+                                            fragId, key, pages);
 }
 
 void
@@ -66,5 +69,6 @@ Dbtup_client::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
     m_dbtup_proxy->disk_restart_page_bits(tableId, fragId, key, bits);
     return;
   }
-  m_dbtup->disk_restart_page_bits(tableId, fragId, key, bits);
+  m_dbtup->disk_restart_page_bits(m_jamBuf, tableId, fragId, key, 
+                                  bits);
 }

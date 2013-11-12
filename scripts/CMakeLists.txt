@@ -214,7 +214,6 @@ INSTALL_SCRIPT(
   COMPONENT Server
   )
 
-
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
 SET(bindir ${prefix}/${INSTALL_BINDIR})
@@ -290,7 +289,7 @@ IF(WIN32)
   # The resulting files will have .pl extension (those are perl scripts)
 
   # Input files with pl.in extension
-  SET(PLIN_FILES mysql_config mysql_secure_installation)
+  SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
   SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
@@ -348,18 +347,6 @@ ELSE()
       DESTINATION ${INSTALL_BINDIR}
       COMPONENT ${${file}_COMPONENT}
      )
-  ENDFOREACH()
-
-  # Input files with pl.in extension - drop the extension completely
-  SET(PLIN_FILES mysql_secure_installation)
-  FOREACH(file ${PLIN_FILES})
-    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
-      ${CMAKE_CURRENT_BINARY_DIR}/${file} ESCAPE_QUOTES @ONLY)
-    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
-    IF(NOT ${file}_COMPONENT)
-      SET(${file}_COMPONENT Server)
-    ENDIF()
-    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file} COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 ENDIF()
 

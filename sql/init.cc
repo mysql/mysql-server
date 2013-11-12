@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,11 +41,8 @@ void unireg_init(ulong options)
 
   current_pid=(ulong) getpid();		/* Save for later ref */
   my_init_time();			/* Init time-functions (read zone) */
-#ifndef EMBEDDED_LIBRARY
-  my_abort_hook=unireg_abort;		/* Abort with close of databases */
-#endif
 
-  (void) strmov(reg_ext,".frm");
+  (void) my_stpcpy(reg_ext,".frm");
   reg_ext_length= 4;
   specialflag=SPECIAL_SAME_DB_NAME | options;  /* Set options from argv */
   DBUG_VOID_RETURN;

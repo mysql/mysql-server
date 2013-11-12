@@ -10,8 +10,10 @@ KEY a (a,b)
 PARTITION BY HASH (a) PARTITIONS 1;
 INSERT INTO t1 VALUES (0, 580092), (3, 894076), (4, 805483), (4, 913540), (6, 611137), (8, 171602), (9, 599495), (9, 746305), (10, 272829), (10, 847519), (12, 258869), (12, 929028), (13, 288970), (15, 20971), (15, 105839), (16, 788272), (17, 76914), (18, 827274), (19, 802258), (20, 123677), (20, 587729), (22, 701449), (25, 31565), (25, 230782), (25, 442887), (25, 733139), (25, 851020);
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100, 3) GROUP BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	range	a	a	5	NULL	4	25.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where (`test`.`t1`.`a` in (10,100,3)) group by `test`.`t1`.`a`
 DROP TABLE t1;
 create table t1 (a DATETIME)
 partition by range (TO_DAYS(a))
@@ -43,20 +45,35 @@ RANGE	TO_SECONDS(a)	63342604800
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
 explain partitions select * from t1 where a < '2007-03-08 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < '2007-03-08 00:00:00')
 explain partitions select * from t1 where a < '2007-03-08 00:00:01';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < '2007-03-08 00:00:01')
 explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2007-03-08 00:00:00')
 explain partitions select * from t1 where a <= '2007-03-07 23:59:59';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2007-03-07 23:59:59')
 explain partitions select * from t1 where a < '2007-03-07 23:59:59';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < '2007-03-07 23:59:59')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -76,14 +93,20 @@ a
 2003-12-30
 2004-12-31
 explain partitions select * from t1 where a <= '2003-12-31';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select '2003-12-30' AS `a` from dual where ('2003-12-30' <= '2003-12-31')
 select * from t1 where a <= '2003-12-31';
 a
 2003-12-30
 explain partitions select * from t1 where a <= '2005-01-01';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2005-01-01')
 select * from t1 where a <= '2005-01-01';
 a
 2003-12-30
@@ -107,14 +130,20 @@ a
 2004-01-01 11:59:29
 2005-01-01 11:59:59
 explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select '2004-01-01 11:59:29' AS `a` from dual where ('2004-01-01 11:59:29' <= '2004-01-01 11:59.59')
 select * from t1 where a <= '2004-01-01 11:59:59';
 a
 2004-01-01 11:59:29
 explain partitions select * from t1 where a <= '2005-01-01';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2005-01-01')
 select * from t1 where a <= '2005-01-01';
 a
 2004-01-01 11:59:29
@@ -199,20 +228,35 @@ a
 select * from t1 where a > 1;
 a
 explain partitions select * from t1 where a is null;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a` from dual where isnull(NULL)
 explain partitions select * from t1 where a >= 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 0)
 explain partitions select * from t1 where a < 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a` from dual where (NULL < 0)
 explain partitions select * from t1 where a <= 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= 0)
 explain partitions select * from t1 where a > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 1)
 drop table t1;
 create table t1 (a int unsigned, b int unsigned)
 partition by range (a)
@@ -241,20 +285,35 @@ a	b
 select * from t1 where a > 1;
 a	b
 explain partitions select * from t1 where a is null;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where isnull(`test`.`t1`.`a`)
 explain partitions select * from t1 where a >= 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` >= 0)
 explain partitions select * from t1 where a < 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 0)
 explain partitions select * from t1 where a <= 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` <= 0)
 explain partitions select * from t1 where a > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t1` where (NULL > 1)
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -888,8 +947,11 @@ a
 2004-09-30
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3xx,p407,p408,p409	ALL	NULL	NULL	NULL	NULL	18	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p3xx,p407,p408,p409	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= '2004-07-01') and (`test`.`t1`.`a` <= '2004-09-30'))
 SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 (a >= '2005-07-01' AND a <= '2005-09-30');
@@ -915,8 +977,11 @@ a
 EXPLAIN PARTITIONS SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 (a >= '2005-07-01' AND a <= '2005-09-30');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3xx,p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	27	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p3xx,p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	27	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (((`test`.`t1`.`a` >= '2004-07-01') and (`test`.`t1`.`a` <= '2004-09-30')) or ((`test`.`t1`.`a` >= '2005-07-01') and (`test`.`t1`.`a` <= '2005-09-30')))
 DROP TABLE t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -960,11 +1025,15 @@ INSERT INTO t1 SELECT a + 40, b + 40 FROM t1;
 INSERT INTO t2 SELECT * FROM t1;
 # plans should be identical
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10,100) GROUP BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	range	a	a	5	NULL	2	50.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where (`test`.`t1`.`a` in (10,100)) group by `test`.`t1`.`a`
 EXPLAIN SELECT a, MAX(b) FROM t2 WHERE a IN (10,100) GROUP BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,max(`test`.`t2`.`b`) AS `MAX(b)` from `test`.`t2` where (`test`.`t2`.`a` in (10,100)) group by `test`.`t2`.`a`
 FLUSH status;
 SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100) GROUP BY a;
 a	MAX(b)

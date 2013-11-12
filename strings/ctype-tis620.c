@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@
 #define X  L_MIDDLE
 
 
-static int t_ctype[][TOT_LEVELS] = {
+static const int t_ctype[][TOT_LEVELS] = {
     /*0x00*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x01*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x02*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
@@ -323,7 +323,7 @@ static int t_ctype[][TOT_LEVELS] = {
     /*0xFF*/ { 255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X },
 };
 
-static uchar ctype_tis620[257] =
+static const uchar ctype_tis620[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -344,7 +344,7 @@ static uchar ctype_tis620[257] =
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-static uchar to_lower_tis620[]=
+static const uchar to_lower_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -380,7 +380,7 @@ static uchar to_lower_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar to_upper_tis620[]=
+static const uchar to_upper_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -416,7 +416,7 @@ static uchar to_upper_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar sort_order_tis620[]=
+static const uchar sort_order_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -476,8 +476,8 @@ static size_t thai2sortable(uchar *tstr, size_t len)
 
     if (isthai(c))
     {
-      int *t_ctype0= t_ctype[c];
-		    
+      const int *t_ctype0= t_ctype[c];
+
       if (isconsnt(c))
 	l2bias	-= 8;
       if (isldvowel(c) && tlen != 1 && isconsnt(p[1]))
@@ -655,7 +655,7 @@ my_strnxfrm_tis620(const CHARSET_INFO *cs,
 }
 
 
-static unsigned short cs_to_uni[256]={
+static const unsigned short cs_to_uni[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -689,7 +689,7 @@ static unsigned short cs_to_uni[256]={
 0x0E50,0x0E51,0x0E52,0x0E53,0x0E54,0x0E55,0x0E56,0x0E57,
 0x0E58,0x0E59,0x0E5A,0x0E5B,0xFFFD,0xFFFD,0xFFFD,0xFFFD
 };
-static uchar pl00[256]={
+static const uchar pl00[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -723,7 +723,7 @@ static uchar pl00[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static uchar pl0E[256]={
+static const uchar pl0E[256]={
 0x0000,0x00A1,0x00A2,0x00A3,0x00A4,0x00A5,0x00A6,0x00A7,
 0x00A8,0x00A9,0x00AA,0x00AB,0x00AC,0x00AD,0x00AE,0x00AF,
 0x00B0,0x00B1,0x00B2,0x00B3,0x00B4,0x00B5,0x00B6,0x00B7,
@@ -757,7 +757,7 @@ static uchar pl0E[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static uchar plFF[256]={
+static const uchar plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -791,7 +791,7 @@ static uchar plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x00FF,0x0000,0x0000
 };
-static uchar *uni_to_cs[256]={
+static const uchar *uni_to_cs[256]={
 pl00,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,pl0E,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -846,11 +846,11 @@ int my_wc_mb_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
 		  uchar *str,
 		  uchar *end __attribute__((unused)))
 {
-  uchar *pl;
-  
+  const uchar *pl;
+
   if (str >= end)
     return MY_CS_TOOSMALL;
-  
+
   pl= uni_to_cs[(wc>>8) & 0xFF];
   str[0]= pl ? pl[wc & 0xFF] : '\0';
   return (!str[0] && wc) ? MY_CS_ILUNI : 1;

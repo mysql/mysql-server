@@ -299,6 +299,9 @@ struct sql_ex_info
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
+/* size of prepare and commit sequence numbers in the status vars in bytes */
+#define COMMIT_SEQ_LEN  8
+
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -317,6 +320,8 @@ struct sql_ex_info
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
+                                   1U + COMMIT_SEQ_LEN + \
+                                                   /* type, commit timestamp */ \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -403,6 +408,20 @@ struct sql_ex_info
 #define Q_UPDATED_DB_NAMES 12
 
 #define Q_MICROSECONDS 13
+
+/*
+  Q_COMMIT_TS status variable stores the logical timestamp when the transaction
+  entered the commit phase. This wll be used to apply transactions in parallel
+  on the slave.
+ */
+#define Q_COMMIT_TS 14
+
+/*
+  G_COMMIT_TS status variable stores the logical timestamp when the transaction
+  entered the commit phase. This wll be used to apply transactions in parallel
+  on the slave.
+ */
+#define G_COMMIT_TS  1
 
 /* Intvar event post-header */
 
@@ -641,6 +660,7 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
+#define SEQ_UNINIT -1LL
 
 /**
   @enum Log_event_type
@@ -2192,8 +2212,8 @@ public:
     return res;
   }
 
-  void attach_temp_tables_worker(THD*);
-  void detach_temp_tables_worker(THD*);
+  void attach_temp_tables_worker(THD*, const Relay_log_info *);
+  void detach_temp_tables_worker(THD*, const Relay_log_info *);
 
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 
@@ -2260,6 +2280,11 @@ public:        /* !!! Public in this patch to allow old usage */
       !strncasecmp(query, "SAVEPOINT", 9) ||
       !strncasecmp(query, "ROLLBACK", 8);
   }
+  /*
+    Prepare and commit sequence number. will be set to 0 if the event is not a
+    transaction starter.
+   */
+  int64 commit_seq_no;
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
@@ -2966,7 +2991,7 @@ private:
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
-  bool do_commit(THD *thd);
+  bool do_commit(THD *thd_arg);
 #endif
 };
 
@@ -3884,7 +3909,7 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+  Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
@@ -4916,6 +4941,11 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public Log_event
 {
 public:
+  /*
+    Prepare and commit sequence number. will be set to 0 if the event is not a
+    transaction starter.
+   */
+  int64 commit_seq_no;
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -5037,11 +5067,17 @@ private:
   static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
   /// Length of GNO in event encoding
   static const int ENCODED_GNO_LENGTH= 8;
+  /// Length of COMMIT TIMESTAMP index in event encoding
+  static const int COMMIT_TS_INDEX_LEN= 1;
 
 public:
   /// Total length of post header
   static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH + ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
+    ENCODED_FLAG_LENGTH      +  /* flags */
+    ENCODED_SID_LENGTH       +  /* SID length */
+    ENCODED_GNO_LENGTH       +  /* GNO length */
+    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
+    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
 
 private:
   /**

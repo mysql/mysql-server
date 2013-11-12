@@ -277,7 +277,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 
   case 't':
-    strnmov(opt_tmpdir, argument, sizeof(opt_tmpdir));
+    my_stpnmov(opt_tmpdir, argument, sizeof(opt_tmpdir));
     add_option= FALSE;
     break;
 
@@ -288,7 +288,7 @@ get_one_option(int optid, const struct my_option *opt,
   case OPT_WRITE_BINLOG:                        /* --write-binlog */
     add_option= FALSE;
     break;
-
+#include <sslopt-case.h>
   case 'h': /* --host */
   case 'W': /* --pipe */
   case 'P': /* --port */
@@ -869,10 +869,25 @@ static int run_sql_fix_privilege_tables(void)
         found_real_errors++;
         print_line(line);
       }
-      else if ((strncmp(line, "WARNING", 7) == 0) ||
-               (strncmp(line, "Warning", 7) == 0))
+      else
       {
-        print_line(line);
+        char *c;
+
+        /*
+          We process the output of the child process here.
+          Basically, if a line contains a warning, we'll print it,
+          otherwise, we won't.
+          The first branch handles new-style tools that print
+          their name, then the severity in brackets,
+          the second branch handles old-style tools that just print
+          a severity.
+        */
+        if ((c= strstr(line, ": ")) && (c < strchr(line, ' ')) &&
+            (strncmp(c + 2, "[Warning] ", 10) == 0))
+          print_line(line);
+        else if ((strncmp(line, "WARNING", 7) == 0) ||
+                 (strncmp(line, "Warning", 7) == 0))
+          print_line(line);
       }
     } while ((line= get_line(line)) && *line);
   }

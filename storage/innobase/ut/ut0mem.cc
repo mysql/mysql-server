@@ -62,10 +62,6 @@ static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 /** Flag: has ut_mem_block_list been initialized? */
 static bool  ut_mem_block_list_inited = false;
 
-/** A dummy pointer for generating a null pointer exception in
-ut_malloc_low() */
-static ulint*	ut_mem_null_ptr	= NULL;
-
 /**********************************************************************//**
 Initializes the mem block list at database startup. */
 
@@ -82,16 +78,13 @@ ut_mem_init(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************************//**
-Allocates memory.
-@return own: allocated memory */
+/** Allocate memory.
+@param[in]	n number of bytes to allocate
+@return		allocated memory block */
 
 void*
-ut_malloc_low(
-/*==========*/
-	ulint	n,		/*!< in: number of bytes to allocate */
-	ibool	assert_on_error)/*!< in: if TRUE, we crash mysqld if the
-				memory cannot be allocated */
+ut_malloc(
+	ulint	n)
 {
 #ifndef UNIV_HOTBACKUP
 	ulint	retry_count;
@@ -99,7 +92,7 @@ ut_malloc_low(
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		ret = malloc(n);
-		ut_a(ret || !assert_on_error);
+		ut_a(ret);
 
 		return(ret);
 	}
@@ -152,32 +145,7 @@ retry:
 		goto retry;
 	}
 
-	if (ret == NULL) {
-		/* Flush stderr to make more probable that the error
-		message gets in the error file before we generate a seg
-		fault */
-
-		fflush(stderr);
-
-		mutex_enter(&ut_list_mutex);
-
-		/* Make an intentional seg fault so that we get a stack
-		trace */
-		if (assert_on_error) {
-			ut_print_timestamp(stderr);
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"We now intentionally generate a seg fault "
-				"so that on Linux we get a stack trace.");
-
-			if (*ut_mem_null_ptr) {
-				ut_mem_null_ptr = 0;
-			}
-		} else {
-			return(NULL);
-		}
-	}
-
+	ut_a(ret);
 	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
 
 	((ut_mem_block_t*) ret)->size = n + sizeof(ut_mem_block_t);
@@ -195,6 +163,17 @@ retry:
 
 	return(ret);
 #endif /* !UNIV_HOTBACKUP */
+}
+
+/** Allocate zero-filled memory.
+@param[in]	n number of bytes to allocate
+@return		zero-filled allocated memory block */
+
+void*
+ut_zalloc(
+	ulint	n)
+{
+	return(memset(ut_malloc(n), 0, n));
 }
 
 /**********************************************************************//**
@@ -443,7 +422,7 @@ char*
 ut_str3cat(
 /*=======*/
 				/* out, own: concatenated string, must be
-				freed with mem_free() */
+				freed with ut_free() */
 	const char*	s1,	/* in: string 1 */
 	const char*	s2,	/* in: string 2 */
 	const char*	s3)	/* in: string 3 */
@@ -453,7 +432,7 @@ ut_str3cat(
 	ulint	s2_len = strlen(s2);
 	ulint	s3_len = strlen(s3);
 
-	s = static_cast<char*>(mem_alloc(s1_len + s2_len + s3_len + 1));
+	s = static_cast<char*>(ut_malloc(s1_len + s2_len + s3_len + 1));
 
 	memcpy(s, s1, s1_len);
 	memcpy(s + s1_len, s2, s2_len);
@@ -466,7 +445,7 @@ ut_str3cat(
 /**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
-@return own: modified string, must be freed with mem_free() */
+@return own: modified string, must be freed with ut_free() */
 
 char*
 ut_strreplace(
@@ -493,7 +472,7 @@ ut_strreplace(
 	}
 
 	new_str = static_cast<char*>(
-		mem_alloc(str_len + count * len_delta + 1));
+		ut_malloc(str_len + count * len_delta + 1));
 
 	ptr = new_str;
 

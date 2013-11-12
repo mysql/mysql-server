@@ -48,8 +48,10 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = repeat('a',10000)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -71,8 +73,10 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = repeat('a',10000)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -219,14 +223,20 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_1	ref	idx6	idx6	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_1	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_1`.`a1` AS `a1`,left(`test`.`worklog5743_1`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_1` where (`test`.`worklog5743_1`.`a1` = 9)
 explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_2	ref	idx6	idx6	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_2	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_2`.`a1` AS `a1`,left(`test`.`worklog5743_2`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_2` where (`test`.`worklog5743_2`.`a1` = 9)
 explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_4	ref	idx6	idx6	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_4	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_4`.`a1` AS `a1`,left(`test`.`worklog5743_4`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_4` where (`test`.`worklog5743_4`.`a1` = 9)
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa
@@ -298,8 +308,10 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 explain select a1 from worklog5743 where a1 = 9;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx1	idx1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx1	idx1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
 select a1 from worklog5743 where a1 = 9;
 a1
 9

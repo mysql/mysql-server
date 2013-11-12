@@ -166,7 +166,7 @@ row_purge_remove_clust_if_poss_low(
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
-			RB_NONE, &mtr);
+			false, &mtr);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -346,7 +346,7 @@ row_purge_remove_sec_if_poss_tree(
 					  dict_table_is_comp(index->table)));
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   RB_NONE, &mtr);
+					   false, &mtr);
 		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
 		case DB_SUCCESS:
 			break;
@@ -638,7 +638,14 @@ skip_secondaries:
 						 &is_insert, &rseg_id,
 						 &page_no, &offset);
 
-			rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
+			/* If table is temp then it can't have its undo log
+			residing in rollback segment with REDO log enabled. */
+			bool is_redo_rseg =
+				dict_table_is_temporary(node->table)
+				? false : true;
+			rseg = trx_sys_get_nth_rseg(
+				trx_sys, rseg_id, is_redo_rseg);
+
 			ut_a(rseg != NULL);
 			ut_a(rseg->id == rseg_id);
 
@@ -675,7 +682,7 @@ skip_secondaries:
 				index,
 				data_field + dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE,
-				NULL, NULL, NULL, 0, RB_NONE, &mtr);
+				NULL, NULL, NULL, 0, false, &mtr);
 			mtr_commit(&mtr);
 		}
 	}

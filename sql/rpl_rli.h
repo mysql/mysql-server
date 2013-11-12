@@ -25,9 +25,11 @@
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 #include<vector>
+#include "rpl_mts_submode.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
+class Mts_submode;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -129,6 +131,15 @@ public:
     DBUG_ASSERT(info_thd);
     return !info_thd->slave_thread;
   }
+/* Instrumentation key for performance schema for mts_temp_table_LOCK */
+#ifdef HAVE_PSI_INTERFACE
+  PSI_mutex_key m_key_mts_temp_table_LOCK;
+#endif
+  /*
+     Lock to protect race condition while transferring temporary table from
+     worker thread to coordinator thread and vice-versa
+   */
+  mysql_mutex_t mts_temp_table_LOCK;
 
   /*
     If true, events with the same server id should be replicated. This
@@ -248,8 +259,12 @@ private:
     earlier on in the class constructor.
   */
   bool rli_fake;
+  /* Last gtid retrieved by IO thread */
+  Gtid last_retrieved_gtid;
 
 public:
+  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
+  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
@@ -352,12 +367,6 @@ public:
     after applying the gtid.
   */
   Gtid_set until_sql_gtids;
-  /*
-    On START SLAVE UNTIL SQL_AFTER_GTIDS this set contains the
-    intersection between logged gtids set and gtids scheduled on MTS
-    worker queues.
-  */
-  Gtid_set until_sql_gtids_seen;
   /*
     True if the current event is the first gtid event to be processed
     after executing START SLAVE UNTIL SQL_*_GTIDS.
@@ -623,7 +632,7 @@ public:
     MTS statistics: 
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
-  ulong mts_groups_assigned; // number of groups (transactions) scheduled
+  ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
@@ -648,7 +657,7 @@ public:
     if (workers_array_initialized)
       return workers.elements;
     else
-      return workers_copy_pfs.size();
+      return static_cast<uint>(workers_copy_pfs.size());
   }
 
   /*
@@ -676,6 +685,15 @@ public:
     else
       return NULL;
   }
+
+  /* MTS submode  */
+  Mts_submode* current_mts_submode;
+
+  /*
+    Slave side local seq_no identifying a parent group that being
+    the scheduled transaction is considered to be dependent
+   */
+  ulonglong mts_last_known_parent_group_id;
 
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);
@@ -901,7 +919,8 @@ public:
     THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
   }
 
-  int32 get_sql_delay() { return sql_delay; }
+  /* Note that this is cast to uint32 in show_slave_status(). */
+  time_t get_sql_delay() { return sql_delay; }
   void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
@@ -997,7 +1016,7 @@ private:
     slave SQL thread is running, since the SQL thread reads it without
     a lock when executing flush_info().
   */
-  int sql_delay;
+  time_t sql_delay;
 
   /**
     During a delay, specifies the point in time when the delay ends.
@@ -1060,4 +1079,8 @@ inline bool is_mts_worker(const THD *thd)
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
 
+/**
+ Auxiliary function to check if we have a db partitioned MTS
+ */
+bool is_mts_db_partitioned(Relay_log_info * rli);
 #endif /* RPL_RLI_H */

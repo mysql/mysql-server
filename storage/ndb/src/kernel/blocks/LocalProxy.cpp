@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,14 @@
 
 #include <mt.hpp>
 #include "LocalProxy.hpp"
+
+//#define DBINFO_SCAN_TRACE
+#ifdef DBINFO_SCAN_TRACE
+#include <debugger/DebuggerNames.hpp>
+#endif
+
+#define JAM_FILE_ID 437
+
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   SimulatedBlock(blockNumber, ctx)
@@ -285,7 +293,7 @@ LocalProxy::loadWorkers()
   c_workers = mt_get_instance_count(number());
   for (Uint32 i = 0; i < c_workers; i++)
   {
-    jam();
+    jamNoBlock();
     Uint32 instanceNo = workerInstance(i);
 
     SimulatedBlock* worker = newWorker(instanceNo);
@@ -1020,11 +1028,6 @@ LocalProxy::sendDROP_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
 }
 
 // GSN_DBINFO_SCANREQ
-
-//#define DBINFO_SCAN_TRACE
-#ifdef DBINFO_SCAN_TRACE
-#include <debugger/DebuggerNames.hpp>
-#endif
 
 static Uint32
 switchRef(Uint32 block, Uint32 instance, Uint32 node)

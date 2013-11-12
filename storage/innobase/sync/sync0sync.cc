@@ -50,17 +50,19 @@ mysql_pfs_key_t	fts_bg_threads_mutex_key;
 mysql_pfs_key_t	fts_delete_mutex_key;
 mysql_pfs_key_t	fts_optimize_mutex_key;
 mysql_pfs_key_t	fts_doc_id_mutex_key;
+mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 mysql_pfs_key_t	hash_table_mutex_key;
 mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 mysql_pfs_key_t	ibuf_mutex_key;
 mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 mysql_pfs_key_t	log_sys_mutex_key;
+mysql_pfs_key_t	log_cmdq_mutex_key;
 mysql_pfs_key_t	log_flush_order_mutex_key;
 # ifndef HAVE_ATOMIC_BUILTINS
 mysql_pfs_key_t	server_mutex_key;
 # endif /* !HAVE_ATOMIC_BUILTINS */
 # ifdef UNIV_MEM_DEBUG
-extern mysql_pfs_key_t	mem_hash_mutex_key;
+mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 mysql_pfs_key_t	mem_pool_mutex_key;
 mysql_pfs_key_t	recalc_pool_mutex_key;

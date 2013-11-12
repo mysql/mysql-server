@@ -19,25 +19,22 @@
   Functions to authenticate and handle requests for a connection
 */
 
-#include "my_global.h"
-#include "sql_priv.h"
-#include "sql_audit.h"
 #include "sql_connect.h"
-#include "my_global.h"
-#include "probes_mysql.h"
-#include "unireg.h"                    // REQUIRED: for other includes
-#include "sql_parse.h"                          // sql_command_flags,
-                                                // execute_init_command,
-                                                // do_command
-#include "sql_db.h"                             // mysql_change_db
-#include "hostname.h" // inc_host_errors, ip_to_hostname,
-                      // reset_host_errors
-#include "auth_common.h"                // SUPER_ACL, acl_check_host
-                                        // acl_getroot, NO_ACCESS
-#include "sql_callback.h"
-#include "log.h"
+
+#include "hash.h"                       // HASH
+#include "m_string.h"                   // my_stpcpy
+#include "probes_mysql.h"               // MYSQL_CONNECTION_START
+#include "auth_common.h"                // SUPER_ACL
+#include "hostname.h"                   // Host_errors
+#include "log.h"                        // sql_print_information
+#include "mysqld.h"                     // LOCK_user_conn
+#include "structs.h"                    // user_conn
+#include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql_class.h"                  // THD
+#include "sql_parse.h"                  // sql_command_flags
 
 #include <algorithm>
+#include <string.h>
 
 using std::min;
 using std::max;
@@ -80,7 +77,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(host != 0);
 
   user_len= strlen(user);
-  temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
+  temp_len= (my_stpcpy(my_stpcpy(temp_user, user)+1, host) - temp_user)+1;
   mysql_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
                  (uchar*) temp_user, temp_len)))
@@ -476,21 +473,6 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
 }
 
 
-/*
-  Initialize connection threads
-*/
-
-bool init_new_connection_handler_thread()
-{
-  pthread_detach_this_thread();
-  if (my_thread_init())
-  {
-    connection_errors_internal++;
-    return 1;
-  }
-  return 0;
-}
-
 #ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
@@ -515,7 +497,7 @@ static int check_connection(THD *thd)
 
   thd->set_active_vio(net->vio);
 
-  if (!thd->main_security_ctx.get_host()->length())      // If TCP/IP connection
+  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
   {
     my_bool peer_rc;
     char ip[NI_MAXHOST];
@@ -612,12 +594,12 @@ static int check_connection(THD *thd)
     {
       int rc;
       char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+
       rc= ip_to_hostname(&net->vio->remote,
                          thd->main_security_ctx.get_ip()->ptr(),
                          &host, &connect_errors);
 
       thd->main_security_ctx.set_host(host);
-
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.get_host()->length())
       {
@@ -640,7 +622,7 @@ static int check_connection(THD *thd)
                  thd->main_security_ctx.get_host()->ptr() : "unknown host"),
            (thd->main_security_ctx.get_ip()->length() ?
                  thd->main_security_ctx.get_ip()->ptr() : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(), 
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
                        thd->main_security_ctx.get_ip()->ptr()))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
@@ -652,8 +634,7 @@ static int check_connection(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.
-                                       get_host()->ptr();
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
     thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
@@ -708,7 +689,7 @@ static int check_connection(THD *thd)
 */
 
 
-bool login_connection(THD *thd)
+static bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
   int error;
@@ -764,17 +745,17 @@ void end_connection(THD *thd)
 
   if (net->error && net->vio != 0)
   {
-    if (!thd->killed && log_warnings > 1)
+    if (!thd->killed)
     {
       Security_context *sctx= thd->security_ctx;
 
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip,
-                        (thd->get_stmt_da()->is_error() ?
-                         thd->get_stmt_da()->message_text() :
-                         ER(ER_UNKNOWN_ERROR)));
+      sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
+                            thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                            sctx->user ? sctx->user : "unauthenticated",
+                            sctx->host_or_ip,
+                            (thd->get_stmt_da()->is_error() ?
+                             thd->get_stmt_da()->message_text() :
+                             ER(ER_UNKNOWN_ERROR)));
     }
   }
 }
@@ -784,12 +765,15 @@ void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-void prepare_new_connection_state(THD* thd)
+static void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;        // Use compression
+
+  // Initializing session system variables.
+  alloc_and_copy_thd_dynamic_variables(thd, true);
 
   /*
     Much of this is duplicated in create_embedded_thd() for the

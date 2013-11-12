@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+use test;
+Create a couple of tables to defeat Binlog Injector's
+creation of multi-image events which can be batch-applied
+on the slave regardless of slave_allow_batching
+create table t1 (pk int primary key, a varchar(8000)) engine=ndb;
+create table t2 (pk int primary key, a varchar(8000)) engine=ndb;
+Insert some data which we can later delete
+This also serves to 'prime' the Slave, so that NdbApi
+access related to slave setup (last_replicated_epoch fetch etc)
+can be ignored.
+insert into t1 values (1, repeat("I", 80)), (2, repeat("R", 80));
+First pass with slave_allow_batching OFF
+set global slave_allow_batching=OFF;
+show variables like 'slave_allow_batching';
+Variable_name	Value
+slave_allow_batching	OFF
+Check out batching
+Transaction includes deletes + inserts, and
+two different tables, shouldn't be entirely batchable
+without slave_allow_batching
+begin;
+delete from t1;
+insert into t1 values (3, repeat("I", 80)), (4, repeat("F", 80));
+insert into t2 values (5, repeat("B", 90)), (6, repeat("E", 90));
+commit;
+delete from t1;
+delete from t2;
+insert into t1 values (1, repeat("I", 80)), (2, repeat("R", 80));
+Second pass with slave_allow_batching ON
+set global slave_allow_batching=ON;
+show variables like 'slave_allow_batching';
+Variable_name	Value
+slave_allow_batching	ON
+Check out batching
+Transaction includes deletes + inserts, and
+two different tables, shouldn't be batchable
+without slave_allow_batching
+begin;
+delete from t1;
+insert into t1 values (3, repeat("I", 80)), (4, repeat("F", 80));
+insert into t2 values (5, repeat("B", 90)), (6, repeat("E", 90));
+commit;
+Determine slave activity in terms of PK ops and execute() calls
+Check that test compared like-for-like, and that slave_allow_batching
+came out ahead by a factor of at least 2.
+SELECT @batching_on_pk_ops = @batching_off_pk_ops AS 'Fair contest';
+Fair contest
+1
+SELECT @batching_off_pk_ops >=4 as 'Batching can improve matters';
+Batching can improve matters
+1
+SELECT @batching_on_execs * 2 < @batching_off_execs AS 'slave_allow_batching works';
+slave_allow_batching works
+1
+Cleanup
+drop table t2;
+drop table t1;
+include/rpl_end.inc

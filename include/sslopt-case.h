@@ -17,6 +17,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#ifdef MYSQL_CLIENT
+    case OPT_SSL_SSL:
+      /*
+        A client side --ssl option handling.
+        --ssl=1 means enforce (use=1, enforce=1)
+	--ssl=0 means can't enforce (use=0, enforce=0)
+	no --ssl means default : no enforce (use=1), just try (enforce=1)
+      */
+      opt_ssl_enforce= opt_use_ssl;
+      break;
+#endif
     case OPT_SSL_KEY:
     case OPT_SSL_CERT:
     case OPT_SSL_CA:
@@ -28,7 +39,7 @@
       Enable use of SSL if we are using any ssl option
       One can disable SSL later by using --skip-ssl or --ssl=0
     */
-      opt_use_ssl= 1;
+      opt_use_ssl= TRUE;
     /* crl has no effect in yaSSL */  
 #ifdef HAVE_YASSL
       opt_ssl_crl= NULL;

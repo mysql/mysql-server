@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,9 @@
 #define DICT_TAKEOVER_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 68
+
 
 // see comments in Dbdict.hpp
 
@@ -80,5 +82,8 @@ struct DictTakeoverRef {
   };
 };
 
+
+
+#undef JAM_FILE_ID
 
 #endif

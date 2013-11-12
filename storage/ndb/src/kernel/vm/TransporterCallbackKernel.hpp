@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #define TRANSPORTER_CALLBACK_KERNEL_HPP
 
 #include <TransporterCallback.hpp>
+
+#define JAM_FILE_ID 305
+
 
 class TransporterReceiveHandleKernel
   : public TransporterReceiveHandle
@@ -44,7 +47,7 @@ public:
 #endif
 
   /* TransporterCallback interface. */
-  void deliver_signal(SignalHeader * const header,
+  bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
                       Uint32 * const signalData,
                       LinearSectionPtr ptr[3]);
@@ -57,5 +60,8 @@ public:
   int checkJobBuffer();
   virtual ~TransporterReceiveHandleKernel() { }
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -286,11 +286,11 @@ SELECT CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS @var = NUMBER;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 #
 # If GET DIAGNOSTICS itself causes an error, an error message is appended.
 #
@@ -298,14 +298,14 @@ SELECT CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS CONDITION 99999 @var = CLASS_ORIGIN;
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 Error	1758	Invalid condition number
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 Error	1758	Invalid condition number
 
 # Statement information runtime
@@ -315,8 +315,8 @@ CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)	CAST(-19999999999999999999 AS SIGNED)
 -9223372036854775808	-9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS @var = NUMBER;
 SELECT @var;
 @var
@@ -366,7 +366,7 @@ SELECT CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS CONDITION 1
 @class_origin = CLASS_ORIGIN,
 @subclass_origin = SUBCLASS_ORIGIN,
@@ -405,7 +405,7 @@ SELECT
 @table_name	
 @column_name	
 @cursor_name	
-@message_text	Truncated incorrect DECIMAL value: ''
+@message_text	Truncated incorrect DECIMAL value: '-19999999999999999999'
 @mysql_errno	1292
 @returned_sqlstate	22007
 CREATE PROCEDURE p1()
@@ -465,7 +465,7 @@ schema_name
 table_name	
 column_name	
 cursor_name	
-message_text	Truncated incorrect DECIMAL value: ''
+message_text	Truncated incorrect DECIMAL value: '-19999999999999999999'
 mysql_errno	1292
 returned_sqlstate	22007
 DROP PROCEDURE p1;
@@ -484,7 +484,7 @@ END|
 CALL p1();
 CAST(-19999999999999999999 AS SIGNED)	-9223372036854775808
 errno1	1292
-msg1	Truncated incorrect DECIMAL value: ''
+msg1	Truncated incorrect DECIMAL value: '-19999999999999999999'
 errno2	1758
 msg2	Invalid condition number
 DROP PROCEDURE p1;
@@ -769,7 +769,7 @@ SELECT CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS CONDITION 1 @var1 = MESSAGE_TEXT, @var2 = CLASS_ORIGIN;
 SELECT CHARSET(@var1), COLLATION(@var1), COERCIBILITY(@var1);
 CHARSET(@var1)	COLLATION(@var1)	COERCIBILITY(@var1)

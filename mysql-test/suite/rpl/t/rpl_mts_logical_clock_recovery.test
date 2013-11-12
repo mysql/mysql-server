@@ -1,0 +1,84 @@
+#
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+#
+
+# In this test we make sure that the slave does a recovery when the it is
+# brought up after it has stopped due to error in one or more of its workers.
+-- source include/have_debug.inc
+-- source include/not_valgrind.inc
+-- source include/master-slave.inc
+-- let $saved_debug=`SELECT @@global.DEBUG`
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+
+# set up the tables and replicate it to the slave.
+CREATE TABLE t1 (a int primary key) engine=innodb;
+CREATE TABLE t2 (a int primary key) engine=innodb;
+CREATE TABLE t3 (a int primary key) engine=innodb;
+CREATE TABLE t4 (a int primary key) engine=innodb;
+-- sync_slave_with_master
+-- source include/stop_slave.inc
+-- let $saved_debug_slave=`SELECT @@global.DEBUG`
+SET GLOBAL DEBUG ='+d,crash_in_a_worker';
+
+-- connection master
+
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+
+# execute transactions
+
+# TRX1
+INSERT INTO t1 values (1),(2),(3);
+
+# trx2 will fail on the slave.
+BEGIN;
+INSERT INTO t2 values (1),(2),(3);
+UPDATE t2 SET a= a+1 WHERE a=3;
+COMMIT;
+
+# trx3
+INSERT INTO t3 values (1),(2),(3);
+
+# trx4
+INSERT INTO t4 values (1),(2),(3);
+
+--disable_query_log ONCE
+--disable_result_log ONCE
+SET GLOBAL DEBUG ='$saved_debug';
+
+--connection slave
+# make sure mtr expects a crash & restarts
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+START SLAVE;
+-- source include/wait_until_disconnected.inc
+-- let $rpl_server_number= 2
+-- source include/rpl_start_server.inc
+-- enable_reconnect
+-- echo # Reconnecting to the slave server
+-- source include/wait_until_connected_again.inc
+-- connection slave
+-- disable_query_log ONCE
+-- disable_result_log ONCE
+-- disable_reconnect
+-- eval SET GLOBAL DEBUG ='$saved_debug_slave';
+
+-- connection slave
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+
+# we need to send an additional event since the UNTIL CONDITION
+# needs an aditional event after the failed group to stop the slave
+# due to buf in until conditions
+-- connection master
+CREATE TABLE t5 (a int);
+
+-- connection slave
+-- source include/wait_for_slave_sql_to_stop.inc
+-- source include/start_slave.inc
+
+# cleanup
+-- connection master
+DROP TABLES t1, t2, t3, t4, t5;
+-- connection master
+-- sync_slave_with_master
+-- source include/rpl_end.inc
+

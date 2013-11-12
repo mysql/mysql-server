@@ -225,7 +225,7 @@ public:
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    *            INVALID_ERROR_NUMBER
    */
-  int insertError(int processId, int errorNo);
+  int insertError(int processId, int errorNo, Uint32 * extra = 0);
 
 
 
@@ -316,6 +316,13 @@ public:
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   int setConnectionDbParameter(int node1, int node2, int param, int value,
 			       BaseString& msg);
+
+  struct DynPortSpec {
+   int node; /* The node which should use below port */
+   int port; /* The port to use */
+  };
+  bool setDynamicPorts(int node, DynPortSpec ports[],
+                       unsigned num_ports, BaseString &msg);
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 

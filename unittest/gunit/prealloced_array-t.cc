@@ -236,6 +236,15 @@ TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
   }
 }
 
+TEST_F(PreallocedArrayTest, NoMemLeaksClearing)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  array.clear();
+  EXPECT_EQ(0U, array.size());
+}
+
 /*
   A simple class to verify that Prealloced_array also works for
   classes which have their own operator new/delete.

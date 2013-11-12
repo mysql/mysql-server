@@ -53,7 +53,6 @@
 #cmakedefine HAVE_SYSENT_H 1
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
-#cmakedefine HAVE_SYS_FPU_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
 #cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
@@ -119,7 +118,6 @@
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
 #cmakedefine HAVE_GETADDRINFO 1
-#cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -131,9 +129,6 @@
 #cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine HAVE_GETRUSAGE 1
 #cmakedefine HAVE_GETTIMEOFDAY 1
-#cmakedefine HAVE_GETWD 1
-#cmakedefine HAVE_GMTIME_R 1
-#cmakedefine gmtime_r @gmtime_r@
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
 #cmakedefine HAVE_GETUID 1
@@ -143,7 +138,6 @@
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
 #cmakedefine HAVE_LRAND48 1
-#cmakedefine HAVE_LOCALTIME_R 1
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LSTAT 1
 #cmakedefine HAVE_MEMALIGN 1
@@ -154,7 +148,6 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MKSTEMP 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
@@ -166,11 +159,7 @@
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
-#cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
-#cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
-#cmakedefine HAVE_PTHREAD_KEY_DELETE 1
-#cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
@@ -180,7 +169,6 @@
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_RINT 1
-#cmakedefine HAVE_RWLOCK_INIT 1
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
@@ -189,6 +177,7 @@
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
+#cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
@@ -198,13 +187,10 @@
 #cmakedefine HAVE_STRTOK_R 1
 #cmakedefine HAVE_STRTOLL 1
 #cmakedefine HAVE_TELL 1
-#cmakedefine HAVE_TEMPNAM 1
-#cmakedefine HAVE_THR_SETCONCURRENCY 1
 #cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
-#cmakedefine HAVE_TZNAME 1
 /* Symbols we may use */
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
@@ -483,5 +469,22 @@
 /* CPU information */
 
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+
+/* Performance schema advanced build */
+
+#cmakedefine DISABLE_PSI_MUTEX 1
+#cmakedefine DISABLE_PSI_RWLOCK 1
+#cmakedefine DISABLE_PSI_COND 1
+#cmakedefine DISABLE_PSI_FILE 1
+#cmakedefine DISABLE_PSI_TABLE 1
+#cmakedefine DISABLE_PSI_SOCKET 1
+#cmakedefine DISABLE_PSI_STAGE 1
+#cmakedefine DISABLE_PSI_STATEMENT 1
+#cmakedefine DISABLE_PSI_SP 1
+#cmakedefine DISABLE_PSI_IDLE 1
+#cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
+#cmakedefine DISABLE_PSI_METADATA 1
+#cmakedefine DISABLE_PSI_MEMORY 1
+#cmakedefine DISABLE_PSI_TRANSACTION 1
 
 #endif

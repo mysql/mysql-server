@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[cluster_config]
+# Following ensures there are multiple LQH workers in ndbmtd
+# This is useful, for example for bug#15908907
+MaxNoOfExecutionThreads=8
+

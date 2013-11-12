@@ -59,6 +59,7 @@ let $slave_com_delete_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_delete
 let $slave_com_update_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update', Value, 1);
 
 #Commit count check
+if (! `select $type = 'NDB'`) {
 --let $assert_text= Counter for COM_COMMIT is consistent with the number of actual commits
 --let $assert_cond= $slave_com_commit_after - $slave_com_commit_before = 4
 --source include/assert.inc
@@ -74,6 +75,7 @@ let $slave_com_update_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update
 --let $assert_text= Counter for COM_UPDATE is consistent with the number of actual updates
 --let $assert_cond= $slave_com_update_after - $slave_com_update_before = 1
 --source include/assert.inc
+}
 
 # Testing update with a condition that does not match any rows, but
 # which has a match for the index.
@@ -489,6 +491,12 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+# BUG16029263 NDB SLAVE BATCHING, REPLICATION AND KEYLESS TABLES
+# Skip the below tests for NDB since they have no PK
+# and are thus not supported by NDB
+if (`SELECT $type != 'NDB'`)
+{
+
 #
 # Bug #38230  Differences between master and slave after 
 #             UPDATE or DELETE with LIMIT with pk
@@ -678,3 +686,6 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+} # End of tests not supported by NDB
+

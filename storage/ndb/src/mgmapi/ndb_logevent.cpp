@@ -591,7 +591,17 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     h->m_error= NDB_LEH_UNKNOWN_EVENT_TYPE;
     return -1;
   }
-  dst->category= (enum ndb_mgm_event_category)category;
+
+  /* convert LogLevel::EventCategory enum values to ndb_mgm_event_category 
+   * enum values and store in dst->category
+   */
+  enum ndb_mgm_event_category mgm_category;
+  if(category == LogLevel::llInvalid) 
+      mgm_category= NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+  else
+      mgm_category= (enum ndb_mgm_event_category)(category + CFG_MIN_LOGLEVEL);
+
+  dst->category= mgm_category;
   dst->severity= (enum ndb_mgm_event_severity)severity;
   dst->level=    level;
 

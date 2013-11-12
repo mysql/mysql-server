@@ -20,6 +20,7 @@
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <NdbBackup.hpp>
+#include <NdbMgmd.hpp>
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -673,6 +674,68 @@ runBug57650(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  NdbRestarter res;
+  NdbMgmd mgmd;
+
+  res.insertErrorInAllNodes(5073); // slow down backup
+
+  if (!mgmd.connect()) {
+    g_err << "Cannot connect to mgmd server" << endl;
+    return NDBT_FAILED;
+  }
+  if (!mgmd.subscribe_to_events()) {
+    g_err << "Cannot subscribe to mgmd server logevents" << endl;
+    return NDBT_FAILED;
+  }
+  Uint64 maxWaitSeconds = 10;
+  Uint64 endTime = NdbTick_CurrentMillisecond() +
+                   (maxWaitSeconds * 1000);
+
+  int val2[] = { 100000 }; // all dump 100000 
+  unsigned backupId = 0;
+  if (backup.start(backupId, 1, 0, 1) == -1) {
+    g_err << "Failed to start backup nowait" << endl;
+    return NDBT_FAILED;
+  }
+  int records = 0, data = 0;
+  int result = NDBT_OK;
+  while (NdbTick_CurrentMillisecond() < endTime)
+  {
+    char buff[512];
+    char tmp[512];
+
+    // dump backup status in mgmd log 
+    res.dumpStateAllNodes(val2, 1);
+
+    // read backup status logevent from mgmd
+    if (!mgmd.get_next_event_line(buff, sizeof(buff), 10 * 1000)) {
+      g_err << "Failed to read logevent from mgmd" << endl;
+      return NDBT_FAILED;
+    }
+    if(strstr(buff, "#Records")) 
+       sscanf(buff, "%s %d", tmp, &records);
+    if(strstr(buff, "Data")) {
+      sscanf(buff, "%s %d", tmp, &data);
+      if(records == 0 && data > 0) {
+        g_err << "Inconsistent backup status: ";
+        g_err << "Data written = " << data << " bytes, Record count = 0" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      else if(records > 0 && data > 0)
+        break;
+    }
+  }    
+
+  res.insertErrorInAllNodes(0);
+
+  return result;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -805,6 +868,10 @@ TESTCASE("FailSlave",
 TESTCASE("Bug57650", "")
 {
   INITIALIZER(runBug57650);
+}
+TESTCASE("Bug14019036", "")
+{
+  INITIALIZER(runBug14019036);
 }
 NDBT_TESTSUITE_END(testBackup);
 

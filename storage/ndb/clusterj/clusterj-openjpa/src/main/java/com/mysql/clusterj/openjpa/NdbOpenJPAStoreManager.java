@@ -24,9 +24,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.openjpa.datacache.QueryCache;
+import org.apache.openjpa.datacache.QueryCacheStoreQuery;
 import org.apache.openjpa.jdbc.kernel.ConnectionInfo;
 import org.apache.openjpa.jdbc.kernel.JDBCFetchConfiguration;
 import org.apache.openjpa.jdbc.kernel.JDBCStoreManager;
+import org.apache.openjpa.jdbc.kernel.PreparedSQLStoreQuery;
+import org.apache.openjpa.jdbc.kernel.SQLStoreQuery;
 import org.apache.openjpa.jdbc.meta.ClassMapping;
 import org.apache.openjpa.jdbc.meta.ValueMapping;
 import org.apache.openjpa.jdbc.schema.Table;
@@ -61,9 +65,6 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.query.QueryDomainType;
 
-/**
- *
- */
 public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 
     /** My message translator */
@@ -431,12 +432,59 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         super.beforeStateChange(sm, fromState, toState);
     }
 
+    /**
+     * First method call for JPQL query string:
+     * - parameter language: javax.persistence.JPQL
+     * - returns: NdbOpenJPAStoreQuery
+     *
+     * Successive method calls for the same JPQL query string send in a different language -
+     * - parameter language: openjpa.prepared.SQL
+     * - returns: QueryCacheStoreQuery if query cache is active or PreparedSQLStoreQuery if not
+     * 
+     * Method calls for SQL query string send in a different language -
+     * - parameter language: openjpa.SQL
+     * - returns: QueryCacheStoreQuery if query cache is active or SQLStoreQuery if not
+     */
     @Override
     public StoreQuery newQuery(String language) {
-        ExpressionParser ep = QueryLanguages.parserForLanguage(language);
-        return new NdbOpenJPAStoreQuery(this, ep);
+        ExpressionParser expressionParser = QueryLanguages.parserForLanguage(language);
+        StoreQuery storeQuery = newStoreQuery(language, expressionParser); 
+        if (logger.isDetailEnabled()) {
+            logger.detail(("NdbOpenJPAStoreManager.newQuery language: " + language + " parser: " + expressionParser));
+        }
+        if (storeQuery == null || expressionParser == null) {
+            // error -- no parser; or SQL or prepared SQL
+            return storeQuery;
+        }
+
+        QueryCache queryCache = storeContext.getConfiguration().getDataCacheManagerInstance().getSystemQueryCache();
+        if (queryCache == null) {
+            // no query cache is active -- return the StoreQuery
+            return storeQuery;
+        }
+        
+        // query cache is active -- return the QueryCacheStoreQuery
+        return new QueryCacheStoreQuery(storeQuery, queryCache);
     }
 
+    /** Create a StoreQuery based on the language.
+     * 
+     * @param language languages supported: javax.persistence.JPQL, openjpa.prepared.SQL, openjpa.SQL
+     * @return StoreQuery for the language or null if the language is not supported
+     */
+    private StoreQuery newStoreQuery(String language, ExpressionParser expressionParser) {
+        if (expressionParser != null) { 
+            return new NdbOpenJPAStoreQuery(this, expressionParser);
+        }
+        if (QueryLanguages.LANG_SQL.equals(language)) {
+            return new SQLStoreQuery(this);
+        }
+        if (QueryLanguages.LANG_PREPARED_SQL.equals(language)) {
+            return new PreparedSQLStoreQuery(this);
+        }
+        return null;
+    }
+    
     @Override
     public void beginOptimistic() {
         if (logger.isTraceEnabled()) {

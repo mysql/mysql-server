@@ -99,7 +99,7 @@ user	CREATE TABLE `user` (
   `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
   `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
   `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
-  `plugin` char(64) COLLATE utf8_bin DEFAULT '',
+  `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'mysql_native_password',
   `authentication_string` text COLLATE utf8_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   PRIMARY KEY (`Host`,`User`)
@@ -222,27 +222,27 @@ event	CREATE TABLE `event` (
 show create table general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show tables;

@@ -101,6 +101,11 @@ SET @@global.auto_increment_offset = -1024;
 SELECT @@global.auto_increment_offset;
 SET @@global.auto_increment_offset = 65536;
 SELECT @@global.auto_increment_offset;
+SET @@global.auto_increment_offset = 4294967295;
+SELECT @@global.auto_increment_offset;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.auto_increment_offset = 65535.4;
+SELECT @@global.auto_increment_offset;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.auto_increment_offset = ON;
 SELECT @@global.auto_increment_offset;
@@ -113,11 +118,15 @@ SELECT @@global.auto_increment_offset;
 # for session scope
 SET @@session.auto_increment_offset = 0;
 SELECT @@session.auto_increment_offset;
-SET @@session.auto_increment_offset = -2;
+SET @@session.auto_increment_offset = -1024;
 SELECT @@session.auto_increment_offset;
-SET @@session.auto_increment_offset = 65550;
+SET @@session.auto_increment_offset = 65536;
 SELECT @@session.auto_increment_offset;
-
+SET @@session.auto_increment_offset = 4294967295;
+SELECT @@session.auto_increment_offset;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.auto_increment_offset = 65535.4;
+SELECT @@session.auto_increment_offset;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.auto_increment_offset = ON;
 SELECT @@session.auto_increment_offset;

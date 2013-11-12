@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ struct NdbThread
   char thread_name[16];
   NDB_THREAD_FUNC * func;
   void * object;
+  void *thread_key;
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   struct ndb_mutex_thr_state m_mutex_thr_state;
 #endif
@@ -180,7 +181,7 @@ ndb_thread_wrapper(void* _ss){
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
       ndb_mutex_thread_init(&ss->m_mutex_thr_state);
 #endif
-
+      NdbThread_SetTlsKey(NDB_THREAD_TLS_NDB_THREAD, ss);
       NdbMutex_Lock(g_ndb_thread_mutex);
       ss->inited = 1;
       NdbCondition_Signal(g_ndb_thread_condition);
@@ -200,14 +201,14 @@ struct NdbThread*
 NdbThread_CreateObject(const char * name)
 {
   struct NdbThread* tmpThread;
-  DBUG_ENTER("NdbThread_Create");
+  DBUG_ENTER("NdbThread_CreateObject");
 
   if (g_main_thread != 0)
   {
     settid(g_main_thread);
     if (name)
     {
-      strnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
+      my_stpnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
     }
     DBUG_RETURN(g_main_thread);
   }
@@ -219,11 +220,11 @@ NdbThread_CreateObject(const char * name)
   bzero(tmpThread, sizeof(* tmpThread));
   if (name)
   {
-    strnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
+    my_stpnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
   }
   else
   {
-    strnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
+    my_stpnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
   }
 
 #ifdef HAVE_PTHREAD_SELF
@@ -273,7 +274,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   DBUG_PRINT("info",("thread_name: %s", p_thread_name));
 
-  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
+  my_stpnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
 #ifdef PTHREAD_STACK_MIN
@@ -297,6 +298,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
+  tmpThread->thread_key = NULL;
 
   NdbMutex_Lock(g_ndb_thread_mutex);
   result = pthread_create(&tmpThread->thread,
@@ -346,6 +348,11 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
       CloseHandle(thread_handle);
 #endif
     DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
+    if ((*p_thread)->thread_key)
+    {
+      free((*p_thread)->thread_key);
+      (*p_thread)->thread_key = NULL;
+    }
     free(* p_thread); 
     * p_thread = 0;
   }
@@ -404,6 +411,7 @@ int NdbThread_SetConcurrencyLevel(int level)
 #endif
 }
 
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int
 get_max_prio(int policy)
 {
@@ -459,6 +467,7 @@ get_prio(my_bool rt_prio, my_bool high_prio, int policy)
     g_prio = g_min_prio;
   return g_prio;
 }
+#endif
 
 int
 NdbThread_SetScheduler(struct NdbThread* pThread,
@@ -514,9 +523,38 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
 }
 
 int
+NdbThread_UnlockCPU(struct NdbThread* pThread)
+{
+  int ret;
+  int error_no = 0;
+  if (pThread->thread_key != NULL)
+  {
+#if defined HAVE_LINUX_SCHEDULING
+    cpu_set_t *cpu_set_ptr = (cpu_set_t *)pThread->thread_key;
+    ret= sched_setaffinity(pThread->tid, sizeof(cpu_set_t), cpu_set_ptr);
+    if (ret)
+    {
+      error_no = errno;
+    }
+#elif defined HAVE_SOLARIS_AFFINITY
+    processorid_t *cpu_id = (processorid_t*)pThread->thread_key;
+    ret= processor_bind(P_LWPID, pThread->tid, *cpu_id, NULL);
+    if (ret)
+    {
+      error_no = errno;
+    }
+#else
+    (void)ret;
+#endif
+  }
+  return error_no;
+}
+
+int
 NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
 {
   int error_no = 0;
+
 #if defined HAVE_LINUX_SCHEDULING
 
   /*
@@ -531,11 +569,25 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
   */
   int ret;
   cpu_set_t cpu_set;
+
+  if (pThread->thread_key == NULL)
+  {
+    cpu_set_t *old_cpu_set_ptr = malloc(sizeof(cpu_set));
+    ret = sched_getaffinity(pThread->tid, sizeof(cpu_set), old_cpu_set_ptr);
+    if (ret)
+    {
+      error_no = errno;
+      goto end;
+    }
+    pThread->thread_key = (void*)old_cpu_set_ptr;
+  }
   CPU_ZERO(&cpu_set);
   CPU_SET(cpu_id, &cpu_set);
   ret= sched_setaffinity(pThread->tid, sizeof(cpu_set), &cpu_set);
   if (ret)
+  {
     error_no = errno;
+  }
 #elif defined HAVE_SOLARIS_AFFINITY
   /*
     Solaris have a number of versions to lock threads to CPU's.
@@ -545,12 +597,25 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
     is the LWP id.
   */
   int ret;
+  if (pThread->thread_key == NULL)
+  {
+    processorid_t *old_cpu_id_ptr = malloc(sizeof(processorid_t));
+    ret= processor_bind(P_LWPID, pThread->tid, PBIND_QUERY, old_cpu_id);
+    if (ret)
+    {
+      error_no= errno;
+      goto end;
+    }
+    pThread->thread_key = (void*)old_cpu_id_ptr;
+  }
   ret= processor_bind(P_LWPID, pThread->tid, cpu_id, NULL);
   if (ret)
     error_no= errno;
 #else
   error_no = ENOSYS;
+  goto end;
 #endif
+end:
   return error_no;
 }
 
@@ -559,6 +624,11 @@ static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX]);
 #else
 static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX + 1]);
 #endif
+
+struct NdbThread* NdbThread_GetNdbThread()
+{
+  return (struct NdbThread*)NdbThread_GetTlsKey(NDB_THREAD_TLS_NDB_THREAD);
+}
 
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
 {
@@ -577,6 +647,7 @@ NdbThread_Init()
   g_ndb_thread_condition = NdbCondition_Create();
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_NDB_THREAD]), NULL);
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
 #endif

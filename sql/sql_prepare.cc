@@ -114,6 +114,8 @@ When one supplies long data for a placeholder:
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
 #include "sql_analyse.h"
+#include "sql_rewrite.h"
+#include "transaction.h"                        // trans_rollback_implicit
 
 #include <algorithm>
 using std::max;
@@ -282,6 +284,54 @@ private:
   Implementation
 ******************************************************************************/
 
+/**
+  Rewrite the current query (to obfuscate passwords etc.) if needed
+  (i.e. only if we'll be writing the query to any of our logs).
+
+  Side-effect: thd->rewritten_query() may be populated with a rewritten
+               query.  If the query is not of a rewritable type,
+               thd->rewritten_query() will be empty.
+
+  @param thd                thread handle
+*/
+static inline void rewrite_query_if_needed(THD *thd)
+{
+  bool general= (opt_general_log &&
+                 !(opt_general_log_raw || thd->slave_thread));
+
+  if ((thd->sp_runtime_ctx == NULL) &&
+      (general || opt_slow_log || opt_bin_log))
+    mysql_rewrite_query(thd);
+}
+
+/**
+  Unless we're doing dynamic SQL, write the current query to the
+  general query log if it's open.  If we have a rewritten version
+  of the query, use that instead of the "raw" one.
+
+  Side-effect: query may be written to general log if it's open.
+
+  @param thd                thread handle
+*/
+static inline void log_execute_line(THD *thd)
+{
+  /*
+    Do not print anything if this is an SQL prepared statement and
+    we're inside a stored procedure (also called Dynamic SQL) --
+    sub-statements inside stored procedures are not logged into
+    the general log.
+  */
+  if (thd->sp_runtime_ctx != NULL)
+    return;
+
+  if (thd->rewritten_query.length())
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->rewritten_query.c_ptr_safe(),
+                                   thd->rewritten_query.length());
+  else
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->query(), thd->query_length());
+}
 
 inline bool is_param_null(const uchar *pos, ulong param_no)
 {
@@ -881,7 +931,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
 
-        if (param->limit_clause_param && param->item_type != Item::INT_ITEM)
+        if (param->limit_clause_param && param->state != Item_param::INT_VALUE)
         {
           param->set_int(param->val_int(), MY_INT64_NUM_DECIMAL_DIGITS);
           param->item_type= Item::INT_ITEM;
@@ -981,7 +1031,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
       typecode= sint2korr(read_pos);
       read_pos+= 2;
-      (**it).unsigned_flag= test(typecode & signed_bit);
+      (**it).unsigned_flag= MY_TEST(typecode & signed_bit);
       setup_one_conversion_function(thd, *it, (uchar) (typecode & ~signed_bit));
     }
   }
@@ -1259,6 +1309,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_insert");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
+  TABLE_LIST *insert_table_ref= 0;
+
   if (open_temporary_tables(thd, table_list))
     goto error;
 
@@ -1287,7 +1339,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       table_list->table->insert_values=(uchar *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, table_list->table,
+    if (mysql_prepare_insert(thd, table_list, &insert_table_ref,
                              fields, values, update_fields, update_values,
                              duplic, &unused_conds, FALSE, FALSE, FALSE))
       goto error;
@@ -1335,18 +1387,16 @@ error:
 static int mysql_test_update(Prepared_statement *stmt,
                               TABLE_LIST *table_list)
 {
-  int res;
-  THD *thd= stmt->thd;
-  SELECT_LEX *select= stmt->lex->select_lex;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  uint          want_privilege;
-#endif
   DBUG_ENTER("mysql_test_update");
 
-  if (update_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
+  THD        *const thd= stmt->thd;
+  SELECT_LEX *const select= stmt->lex->select_lex;
+
+  if (update_precheck(thd, table_list))
+    DBUG_RETURN(1);
+  if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
+    DBUG_RETURN(1);
 
   if (table_list->multitable_view)
   {
@@ -1359,45 +1409,48 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (!table_list->updatable)
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
-    goto error;
+    DBUG_RETURN(1);
   }
+
+  TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
-  want_privilege= (table_list->view ? UPDATE_ACL :
-                   table_list->grant.want_privilege);
+  const uint want_privilege= (table_list->view ? UPDATE_ACL :
+                             table_list->grant.want_privilege);
 #endif
 
-  if (mysql_prepare_update(thd, table_list, &select->where,
+  if (mysql_prepare_update(thd, table_list, update_table_ref, &select->where,
                            select->order_list.elements,
                            select->order_list.first))
-    goto error;
+    DBUG_RETURN(1);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  TABLE *const table= update_table_ref->table;
+
   table_list->grant.want_privilege= want_privilege;
-  table_list->table->grant.want_privilege= want_privilege;
+  table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  thd->lex->select_lex->no_wrap_view_item= true;
-  res= setup_fields(thd, Ref_ptr_array(),
-                    select->item_list, MARK_COLUMNS_READ, 0, 0);
-  thd->lex->select_lex->no_wrap_view_item= false;
+  DBUG_ASSERT(select == thd->lex->select_lex);
+  select->no_wrap_view_item= true;
+  const int res= setup_fields(thd, Ref_ptr_array(),
+                              select->item_list, MARK_COLUMNS_READ, 0, 0);
+  select->no_wrap_view_item= false;
   if (res)
-    goto error;
+    DBUG_RETURN(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table_list->grant.want_privilege=
-  table_list->table->grant.want_privilege=
-    (SELECT_ACL & ~table_list->table->grant.privilege);
+  table->grant.want_privilege=
+    (SELECT_ACL & ~table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
   if (setup_fields(thd, Ref_ptr_array(),
                    stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
-    goto error;
+    DBUG_RETURN(1);
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
-error:
-  DBUG_RETURN(1);
 }
 
 
@@ -1421,21 +1474,32 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
+  if (delete_precheck(thd, table_list))
+    DBUG_RETURN(true);
+  if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
+    DBUG_RETURN(true);
 
-  if (!table_list->table)
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    DBUG_RETURN(true);
+  }
+
+  if (table_list->multitable_view)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
-    goto error;
+    DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(mysql_prepare_delete(thd, table_list, &lex->select_lex->where));
-error:
-  DBUG_RETURN(TRUE);
+  TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
+
+  if (mysql_prepare_delete(thd, table_list, delete_table_ref,
+                           &lex->select_lex->where))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1881,7 +1945,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
                                       &mysql_multi_delete_prepare_tester,
                                       OPTION_SETUP_TABLES_DONE))
     goto error;
-  if (!tables->table)
+  if (tables->multitable_view)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              tables->view_db.str, tables->view_name.str);
@@ -2122,6 +2186,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_ANALYZE:
   case SQLCOM_OPTIMIZE:
   case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_CHANGE_REPLICATION_FILTER:
   case SQLCOM_RESET:
   case SQLCOM_FLUSH:
   case SQLCOM_SLAVE_START:
@@ -2647,7 +2712,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   DBUG_PRINT("exec_query", ("%s", stmt->query()));
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
-  open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
+  open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
   thd->protocol= &thd->protocol_binary;
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
@@ -2973,8 +3038,9 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   {
     stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= thd->get_stmt_da()->mysql_errno();
-    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(),
-            MYSQL_ERRMSG_SIZE);
+    size_t len= sizeof(stmt->last_error);
+    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(), len - 1);
+    stmt->last_error[len - 1] = '\0';
   }
   thd->pop_diagnostics_area();
 
@@ -3117,13 +3183,18 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+  /*
+    Rewrite first (if needed); execution might replace passwords
+    with hashes in situ without flagging it, and then we'd make
+    a hash of that hash.
+  */
+  rewrite_query_if_needed(thd);
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -3396,7 +3467,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
-  /* 
+  /*
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
@@ -3419,7 +3490,26 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  /*
+    Transaction rollback was requested since MDL deadlock was discovered
+    while trying to open tables. Rollback transaction in all storage
+    engines including binary log and release all locks.
+
+    Once dynamic SQL is allowed as substatements the below if-statement
+    has to be adjusted to not do rollback in substatement.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+
   lex_end(lex);
+
+  rewrite_query_if_needed(thd);
+
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
@@ -3431,15 +3521,27 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
-    /* 
-      Log COM_EXECUTE to the general log. Note, that in case of SQL
+    /*
+      Log COM_STMT_PREPARE to the general log. Note, that in case of SQL
       prepared statements this causes two records to be output:
 
       Query       PREPARE stmt from @user_variable
       Prepare     <statement SQL text>
 
-      This is considered user-friendly, since in the
-      second log entry we output the actual statement text.
+      This is considered user-friendly, since in the  second log Entry
+      we output the actual statement text rather than the variable name.
+
+      Rewriting/password obfuscation:
+
+      - If we're preparing from a string literal rather than from a
+        variable, the literal is elided in the "Query" log line, as
+        it may contain a password.  (As we've parsed the PREPARE statement,
+        but not the statement to prepare yet, we don't know at that point.)
+        Eliding the literal is fine, as we'll print it in the next log line
+        ("Prepare"), anyway.
+
+      - Any passwords in the "Prepare" line should be substituted with their
+        hashes, or a notice.
 
       Do not print anything if this is an SQL prepared statement and
       we're inside a stored procedure (also called Dynamic SQL) --
@@ -3447,8 +3549,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->sp_runtime_ctx == NULL)
-      query_logger.general_log_write(thd, COM_STMT_PREPARE,
-                                     query(), query_length());
+    {
+      if (thd->rewritten_query.length())
+        query_logger.general_log_write(thd, COM_STMT_PREPARE,
+                                       thd->rewritten_query.c_ptr_safe(),
+                                       thd->rewritten_query.length());
+      else
+        query_logger.general_log_write(thd, COM_STMT_PREPARE,
+                                       query(), query_length());
+    }
   }
   DBUG_RETURN(error);
 }
@@ -3957,6 +4066,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+      /*
+        Rewrite first (if needed); execution might replace passwords
+        with hashes in situ without flagging it, and then we'd make
+        a hash of that hash.
+      */
+      rewrite_query_if_needed(thd);
+
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
       MYSQL_QUERY_EXEC_DONE(error);
@@ -3995,7 +4111,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   }
 
   /*
-    Log COM_EXECUTE to the general log. Note, that in case of SQL
+    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
     prepared statements this causes two records to be output:
 
     Query       EXECUTE <statement name>
@@ -4004,14 +4120,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     This is considered user-friendly, since in the
     second log entry we output values of parameter markers.
 
-    Do not print anything if this is an SQL prepared statement and
-    we're inside a stored procedure (also called Dynamic SQL) --
-    sub-statements inside stored procedures are not logged into
-    the general log.
+    Rewriting/password obfuscation:
+
+    - Any passwords in the "Execute" line should be substituted with
+      their hashes, or a notice.
+
   */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 error:
   flags&= ~ (uint) IS_IN_USE;
