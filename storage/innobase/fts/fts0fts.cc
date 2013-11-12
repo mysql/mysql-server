@@ -4480,7 +4480,7 @@ fts_sync_table(
 
 	ut_ad(table->fts);
 
-	if (table->fts->cache) {
+	if (!dict_table_is_discarded(table) && table->fts->cache) {
 		err = fts_sync(table->fts->cache->sync);
 	}
 
