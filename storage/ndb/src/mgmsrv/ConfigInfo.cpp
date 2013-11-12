@@ -5408,18 +5408,21 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
     ConfigInfo::ConfigRuleSection s;
 
     // Generate a unique name for this new cluster
-    time_t now = ::time((time_t*)NULL);
-    struct tm* tm_now = ::localtime(&now);
+    time_t now;
+    time(&now);
+
+    tm tm_buf;
+    localtime_r(&now, &tm_buf);
 
     char name_buf[18];
     BaseString::snprintf(name_buf, sizeof(name_buf),
                          "MC_%d%.2d%.2d%.2d%.2d%.2d",
-                         tm_now->tm_year + 1900,
-                         tm_now->tm_mon + 1,
-                         tm_now->tm_mday,
-                         tm_now->tm_hour,
-                         tm_now->tm_min,
-                         tm_now->tm_sec);
+                         tm_buf.tm_year + 1900,
+                         tm_buf.tm_mon + 1,
+                         tm_buf.tm_mday,
+                         tm_buf.tm_hour,
+                         tm_buf.tm_min,
+                         tm_buf.tm_sec);
 
     s.m_sectionType = BaseString("SYSTEM");
     s.m_sectionData = new Properties(true);

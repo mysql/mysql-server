@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,6 +102,19 @@ class LogHandlerList;
 class Logger
 {
 public:
+
+
+  /*
+    Convert time to local timezone and print in timestamp format
+    to string buffer
+      @epoch time to convert and print
+      @str pointer to buffer where to print the resulting string
+      @len max lenght of result buffer
+  */
+  static char*
+  format_timestamp(const time_t epoch,
+                   char* str, size_t len);
+
   /** The log levels. NOTE: Could not use the name LogLevel since 
    * it caused conflicts with another class.
    */
