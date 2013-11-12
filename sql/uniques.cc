@@ -377,9 +377,10 @@ Unique::reset()
 
 C_MODE_START
 
-static int buffpek_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
+static int merge_chunk_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
 {
-  BUFFPEK_COMPARE_CONTEXT *ctx= (BUFFPEK_COMPARE_CONTEXT *) arg;
+  Merge_chunk_compare_context *ctx=
+    static_cast<Merge_chunk_compare_context*>(arg);
   return ctx->key_compare(ctx->key_compare_arg,
                           *((uchar **) key_ptr1), *((uchar **)key_ptr2));
 }
@@ -427,12 +428,12 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
                        qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
 {
-  BUFFPEK_COMPARE_CONTEXT compare_context = { compare, compare_arg };
+  Merge_chunk_compare_context compare_context = { compare, compare_arg };
   QUEUE queue;
   if (end <= begin ||
       merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
       init_queue(&queue, (uint) (end - begin), Merge_chunk::offset_to_key(), 0,
-                 buffpek_compare, &compare_context))
+                 merge_chunk_compare, &compare_context))
     return 1;
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size-= key_length;
@@ -622,7 +623,7 @@ bool Unique::get(TABLE *table)
 
   IO_CACHE *outfile=table->sort.io_cache;
   Merge_chunk *file_ptr= file_ptrs.begin();
-  uint maxbuffer= file_ptrs.size() - 1;
+  size_t num_chunks= file_ptrs.size();
   uchar *sort_memory;
   my_off_t save_pos;
   bool error=1;
@@ -655,20 +656,22 @@ bool Unique::get(TABLE *table)
   sort_param.unique_buff= sort_memory+(sort_param.max_keys_per_buffer *
                                        sort_param.sort_length);
 
-  sort_param.compare= (qsort2_cmp) buffpek_compare;
+  sort_param.compare= (qsort2_cmp) merge_chunk_compare;
   sort_param.cmp_context.key_compare= tree.compare;
   sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
   if (merge_many_buff(&sort_param, Sort_buffer(sort_memory, num_bytes),
-                      file_ptr,&maxbuffer,&file))
+                      Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
+                      &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
   if (merge_buffers(&sort_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes),
-                    file_ptr, file_ptr, file_ptr+maxbuffer,0))
+                    file_ptr,
+                    Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
   error=0;
 err:
