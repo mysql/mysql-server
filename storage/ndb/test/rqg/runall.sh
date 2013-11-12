@@ -1,5 +1,20 @@
 #!/bin/sh
 
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
 set -e
 
 : ${load:=1}
@@ -280,11 +295,44 @@ BEGIN
 END
 \G
 
+CREATE PROCEDURE analyzedb(db varchar(64))
+BEGIN
+
+  declare tabname varchar(255);
+  declare done integer default 0;
+  declare cnt integer default 0;
+  declare c cursor for 
+    SELECT table_name
+    FROM INFORMATION_SCHEMA.TABLES where table_schema = db;
+  declare continue handler for not found set done = 1;
+
+  set @ddl = 'ANALYZE TABLE ';
+  open c;
+  
+  repeat
+    fetch c into tabname;
+    if not done then
+       set cnt = cnt+1;
+       if cnt > 1 then
+         set @ddl = CONCAT(@ddl, ', ');
+       end if;
+       set @ddl = CONCAT(@ddl,  db, '.', tabname);
+    end if;
+  until done end repeat;
+  close c;
+
+  PREPARE stmt from @ddl;
+  EXECUTE stmt;
+END
+\G
 
 CALL copydb('${pre}_ndb', '${pre}_myisam', 'ndb')\G
+CALL analyzedb('${pre}_ndb')\G
+
 ##CALL alterengine('${pre}_ndb', 'ndb')\G
 DROP PROCEDURE copydb\G
 DROP PROCEDURE alterengine\G
+DROP PROCEDURE analyzedb\G
 EOF
 	$mysql -uroot test < /tmp/sproc.$$
 	rm -f /tmp/sproc.$$

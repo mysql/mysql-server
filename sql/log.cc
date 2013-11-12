@@ -46,6 +46,9 @@
 using std::min;
 using std::max;
 
+/* 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
+static const int iso8601_size= 33;
+
 enum enum_slow_query_log_table_field
 {
   SQLT_FIELD_START_TIME = 0,
@@ -67,7 +70,7 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
 {
   {
     { C_STRING_WITH_LEN("start_time") },
-    { C_STRING_WITH_LEN("timestamp") },
+    { C_STRING_WITH_LEN("timestamp(6)") },
     { NULL, 0 }
   },
   {
@@ -77,12 +80,12 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("query_time") },
-    { C_STRING_WITH_LEN("time") },
+    { C_STRING_WITH_LEN("time(6)") },
     { NULL, 0 }
   },
   {
     { C_STRING_WITH_LEN("lock_time") },
-    { C_STRING_WITH_LEN("time") },
+    { C_STRING_WITH_LEN("time(6)") },
     { NULL, 0 }
   },
   {
@@ -117,8 +120,8 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("sql_text") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
@@ -146,7 +149,7 @@ static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
 {
   {
     { C_STRING_WITH_LEN("event_time") },
-    { C_STRING_WITH_LEN("timestamp") },
+    { C_STRING_WITH_LEN("timestamp(6)") },
     { NULL, 0 }
   },
   {
@@ -171,8 +174,8 @@ static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("argument") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   }
 };
 
@@ -226,6 +229,79 @@ public:
 
   const char *message() const { return m_message; }
 };
+
+
+static void ull2timeval(ulonglong utime, struct timeval *tv)
+{
+  DBUG_ASSERT(tv != NULL);
+  DBUG_ASSERT(utime > 0);      /* should hold true in this context */
+  tv->tv_sec= utime / 1000000;
+  tv->tv_usec=utime % 1000000;
+}
+
+
+/**
+  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
+  Heeds log_timestamps.
+
+  @param buf       A buffer of at least 26 bytes to store the timestamp in
+                   (19 + tzinfo tail + \0)
+  @param seconds   Seconds since the epoch, or 0 for "now"
+
+  @return          length of timestamp (excluding \0)
+*/
+
+int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
+{
+  struct tm  my_tm;
+  char       tzinfo[7]="Z";  // max 6 chars plus \0
+  int        len;
+  time_t     seconds;
+
+  if (utime == 0)
+    utime= my_micro_time();
+
+  seconds= utime / 1000000;
+  utime = utime % 1000000;
+
+  if (opt_log_timestamps == 0)
+    gmtime_r(&seconds, &my_tm);
+  else
+  {
+    localtime_r(&seconds, &my_tm);
+
+#ifdef __FreeBSD__
+    /*
+      The field tm_gmtoff is the offset (in seconds) of the time represented
+      from UTC, with positive values indicating east of the Prime Meridian.
+    */
+    long tim= -my_tm.tm_gmtoff;
+#else
+    long tim= timezone; // seconds West of UTC.
+#endif
+    char dir= '-';
+
+    if (tim < 0)
+    {
+      dir= '+';
+      tim= -tim;
+    }
+    my_snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
+                dir, (int) (tim / (60 * 60)), (int) ((tim / 60) % 60));
+  }
+
+  len= my_snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
+                   my_tm.tm_year + 1900,
+                   my_tm.tm_mon  + 1,
+                   my_tm.tm_mday,
+                   my_tm.tm_hour,
+                   my_tm.tm_min,
+                   my_tm.tm_sec,
+                   (unsigned long) utime,
+                   tzinfo);
+
+  return min(len, iso8601_size - 1);
+}
 
 
 bool File_query_log::open()
@@ -290,7 +366,7 @@ bool File_query_log::open()
                         mysqld_port, mysqld_unix_port
 #endif
                         );
-    end= strnmov(buff + len, "Time                 Id Command    Argument\n",
+    end= my_stpncpy(buff + len, "Time                 Id Command    Argument\n",
                  sizeof(buff) - len);
     if (my_b_write(&log_file, (uchar*) buff, (uint) (end-buff)) ||
         flush_io_cache(&log_file))
@@ -363,7 +439,7 @@ void File_query_log::check_and_print_write_error()
 }
 
 
-bool File_query_log::write_general(time_t event_time,
+bool File_query_log::write_general(ulonglong event_utime,
                                    const char *user_host,
                                    size_t user_host_len,
                                    my_thread_id thread_id,
@@ -378,30 +454,12 @@ bool File_query_log::write_general(time_t event_time,
   mysql_mutex_lock(&LOCK_log);
   DBUG_ASSERT(is_open());
 
-  /* for testing output of timestamp and thread id */
-  DBUG_EXECUTE_IF("reset_log_last_time", last_time= 0;);
-
   /* Note that my_b_write() assumes it knows the length for this */
-  if (event_time != last_time)
-  {
-    last_time= event_time;
+  char local_time_buff[iso8601_size];
+  int  time_buff_len= make_iso8601_timestamp(local_time_buff, event_utime);
 
-    tm start;
-    localtime_r(&event_time, &start);
-
-    char local_time_buff[MAX_TIME_SIZE];
-    uint time_buff_len= my_snprintf(local_time_buff, MAX_TIME_SIZE,
-                                    "%02d%02d%02d %2d:%02d:%02d\t",
-                                    start.tm_year % 100, start.tm_mon + 1,
-                                    start.tm_mday, start.tm_hour,
-                                    start.tm_min, start.tm_sec);
-
-    if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
-      goto err;
-  }
-  else
-    if (my_b_write(&log_file, (uchar*) "\t\t" ,2) < 0)
-      goto err;
+  if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
+    goto err;
 
   length= my_snprintf(buff, 32, "%5lu ", thread_id);
 
@@ -432,8 +490,9 @@ err:
 }
 
 
-bool File_query_log::write_slow(THD *thd, time_t current_time,
-                                time_t query_start_arg, const char *user_host,
+bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
+                                ulonglong query_start_arg,
+                                const char *user_host,
                                 size_t user_host_len, ulonglong query_utime,
                                 ulonglong lock_utime, bool is_command,
                                 const char *sql_text, size_t sql_text_len)
@@ -448,22 +507,17 @@ bool File_query_log::write_slow(THD *thd, time_t current_time,
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
   {
-    if (current_time != last_time)
-    {
-      last_time= current_time;
-      struct tm start;
-      localtime_r(&current_time, &start);
+    char my_timestamp[iso8601_size];
 
-      buff_len= my_snprintf(buff, sizeof buff,
-                            "# Time: %02d%02d%02d %2d:%02d:%02d\n",
-                            start.tm_year % 100, start.tm_mon + 1,
-                            start.tm_mday, start.tm_hour,
-                            start.tm_min, start.tm_sec);
+    make_iso8601_timestamp(my_timestamp, current_utime);
 
-      /* Note that my_b_write() assumes it knows the length for this */
-      if (my_b_write(&log_file, (uchar*) buff, buff_len))
-        goto err;
-    }
+    buff_len= my_snprintf(buff, sizeof buff,
+                          "# Time: %s\n", my_timestamp);
+
+    /* Note that my_b_write() assumes it knows the length for this */
+    if (my_b_write(&log_file, (uchar*) buff, buff_len))
+      goto err;
+
     buff_len= my_snprintf(buff, 32, "%5lu", thd->thread_id);
     if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff)
         == (uint) -1)
@@ -484,11 +538,11 @@ bool File_query_log::write_slow(THD *thd, time_t current_time,
   {						// Database changed
     if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
       goto err;
-    strmov(db,thd->db);
+    my_stpcpy(db,thd->db);
   }
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
-    end=strmov(end, ",last_insert_id=");
+    end=my_stpcpy(end, ",last_insert_id=");
     end=longlong10_to_str((longlong)
                           thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                           end, -10);
@@ -498,7 +552,7 @@ bool File_query_log::write_slow(THD *thd, time_t current_time,
   {
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
     {
-      end=strmov(end,",insert_id=");
+      end=my_stpcpy(end,",insert_id=");
       end=longlong10_to_str((longlong)
                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
                             end, -10);
@@ -510,8 +564,8 @@ bool File_query_log::write_slow(THD *thd, time_t current_time,
     checked the query start time or not. now we always write current
     timestamp to the slow log
   */
-  end= strmov(end, ",timestamp=");
-  end= int10_to_str((long) current_time, end, 10);
+  end= my_stpcpy(end, ",timestamp=");
+  end= int10_to_str((long) current_utime / 1000000, end, 10);
 
   if (end != buff)
   {
@@ -545,7 +599,7 @@ err:
 }
 
 
-bool Log_to_csv_event_handler::log_general(THD *thd, time_t event_time,
+bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
                                            const char *user_host,
                                            size_t user_host_len,
                                            my_thread_id thread_id,
@@ -560,6 +614,7 @@ bool Log_to_csv_event_handler::log_general(THD *thd, time_t event_time,
   bool need_close= false;
   bool need_rnd_end= false;
   uint field_index;
+  struct timeval tv;
 
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
@@ -619,7 +674,8 @@ bool Log_to_csv_event_handler::log_general(THD *thd, time_t event_time,
   */
 
   DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-  table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(event_time);
+  ull2timeval(event_utime, &tv);
+  table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(&tv);
 
   /* do a write */
   if (table->field[GLT_FIELD_USER_HOST]->store(user_host, user_host_len,
@@ -634,7 +690,6 @@ bool Log_to_csv_event_handler::log_general(THD *thd, time_t event_time,
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
-  table->field[GLT_FIELD_ARGUMENT]->flags|= FIELDFLAG_HEX_ESCAPE;
   if (table->field[GLT_FIELD_ARGUMENT]->store(sql_text, sql_text_len,
                                               client_cs) < 0)
     goto err;
@@ -682,8 +737,8 @@ err:
 }
 
 
-bool Log_to_csv_event_handler::log_slow(THD *thd, time_t current_time,
-                                        time_t query_start_arg,
+bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
+                                        ulonglong query_start_arg,
                                         const char *user_host,
                                         size_t user_host_len,
                                         ulonglong query_utime,
@@ -696,6 +751,8 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, time_t current_time,
   bool need_close= false;
   bool need_rnd_end= false;
   const CHARSET_INFO *client_cs= thd->variables.character_set_client;
+  struct timeval tv;
+
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
   /*
@@ -735,7 +792,8 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, time_t current_time,
 
   /* store the time and user values */
   DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-  table->field[SQLT_FIELD_START_TIME]->store_timestamp(current_time);
+  ull2timeval(current_utime, &tv);
+  table->field[SQLT_FIELD_START_TIME]->store_timestamp(&tv);
 
   if (table->field[SQLT_FIELD_USER_HOST]->store(user_host, user_host_len,
                                                 client_cs))
@@ -743,8 +801,6 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, time_t current_time,
 
   if (query_start_arg)
   {
-    longlong query_time= (longlong) (query_utime/1000000);
-    longlong lock_time=  (longlong) (lock_utime/1000000);
     /*
       A TIME field can not hold the full longlong range; query_time or
       lock_time may be truncated without warning here, if greater than
@@ -754,11 +810,15 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, time_t current_time,
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, min<long>(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>((longlong) (query_utime / 1000000),
+                                     (longlong) TIME_MAX_VALUE_SECONDS),
+                       query_utime % 1000000);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, min<long>(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>((longlong) (lock_utime / 1000000),
+                                     (longlong) TIME_MAX_VALUE_SECONDS),
+                       lock_utime % 1000000);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
     /* rows_sent */
@@ -886,8 +946,8 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
 }
 
 
-bool Log_to_file_event_handler::log_slow(THD *thd, time_t current_time,
-                                         time_t query_start_arg,
+bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
+                                         ulonglong query_start_arg,
                                          const char *user_host,
                                          size_t user_host_len,
                                          ulonglong query_utime,
@@ -901,7 +961,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, time_t current_time,
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_slow_log.write_slow(thd, current_time, query_start_arg,
+  bool retval= mysql_slow_log.write_slow(thd, current_utime, query_start_arg,
                                          user_host, user_host_len,
                                          query_utime, lock_utime, is_command,
                                          sql_text, sql_text_len);
@@ -910,7 +970,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, time_t current_time,
 }
 
 
-bool Log_to_file_event_handler::log_general(THD *thd, time_t event_time,
+bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
                                             const char *user_host,
                                             size_t user_host_len,
                                             my_thread_id thread_id,
@@ -925,7 +985,7 @@ bool Log_to_file_event_handler::log_general(THD *thd, time_t event_time,
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_general_log.write_general(event_time, user_host,
+  bool retval= mysql_general_log.write_general(event_utime, user_host,
                                                user_host_len, thread_id,
                                                command_type, command_type_len,
                                                sql_text, sql_text_len);
@@ -948,19 +1008,13 @@ void Query_logger::cleanup()
 bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   size_t query_length)
 {
-  DBUG_ASSERT(thd->enable_slow_log);
-  /*
-    Print the message to the buffer if we have slow log enabled
-  */
+  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
 
   if (!(*slow_log_handler_list))
     return false;
 
   /* do not log slow queries from replication threads */
   if (thd->slave_thread && !opt_log_slow_slave_statements)
-    return false;
-
-  if (!opt_slow_log)
     return false;
 
   mysql_rwlock_rdlock(&LOCK_logger);
@@ -976,7 +1030,6 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
                                 sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
                                 "", "]", NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
-  time_t current_time= my_time_possible_from_micro(current_utime);
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
   {
@@ -1001,8 +1054,9 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   for (Log_event_handler **current_handler= slow_log_handler_list;
        *current_handler ;)
   {
-    error|= (*current_handler++)->log_slow(thd, current_time,
-                                           thd->start_time.tv_sec,
+    error|= (*current_handler++)->log_slow(thd, current_utime,
+                                           (thd->start_time.tv_sec * 1000000) +
+                                           thd->start_time.tv_usec,
                                            user_host_buff, user_host_len,
                                            query_utime, lock_utime, is_command,
                                            query, query_length);
@@ -1056,9 +1110,9 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   uint user_host_len= make_user_name(thd, user_host_buff);
-  time_t current_time= my_time(0);
+  ulonglong current_utime= thd->current_utime();
 
-  mysql_audit_general_log(thd, current_time,
+  mysql_audit_general_log(thd, current_utime / 1000000,
                           user_host_buff, user_host_len,
                           command_name[(uint) command].str,
                           command_name[(uint) command].length,
@@ -1068,7 +1122,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   for (Log_event_handler **current_handler= general_log_handler_list;
        *current_handler; )
   {
-    error|= (*current_handler++)->log_general(thd, current_time, user_host_buff,
+    error|= (*current_handler++)->log_general(thd, current_utime, user_host_buff,
                                               user_host_len, thd->thread_id,
                                               command_name[(uint) command].str,
                                               command_name[(uint) command].length,
@@ -1276,7 +1330,7 @@ bool log_slow_applicable(THD *thd)
     Do not log administrative statements unless the appropriate option is
     set.
   */
-  if (thd->enable_slow_log)
+  if (thd->enable_slow_log && opt_slow_log)
   {
     bool warn_no_index= ((thd->server_status &
                           (SERVER_QUERY_NO_INDEX_USED |
@@ -1518,7 +1572,7 @@ bool Error_log_throttle::flush(THD *thd)
 
 static bool slow_log_write(THD *thd, const char *query, size_t query_length)
 {
-  return query_logger.slow_log_write(thd, query, query_length);
+  return opt_slow_log && query_logger.slow_log_write(thd, query, query_length);
 }
 
 
@@ -1604,7 +1658,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
   /* Add ending CR/LF's to string, overwrite last chars if necessary */
-  strmov(buffptr+min(length, buffLen-5), "\r\n\r\n");
+  my_stpcpy(buffptr+min(length, buffLen-5), "\r\n\r\n");
 
   setup_windows_event_source();
   if ((event= RegisterEventSource(NULL,"MySQL")))
@@ -1635,26 +1689,27 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 static void print_buffer_to_file(enum loglevel level, const char *buffer,
                                  size_t length)
 {
-  time_t skr;
-  struct tm tm_tmp;
-  struct tm *start;
   DBUG_ENTER("print_buffer_to_file");
   DBUG_PRINT("enter",("buffer: %s", buffer));
 
+  char my_timestamp[iso8601_size];
+
+  my_thread_id thread_id= 0;
+
+  /*
+    If the thread system is up and running and we're in a connection,
+    add the connection ID to the log-line, otherwise 0.
+  */
+  if (THR_THD_initialized && (current_thd != NULL))
+    thread_id= current_thd->thread_id;
+
+  make_iso8601_timestamp(my_timestamp);
+
   mysql_mutex_lock(&LOCK_error_log);
 
-  skr= my_time(0);
-  localtime_r(&skr, &tm_tmp);
-  start=&tm_tmp;
-
-  fprintf(stderr, "%d-%02d-%02d %02d:%02d:%02d %lu [%s] %.*s\n",
-          start->tm_year + 1900,
-          start->tm_mon + 1,
-          start->tm_mday,
-          start->tm_hour,
-          start->tm_min,
-          start->tm_sec,
-          current_pid,
+  fprintf(stderr, "%s %lu [%s] %.*s\n",
+          my_timestamp,
+          thread_id,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "Warning" : "Note"),
           (int) length, buffer);
@@ -1672,12 +1727,15 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
   size_t length;
   DBUG_ENTER("error_log_print");
 
-  length= my_vsnprintf(buff, sizeof(buff), format, args);
-  print_buffer_to_file(level, buff, length);
+  if (static_cast<ulong>(level) < log_error_verbosity)
+  {
+    length= my_vsnprintf(buff, sizeof(buff), format, args);
+    print_buffer_to_file(level, buff, length);
 
 #ifdef _WIN32
-  print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+    print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2002,7 +2060,7 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
 {
   DBUG_ENTER("TC_LOG_MMAP::commit");
   ulong cookie= 0;
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  my_xid xid= thd->transaction.xid_state.get_xid()->get_my_xid();
 
   if (all && xid)
     if (!(cookie= log_xid(xid)))

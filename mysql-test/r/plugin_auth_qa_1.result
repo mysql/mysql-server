@@ -7,7 +7,7 @@ user	plugin	authentication_string
 CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 GRANT PROXY ON plug_dest TO plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
@@ -15,7 +15,7 @@ plug_user@localhost
 Tables_in_test_user_db
 t1
 REVOKE PROXY ON plug_dest FROM plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 DROP USER plug_user,plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
@@ -27,7 +27,7 @@ user	plugin	authentication_string
 plug_dest	mysql_native_password	
 plug_user	test_plugin_server	plug_dest
 1)
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
@@ -38,7 +38,7 @@ REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''plug_dest'' at line 2
 2)
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
@@ -47,18 +47,18 @@ Tables_in_test_user_db
 t1
 REVOKE PROXY ON plug_dest FROM plug_user;
 3)
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 DROP USER plug_user,plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
 IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 1)
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug_user;
 2)
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
@@ -74,16 +74,16 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
 IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 GRANT PROXY ON plug_dest TO plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
 plug_user@localhost
 RENAME USER plug_dest TO new_dest;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 GRANT PROXY ON new_dest TO plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
@@ -93,19 +93,19 @@ DROP USER plug_user,new_dest;
 CREATE USER plug_user
 IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
 user()
 plug_user@localhost
 RENAME USER plug_dest TO new_dest;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 GRANT PROXY ON new_dest TO plug_user;
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string

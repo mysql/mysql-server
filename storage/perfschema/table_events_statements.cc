@@ -230,7 +230,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
+    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
   },
   {
@@ -340,7 +340,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   if (m_row.m_current_schema_name_length > 0)
     memcpy(m_row.m_current_schema_name, statement->m_current_schema_name, m_row.m_current_schema_name_length);
 
-  m_row.m_object_type= statement->m_sp_type; 
+  m_row.m_object_type= statement->m_sp_type;
 
   m_row.m_schema_name_length= statement->m_schema_name_length;
   if (m_row.m_schema_name_length > 0)
@@ -382,7 +382,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
-  /* 
+  /*
     Filling up statement digest information.
   */
   PSI_digest_storage *digest= & statement->m_digest_storage;
@@ -870,7 +870,7 @@ int table_events_statements_history_long::rnd_next(void)
   if (events_statements_history_long_full)
     limit= events_statements_history_long_size;
   else
-    limit= events_statements_history_long_index % events_statements_history_long_size;
+    limit= events_statements_history_long_index.m_u32 % events_statements_history_long_size;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next())
   {
@@ -901,7 +901,7 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
   if (events_statements_history_long_full)
     limit= events_statements_history_long_size;
   else
-    limit= events_statements_history_long_index % events_statements_history_long_size;
+    limit= events_statements_history_long_index.m_u32 % events_statements_history_long_size;
 
   if (m_pos.m_index >= limit)
     return HA_ERR_RECORD_DELETED;

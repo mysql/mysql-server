@@ -136,8 +136,8 @@ The following options may be given as the first argument:
  --datetime-format=name 
  The DATETIME format (ignored)
  --default-authentication-plugin=name 
- Defines what password- and authentication algorithm to
- use per default
+ The default authentication plugin used by the server to
+ hash the password.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -306,6 +306,11 @@ The following options may be given as the first argument:
  version of events are written.  This option is useful
  during some upgrades.
  --log-error[=name]  Error log file
+ --log-error-verbosity=# 
+ How detailed the error log should be. 1, log errors only.
+ 2, log errors and warnings. 3, log errors, warnings, and
+ notes. Messages sent to the client are unaffected by this
+ setting.
  --log-isam[=name]   Log all MyISAM changes to file.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
@@ -330,12 +335,19 @@ The following options may be given as the first argument:
  transactions that affect more than one storage engine,
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
- --log-throttle-queries-not-using-indexes[=#] 
+ --log-throttle-queries-not-using-indexes=# 
  Log at most this many 'not using index' warnings per
  minute to the slow log. Any further warnings will be
  condensed into a single summary line. A value of 0
  disables throttling. Option has no effect unless
  --log_queries_not_using_indexes is set.
+ --log-timestamps=name 
+ UTC to timestamp log files in zulu time, for more concise
+ timestamps and easier correlation of logs from servers
+ from multiple time zones, or SYSTEM to use the system's
+ local time. This affects only log files, not log tables,
+ as the timestamp columns of the latter can be converted
+ at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -544,6 +556,16 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-statements-history-long 
  Default startup value for the
  events_statements_history_long consumer.
+ --performance-schema-consumer-events-transactions-current 
+ Default startup value for the events_transactions_current
+ consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
+ --performance-schema-consumer-events-transactions-history 
+ Default startup value for the events_transactions_history
+ consumer.
+ --performance-schema-consumer-events-transactions-history-long 
+ Default startup value for the
+ events_transactions_history_long consumer.
  --performance-schema-consumer-events-waits-current 
  Default startup value for the events_waits_current
  consumer.
@@ -579,6 +601,12 @@ The following options may be given as the first argument:
  --performance-schema-events-statements-history-size=# 
  Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
  Use 0 to disable, -1 for automated sizing.
+ --performance-schema-events-transactions-history-long-size=# 
+ Number of rows in EVENTS_TRANSACTIONS_HISTORY_LONG. Use 0
+ to disable, -1 for automated sizing.
+ --performance-schema-events-transactions-history-size=# 
+ Number of rows per thread in EVENTS_TRANSACTIONS_HISTORY.
+ Use 0 to disable, -1 for automated sizing.
  --performance-schema-events-waits-history-long-size=# 
  Number of rows in EVENTS_WAITS_HISTORY_LONG. Use 0 to
  disable, -1 for automated sizing.
@@ -605,6 +633,9 @@ The following options may be given as the first argument:
  -1 for automated sizing.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
+ --performance-schema-max-metadata-locks=# 
+ Maximum number of metadata locks. Use 0 to disable, -1
+ for automated sizing.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
@@ -855,6 +886,10 @@ The following options may be given as the first argument:
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
+ --slave-parallel-type=name 
+ Specifies if the slave will use database partioning or
+ information from master to parallelize
+ transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -1024,6 +1059,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
+default-authentication-plugin mysql_native_password
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1078,6 +1114,7 @@ log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-error stderr
+log-error-verbosity 1
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
@@ -1089,7 +1126,8 @@ log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
-log-warnings 1
+log-timestamps UTC
+log-warnings 0
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1156,6 +1194,9 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history FALSE
 performance-schema-consumer-events-statements-history-long FALSE
+performance-schema-consumer-events-transactions-current TRUE
+performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
@@ -1167,6 +1208,8 @@ performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
 performance-schema-events-statements-history-size -1
+performance-schema-events-transactions-history-long-size -1
+performance-schema-events-transactions-history-size -1
 performance-schema-events-waits-history-long-size -1
 performance-schema-events-waits-history-size -1
 performance-schema-hosts-size -1
@@ -1177,15 +1220,16 @@ performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-memory-classes 250
+performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-program-instances 5000
-performance-schema-max-rwlock-classes 30
+performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 187
+performance-schema-max-statement-classes 189
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1241,6 +1285,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
+slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN

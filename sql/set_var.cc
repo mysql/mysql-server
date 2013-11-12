@@ -28,8 +28,7 @@
 #include "strfunc.h"      // find_set_from_flags, find_set
 #include "sql_parse.h"    // check_global_access
 #include "sql_table.h"  // reassign_keycache_tables
-#include "sql_time.h"   // date_time_format_copy,
-                        // date_time_format_make
+#include "sql_time.h"   // date_time_format_copy
 #include "derror.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "auth_common.h"  // SUPER_ACL
@@ -73,7 +72,7 @@ int sys_var_init()
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -90,7 +89,7 @@ int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -406,7 +405,8 @@ int mysql_add_sys_var_chain(sys_var *first)
     /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
     if (my_hash_insert(&system_variable_hash, (uchar*) var))
     {
-      fprintf(stderr, "*** duplicate variable name '%s' ?\n", var->name.str);
+      my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
+                       var->name.str);
       goto error;
     }
   }
@@ -566,7 +566,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->is_error())))
+  if (!(error= MY_TEST(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))

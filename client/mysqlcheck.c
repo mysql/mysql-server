@@ -655,7 +655,7 @@ static int rebuild_table(char *name)
                           MYF(MY_WME));
   if (!query)
     return 1;
-  ptr= strmov(query, "ALTER TABLE ");
+  ptr= my_stpcpy(query, "ALTER TABLE ");
   ptr= fix_table_name(ptr, name);
   ptr= strxmov(ptr, " FORCE", NullS);
   if (mysql_real_query(sock, query, (uint)(ptr - query)))
@@ -722,18 +722,18 @@ static int handle_request_for_tables(char *tables, uint length)
   switch (what_to_do) {
   case DO_CHECK:
     op = "CHECK";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_fast)               end = strmov(end, " FAST");
-    if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_check_only_changed) end = strmov(end, " CHANGED");
-    if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
+    if (opt_quick)              end = my_stpcpy(end, " QUICK");
+    if (opt_fast)               end = my_stpcpy(end, " FAST");
+    if (opt_medium_check)       end = my_stpcpy(end, " MEDIUM"); /* Default */
+    if (opt_extended)           end = my_stpcpy(end, " EXTENDED");
+    if (opt_check_only_changed) end = my_stpcpy(end, " CHANGED");
+    if (opt_upgrade)            end = my_stpcpy(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
     op= (opt_write_binlog) ? "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_frm)                end = strmov(end, " USE_FRM");
+    if (opt_quick)              end = my_stpcpy(end, " QUICK");
+    if (opt_extended)           end = my_stpcpy(end, " EXTENDED");
+    if (opt_frm)                end = my_stpcpy(end, " USE_FRM");
     break;
   case DO_ANALYZE:
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
@@ -757,7 +757,7 @@ static int handle_request_for_tables(char *tables, uint length)
   {
     char *ptr;
 
-    ptr= strmov(strmov(query, op), " TABLE ");
+    ptr= my_stpcpy(my_stpcpy(query, op), " TABLE ");
     ptr= fix_table_name(ptr, tables);
     ptr= strxmov(ptr, " ", options, NullS);
     query_length= (uint) (ptr - query);
@@ -851,7 +851,7 @@ static void print_result()
     }
     else
       printf("%-9s: %s", row[2], row[3]);
-    strmov(prev, row[0]);
+    my_stpcpy(prev, row[0]);
     putchar('\n');
   }
   /* add the last table to be repaired to the list */
@@ -881,15 +881,7 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-#endif
+  SSL_SET_OPTIONS(&mysql_connection);
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)

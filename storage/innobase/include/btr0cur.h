@@ -319,6 +319,19 @@ btr_cur_update_in_place(
 				mtr_commit(mtr) before latching any
 				further pages */
 	__attribute__((warn_unused_result, nonnull));
+/***********************************************************//**
+Writes a redo log record of updating a record in-place. */
+void
+btr_cur_update_in_place_log(
+/*========================*/
+	ulint		flags,		/*!< in: flags */
+	const rec_t*	rec,		/*!< in: record */
+	dict_index_t*	index,		/*!< in: index of the record */
+	const upd_t*	update,		/*!< in: update vector */
+	trx_id_t	trx_id,		/*!< in: transaction id */
+	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
+	mtr_t*		mtr)		/*!< in: mtr */
+	__attribute__((nonnull));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -488,7 +501,7 @@ btr_cur_pessimistic_delete(
 				stays valid: it points to successor of
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
@@ -645,7 +658,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
-	enum trx_rb_ctx	rb_ctx,		/*!< in: rollback context */
+	bool		rollback,	/*!< in: performing rollback? */
 	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */

@@ -78,9 +78,6 @@ inline void make_truncated_value_warning(ErrConvString val,
   make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
                                val, time_type, NullS);
 }
-extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
-					       const char *format_str,
-					       uint format_length);
 extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
@@ -104,11 +101,9 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds);
 uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-bool parse_date_time_format(timestamp_type format_type, 
-                            const char *format, uint format_length,
-                            DATE_TIME_FORMAT *date_time_format);
+
 /* Character set-aware version of str_to_time() */
-bool str_to_time(const CHARSET_INFO *cs, const char *str, uint length,
+bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
                  MYSQL_TIME *l_time, uint flags, MYSQL_TIME_STATUS *status);
 static inline bool
 str_to_time(const String *str, MYSQL_TIME *ltime, uint flags,
@@ -122,7 +117,7 @@ bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
                                      int *warnings);
 /* Character set-aware version of str_to_datetime() */
 bool str_to_datetime(const CHARSET_INFO *cs,
-                     const char *str, uint length,
+                     const char *str, size_t length,
                      MYSQL_TIME *l_time, uint flags,
                      MYSQL_TIME_STATUS *status);
 static inline bool
@@ -136,16 +131,8 @@ str_to_datetime(const String *str, MYSQL_TIME *ltime, uint flags,
 bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings);
 
-/* convenience wrapper */
-inline bool parse_date_time_format(timestamp_type format_type,
-                                   DATE_TIME_FORMAT *date_time_format)
-{
-  return parse_date_time_format(format_type,
-                                date_time_format->format.str,
-                                (uint) date_time_format->format.length,
-                                date_time_format);
-}
-
+bool parse_date_time_format(timestamp_type format_type,
+                            DATE_TIME_FORMAT *date_time_format);
 
 extern DATE_TIME_FORMAT global_date_format;
 extern DATE_TIME_FORMAT global_datetime_format;

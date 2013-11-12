@@ -50,7 +50,7 @@ begin;
 insert into t1 values(1);
 
 connection server1;
-alter online table t1 add column b int column_format dynamic;
+alter table t1 algorithm=inplace, add column b int column_format dynamic;
 
 connection server2;
 commit;
@@ -78,7 +78,7 @@ insert into t1 values(1);
 
 connection server1;
 --error ER_LOCK_WAIT_TIMEOUT
-alter offline table t1 add column b int column_format dynamic;
+alter table t1 algorithm=copy, add column b int column_format dynamic;
 
 connection server2;
 commit;
@@ -105,7 +105,7 @@ begin;
 insert into t1 values(1, 1);
 
 connection server1;
-create online index ind_b on t1(b);
+create index ind_b on t1(b) algorithm=inplace;
 
 connection server2;
 commit;

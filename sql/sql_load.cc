@@ -176,7 +176,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 {
   char name[FN_REFLEN];
   File file;
-  TABLE *table= NULL;
   int error= 0;
   const String *field_term= ex->field_term;
   const String *escaped=    ex->escaped;
@@ -186,6 +185,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
   bool is_concurrent;
+  bool transactional_table;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -195,7 +195,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -235,19 +234,25 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                     &thd->lex->select_lex->leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL,
                                     INSERT_ACL | UPDATE_ACL))
-     DBUG_RETURN(-1);
-  if (!table_list->table ||               // do not suport join view
-      !table_list->updatable ||           // and derived tables
-      check_key_in_view(thd, table_list))
+     DBUG_RETURN(true);
+
+  TABLE_LIST *const insert_table_ref=
+    table_list->updatable &&             // View must be updatable
+    !table_list->derived ?               // derived tables not allowed
+    table_list->updatable_base_table() : NULL;
+
+  if (insert_table_ref == NULL ||
+      check_key_in_view(thd, table_list, insert_table_ref))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(TRUE);
   }
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
-  {
     DBUG_RETURN(TRUE);
-  }
+
+  // Pass the check option down to the underlying table:
+  insert_table_ref->check_option= table_list->check_option;
   /*
     Let us emit an error if we are loading data to table which is used
     in subselect in SET clause like we do it for INSERT.
@@ -256,19 +261,19 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(thd, table_list, table_list->next_global, 0))
+  if (unique_table(thd, insert_table_ref, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
   }
 
-  table= table_list->table;
+  TABLE *const table= insert_table_ref->table;
 
   for (Field **cur_field= table->field; *cur_field; ++cur_field)
     (*cur_field)->reset_warnings();
 
-  transactional_table= table->file->has_transactions();
 #ifndef EMBEDDED_LIBRARY
+  transactional_table= table->file->has_transactions();
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
 #endif
 
@@ -481,7 +486,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
-  if (!(error=test(read_info.error)))
+  if (!(error=MY_TEST(read_info.error)))
   {
 
     table->next_number_field=table->found_next_number_field;
@@ -499,17 +504,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
     if (ex->filetype == FILETYPE_XML) /* load xml */
-      error= read_xml_field(thd, info, table_list, fields_vars,
+      error= read_xml_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
                             skip_lines, ignore);
     else if (!field_term->length() && !enclosed->length())
-      error= read_fixed_length(thd, info, table_list, fields_vars,
+      error= read_fixed_length(thd, info, insert_table_ref, fields_vars,
                                set_fields, set_values, read_info,
-			       skip_lines, ignore);
+                               skip_lines, ignore);
     else
-      error= read_sep_field(thd, info, table_list, fields_vars,
+      error= read_sep_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-			    *enclosed, skip_lines, ignore);
+                            *enclosed, skip_lines, ignore);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
@@ -543,7 +548,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
   */
-  query_cache.invalidate(thd, table_list, FALSE);
+  query_cache.invalidate_single(thd, insert_table_ref, false);
   if (error)
   {
     if (read_file_from_client)
@@ -658,7 +663,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(transactional_table ||
+  DBUG_ASSERT(table->file->has_transactions() ||
               !(info.stats.copied || info.stats.deleted) ||
               thd->transaction.stmt.cannot_safely_rollback());
   table->file->ha_release_auto_increment();
@@ -756,8 +761,16 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
         pfields.append(", ");
       append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
+      // Extract exact Item value
+      str->copy();
       pfields.append((char *)str->ptr());
+      str->free();
     }
+    /*
+      Clear the SET string list once the SET command is reconstructed
+      as we donot require the list anymore.
+    */
+    thd->lex->load_set_str_list.empty();
   }
 
   p= pfields.c_ptr_safe();
@@ -926,7 +939,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error));
+  DBUG_RETURN(MY_TEST(read_info.error));
 }
 
 
@@ -1199,7 +1212,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error));
+  DBUG_RETURN(MY_TEST(read_info.error));
 }
 
 
@@ -1370,7 +1383,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
     continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error) || thd->is_error());
+  DBUG_RETURN(MY_TEST(read_info.error) || thd->is_error());
 } /* load xml end */
 
 
@@ -1638,16 +1651,29 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
-      if (my_mbcharlen(read_charset, chr) > 1 &&
-          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+
+      uint ml= my_mbcharlen(read_charset, chr);
+      if (ml == 0)
+      {
+        error= 1;
+        return 1;
+      }
+
+
+      if (ml > 1 &&
+          to + ml <= end_of_buff)
       {
         uchar* p= (uchar*) to;
-        int ml, i;
         *to++ = chr;
 
         ml= my_mbcharlen(read_charset, chr);
+        if (ml == 0)
+        {
+          error= 1;
+          return 1;
+        }
 
-        for (i= 1; i < ml; i++) 
+        for (uint i= 1; i < ml; i++) 
         {
           chr= GET;
           if (chr == my_b_EOF)
@@ -1665,7 +1691,7 @@ int READ_INFO::read_field()
                         (const char *)p,
                         (const char *)to))
           continue;
-        for (i= 0; i < ml; i++)
+        for (uint i= 0; i < ml; i++)
           PUSH((uchar) *--to);
         chr= GET;
       }
@@ -1914,11 +1940,19 @@ int READ_INFO::read_value(int delim, String *val)
 
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
-    if (my_mbcharlen(read_charset, chr) > 1)
+    uint ml= my_mbcharlen(read_charset, chr);
+    if (ml == 0)
+    {
+      chr= my_b_EOF;
+      val->length(0);
+      return chr;
+    }
+
+    if (ml > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
-      int i, ml= my_mbcharlen(read_charset, chr);
-      for (i= 1; i < ml; i++) 
+
+      for (uint i= 1; i < ml; i++)
       {
         val->append(chr);
         /*

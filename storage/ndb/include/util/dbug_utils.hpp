@@ -99,7 +99,7 @@ inline
 void
 dbugPrint(const char * keyword, const char * message)
 {
-    MY_DBUG_PRINT(keyword, (message));
+    MY_DBUG_PRINT(keyword, ("%s", message));
 }
 
 #endif // dbug_utils_hpp

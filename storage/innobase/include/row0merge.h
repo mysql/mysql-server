@@ -105,6 +105,8 @@ struct index_def_t {
 					or ULINT_UNDEFINED if none */
 	ulint		n_fields;	/*!< number of fields in index */
 	index_field_t*	fields;		/*!< field definitions */
+	st_mysql_ftparser*
+			 parser;	/*!< fulltext plugin parser */
 };
 
 /** Structure for reporting duplicate records. */

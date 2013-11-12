@@ -838,7 +838,7 @@ parse_args(int argc, char** argv)
 
 bool
 connect_hosts(atrt_config& config){
-  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  for(unsigned i = 0; i<config.m_hosts.size(); i++)
   {
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
@@ -887,7 +887,7 @@ connect_ndb_mgm(atrt_process & proc){
 
 bool
 connect_ndb_mgm(atrt_config& config){
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  for(unsigned i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i];
     if((proc.m_type & atrt_process::AP_NDB_MGMD) != 0){
       if(!connect_ndb_mgm(proc)){
@@ -911,7 +911,7 @@ wait_ndb(atrt_config& config, int goal){
   goal = remap(goal);
 
   size_t cnt = 0;
-  for (size_t i = 0; i<config.m_clusters.size(); i++)
+  for (unsigned i = 0; i<config.m_clusters.size(); i++)
   {
     atrt_cluster* cluster = config.m_clusters[i];
 
@@ -928,7 +928,7 @@ wait_ndb(atrt_config& config, int goal){
      * Get mgm handle for cluster
      */
     NdbMgmHandle handle = 0;
-    for(size_t j = 0; j<cluster->m_processes.size(); j++){
+    for(unsigned j = 0; j<cluster->m_processes.size(); j++){
       atrt_process & proc = *cluster->m_processes[j];
       if((proc.m_type & atrt_process::AP_NDB_MGMD) != 0){
 	handle = proc.m_ndb_mgm_handle;
@@ -1070,7 +1070,7 @@ start_process(atrt_process & proc){
 
 bool
 start_processes(atrt_config& config, int types){
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  for(unsigned i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i];
     if(IF_WIN(!(proc.m_type & atrt_process::AP_MYSQLD), 1)
        && (types & proc.m_type) != 0 && proc.m_proc.m_path != ""){
@@ -1121,7 +1121,7 @@ stop_process(atrt_process & proc){
 
 bool
 stop_processes(atrt_config& config, int types){
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  for(unsigned i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i];
     if((types & proc.m_type) != 0){
       if(!stop_process(proc)){
@@ -1139,7 +1139,7 @@ update_status(atrt_config& config, int){
   
   Vector<SimpleCpcClient::Process> dummy;
   m_procs.fill(config.m_hosts.size(), dummy);
-  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  for(unsigned i = 0; i<config.m_hosts.size(); i++)
   {
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
@@ -1148,12 +1148,12 @@ update_status(atrt_config& config, int){
     config.m_hosts[i]->m_cpcd->list_processes(m_procs[i], p);
   }
 
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  for(unsigned i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i];
     if(proc.m_proc.m_id != -1){
       Vector<SimpleCpcClient::Process> &h_procs= m_procs[proc.m_host->m_index];
       bool found = false;
-      for(size_t j = 0; j<h_procs.size(); j++){
+      for(unsigned j = 0; j<h_procs.size(); j++){
 	if(proc.m_proc.m_id == h_procs[j].m_id){
 	  found = true;
 	  proc.m_proc.m_status = h_procs[j].m_status;
@@ -1166,7 +1166,7 @@ update_status(atrt_config& config, int){
 		       proc.m_proc.m_id,
 		       proc.m_host->m_hostname.c_str(),
 		       proc.m_proc.m_path.c_str());
-	for(size_t j = 0; j<h_procs.size(); j++){
+        for(unsigned j = 0; j<h_procs.size(); j++){
 	  g_logger.error("found: %d %s", h_procs[j].m_id, 
 			 h_procs[j].m_path.c_str());
 	}
@@ -1180,7 +1180,7 @@ update_status(atrt_config& config, int){
 int
 is_running(atrt_config& config, int types){
   int found = 0, running = 0;
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  for(unsigned i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i]; 
     if((types & proc.m_type) != 0){
       found++;
@@ -1324,7 +1324,7 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     return false;
   }
 
-  for (size_t i = 0; i<config.m_processes.size(); i++)
+  for (unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i];
     if (proc.m_type == atrt_process::AP_NDB_API ||
@@ -1345,7 +1345,7 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
   cmd.assign(p);
   free(p);
 
-  for (size_t i = 0; i<config.m_processes.size(); i++)
+  for (unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i];
     if (proc.m_type == tc.m_cmd.m_cmd_type &&
@@ -1379,7 +1379,7 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     /**
      * Apply testcase specific mysqld options
      */
-    for (size_t i = 0; i<config.m_processes.size(); i++)
+    for (unsigned i = 0; i<config.m_processes.size(); i++)
     {
       atrt_process & proc = *config.m_processes[i];
       if (proc.m_type == atrt_process::AP_MYSQLD)
@@ -1412,7 +1412,7 @@ bool
 gather_result(atrt_config& config, int * result){
   BaseString tmp = g_gather_progname;
 
-  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  for(unsigned i = 0; i<config.m_hosts.size(); i++)
   {
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
@@ -1451,7 +1451,7 @@ setup_hosts(atrt_config& config){
     return false;
   }
 
-  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  for(unsigned i = 0; i<config.m_hosts.size(); i++)
   {
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
@@ -1494,7 +1494,7 @@ do_rsync(const char *dir, const char *dst)
 bool
 deploy(int d, atrt_config & config)
 {
-  for (size_t i = 0; i<config.m_hosts.size(); i++)
+  for (unsigned i = 0; i<config.m_hosts.size(); i++)
   {
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
@@ -1522,7 +1522,7 @@ deploy(int d, atrt_config & config)
 bool
 sshx(atrt_config & config, unsigned mask)
 {
-  for (size_t i = 0; i<config.m_processes.size(); i++)
+  for (unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i]; 
     
@@ -1616,7 +1616,7 @@ bool
 reset_config(atrt_config & config)
 {
   bool changed = false;
-  for(size_t i = 0; i<config.m_processes.size(); i++)
+  for(unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i]; 
     if (proc.m_save.m_saved)

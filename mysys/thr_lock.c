@@ -127,7 +127,7 @@ thr_lock_owner_equal(THR_LOCK_INFO *rhs, THR_LOCK_INFO *lhs)
 static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
-		      const char *where, my_bool same_owner, my_bool no_cond)
+                      const char *where, my_bool same_owner, my_bool no_cond)
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
@@ -143,43 +143,40 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
       if (data->type != last_lock_type)
-	last_lock_type=TL_IGNORE;
+        last_lock_type=TL_IGNORE;
       if (data->prev != prev)
       {
-	fprintf(stderr,
-		"Warning: prev link %d didn't point at previous lock at %s: %s\n",
-		count, lock_type, where);
-	return 1;
+        my_message_stderr(0, "prev link %d didn't point at "
+                          "previous lock at %s: %s", count, lock_type, where);
+        return 1;
       }
       if (same_owner &&
           !thr_lock_owner_equal(data->owner, first_owner) &&
-	  last_lock_type != TL_WRITE_ALLOW_WRITE)
+          last_lock_type != TL_WRITE_ALLOW_WRITE)
       {
-	fprintf(stderr,
-		"Warning: Found locks from different threads in %s: %s\n",
-		lock_type,where);
-	return 1;
+        my_message_stderr(0, "Found locks from different threads "
+                          "in %s: %s", lock_type, where);
+        return 1;
       }
       if (no_cond && data->cond)
       {
-	fprintf(stderr,
-		"Warning: Found active lock with not reset cond %s: %s\n",
-		lock_type,where);
-	return 1;
+        my_message_stderr(0, "Found active lock with not reset "
+                          "cond %s: %s", lock_type, where);
+        return 1;
       }
       prev= &data->next;
     }
     if (data)
     {
-      fprintf(stderr,"Warning: found too many locks at %s: %s\n",
-	      lock_type,where);
+      my_message_stderr(0, "found too many locks at %s: %s",
+                        lock_type, where);
       return 1;
     }
   }
   if (prev != list->last)
   {
-    fprintf(stderr,"Warning: last didn't point at last lock at %s: %s\n",
-	    lock_type, where);
+    my_message_stderr(0, "last didn't point at last lock at %s: %s",
+                      lock_type, where);
     return 1;
   }
   return 0;
@@ -213,90 +210,88 @@ static void check_locks(THR_LOCK *lock, const char *where,
       }
       if (count != lock->read_no_write_count)
       {
-	found_errors++;
-	fprintf(stderr,
-		"Warning at '%s': Locks read_no_write_count was %u when it should have been %u\n", where, lock->read_no_write_count,count);
-      }      
+        found_errors++;
+        my_message_stderr(0, "at '%s': Locks read_no_write_count "
+                          "was %u when it should have been %u",
+                          where, lock->read_no_write_count,count);
+      }
 
       if (!lock->write.data)
       {
-	if (!allow_no_locks && !lock->read.data &&
-	    (lock->write_wait.data || lock->read_wait.data))
-	{
-	  found_errors++;
-	  fprintf(stderr,
-		  "Warning at '%s': No locks in use but locks are in wait queue\n",
-		  where);
-	}
-	if (!lock->write_wait.data)
-	{
-	  if (!allow_no_locks && lock->read_wait.data)
-	  {
-	    found_errors++;
-	    fprintf(stderr,
-		    "Warning at '%s': No write locks and waiting read locks\n",
-		    where);
-	  }
-	}
-	else
-	{
-	  if (!allow_no_locks &&
-	      (((lock->write_wait.data->type == TL_WRITE_CONCURRENT_INSERT ||
-		 lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE) &&
-		!lock->read_no_write_count)))
-	  {
-	    found_errors++;
-	    fprintf(stderr,
-		    "Warning at '%s': Write lock %d waiting while no exclusive read locks\n",where,(int) lock->write_wait.data->type);
-	  }
-	}	      
+        if (!allow_no_locks && !lock->read.data &&
+            (lock->write_wait.data || lock->read_wait.data))
+        {
+          found_errors++;
+          my_message_stderr(0, "at '%s': No locks in use but locks "
+                            "are in wait queue", where);
+        }
+        if (!lock->write_wait.data)
+        {
+          if (!allow_no_locks && lock->read_wait.data)
+          {
+            found_errors++;
+            my_message_stderr(0, "at '%s': No write locks and "
+                              "waiting read locks", where);
+          }
+        }
+        else
+        {
+          if (!allow_no_locks &&
+              (((lock->write_wait.data->type == TL_WRITE_CONCURRENT_INSERT ||
+                 lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE) &&
+                !lock->read_no_write_count)))
+          {
+            found_errors++;
+            my_message_stderr(0, "at '%s': Write lock %d waiting "
+                              "while no exclusive read locks",
+                              where, (int) lock->write_wait.data->type);
+          }
+        }
       }
       else
       {						/* Have write lock */
-	if (lock->write_wait.data)
-	{
-	  if (!allow_no_locks && 
-	      lock->write.data->type == TL_WRITE_ALLOW_WRITE &&
-	      lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE)
-	  {
-	    found_errors++;
-	    fprintf(stderr,
-		    "Warning at '%s': Found WRITE_ALLOW_WRITE lock waiting for WRITE_ALLOW_WRITE lock\n",
-		    where);
-	  }
-	}
-	if (lock->read.data)
-	{
+        if (lock->write_wait.data)
+        {
+          if (!allow_no_locks && 
+              lock->write.data->type == TL_WRITE_ALLOW_WRITE &&
+              lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE)
+          {
+            found_errors++;
+            my_message_stderr(0, "at '%s': Found WRITE_ALLOW_WRITE "
+                              "lock waiting for WRITE_ALLOW_WRITE lock", where);
+          }
+        }
+        if (lock->read.data)
+        {
           if (!thr_lock_owner_equal(lock->write.data->owner,
                                     lock->read.data->owner) &&
-	      ((lock->write.data->type > TL_WRITE_CONCURRENT_INSERT &&
-		lock->write.data->type != TL_WRITE_ONLY) ||
-	       ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT ||
-		 lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
-		lock->read_no_write_count)))
-	  {
-	    found_errors++;
-	    fprintf(stderr,
-		    "Warning at '%s': Found lock of type %d that is write and read locked\n",
-		    where, lock->write.data->type);
-	    DBUG_PRINT("warning",("At '%s': Found lock of type %d that is write and read locked\n",
-		    where, lock->write.data->type));
+              ((lock->write.data->type > TL_WRITE_CONCURRENT_INSERT &&
+                lock->write.data->type != TL_WRITE_ONLY) ||
+               ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT ||
+                 lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
+                lock->read_no_write_count)))
+          {
+            found_errors++;
+            my_message_stderr(0, "at '%s': Found lock of type %d "
+                             "that is write and read locked",
+                              where, lock->write.data->type);
+            DBUG_PRINT("warning",("At '%s': Found lock of type %d that is write and read locked\n",
+                                  where, lock->write.data->type));
 
-	  }
-	}
-	if (lock->read_wait.data)
-	{
-	  if (!allow_no_locks && lock->write.data->type <= TL_WRITE_CONCURRENT_INSERT &&
-	      lock->read_wait.data->type <= TL_READ_HIGH_PRIORITY)
-	  {
-	    found_errors++;
-	    fprintf(stderr,
-		    "Warning at '%s': Found read lock of type %d waiting for write lock of type %d\n",
-		    where,
-		    (int) lock->read_wait.data->type,
-		    (int) lock->write.data->type);
-	  }
-	}
+          }
+        }
+        if (lock->read_wait.data)
+        {
+          if (!allow_no_locks && lock->write.data->type <= TL_WRITE_CONCURRENT_INSERT &&
+              lock->read_wait.data->type <= TL_READ_HIGH_PRIORITY)
+          {
+            found_errors++;
+            my_message_stderr(0, "at '%s': Found read lock of "
+                              "type %d waiting for write lock of type %d",
+                              where, (int) lock->read_wait.data->type,
+                              (int) lock->write.data->type);
+          }
+        }
       }
     }
     if (found_errors != old_found_errors)
@@ -843,6 +838,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   if (lock_type == TL_READ_NO_INSERT)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */
+  MYSQL_UNLOCK_TABLE(data->m_psi);
   check_locks(lock,"after releasing lock",1);
   wake_up_waiters(lock);
   mysql_mutex_unlock(&lock->mutex);
@@ -1476,14 +1472,12 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
   if ((error= mysql_cond_init(0, &COND_thread_count, NULL)))
   {
-    fprintf(stderr, "Got error: %d from mysql_cond_init (errno: %d)",
-	    error,errno);
+    my_message_stderr(0, "Got error %d from mysql_cond_init", errno);
     exit(1);
   }
   if ((error= mysql_mutex_init(0, &LOCK_thread_count, MY_MUTEX_INIT_FAST)))
   {
-    fprintf(stderr, "Got error: %d from mysql_cond_init (errno: %d)",
-	    error,errno);
+    my_message_stderr(0, "Got error %d from mysql_cond_init", errno);
     exit(1);
   }
 
@@ -1497,27 +1491,22 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   }
   if ((error=pthread_attr_init(&thr_attr)))
   {
-    fprintf(stderr,"Got error: %d from pthread_attr_init (errno: %d)",
-	    error,errno);
+    my_message_stderr(0, "Got error %d from pthread_attr_init",errno);
     exit(1);
   }
   if ((error=pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED)))
   {
-    fprintf(stderr,
-	    "Got error: %d from pthread_attr_setdetachstate (errno: %d)",
-	    error,errno);
+    my_message_stderr(0, "Got error %d from "
+                      "pthread_attr_setdetachstate", errno);
     exit(1);
   }
 #ifndef pthread_attr_setstacksize		/* void return value */
   if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
   {
-    fprintf(stderr,"Got error: %d from pthread_attr_setstacksize (errno: %d)",
-	    error,errno);
+    my_message_stderr(0, "Got error %d from "
+                      "pthread_attr_setstacksize", error);
     exit(1);
   }
-#endif
-#ifdef HAVE_THR_SETCONCURRENCY
-  (void) thr_setconcurrency(2);
 #endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {
@@ -1526,16 +1515,16 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
     if ((error= mysql_mutex_lock(&LOCK_thread_count)))
     {
-      fprintf(stderr, "Got error: %d from mysql_mutex_lock (errno: %d)",
-              error, errno);
+      my_message_stderr(0, "Got error %d from mysql_mutex_lock",
+                        errno);
       exit(1);
     }
     if ((error= mysql_thread_create(0,
                                     &tid, &thr_attr, test_thread,
                                     (void*) param)))
     {
-      fprintf(stderr, "Got error: %d from mysql_thread_create (errno: %d)\n",
-              error, errno);
+      my_message_stderr(0, "Got error %d from mysql_thread_create",
+                        errno);
       mysql_mutex_unlock(&LOCK_thread_count);
       exit(1);
     }
@@ -1545,19 +1534,21 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
   pthread_attr_destroy(&thr_attr);
   if ((error= mysql_mutex_lock(&LOCK_thread_count)))
-    fprintf(stderr, "Got error: %d from mysql_mutex_lock\n", error);
+    my_message_stderr(0, "Got error %d from mysql_mutex_lock", error);
   while (thread_count)
   {
     if ((error= mysql_cond_wait(&COND_thread_count, &LOCK_thread_count)))
-      fprintf(stderr, "Got error: %d from mysql_cond_wait\n", error);
+      my_message_stderr(0, "Got error %d from mysql_cond_wait",
+                        error);
   }
   if ((error= mysql_mutex_unlock(&LOCK_thread_count)))
-    fprintf(stderr, "Got error: %d from mysql_mutex_unlock\n", error);
+    my_message_stderr(0, "Got error %d from mysql_mutex_unlock",
+                      error);
   for (i=0 ; i < (int) array_elements(locks) ; i++)
     thr_lock_delete(locks+i);
 #ifdef EXTRA_DEBUG
   if (found_errors)
-    printf("Got %d warnings\n",found_errors);
+    printf("Got %d warnings\n", found_errors);
   else
 #endif
     printf("Test succeeded\n");

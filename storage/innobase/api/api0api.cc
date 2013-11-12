@@ -345,7 +345,9 @@ ib_read_tuple(
 /*==========*/
 	const rec_t*	rec,		/*!< in: Record to read */
 	ib_bool_t	page_format,	/*!< in: IB_TRUE if compressed format */
-	ib_tuple_t*	tuple)		/*!< in: tuple to read into */
+	ib_tuple_t*	tuple,		/*!< in: tuple to read into */
+	void**		rec_buf,        /*!< in/out: row buffer */
+        ulint*          len)            /*!< in/out: buffer len */
 {
 	ulint		i;
 	void*		ptr;
@@ -356,6 +358,7 @@ ib_read_tuple(
 	ulint*		offsets	= offsets_;
 	dtuple_t*	dtuple = tuple->ptr;
 	const dict_index_t* index = tuple->index;
+	ulint		offset_size;
 
 	rec_offs_init(offsets_);
 
@@ -365,8 +368,20 @@ ib_read_tuple(
 	rec_meta_data = rec_get_info_bits(rec, page_format);
 	dtuple_set_info_bits(dtuple, rec_meta_data);
 
-	/* Make a copy of the rec. */
-	ptr = mem_heap_alloc(tuple->heap, rec_offs_size(offsets));
+	offset_size = rec_offs_size(offsets);
+
+	if (rec_buf && *rec_buf) {
+		if (*len < offset_size) {
+			free(*rec_buf);
+			*rec_buf = malloc(offset_size);
+			*len = offset_size;
+		}
+		ptr = *rec_buf;
+	}  else {
+		/* Make a copy of the rec. */
+		ptr = mem_heap_alloc(tuple->heap, offset_size);
+	}
+
 	copy = rec_copy(ptr, rec, offsets);
 
 	n_index_fields = ut_min(
@@ -547,6 +562,10 @@ ib_trx_start(
 /*=========*/
 	ib_trx_t	ib_trx,		/*!< in: transaction to restart */
 	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
+	ib_bool_t	read_write,	/*!< in: true if read write
+					transaction */
+	ib_bool_t	auto_commit,	/*!< in: auto commit after each
+					single DML */
 	void*		thd)		/*!< in: THD */
 {
 	ib_err_t	err = DB_SUCCESS;
@@ -554,9 +573,11 @@ ib_trx_start(
 
 	ut_a(ib_trx_level <= IB_TRX_SERIALIZABLE);
 
-	/* FIXME: We are unconditionally setting the RW flag here. This should
-	only be set for transactions that we know are read write for sure. */
-	trx_start_if_not_started(trx, true);
+	trx->api_trx = true;
+	trx->api_auto_commit = auto_commit;
+	trx->read_write = read_write;
+
+	trx_start_if_not_started(trx, read_write);
 
 	trx->isolation_level = ib_trx_level;
 
@@ -575,16 +596,22 @@ put the transaction in the active state.
 ib_trx_t
 ib_trx_begin(
 /*=========*/
-	ib_trx_level_t	ib_trx_level)	/*!< in: trx isolation level */
+	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
+	ib_bool_t	read_write,     /*!< in: true if read write
+					transaction */
+	ib_bool_t	auto_commit)	/*!< in: auto commit after each
+					single DML */
 {
 	trx_t*		trx;
 	ib_bool_t	started;
 
 	trx = trx_allocate_for_mysql();
-	started = ib_trx_start((ib_trx_t) trx, ib_trx_level, NULL);
+
+	started = ib_trx_start(static_cast<ib_trx_t>(trx), ib_trx_level,
+			       read_write, auto_commit, NULL);
 	ut_a(started);
 
-	return((ib_trx_t) trx);
+	return(static_cast<ib_trx_t>(trx));
 }
 
 /*****************************************************************//**
@@ -644,14 +671,10 @@ ib_trx_commit(
 	trx_t*		trx = (trx_t*) ib_trx;
 
 	if (trx->state == TRX_STATE_NOT_STARTED) {
-		err = ib_trx_release(ib_trx);
 		return(err);
 	}
 
 	trx_commit(trx);
-
-	err = ib_trx_release(ib_trx);
-	ut_a(err == DB_SUCCESS);
 
 	return(DB_SUCCESS);
 }
@@ -673,9 +696,6 @@ ib_trx_rollback(
 
         /* It should always succeed */
         ut_a(err == DB_SUCCESS);
-
-	err = ib_trx_release(ib_trx);
-	ut_a(err == DB_SUCCESS);
 
 	ib_wake_master_thread();
 
@@ -1234,7 +1254,7 @@ ib_cursor_open_table(
 	dict_table_t*	table;
 	char*		normalized_name;
 
-	normalized_name = static_cast<char*>(mem_alloc(ut_strlen(name) + 1));
+	normalized_name = static_cast<char*>(ut_malloc(ut_strlen(name) + 1));
 	ib_normalize_table_name(normalized_name, name);
 
 	if (ib_trx != NULL) {
@@ -1249,7 +1269,7 @@ ib_cursor_open_table(
 		table = (dict_table_t*)ib_open_table_by_name(normalized_name);
 	}
 
-	mem_free(normalized_name);
+	ut_free(normalized_name);
 	normalized_name = NULL;
 
 	/* It can happen that another thread has created the table but
@@ -1345,9 +1365,9 @@ ib_cursor_new_trx(
 
 	trx_assign_read_view(prebuilt->trx);
 
-        ib_qry_proc_free(&cursor->q_proc);
+	ib_qry_proc_free(&cursor->q_proc);
 
-        mem_heap_empty(cursor->query_heap);
+	mem_heap_empty(cursor->query_heap);
 
 	return(err);
 }
@@ -1363,11 +1383,12 @@ ib_cursor_commit_trx(
 {
 	ib_err_t        err = DB_SUCCESS;
 	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+#ifdef UNIV_DEBUG
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
 	ut_ad(prebuilt->trx == (trx_t*) ib_trx);
-	err = ib_trx_commit(ib_trx);
-	prebuilt->trx = NULL;
+#endif /* UNIV_DEBUG */
+	ib_trx_commit(ib_trx);
 	cursor->valid_trx = FALSE;
 	return(err);
 }
@@ -1947,7 +1968,7 @@ ib_delete_row(
 	upd = ib_update_vector_create(cursor);
 
 	page_format = (ib_bool_t) dict_table_is_comp(index->table);
-	ib_read_tuple(rec, page_format, tuple);
+	ib_read_tuple(rec, page_format, tuple, NULL, NULL);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
 
@@ -2048,7 +2069,9 @@ ib_err_t
 ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
-	ib_tpl_t	ib_tpl)		/*!< out: read cols into this tuple */
+	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
+	void**		row_buf,        /*!< in/out: row buffer */
+	ib_ulint_t*	row_len)        /*!< in/out: row buffer len */
 {
 	ib_err_t	err;
 	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
@@ -2093,7 +2116,8 @@ ib_cursor_read_row(
 			}
 
 			if (!rec_get_deleted_flag(rec, page_format)) {
-				ib_read_tuple(rec, page_format, tuple);
+				ib_read_tuple(rec, page_format, tuple,
+					      row_buf, (ulint*) row_len);
 				err = DB_SUCCESS;
 			} else{
 				err = DB_RECORD_NOT_FOUND;
@@ -2123,7 +2147,7 @@ ib_cursor_position(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 	unsigned char*	buf;
 
-	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
+	buf = static_cast<unsigned char*>(ut_malloc(UNIV_PAGE_SIZE));
 
 	/* We want to position at one of the ends, row_search_for_mysql()
 	uses the search_tuple fields to work out what to do. */
@@ -2132,7 +2156,7 @@ ib_cursor_position(
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, mode, prebuilt, 0, 0));
 
-	mem_free(buf);
+	ut_free(buf);
 
 	return(err);
 }
@@ -2225,12 +2249,12 @@ ib_cursor_moveto(
 
 	prebuilt->innodb_api_rec = NULL;
 
-	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
+	buf = static_cast<unsigned char*>(ut_malloc(UNIV_PAGE_SIZE));
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, ib_srch_mode, prebuilt, cursor->match_mode, 0));
 
-	mem_free(buf);
+	ut_free(buf);
 
 	return(err);
 }
@@ -2542,7 +2566,9 @@ ib_col_copy_value_low(
 						 data_len, usign);
 
 			if (usign) {
-				if (len == 2) {
+				if (len == 1) {
+					*(ib_i8_t*)dst = (ib_i8_t)ret;
+				} else if (len == 2) {
 					*(ib_i16_t*)dst = (ib_i16_t)ret;
 				} else if (len == 4) {
 					*(ib_i32_t*)dst = (ib_i32_t)ret;
@@ -2550,7 +2576,9 @@ ib_col_copy_value_low(
 					*(ib_i64_t*)dst = (ib_i64_t)ret;
 				}
 			} else {
-				if (len == 2) {
+				if (len == 1) {
+					*(ib_u8_t*)dst = (ib_i8_t)ret;
+				} else if (len == 2) {
 					*(ib_u16_t*)dst = (ib_i16_t)ret;
 				} else if (len == 4) {
 					*(ib_u32_t*)dst = (ib_i32_t)ret;
@@ -3273,12 +3301,12 @@ ib_index_get_id(
 	*index_id = 0;
 
 	normalized_name = static_cast<char*>(
-		mem_alloc(ut_strlen(table_name) + 1));
+		ut_malloc(ut_strlen(table_name) + 1));
 	ib_normalize_table_name(normalized_name, table_name);
 
 	table = ib_lookup_table_by_name(normalized_name);
 
-	mem_free(normalized_name);
+	ut_free(normalized_name);
 	normalized_name = NULL;
 
 	if (table != NULL) {
@@ -3300,13 +3328,6 @@ ib_index_get_id(
 
 	return(err);
 }
-
-#ifdef _WIN32
-#define SRV_PATH_SEPARATOR      '\\'
-#else
-#define SRV_PATH_SEPARATOR      '/'
-#endif
-
 
 /*****************************************************************//**
 Check if cursor is positioned.
@@ -3825,7 +3846,7 @@ ib_table_truncate(
 	ib_trx_t        ib_trx = NULL;
 	ib_crsr_t       ib_crsr = NULL;
 
-	ib_trx = ib_trx_begin(IB_TRX_SERIALIZABLE);
+	ib_trx = ib_trx_begin(IB_TRX_SERIALIZABLE, true, false);
 
 	dict_mutex_enter_for_mysql();
 

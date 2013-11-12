@@ -16,3 +16,6 @@ ndb_rpl_conflict_load_epoch_trans : Not designed for determinism
 ndb_rpl_slave_lsu : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_slave_lsu_anyval : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
+ndb_rpl_stm_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
+ndb_rpl_mix_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
+

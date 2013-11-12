@@ -91,7 +91,8 @@ UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-	ulint	id);		/*!< in: rollback segment id */
+	ulint	id,		/*!< in: rollback segment id */
+	bool	is_redo_rseg);	/*!< in: true if redo rseg else false. */
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.

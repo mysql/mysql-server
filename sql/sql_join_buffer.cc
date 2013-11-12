@@ -184,8 +184,8 @@ void JOIN_CACHE::calc_record_fields()
   for ( ; tab < join_tab ; tab++)
   {	    
     calc_used_field_length(join->thd, tab);
-    flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
-    flag_fields+= test(tab->table->maybe_null);
+    flag_fields+= MY_TEST(tab->used_null_fields || tab->used_uneven_bit_fields);
+    flag_fields+= MY_TEST(tab->table->maybe_null);
     fields+= tab->used_fields;
     blobs+= tab->used_blobs;
 
@@ -1358,7 +1358,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 {
   if (with_match_flag)
-    return test(*rec_ptr);
+    return MY_TEST(*rec_ptr);
   if (prev_cache)
   {
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
@@ -1601,7 +1601,7 @@ bool JOIN_CACHE::skip_record_if_match()
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
   /* Check whether the match flag is on */
-  if (test(*(pos+offset)))
+  if (MY_TEST(*(pos+offset)))
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
@@ -1894,7 +1894,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
         reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
-        for (cnt= records - test(skip_last) ; cnt; cnt--)
+        for (cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
         { 
           /* 
             If only the first match is needed and it has been already found for
@@ -2139,7 +2139,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   if (!records)
     DBUG_RETURN(NESTED_LOOP_OK);
   
-  cnt= records - (is_key_access() ? 0 : test(skip_last));
+  cnt= records - (is_key_access() ? 0 : MY_TEST(skip_last));
 
   /* This function may be called only for inner tables of outer joins */ 
   DBUG_ASSERT(join_tab->first_inner);
@@ -2972,11 +2972,11 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 {
   ulong nr= 1;
   ulong nr2= 4;
-  uchar *pos= key;
+  uchar *position= key;
   uchar *end= key+key_len;
-  for (; pos < end ; pos++)
+  for (; position < end ; position++)
   {
-    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
+    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *position))+ (nr << 8);
     nr2+= 3;
   }
   return nr % hash_entries;

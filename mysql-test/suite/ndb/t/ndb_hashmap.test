@@ -1,0 +1,24 @@
+-- source include/have_ndb.inc
+
+# use data nodes DefaultHashmapSize
+create table t1 (x int primary key) engine=ndbcluster;
+
+# use api nodes DefaultHashmapSize
+alter table t1 partition by key() partitions 7;
+
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+
+--source ndb_show_tables_result.inc
+
+# Check existing hashmaps
+select name from ndb_show_tables_results where type like '%0%' order by name;
+
+drop table t1, ndb_show_tables_results;

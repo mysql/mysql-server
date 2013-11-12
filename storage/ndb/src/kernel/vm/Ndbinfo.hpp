@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define KERNEL_NDBINFO_HPP
 
 #include <signaldata/DbinfoScan.hpp>
+
+#define JAM_FILE_ID 230
+
 
 class Ndbinfo {
 public:
@@ -204,7 +207,13 @@ public:
     SPJ_PRUNED_RANGE_SCANS_RECEIVED_COUNTER = 22,
     SPJ_CONST_PRUNED_RANGE_SCANS_RECEIVED_COUNTER = 23,
     LOCAL_READ_COUNTER = 24,
-    LOCAL_WRITE_COUNTER = 25
+    LOCAL_WRITE_COUNTER = 25,
+    LQHKEY_OVERLOAD = 26,
+    LQHKEY_OVERLOAD_TC = 27,
+    LQHKEY_OVERLOAD_READER = 28,
+    LQHKEY_OVERLOAD_NODE_PEER = 29,
+    LQHKEY_OVERLOAD_SUBSCRIBER = 30,
+    LQHSCAN_SLOWDOWN = 31
   };
 
   struct counter_entry {
@@ -212,5 +221,8 @@ public:
     Uint64 val;
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

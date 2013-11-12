@@ -28,8 +28,8 @@
 #include <memcached/extension_loggers.h>
 
 /* NDB Memcache headers */
+#include <NdbApi.hpp>
 #include "Stockholm.h"
-#include "workitem.h"
 #include "ndb_worker.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -197,8 +197,7 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   ENGINE_ERROR_CODE response_code;
   
   switch(op_status) {
-    case op_async_prepared:
-    case op_async_sent:
+    case op_prepared:
       workqueue_add(cluster[c].queue, newitem); // place item on queue
       response_code = ENGINE_EWOULDBLOCK;
       break;
@@ -211,6 +210,9 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
     case op_overflow:
       response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
       break;
+    default:
+      DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
+      response_code = ENGINE_FAILED;
   }
 
   return response_code;
@@ -252,6 +254,15 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
     vlen = sprintf(val, "%"PRIu64, cluster[c].stats.commit_thread_vtime);
     add_stat(key, klen, val, vlen, cookie);  
   }
+}
+
+
+void Scheduler_stockholm::prepare(NdbTransaction * tx, 
+                                  NdbTransaction::ExecType execType, 
+                                  NdbAsynchCallback callback, 
+                                  workitem * item, prepare_flags flags) { 
+  tx->executeAsynchPrepare(execType, callback, (void *) item);
+  if(flags == RESCHEDULE) item->base.reschedule = 1;
 }
 
 

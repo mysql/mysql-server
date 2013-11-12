@@ -158,9 +158,19 @@ UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-	ulint	id)	/*!< in: rollback segment id */
+	ulint	id,		/*!< in: rollback segment id */
+	bool	is_redo_rseg)	/*!< in: true if redo rseg else false. */
 {
 	ut_a(id < TRX_SYS_N_RSEGS);
+
+	/* If redo rseg is being requested and id falls in range of 
+	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
+	server is being upgraded from pre-5.7.2. In such case return
+	rseg from pending_purge_rseg_array array. */
+	if (is_redo_rseg && trx_sys_is_noredo_rseg_slot(id)) {
+		ut_ad(trx_sys->pending_purge_rseg_array[id] != NULL);
+		return(trx_sys->pending_purge_rseg_array[id]);
+	}
 
 	return(trx_sys->rseg_array[id]);
 }

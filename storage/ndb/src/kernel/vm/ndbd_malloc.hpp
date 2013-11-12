@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +18,16 @@
 #ifndef NDBD_MALLOC_H
 #define NDBD_MALLOC_H
 
+#define JAM_FILE_ID 234
+
+
 /**
  * common memory allocation function for ndbd kernel
  */
 void *ndbd_malloc(size_t size);
 void ndbd_free(void *p, size_t size);
+
+
+#undef JAM_FILE_ID
 
 #endif 

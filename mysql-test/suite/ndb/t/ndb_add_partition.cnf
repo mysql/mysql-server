@@ -1,0 +1,9 @@
+!include suite/ndb/my.cnf
+
+[ENV]
+# Test will pass some table names that includes $ to command line interpreter.
+# $ is expanded in bourne shell, but not expanded in Windows command line.
+# The environment variable below makes sure that xxx$BLOB is passed as xxx$BLOB
+# in either case.
+unique=$unique
+BLOB=$BLOB

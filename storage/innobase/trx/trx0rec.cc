@@ -1257,8 +1257,6 @@ trx_undo_report_row_operation(
 	assign temporary rseg. */
 	if (trx->read_only || is_temp_table) {
 
-		ut_ad(trx->in_ro_trx_list || is_temp_table);
-
 		ut_ad(!srv_read_only_mode || is_temp_table);
 
 		/* MySQL should block writes to non-temporary tables. */
@@ -1441,7 +1439,8 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	mem_heap_t*	heap,		/*!< in: memory heap where copied */
+	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
 {
 	trx_undo_rec_t*	undo_rec;
 	ulint		rseg_id;
@@ -1454,7 +1453,7 @@ trx_undo_get_undo_rec_low(
 
 	trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &rseg_id, &page_no,
 				 &offset);
-	rseg = trx_rseg_get_on_id(rseg_id);
+	rseg = trx_rseg_get_on_id(rseg_id, is_redo_rseg);
 
 	mtr_start(&mtr);
 
@@ -1485,7 +1484,8 @@ trx_undo_get_undo_rec(
 					the roll pointer: it points to an
 					undo log of this transaction */
 	trx_undo_rec_t**undo_rec,	/*!< out, own: copy of the record */
-	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	mem_heap_t*	heap,		/*!< in: memory heap where copied */
+	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
 {
 	bool		missing_history;
 
@@ -1494,7 +1494,8 @@ trx_undo_get_undo_rec(
 	missing_history = purge_sys->view.changes_visible(trx_id);
 
 	if (!missing_history) {
-		*undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
+		*undo_rec = trx_undo_get_undo_rec_low(
+			roll_ptr, heap, is_redo_rseg);
 	}
 
 	rw_lock_s_unlock(&purge_sys->latch);
@@ -1570,7 +1571,12 @@ trx_undo_prev_version_build(
 
 	rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	if (trx_undo_get_undo_rec(roll_ptr, rec_trx_id, &undo_rec, heap)) {
+	/* REDO rollback segment are used only for non-temporary objects.
+	For temporary objects NON-REDO rollback segments are used. */
+	bool is_redo_rseg =
+		dict_table_is_temporary(index->table) ? false : true;
+	if (trx_undo_get_undo_rec(
+		roll_ptr, rec_trx_id, &undo_rec, heap, is_redo_rseg)) {
 		/* The undo record may already have been purged,
 		during purge or semi-consistent read. */
 		return(false);

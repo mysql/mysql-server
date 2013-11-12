@@ -269,6 +269,13 @@ extern "C" {
 #endif
 
 /**
+ * sizeof cacheline (in bytes)
+ *
+ * TODO: Add configure check...
+ */
+#define NDB_CL 64
+
+/**
  * Pad to NDB_CL size
  */
 #define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
@@ -302,5 +309,77 @@ C_MODE_END
  * this require is like a normal assert.  (only it's always on)
 */
 #define require(v) require_exit_or_core_with_printer((v), 0, 0)
+
+struct LinearSectionPtr
+{
+  Uint32 sz;
+  Uint32 * p;
+};
+
+struct SegmentedSectionPtrPOD
+{
+  Uint32 sz;
+  Uint32 i;
+  struct SectionSegment * p;
+
+#ifdef __cplusplus
+  void setNull() { p = 0;}
+  bool isNull() const { return p == 0;}
+  inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
+#endif
+};
+
+struct SegmentedSectionPtr
+{
+  Uint32 sz;
+  Uint32 i;
+  struct SectionSegment * p;
+
+#ifdef __cplusplus
+  SegmentedSectionPtr() {}
+  SegmentedSectionPtr(Uint32 sz_arg, Uint32 i_arg,
+                      struct SectionSegment *p_arg)
+    :sz(sz_arg), i(i_arg), p(p_arg)
+  {}
+  SegmentedSectionPtr(const SegmentedSectionPtrPOD & src)
+    :sz(src.sz), i(src.i), p(src.p)
+  {}
+
+  void setNull() { p = 0;}
+  bool isNull() const { return p == 0;}
+#endif
+};
+
+#ifdef __cplusplus
+inline
+SegmentedSectionPtrPOD&
+SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
+{
+  this->i = src.i;
+  this->p = src.p;
+  this->sz = src.sz;
+  return *this;
+}
+#endif
+
+/* Abstract interface for iterating over
+ * words in a section
+ */
+#ifdef __cplusplus
+struct GenericSectionIterator
+{
+  virtual ~GenericSectionIterator() {};
+  virtual void reset()=0;
+  virtual const Uint32* getNextWords(Uint32& sz)=0;
+};
+#else
+struct GenericSectionIterator;
+#endif
+
+struct GenericSectionPtr
+{
+  Uint32 sz;
+  struct GenericSectionIterator* sectionIter;
+};
 
 #endif

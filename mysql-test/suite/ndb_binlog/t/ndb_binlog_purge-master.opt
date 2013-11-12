@@ -1,0 +1,1 @@
+--expire-logs-days=1 --max-binlog-size=10240 --debug='+d,expire_logs_always'

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,16 +39,16 @@
 
 
 /*
-  Explain why an operation could not be pushed when using 'explain extended'
+  Explain why an operation could not be pushed
   @param[in] msgfmt printf style format string.
 */
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
+  if (unlikely(current_thd->lex->describe))   \
   {                                                               \
     push_warning_printf(current_thd,                              \
-                        Sql_condition::SL_NOTE, ER_YES,     \
+                        Sql_condition::SL_NOTE, ER_YES,           \
                         (msgfmt), __VA_ARGS__);                   \
   }                                                               \
 }                                                                 \
@@ -279,6 +279,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_join_root(),
   m_join_scope(),
   m_const_scope(),
+  m_firstmatch_skipped(),
   m_internal_op_count(0),
   m_fld_refs(0),
   m_builder(NULL)
@@ -339,8 +340,26 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
                           table->get_table()->alias, reason);
         }
         break;
+      } //switch
+
+      /**
+       * FirstMatch algorithm may skip further nested-loop evaluation
+       * if this, and possible a number of previous tables.
+       * Aggregate into the bitmap 'm_firstmatch_skipped' those tables
+       * which 'FirstMatch' usage may possible skip.
+       */
+      const AQP::Table_access* const firstmatch_last_skipped=
+        table->get_firstmatch_last_skipped();
+      if (firstmatch_last_skipped)
+      {
+        const uint last_skipped_tab= firstmatch_last_skipped->get_access_no();
+        DBUG_ASSERT(last_skipped_tab <= i);
+        for (uint skip_tab= last_skipped_tab; skip_tab <= i; skip_tab++)
+        {
+          m_firstmatch_skipped.add(skip_tab); 
+        }
       }
-    }
+    } //for 'all tables'
 
     m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     m_tables[count-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
@@ -599,14 +618,13 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
     EXPLAIN_NO_PUSH("Can't push table '%s' as child, "
-                    "to many ref'ed parent fields",
+                    "too many ref'ed parent fields",
                      table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
     DBUG_RETURN(false);
   }
 
-  for (uint i = tab_no - 1; i >= root_no && i < ~uint(0); 
-       i--)
+  for (uint i = tab_no; i > root_no; i--)
   {
     if (m_plan.get_table_access(i)->uses_join_cache())
     {
@@ -614,7 +632,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                       "would prevent using join buffer for table '%s'.",
                       table->get_table()->alias,
                       m_join_root->get_table()->alias,
-                      m_plan.get_table_access(i+1)->get_table()->alias);
+                      m_plan.get_table_access(i)->get_table()->alias);
       DBUG_RETURN(false);
     }
   }
@@ -685,11 +703,13 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
         DBUG_RETURN(false);
       }
 
-      if (key_item->type() == Item::FIELD_ITEM)
-      {
-        uint referred_table_no= get_table_no(key_item);
-        current_parents.add(referred_table_no);
-      }
+      /**
+       * Calculate 'current_parents' as the set of tables
+       * currently being referred by some 'key_item'.
+       */
+      DBUG_ASSERT(key_item == table->get_key_field(key_part_no));
+      DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
+      current_parents.add(get_table_no(key_item));
 
       /**
        * Calculate 'common_parents' as the set of possible 'field_parents'
@@ -754,9 +774,10 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
      * Where 'predicate' cannot be pushed to the ndb. The ndb api may then
      * return:
      * +---------+---------+
-     * | t1.row1 | t2.row1 | 
+     * | t1.row1 | t2.row1 | (First batch)
      * | t1.row2 | t2.row1 | 
-     * | t1.row1 | t2.row2 |
+     * ..... (NextReq).....
+     * | t1.row1 | t2.row2 | (Next batch)
      * +---------+---------+
      * Now assume that all rows but [t1.row1, t2.row1] satisfies 'predicate'.
      * mysqld would be confused since the rows are not grouped on t1 values.
@@ -778,37 +799,164 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                        m_join_root->get_table()->alias);
       DBUG_RETURN(false);
     }
+
+    /**
+     * 'FirstMatch' is not allowed to skip over a scan-child.
+     * The reason is similar to the outer joined scan-scan above:
+     *
+     * Scan-scan result may return the same ancestor-scan rowset
+     * multiple times when rowset from child scan has to be fetched
+     * in multiple batches (as above).
+     *
+     * When a 'FirstMatch' skip remaining rows in a scan-child,
+     * the Nested Loop (NL) will also advance to the next ancestor
+     * row. However, due to child scan requiring multiple batches
+     * the same ancestor row will reappear in the next batch!
+     */
+    if (m_firstmatch_skipped.contain(tab_no))
+    {
+      EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
+                      "'FirstMatch' not allowed to contain scan-child",
+                       table->get_table()->alias,
+                       m_join_root->get_table()->alias);
+
+      m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Note, for both 'outer join' and 'FirstMatch' restriction above:
+     * The restriction could have been lifted if we could
+     * somehow ensure that all rows from a child scan are fetched
+     * before we move to the next ancestor row.
+     */
   } // scan operation
 
   /**
-   * In order to allow multiple parents refs to be made grandparent referrences,
-   * none of the grandparents should be outer joins.
+   * Check outer join restrictions if multiple 'depend_parents':
+   *
+   * If this table has multiple dependencies, it can only be added to 
+   * the set of pushed tables if the dependent tables themself
+   * depends, or could be make dependent, on each other.
+   *
+   * Such new dependencies can only be added iff all 'depend_parents'
+   * are in the same 'inner join nest', i.e. we can not add *new*
+   * dependencies on outer joined tables. 
+   * Any existing explicit specified outer joins are allowed though.
+   * Another way to view this is that the explained query plan
+   * should have no outer joins inbetween the table and the tables
+   * it joins with.
+   *
+   * Algorithm:
+   * 1. Calculate a single 'common ancestor' for all dependent tables
+   *    which is the closest ancestor which they all depends on.
+   *    (directly or indirectly through other dependencies.)
+   *
+   * 2. For all ancestors in the 'depend_parents' set:
+   *    If none of the children of this  ancestor are already 'joined'
+   *    with this ancestor, (eiter directly or indirectly) it need
+   *    to be in an inner join relation with our common ancestor.
    */
-  ndb_table_access_map grandparents(depend_parents);
-  grandparents.clear_bit(root_no);
-  uint ancestor_no= root_no+1;
-  while (!grandparents.is_clear_all())
+
+  DBUG_ASSERT(!depend_parents.is_clear_all());
+  DBUG_ASSERT(!depend_parents.contain(tab_no)); // Circular dependency!
+
+  ndb_table_access_map dependencies(depend_parents);
+
+  /**
+   * Calculate the single 'common ancestor' of all 'depend_parents'.
+   * Iterating all directly, and indirectly, 'depend_parents'
+   * until a single dependent ancestor remains.
+   */
+  uint common_ancestor_no= tab_no;
+  while (true)
   {
-    if (grandparents.contain(ancestor_no))
+    common_ancestor_no= dependencies.last_table(common_ancestor_no-1);
+    dependencies.clear_bit(common_ancestor_no);
+    if (dependencies.is_clear_all())
+      break;
+
+    const ndb_table_access_map &ancestor_dependencies= 
+      m_tables[common_ancestor_no].m_depend_parents;
+    const uint first_ancestor=
+       ancestor_dependencies.last_table(common_ancestor_no-1);
+    dependencies.add(first_ancestor);
+  } //while
+
+  const AQP::Table_access* const common_ancestor= 
+    m_plan.get_table_access(common_ancestor_no);
+
+  /**
+   * Check that no dependencies on outer joined 'common ancestor'
+   * need to be added in order to allow this new child to be joined.
+   */
+  ndb_table_access_map child_dependencies;
+  dependencies= depend_parents;
+
+  for (uint ancestor_no= dependencies.last_table(tab_no-1);
+       ancestor_no!= common_ancestor_no;
+       ancestor_no= dependencies.last_table(ancestor_no-1))
+  {
+    const AQP::Table_access* const ancestor=
+      m_plan.get_table_access(ancestor_no);
+
+    /**
+     * If there are children of this ancestor which depends on it,
+     * (i.e 'joins with it') then this ancestor can only be added to our
+     * 'join nest' if it is inner joined with our common_ancestor.
+     */
+    if (depend_parents.contain(ancestor_no) &&
+        ancestor->get_join_type(common_ancestor) == AQP::JT_OUTER_JOIN)
     {
-      grandparents.clear_bit(ancestor_no);
-      if (grandparents.is_clear_all())
-        break;  // done
-
-      const AQP::Table_access* const ancestor= 
-        m_plan.get_table_access(ancestor_no);
-
-      if (ancestor->get_join_type(m_join_root) == AQP::JT_OUTER_JOIN)
+      /**
+       * Found an outer joined ancestor which none of my parents
+       * can depend / join with:
+       */
+      if (child_dependencies.is_clear_all())
       {
+        /**
+         * As this was the last (outer joined) 'depend_parents',
+         * with no other mandatory dependencies, this table may still
+         * be added to the pushed join.
+         * However, it may contain 'common' & 'extend' parent candidates
+         * which may now be joined with this outer joined ancestor.
+         * These are removed below.
+         */
+        DBUG_ASSERT(extend_parents.contain(common_parents));
+        for (uint parent_no= extend_parents.last_table(tab_no-1);
+             parent_no > ancestor_no;
+             parent_no= extend_parents.last_table(parent_no-1))
+        {
+          if (!m_tables[parent_no].m_depend_parents.contain(ancestor_no))
+	  {
+            common_parents.clear_bit(parent_no);
+            extend_parents.clear_bit(parent_no);
+          }
+        }
+        DBUG_ASSERT(!extend_parents.is_clear_all());
+      }
+      else if (!child_dependencies.contain(ancestor_no))
+      {
+        /**
+         * No child of this ancestor depends (joins) with this ancestor,
+         * and adding it as a 'depend_parent' would introduce new
+         * dependencies on outer joined grandparents.
+         * We will not be allowed to add this table to the pushed join.
+         */
         EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
-                        "dependencies on outer joined grandparents not implemented", 
+                        "as it would introduce a dependency on "
+                        "outer joined grandparent '%s'", 
                          table->get_table()->alias,
-                         m_join_root->get_table()->alias);
+                         m_join_root->get_table()->alias,
+                         ancestor->get_table()->alias);
         DBUG_RETURN(false);
       }
     }
-    ancestor_no++;
-  }
+
+    // Aggregate dependency sets
+    child_dependencies.add(m_tables[ancestor_no].m_depend_parents);
+    dependencies.add(m_tables[ancestor_no].m_depend_parents);
+  } //for
 
   DBUG_ASSERT(m_join_scope.contain(common_parents));
   DBUG_ASSERT(m_join_scope.contain(extend_parents));
@@ -975,8 +1123,6 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
       uint access_no = tab_no;
       do
       {
-        DBUG_ASSERT(access_no > 0);
-        access_no--;
         if (m_plan.get_table_access(access_no)->uses_join_cache())
         {
           EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
@@ -988,6 +1134,8 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
                           get_referred_field_name(key_item_field));
           DBUG_RETURN(false);
         }
+        DBUG_ASSERT(access_no > 0);
+        access_no--;
       } while (m_plan.get_table_access(access_no)->get_table() 
                != referred_tab);
 
@@ -1075,16 +1223,21 @@ ndb_pushed_builder_ctx::optimize_query_plan()
       ndb_table_access_map dependency_mask;
       dependency_mask.set_prefix(depends_on_parent);
 
-      if (table.m_extend_parents.is_overlapping(dependency_mask))
+      /**
+       * Remove any parent candidates prior to last 'depends_on_parent':
+       * All 'depend_parents' must be made available as grandparents
+       * prior to joining with any 'extend_parents' / 'common_parents'
+       */
+      table.m_common_parents.subtract(dependency_mask);
+      table.m_extend_parents.subtract(dependency_mask);
+
+      /**
+       * Need some parent hints if all where cleared.
+       * Can always use closest depend_parent.
+       */
+      if (table.m_extend_parents.is_clear_all())
       {
-        table.m_extend_parents.subtract(dependency_mask);
-        DBUG_ASSERT(table.m_extend_parents.contain(depends_on_parent) ||
-                    m_plan.get_table_access(depends_on_parent)->get_join_type(m_join_root) == AQP::JT_INNER_JOIN);
         table.m_extend_parents.add(depends_on_parent);
-      }
-      if (table.m_common_parents.is_overlapping(dependency_mask))
-      {
-        table.m_common_parents.clear_all();
       }
     }
 
@@ -1102,7 +1255,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     DBUG_ASSERT(!parents.contain(tab_no)); // No circular dependency!
 
     /**
--    * In order to take advantage of the parallelism in the SPJ block;
+     * In order to take advantage of the parallelism in the SPJ block;
      * Initial parent candidate is the first possible among 'parents'.
      * Will result in the most 'bushy' query plan (aka: star-join)
      */
@@ -1119,7 +1272,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      *
      * -> Execute child operation after any such parents
      */
-    for (uint candidate= parent_no+1; candidate<parents.length(); candidate++)
+    for (uint candidate= parent_no+1; candidate<tab_no; candidate++)
     {
       if (parents.contain(candidate))
       {
@@ -1134,6 +1287,11 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     table.m_parent= parent_no;
     m_tables[parent_no].m_child_fanout*= table.m_fanout*table.m_child_fanout;
 
+    /**
+     * Any remaining parent dependencies for this table has to be
+     * added to the selected parent in order to be taken into account 
+     * for parent calculation for its ancestors.
+     */
     ndb_table_access_map dependency(table.m_depend_parents);
     dependency.clear_bit(parent_no);
     m_tables[parent_no].m_depend_parents.add(dependency);

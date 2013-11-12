@@ -61,12 +61,16 @@ select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75
 id	id
 NULL	75
 explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	NULL	NULL	NULL	1	Impossible ON condition
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`id` >= 74) and (`test`.`t1`.`id` <= 0))) where ((`test`.`t2`.`id` = 75) and isnull(`test`.`t1`.`id`))
 explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`id` < 0) and (`test`.`t1`.`id` > 0) and multiple equal(`test`.`t2`.`id`, `test`.`t1`.`id`))
 drop table t1,t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
@@ -402,9 +406,11 @@ INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
 EXPLAIN
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	32	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t2`.`e` AS `e` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`e` = `test`.`t1`.`b`) and (`test`.`t2`.`d` = 1)) order by `test`.`t1`.`b`,`test`.`t1`.`c`
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 e
@@ -845,10 +851,12 @@ flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 a	b	a	a
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using index
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 We expect rnd_next=5, and read_key must be 0 because of short-cutting:
 show status like 'Handler_read%';
 Variable_name	Value
@@ -868,17 +876,21 @@ insert into t2
 select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
 insert into t3 select * from t2 where a < 800;
 explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a,b	NULL	NULL	NULL	1000	Using where
-1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	a,b	NULL	NULL	NULL	1000	19.80	Using where
+1	SIMPLE	t3	NULL	ref	b	b	5	test.t2.b	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` < 200))
 drop table t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
 explain select * from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 show status like '%cost%';
 Variable_name	Value
 Last_query_cost	4.016090
@@ -888,11 +900,13 @@ The cost of accessing t1 (dont care if it changes^
 select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 Z
 vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv
-explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
-1	SIMPLE	A	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
-1	SIMPLE	B	eq_ref	PRIMARY	PRIMARY	4	test.A.b	1	NULL
+explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	a	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where
+1	SIMPLE	b	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a.b	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`a`.`a` AS `a`,`test`.`a`.`b` AS `b`,`test`.`b`.`a` AS `a`,`test`.`b`.`b` AS `b` from `test`.`t1` join `test`.`t2` `a` join `test`.`t2` `b` where ((`test`.`b`.`a` = `test`.`a`.`b`) and (`test`.`a`.`a` = `test`.`t1`.`a`))
 show status like '%cost%';
 Variable_name	Value
 Last_query_cost	28.016090
@@ -910,13 +924,17 @@ INSERT INTO t1 SELECT a + 32, b FROM t1;
 INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	6400.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`b`) order by `test`.`t1`.`a` limit 2
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	NULL
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	2	6400.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`a`) order by `test`.`t1`.`a` limit 2
 SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 a	b	c	d
 SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
@@ -924,13 +942,17 @@ a	b	c	d
 1	NULL	1	NULL
 2	NULL	2	NULL
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using where; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`b`) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	128	Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	128	100.00	Using filesort
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`a`) order by `test`.`t1`.`a`
 SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
 a	b	c	d
 SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
@@ -1094,13 +1116,15 @@ t5 LEFT JOIN t6 ON t5.a = t6.a
 ON t4.a = t5.a
 ) 
 ON t1.a = t3.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
-1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	2	100.00	Using index
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a`,`test`.`t5`.`a` AS `a`,`test`.`t6`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` left join `test`.`t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`)) left join (`test`.`t5` left join `test`.`t6` on((`test`.`t6`.`a` = `test`.`t4`.`a`))) on((`test`.`t5`.`a` = `test`.`t4`.`a`))) on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * 
 FROM 
 t1 JOIN t2 ON t1.a = t2.a 
@@ -1126,12 +1150,13 @@ INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS SELECT 1 FROM t1 LEFT JOIN t1 AS t2 on 1=1;
 EXPLAIN EXTENDED
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((1 = 1)) left join (`test`.`t1` left join `test`.`t1` `t2` on((1 = 1))) on(rand()) where 1
 DROP VIEW v1;
 DROP TABLE t1;
@@ -1144,8 +1169,10 @@ FLUSH TABLES;
 EXPLAIN SELECT 1 FROM t1 LEFT JOIN t1 a ON 1
 WHERE ROW(t1.a, 1111.11) = ROW(1111.11, 1111.11) AND
 ROW(t1.b, 1111.11) <=> ROW('','');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `a` on(1) where (((`test`.`t1`.`b`,1111.11) <=> ('','')) and (`test`.`t1`.`a` = 1111.11))
 DROP TABLE t1;
 #
 # Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
@@ -1238,9 +1265,11 @@ PRIMARY KEY (pk)
 INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
 EXPLAIN SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t1`.`c1`) and (`test`.`t1`.`c1` >= 2))
 SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
 pk	c1
@@ -1249,9 +1278,11 @@ pk	c1
 CREATE VIEW v_t2 AS SELECT * FROM t2;
 EXPLAIN SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1 
 WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t1`.`c1`) and (`test`.`t2`.`pk` >= 2))
 SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1 
 WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
 pk	c1
@@ -1278,9 +1309,11 @@ AND v1.i2 > 7
 OR t1.i1 < 3
 GROUP BY t1.pk
 ORDER BY v1.i2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` join `test`.`t1` where (((`test`.`t1`.`i2` = 211) and (`test`.`t1`.`i2` > 7)) or (`test`.`t1`.`i1` < 3)) group by `test`.`t1`.`pk` order by `test`.`t1`.`i2`
 SELECT t1.pk
 FROM v1, t1
 WHERE v1.i2 = 211
@@ -1294,9 +1327,11 @@ EXPLAIN SELECT t1.pk
 FROM v1, t1
 WHERE (v1.i2 = 211 AND v1.i2 > 7)
 OR (t1.i1 < 3 AND v1.i2 < 10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` join `test`.`t1` where (((`test`.`t1`.`i2` = 211) and (`test`.`t1`.`i2` > 7)) or ((`test`.`t1`.`i1` < 3) and (`test`.`t1`.`i2` < 10)))
 SELECT t1.pk
 FROM v1, t1
 WHERE (v1.i2 = 211 AND v1.i2 > 7)
@@ -1325,23 +1360,29 @@ insert into t1 values(2,'b');
 insert into t1 values(3,'c');
 EXPLAIN SELECT * FROM t4 JOIN (t1 join t3 on t3.ref_t1 =
 t1.c1 join t2 on t2.ref_t1 = t1.c1) on t4.ref_t1 = t1.c1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`c1` AS `c1`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`ref_t1` AS `ref_t1`,'1' AS `c1`,'a' AS `c2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2`,`test`.`t3`.`ref_t1` AS `ref_t1`,'1' AS `c1`,'a' AS `c2`,'1' AS `ref_t1` from `test`.`t4` join `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`ref_t1` = '1') and (`test`.`t4`.`ref_t1` = '1'))
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t4 JOIN (t1 join t3 on t3.ref_t1 =
 t1.c1 join t2 on t2.ref_t1 = t1.c1) on t4.ref_t1 = t1.c1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	NULL
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t4`.`c1` AS `c1`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`ref_t1` AS `ref_t1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2`,`test`.`t3`.`ref_t1` AS `ref_t1`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`ref_t1` AS `ref_t1` from `test`.`t4` join `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t1`.`c1` = `test`.`t4`.`ref_t1`) and (`test`.`t3`.`ref_t1` = `test`.`t4`.`ref_t1`) and (`test`.`t2`.`ref_t1` = `test`.`t4`.`ref_t1`))
 EXPLAIN SELECT * FROM t4 STRAIGHT_JOIN (t1 join t3 on t3.ref_t1 =
 t1.c1 join t2 on t2.ref_t1 = t1.c1) on t4.ref_t1 = t1.c1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t4.ref_t1	1	NULL
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t4.ref_t1	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`c1` AS `c1`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`ref_t1` AS `ref_t1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2`,`test`.`t3`.`ref_t1` AS `ref_t1`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`ref_t1` AS `ref_t1` from `test`.`t4` join `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t2`.`ref_t1` = `test`.`t4`.`ref_t1`) and (`test`.`t1`.`c1` = `test`.`t4`.`ref_t1`) and (`test`.`t3`.`ref_t1` = `test`.`t4`.`ref_t1`))
 drop table t1,t2,t3,t4;

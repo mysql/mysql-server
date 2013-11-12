@@ -331,7 +331,7 @@ mem_hash_insert(
 	cell_no = ut_hash_ulint((ulint) heap, MEM_HASH_SIZE);
 
 	/* Allocate a new node to the list */
-	new_node = static_cast<mem_hash_node_t*>(ut_malloc(sizeof(*new_node)));
+	new_node = static_cast<mem_hash_node_t*>(malloc(sizeof(*new_node)));
 
 	new_node->heap = heap;
 	new_node->file_name = file_name;
@@ -419,7 +419,7 @@ mem_hash_remove(
 	}
 
 	/* Free the memory occupied by the node struct */
-	ut_free(node);
+	free(node);
 
 	mem_current_allocated_memory -= size;
 

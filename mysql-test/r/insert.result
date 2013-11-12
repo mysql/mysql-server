@@ -42,7 +42,7 @@ a	t>0	c	i
 5	0	a	NULL
 6	1	hello	NULL
 drop table t1;
-create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id));
+create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id)) engine=myisam;
 insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
 select * from t1;
 sid	id
@@ -77,9 +77,9 @@ create table t2(id int not null auto_increment primary key, t2 varchar(50), uniq
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
 select * from t2;
 id	t2
-1	mysql.com
-2	hotmail.com
 3	aol.com
+2	hotmail.com
+1	mysql.com
 drop table t1,t2;
 drop database if exists mysqltest;
 create database mysqltest;
@@ -368,7 +368,7 @@ f1	f2
 2	22
 drop view v1;
 drop table t1,t2;
-create table t1 (id int primary key auto_increment, data int, unique(data));
+create table t1 (id int primary key auto_increment, data int, unique(data)) engine=myisam;
 insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
 insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
 insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
@@ -577,10 +577,10 @@ DROP TABLE t1;
 CREATE TABLE t1( a INT );
 INSERT DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1883	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1885	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 REPLACE DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1883	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
+Warning	1885	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
 DROP TABLE t1;
 SET GLOBAL delayed_insert_limit = DEFAULT;
 Warnings:

@@ -35,9 +35,9 @@ uint my_get_large_page_size(void)
 {
   uint size;
   DBUG_ENTER("my_get_large_page_size");
-  
+
   if (!(size = my_get_large_page_size_int()))
-    fprintf(stderr, "Warning: Failed to determine large page size\n");
+    my_message_local(WARNING_LEVEL, "Failed to determine large page size"); /* purecov: inspected */
 
   DBUG_RETURN(size);
 }
@@ -52,15 +52,15 @@ uchar* my_large_malloc(PSI_memory_key key, size_t size, myf my_flags)
 {
   uchar* ptr;
   DBUG_ENTER("my_large_malloc");
-  
+
   if (my_use_large_pages && my_large_page_size)
   {
     if ((ptr = my_large_malloc_int(size, my_flags)) != NULL)
         DBUG_RETURN(ptr);
     if (my_flags & MY_WME)
-      fprintf(stderr, "Warning: Using conventional memory pool\n");
+      my_message_local(WARNING_LEVEL, "Using conventional memory pool"); /* purecov: inspected */
   }
-      
+
   DBUG_RETURN(my_malloc(key, size, my_flags));
 }
 
@@ -127,10 +127,11 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   if (shmid < 0)
   {
     if (my_flags & MY_WME)
-      fprintf(stderr,
-              "Warning: Failed to allocate %lu bytes from HugeTLB memory."
-              " errno %d\n", (ulong) size, errno);
-
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL,
+                       "Failed to allocate %lu bytes from HugeTLB memory."
+                       " errno %d", (ulong) size, errno);
+      /* purecov: end */
     DBUG_RETURN(NULL);
   }
 
@@ -138,8 +139,10 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   if (ptr == (uchar *) -1)
   {
     if (my_flags& MY_WME)
-      fprintf(stderr, "Warning: Failed to attach shared memory segment,"
-              " errno %d\n", errno);
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL, "Failed to attach shared memory segment,"
+                       " errno %d", errno);
+      /* purecov: end */
     shmctl(shmid, IPC_RMID, &buf);
 
     DBUG_RETURN(NULL);

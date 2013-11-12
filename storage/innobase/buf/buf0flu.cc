@@ -307,7 +307,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -868,7 +868,7 @@ buf_flush_write_block_low(
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(bpage->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
+	log_write_up_to(bpage->newest_modification, true);
 #endif
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -1363,7 +1363,6 @@ buf_free_from_unzip_LRU_list_batch(
 	ulint		max)		/*!< in: desired number of
 					blocks in the free_list */
 {
-	buf_block_t*	block;
 	ulint		scanned = 0;
 	ulint		count = 0;
 	ulint		free_len = UT_LIST_GET_LEN(buf_pool->free);
@@ -1371,7 +1370,8 @@ buf_free_from_unzip_LRU_list_batch(
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+	buf_block_t*	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+
 	while (block != NULL && count < max
 	       && free_len < srv_LRU_scan_depth
 	       && lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
@@ -2305,8 +2305,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 	buf_page_cleaner_is_active = TRUE;
 
-	buf_flush_event = os_event_create("buf_flush_event");
-
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
@@ -2409,8 +2407,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 thread_exit:
 	buf_page_cleaner_is_active = FALSE;
 
-	os_event_destroy(buf_flush_event);
-
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 	os_thread_exit(NULL);
@@ -2427,10 +2423,13 @@ void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
 {
-	bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-	ut_a(success);
+	bool success;
+	do {
+		success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	} while (!success);
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	ut_a(success);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 

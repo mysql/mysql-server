@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -338,7 +338,7 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 
 void table_tiws_by_index_usage::make_row(PFS_table_share *share, uint index)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
 

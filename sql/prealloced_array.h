@@ -63,8 +63,9 @@ class Prealloced_array
     return static_cast<Element_type*>(static_cast<void*>(&m_buff[0]));
   }
 public:
-  Prealloced_array(PSI_memory_key psi_key)
-    : m_psi_key(psi_key), m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+  explicit Prealloced_array(PSI_memory_key psi_key)
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
@@ -74,7 +75,8 @@ public:
     An object instance "owns" its array, so we do deep copy here.
    */
   Prealloced_array(const Prealloced_array &that)
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(that.m_psi_key)
   {
     if (this->reserve(that.capacity()))
       return;
@@ -90,8 +92,7 @@ public:
   {
     if (!Has_trivial_destructor)
     {
-      for (Element_type *p= begin(); p != end(); ++p)
-        p->~Element_type();                     // Destroy discarded element.
+      clear();
     }
     if (m_array_ptr != cast_rawbuff())
       my_free(m_array_ptr);
@@ -219,12 +220,27 @@ public:
     m_size-= 1;
   }
 
+  /**
+    Removes (and destroys) all elements.
+    Does not change capacity.
+   */
+  void clear()
+  {
+    if (!Has_trivial_destructor)
+    {
+      for (Element_type *p= begin(); p != end(); ++p)
+        p->~Element_type();                     // Destroy discarded element.
+    }
+    m_size= 0;
+  }
+
 private:
+  size_t         m_size;
+  size_t         m_capacity;
+  // This buffer must be properly aligned. Two size_t above should ensure it.
+  char           m_buff[Prealloc * sizeof(Element_type)];
+  Element_type  *m_array_ptr;
   PSI_memory_key m_psi_key;
-  size_t        m_size;
-  size_t        m_capacity;
-  char          m_buff[Prealloc * sizeof(Element_type)];
-  Element_type *m_array_ptr;
 
   // Not (yet) implemented.
   Prealloced_array &operator=(const Prealloced_array&);

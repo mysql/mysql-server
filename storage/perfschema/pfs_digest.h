@@ -110,7 +110,7 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
   }
 }
 
-/** 
+/**
   Read a single token from token array.
 */
 inline int read_token(PSI_digest_storage *digest_storage,
@@ -144,7 +144,7 @@ inline void store_token(PSI_digest_storage* digest_storage, uint token)
     unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
     dest[0]= token & 0xff;
     dest[1]= (token >> 8) & 0xff;
-    digest_storage->m_byte_count+= PFS_SIZE_OF_A_TOKEN; 
+    digest_storage->m_byte_count+= PFS_SIZE_OF_A_TOKEN;
   }
   else
   {
@@ -199,7 +199,7 @@ inline void store_token_identifier(PSI_digest_storage* digest_storage,
     /* Write the string data */
     if (id_length > 0)
       memcpy((char *)(dest + 4), id_name, id_length);
-    digest_storage->m_byte_count+= bytes_needed; 
+    digest_storage->m_byte_count+= bytes_needed;
   }
   else
   {

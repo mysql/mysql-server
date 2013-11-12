@@ -73,7 +73,7 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
     }
 
     public ResultData resultData(boolean execute, long skip, long limit) {
-        ResultData result = new ScanResultDataImpl(ndbScanOperation, storeColumns,
+        ResultData result = new ScanResultDataImpl(clusterTransaction, ndbScanOperation, storeColumns,
                 maximumColumnId, bufferSize, offsets, lengths, maximumColumnLength, bufferManager, skip, limit);
         clusterTransaction.executeNoCommit(false, true);
         return result;

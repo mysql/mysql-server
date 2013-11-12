@@ -88,41 +88,32 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 }
 
 
-uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
+uchar *Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
 {
-  DBUG_ENTER("alloc_sort_buffer");
-
   DBUG_EXECUTE_IF("alloc_sort_buffer_fail",
                   DBUG_SET("+d,simulate_out_of_memory"););
 
-  if (m_idx_array.is_null())
+  if (m_rawmem != NULL)
   {
-    uchar **sort_keys=
-      (uchar**) my_malloc(key_memory_Filesort_buffer_sort_keys,
-                          num_records * (record_length + sizeof(uchar*)),
-                          MYF(0));
-    m_idx_array= Idx_array(sort_keys, num_records);
-    m_record_length= record_length;
-    uchar **start_of_data= m_idx_array.array() + m_idx_array.size();
-    m_start_of_data= reinterpret_cast<uchar*>(start_of_data);
-  }
-  else
-  {
-    DBUG_ASSERT(num_records == m_idx_array.size());
+    DBUG_ASSERT(num_records == m_num_records);
     DBUG_ASSERT(record_length == m_record_length);
+    return m_rawmem;
   }
-  DBUG_RETURN(m_idx_array.array());
+  m_size_in_bytes= ALIGN_SIZE(num_records * (record_length + sizeof(uchar*)));
+  m_rawmem= (uchar*) my_malloc(key_memory_Filesort_buffer_sort_keys,
+                               m_size_in_bytes, MYF(0));
+  if (m_rawmem == NULL)
+  {
+    m_size_in_bytes= 0;
+    return NULL;
+  }
+  m_record_pointers= reinterpret_cast<uchar**>(m_rawmem)
+    + ((m_size_in_bytes / sizeof(uchar*)) - 1);
+  m_num_records= num_records;
+  m_record_length= record_length;
+  m_idx= 0;
+  return m_rawmem;
 }
-
-
-void Filesort_buffer::free_sort_buffer()
-{
-  my_free(m_idx_array.array());
-  m_idx_array= Idx_array();
-  m_record_length= 0;
-  m_start_of_data= NULL;
-}
-
 
 namespace {
 
@@ -178,17 +169,23 @@ size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
 
 void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
 {
+  m_sort_keys= get_sort_keys();
+
   if (count <= 1)
     return;
   if (param->sort_length == 0)
     return;
 
-  uchar **keys= get_sort_keys();
+  // For priority queue we have already reversed the pointers.
+  if (!param->using_pq)
+  {
+    reverse_record_pointers();
+  }
   std::pair<uchar**, ptrdiff_t> buffer;
   if (radixsort_is_appliccable(count, param->sort_length) &&
       try_reserve(&buffer, count))
   {
-    radixsort_for_str_ptr(keys, count, param->sort_length, buffer.first);
+    radixsort_for_str_ptr(m_sort_keys, count, param->sort_length, buffer.first);
     std::return_temporary_buffer(buffer.first);
     return;
   }
@@ -201,8 +198,9 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   if (count < 100)
   {
     size_t size= param->sort_length;
-    my_qsort2(keys, count, sizeof(uchar*), get_ptr_compare(size), &size);
+    my_qsort2(m_sort_keys, count, sizeof(uchar*), get_ptr_compare(size), &size);
     return;
   }
-  std::stable_sort(keys, keys + count, Mem_compare(param->sort_length));
+  std::stable_sort(m_sort_keys, m_sort_keys + count,
+                   Mem_compare(param->sort_length));
 }

@@ -404,14 +404,14 @@ DROP USER must_change@localhost;
 CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
 ALTER USER wl6587@localhost PASSWORD EXPIRE;
 # non-interactive mysql should fail
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
 # mysqladmin non-password should fail
-Warning: Using a password on the command line interface can be insecure.
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqladmin: connect to server at 'localhost' failed
 error: 'Your password has expired. To log in you must change it using a client that supports expired passwords.'
 # mysqladmin password should work
-Warning: Using a password on the command line interface can be insecure.
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 DROP USER wl6587@localhost;
 # ------------------------------------------------------------------
 # -- End of 5.6 tests

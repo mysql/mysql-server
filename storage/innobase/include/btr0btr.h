@@ -145,91 +145,6 @@ btr_corruption_report(
 	}
 
 #ifndef UNIV_HOTBACKUP
-#ifdef UNIV_BLOB_DEBUG
-# include "ut0rbt.h"
-/** An index->blobs entry for keeping track of off-page column references */
-struct btr_blob_dbg_t
-{
-	unsigned	blob_page_no:32;	/*!< first BLOB page number */
-	unsigned	ref_page_no:32;		/*!< referring page number */
-	unsigned	ref_heap_no:16;		/*!< referring heap number */
-	unsigned	ref_field_no:10;	/*!< referring field number */
-	unsigned	owner:1;		/*!< TRUE if BLOB owner */
-	unsigned	always_owner:1;		/*!< TRUE if always
-						has been the BLOB owner;
-						reset to TRUE on B-tree
-						page splits and merges */
-	unsigned	del:1;			/*!< TRUE if currently
-						delete-marked */
-};
-
-/**************************************************************//**
-Add a reference to an off-page column to the index->blobs map. */
-
-void
-btr_blob_dbg_add_blob(
-/*==================*/
-	const rec_t*	rec,		/*!< in: clustered index record */
-	ulint		field_no,	/*!< in: number of off-page column */
-	ulint		page_no,	/*!< in: start page of the column */
-	dict_index_t*	index,		/*!< in/out: index tree */
-	const char*	ctx)		/*!< in: context (for logging) */
-	__attribute__((nonnull));
-/**************************************************************//**
-Display the references to off-page columns.
-This function is to be called from a debugger,
-for example when a breakpoint on ut_dbg_assertion_failed is hit. */
-
-void
-btr_blob_dbg_print(
-/*===============*/
-	const dict_index_t*	index)	/*!< in: index tree */
-	__attribute__((nonnull));
-/**************************************************************//**
-Check that there are no references to off-page columns from or to
-the given page. Invoked when freeing or clearing a page.
-@return TRUE when no orphan references exist */
-
-ibool
-btr_blob_dbg_is_empty(
-/*==================*/
-	dict_index_t*	index,		/*!< in: index */
-	ulint		page_no)	/*!< in: page number */
-	__attribute__((nonnull, warn_unused_result));
-
-/**************************************************************//**
-Modify the 'deleted' flag of a record. */
-
-void
-btr_blob_dbg_set_deleted_flag(
-/*==========================*/
-	const rec_t*		rec,	/*!< in: record */
-	dict_index_t*		index,	/*!< in/out: index */
-	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
-	ibool			del)	/*!< in: TRUE=deleted, FALSE=exists */
-	__attribute__((nonnull));
-/**************************************************************//**
-Change the ownership of an off-page column. */
-
-void
-btr_blob_dbg_owner(
-/*===============*/
-	const rec_t*		rec,	/*!< in: record */
-	dict_index_t*		index,	/*!< in/out: index */
-	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
-	ulint			i,	/*!< in: ith field in rec */
-	ibool			own)	/*!< in: TRUE=owned, FALSE=disowned */
-	__attribute__((nonnull));
-/** Assert that there are no BLOB references to or from the given page. */
-# define btr_blob_dbg_assert_empty(index, page_no)	\
-	ut_a(btr_blob_dbg_is_empty(index, page_no))
-#else /* UNIV_BLOB_DEBUG */
-# define btr_blob_dbg_add_blob(rec, field_no, page, index, ctx)	((void) 0)
-# define btr_blob_dbg_set_deleted_flag(rec, index, offsets, del)((void) 0)
-# define btr_blob_dbg_owner(rec, index, offsets, i, val)	((void) 0)
-# define btr_blob_dbg_assert_empty(index, page_no)		((void) 0)
-#endif /* UNIV_BLOB_DEBUG */
-
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
@@ -439,7 +354,7 @@ btr_free_but_not_root(
 						size in bytes or 0 for
 						uncompressed pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	ulint			logging_mode);	/*!< in: mtr logging mode */
+	mtr_log_t		logging_mode);	/*!< in: mtr logging mode */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 
@@ -787,7 +702,7 @@ btr_validate_index(
 	dict_index_t*	index,	/*!< in: index */
 	const trx_t*	trx,	/*!< in: transaction or 0 */
 	bool		lockout)/*!< in: true if X-latch index is intended */
-	__attribute__((nonnull(1), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2

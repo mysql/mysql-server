@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,9 +161,6 @@ public:
   }
 };
 
-/** The size of the host_cache. */
-extern ulong host_cache_size;
-
 #define RC_OK 0
 #define RC_BLOCKED_HOST 1
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
@@ -172,7 +169,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 
 void inc_host_errors(const char *ip_string, Host_errors *errors);
 void reset_host_connect_errors(const char *ip_string);
-bool hostname_cache_init();
+bool hostname_cache_init(uint size);
 void hostname_cache_free();
 void hostname_cache_refresh(void);
 uint hostname_cache_size();

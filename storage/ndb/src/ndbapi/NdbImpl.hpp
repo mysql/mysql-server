@@ -83,7 +83,6 @@ public:
   NdbWaiter             theWaiter;
 
   WakeupHandler* wakeHandler;
-  Uint32 wakeContext;
 
   NdbEventOperationImpl *m_ev_op;
 

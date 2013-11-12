@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -226,6 +226,8 @@
 
 #define CFG_MGM_PORT                  300
 
+#define CFG_DB_MAX_BUFFERED_EPOCH_BYTES 350
+
 #define CFG_CONNECTION_NODE_1         400
 #define CFG_CONNECTION_NODE_2         401
 #define CFG_CONNECTION_SEND_SIGNAL_ID 402
@@ -275,6 +277,7 @@
 #define CFG_AUTO_RECONNECT            803
 #define CFG_HB_THREAD_PRIO            804
 #define CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION 805
+#define CFG_DEFAULT_HASHMAP_SIZE      806
 
 /**
  * Internal

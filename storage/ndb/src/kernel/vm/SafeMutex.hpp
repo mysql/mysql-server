@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +25,9 @@
 #include <assert.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>
+
+#define JAM_FILE_ID 220
+
 
 /*
  * Recursive mutex with recursion limit >= 1.  Intended for debugging.
@@ -92,5 +94,8 @@ private:
   int lock_impl();
   int unlock_impl();
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

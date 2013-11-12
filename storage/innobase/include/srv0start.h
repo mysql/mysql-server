@@ -30,11 +30,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "log0log.h"
 #include "ut0byte.h"
 
-#ifdef _WIN32
-#define SRV_PATH_SEPARATOR	'\\'
-#else
-#define SRV_PATH_SEPARATOR	'/'
-#endif
+// Forward declaration
+struct dict_table_t;
 
 #ifdef DBUG_OFF
 # define RECOVERY_CRASH(x) do {} while(0)
@@ -44,10 +41,13 @@ Created 10/10/1995 Heikki Tuuri
 		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
 			srv_force_recovery_crash);			\
 		fflush(stderr);						\
-		exit(3);						\
+		_exit(3);						\
 	}								\
 } while (0)
-#endif
+#endif /* DBUG_OFF */
+
+/** Log 'spaces' have id's >= this */
+#define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
@@ -167,8 +167,5 @@ enum srv_shutdown_state {
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern	enum srv_shutdown_state	srv_shutdown_state;
 #endif /* !UNIV_HOTBACKUP */
-
-/** Log 'spaces' have id's >= this */
-#define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
 #endif

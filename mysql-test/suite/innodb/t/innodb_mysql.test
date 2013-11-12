@@ -30,7 +30,7 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
 --echo # this must use key 'a', not PRIMARY:
---replace_column 9 #
+--replace_column 10 #
 explain select a from t2 where a=b;
 drop table t1, t2;
 

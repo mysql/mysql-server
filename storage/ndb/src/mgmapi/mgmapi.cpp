@@ -63,7 +63,7 @@
 #define MGM_END() \
  { 0, \
    0, \
-   ParserRow<ParserDummy>::Arg, \
+   ParserRow<ParserDummy>::End, \
    ParserRow<ParserDummy>::Int, \
    ParserRow<ParserDummy>::Optional, \
    ParserRow<ParserDummy>::IgnoreMinMax, \
@@ -508,7 +508,7 @@ ndb_mgm_call(NdbMgmHandle handle,
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
-  Parser_t parser(command_reply, in, true, true, true);
+  Parser_t parser(command_reply, in);
 
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
@@ -1643,6 +1643,7 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
     MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, -1);
 
@@ -1675,6 +1676,7 @@ ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle)
     MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, NULL);
 
@@ -1804,6 +1806,7 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
     MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, -1);
 
@@ -1841,6 +1844,7 @@ ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
     MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, NULL);
 
@@ -2275,12 +2279,14 @@ ndb_mgm_set_trace(NdbMgmHandle handle, int nodeId, int traceNumber,
   DBUG_RETURN(retval);
 }
 
-extern "C"
-int 
-ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
-		     struct ndb_mgm_reply* reply) 
+int
+ndb_mgm_insert_error_impl(NdbMgmHandle handle, int nodeId,
+                          int errorCode,
+                          int * extra,
+                          struct ndb_mgm_reply* reply)
 {
   DBUG_ENTER("ndb_mgm_insert_error");
+
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_insert_error");
   const ParserRow<ParserDummy> insert_error_reply[] = {
@@ -2294,6 +2300,10 @@ ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
   Properties args;
   args.put("node", nodeId);
   args.put("error", errorCode);
+  if (extra)
+  {
+    args.put("extra", * extra);
+  }
 
   const Properties *prop;
   prop = ndb_mgm_call(handle, insert_error_reply, "insert error", &args);
@@ -2312,6 +2322,23 @@ ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
   }
 
   DBUG_RETURN(retval);
+}
+
+extern "C"
+int
+ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
+		     struct ndb_mgm_reply* reply)
+{
+  return ndb_mgm_insert_error_impl(handle, nodeId, errorCode, 0, reply);
+}
+
+extern "C"
+int
+ndb_mgm_insert_error2(NdbMgmHandle handle, int nodeId,
+                      int errorCode, int extra,
+		     struct ndb_mgm_reply* reply)
+{
+  return ndb_mgm_insert_error_impl(handle, nodeId, errorCode, &extra, reply);
 }
 
 extern "C"
@@ -3635,5 +3662,127 @@ ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
         sizeof(events->events[0]), cmp_event);
   DBUG_RETURN(events);
 }
+
+
+static
+int
+set_dynamic_ports_batched(NdbMgmHandle handle, int nodeid,
+                          struct ndb_mgm_dynamic_port* ports,
+                          unsigned num_ports)
+{
+  DBUG_ENTER("set_dynamic_ports_batched");
+
+  Properties args;
+  args.put("node", (Uint32)nodeid);
+  args.put("num_ports", (Uint32)num_ports);
+
+  /*
+    Build the list of nodeid/port pairs which is sent as
+    name value pairs in bulk part of request
+  */
+  BaseString port_list;
+  for(unsigned i = 0; i < num_ports; i++)
+  {
+    port_list.appfmt("%d=%d\n", ports[i].nodeid, ports[i].port);
+  }
+
+  const ParserRow<ParserDummy> set_ports_reply[] = {
+    MGM_CMD("set ports reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Ok or error message"),
+    MGM_END()
+  };
+  const Properties *reply = ndb_mgm_call(handle, set_ports_reply,
+                                         "set ports", &args,
+                                         port_list.c_str());
+  CHECK_REPLY(handle, reply, -1);
+
+  // Check the result for Ok or error
+  const char * result;
+  reply->get("result", &result);
+  if (strcmp(result, "Ok") != 0) {
+    SET_ERROR(handle, NDB_MGM_USAGE_ERROR, result);
+    delete reply;
+    DBUG_RETURN(-1);
+  }
+
+  delete reply;
+  DBUG_RETURN(0);
+}
+
+
+extern "C"
+int
+ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
+                          struct ndb_mgm_dynamic_port* ports,
+                          unsigned num_ports)
+{
+  DBUG_ENTER("ndb_mgm_set_dynamic_ports");
+  DBUG_PRINT("enter", ("nodeid: %d, num_ports: %u", nodeid, num_ports));
+  CHECK_HANDLE(handle, -1);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_dynamic_ports");
+  CHECK_CONNECTED(handle, -1);
+
+  if (num_ports == 0)
+  {
+    SET_ERROR(handle, NDB_MGM_USAGE_ERROR,
+              "Illegal number of dynamic ports given in num_ports");
+    DBUG_RETURN(-1);
+  }
+
+  // Check that the ports seems to contain reasonable numbers
+  for (unsigned i = 0; i < num_ports; i++)
+  {
+    if (ports[i].nodeid == 0)
+    {
+      SET_ERROR(handle, NDB_MGM_USAGE_ERROR,
+                "Illegal nodeid specfied in ports array");
+      DBUG_RETURN(-1);
+    }
+
+    if (ports[i].port >= 0)
+    {
+      // Only negative dynamic ports allowed
+      SET_ERROR(handle, NDB_MGM_USAGE_ERROR,
+                "Illegal port specfied in ports array");
+      DBUG_RETURN(-1);
+    }
+  }
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(-1);
+
+  if (check_version_ge(handle->mgmd_version(),
+                       NDB_MAKE_VERSION(7,3,3),
+                       NDB_MAKE_VERSION(7,2,14),
+                       NDB_MAKE_VERSION(7,1,28),
+                       NDB_MAKE_VERSION(7,0,40),
+                       0))
+  {
+    // The ndb_mgmd supports reporting all ports at once
+    DBUG_RETURN(set_dynamic_ports_batched(handle, nodeid,
+                                          ports, num_ports));
+  }
+
+  // Report the ports one at a time
+  for (unsigned i = 0; i < num_ports; i++)
+  {
+    struct ndb_mgm_reply mgm_reply;
+    const int err = ndb_mgm_set_connection_int_parameter(handle,
+                                                         nodeid,
+                                                         ports[i].nodeid,
+                                                         CFG_CONNECTION_SERVER_PORT,
+                                                         ports[i].port,
+                                                         &mgm_reply);
+    if (err < 0)
+    {
+      setError(handle, handle->last_error, __LINE__,
+               "Could not set dynamic port for %d->%d",
+               nodeid, ports[i].nodeid);
+      DBUG_RETURN(-1);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
 
 template class Vector<const ParserRow<ParserDummy>*>;

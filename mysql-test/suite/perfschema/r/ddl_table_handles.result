@@ -1,0 +1,8 @@
+alter table performance_schema.table_handles add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+truncate table performance_schema.table_handles;
+ERROR HY000: Invalid performance_schema usage.
+ALTER TABLE performance_schema.table_handles ADD INDEX test_index(TIMER_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index ON performance_schema.table_handles(TIMER_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

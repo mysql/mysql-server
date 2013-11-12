@@ -58,7 +58,7 @@
 #include "opt_trace.h"     // Optimizer trace information schema tables
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
-#include "global_threads.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 #include <algorithm>
 using std::max;
@@ -522,11 +522,28 @@ ignore_db_dirs_process_additions()
   for (i= 0; i < ignore_db_dirs_array.elements; i++)
   {
     get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
-    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
+    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *)dir))
+    {
+      /* ignore duplicates from the config file */
+      if (my_hash_search(&ignore_db_dirs_hash, (uchar *)dir->str, dir->length))
+      {
+        sql_print_warning("Duplicate ignore-db-dir directory name '%.*s' "
+                          "found in the config file(s). Ignoring the duplicate.",
+                          (int) dir->length, dir->str);
+        /*
+          Free the excess element since the array will just be reset at
+          the end of the function, not destructed.
+        */
+        my_free(dir);
+        dir= NULL;
+        set_dynamic(&ignore_db_dirs_array, (uchar *)&dir, i);
+        continue;
+      }
       return true;
-    ptr= strnmov(ptr, dir->str, dir->length);
-    if (i + 1 < ignore_db_dirs_array.elements)
-      ptr= strmov(ptr, ",");
+    }
+    ptr= my_stpnmov(ptr, dir->str, dir->length);
+    /* It's safe to always do, since the last one will be repalced with a 0 */
+    *ptr++ = ',';
 
     /*
       Set the transferred array element to NULL to avoid double free
@@ -536,6 +553,12 @@ ignore_db_dirs_process_additions()
     set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
   }
 
+  /* get back to the last comma, if there is one */
+  if (ptr > opt_ignore_db_dirs)
+  {
+    ptr--;
+    DBUG_ASSERT(*ptr == ',');
+  }
   /* make sure the string is terminated */
   DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
   *ptr= 0;
@@ -743,7 +766,7 @@ public:
     m_view_access_denied_message_ptr(NULL) 
   {
     
-    m_sctx = test(m_top_view->security_ctx) ?
+    m_sctx = MY_TEST(m_top_view->security_ctx) ?
       m_top_view->security_ctx : thd->security_ctx;
   }
 
@@ -1095,15 +1118,14 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 
 static const char *require_quotes(const char *name, uint name_length)
 {
-  uint length;
   bool pure_digit= TRUE;
   const char *end= name + name_length;
 
   for (; name < end ; name++)
   {
     uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
-    if (length == 1 && !system_charset_info->ident_map[chr])
+    uint length= my_mbcharlen(system_charset_info, chr);
+    if (length == 0 || (length == 1 && !system_charset_info->ident_map[chr]))
       return name;
     if (length == 1 && (chr < '0' || chr > '9'))
       pure_digit= FALSE;
@@ -1862,7 +1884,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end= longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
-    DBUG_ASSERT(test(key_info->flags & HA_USES_COMMENT) == 
+    DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) == 
                (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT)
     {
@@ -2012,16 +2034,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info
+class thread_info : public Sql_alloc
 {
 public:
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-  static void operator delete(void *ptr __attribute__((unused)),
-                              size_t size __attribute__((unused)))
-  { TRASH(ptr, size); }
+  thread_info()
+    : thread_id(0), start_time(0), command(0),
+      user(NULL), host(NULL), db(NULL), proc_info(NULL), state_info(NULL)
+  { }
 
   ulong thread_id;
   time_t start_time;
@@ -2065,17 +2084,120 @@ static const char *thread_state_info(THD *tmp)
   }
 }
 
+/**
+  This class implements callback function used by mysqld_list_processes() to
+  list all the client process information.
+*/
+typedef Mem_root_array<thread_info*, true> Thread_info_array;
+class List_process_list : public Do_THD_Impl
+{
+private:
+  /* Username of connected client. */
+  const char *m_user;
+  Thread_info_array *m_thread_infos;
+  /* THD of connected client. */
+  THD *m_client_thd;
+  ulong m_max_query_length;
+
+public:
+  List_process_list(const char *user_value, Thread_info_array *thread_infos,
+                    THD *thd_value, ulong max_query_length) :
+                    m_user(user_value), m_thread_infos(thread_infos),
+                    m_client_thd(thd_value),
+                    m_max_query_length(max_query_length)
+  {}
+
+  virtual void operator()(THD *inspect_thd)
+  {
+    Security_context *inspect_sctx= inspect_thd->security_ctx;
+
+    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+        (m_user &&
+         (!inspect_sctx->user || strcmp(inspect_sctx->user, m_user))))
+      return;
+
+    thread_info *thd_info= new thread_info;
+
+    /* ID */
+    thd_info->thread_id= inspect_thd->thread_id;
+
+    /* USER */
+    if (inspect_sctx->user)
+      thd_info->user= m_client_thd->strdup(inspect_sctx->user);
+    else if (inspect_thd->system_thread)
+      thd_info->user= "system user";
+    else
+      thd_info->user= "unauthenticated user";
+
+    /* HOST */
+    if (inspect_thd->peer_port &&
+        (inspect_sctx->get_host()->length() ||
+         inspect_sctx->get_ip()->length()) &&
+        m_client_thd->security_ctx->host_or_ip[0])
+    {
+      if ((thd_info->host=
+           (char*) m_client_thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+        my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+                    inspect_sctx->host_or_ip, inspect_thd->peer_port);
+    }
+    else
+      thd_info->host=
+        m_client_thd->strdup(inspect_sctx->host_or_ip[0] ?
+                             inspect_sctx->host_or_ip :
+                             inspect_sctx->get_host()->length() ?
+                             inspect_sctx->get_host()->ptr() : "");
+
+    /* DB */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
+    const char *db= inspect_thd->db;
+    if (db)
+      thd_info->db= m_client_thd->strdup(db);
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
+
+    /* COMMAND */
+    if (inspect_thd->killed == THD::KILL_CONNECTION)
+      thd_info->proc_info= "Killed";
+    thd_info->command=(int) inspect_thd->get_command(); // Used for !killed.
+
+    /* STATE */
+    thd_info->state_info= thread_state_info(inspect_thd);
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
+
+    /* INFO */
+    if (inspect_thd->query())
+    {
+      const size_t width= min<size_t>(m_max_query_length,
+                                      inspect_thd->query_length());
+      char *q= m_client_thd->strmake(inspect_thd->query(), width);
+      /* Safety: in case strmake failed, we set length to 0. */
+      thd_info->query_string=
+        CSET_STRING(q, q ? width : 0, inspect_thd->query_charset());
+    }
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
+    /* MYSQL_TIME */
+    thd_info->start_time= inspect_thd->start_time.tv_sec;
+
+    m_thread_infos->push_back(thd_info);
+  }
+};
+
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
   List<Item> field_list;
-  Mem_root_array<thread_info*, true> thread_infos(thd->mem_root);
+  Thread_info_array thread_infos(thd->mem_root);
   ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
-			   PROCESS_LIST_WIDTH);
+                           PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"),
+                                    0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2087,68 +2209,17 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (protocol->
+      send_result_set_metadata(&field_list,
+                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    thread_infos.reserve(get_thread_count());
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD *tmp= *it;
-      Security_context *tmp_sctx= tmp->security_ctx;
-      struct st_my_thread_var *mysys_var;
-      if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
-      {
-        thread_info *thd_info= new thread_info;
-
-        thd_info->thread_id=tmp->thread_id;
-        thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
-                                    (tmp->system_thread ?
-                                     "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
-            tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
-	{
-	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
-	}
-	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
-                                      tmp_sctx->host_or_ip : 
-                                      tmp_sctx->get_host()->length() ?
-                                      tmp_sctx->get_host()->ptr() : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
-        thd_info->command=(int) tmp->get_command();
-        mysql_mutex_lock(&tmp->LOCK_thd_data);
-        if ((mysys_var= tmp->mysys_var))
-          mysql_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
-        thd_info->state_info= thread_state_info(tmp);
-        if (mysys_var)
-          mysql_mutex_unlock(&mysys_var->mutex);
-
-        /* Lock THD mutex that protects its data when looking at it. */
-        if (tmp->query())
-        {
-          uint length= min<uint>(max_query_length, tmp->query_length());
-          char *q= thd->strmake(tmp->query(),length);
-          /* Safety: in case strmake failed, we set length to 0. */
-          thd_info->query_string=
-            CSET_STRING(q, q ? length : 0, tmp->query_charset());
-        }
-        mysql_mutex_unlock(&tmp->LOCK_thd_data);
-        thd_info->start_time= tmp->start_time.tv_sec;
-        thread_infos.push_back(thd_info);
-      }
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    thread_infos.reserve(Global_THD_manager::get_instance()->get_thd_count());
+    List_process_list list_process_list(user, &thread_infos, thd,
+                                        max_query_length);
+    Global_THD_manager::get_instance()->do_for_all_thd_copy(&list_process_list);
   }
 
   // Return list sorted by thread_id.
@@ -2181,104 +2252,130 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  This class implements callback function used by fill_schema_processlist()
+  to populate all the client process information into I_S table.
+*/
+class Fill_process_list : public Do_THD_Impl
+{
+private:
+  /* THD of connected client. */
+  THD *m_client_thd;
+  /* Information of each process is added as records into this table. */
+  TABLE_LIST *m_tables;
+
+public:
+  Fill_process_list(THD *thd_value, TABLE_LIST *tables_value) :
+                    m_client_thd(thd_value), m_tables(tables_value) {}
+
+  virtual void operator()(THD *inspect_thd)
+  {
+    Security_context *inspect_sctx= inspect_thd->security_ctx;
+    const char *user= m_client_thd->security_ctx->master_access & PROCESS_ACL ?
+      NullS : m_client_thd->security_ctx->priv_user;
+
+    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+        (user &&
+         (!inspect_sctx->user || strcmp(inspect_sctx->user, user))))
+      return;
+
+    TABLE *table= m_tables->table;
+    restore_record(table, s->default_values);
+
+    /* ID */
+    table->field[0]->store((ulonglong) inspect_thd->thread_id, true);
+
+    /* USER */
+    const char *val= NULL;
+    if (inspect_sctx->user)
+      val= inspect_sctx->user;
+    else if (inspect_thd->system_thread)
+      val= "system user";
+    else
+      val= "unauthenticated user";
+    table->field[1]->store(val, strlen(val), system_charset_info);
+
+    /* HOST */
+    if (inspect_thd->peer_port &&
+        (inspect_sctx->get_host()->length() ||
+         inspect_sctx->get_ip()->length()) &&
+        m_client_thd->security_ctx->host_or_ip[0])
+    {
+      char host[LIST_PROCESS_HOST_LEN + 1];
+      my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
+                  inspect_sctx->host_or_ip, inspect_thd->peer_port);
+      table->field[2]->store(host, strlen(host), system_charset_info);
+    }
+    else
+      table->field[2]->store(inspect_sctx->host_or_ip,
+                             strlen(inspect_sctx->host_or_ip),
+                             system_charset_info);
+
+    /* DB */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
+    const char *db= inspect_thd->db;
+    if (db)
+    {
+      table->field[3]->store(db, strlen(db), system_charset_info);
+      table->field[3]->set_notnull();
+    }
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
+
+    /* COMMAND */
+    if (inspect_thd->killed == THD::KILL_CONNECTION)
+    {
+      val= "Killed";
+      table->field[4]->store(val, strlen(val), system_charset_info);
+    }
+    else
+      table->field[4]->store(command_name[inspect_thd->get_command()].str,
+                             command_name[inspect_thd->get_command()].length,
+                             system_charset_info);
+
+    /* STATE */
+    val= thread_state_info(inspect_thd);
+    if (val)
+    {
+      table->field[6]->store(val, strlen(val), system_charset_info);
+      table->field[6]->set_notnull();
+    }
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
+
+    /* INFO */
+    if (inspect_thd->query())
+    {
+      const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
+                                      inspect_thd->query_length());
+      table->field[7]->store(inspect_thd->query(), width, system_charset_info);
+      table->field[7]->set_notnull();
+    }
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
+    /* MYSQL_TIME */
+    if (inspect_thd->start_time.tv_sec)
+      table->field[5]->
+        store((longlong) (my_time(0) - inspect_thd->start_time.tv_sec), false);
+    else
+      table->field[5]->store(0, false);
+
+    schema_table_store_record(m_client_thd, table);
+  }
+};
+
 int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
-  TABLE *table= tables->table;
-  CHARSET_INFO *cs= system_charset_info;
-  char *user;
-  time_t now= my_time(0);
-  DBUG_ENTER("fill_process_list");
+  DBUG_ENTER("fill_schema_processlist");
 
-  user= thd->security_ctx->master_access & PROCESS_ACL ?
-        NullS : thd->security_ctx->priv_user;
-
+  Fill_process_list fill_process_list(thd, tables);
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD* tmp= *it;
-      Security_context *tmp_sctx= tmp->security_ctx;
-      struct st_my_thread_var *mysys_var;
-      const char *val;
-
-      if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
-        continue;
-
-      restore_record(table, s->default_values);
-      /* ID */
-
-      table->field[0]->store((ulonglong) tmp->thread_id, TRUE);
-      /* USER */
-      val= tmp_sctx->user ? tmp_sctx->user :
-            (tmp->system_thread ? "system user" : "unauthenticated user");
-      table->field[1]->store(val, strlen(val), cs);
-      /* HOST */
-      if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
-          tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
-      {
-        char host[LIST_PROCESS_HOST_LEN + 1];
-        my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
-                    tmp_sctx->host_or_ip, tmp->peer_port);
-        table->field[2]->store(host, strlen(host), cs);
-      }
-      else
-        table->field[2]->store(tmp_sctx->host_or_ip,
-                               strlen(tmp_sctx->host_or_ip), cs);
-      /* DB */
-      if (tmp->db)
-      {
-        table->field[3]->store(tmp->db, strlen(tmp->db), cs);
-        table->field[3]->set_notnull();
-      }
-
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      if ((mysys_var= tmp->mysys_var))
-        mysql_mutex_lock(&mysys_var->mutex);
-      /* COMMAND */
-      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
-        table->field[4]->store(val, strlen(val), cs);
-      else
-        table->field[4]->store(command_name[tmp->get_command()].str,
-                               command_name[tmp->get_command()].length, cs);
-      /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time.tv_sec ?
-                                      now - tmp->start_time.tv_sec : 0), FALSE);
-      /* STATE */
-      if ((val= thread_state_info(tmp)))
-      {
-        table->field[6]->store(val, strlen(val), cs);
-        table->field[6]->set_notnull();
-      }
-
-      if (mysys_var)
-        mysql_mutex_unlock(&mysys_var->mutex);
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
-      /* INFO */
-      /* Lock THD mutex that protects its data when looking at it. */
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      if (tmp->query())
-      {
-        size_t const width=
-          min<size_t>(PROCESS_LIST_INFO_WIDTH, tmp->query_length());
-        table->field[7]->store(tmp->query(), width, cs);
-        table->field[7]->set_notnull();
-      }
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
-      if (schema_table_store_record(thd, table))
-      {
-        mysql_mutex_unlock(&LOCK_thread_count);
-        DBUG_RETURN(1);
-      }
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->do_for_all_thd_copy(&fill_process_list);
   }
-
   DBUG_RETURN(0);
 }
 
@@ -2490,7 +2587,7 @@ static bool show_status_array(THD *thd, const char *wild,
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
-  prefix_end=strnmov(name_buffer, prefix, sizeof(name_buffer)-1);
+  prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
     *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
@@ -2498,7 +2595,7 @@ static bool show_status_array(THD *thd, const char *wild,
 
   for (; variables->name; variables++)
   {
-    strnmov(prefix_end, variables->name, len);
+    my_stpnmov(prefix_end, variables->name, len);
     name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
     if (ucase_names)
       make_upper(name_buffer);
@@ -2571,10 +2668,10 @@ static bool show_status_array(THD *thd, const char *wild,
           end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
           break;
         case SHOW_BOOL:
-          end= strmov(buff, *(bool*) value ? "ON" : "OFF");
+          end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
           break;
         case SHOW_MY_BOOL:
-          end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
+          end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
         case SHOW_INT:
           end= int10_to_str((long) *(uint32*) value, buff, 10);
@@ -2652,42 +2749,32 @@ end:
 }
 
 
-/* collect status for all running threads */
+/**
+  Collect status for all running threads.
+*/
+class Add_status : public Do_THD_Impl
+{
+public:
+  Add_status(STATUS_VAR* value) : m_stat_var(value) {}
+  virtual void operator()(THD *thd)
+  {
+    STATUS_VAR* stat = &(thd->status_var);
+    add_to_status(m_stat_var, stat);
+  }
+private:
+  /* Status of all threads are summed into this. */
+  STATUS_VAR* m_stat_var;
+};
 
 void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
-
-  /* take copy of global_thread_list */
-  std::set<THD*> global_thread_list_copy;
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  mysql_mutex_lock(&LOCK_thread_remove);
-  copy_global_thread_list(&global_thread_list_copy);
-
-  /* 
-    Allow inserts to global_thread_list. Newly added thd
-    will not be accounted for summary calculation.
-    removal from global_thread_list is blocked as LOCK_thread_remove
-    mutex is not released yet 
-  */
-  mysql_mutex_unlock(&LOCK_thread_count);
-  Thread_iterator it= global_thread_list_copy.begin();
-  Thread_iterator end= global_thread_list_copy.end();
-
-  /* Get global values as base */
+  /* Get global values as base. */
   *to= global_status_var;
-  
-  /* Add to this status from existing threads */
-  for (; it != end; ++it)
-    add_to_status(to, &(*it)->status_var);
-  
-  DEBUG_SYNC_C("inside_calc_sum");
-
-  mysql_mutex_unlock(&LOCK_thread_remove);
+  Add_status add_status(to);
+  Global_THD_manager::get_instance()->do_for_all_thd_copy(&add_status);
   DBUG_VOID_RETURN;
 }
-
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -3645,8 +3732,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock)
 {
   bool error;
-  table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&table->mdl_request,
+                   MDL_key::TABLE, table->db, table->table_name,
+                   MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
 
   if (can_deadlock)
   {
@@ -3723,8 +3811,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       cache subsystems require normalized (lowercased) database and table
       names as input.
     */
-    strmov(db_name_buff, db_name->str);
-    strmov(table_name_buff, table_name->str);
+    my_stpcpy(db_name_buff, db_name->str);
+    my_stpcpy(table_name_buff, table_name->str);
     my_casedn_str(files_charset_info, db_name_buff);
     my_casedn_str(files_charset_info, table_name_buff);
     table_list.db= db_name_buff;
@@ -4333,51 +4421,51 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->min_rows)
     {
-      ptr=strmov(ptr," min_rows=");
+      ptr=my_stpcpy(ptr," min_rows=");
       ptr=longlong10_to_str(share->min_rows,ptr,10);
     }
 
     if (share->max_rows)
     {
-      ptr=strmov(ptr," max_rows=");
+      ptr=my_stpcpy(ptr," max_rows=");
       ptr=longlong10_to_str(share->max_rows,ptr,10);
     }
 
     if (share->avg_row_length)
     {
-      ptr=strmov(ptr," avg_row_length=");
+      ptr=my_stpcpy(ptr," avg_row_length=");
       ptr=longlong10_to_str(share->avg_row_length,ptr,10);
     }
 
     if (share->db_create_options & HA_OPTION_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=1");
+      ptr=my_stpcpy(ptr," pack_keys=1");
 
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=0");
+      ptr=my_stpcpy(ptr," pack_keys=0");
 
     if (share->db_create_options & HA_OPTION_STATS_PERSISTENT)
-      ptr=strmov(ptr," stats_persistent=1");
+      ptr=my_stpcpy(ptr," stats_persistent=1");
 
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
-      ptr=strmov(ptr," stats_persistent=0");
+      ptr=my_stpcpy(ptr," stats_persistent=0");
 
     if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
-      ptr=strmov(ptr," stats_auto_recalc=1");
+      ptr=my_stpcpy(ptr," stats_auto_recalc=1");
     else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
-      ptr=strmov(ptr," stats_auto_recalc=0");
+      ptr=my_stpcpy(ptr," stats_auto_recalc=0");
 
     if (share->stats_sample_pages != 0)
     {
-      ptr= strmov(ptr, " stats_sample_pages=");
+      ptr= my_stpcpy(ptr, " stats_sample_pages=");
       ptr= longlong10_to_str(share->stats_sample_pages, ptr, 10);
     }
 
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
-      ptr=strmov(ptr," checksum=1");
+      ptr=my_stpcpy(ptr," checksum=1");
 
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-      ptr=strmov(ptr," delay_key_write=1");
+      ptr=my_stpcpy(ptr," delay_key_write=1");
 
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
@@ -4386,13 +4474,13 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->key_block_size)
     {
-      ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
+      ptr= my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
     }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
-      ptr= strmov(ptr, " partitioned");
+      ptr= my_stpcpy(ptr, " partitioned");
 #endif
 
     table->field[19]->store(option_buff+1,
@@ -4712,7 +4800,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
     check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, test(tables->schema_table));
+                 &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
     col_access= get_column_grant(thd, &tables->grant,
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -4724,7 +4812,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       if (col_access & 1)
       {
         *end++=',';
-        end=strmov(end,grant_types.type_names[bitnr]);
+        end=my_stpcpy(end,grant_types.type_names[bitnr]);
       }
     }
     table->field[IS_COLUMNS_PRIVILEGES]->store(tmp+1,
@@ -4853,13 +4941,13 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
       table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
                              strlen(plugin_decl(plugin)->descr), scs);
-      tmp= &yesno[test(hton->commit)];
+      tmp= &yesno[MY_TEST(hton->commit)];
       table->field[3]->store(tmp->str, tmp->length, scs);
       table->field[3]->set_notnull();
-      tmp= &yesno[test(hton->prepare)];
+      tmp= &yesno[MY_TEST(hton->prepare)];
       table->field[4]->store(tmp->str, tmp->length, scs);
       table->field[4]->set_notnull();
-      tmp= &yesno[test(hton->savepoint_set)];
+      tmp= &yesno[MY_TEST(hton->savepoint_set)];
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
@@ -5436,7 +5524,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         else
           table->field[14]->store("", 0, cs);
         table->field[14]->set_notnull();
-        DBUG_ASSERT(test(key_info->flags & HA_USES_COMMENT) == 
+        DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
                    (key_info->comment.length > 0));
         if (key_info->flags & HA_USES_COMMENT)
           table->field[15]->store(key_info->comment.str, 

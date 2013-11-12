@@ -458,7 +458,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   }
   Uint32 TattrLen = 0;
   tcKeyReq->setAttrinfoLen(TattrLen, 0); // Not required for long signals.
-  tcKeyReq->setAPIVersion(TattrLen, NDB_VERSION);
   tcKeyReq->attrLen            = TattrLen;
 
   tcKeyReq->tableId            = tTableId;
@@ -473,6 +472,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   Uint8 tNoDisk = (m_flags & OF_NO_DISK) != 0;
   Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
   Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
+  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
 
   /**
    * A dirty read, can not abort the transaction
@@ -492,6 +492,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
   tcKeyReq->setQueueOnRedoProblemFlag(tReqInfo, tQueable);
   tcKeyReq->setDeferredConstraints(tReqInfo, tDeferred);
+  tcKeyReq->setDisableFkConstraints(tReqInfo, tDisableFk);
 
   OperationType tOperationType = theOperationType;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
@@ -1422,6 +1423,7 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
 
   Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
   Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
+  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
 
   TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
   TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
@@ -1431,6 +1433,7 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
 
   TcKeyReq::setQueueOnRedoProblemFlag(tcKeyReq->requestInfo, tQueable);
   TcKeyReq::setDeferredConstraints(tcKeyReq->requestInfo, tDeferred);
+  TcKeyReq::setDisableFkConstraints(tcKeyReq->requestInfo, tDisableFk);
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();
@@ -1458,9 +1461,7 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   /* With long TCKEYREQ, we do not need to set the attrlength 
    * in the header since it is encoded as the AI section length
    */
-  UintR attrLenAPIVer= 0;
-  TcKeyReq::setAPIVersion(attrLenAPIVer, NDB_VERSION);
-  tcKeyReq->attrLen= attrLenAPIVer;
+  tcKeyReq->attrLen= 0;
 
   UintR reqInfo= 0;
   /* Dirty flag, Commit flag, Start flag, Simple flag set later

@@ -534,8 +534,8 @@ int federated_done(void *p)
   @brief Append identifiers to the string.
 
   @param[in,out] string	The target string.
-  @param[in] name 		Identifier name
-  @param[in] length 	Length of identifier name in bytes
+  @param[in] name       Identifier name
+  @param[in] length     Length of identifier name in bytes
   @param[in] quote_char Quote char to use for quoting identifier.
 
   @return Operation Status
@@ -549,32 +549,36 @@ int federated_done(void *p)
 static bool append_ident(String *string, const char *name, size_t length,
                          const char quote_char)
 {
-  bool result;
-  uint clen;
-  const char *name_end;
+  bool result= true;
   DBUG_ENTER("append_ident");
 
   if (quote_char)
   {
-    string->reserve((uint) length * 2 + 2);
+    string->reserve(length * 2 + 2);
+
     if ((result= string->append(&quote_char, 1, system_charset_info)))
       goto err;
 
-    for (name_end= name+length; name < name_end; name+= clen)
+    uint clen= 0;
+
+    for (const char *name_end= name + length; name < name_end; name+= clen)
     {
-      uchar c= *(uchar *) name;
+      char c= *name;
+
       if (!(clen= my_mbcharlen(system_charset_info, c)))
-        clen= 1;
-      if (clen == 1 && c == (uchar) quote_char &&
+        goto err;
+
+      if (clen == 1 && c == quote_char &&
           (result= string->append(&quote_char, 1, system_charset_info)))
         goto err;
+
       if ((result= string->append(name, clen, string->charset())))
         goto err;
     }
     result= string->append(&quote_char, 1, system_charset_info);
   }
   else
-    result= string->append(name, (uint) length, system_charset_info);
+    result= string->append(name, length, system_charset_info);
 
 err:
   DBUG_RETURN(result);
@@ -1468,7 +1472,7 @@ prepare_for_next_key_part:
         ptr was incremented by 1. Since store_length still counts null-byte,
         we need to subtract 1 from store_length.
       */
-      ptr+= store_length - test(key_part->null_bit);
+      ptr+= store_length - MY_TEST(key_part->null_bit);
       if (tmp.append(STRING_WITH_LEN(" AND ")))
         goto err;
 
@@ -2110,7 +2114,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
     this? Because we only are updating one record, and LIMIT enforces
     this.
   */
-  bool has_a_primary_key= test(table->s->primary_key != MAX_KEY);
+  bool has_a_primary_key= MY_TEST(table->s->primary_key != MAX_KEY);
   
   /*
     buffers for following strings

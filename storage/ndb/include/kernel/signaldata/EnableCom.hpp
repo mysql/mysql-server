@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #define ENABLE_COM_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 40
+
 
 class EnableComReq  {
   friend class Qmgr;
@@ -46,5 +49,8 @@ private:
   Uint32 m_senderData;
   Uint32 m_nodeIds[NodeBitmask::Size];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

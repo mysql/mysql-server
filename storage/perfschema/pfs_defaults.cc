@@ -18,14 +18,20 @@
   Default setup (implementation).
 */
 
+#include "my_global.h"
 #include "pfs.h"
 #include "pfs_defaults.h"
+#include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 
-static PSI_thread_key key;
-static PSI_thread_info info= { &key, "setup", PSI_FLAG_GLOBAL };
+static PSI_thread_key thread_key;
+static PSI_thread_info thread_info= { &thread_key, "setup", PSI_FLAG_GLOBAL };
+static PSI_memory_key memory_key;
+static PSI_memory_info memory_info= { &memory_key, "internal_buffers", PSI_FLAG_GLOBAL };
+
+const char* pfs_category= "performance_schema";
 
 void install_default_setup(PSI_bootstrap *boot)
 {
@@ -33,61 +39,80 @@ void install_default_setup(PSI_bootstrap *boot)
   if (psi == NULL)
     return;
 
-  psi->register_thread("performance_schema", &info, 1);
-  PSI_thread *psi_thread= psi->new_thread(key, NULL, 0);
-  if (psi_thread == NULL)
-    return;
+  psi->register_thread(pfs_category, &thread_info, 1);
+  PSI_thread *psi_thread= psi->new_thread(thread_key, NULL, 0);
 
-  /* LF_HASH needs a thread, for PINS */
-  psi->set_thread(psi_thread);
+  if (psi_thread != NULL)
+  {
+    /* LF_HASH needs a thread, for PINS */
+    psi->set_thread(psi_thread);
 
-  String percent("%", 1, &my_charset_utf8_bin);
-  /* Enable all users on all hosts by default */
-  insert_setup_actor(&percent, &percent, &percent);
+    String percent("%", 1, &my_charset_utf8_bin);
+    /* Enable all users on all hosts by default */
+    insert_setup_actor(&percent, &percent, &percent);
 
-  String mysql_db("mysql", 5, &my_charset_utf8_bin);
-  String PS_db("performance_schema", 18, &my_charset_utf8_bin);
-  String IS_db("information_schema", 18, &my_charset_utf8_bin);
+    String mysql_db("mysql", 5, &my_charset_utf8_bin);
+    String PS_db("performance_schema", 18, &my_charset_utf8_bin);
+    String IS_db("information_schema", 18, &my_charset_utf8_bin);
 
-  /* Disable sp by default in mysql. */
-  insert_setup_object(OBJECT_TYPE_EVENT, &mysql_db, &percent, false, false);
-  /* Disable sp in performance/information schema. */
-  insert_setup_object(OBJECT_TYPE_EVENT, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_EVENT, &IS_db, &percent, false, false);
-  /* Enable every other sp. */
-  insert_setup_object(OBJECT_TYPE_EVENT, &percent, &percent, true, true);
+    /* Disable sp by default in mysql. */
+    insert_setup_object(OBJECT_TYPE_EVENT, &mysql_db, &percent, false, false);
+    /* Disable sp in performance/information schema. */
+    insert_setup_object(OBJECT_TYPE_EVENT, &PS_db, &percent, false, false);
+    insert_setup_object(OBJECT_TYPE_EVENT, &IS_db, &percent, false, false);
+    /* Enable every other sp. */
+    insert_setup_object(OBJECT_TYPE_EVENT, &percent, &percent, true, true);
 
-  /* Disable sp by default in mysql. */
-  insert_setup_object(OBJECT_TYPE_FUNCTION, &mysql_db, &percent, false, false);
-  /* Disable sp in performance/information schema. */
-  insert_setup_object(OBJECT_TYPE_FUNCTION, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_FUNCTION, &IS_db, &percent, false, false);
-  /* Enable every other sp. */
-  insert_setup_object(OBJECT_TYPE_FUNCTION, &percent, &percent, true, true);
+    /* Disable sp by default in mysql. */
+    insert_setup_object(OBJECT_TYPE_FUNCTION, &mysql_db, &percent, false, false);
+    /* Disable sp in performance/information schema. */
+    insert_setup_object(OBJECT_TYPE_FUNCTION, &PS_db, &percent, false, false);
+    insert_setup_object(OBJECT_TYPE_FUNCTION, &IS_db, &percent, false, false);
+    /* Enable every other sp. */
+    insert_setup_object(OBJECT_TYPE_FUNCTION, &percent, &percent, true, true);
 
-  /* Disable sp by default in mysql. */
-  insert_setup_object(OBJECT_TYPE_PROCEDURE, &mysql_db, &percent, false, false);
-  /* Disable sp in performance/information schema. */
-  insert_setup_object(OBJECT_TYPE_PROCEDURE, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_PROCEDURE, &IS_db, &percent, false, false);
-  /* Enable every other sp. */
-  insert_setup_object(OBJECT_TYPE_PROCEDURE, &percent, &percent, true, true);
+    /* Disable sp by default in mysql. */
+    insert_setup_object(OBJECT_TYPE_PROCEDURE, &mysql_db, &percent, false, false);
+    /* Disable sp in performance/information schema. */
+    insert_setup_object(OBJECT_TYPE_PROCEDURE, &PS_db, &percent, false, false);
+    insert_setup_object(OBJECT_TYPE_PROCEDURE, &IS_db, &percent, false, false);
+    /* Enable every other sp. */
+    insert_setup_object(OBJECT_TYPE_PROCEDURE, &percent, &percent, true, true);
 
-  /* Disable system tables by default */
-  insert_setup_object(OBJECT_TYPE_TABLE, &mysql_db, &percent, false, false);
-  /* Disable performance/information schema tables. */
-  insert_setup_object(OBJECT_TYPE_TABLE, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_TABLE, &IS_db, &percent, false, false);
-  /* Enable every other tables */
-  insert_setup_object(OBJECT_TYPE_TABLE, &percent, &percent, true, true);
+    /* Disable system tables by default */
+    insert_setup_object(OBJECT_TYPE_TABLE, &mysql_db, &percent, false, false);
+    /* Disable performance/information schema tables. */
+    insert_setup_object(OBJECT_TYPE_TABLE, &PS_db, &percent, false, false);
+    insert_setup_object(OBJECT_TYPE_TABLE, &IS_db, &percent, false, false);
+    /* Enable every other tables */
+    insert_setup_object(OBJECT_TYPE_TABLE, &percent, &percent, true, true);
 
-  /* Disable sp by default in mysql. */
-  insert_setup_object(OBJECT_TYPE_TRIGGER, &mysql_db, &percent, false, false);
-  /* Disable sp in performance/information schema. */
-  insert_setup_object(OBJECT_TYPE_TRIGGER, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_TRIGGER, &IS_db, &percent, false, false);
-  /* Enable every other sp. */
-  insert_setup_object(OBJECT_TYPE_TRIGGER, &percent, &percent, true, true);
+    /* Disable sp by default in mysql. */
+    insert_setup_object(OBJECT_TYPE_TRIGGER, &mysql_db, &percent, false, false);
+    /* Disable sp in performance/information schema. */
+    insert_setup_object(OBJECT_TYPE_TRIGGER, &PS_db, &percent, false, false);
+    insert_setup_object(OBJECT_TYPE_TRIGGER, &IS_db, &percent, false, false);
+    /* Enable every other sp. */
+    insert_setup_object(OBJECT_TYPE_TRIGGER, &percent, &percent, true, true);
+  }
+
+  psi->register_memory(pfs_category, &memory_info, 1);
+  PFS_memory_class *memory_class= find_memory_class(memory_key);
+  if (memory_class != NULL)
+  {
+    /*
+      The memory instrumentation can not report its own usage,
+      this is done explicitly.
+    */
+    PFS_memory_stat *event_name_array;
+    uint index= memory_class->m_event_name_index;
+    event_name_array= global_instr_class_memory_array;
+    PFS_memory_stat *stat= & event_name_array[index];
+
+    stat->m_alloc_count= pfs_allocated_memory_count;
+    stat->m_alloc_size= pfs_allocated_memory_size;
+    stat->m_used= true;
+  }
 
   psi->delete_current_thread();
 }

@@ -118,7 +118,7 @@ SignalLoggerManager::setLogDistributed(bool val){
   m_logDistributed = val;
 }
 
-int
+static int
 getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
 {
   const char * loc = strstr(line, par);
@@ -161,16 +161,27 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
   const int count = getParameter(blocks, "BLOCK=", params);
   
   int cnt = 0;
-  if((count == 1 && !strcmp(blocks[0], "ALL")) ||
-     count == 0){
-    
-    for (int number = 0; number < NO_OF_BLOCKS; ++number){
+  if(count == 0 ||
+     (count == 1 && !strcmp(blocks[0], "ALL")))
+  {
+    // Inform all blocks about the new log mode
+    for (int number = 0; number < NO_OF_BLOCKS; ++number)
       cnt += log(SLM_ON, MIN_BLOCK_NO + number, logMode);
-    }
-  } else {
-    for (int i = 0; i < count; ++i){
-      BlockNumber number = getBlockNo(blocks[i]);
-      cnt += log(SLM_ON, number, logMode);
+  }
+  else
+  {
+    // Inform only specified blocks about the new log mode
+    for (int i = 0; i < count; ++i)
+    {
+      BlockNumber bno = getBlockNo(blocks[i]);
+      if (bno == 0)
+      {
+        // Could not find any block with matching name
+        ndbout_c("Could not turn on signal logging for unknown block '%s'",
+                 blocks[i]);
+        continue;
+      }
+      cnt += log(SLM_ON, bno, logMode);
     }
   }
   for(int i = 0; i<count; i++){
@@ -183,20 +194,24 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
 int
 SignalLoggerManager::log(int cmd, BlockNumber bno, LogMode logMode)
 {
-  // Normalise blocknumber for use in logModes array
-  const BlockNumber bno2 = bno-MIN_BLOCK_NO;
-  assert(bno2<NO_OF_BLOCKS);
+  // Make sure bno is valid range
+  assert(bno >= MIN_BLOCK_NO && bno <= MAX_BLOCK_NO);
+
+  // Convert bno to index into logModes
+  const size_t index = bno-MIN_BLOCK_NO;
+  assert(index < NDB_ARRAY_SIZE(logModes));
+
   switch(cmd){
   case SLM_ON:
-    logModes[bno2] |= logMode;
+    logModes[index] |= logMode;
     return 1;
     break;
   case SLM_OFF:
-    logModes[bno2] &= (~logMode);
+    logModes[index] &= (~logMode);
     return 1;
     break;
   case SLM_TOGGLE:
-    logModes[bno2] ^= logMode;
+    logModes[index] ^= logMode;
     return 1;
     break;
   }

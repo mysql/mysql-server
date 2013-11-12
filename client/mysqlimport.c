@@ -307,7 +307,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
 
   fn_format(tablename, filename, "", "", 1 | 2); /* removes path & ext. */
   if (!opt_local_file)
-    strmov(hard_path,filename);
+    my_stpcpy(hard_path,filename);
   else
     my_load_path(hard_path, filename, NULL); /* filename includes the path */
 
@@ -339,10 +339,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
 	  opt_local_file ? "LOCAL" : "", escaped_name);
   end= strend(sql_statement);
   if (replace)
-    end= strmov(end, " REPLACE");
+    end= my_stpcpy(end, " REPLACE");
   if (ignore)
-    end= strmov(end, " IGNORE");
-  end= strmov(end, " INTO TABLE `");
+    end= my_stpcpy(end, " IGNORE");
+  end= my_stpcpy(end, " INTO TABLE `");
   /* Turn any ` into `` in table name. */
   for (pos= tablename; *pos; pos++)
   {
@@ -350,10 +350,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
       *end++= '`';
     *end++= *pos;
   }
-  end= strmov(end, "`");
+  end= my_stpcpy(end, "`");
 
   if (fields_terminated || enclosed || opt_enclosed || escaped)
-      end= strmov(end, " FIELDS");
+      end= my_stpcpy(end, " FIELDS");
   end= add_load_option(end, fields_terminated, " TERMINATED BY");
   end= add_load_option(end, enclosed, " ENCLOSED BY");
   end= add_load_option(end, opt_enclosed,
@@ -361,10 +361,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
   end= add_load_option(end, escaped, " ESCAPED BY");
   end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
   if (opt_ignore_lines >= 0)
-    end= strmov(longlong10_to_str(opt_ignore_lines, 
-				  strmov(end, " IGNORE "),10), " LINES");
+    end= my_stpcpy(longlong10_to_str(opt_ignore_lines, 
+				  my_stpcpy(end, " IGNORE "),10), " LINES");
   if (opt_columns)
-    end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
+    end= my_stpcpy(my_stpcpy(my_stpcpy(end, " ("), opt_columns), ")");
   *end= '\0';
 
   if (mysql_query(mysql, sql_statement))
@@ -420,17 +420,7 @@ static MYSQL *db_connect(char *host, char *database,
   if (opt_local_file)
     mysql_options(mysql,MYSQL_OPT_LOCAL_INFILE,
 		  (char*) &opt_local_file);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(mysql);
   if (opt_protocol)
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)

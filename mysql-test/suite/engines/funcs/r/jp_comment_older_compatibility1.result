@@ -13,7 +13,7 @@ column_comment	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0' COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
+  `c1` int(11) NOT NULL COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
   `c12` int(11) DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
@@ -40,7 +40,7 @@ column_comment	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0' COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
+  `c1` int(11) NOT NULL COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
   `c12` int(11) DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
@@ -68,7 +68,7 @@ column_comment	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0' COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
+  `c1` int(11) NOT NULL COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
   `c12` int(11) DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
@@ -96,7 +96,7 @@ column_comment	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0' COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
+  `c1` int(11) NOT NULL COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
   `c12` int(11) DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
@@ -123,7 +123,7 @@ column_comment	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0' COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
+  `c1` int(11) NOT NULL COMMENT '‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±‚ ‚¢‚¤‚¦‚¨‚©‚«‚­‚¯‚±',
   `c12` int(11) DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,

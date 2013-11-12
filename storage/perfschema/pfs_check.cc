@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,9 +25,6 @@
 #include "my_global.h"
 #include "pfs_server.h"
 #include "pfs_engine_table.h"
-
-/*
-*/
 
 /**
   Check that the performance schema tables

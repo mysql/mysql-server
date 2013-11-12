@@ -142,7 +142,7 @@ analyze table bug30243_3;
 
 # Following query plan shows that we get the correct rows per
 # unique value (should be approximately 1 row per value)
--- replace_column 9 ROWS
+-- replace_column 10 ROWS
 explain SELECT COUNT(*), 0
 	FROM bug30243_1 orgs
 	LEFT JOIN bug30243_3 sa_opportunities
@@ -163,7 +163,7 @@ analyze table bug30243_3;
 
 # Following query plan shows that we get the correct rows per
 # unique value (~1)
--- replace_column 9 ROWS
+-- replace_column 10 ROWS
 explain SELECT COUNT(*), 0
 	FROM bug30243_1 orgs
 	LEFT JOIN bug30243_3 sa_opportunities

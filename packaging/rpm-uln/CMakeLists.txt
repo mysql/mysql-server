@@ -30,7 +30,7 @@ IF(UNIX)
           mysql-5.5-fix-tests.patch mysql-5.5-libdir.patch
           mysql-5.5-mtr1.patch mysql-5.5-testing.patch
           mysql-chain-certs.patch mysql-embedded-check.c mysql-expired-certs.patch
-          mysql.init mysql-install-test.patch mysql-strmov.patch scriptstub.c
+          mysql.init mysql-install-test.patch scriptstub.c
           README.mysql-docs)
     CONFIGURE_FILE(${ulnfile} ${CMAKE_CURRENT_BINARY_DIR}/${ulnfile} COPYONLY)
   ENDFOREACH()

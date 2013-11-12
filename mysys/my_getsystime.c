@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,11 +73,16 @@ ulonglong my_getsystime()
 time_t my_time(myf flags)
 {
   time_t t;
-  /* The following loop is here beacuse time() may fail on some systems */
+  /*
+    The following loop is here beacuse time() may fail on some systems.
+    We're using a hardcoded my_message_stderr() here rather than going
+    through the hook in my_message_local() because it's far too easy to
+    come full circle with any logging function that writes timestamps ...
+  */
   while ((t= time(0)) == (time_t) -1)
   {
     if (flags & MY_WME)
-      fprintf(stderr, "%s: Warning: time() call failed\n", my_progname);
+      my_message_stderr(0, "time() call failed", MYF(0));
   }
   return t;
 }

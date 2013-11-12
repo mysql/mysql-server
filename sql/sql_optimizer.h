@@ -50,7 +50,21 @@ class JOIN :public Sql_alloc
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  /**
+    Optimal query execution plan. Initialized with a tentative plan in
+    make_join_statistics() and later replaced with the optimal plan in
+    get_best_combination().
+  */
+  JOIN_TAB *join_tab;
+
+  /**
+    Array of plan operators representing the current (partial) best
+    plan. The array is stack-allocated in make_join_statistics() as
+    stat_vector[MAX_TABLES + 1] and is thus valid only inside
+    make_join_statistics(). Initially (*best_ref[i]) ==
+    join_tab[i]. The optimizer reorders best_ref.
+  */
+  JOIN_TAB **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
@@ -128,7 +142,11 @@ public:
   */
   ha_rows  min_ft_matches;
 
-  /* Finally picked QEP. This is result of join optimization */
+  /**
+    This is the result of join optimization.
+
+    @note This is a scratch array, not used after get_best_combination().
+  */
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
@@ -151,6 +169,8 @@ public:
     The estimated row count of the plan with best read time (see above).
   */
   ha_rows  best_rowcount;
+  /// Expected cost of filesort.
+  double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   THD	   *thd;
@@ -218,7 +238,8 @@ public:
   bool need_tmp;
   int hidden_group_field_count;
 
-  Key_use_array keyuse;
+  // Used and updated by make_join_statistics and optimize_keyuse
+  Key_use_array keyuse_array;
 
   List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
@@ -399,7 +420,7 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    : keyuse(thd_arg->mem_root),
+    : keyuse_array(thd_arg->mem_root),
       fields_list(fields_arg),
       sj_subselects(thd_arg->mem_root)
   {
@@ -432,7 +453,7 @@ public:
     result= result_arg;
     lock= thd_arg->lock;
     select_lex= 0; //for safety
-    select_distinct= test(select_options & SELECT_DISTINCT);
+    select_distinct= MY_TEST(select_options & SELECT_DISTINCT);
     no_order= 0;
     simple_order= 0;
     simple_group= 0;
@@ -456,7 +477,7 @@ public:
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
-    keyuse.clear();
+    keyuse_array.clear();
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
@@ -468,6 +489,7 @@ public:
     set_group_rpa= false;
     group_sent= 0;
     plan_state= NO_PLAN;
+    sort_cost= 0.0;
   }
 
   /// True if plan is const, ie it will return zero or one rows.
@@ -569,7 +591,7 @@ public:
 	    group_list == NULL && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
-  bool change_result(select_result *result);
+  bool change_result(select_result *new_result, select_result *old_result);
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
@@ -595,20 +617,6 @@ private:
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
-  /**
-    Execute current query. To be called from @c JOIN::exec.
-
-    If current query is a dependent subquery, this execution is performed on a
-    temporary copy of the original JOIN object in order to be able to restore
-    the original content for re-execution and EXPLAIN. (@note Subqueries may
-    be executed as part of EXPLAIN.) In such cases, execution data that may be
-    reused for later executions will be copied to the original 
-    @c JOIN object (@c parent).
-
-    @param parent Original @c JOIN object when current object is a temporary 
-                  copy. @c NULL, otherwise
-  */
-  void execute(JOIN *parent);
   /**
     Send current query result set to the client. To be called from JOIN::execute
 
@@ -680,6 +688,9 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  bool prune_table_partitions();
+#endif
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
@@ -688,6 +699,9 @@ private:
 
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
+public: // @todo: Make private
+  void set_semijoin_embedding();
+private:
   void set_semijoin_info();
   bool set_access_methods();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
@@ -697,6 +711,10 @@ private:
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  /**
+    Recount temp table field types recursively.
+  */
+  void recount_field_types();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@ extern EventLogger * g_eventLogger;
 
 #include <NdbAutoPtr.hpp>
 
+#define JAM_FILE_ID 490
+
+
 #define MESSAGE_LENGTH 500
 
 static int WriteMessage(int thrdMessageID,
@@ -42,8 +45,7 @@ static int WriteMessage(int thrdMessageID,
 
 static void dumpJam(FILE* jamStream, 
 		    Uint32 thrdTheEmulatedJamIndex, 
-		    const Uint32 thrdTheEmulatedJam[],
-                    Uint32 aBlockNumber);
+		    const JamEvent thrdTheEmulatedJam[]);
 
 static
 const char *
@@ -210,20 +212,14 @@ NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
 void
 ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
 {
-  char refMessage[100];
-  Uint32 jamBlockNumber;
+  char refMessage[200];
 
 #ifdef NO_EMULATED_JAM
-  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d",
+  BaseString::snprintf(refMessage, 200, "file: %s lineNo: %d",
 	   file, line);
 #else
-  const EmulatedJamBuffer *jamBuffer =
-    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
-  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
-  const char *blockName = getBlockName(jamBlockNumber);
-
-  BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
-	   file, line, blockName);
+  BaseString::snprintf(refMessage, 200, "%s line: %d",
+	   file, line);
 #endif
   NdbShutdownType nst = s_errorHandlerShutdownType;
   WriteMessage(ec, message, refMessage, nst);
@@ -250,6 +246,12 @@ ErrorReporter::handleError(int messageID,
   
   WriteMessage(messageID, ndb_basename(problemData), objRef, nst);
 
+  if (problemData == NULL)
+  {
+    ndbd_exit_classification cl;
+    problemData = ndbd_exit_message(messageID, &cl);
+  }
+
   g_eventLogger->info("%s", problemData);
   g_eventLogger->info("%s", objRef);
 
@@ -267,8 +269,7 @@ WriteMessage(int thrdMessageID,
   unsigned long maxOffset;  // Maximum size of file.
   char theMessage[MESSAGE_LENGTH];
   Uint32 thrdTheEmulatedJamIndex;
-  const Uint32 *thrdTheEmulatedJam;
-  Uint32 jamBlockNumber;
+  const JamEvent *thrdTheEmulatedJam;
 
   Uint32 threadCount = globalScheduler.traceDumpGetNumThreads();
   int thr_no = globalScheduler.traceDumpGetCurrentThread();
@@ -372,13 +373,12 @@ WriteMessage(int thrdMessageID,
       FILE *jamStream = fopen(theTraceFileName, "w");
 
       //  ...and "dump the jam" there.
-      bool ok = globalScheduler.traceDumpGetJam(i, jamBlockNumber,
-                                                thrdTheEmulatedJam,
+      bool ok = globalScheduler.traceDumpGetJam(i, thrdTheEmulatedJam,
                                                 thrdTheEmulatedJamIndex);
       if(ok && thrdTheEmulatedJam != 0)
       {
         dumpJam(jamStream, thrdTheEmulatedJamIndex,
-                thrdTheEmulatedJam, jamBlockNumber);
+                thrdTheEmulatedJam);
       }
 
       globalScheduler.dumpSignalMemory(i, jamStream);
@@ -393,69 +393,55 @@ WriteMessage(int thrdMessageID,
 void 
 dumpJam(FILE *jamStream, 
 	Uint32 thrdTheEmulatedJamIndex, 
-	const Uint32 thrdTheEmulatedJam[],
-        Uint32 aBlockNumber) {
+	const JamEvent thrdTheEmulatedJam[]) {
 #ifndef NO_EMULATED_JAM   
   // print header
-  const int maxaddr = 8;
-  fprintf(jamStream, "JAM CONTENTS up->down left->right ?=not block entry\n");
-  fprintf(jamStream, "%-7s ", "BLOCK");
+  const int maxaddr = 9;
+  fprintf(jamStream, "JAM CONTENTS up->down left->right\n");
+  fprintf(jamStream, "%-20s ", "SOURCE FILE");
   for (int i = 0; i < maxaddr; i++)
-    fprintf(jamStream, "%-6s ", "ADDR");
+    fprintf(jamStream, "LINE  ");
   fprintf(jamStream, "\n");
 
   const int first = thrdTheEmulatedJamIndex;	// oldest
-  int cnt, idx;
-
-  // look for first block entry
-  for (cnt = 0, idx = first; cnt < EMULATED_JAM_SIZE; cnt++, idx++) {
-    if (idx >= EMULATED_JAM_SIZE)
-      idx = 0;
-    const Uint32 aJamEntry = thrdTheEmulatedJam[idx];
-    if (aJamEntry > (1 << 20))
-      break;
-  }
-
-  // 1. if first entry is a block entry, it is printed in the main loop
-  // 2. else if any block entry exists, the jam starts in an unknown block
-  // 3. else if no block entry exists, the block is theEmulatedJamBlockNumber
-  // a "?" indicates first addr is not a block entry
-  if (cnt == 0)
-    ;
-  else if (cnt < EMULATED_JAM_SIZE)
-    fprintf(jamStream, "%-7s?", "");
-  else {
-    const char *aBlockName = getBlockName(aBlockNumber);
-    if (aBlockName != 0)
-      fprintf(jamStream, "%-7s?", aBlockName);
-    else
-      fprintf(jamStream, "0x%-5X?", aBlockNumber);
-  }
 
   // loop over all entries
   int cntaddr = 0;
+  Uint32 fileId = ~0;
+  int cnt, idx;
   for (cnt = 0, idx = first; cnt < EMULATED_JAM_SIZE; cnt++, idx++) {
     globalData.incrementWatchDogCounter(4);	// watchdog not to kill us ?
     if (idx >= EMULATED_JAM_SIZE)
       idx = 0;
-    const Uint32 aJamEntry = thrdTheEmulatedJam[idx];
-    if (aJamEntry > (1 << 20)) {
-      const Uint32 aBlockNumber = aJamEntry >> 20;
-      const char *aBlockName = getBlockName(aBlockNumber);
-      if (cnt > 0)
+    const JamEvent aJamEvent = thrdTheEmulatedJam[idx];
+    if (!aJamEvent.isEmpty())
+    {
+      if (aJamEvent.getFileId() != fileId) {
+        fileId = aJamEvent.getFileId();
+        if (cnt > 0)
 	  fprintf(jamStream, "\n");
-      if (aBlockName != 0)
-	fprintf(jamStream, "%-7s ", aBlockName);
-      else
-	fprintf(jamStream, "0x%-5X ", aBlockNumber);
-      cntaddr = 0;
+        const char* const fileName = aJamEvent.getFileName();
+        if (fileName != NULL)
+        {
+          fprintf(jamStream, "%-20s ", fileName);
+        }
+        else
+        {
+          /** 
+           * Getting here indicates that there is a JAM_FILE_ID without a
+           * corresponding entry in jamFileNames.
+           */
+          fprintf(jamStream, "unknown_file_%05u   ", fileId);
+        }
+        cntaddr = 0;
+      }
+      if (cntaddr == maxaddr) {
+        fprintf(jamStream, "\n%-20s ", "");
+        cntaddr = 0;
+      }
+      fprintf(jamStream, "%05u ", aJamEvent.getLineNo());
+      cntaddr++;
     }
-    if (cntaddr == maxaddr) {
-      fprintf(jamStream, "\n%-7s ", "");
-      cntaddr = 0;
-    }
-    fprintf(jamStream, "%06u ", aJamEntry & 0xFFFFF);
-    cntaddr++;
   }
   fprintf(jamStream, "\n");
   fflush(jamStream);

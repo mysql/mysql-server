@@ -1583,7 +1583,7 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 			dict_table_is_comp(m_index->table)));
 
 	btr_cur_pessimistic_delete(
-		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, RB_NONE, &m_mtr);
+		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false, &m_mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -3613,14 +3613,14 @@ row_import_for_mysql(
 			ER_FILE_NOT_FOUND,
 			filepath, err, ut_strerr(err));
 
-		mem_free(filepath);
+		ut_free(filepath);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	mem_free(filepath);
+	ut_free(filepath);
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 

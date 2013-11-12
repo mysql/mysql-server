@@ -233,8 +233,8 @@ static my_bool execute_buffer_conversion_done= 0;
   The same is true for stderr.
 */
 static uint win_is_console_cache= 
-  (test(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
-  (test(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+  (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
 static inline my_bool
 my_win_is_console_cached(FILE *file)
@@ -269,7 +269,8 @@ static int com_quit(String *str,char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*), com_charset(String *str,char*),
            com_prompt(String *str, char*), com_delimiter(String *str, char*),
-     com_warnings(String *str, char*), com_nowarnings(String *str, char*);
+     com_warnings(String *str, char*), com_nowarnings(String *str, char*),
+     com_resetconnection(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -368,6 +369,8 @@ static COMMANDS commands[] = {
     "Show warnings after every statement." },
   { "nowarning", 'w', com_nowarnings, 0,
     "Don't show warnings after every statement." },
+  { "resetconnection",  'x', com_resetconnection, 0,
+    "Clean session context." },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -1219,13 +1222,13 @@ int main(int argc,char *argv[])
   prompt_counter=0;
 
   outfile[0]=0;			// no (default) outfile
-  strmov(pager, "stdout");	// the default, if --pager wasn't given
+  my_stpcpy(pager, "stdout");	// the default, if --pager wasn't given
   {
     char *tmp=getenv("PAGER");
     if (tmp && strlen(tmp))
     {
       default_pager_set= 1;
-      strmov(default_pager, tmp);
+      my_stpcpy(default_pager, tmp);
     }
   }
   if (!isatty(0) || !isatty(1))
@@ -1873,7 +1876,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_DELIMITER:
     if (argument == disabled_my_option) 
     {
-      strmov(delimiter, DEFAULT_DELIMITER);
+      my_stpcpy(delimiter, DEFAULT_DELIMITER);
     }
     else 
     {
@@ -1916,10 +1919,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       {
 	default_pager_set= 1;
 	strmake(pager, argument, sizeof(pager) - 1);
-	strmov(default_pager, pager);
+	my_stpcpy(default_pager, pager);
       }
       else if (default_pager_set)
-	strmov(pager, default_pager);
+	my_stpcpy(pager, default_pager);
       else
 	opt_nopager= 1;
     }
@@ -2054,12 +2057,12 @@ static int get_options(int argc, char **argv)
   pagpoint= getenv("PAGER");
   if (!((char*) (pagpoint)))
   {
-    strmov(pager, "stdout");
+    my_stpcpy(pager, "stdout");
     opt_nopager= 1;
   }
   else
-    strmov(pager, pagpoint);
-  strmov(default_pager, pager);
+    my_stpcpy(pager, pagpoint);
+  my_stpcpy(default_pager, pager);
 
   opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
@@ -2072,8 +2075,8 @@ static int get_options(int argc, char **argv)
 
   if (status.batch) /* disable pager and outfile in this case */
   {
-    strmov(default_pager, "stdout");
-    strmov(pager, "stdout");
+    my_stpcpy(default_pager, "stdout");
+    my_stpcpy(pager, "stdout");
     opt_nopager= 1;
     default_pager_set= 0;
     opt_outfile= 0;
@@ -3408,9 +3411,9 @@ com_help(String *buffer __attribute__((unused)),
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
-    end= strmov(buff, commands[i].name);
+    end= my_stpcpy(buff, commands[i].name);
     for (j= (int)strlen(commands[i].name); j < 10; j++)
-      end= strmov(end, " ");
+      end= my_stpcpy(end, " ");
     if (commands[i].func)
       tee_fprintf(stdout, "%s(\\%c) %s\n", buff,
 		  commands[i].cmd_char, commands[i].doc);
@@ -3555,7 +3558,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       if (!mysql_num_rows(result) && ! quick && !column_types_flag)
       {
-	strmov(buff, "Empty set");
+	my_stpcpy(buff, "Empty set");
         if (opt_xml)
         { 
           /*
@@ -3591,7 +3594,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
       }
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
-      strmov(buff,"Query OK");
+      my_stpcpy(buff,"Query OK");
     else if( !batchmode )
       sprintf(buff,"Query OK, %lld %s affected",
 	      mysql_affected_rows(&mysql),
@@ -3603,11 +3606,11 @@ com_go(String *buffer,char *line __attribute__((unused)))
       *pos++= ',';
       *pos++= ' ';
       pos=int10_to_str(warnings, pos, 10);
-      pos=strmov(pos, " warning");
+      pos=my_stpcpy(pos, " warning");
       if (warnings != 1)
 	*pos++= 's';
     }
-    strmov(pos, time_buff);
+    my_stpcpy(pos, time_buff);
     put_info(buff,INFO_RESULT);
     if (mysql_info(&mysql))
       put_info(mysql_info(&mysql),INFO_RESULT);
@@ -3739,7 +3742,7 @@ static char *fieldflags2str(uint f) {
   char *s=buf;
   *s=0;
 #define ff2s_check_flag(X) \
-                if (f & X ## _FLAG) { s=strmov(s, # X " "); f &= ~ X ## _FLAG; }
+                if (f & X ## _FLAG) { s=my_stpcpy(s, # X " "); f &= ~ X ## _FLAG; }
   ff2s_check_flag(NOT_NULL);
   ff2s_check_flag(PRI_KEY);
   ff2s_check_flag(UNIQUE_KEY);
@@ -4302,11 +4305,11 @@ com_pager(String *buffer __attribute__((unused)),
     {
       tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
       opt_nopager=1;
-      strmov(pager, "stdout");
+      my_stpcpy(pager, "stdout");
       PAGER= stdout;
       return 0;
     }
-    strmov(pager, default_pager);
+    my_stpcpy(pager, default_pager);
   }
   else
   {
@@ -4315,8 +4318,8 @@ com_pager(String *buffer __attribute__((unused)),
                                 my_iscntrl(charset_info,end[-1])))
       end--;
     end[0]=0;
-    strmov(pager, pager_name);
-    strmov(default_pager, pager_name);
+    my_stpcpy(pager, pager_name);
+    my_stpcpy(default_pager, pager_name);
   }
   opt_nopager=0;
   tee_fprintf(stdout, "PAGER set to '%s'\n", pager);
@@ -4328,7 +4331,7 @@ static int
 com_nopager(String *buffer __attribute__((unused)),
 	    char *line __attribute__((unused)))
 {
-  strmov(pager, "stdout");
+  my_stpcpy(pager, "stdout");
   opt_nopager=1;
   PAGER= stdout;
   tee_fprintf(stdout, "PAGER set to stdout\n");
@@ -4798,7 +4801,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     if (*ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
-      strmov_overlapp(ptr, ptr+1);
+      my_stpmov(ptr, ptr+1);
     }
     else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
@@ -4950,17 +4953,7 @@ init_connection_options(MYSQL *mysql)
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*) &opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(mysql);
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
@@ -5181,9 +5174,9 @@ server_version_string(MYSQL *con)
                                                 len, MYF(MY_WME))))
         {
           char *bufp;
-          bufp = strmov(server_version, mysql_get_server_info(con));
-          bufp = strmov(bufp, " ");
-          (void) strmov(bufp, cur[0]);
+          bufp = my_stpcpy(server_version, mysql_get_server_info(con));
+          bufp = my_stpcpy(bufp, " ");
+          (void) my_stpcpy(bufp, cur[0]);
         }
       }
       mysql_free_result(result);
@@ -5449,21 +5442,21 @@ static void nice_time(double sec,char *buff,bool part_second)
     tmp=(ulong) floor(sec/(3600.0*24));
     sec-=3600.0*24*tmp;
     buff=int10_to_str((long) tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " days " : " day ");
+    buff=my_stpcpy(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0)
   {
     tmp=(ulong) floor(sec/3600.0);
     sec-=3600.0*tmp;
     buff=int10_to_str((long) tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
+    buff=my_stpcpy(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0)
   {
     tmp=(ulong) floor(sec/60.0);
     sec-=60.0*tmp;
     buff=int10_to_str((long) tmp, buff, 10);
-    buff=strmov(buff," min ");
+    buff=my_stpcpy(buff," min ");
   }
   if (part_second)
     sprintf(buff,"%.2f sec",sec);
@@ -5484,7 +5477,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   buff[0]=' ';
   buff[1]='(';
   end_timer(start_time,buff+2);
-  strmov(strend(buff),")");
+  my_stpcpy(strend(buff),")");
 }
 
 static const char* construct_prompt()
@@ -5740,4 +5733,19 @@ static int com_prompt(String *buffer __attribute__((unused)),
   else
     tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);
   return 0;
+}
+
+static int
+com_resetconnection(String *buffer __attribute__((unused)),
+                    char *line __attribute__((unused)))
+{
+  int error;
+  error= mysql_reset_connection(&mysql);
+  if(error)
+  {
+    if (status.batch)
+      return 0;
+    return put_info("Unsupported command.\n",INFO_ERROR);
+  }
+  return error;
 }

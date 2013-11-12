@@ -286,22 +286,22 @@ table_esms_by_program::rnd_pos(const void *pos)
 
 void table_esms_by_program::make_row(PFS_program* program)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   program->m_lock.begin_optimistic_lock(&lock);
-  
+
   m_row.m_object_type= program->m_type;
 
   m_row.m_object_name_length= program->m_object_name_length;
   if(m_row.m_object_name_length > 0)
     memcpy(m_row.m_object_name, program->m_object_name,
-           m_row.m_object_name_length); 
+           m_row.m_object_name_length);
 
   m_row.m_schema_name_length= program->m_schema_name_length;
   if(m_row.m_schema_name_length > 0)
     memcpy(m_row.m_schema_name, program->m_schema_name,
-           m_row.m_schema_name_length); 
+           m_row.m_schema_name_length);
 
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
   /* Get stored program's over all stats. */
@@ -324,7 +324,7 @@ int table_esms_by_program
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  /* 
+  /*
     Set the null bits. It indicates how many fields could be null
     in the table.
   */

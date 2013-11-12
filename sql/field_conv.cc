@@ -106,15 +106,25 @@ type_conversion_status set_field_to_null(Field *field)
     field->reset();
     return TYPE_OK;
   }
-  DBUG_ASSERT(0);
 
-#ifdef DBUG_OFF
   /**
-    Can not be true, but do not take chances in production.
-    Test coverage discovered that the source code below wasn't
-    executed but to protect mysql server from unexpected behaviour
-    caused by some possible wrong code snippet in the server code base
-    we leave it for server compiled without debug.
+    The following piece of code is run for the case when a BLOB column
+    that has value NULL is queried with GROUP BY NULL and the result
+    is inserted into a some table's column declared having primitive type
+    (e.g. INT) and NOT NULL.
+
+    For example, the following test case will hit this piece of code:
+    CREATE TABLE t1 (a BLOB);
+    CREATE TABLE t2 (a INT NOT NULL);
+
+    INSERT t1 VALUES (NULL);
+    INSERT INTO t2(a) SELECT a FROM t1 GROUP BY NULL; <<== Hit here
+
+    In general, when set_field_to_null() is called a Field has to be either
+    declared as NULL-able or be marked as temporary NULL-able.
+    But in case of INSERT SELECT from a BLOB field and when GROUP BY NULL
+    is specified the Field object for a destination column doesn't set
+    neither NULL-able nor temporary NULL-able (see setup_copy_fields()).
   */
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
@@ -129,7 +139,7 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-#endif
+
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
@@ -351,7 +361,7 @@ static void do_field_int(Copy_field *copy)
 {
   longlong value= copy->from_field->val_int();
   copy->to_field->store(value,
-                        test(copy->from_field->flags & UNSIGNED_FLAG));
+                        MY_TEST(copy->from_field->flags & UNSIGNED_FLAG));
 }
 
 static void do_field_real(Copy_field *copy)
@@ -798,14 +808,18 @@ Copy_field::get_copy_func(Field *to,Field *from)
   return do_field_eq;
 }
 
+static inline bool is_blob_type(Field *to)
+{
+  return (to->type() == MYSQL_TYPE_BLOB || to->type() == MYSQL_TYPE_GEOMETRY);
+}
 
 /** Simple quick field convert that is called on insert. */
 
 type_conversion_status field_conv(Field *to,Field *from)
 {
   if (to->real_type() == from->real_type() &&
-      !(to->type() == MYSQL_TYPE_BLOB && to->table->copy_blobs) &&
-      to->charset() == from->charset())
+      !((is_blob_type(to)) &&
+        to->table->copy_blobs) && to->charset() == from->charset())
   {
     if (to->real_type() == MYSQL_TYPE_VARCHAR &&
         from->real_type() == MYSQL_TYPE_VARCHAR)
@@ -921,5 +935,5 @@ type_conversion_status field_conv(Field *to,Field *from)
     return to->store_decimal(from->val_decimal(&buff));
   }
   else
-    return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
+    return to->store(from->val_int(), MY_TEST(from->flags & UNSIGNED_FLAG));
 }

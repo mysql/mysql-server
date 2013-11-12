@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 147
+
 
 struct DropIndxReq {
   STATIC_CONST( SignalLength = 7 );
@@ -70,5 +72,8 @@ struct DropIndxRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

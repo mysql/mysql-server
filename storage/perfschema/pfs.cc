@@ -35,10 +35,12 @@
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
+#include "pfs_events_transactions.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "sql_error.h"
 #include "sp_head.h"
+#include "mdl.h" /* mdl_key_init */
 #include "pfs_digest.h"
 #include "pfs_program.h"
 
@@ -1153,6 +1155,79 @@ static inline int mysql_mutex_lock(...)
   - [I] EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
         @c table_esms_by_digest::make_row()
 
+@section IMPL_TRANSACTION Implementation for transactions consumers
+
+  For transactions, the tables that contains individual event data are:
+  - EVENTS_TRANSACTIONS_CURRENT
+  - EVENTS_TRANSACTIONS_HISTORY
+  - EVENTS_TRANSACTIONS_HISTORY_LONG
+
+  For transactions, the tables that contains aggregated data are:
+  - EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+  - EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+  - EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+
+@verbatim
+  transaction_locker(T, TX)
+   |
+   | [1]
+   |
+1a |-> pfs_thread(T).event_name(TX)              =====>> [A], [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   | 2a |-> pfs_account(U, H).event_name(TX)     =====>> [B], [C], [D], [E]
+   |    .    |
+   |    .    | [3-RESET]
+   |    .    |
+   | 2b .....+-> pfs_user(U).event_name(TX)      =====>> [C]
+   |    .    |
+   | 2c .....+-> pfs_host(H).event_name(TX)      =====>> [D], [E]
+   |    .    .    |
+   |    .    .    | [4-RESET]
+   | 2d .    .    |
+1b |----+----+----+-> pfs_transaction_class(TX)  =====>> [E]
+   |
+1c |-> pfs_thread(T).transaction_current(TX)     =====>> [F]
+   |
+1d |-> pfs_thread(T).transaction_history(TX)     =====>> [G]
+   |
+1e |-> transaction_history_long(TX)              =====>> [H]
+
+@endverbatim
+
+  Implemented as:
+  - [1] @c start_transaction_v1(), end_transaction_v1()
+       (1a, 1b) is an aggregation by EVENT_NAME,
+        (1c, 1d, 1e) is an aggregation by TIME,
+        all of these are orthogonal,
+        and implemented in end_transaction_v1().
+  - [2] @c delete_thread_v1(), @c aggregate_thread_transactions()
+  - [3] @c PFS_account::aggregate_transactions()
+  - [4] @c PFS_host::aggregate_transactions()
+
+  - [A] EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ets_by_thread_by_event_name::make_row()
+  - [B] EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_ets_by_account_by_event_name::make_row()
+  - [C] EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_ets_by_user_by_event_name::make_row()
+  - [D] EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_ets_by_host_by_event_name::make_row()
+  - [E] EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ets_global_by_event_name::make_row()
+  - [F] EVENTS_TRANSACTIONS_CURRENT,
+        @c table_events_transactions_current::rnd_next(),
+        @c table_events_transactions_common::make_row()
+  - [G] EVENTS_TRANSACTIONS_HISTORY,
+        @c table_events_transactions_history::rnd_next(),
+        @c table_events_transactions_common::make_row()
+  - [H] EVENTS_TRANSACTIONS_HISTORY_LONG,
+        @c table_events_transactions_history_long::rnd_next(),
+        @c table_events_transactions_common::make_row()
+
 @section IMPL_MEMORY Implementation for memory instruments
 
   For memory, there are no tables that contains individual event data.
@@ -1188,9 +1263,9 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c memory_alloc_v1(),
-        @c memory_realloc_v1(),
-        @c memory_free_v1().
+  - [1] @c pfs_memory_alloc_v1(),
+        @c pfs_memory_realloc_v1(),
+        @c pfs_memory_free_v1().
   - [1+] are overflows that can happen during [1a],
         implemented with @c carry_memory_stat_delta()
   - [2] @c delete_thread_v1(), @c aggregate_thread_memory()
@@ -1229,7 +1304,9 @@ static inline PFS_thread*
 my_pthread_get_THR_PFS()
 {
   DBUG_ASSERT(THR_PFS_initialized);
-  return my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
+  return thread;
 }
 
 static inline void
@@ -1362,11 +1439,11 @@ static enum_operation_type socket_operation_map[]=
   @return 0 for success, non zero for errors
 */
 static int build_prefix(const LEX_STRING *prefix, const char *category,
-                        char *output, int *output_length)
+                        char *output, size_t *output_length)
 {
-  int len= strlen(category);
+  size_t len= strlen(category);
   char *out_ptr= output;
-  int prefix_length= prefix->length;
+  size_t prefix_length= prefix->length;
 
   if (unlikely((prefix_length + len + 1) >=
                PFS_MAX_FULL_PREFIX_NAME_LENGTH))
@@ -1386,53 +1463,56 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
   /* output = prefix + category + '/' */
   memcpy(out_ptr, prefix->str, prefix_length);
   out_ptr+= prefix_length;
-  memcpy(out_ptr, category, len);
-  out_ptr+= len;
-  *out_ptr= '/';
-  out_ptr++;
-  *output_length= out_ptr - output;
+  if (len > 0)
+  {
+    memcpy(out_ptr, category, len);
+    out_ptr+= len;
+    *out_ptr= '/';
+    out_ptr++;
+  }
+  *output_length= int(out_ptr - output);
 
   return 0;
 }
 
-#define REGISTER_BODY_V1(KEY_T, PREFIX, REGISTER_FUNC)                \
-  KEY_T key;                                                          \
-  char formatted_name[PFS_MAX_INFO_NAME_LENGTH];                      \
-  int prefix_length;                                                  \
-  int len;                                                            \
-  int full_length;                                                    \
-                                                                      \
-  DBUG_ASSERT(category != NULL);                                      \
-  DBUG_ASSERT(info != NULL);                                          \
-  if (unlikely(build_prefix(&PREFIX, category,                        \
-                   formatted_name, &prefix_length)) ||                \
-      ! pfs_initialized)                                              \
-  {                                                                   \
-    for (; count>0; count--, info++)                                  \
-      *(info->m_key)= 0;                                              \
-    return ;                                                          \
-  }                                                                   \
-                                                                      \
-  for (; count>0; count--, info++)                                    \
-  {                                                                   \
-    DBUG_ASSERT(info->m_key != NULL);                                 \
-    DBUG_ASSERT(info->m_name != NULL);                                \
-    len= strlen(info->m_name);                                        \
-    full_length= prefix_length + len;                                 \
-    if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))              \
-    {                                                                 \
-      memcpy(formatted_name + prefix_length, info->m_name, len);      \
-      key= REGISTER_FUNC(formatted_name, full_length, info->m_flags); \
-    }                                                                 \
-    else                                                              \
-    {                                                                 \
-      pfs_print_error("REGISTER_BODY_V1: name too long <%s> <%s>\n",  \
-                      category, info->m_name);                        \
-      key= 0;                                                         \
-    }                                                                 \
-                                                                      \
-    *(info->m_key)= key;                                              \
-  }                                                                   \
+#define REGISTER_BODY_V1(KEY_T, PREFIX, REGISTER_FUNC)                      \
+  KEY_T key;                                                                \
+  char formatted_name[PFS_MAX_INFO_NAME_LENGTH];                            \
+  size_t prefix_length;                                                     \
+  size_t len;                                                               \
+  size_t full_length;                                                       \
+                                                                            \
+  DBUG_ASSERT(category != NULL);                                            \
+  DBUG_ASSERT(info != NULL);                                                \
+  if (unlikely(build_prefix(&PREFIX, category,                              \
+                   formatted_name, &prefix_length)) ||                      \
+      ! pfs_initialized)                                                    \
+  {                                                                         \
+    for (; count>0; count--, info++)                                        \
+      *(info->m_key)= 0;                                                    \
+    return ;                                                                \
+  }                                                                         \
+                                                                            \
+  for (; count>0; count--, info++)                                          \
+  {                                                                         \
+    DBUG_ASSERT(info->m_key != NULL);                                       \
+    DBUG_ASSERT(info->m_name != NULL);                                      \
+    len= strlen(info->m_name);                                              \
+    full_length= prefix_length + len;                                       \
+    if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))                    \
+    {                                                                       \
+      memcpy(formatted_name + prefix_length, info->m_name, len);            \
+      key= REGISTER_FUNC(formatted_name, (uint)full_length, info->m_flags); \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+      pfs_print_error("REGISTER_BODY_V1: name too long <%s> <%s>\n",        \
+                      category, info->m_name);                              \
+      key= 0;                                                               \
+    }                                                                       \
+                                                                            \
+    *(info->m_key)= key;                                                    \
+  }                                                                         \
   return;
 
 /* Use C linkage for the interface functions. */
@@ -1509,9 +1589,9 @@ void pfs_register_stage_v1(const char *category,
                            int count)
 {
   char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
-  int prefix_length;
-  int len;
-  int full_length;
+  size_t prefix_length;
+  size_t len;
+  size_t full_length;
   PSI_stage_info_v1 *info;
 
   DBUG_ASSERT(category != NULL);
@@ -1536,8 +1616,8 @@ void pfs_register_stage_v1(const char *category,
     {
       memcpy(formatted_name + prefix_length, info->m_name, len);
       info->m_key= register_stage_class(formatted_name,
-                                        prefix_length,
-                                        full_length,
+                                        (uint)prefix_length,
+                                        (uint)full_length,
                                         info->m_flags);
     }
     else
@@ -1555,9 +1635,9 @@ void pfs_register_statement_v1(const char *category,
                                int count)
 {
   char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
-  int prefix_length;
-  int len;
-  int full_length;
+  size_t prefix_length;
+  size_t len;
+  size_t full_length;
 
   DBUG_ASSERT(category != NULL);
   DBUG_ASSERT(info != NULL);
@@ -1578,7 +1658,7 @@ void pfs_register_statement_v1(const char *category,
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
     {
       memcpy(formatted_name + prefix_length, info->m_name, len);
-      info->m_key= register_statement_class(formatted_name, full_length, info->m_flags);
+      info->m_key= register_statement_class(formatted_name, (uint)full_length, info->m_flags);
     }
     else
     {
@@ -1778,6 +1858,7 @@ void pfs_unbind_table_v1(PSI_table *table)
   if (likely(pfs != NULL))
   {
     pfs->m_thread_owner= NULL;
+    pfs->m_owner_event_id= 0;
   }
 }
 
@@ -1814,6 +1895,10 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     /* The table handle was already instrumented, reuse it for this thread. */
     PFS_thread *thread= my_pthread_get_THR_PFS();
     pfs->m_thread_owner= thread;
+    if (thread != NULL)
+      pfs->m_owner_event_id= thread->m_event_id;
+    else
+      pfs->m_owner_event_id= 0;
     return table;
   }
 
@@ -1910,7 +1995,7 @@ void pfs_create_file_v1(PSI_file_key key, const char *name, File file)
     return;
   }
 
-  uint len= strlen(name);
+  uint len= (uint)strlen(name);
   PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len, true);
 
   file_handle_array[index]= pfs_file;
@@ -2064,7 +2149,7 @@ void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id)
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
   if (unlikely(pfs == NULL))
     return;
-  pfs->m_processlist_id= processlist_id;
+  pfs->m_processlist_id= (ulong)processlist_id;
 }
 
 /**
@@ -2084,6 +2169,7 @@ pfs_get_thread_v1(void)
 */
 void pfs_set_thread_user_v1(const char *user, int user_len)
 {
+  pfs_dirty_state dirty_state;
   PFS_thread *pfs= my_pthread_get_THR_PFS();
 
   DBUG_ASSERT((user != NULL) || (user_len == 0));
@@ -2095,7 +2181,7 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
 
-  pfs->m_session_lock.allocated_to_dirty();
+  pfs->m_session_lock.allocated_to_dirty(& dirty_state);
 
   clear_thread_account(pfs);
 
@@ -2105,27 +2191,30 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
 
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
-  pfs->m_session_lock.dirty_to_allocated();
+  pfs->m_session_lock.dirty_to_allocated(& dirty_state);
 }
 
 /**
@@ -2135,6 +2224,7 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 void pfs_set_thread_account_v1(const char *user, int user_len,
                                const char *host, int host_len)
 {
+  pfs_dirty_state dirty_state;
   PFS_thread *pfs= my_pthread_get_THR_PFS();
 
   DBUG_ASSERT((user != NULL) || (user_len == 0));
@@ -2147,7 +2237,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
   if (unlikely(pfs == NULL))
     return;
 
-  pfs->m_session_lock.allocated_to_dirty();
+  pfs->m_session_lock.allocated_to_dirty(& dirty_state);
 
   clear_thread_account(pfs);
 
@@ -2161,26 +2251,29 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
-  pfs->m_session_lock.dirty_to_allocated();
+  pfs->m_session_lock.dirty_to_allocated(& dirty_state);
 }
 
 /**
@@ -2197,11 +2290,12 @@ void pfs_set_thread_db_v1(const char* db, int db_len)
 
   if (likely(pfs != NULL))
   {
-    pfs->m_stmt_lock.allocated_to_dirty();
+    pfs_dirty_state dirty_state;
+    pfs->m_stmt_lock.allocated_to_dirty(& dirty_state);
     if (db_len > 0)
       memcpy(pfs->m_dbname, db, db_len);
     pfs->m_dbname_length= db_len;
-    pfs->m_stmt_lock.dirty_to_allocated();
+    pfs->m_stmt_lock.dirty_to_allocated(& dirty_state);
   }
 }
 
@@ -2251,6 +2345,7 @@ void pfs_set_thread_state_v1(const char* state)
 */
 void pfs_set_thread_info_v1(const char* info, uint info_len)
 {
+  pfs_dirty_state dirty_state;
   PFS_thread *pfs= my_pthread_get_THR_PFS();
 
   DBUG_ASSERT((info != NULL) || (info_len == 0));
@@ -2262,16 +2357,16 @@ void pfs_set_thread_info_v1(const char* info, uint info_len)
       if (info_len > sizeof(pfs->m_processlist_info))
         info_len= sizeof(pfs->m_processlist_info);
 
-      pfs->m_stmt_lock.allocated_to_dirty();
+      pfs->m_stmt_lock.allocated_to_dirty(& dirty_state);
       memcpy(pfs->m_processlist_info, info, info_len);
       pfs->m_processlist_info_length= info_len;
-      pfs->m_stmt_lock.dirty_to_allocated();
+      pfs->m_stmt_lock.dirty_to_allocated(& dirty_state);
     }
     else
     {
-      pfs->m_stmt_lock.allocated_to_dirty();
+      pfs->m_stmt_lock.allocated_to_dirty(& dirty_state);
       pfs->m_processlist_info_length= 0;
-      pfs->m_stmt_lock.dirty_to_allocated();
+      pfs->m_stmt_lock.dirty_to_allocated(& dirty_state);
     }
   }
 }
@@ -2373,7 +2468,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_mutex->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2471,7 +2566,7 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_rwlock->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2588,7 +2683,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_cond->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2733,7 +2828,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_io_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2805,6 +2900,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
   {
     case PSI_TABLE_LOCK:
       lock_type= lock_flags_to_lock_type(op_flags);
+      pfs_table->m_internal_lock= lock_type;
       break;
     case PSI_TABLE_EXTERNAL_LOCK:
       /*
@@ -2812,8 +2908,12 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
         there is no handler::external_unlock().
       */
       if (op_flags == F_UNLCK)
+      {
+        pfs_table->m_external_lock= PFS_TL_NONE;
         return NULL;
+      }
       lock_type= external_lock_flags_to_lock_type(op_flags);
+      pfs_table->m_external_lock= lock_type;
       break;
     default:
       lock_type= PFS_TL_READ;
@@ -2859,7 +2959,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_lock_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2922,7 +3022,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   if (! klass->m_enabled)
     return NULL;
 
-  /* Needed for the LF_HASH */ 
+  /* Needed for the LF_HASH */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
@@ -2955,7 +3055,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     wait->m_nesting_event_id= parent_event->m_event_id;
     wait->m_nesting_event_type= parent_event->m_event_type;
 
-    wait->m_thread= pfs_thread;
+    wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     wait->m_class= klass;
     wait->m_timer_start= 0;
     wait->m_timer_end= 0;
@@ -3031,7 +3131,7 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3137,7 +3237,7 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3233,7 +3333,7 @@ pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       wait->m_event_type= EVENT_TYPE_WAIT;
       wait->m_nesting_event_id=   parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
-      wait->m_thread=       pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class=        pfs_socket->m_class;
       wait->m_timer_start=  timer_start;
       wait->m_timer_end=    0;
@@ -3491,7 +3591,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint 
       wait->m_nesting_event_id= 0;
       /* no need to set wait->m_nesting_event_type */
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_idle_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -3624,6 +3724,11 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= mutex->m_class->m_event_name_index;
+  
+    DBUG_ASSERT(index <= wait_class_max);
+    DBUG_ASSERT(sanitize_thread(thread) != NULL);
+    DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
+    DBUG_ASSERT(event_name_array < thread_instr_class_waits_array_end);
 
     if (flags & STATE_FLAG_TIMED)
     {
@@ -4075,7 +4180,7 @@ pfs_end_file_open_wait_v1(PSI_file_locker *locker,
       PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
       PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
       const char *name= state->m_name;
-      uint len= strlen(name);
+      uint len= (uint)strlen(name);
       PFS_file *pfs_file= find_or_create_file(thread, klass, name, len, true);
       state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
     }
@@ -4108,7 +4213,7 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_v1
     PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
     PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     const char *name= state->m_name;
-    uint len= strlen(name);
+    uint len= (uint)strlen(name);
     pfs_file= find_or_create_file(thread, klass, name, len, true);
     state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
   }
@@ -4299,7 +4404,7 @@ void pfs_start_file_close_wait_v1(PSI_file_locker *locker,
   case PSI_FILE_DELETE:
     thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     name= state->m_name;
-    len= strlen(name);
+    len= (uint)strlen(name);
     pfs_file= find_or_create_file(thread, NULL, name, len, false);
     state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
     break;
@@ -4440,8 +4545,7 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 
   if (flag_events_stages_current)
   {
-    /* m_thread_internal_id is immutable and already set */
-    DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+    pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     pfs->m_event_id= pfs_thread->m_event_id++;
     pfs->m_end_event_id= 0;
     pfs->m_source_file= src_file;
@@ -4554,9 +4658,9 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       }
 
       PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
-      /* m_thread_internal_id is immutable and already set */
-      DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+      pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       pfs->m_event_id= event_id;
+      pfs->m_event_type= EVENT_TYPE_STATEMENT;
       pfs->m_end_event_id= 0;
       pfs->m_class= klass;
       pfs->m_timer_start= 0;
@@ -4596,16 +4700,33 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       /* New waits will have this statement as parent, if no stage is instrumented */
       PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
-      child_wait->m_nesting_event_id= event_id;
-      child_wait->m_nesting_event_type= EVENT_TYPE_STATEMENT;
+      child_wait->m_event_id= event_id;
+      child_wait->m_event_type= EVENT_TYPE_STATEMENT;
 
-      if(pfs_thread->m_events_statements_count > 0)
+      PFS_events_statements *parent_statement= NULL;
+      PFS_events_transactions *parent_transaction= &pfs_thread->m_transaction_current;
+      ulonglong parent_event= 0;
+      enum_event_type parent_type= EVENT_TYPE_STATEMENT;
+      uint parent_level= 0;
+
+      if (pfs_thread->m_events_statements_count > 0)
       {
-          PFS_events_statements *parent= pfs - 1;
-          pfs->m_nesting_event_id= parent->m_event_id;
-          pfs->m_nesting_event_type= parent->m_event_type;
-          pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+        parent_statement= pfs - 1;
+        parent_event= parent_statement->m_event_id;
+        parent_type=  parent_statement->m_event_type;
+        parent_level= parent_statement->m_nesting_event_level + 1;
       }
+
+      if (parent_transaction->m_state == TRANS_STATE_ACTIVE &&
+          parent_transaction->m_event_id > parent_event)
+      {
+        parent_event= parent_transaction->m_event_id;
+        parent_type=  parent_transaction->m_event_type;
+      }
+
+      pfs->m_nesting_event_id= parent_event;
+      pfs->m_nesting_event_type= parent_type;
+      pfs->m_nesting_event_level= parent_level;
 
       /* Set parent Stored Procedure information for this statement. */
       if(sp_share)
@@ -4621,7 +4742,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       }
       else
       {
-        pfs->m_sp_type= OBJECT_TYPE_NONE;
+        pfs->m_sp_type= NO_OBJECT_TYPE;
         pfs->m_schema_name_length= 0;
         pfs->m_object_name_length= 0;
       }
@@ -4687,7 +4808,7 @@ pfs_refine_statement_v1(PSI_statement_locker *locker,
   PFS_statement_class *klass;
   /* Only refine statements for mutable instrumentation */
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
-  DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
+  DBUG_ASSERT(klass->is_mutable());
   klass= find_statement_class(key);
 
   uint flags= state->m_flags;
@@ -4940,7 +5061,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
   PFS_statement_stat *stat;
-  
+
   /*
    Capture statement stats by digest.
   */
@@ -5009,8 +5130,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         */
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
-    
-      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share); 
+
+      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5082,7 +5203,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     {
       digest_stat->aggregate_counted();
     }
-  
+
     digest_stat->m_lock_time+= state->m_lock_time;
     digest_stat->m_rows_sent+= state->m_rows_sent;
     digest_stat->m_rows_examined+= state->m_rows_examined;
@@ -5115,7 +5236,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         sub_stmt_stat->aggregate_counted();
       }
-    
+
       sub_stmt_stat->m_lock_time+= state->m_lock_time;
       sub_stmt_stat->m_rows_sent+= state->m_rows_sent;
       sub_stmt_stat->m_rows_examined+= state->m_rows_examined;
@@ -5185,24 +5306,45 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
 }
 
-/**                                                                             
-  Implementation of the stored program instrumentation interface.                         
-  @sa PSI_v1::get_sp_share.                                      
-*/                                                                              
-PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
+static inline enum_object_type sp_type_to_object_type(uint sp_type)
+{
+  enum enum_sp_type value= static_cast<enum enum_sp_type> (sp_type);
+
+  switch (value)
+  {
+    case SP_TYPE_FUNCTION:
+      return OBJECT_TYPE_FUNCTION;
+    case SP_TYPE_PROCEDURE:
+      return OBJECT_TYPE_PROCEDURE;
+    case SP_TYPE_TRIGGER:
+      return OBJECT_TYPE_TRIGGER;
+    case SP_TYPE_EVENT:
+      return OBJECT_TYPE_EVENT;
+    default:
+      DBUG_ASSERT(false);
+      /* Dead code */
+      return NO_OBJECT_TYPE;
+  }
+}
+
+/**
+  Implementation of the stored program instrumentation interface.
+  @sa PSI_v1::get_sp_share.
+*/
+PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   const char* schema_name,
                                   uint schema_name_length,
                                   const char* object_name,
                                   uint object_name_length)
 {
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return NULL;
 
   PFS_program *pfs_program;
   pfs_program= find_or_create_program(pfs_thread,
-                                      (enum_object_type)object_type,
+                                      sp_type_to_object_type(sp_type),
                                       object_name,
                                       object_name_length,
                                       schema_name,
@@ -5233,7 +5375,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
       return NULL;
   }
 
-  /* 
+  /*
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
@@ -5246,7 +5388,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
   if(pfs_program->m_timed)
   {
     state->m_flags|= STATE_FLAG_TIMED;
-    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer,
                                                   & state->m_timer);
   }
 
@@ -5280,21 +5422,329 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   }
 }
 
-void pfs_drop_sp_v1(uint object_type,
+void pfs_drop_sp_v1(uint sp_type,
                     const char* schema_name,
                     uint schema_name_length,
                     const char* object_name,
                     uint object_name_length)
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return;
 
   drop_program(pfs_thread,
-               (enum_object_type)object_type,
+               sp_type_to_object_type(sp_type),
                object_name, object_name_length,
                schema_name, schema_name_length);
 }
+
+PSI_transaction_locker*
+pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
+                                     const void *xid,
+                                     const ulonglong *trxid,
+                                     int isolation_level,
+                                     my_bool read_only,
+                                     my_bool autocommit)
+{
+  DBUG_ASSERT(state != NULL);
+
+  if (!flag_global_instrumentation)
+    return NULL;
+
+  if (!global_transaction_class.m_enabled)
+    return NULL;
+
+  uint flags;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (!pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (global_transaction_class.m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_transactions_current)
+    {
+      ulonglong event_id= pfs_thread->m_event_id++;
+
+      PFS_events_transactions *pfs= &pfs_thread->m_transaction_current;
+      pfs->m_thread_internal_id = pfs_thread->m_thread_internal_id;
+      pfs->m_event_id= event_id;
+      pfs->m_event_type= EVENT_TYPE_TRANSACTION;
+      pfs->m_end_event_id= 0;
+      pfs->m_class= &global_transaction_class;
+      pfs->m_timer_start= 0;
+      pfs->m_timer_end= 0;
+      if (xid != NULL)
+        pfs->m_xid= *(PSI_xid *)xid;
+      pfs->m_xa= false;
+      pfs->m_xa_state= TRANS_STATE_XA_NOTR;
+      pfs->m_trxid= (trxid == NULL) ? 0 : *trxid;
+      pfs->m_isolation_level= (enum_isolation_level)isolation_level;
+      pfs->m_read_only= read_only;
+      pfs->m_autocommit= autocommit;
+      pfs->m_savepoint_count= 0;
+      pfs->m_rollback_to_savepoint_count= 0;
+      pfs->m_release_savepoint_count= 0;
+
+      uint statements_count= pfs_thread->m_events_statements_count;
+      if (statements_count > 0)
+      {
+        PFS_events_statements *pfs_statement=
+          &pfs_thread->m_statement_stack[statements_count - 1];
+        pfs->m_nesting_event_id= pfs_statement->m_event_id;
+        pfs->m_nesting_event_type= pfs_statement->m_event_type;
+      }
+      else
+      {
+        pfs->m_nesting_event_id= 0;
+        /* pfs->m_nesting_event_type not used when m_nesting_event_id is 0 */
+      }
+
+      state->m_transaction= pfs;
+      flags|= STATE_FLAG_EVENT;
+    }
+  }
+  else
+  {
+    if (global_transaction_class.m_timed)
+      flags= STATE_FLAG_TIMED;
+    else
+      flags= 0;
+  }
+
+  state->m_class= &global_transaction_class;
+  state->m_flags= flags;
+  state->m_autocommit= autocommit;
+  state->m_read_only= read_only;
+  state->m_savepoint_count= 0;
+  state->m_rollback_to_savepoint_count= 0;
+  state->m_release_savepoint_count= 0;
+
+  return reinterpret_cast<PSI_transaction_locker*> (state);
+}
+
+void pfs_start_transaction_v1(PSI_transaction_locker *locker,
+                              const char *src_file, uint src_line)
+{
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  uint flags= state->m_flags;
+  ulonglong timer_start= 0;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_start= get_timer_raw_value_and_function(transaction_timer, &state->m_timer);
+    state->m_timer_start= timer_start;
+  }
+
+  if (flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+    DBUG_ASSERT(pfs != NULL);
+
+    pfs->m_timer_start= timer_start;
+    pfs->m_source_file= src_file;
+    pfs->m_source_line= src_line;
+    pfs->m_state= TRANS_STATE_ACTIVE;
+    pfs->m_gtid_set= false;
+    pfs->m_sid.clear();
+    pfs->m_gtid_spec.clear();
+  }
+}
+
+void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
+                                 const void *sid,
+                                 const void *gtid_spec)
+{
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(sid != NULL);
+  DBUG_ASSERT(gtid_spec != NULL);
+
+  if (state->m_flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+    DBUG_ASSERT(pfs != NULL);
+    pfs->m_sid= *(rpl_sid *)sid;
+    pfs->m_gtid_spec= *(Gtid_specification *)gtid_spec;
+    pfs->m_gtid_set= true;
+  }
+  return;
+}
+
+void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker,
+                                const void *xid,
+                                int xa_state)
+{
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  
+  if (state->m_flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+    DBUG_ASSERT(pfs != NULL);
+    DBUG_ASSERT(xid != NULL);
+
+    pfs->m_xid= *(PSI_xid *)xid;
+    pfs->m_xa_state= (enum_xa_transaction_state)xa_state;
+    pfs->m_xa= true;
+  }
+  return;
+}
+
+void pfs_set_transaction_xa_state_v1(PSI_transaction_locker *locker,
+                                     int xa_state)
+{
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  if (state->m_flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+    DBUG_ASSERT(pfs != NULL);
+
+    pfs->m_xa_state= (enum_xa_transaction_state)xa_state;
+    pfs->m_xa= true;
+  }
+  return;
+}
+
+void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
+                                  const ulonglong *trxid)
+{
+  DBUG_ASSERT(trxid != NULL);
+
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  if (state->m_flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+    DBUG_ASSERT(pfs != NULL);
+
+    if (pfs->m_trxid == 0)
+      pfs->m_trxid= *trxid;
+  }
+}
+
+#define INC_TRANSACTION_ATTR_BODY(LOCKER, ATTR, VALUE)                  \
+  PSI_transaction_locker_state *state;                                  \
+  state= reinterpret_cast<PSI_transaction_locker_state*> (LOCKER);      \
+  if (unlikely(state == NULL))                                          \
+    return;                                                             \
+  state->ATTR+= VALUE;                                                  \
+  if (state->m_flags & STATE_FLAG_EVENT)                                \
+  {                                                                     \
+    PFS_events_transactions *pfs;                                       \
+    pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction); \
+    DBUG_ASSERT(pfs != NULL);                                           \
+    pfs->ATTR+= VALUE;                                                  \
+  }                                                                     \
+  return;
+
+
+void pfs_inc_transaction_savepoints_v1(PSI_transaction_locker *locker,
+                                       ulong count)
+{
+  INC_TRANSACTION_ATTR_BODY(locker, m_savepoint_count, count);
+}
+
+void pfs_inc_transaction_rollback_to_savepoint_v1(PSI_transaction_locker *locker,
+                                                  ulong count)
+{
+  INC_TRANSACTION_ATTR_BODY(locker, m_rollback_to_savepoint_count, count);
+}
+
+void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
+                                              ulong count)
+{
+  INC_TRANSACTION_ATTR_BODY(locker, m_release_savepoint_count, count);
+}
+
+void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit)
+{
+  PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+  uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  PFS_transaction_stat *stat;
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *pfs_thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(pfs_thread != NULL);
+
+    /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+    stat= &pfs_thread->m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
+      DBUG_ASSERT(pfs != NULL);
+
+      /* events_transactions_current may have been cleared while the transaction was active */
+      if (unlikely(pfs->m_class == NULL))
+        return;
+
+      pfs->m_timer_end= timer_end;
+      pfs->m_end_event_id= pfs_thread->m_event_id;
+
+      pfs->m_state= (commit ? TRANS_STATE_COMMITTED : TRANS_STATE_ROLLED_BACK);
+
+      if (pfs->m_xa)
+          pfs->m_xa_state= (commit ? TRANS_STATE_XA_COMMITTED : TRANS_STATE_XA_ROLLBACK_ONLY);
+
+      if (flag_events_transactions_history)
+        insert_events_transactions_history(pfs_thread, pfs);
+      if (flag_events_transactions_history_long)
+        insert_events_transactions_history_long(pfs);
+    }
+  }
+  else
+  {
+    /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME */
+    stat= &global_transaction_stat;
+  }
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_..._BY_EVENT_NAME (timed) */
+    if(state->m_read_only)
+      stat->m_read_only_stat.aggregate_value(wait_time);
+    else
+      stat->m_read_write_stat.aggregate_value(wait_time);
+  }
+  else
+  {
+    /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_..._BY_EVENT_NAME (counted) */
+    if(state->m_read_only)
+      stat->m_read_only_stat.aggregate_counted();
+    else
+      stat->m_read_write_stat.aggregate_counted();
+  }
+
+  stat->m_savepoint_count+= state->m_savepoint_count;
+  stat->m_rollback_to_savepoint_count+= state->m_rollback_to_savepoint_count;
+  stat->m_release_savepoint_count+= state->m_release_savepoint_count;
+}
+
 
 /**
   Implementation of the socket instrumentation interface.
@@ -5404,7 +5854,7 @@ void pfs_set_socket_info_v1(PSI_socket *socket,
 
   /** Set socket descriptor */
   if (fd != NULL)
-    pfs->m_fd= *fd;
+    pfs->m_fd= (uint)*fd;
 
   /** Set raw socket address and length */
   if (likely(addr != NULL && addr_len > 0))
@@ -5443,14 +5893,17 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
 
   if (likely(thd != NULL) && session_connect_attrs_size_per_thread > 0)
   {
+    pfs_dirty_state dirty_state;
+    const CHARSET_INFO *cs = static_cast<const CHARSET_INFO *> (from_cs);
+
     /* copy from the input buffer as much as we can fit */
     uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
                            length : session_connect_attrs_size_per_thread);
-    thd->m_session_lock.allocated_to_dirty();
+    thd->m_session_lock.allocated_to_dirty(& dirty_state);
     memcpy(thd->m_session_connect_attrs, buffer, copy_size);
     thd->m_session_connect_attrs_length= copy_size;
-    thd->m_session_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
-    thd->m_session_lock.dirty_to_allocated();
+    thd->m_session_connect_attrs_cs_number= cs->number;
+    thd->m_session_lock.dirty_to_allocated(& dirty_state);
 
     if (copy_size == length)
       return 0;
@@ -5470,12 +5923,10 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
+static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5513,12 +5964,10 @@ static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
   return key;
 }
 
-static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
+static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5530,39 +5979,58 @@ static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, siz
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return PSI_NOT_INSTRUMENTED;
-    if (! pfs_thread->m_enabled)
-      return PSI_NOT_INSTRUMENTED;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_realloc(old_size, new_size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+
+      if (klass->m_enabled)
+      {
+        delta= stat->count_realloc(old_size, new_size, &delta_buffer);
+      }
+      else
+      {
+        delta= stat->count_free(old_size, &delta_buffer);
+        key= PSI_NOT_INSTRUMENTED;
+      }
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return key;
     }
+  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  stat= & event_name_array[index];
+
+  if (klass->m_enabled)
+  {
+    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
   }
   else
   {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
+    (void) stat->count_free(old_size, &delta_buffer);
+    key= PSI_NOT_INSTRUMENTED;
   }
 
   return key;
 }
 
-static void memory_free_v1(PSI_memory_key key, size_t size)
+static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
     return;
-  if (! klass->m_enabled)
-    return;
+
+  /*
+    Do not check klass->m_enabled.
+    If a memory alloc was instrumented,
+    the corresponding free must be instrumented.
+  */
 
   PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
@@ -5573,30 +6041,251 @@ static void memory_free_v1(PSI_memory_key key, size_t size)
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return;
-    if (! pfs_thread->m_enabled)
-      return;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_free(size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /*
+        Do not check pfs_thread->m_enabled.
+        If a memory alloc was instrumented,
+        the corresponding free must be instrumented.
+      */
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+      delta= stat->count_free(size, &delta_buffer);
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return;
+    }
+  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  if (event_name_array)
+  {
+    stat= & event_name_array[index];
+    (void) stat->count_free(size, &delta_buffer);
+  }
+  return;
+}
+
+void pfs_unlock_table_v1(PSI_table *table)
+{
+  PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
+
+  DBUG_ASSERT(pfs_table != NULL);
+
+  pfs_table->m_internal_lock= PFS_TL_NONE;
+  return;
+}
+
+PSI_metadata_lock *
+pfs_create_metadata_lock_v1(
+  void *identity,
+  const MDL_key *mdl_key,
+  opaque_mdl_type mdl_type,
+  opaque_mdl_duration mdl_duration,
+  opaque_mdl_status mdl_status,
+  const char *src_file,
+  uint src_line)
+{
+  if (! flag_global_instrumentation)
+    return NULL;
+
+  if (! global_metadata_class.m_enabled)
+    return NULL;
+
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (pfs_thread == NULL)
+    return NULL;
+
+  PFS_metadata_lock *pfs;
+  pfs= create_metadata_lock(identity, mdl_key,
+                            mdl_type, mdl_duration, mdl_status,
+                            src_file, src_line);
+
+  if (pfs != NULL)
+  {
+    pfs->m_owner_thread_id= pfs_thread->m_thread_internal_id;
+    pfs->m_owner_event_id= pfs_thread->m_event_id;
+  }
+
+  return reinterpret_cast<PSI_metadata_lock *> (pfs);
+}
+
+void
+pfs_set_metadata_lock_status_v1(PSI_metadata_lock *lock, opaque_mdl_status mdl_status)
+{
+  PFS_metadata_lock *pfs= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(pfs != NULL);
+  pfs->m_mdl_status= mdl_status;
+}
+
+void
+pfs_destroy_metadata_lock_v1(PSI_metadata_lock *lock)
+{
+  PFS_metadata_lock *pfs= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(pfs != NULL);
+  destroy_metadata_lock(pfs);
+}
+
+PSI_metadata_locker *
+pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
+                           PSI_metadata_lock *lock,
+                           const char *src_file,
+                           uint src_line)
+{
+  PFS_metadata_lock *pfs_lock= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(pfs_lock != NULL);
+
+  if (! pfs_lock->m_enabled)
+    return NULL;
+
+  uint flags;
+  ulonglong timer_start= 0;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (pfs_lock->m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags|= STATE_FLAG_TIMED;
+    }
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_current >=
+                   & pfs_thread->m_events_waits_stack[WAIT_STACK_SIZE]))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= pfs_thread->m_events_waits_current;
+      state->m_wait= wait;
+      flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
+      wait->m_class= &global_metadata_class;
+      wait->m_timer_start= timer_start;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_lock->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
+      wait->m_weak_metadata_lock= pfs_lock;
+      wait->m_weak_version= pfs_lock->get_version();
+      wait->m_operation= OPERATION_TYPE_METADATA;
+      wait->m_source_file= src_file;
+      wait->m_source_line= src_line;
+      wait->m_wait_class= WAIT_CLASS_METADATA;
+
+      pfs_thread->m_events_waits_current++;
     }
   }
   else
   {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_free(size, &delta_buffer);
+    if (pfs_lock->m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags= STATE_FLAG_TIMED;
+      state->m_thread= NULL;
+    }
+    else
+    {
+      /*
+        Complete shortcut.
+      */
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (counted) */
+      global_metadata_stat.aggregate_counted();
+      return NULL;
+    }
   }
 
-  return;
+  state->m_flags= flags;
+  state->m_metadata_lock= lock;
+  return reinterpret_cast<PSI_metadata_locker*> (state);
+}
+
+void
+pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
+                         int rc)
+{
+  PSI_metadata_locker_state *state= reinterpret_cast<PSI_metadata_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[GLOBAL_METADATA_EVENT_INDEX].aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[GLOBAL_METADATA_EVENT_INDEX].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_current--;
+    }
+  }
+  else
+  {
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (timed) */
+      global_metadata_stat.aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (counted) */
+      global_metadata_stat.aggregate_counted();
+    }
+  }
 }
 
 /**
@@ -5694,6 +6383,16 @@ PSI_v1 PFS_v1=
   pfs_set_statement_no_index_used_v1,
   pfs_set_statement_no_good_index_used_v1,
   pfs_end_statement_v1,
+  pfs_get_thread_transaction_locker_v1,
+  pfs_start_transaction_v1,
+  pfs_set_transaction_xid_v1,
+  pfs_set_transaction_xa_state_v1,
+  pfs_set_transaction_gtid_v1,
+  pfs_set_transaction_trxid_v1,
+  pfs_inc_transaction_savepoints_v1,
+  pfs_inc_transaction_rollback_to_savepoint_v1,
+  pfs_inc_transaction_release_savepoint_v1,
+  pfs_end_transaction_v1,
   pfs_start_socket_wait_v1,
   pfs_end_socket_wait_v1,
   pfs_set_socket_state_v1,
@@ -5708,9 +6407,15 @@ PSI_v1 PFS_v1=
   pfs_get_sp_share_v1,
   pfs_release_sp_share_v1,
   pfs_register_memory_v1,
-  memory_alloc_v1,
-  memory_realloc_v1,
-  memory_free_v1
+  pfs_memory_alloc_v1,
+  pfs_memory_realloc_v1,
+  pfs_memory_free_v1,
+  pfs_unlock_table_v1,
+  pfs_create_metadata_lock_v1,
+  pfs_set_metadata_lock_status_v1,
+  pfs_destroy_metadata_lock_v1,
+  pfs_start_metadata_wait_v1,
+  pfs_end_metadata_wait_v1
 };
 
 static void* get_interface(int version)

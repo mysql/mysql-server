@@ -73,7 +73,7 @@
 
 class WorkerStep1 {
 public:
-  WorkerStep1(struct workitem *, bool has_server_cas);
+  WorkerStep1(struct workitem *);
   op_status_t do_append();           // begin an append/prepend operation
   op_status_t do_read();             // begin a read operation 
   op_status_t do_write();            // begin a SET/ADD/REPLACE operation
@@ -83,7 +83,6 @@ public:
 private:
   /* Private member variables */
   workitem *wqitem;
-  bool server_cas;
   NdbTransaction *tx;
   QueryPlan * &plan;
 
@@ -218,11 +217,10 @@ void worker_set_ext_flag(workitem *item) {
 
 /* worker_prepare_operation(): 
    Called from the scheduler. 
-   Returns true if executeAsynchPrepare() has been called on the item.
+   Returns op_prepared if Scheduler::execute() has been called on the item.
 */
 op_status_t worker_prepare_operation(workitem *newitem) {
-  bool server_cas = (newitem->prefix_info.has_cas_col && newitem->cas);
-  WorkerStep1 worker(newitem, server_cas);
+  WorkerStep1 worker(newitem);
   op_status_t r;
 
   worker_set_ext_flag(newitem);
@@ -262,12 +260,16 @@ op_status_t worker_prepare_operation(workitem *newitem) {
 
 /***************** STEP ONE OPERATIONS ***************************************/
 
-WorkerStep1::WorkerStep1(workitem *newitem, bool do_server_cas) :
+WorkerStep1::WorkerStep1(workitem *newitem) :
   wqitem(newitem), 
-  server_cas(do_server_cas), 
   tx(0),
-  plan(newitem->plan)
-{};
+  plan(newitem->plan) 
+{
+  /* Set cas_owner in workitem.
+     (Further refine the semantics of this.  Does it depend on do_mc_read?)
+  */  
+    newitem->base.cas_owner = (newitem->prefix_info.has_cas_col);
+};
 
 
 op_status_t WorkerStep1::do_delete() {
@@ -287,12 +289,10 @@ op_status_t WorkerStep1::do_delete() {
   
   tx = op.startTransaction(wqitem->ndb_instance->db);
   
-  if(server_cas && * wqitem->cas) {
-    // ndb_op = op.deleteTupleCAS(tx, & options);  
-  }
-  else {
-    ndb_op = op.deleteTuple(tx);    
-  }
+  /* Here we could also support op.deleteTupleCAS(tx, & options)
+     but the protocol is ambiguous about whether this is allowed.
+  */ 
+  ndb_op = op.deleteTuple(tx);    
   
   /* Check for errors */
   if(ndb_op == 0) {
@@ -305,8 +305,8 @@ op_status_t WorkerStep1::do_delete() {
   }
   
   /* Prepare for execution */   
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
-  return op_async_prepared;
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  return op_prepared;
 }
 
 
@@ -318,7 +318,7 @@ op_status_t WorkerStep1::do_write() {
   }
   
   uint64_t cas_in = *wqitem->cas;                  // read old value
-  if(server_cas) {
+  if(wqitem->base.cas_owner) {
     worker_set_cas(wqitem->pipeline, wqitem->cas);    // generate a new value
     hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
   }
@@ -363,7 +363,7 @@ op_status_t WorkerStep1::do_write() {
     if(! op_ok) return op_overflow;
   }
   
-  if(server_cas) {
+  if(wqitem->base.cas_owner) {
     op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);   // the cas
   }
   
@@ -419,7 +419,7 @@ op_status_t WorkerStep1::do_write() {
     ndb_op = op.insertTuple(tx);
   }
   else if(wqitem->base.verb == OPERATION_CAS) {    
-    if(server_cas) {
+    if(wqitem->base.cas_owner) {
       /* NdbOperation.hpp says: "All data is copied out of the OperationOptions 
        structure (and any subtended structures) at operation definition time."      
        */
@@ -450,8 +450,8 @@ op_status_t WorkerStep1::do_write() {
   }
   
   wqitem->next_step = (void *) worker_finalize_write;
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
-  return op_async_prepared;  
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  return op_prepared;  
 }
 
 
@@ -481,8 +481,8 @@ op_status_t WorkerStep1::do_read() {
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) 
     (wqitem->base.use_ext_val ? worker_check_read : worker_finalize_read);
-  tx->executeAsynchPrepare(commitflag, callback_main, (void *) wqitem);
-  return op_async_prepared;  
+  Scheduler::execute(tx, commitflag, callback_main, wqitem);
+  return op_prepared;  
 }
 
 
@@ -505,8 +505,8 @@ op_status_t WorkerStep1::do_append() {
   
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) worker_append;
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);  
-  return op_async_prepared;
+  Scheduler::execute(tx, NdbTransaction::NoCommit, callback_main, wqitem);  
+  return op_prepared;
 }
 
 
@@ -594,7 +594,7 @@ op_status_t WorkerStep1::do_math() {
     op2.setKeyFieldsInRow(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
     
     /* CAS */
-    if(server_cas) {
+    if(wqitem->base.cas_owner) {
       op1.readColumn(COL_STORE_CAS);
       op2.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
       op3.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
@@ -682,8 +682,8 @@ op_status_t WorkerStep1::do_math() {
     }
   }
   
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_incr, (void *) wqitem);
-  return op_async_prepared;
+  Scheduler::execute(tx,NdbTransaction::Commit, callback_incr, wqitem);
+  return op_prepared;
 }
 
 
@@ -839,7 +839,7 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
     if(wqitem->base.retries++ < 3) {       // try again:
       tx->close();
       op_status_t r = worker_prepare_operation(wqitem); 
-      if(r == op_async_prepared)
+      if(r == op_prepared)
         return;  /* retry is in progress */
       else
         wqitem->status = & status_block_misc_error;
@@ -868,8 +868,7 @@ void worker_commit(NdbTransaction *tx, workitem *item) {
   /* If the transaction has not been committed, we need to send an empty 
      execute call and commit it.  Otherwise close() will block. */
   if(tx->commitStatus() == NdbTransaction::Started) {
-    item->pipeline->scheduler->reschedule(item);
-    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) item);    
+    Scheduler::execute(tx, NdbTransaction::Commit, callback_close, item, RESCHEDULE);
   }
   else 
     worker_close(tx, item);
@@ -893,7 +892,6 @@ void worker_close(NdbTransaction *tx, workitem *wqitem) {
     delete wqitem->ext_val;
 
   pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-  pipeline->scheduler->yield(wqitem);
 }
 
 
@@ -959,9 +957,8 @@ void worker_append(NdbTransaction *tx, workitem *item) {
 
   if(ndb_op) {
     // Inform the scheduler that this item must be re-polled
-    item->pipeline->scheduler->reschedule(item);
     item->next_step = (void *) worker_finalize_write;
-    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) item);
+    Scheduler::execute(tx, NdbTransaction::Commit, callback_main, item, RESCHEDULE);
   }
   else {
     /* Error case; operation has not been built */
@@ -993,8 +990,7 @@ void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
   Operation op(wqitem);
   op.deleteTuple(tx);
   wqitem->status = & status_block_item_not_found;
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) wqitem);    
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_close, wqitem, RESCHEDULE);
 }
 
 
@@ -1047,10 +1043,13 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
 
 void worker_finalize_write(NdbTransaction *tx, workitem *wqitem) {
   if(wqitem->prefix_info.do_mc_write) {
-    /* If the write was succesful, update the local cache */
+    /* If the write was successful, update the local cache */
     /* Possible bugs here: 
      (1) store_item will store nbytes as length, which is wrong.
      (2) The CAS may be incorrect.
+     Status as of Feb. 2013: 
+        Memcapable INCR/DECR/APPEND/PREPEND tests fail when
+        local caching is enabled.
     */
     ndb_pipeline * & pipeline = wqitem->pipeline;
     struct default_engine * se;
@@ -1127,8 +1126,9 @@ void build_hash_item(workitem *wqitem, Operation &op, ExpireTime & exp_time) {
     /* store it in the local cache? */
     // fixme: probably nbytes is wrong
     if(wqitem->prefix_info.do_mc_read) {
+      uint64_t *cas = hash_item_get_cas_ptr(item);
       ENGINE_ERROR_CODE status;
-      status = store_item(se, item, wqitem->cas, OPERATION_SET, wqitem->cookie);
+      status = store_item(se, item, cas, OPERATION_SET, wqitem->cookie);
       if(status != ENGINE_SUCCESS)
         wqitem->status = & status_block_memcache_error;
     }

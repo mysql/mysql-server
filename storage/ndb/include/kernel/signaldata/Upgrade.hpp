@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 #ifndef UPGRADE_PROTOCOL_HPP
 #define UPGRADE_PROTOCOL_HPP
 
+#define JAM_FILE_ID 91
+
+
 struct UpgradeProtocolOrd 
 {
   /**
@@ -34,5 +36,8 @@ struct UpgradeProtocolOrd
 
   Uint32 type;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

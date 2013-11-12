@@ -575,15 +575,9 @@ $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 DROP TABLE test.t1;
 create table t1 (a int primary key, b int, c int, index bc (b,c))
 storage disk tablespace ts engine = ndb;
-alter online table t1 drop index bc;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t1 add index b (b);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t1 drop index b;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, drop index bc;
+alter table t1 algorithm=inplace, add index b (b);
+alter table t1 algorithm=inplace, drop index b;
 drop table t1;
 ALTER TABLESPACE ts
 DROP DATAFILE './table_space/datafile.dat'

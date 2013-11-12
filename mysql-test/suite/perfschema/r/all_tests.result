@@ -10,6 +10,7 @@ where table_schema='performance_schema';
 update t2 set test_name= replace(test_name, "events_waits_summary_", "ews_");
 update t2 set test_name= replace(test_name, "events_stages_summary_", "esgs_");
 update t2 set test_name= replace(test_name, "events_statements_summary_", "esms_");
+update t2 set test_name= replace(test_name, "events_transactions_summary_", "ets_");
 update t2 set test_name= replace(test_name, "file_summary_", "fs_");
 update t2 set test_name= replace(test_name, "objects_summary_", "os_");
 update t2 set test_name= replace(test_name, "table_io_waits_summary_", "tiws_");

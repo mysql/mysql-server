@@ -602,7 +602,7 @@ void GRANT_NAME::set_user_details(const char *h, const char *d,
   }
   key_length= strlen(d) + strlen(u)+ strlen(t)+3;
   hash_key=   (char*) alloc_root(&memex,key_length);
-  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
 }
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
@@ -645,7 +645,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   }
   key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
   hash_key=   (char*) alloc_root(&memex, key_length);
-  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
   privs = (ulong) form->field[6]->val_int();
   privs = fix_rights_for_table(privs);
 }
@@ -872,15 +872,16 @@ ulong acl_get(const char *host, const char *ip,
 
   copy_length= (size_t) (strlen(ip ? ip : "") +
                  strlen(user ? user : "") +
-                 strlen(db ? db : ""));
+                 strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid  
+                                               buffer overflow at strmov()*/
   /*
-    Make sure that strmov() operations do not result in buffer overflow.
+    Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
   if (copy_length >= ACL_KEY_LENGTH)
     DBUG_RETURN(0);
 
   mysql_mutex_lock(&acl_cache->lock);
-  end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
+  end=my_stpcpy((tmp_db=my_stpcpy(my_stpcpy(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
     my_casedn_str(files_charset_info, tmp_db);
@@ -1494,6 +1495,19 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                   table->field[MYSQL_USER_FIELD_PLUGIN]);
           if (tmpstr)
           {
+	    /*
+	      Check if the plugin string is blank.
+	      If it is, the user will be skipped.
+	    */
+	    if(strlen(tmpstr) == 0)
+	    {
+	      sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+				"value. The user will be ignored and no one can login "
+				"with this user anymore.",
+				user.user ? user.user : "",
+				user.host.get_host() ? user.host.get_host() : "");
+	      continue;
+	    }
             /*
               By comparing the plugin with the built in plugins it is possible
               to optimize the string allocation and comparision.
@@ -1533,8 +1547,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               user.auth_string.str= const_cast<char*>("");
             user.auth_string.length= strlen(user.auth_string.str);
           }
-          else /* skip auth_string if there's no plugin */
-            next_field++;
+          else /* skip the user if plugin value is NULL */
+	  {
+	    sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+			      "value. The user will be ignored and no one can login "
+			      "with this user anymore.",
+			      user.user ? user.user : "",
+			      user.host.get_host() ? user.host.get_host() : "");
+	    continue;
+	  }
         }
 
         if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
@@ -1573,19 +1594,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
         if (user.access & PROCESS_ACL)
           user.access|= SUPER_ACL | EXECUTE_ACL;
-      }
-      if (!user.plugin.length)
-      {
-        /*
-           Set plugin deduced from password length.
-           We can reach here in two cases:
-           1. mysql.user doesn't have plugin field
-           2. Plugin field is empty
-         */
-        user.plugin= native_password_plugin_name;
-        if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          user.plugin= old_password_plugin_name;
-  
       }
       /*
          Transform hex to octets and adjust the format.
@@ -1694,7 +1702,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void)strmov(tmp_name, db.db);
+      (void)my_stpcpy(tmp_name, db.db);
       my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
@@ -1912,8 +1920,8 @@ GRANT_NAME *name_hash_search(HASH *name_hash,
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
-  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  name_ptr= my_stpcpy(my_stpcpy(helping, user) + 1, db) + 1;
+  len  = (uint) (my_stpcpy(name_ptr, tname) - helping) + 1;
   if (name_tolower)
     my_casedn_str(files_charset_info, name_ptr);
   for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,
@@ -2213,7 +2221,6 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -2299,6 +2306,7 @@ my_bool grant_reload(THD *thd)
   mysql_rwlock_unlock(&LOCK_grant);
 
 end:
+  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 

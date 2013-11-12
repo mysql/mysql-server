@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2007 MySQL AB, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +23,9 @@
 #ifdef TRACE_MALLOC
 #include <stdio.h>
 #endif
+
+#define JAM_FILE_ID 287
+
 
 extern void do_refresh_watch_dog(Uint32 place);
 

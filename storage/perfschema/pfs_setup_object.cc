@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -151,6 +151,8 @@ static void set_setup_object_key(PFS_setup_object_key *key,
 int insert_setup_object(enum_object_type object_type, const String *schema,
                         const String *object, bool enabled, bool timed)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   if (setup_object_max == 0)
     return HA_ERR_RECORD_FILE_FULL;
 
@@ -162,46 +164,43 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint PFS_ALIGNED setup_object_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_object *pfs;
+  pfs_dirty_state dirty_state;
 
   while (++attempts <= setup_object_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& setup_object_monotonic_index, 1) % setup_object_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_object_max;
     pfs= setup_object_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      set_setup_object_key(&pfs->m_key, object_type,
+                           schema->ptr(), schema->length(),
+                           object->ptr(), object->length());
+      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+      pfs->m_schema_name_length= schema->length();
+      pfs->m_object_name= pfs->m_schema_name + pfs->m_schema_name_length + 1;
+      pfs->m_object_name_length= object->length();
+      pfs->m_enabled= enabled;
+      pfs->m_timed= timed;
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&setup_object_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        set_setup_object_key(&pfs->m_key, object_type,
-                             schema->ptr(), schema->length(),
-                             object->ptr(), object->length());
-        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-        pfs->m_schema_name_length= schema->length();
-        pfs->m_object_name= pfs->m_schema_name + pfs->m_schema_name_length + 1;
-        pfs->m_object_name_length= object->length();
-        pfs->m_enabled= enabled;
-        pfs->m_timed= timed;
-
-        int res;
-        res= lf_hash_insert(&setup_object_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          pfs->m_lock.dirty_to_allocated();
-          setup_objects_version++;
-          return 0;
-        }
-
-        pfs->m_lock.dirty_to_free();
-        if (res > 0)
-          return HA_ERR_FOUND_DUPP_KEY;
-        /* OOM in lf_hash_insert */
-        return HA_ERR_OUT_OF_MEM;
+        setup_objects_version++;
+        return 0;
       }
+
+      pfs->m_lock.allocated_to_free();
+      if (res > 0)
+        return HA_ERR_FOUND_DUPP_KEY;
+      /* OOM in lf_hash_insert */
+      return HA_ERR_OUT_OF_MEM;
     }
   }
 

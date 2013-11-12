@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,9 @@
 #include <signaldata/DihRestart.hpp>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 354
+
 extern EventLogger * g_eventLogger;
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
@@ -3055,7 +3058,7 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     jam();
     TakeOverRecordPtr takeOverPtr;
     
-    c_activeTakeOverList.seize(takeOverPtr);
+    c_activeTakeOverList.seizeFirst(takeOverPtr);
     takeOverPtr.p->toStartingNode = req.startingNodeId;
     takeOverPtr.p->m_senderRef = req.senderRef;
     takeOverPtr.p->m_senderData = req.senderData;
@@ -3639,7 +3642,7 @@ void Dbdih::startTakeOver(Signal* signal,
   jam();
 
   TakeOverRecordPtr takeOverPtr;
-  ndbrequire(c_activeTakeOverList.seize(takeOverPtr));
+  ndbrequire(c_activeTakeOverList.seizeFirst(takeOverPtr));
   takeOverPtr.p->startGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->restorableGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->toStartingNode = startNode;
@@ -5556,7 +5559,12 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
   if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) 
   {
     jam();
-    
+    /* Record minimum failure number, will cause re-send of 
+     * GCP_NOMORETRANS if local GCP_NODEFINISH arrives before
+     * TC has handled the failure.
+     */
+    cMinTcFailNo = cfailurenr;
+
     /**
      * Waiting for GSN_GCP_NODEFINISH
      *   TC-take-over can generate new transactions
@@ -5565,20 +5573,30 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
      *   take-over
      */
     c_GCP_COMMIT_Counter.clearWaitingFor(failedNodeId);
+    
+    /* Check to see whether we have already received GCP_NODEFINISH
+     * from the local (Master) TC instance
+     */ 
     if (!c_GCP_COMMIT_Counter.isWaitingFor(getOwnNodeId()))
     {
       jam();
+      /* Already received GCP_NODEFINISH for this GCI, must
+       * resend GCP_NOMORETRANS request now.
+       * Otherwise we will re-send it when GCP_NODEFINISH
+       * arrives.
+       */
       c_GCP_COMMIT_Counter.setWaitingFor(getOwnNodeId());
+      /* Reset DIH GCP state */
       m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+
+      GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+      req->senderRef = reference();
+      req->senderData = m_micro_gcp.m_master_ref;
+      req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
+      req->gci_lo = Uint32(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
+      sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+                 GCPNoMoreTrans::SignalLength, JBB);
     }
-     
-    GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
-    req->senderRef = reference();
-    req->senderData = m_micro_gcp.m_master_ref;
-    req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
-    req->gci_lo = Uint32(m_micro_gcp.m_old_gci);
-    sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
-               GCPNoMoreTrans::SignalLength, JBB);
   }
 
   if (c_GCP_SAVEREQ_Counter.isWaitingFor(failedNodeId)) {
@@ -5811,6 +5829,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
+    signal->theData[3] = cfailurenr;
     execGCP_TCFINISHED(signal);
   }
 
@@ -5909,6 +5928,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
+    signal->theData[3] = cfailurenr;
     execGCP_TCFINISHED(signal);
   }
 
@@ -10011,12 +10031,36 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   jamEntry();
   const Uint32 senderNodeId = signal->theData[0];
   const Uint32 gci_hi = signal->theData[1];
-  const Uint32 failureNr = signal->theData[2];
+  const Uint32 tcFailNo = signal->theData[2];
   const Uint32 gci_lo = signal->theData[3];
   const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
+  /* Check that there has not been a node failure since TC
+   * reported this GCP complete...
+   */
+  if ((senderNodeId == getOwnNodeId()) &&
+      (tcFailNo < cMinTcFailNo))
+  {
+    jam();
+    ndbrequire(c_GCP_COMMIT_Counter.isWaitingFor(getOwnNodeId()));
+    
+    /* We are master, and the local TC will takeover the transactions
+     * of the failed node, which can add to the current GCP, so resend
+     * GCP_NOMORETRANS to TC...
+     */
+    m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT; /* Reset DIH Slave GCP state */
+    
+    GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = m_micro_gcp.m_master_ref;
+    req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
+    req->gci_lo = Uint32(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
+    sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+               GCPNoMoreTrans::SignalLength, JBB);
+
+    return;
+  }
   (void)gci; // TODO validate
-  (void)failureNr; // kill warning
 
   ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
   receiveLoopMacro(GCP_COMMIT, senderNodeId);
@@ -10497,6 +10541,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   Uint32 retRef = conf->senderData;
   Uint32 gci_hi = conf->gci_hi;
   Uint32 gci_lo = conf->gci_lo;
+  Uint32 tcFailNo = conf->tcFailNo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   ndbrequire(gci == m_micro_gcp.m_old_gci);
 
@@ -10534,7 +10579,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
    * wrt to SUB_GCP_COMPLETE_REP
    */
   Callback cb;
-  cb.m_callbackData = 10;
+  cb.m_callbackData = tcFailNo;  /* Pass fail-no triggering TC_FINISHED to callback */
   cb.m_callbackFunction = safe_cast(&Dbdih::execGCP_TCFINISHED_sync_conf);
   Uint32 path[] = { DBLQH, SUMA, 0 };
   synchronize_path(signal, path, cb);
@@ -10551,7 +10596,7 @@ Dbdih::execGCP_TCFINISHED_sync_conf(Signal* signal, Uint32 cb, Uint32 err)
   GCPNodeFinished* conf2 = (GCPNodeFinished*)signal->getDataPtrSend();
   conf2->nodeId = cownNodeId;
   conf2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
-  conf2->failno = cfailurenr;
+  conf2->failno = cb;  /* tcFailNo */
   conf2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
   sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 
              GCPNodeFinished::SignalLength, JBB);
@@ -14249,10 +14294,14 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
      * Check for any "completed" TO
      */
     TakeOverRecordPtr takeOverPtr;
-    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();
-         c_activeTakeOverList.next(takeOverPtr))
+    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();)
     {
       jam();
+
+      // move to next, since takeOverPtr might be release below
+      TakeOverRecordPtr nextPtr = takeOverPtr;
+      c_activeTakeOverList.next(nextPtr);
+
       Ptr<NodeRecord> nodePtr;
       nodePtr.i = takeOverPtr.p->toStartingNode;
       if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_WAIT_LCP)
@@ -14270,10 +14319,12 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
           conf->startingNodeId = nodePtr.i;
           sendSignal(takeOverPtr.p->m_senderRef, GSN_END_TOCONF, signal, 
                      EndToConf::SignalLength, JBB);
-          
+
           releaseTakeOver(takeOverPtr);
         }
       }
+
+      takeOverPtr = nextPtr;
     }
   }
   
@@ -15490,6 +15541,7 @@ void Dbdih::initCommonData()
   c_blockCommit = false;
   c_blockCommitNo = 0;
   cfailurenr = 1;
+  cMinTcFailNo = 0; /* 0 as TC inits to 0 */
   cfirstAliveNode = RNIL;
   cfirstDeadNode = RNIL;
   cgckptflag = false;
@@ -18250,6 +18302,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     ndbout_c("LCP Tab def write ops inUse %u queued %u",
              c_lcpTabDefWritesControl.inUse,
              c_lcpTabDefWritesControl.queuedRequests);
+
+    if (getNodeState().startLevel < NodeState::SL_STARTING)
+      return ;
+
     Uint32 freeCount = 0;
     PageRecordPtr tmp;
     tmp.i = cfirstfreepage;
@@ -18426,6 +18482,15 @@ void
 Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
   
   if (tabPtr.p->tabLcpStatus == TabRecord::TLS_WRITING_TO_FILE)
+  {
+    jam();
+    signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
+    signal->theData[1] = tabPtr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+    return;
+  }
+
+  if (tabPtr.p->tabUpdateState != TabRecord::US_IDLE)
   {
     jam();
     signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
@@ -18966,7 +19031,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       list = &c_waitEpochMasterList;
     }
 
-    if(list->seize(ptr) == false)
+    if (list->seizeFirst(ptr) == false)
     {
       jam();
       errorCode = WaitGCPRef::NoWaitGCPRecords;
@@ -18992,7 +19057,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
      */
     jam();
     WaitGCPProxyPtr ptr;
-    if (c_waitGCPProxyList.seize(ptr) == false)
+    if (c_waitGCPProxyList.seizeFirst(ptr) == false)
     {
       jam();
       errorCode = WaitGCPRef::NoWaitGCPRecords;

@@ -76,7 +76,7 @@
 #define CPCD_END() \
  { 0, \
    0, \
-   ParserRow<CPCDAPISession>::Arg, \
+   ParserRow<CPCDAPISession>::End, \
    ParserRow<CPCDAPISession>::Int, \
    ParserRow<CPCDAPISession>::Optional, \
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
@@ -150,7 +150,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
 {
   m_input = new SocketInputStream(sock, 7*24*60*60000);
   m_output = new SocketOutputStream(sock);
-  m_parser = new Parser<CPCDAPISession>(commands, *m_input, true, true, true);
+  m_parser = new Parser<CPCDAPISession>(commands, *m_input);
 }
 
 CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
@@ -158,7 +158,7 @@ CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
   , m_cpcd(cpcd)
 {
   m_input = new FileInputStream(f);
-  m_parser = new Parser<CPCDAPISession>(commands, *m_input, true, true, true);
+  m_parser = new Parser<CPCDAPISession>(commands, *m_input);
   m_output = 0;
 }
   

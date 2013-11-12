@@ -70,7 +70,7 @@ int main(int argc, char **argv)
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");
-  strmov((char*) record,"          ..... key           ");
+  my_stpcpy((char*) record,"          ..... key           ");
 
   for (i=49 ; i>=1 ; i-=2 )
   {

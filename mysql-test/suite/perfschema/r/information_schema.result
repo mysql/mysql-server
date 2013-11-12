@@ -22,6 +22,14 @@ performance_schema	events_statements_summary_by_program	def
 performance_schema	events_statements_summary_by_thread_by_event_name	def
 performance_schema	events_statements_summary_by_user_by_event_name	def
 performance_schema	events_statements_summary_global_by_event_name	def
+performance_schema	events_transactions_current	def
+performance_schema	events_transactions_history	def
+performance_schema	events_transactions_history_long	def
+performance_schema	events_transactions_summary_by_account_by_event_name	def
+performance_schema	events_transactions_summary_by_host_by_event_name	def
+performance_schema	events_transactions_summary_by_thread_by_event_name	def
+performance_schema	events_transactions_summary_by_user_by_event_name	def
+performance_schema	events_transactions_summary_global_by_event_name	def
 performance_schema	events_waits_current	def
 performance_schema	events_waits_history	def
 performance_schema	events_waits_history_long	def
@@ -41,6 +49,7 @@ performance_schema	memory_summary_by_host_by_event_name	def
 performance_schema	memory_summary_by_thread_by_event_name	def
 performance_schema	memory_summary_by_user_by_event_name	def
 performance_schema	memory_summary_global_by_event_name	def
+performance_schema	metadata_locks	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
@@ -61,6 +70,7 @@ performance_schema	setup_timers	def
 performance_schema	socket_instances	def
 performance_schema	socket_summary_by_event_name	def
 performance_schema	socket_summary_by_instance	def
+performance_schema	table_handles	def
 performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
@@ -90,6 +100,14 @@ events_statements_summary_by_program	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_current	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_history	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_history_long	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_transactions_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_history_long	BASE TABLE	PERFORMANCE_SCHEMA
@@ -109,6 +127,7 @@ memory_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+metadata_locks	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
@@ -129,6 +148,7 @@ setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
 socket_instances	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
+table_handles	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
@@ -158,6 +178,14 @@ events_statements_summary_by_program	10	Dynamic
 events_statements_summary_by_thread_by_event_name	10	Dynamic
 events_statements_summary_by_user_by_event_name	10	Dynamic
 events_statements_summary_global_by_event_name	10	Dynamic
+events_transactions_current	10	Dynamic
+events_transactions_history	10	Dynamic
+events_transactions_history_long	10	Dynamic
+events_transactions_summary_by_account_by_event_name	10	Dynamic
+events_transactions_summary_by_host_by_event_name	10	Dynamic
+events_transactions_summary_by_thread_by_event_name	10	Dynamic
+events_transactions_summary_by_user_by_event_name	10	Dynamic
+events_transactions_summary_global_by_event_name	10	Dynamic
 events_waits_current	10	Dynamic
 events_waits_history	10	Dynamic
 events_waits_history_long	10	Dynamic
@@ -177,6 +205,7 @@ memory_summary_by_host_by_event_name	10	Dynamic
 memory_summary_by_thread_by_event_name	10	Dynamic
 memory_summary_by_user_by_event_name	10	Dynamic
 memory_summary_global_by_event_name	10	Dynamic
+metadata_locks	10	Dynamic
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
@@ -197,6 +226,7 @@ setup_timers	10	Dynamic
 socket_instances	10	Dynamic
 socket_summary_by_event_name	10	Dynamic
 socket_summary_by_instance	10	Dynamic
+table_handles	10	Dynamic
 table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
@@ -226,6 +256,14 @@ events_statements_summary_by_program	1000	0
 events_statements_summary_by_thread_by_event_name	1000	0
 events_statements_summary_by_user_by_event_name	1000	0
 events_statements_summary_global_by_event_name	1000	0
+events_transactions_current	1000	0
+events_transactions_history	1000	0
+events_transactions_history_long	10000	0
+events_transactions_summary_by_account_by_event_name	1000	0
+events_transactions_summary_by_host_by_event_name	1000	0
+events_transactions_summary_by_thread_by_event_name	1000	0
+events_transactions_summary_by_user_by_event_name	1000	0
+events_transactions_summary_global_by_event_name	1000	0
 events_waits_current	1000	0
 events_waits_history	1000	0
 events_waits_history_long	10000	0
@@ -245,6 +283,7 @@ memory_summary_by_host_by_event_name	1000	0
 memory_summary_by_thread_by_event_name	1000	0
 memory_summary_by_user_by_event_name	1000	0
 memory_summary_global_by_event_name	1000	0
+metadata_locks	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
@@ -258,13 +297,14 @@ rwlock_instances	1000	0
 session_account_connect_attrs	1000	0
 session_connect_attrs	1000	0
 setup_actors	1	0
-setup_consumers	12	0
+setup_consumers	15	0
 setup_instruments	1000	0
 setup_objects	20	0
-setup_timers	4	0
+setup_timers	5	0
 socket_instances	1000	0
 socket_summary_by_event_name	1000	0
 socket_summary_by_instance	1000	0
+table_handles	1000	0
 table_io_waits_summary_by_index_usage	1000	0
 table_io_waits_summary_by_table	1000	0
 table_lock_waits_summary_by_table	1000	0
@@ -294,6 +334,14 @@ events_statements_summary_by_program	0	0
 events_statements_summary_by_thread_by_event_name	0	0
 events_statements_summary_by_user_by_event_name	0	0
 events_statements_summary_global_by_event_name	0	0
+events_transactions_current	0	0
+events_transactions_history	0	0
+events_transactions_history_long	0	0
+events_transactions_summary_by_account_by_event_name	0	0
+events_transactions_summary_by_host_by_event_name	0	0
+events_transactions_summary_by_thread_by_event_name	0	0
+events_transactions_summary_by_user_by_event_name	0	0
+events_transactions_summary_global_by_event_name	0	0
 events_waits_current	0	0
 events_waits_history	0	0
 events_waits_history_long	0	0
@@ -313,6 +361,7 @@ memory_summary_by_host_by_event_name	0	0
 memory_summary_by_thread_by_event_name	0	0
 memory_summary_by_user_by_event_name	0	0
 memory_summary_global_by_event_name	0	0
+metadata_locks	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
@@ -333,6 +382,7 @@ setup_timers	0	0
 socket_instances	0	0
 socket_summary_by_event_name	0	0
 socket_summary_by_instance	0	0
+table_handles	0	0
 table_io_waits_summary_by_index_usage	0	0
 table_io_waits_summary_by_table	0	0
 table_lock_waits_summary_by_table	0	0
@@ -362,6 +412,14 @@ events_statements_summary_by_program	0	0	NULL
 events_statements_summary_by_thread_by_event_name	0	0	NULL
 events_statements_summary_by_user_by_event_name	0	0	NULL
 events_statements_summary_global_by_event_name	0	0	NULL
+events_transactions_current	0	0	NULL
+events_transactions_history	0	0	NULL
+events_transactions_history_long	0	0	NULL
+events_transactions_summary_by_account_by_event_name	0	0	NULL
+events_transactions_summary_by_host_by_event_name	0	0	NULL
+events_transactions_summary_by_thread_by_event_name	0	0	NULL
+events_transactions_summary_by_user_by_event_name	0	0	NULL
+events_transactions_summary_global_by_event_name	0	0	NULL
 events_waits_current	0	0	NULL
 events_waits_history	0	0	NULL
 events_waits_history_long	0	0	NULL
@@ -381,6 +439,7 @@ memory_summary_by_host_by_event_name	0	0	NULL
 memory_summary_by_thread_by_event_name	0	0	NULL
 memory_summary_by_user_by_event_name	0	0	NULL
 memory_summary_global_by_event_name	0	0	NULL
+metadata_locks	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
@@ -401,6 +460,7 @@ setup_timers	0	0	NULL
 socket_instances	0	0	NULL
 socket_summary_by_event_name	0	0	NULL
 socket_summary_by_instance	0	0	NULL
+table_handles	0	0	NULL
 table_io_waits_summary_by_index_usage	0	0	NULL
 table_io_waits_summary_by_table	0	0	NULL
 table_lock_waits_summary_by_table	0	0	NULL
@@ -430,6 +490,14 @@ events_statements_summary_by_program	NULL	NULL	NULL
 events_statements_summary_by_thread_by_event_name	NULL	NULL	NULL
 events_statements_summary_by_user_by_event_name	NULL	NULL	NULL
 events_statements_summary_global_by_event_name	NULL	NULL	NULL
+events_transactions_current	NULL	NULL	NULL
+events_transactions_history	NULL	NULL	NULL
+events_transactions_history_long	NULL	NULL	NULL
+events_transactions_summary_by_account_by_event_name	NULL	NULL	NULL
+events_transactions_summary_by_host_by_event_name	NULL	NULL	NULL
+events_transactions_summary_by_thread_by_event_name	NULL	NULL	NULL
+events_transactions_summary_by_user_by_event_name	NULL	NULL	NULL
+events_transactions_summary_global_by_event_name	NULL	NULL	NULL
 events_waits_current	NULL	NULL	NULL
 events_waits_history	NULL	NULL	NULL
 events_waits_history_long	NULL	NULL	NULL
@@ -449,6 +517,7 @@ memory_summary_by_host_by_event_name	NULL	NULL	NULL
 memory_summary_by_thread_by_event_name	NULL	NULL	NULL
 memory_summary_by_user_by_event_name	NULL	NULL	NULL
 memory_summary_global_by_event_name	NULL	NULL	NULL
+metadata_locks	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
@@ -469,6 +538,7 @@ setup_timers	NULL	NULL	NULL
 socket_instances	NULL	NULL	NULL
 socket_summary_by_event_name	NULL	NULL	NULL
 socket_summary_by_instance	NULL	NULL	NULL
+table_handles	NULL	NULL	NULL
 table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
@@ -498,6 +568,14 @@ events_statements_summary_by_program	utf8_general_ci	NULL
 events_statements_summary_by_thread_by_event_name	utf8_general_ci	NULL
 events_statements_summary_by_user_by_event_name	utf8_general_ci	NULL
 events_statements_summary_global_by_event_name	utf8_general_ci	NULL
+events_transactions_current	utf8_general_ci	NULL
+events_transactions_history	utf8_general_ci	NULL
+events_transactions_history_long	utf8_general_ci	NULL
+events_transactions_summary_by_account_by_event_name	utf8_general_ci	NULL
+events_transactions_summary_by_host_by_event_name	utf8_general_ci	NULL
+events_transactions_summary_by_thread_by_event_name	utf8_general_ci	NULL
+events_transactions_summary_by_user_by_event_name	utf8_general_ci	NULL
+events_transactions_summary_global_by_event_name	utf8_general_ci	NULL
 events_waits_current	utf8_general_ci	NULL
 events_waits_history	utf8_general_ci	NULL
 events_waits_history_long	utf8_general_ci	NULL
@@ -517,6 +595,7 @@ memory_summary_by_host_by_event_name	utf8_general_ci	NULL
 memory_summary_by_thread_by_event_name	utf8_general_ci	NULL
 memory_summary_by_user_by_event_name	utf8_general_ci	NULL
 memory_summary_global_by_event_name	utf8_general_ci	NULL
+metadata_locks	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
@@ -537,6 +616,7 @@ setup_timers	utf8_general_ci	NULL
 socket_instances	utf8_general_ci	NULL
 socket_summary_by_event_name	utf8_general_ci	NULL
 socket_summary_by_instance	utf8_general_ci	NULL
+table_handles	utf8_general_ci	NULL
 table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
 table_io_waits_summary_by_table	utf8_general_ci	NULL
 table_lock_waits_summary_by_table	utf8_general_ci	NULL
@@ -566,6 +646,14 @@ events_statements_summary_by_program
 events_statements_summary_by_thread_by_event_name	
 events_statements_summary_by_user_by_event_name	
 events_statements_summary_global_by_event_name	
+events_transactions_current	
+events_transactions_history	
+events_transactions_history_long	
+events_transactions_summary_by_account_by_event_name	
+events_transactions_summary_by_host_by_event_name	
+events_transactions_summary_by_thread_by_event_name	
+events_transactions_summary_by_user_by_event_name	
+events_transactions_summary_global_by_event_name	
 events_waits_current	
 events_waits_history	
 events_waits_history_long	
@@ -585,6 +673,7 @@ memory_summary_by_host_by_event_name
 memory_summary_by_thread_by_event_name	
 memory_summary_by_user_by_event_name	
 memory_summary_global_by_event_name	
+metadata_locks	
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
@@ -605,6 +694,7 @@ setup_timers
 socket_instances	
 socket_summary_by_event_name	
 socket_summary_by_instance	
+table_handles	
 table_io_waits_summary_by_index_usage	
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	

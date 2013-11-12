@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1107,8 +1107,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     ConfigInfo::CI_INT,
     "100",
-    "0",
+    "1",
     "100000" },
+
+  {
+    CFG_DB_MAX_BUFFERED_EPOCH_BYTES,
+    "MaxBufferedEpochBytes",
+    DB_TOKEN,
+    "Total number of bytes allocated for buffering epochs.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "26214400",
+    "26214400",
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_REDOLOG_PARTS,
@@ -1755,11 +1767,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "8"
 #else
     /**
-     * NOTE: The actual maximum number of threads is 50...
+     * NOTE: The actual maximum number of threads is 98...
      *   but that config is so weird so it's only possible to get
      *   by using ThreadConfig
      */
-    "36"
+    "72"
 #endif
   },
 
@@ -2187,6 +2199,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "100"
   },
 
+  {
+    CFG_DEFAULT_HASHMAP_SIZE,
+    "DefaultHashmapSize",
+    DB_TOKEN,
+    "Hashmap size to use for new tables.  Normally this should be left unset, "
+    "but can be set to aid downgrade to older versions not supporting as big "
+    "hashmaps as current version or to use special hashmap size to gain "
+    "better balance for some number of nodes and ldm-threads.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2346,6 +2374,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    API_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
+
+  {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
     "TotalSendBufferMemory",
     "API",
@@ -2398,6 +2439,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 #endif
     (const char*)default_operation_redo_problem_action_typelib,
     0
+  },
+
+  {
+    CFG_DEFAULT_HASHMAP_SIZE,
+    "DefaultHashmapSize",
+    API_TOKEN,
+    "Hashmap size to use for new tables.  Normally this should be left unset, "
+    "but can be set to aid downgrade to older versions not supporting as big "
+    "hashmaps as current version or to use special hashmap size to gain "
+    "better balance for some number of nodes and ldm-threads.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
   /****************************************************************************
@@ -2566,6 +2623,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    MGM_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
 
   {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
@@ -2774,8 +2844,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "71540",
-    "1", 
+    "0",
+    "0", 
     "2G"
   },
 
@@ -2787,8 +2857,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "70080",
-    "1", 
+    "0",
+    "0", 
     "2G" 
   },
   
@@ -4881,7 +4951,7 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
 #include "../kernel/vm/mt_thr_config.hpp"
 
 static bool
-check_2n_number_less_16(Uint32 num)
+check_2n_number_less_32(Uint32 num)
 {
   switch (num)
   {
@@ -4889,9 +4959,12 @@ check_2n_number_less_16(Uint32 num)
     case 1:
     case 2:
     case 4:
+    case 6:
     case 8:
     case 12:
     case 16:
+    case 24:
+    case 32:
       return true;
     default:
       return false;
@@ -4922,15 +4995,15 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
   ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
 
-  if (!check_2n_number_less_16(lqhThreads))
+  if (!check_2n_number_less_32(lqhThreads))
   {
-    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8,12 or 16");
+    ctx.reportError("NumLqhThreads must be 0,1,2,4,6,8,12,16,24 or 32");
     return false;
   }
-  if (!check_2n_number_less_16(ndbLogParts) ||
+  if (!check_2n_number_less_32(ndbLogParts) ||
       ndbLogParts < 4)
   {
-    ctx.reportError("NoOfLogParts must be 4,8,12 or 16");
+    ctx.reportError("NoOfLogParts must be 4,6,8,12,16,24 or 32");
     return false;
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))

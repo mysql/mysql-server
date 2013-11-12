@@ -74,3 +74,9 @@ void ndbmc_debug_enter(const char *func) {
     fprintf(debug_outfile, "main --> %s()\n", func);
 }
 
+
+void ndbmc_debug_flush() {
+  fflush(debug_outfile);
+}
+
+

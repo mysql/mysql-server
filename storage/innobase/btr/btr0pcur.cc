@@ -44,7 +44,7 @@ btr_pcur_create_for_mysql(void)
 	btr_pcur_t*	pcur;
 	DBUG_ENTER("btr_pcur_create_for_mysql");
 
-	pcur = (btr_pcur_t*) mem_alloc(sizeof(btr_pcur_t));
+	pcur = (btr_pcur_t*) ut_malloc(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
@@ -62,13 +62,8 @@ btr_pcur_reset(
 /*===========*/
 	btr_pcur_t*	cursor)	/*!< in, out: persistent cursor */
 {
-	if (cursor->old_rec_buf != NULL) {
-
-		mem_free(cursor->old_rec_buf);
-
-		cursor->old_rec_buf = NULL;
-	}
-
+	ut_free(cursor->old_rec_buf);
+	cursor->old_rec_buf = NULL;
 	cursor->btr_cur.index = NULL;
 	cursor->btr_cur.page_cur.rec = NULL;
 	cursor->old_rec = NULL;
@@ -91,7 +86,7 @@ btr_pcur_free_for_mysql(
 	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
 
 	btr_pcur_reset(cursor);
-	mem_free(cursor);
+	ut_free(cursor);
 	DBUG_VOID_RETURN;
 }
 
@@ -116,7 +111,7 @@ btr_pcur_store_position(
 	page_t*		page;
 	ulint		offs;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	block = btr_pcur_get_block(cursor);
@@ -130,7 +125,6 @@ btr_pcur_store_position(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (page_is_empty(page)) {
 		/* It must be an empty index tree; NOTE that in this case
@@ -189,16 +183,13 @@ btr_pcur_copy_stored_position(
 	btr_pcur_t*	pcur_donate)	/*!< in: pcur from which the info is
 					copied */
 {
-	if (pcur_receive->old_rec_buf) {
-		mem_free(pcur_receive->old_rec_buf);
-	}
-
+	ut_free(pcur_receive->old_rec_buf);
 	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 
 		pcur_receive->old_rec_buf = (byte*)
-			mem_alloc(pcur_donate->buf_size);
+			ut_malloc(pcur_donate->buf_size);
 
 		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 			  pcur_donate->buf_size);
@@ -240,22 +231,12 @@ btr_pcur_restore_position_func(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
+	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
+	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
+	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
-
-	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
-	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
-			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
-		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
-		putc('\n', stderr);
-		if (cursor->trx_if_known) {
-			trx_print(stderr, cursor->trx_if_known, 0);
-		}
-
-		ut_error;
-	}
 
 	if (UNIV_UNLIKELY
 	    (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
@@ -282,14 +263,14 @@ btr_pcur_restore_position_func(
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
-		/* Try optimistic restoration */
+		/* Try optimistic restoration. */
 
-		if (UNIV_LIKELY(buf_page_optimistic_get(
-					latch_mode,
-					cursor->block_when_stored,
-					cursor->modify_clock,
-					file, line, mtr))) {
+		if (buf_page_optimistic_get(latch_mode,
+					    cursor->block_when_stored,
+					    cursor->modify_clock,
+					    file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+			cursor->latch_mode = latch_mode;
 
 			buf_block_dbg_add_level(
 				btr_pcur_get_block(cursor),
@@ -301,9 +282,6 @@ btr_pcur_restore_position_func(
 				const rec_t*	rec;
 				const ulint*	offsets1;
 				const ulint*	offsets2;
-#endif /* UNIV_DEBUG */
-				cursor->latch_mode = latch_mode;
-#ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
 
 				heap = mem_heap_create(256);
@@ -321,7 +299,13 @@ btr_pcur_restore_position_func(
 #endif /* UNIV_DEBUG */
 				return(TRUE);
 			}
-
+			/* This is the same record as stored,
+			may need to be adjusted for BTR_PCUR_BEFORE/AFTER,
+			depending on search mode and direction. */
+			if (btr_pcur_is_on_user_rec(cursor)) {
+				cursor->pos_state
+					= BTR_PCUR_IS_POSITIONED_OPTIMISTIC;
+			}
 			return(FALSE);
 		}
 	}
@@ -424,7 +408,7 @@ btr_pcur_move_to_next_page(
 	page_t*		next_page;
 	ulint		mode;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_after_last_on_page(cursor));
 
@@ -486,7 +470,6 @@ btr_pcur_move_backward_from_page(
 	ulint		latch_mode;
 	ulint		latch_mode2;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_before_first_on_page(cursor));
 	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));

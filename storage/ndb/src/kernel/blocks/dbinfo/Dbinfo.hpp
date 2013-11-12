@@ -1,5 +1,5 @@
-/* Copyright 2008-2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+/* 
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #define DBINFO_H
 
 #include <SimulatedBlock.hpp>
+
+#define JAM_FILE_ID 454
+
 
 class Dbinfo : public SimulatedBlock
 {
@@ -40,5 +43,8 @@ protected:
   void execINCL_NODEREQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

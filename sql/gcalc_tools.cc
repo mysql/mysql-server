@@ -96,9 +96,9 @@ int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
   Specify how many arguments we're going to have.
 */
 
-int Gcalc_function::reserve_shape_buffer(uint n_shapes)
+int Gcalc_function::reserve_shape_buffer(uint n_shapes_arg)
 {
-  return shapes_buffer.reserve(n_shapes * shape_buffer_item_size, 512);
+  return shapes_buffer.reserve(n_shapes_arg * shape_buffer_item_size, 512);
 }
 
 

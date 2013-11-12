@@ -260,7 +260,7 @@ String *Item_func_centroid::val_str(String *str)
   srid= uint4korr(swkb->ptr());
   str->q_append(srid);
 
-  return (null_value= test(geom->centroid(str))) ? 0 : str;
+  return (null_value= MY_TEST(geom->centroid(str))) ? 0 : str;
 }
 
 
@@ -1024,7 +1024,7 @@ Item_func_spatial_operation::~Item_func_spatial_operation()
 }
 
 
-String *Item_func_spatial_operation::val_str(String *str_value)
+String *Item_func_spatial_operation::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_spatial_operation::val_str");
   DBUG_ASSERT(fixed == 1);
@@ -1061,13 +1061,13 @@ String *Item_func_spatial_operation::val_str(String *str_value)
     goto exit;
 
 
-  str_value->set_charset(&my_charset_bin);
-  if (str_value->reserve(SRID_SIZE, 512))
+  str_value_arg->set_charset(&my_charset_bin);
+  if (str_value_arg->reserve(SRID_SIZE, 512))
     goto exit;
-  str_value->length(0);
-  str_value->q_append(srid);
+  str_value_arg->length(0);
+  str_value_arg->q_append(srid);
 
-  if (!Geometry::create_from_opresult(&buffer1, str_value, res_receiver))
+  if (!Geometry::create_from_opresult(&buffer1, str_value_arg, res_receiver))
     goto exit;
 
   null_value= false;
@@ -1076,7 +1076,7 @@ exit:
   collector.reset();
   func.reset();
   res_receiver.reset();
-  DBUG_RETURN(null_value ? 0 : str_value);
+  DBUG_RETURN(null_value ? NULL : str_value_arg);
 }
 
 
@@ -1493,7 +1493,7 @@ int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
 }
 
 
-String *Item_func_buffer::val_str(String *str_value)
+String *Item_func_buffer::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_buffer::val_str");
   DBUG_ASSERT(fixed == 1);
@@ -1538,7 +1538,7 @@ String *Item_func_buffer::val_str(String *str_value)
       if the original geometry consisted of only points and lines
       and did not have any polygons.
     */
-    str_value->length(0);
+    str_value_arg->length(0);
     goto mem_error;
   }
 
@@ -1551,17 +1551,17 @@ String *Item_func_buffer::val_str(String *str_value)
       operation.get_result(&res_receiver))
     goto mem_error;
 
-  str_value->set_charset(&my_charset_bin);
-  if (str_value->reserve(SRID_SIZE, 512))
+  str_value_arg->set_charset(&my_charset_bin);
+  if (str_value_arg->reserve(SRID_SIZE, 512))
     goto mem_error;
-  str_value->length(0);
-  str_value->q_append(srid);
+  str_value_arg->length(0);
+  str_value_arg->q_append(srid);
 
-  if (!Geometry::create_from_opresult(&buffer, str_value, res_receiver))
+  if (!Geometry::create_from_opresult(&buffer, str_value_arg, res_receiver))
     goto mem_error;
 
   null_value= 0;
-  str_result= str_value;
+  str_result= str_value_arg;
 mem_error:
   collector.reset();
   func.reset();

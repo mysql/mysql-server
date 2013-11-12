@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,11 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 
+#include <ndb_version.h>
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 467
+
 extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
@@ -182,6 +186,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_dataBufferPool.setSize(noAttrs + noOfBoundWords);
 
   c_maxBufferedEpochs = maxBufferedEpochs;
+  infoEvent("Buffering maximum epochs %u", c_maxBufferedEpochs);
 
   // Calculate needed gcp pool as 10 records + the ones needed
   // during a possible api timeout
@@ -197,16 +202,25 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     gcpInterval = microGcpInterval;
   }
-  c_gcp_pool.setSize(10 + (4*dbApiHbInterval+gcpInterval-1)/gcpInterval);
-  
-  c_page_chunk_pool.setSize(50);
+  Uint32 poolSize= MAX(c_maxBufferedEpochs,
+		       10 + (4*dbApiHbInterval+gcpInterval-1)/gcpInterval);
+  c_gcp_pool.setSize(poolSize);
 
+  Uint32 maxBufferedEpochBytes, numPages, numPageChunks;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_EPOCH_BYTES,
+			    &maxBufferedEpochBytes);
+  numPages = (maxBufferedEpochBytes + Page_chunk::CHUNK_PAGE_SIZE - 1)
+             / Page_chunk::CHUNK_PAGE_SIZE;
+  numPageChunks = (numPages + Page_chunk::PAGES_PER_CHUNK - 1)
+                  / Page_chunk::PAGES_PER_CHUNK;
+  c_page_chunk_pool.setSize(numPageChunks);
+  
   {
     SLList<SyncRecord> tmp(c_syncPool);
     Ptr<SyncRecord> ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) SyncRecord(* this, c_dataBufferPool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
 
   // Suma
@@ -354,8 +368,6 @@ Suma::execSTTOR(Signal* signal) {
   
   DBUG_VOID_RETURN;
 }
-
-#include <ndb_version.h>
 
 void
 Suma::send_dict_lock_req(Signal* signal, Uint32 state)
@@ -1113,7 +1125,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 
   LocalDLFifoList<SubOpRecord> list(c_subOpPool, iter.curr.p->m_stop_req);
   bool empty = list.isEmpty();
-  list.add(subOpPtr);
+  list.addLast(subOpPtr);
 
   if (empty)
   {
@@ -1772,6 +1784,30 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     return;
   }
 
+  if (tCase == 8013)
+  {
+    jam();
+    Ptr<Gcp_record> gcp;
+    infoEvent("-- Starting dump of pending subscribers --");
+    infoEvent("Highest epoch %llu, oldest epoch %llu", m_max_seen_gci, m_last_complete_gci); 
+    if (!c_gcp_list.isEmpty())
+    {
+      jam();
+      c_gcp_list.first(gcp);
+      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.count());
+      NodeBitmask subs = gcp.p->m_subscribers;
+      for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
+      {
+	if (subs.get(nodeId))
+        {
+	  jam();
+	  infoEvent("Waiting for subscribing node %u", nodeId);
+	}
+      }
+    }
+    infoEvent("-- End dump of pending subscribers --");
+  }
+
   if (tCase == 7019 && signal->getLength() == 2)
   {
     jam();
@@ -2137,7 +2173,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   Ptr<SubOpRecord> subOpPtr;
   LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_create_req);
   if ((ERROR_INSERTED(13044) && found == false) ||
-      subOpList.seize(subOpPtr) == false)
+      subOpList.seizeLast(subOpPtr) == false)
   {
     jam();
     if (found == false)
@@ -2207,7 +2243,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     c_subscriptions.add(subPtr);
     LocalDLList<Subscription> list(c_subscriptionPool,
                                    tabPtr.p->m_subscriptions);
-    list.add(subPtr);
+    list.addFirst(subPtr);
     subPtr.p->m_table_ptrI = tabPtr.i;
   }
 
@@ -2327,7 +2363,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
 
   Ptr<SyncRecord> syncPtr;
   LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
-  if(!list.seize(syncPtr))
+  if (!list.seizeFirst(syncPtr))
   {
     jam();
     releaseSections(handle);
@@ -3218,7 +3254,7 @@ Suma::execSUB_START_REQ(Signal* signal){
 
   {
     LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_start_req);
-    subOpList.add(subOpPtr);
+    subOpList.addLast(subOpPtr);
   }
 
   /**
@@ -3462,7 +3498,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         send_sub_start_stop_event(signal, ptr,NdbDictionary::Event::_TE_ACTIVE,
                                   report, list);
         
-        list.add(ptr);
+        list.addFirst(ptr);
         c_subscriber_nodes.set(refToNode(ptr.p->m_senderRef));
         c_subscriber_per_node[refToNode(ptr.p->m_senderRef)]++;
       }
@@ -3757,7 +3793,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   Ptr<SubOpRecord> subOpPtr;
   LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
   bool empty = list.isEmpty();
-  if (list.seize(subOpPtr) == false)
+  if (list.seizeLast(subOpPtr) == false)
   {
     jam();
     sendSubStopRef(signal,
@@ -4580,8 +4616,13 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
   }
   NodeBitmask subs = gcp.p->m_subscribers;
   jam();
+  if (!subs.isclear())
+  {
+   char buf[100];
+   subs.getText(buf);
+   infoEvent("Disconnecting lagging nodes '%s', epoch %llu", buf, gcp.p->m_gci);
+  }
   // Disconnect lagging subscribers waiting for oldest epoch
-  ndbout_c("Found lagging epoch %llu", gcp.p->m_gci);
   for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
   {
     if (subs.get(nodeId))
@@ -4894,7 +4935,7 @@ found:
 	       SubGcpCompleteRep::SignalLength, JBB);
     
     Ptr<Gcp_record> gcp;
-    if(c_gcp_list.seize(gcp))
+    if (c_gcp_list.seizeLast(gcp))
     {
       gcp.p->m_gci = gci;
       gcp.p->m_subscribers = c_subscriber_nodes;
@@ -5548,7 +5589,7 @@ Suma::copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator it)
 
     LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
     bool empty = list.isEmpty();
-    list.add(subOpPtr);
+    list.addLast(subOpPtr);
 
     if (!empty)
     {
@@ -6132,13 +6173,27 @@ loop:
 void
 Suma::out_of_buffer(Signal* signal)
 {
+  Ptr<Gcp_record> gcp;
   if(m_out_of_buffer_gci)
   {
     return;
   }
   
   m_out_of_buffer_gci = m_last_complete_gci - 1;
-  infoEvent("Out of event buffer: nodefailure will cause event failures");
+  infoEvent("Out of event buffer: nodefailure will cause event failures, consider increasing MaxBufferedEpochBytes");
+  if (!c_gcp_list.isEmpty())
+  {
+    jam();
+    c_gcp_list.first(gcp);
+    infoEvent("Highest epoch %llu, oldest epoch %llu", m_max_seen_gci, m_last_complete_gci);
+    NodeBitmask subs = gcp.p->m_subscribers;
+    if (!subs.isclear())
+    {
+      char buf[100];
+      subs.getText(buf);
+      infoEvent("Pending nodes '%s', epoch %llu", buf, gcp.p->m_gci);
+    }
+  }
   m_missing_data = false;
   out_of_buffer_release(signal, 0);
 }
@@ -6214,7 +6269,7 @@ loop:
   if(!c_page_chunk_pool.seize(ptr))
     return RNIL;
 
-  Uint32 count = 16;
+  Uint32 count = Page_chunk::PAGES_PER_CHUNK;
   m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &ref, &count, 1);
   if (count == 0)
     return RNIL;

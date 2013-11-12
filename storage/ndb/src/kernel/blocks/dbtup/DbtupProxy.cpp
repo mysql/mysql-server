@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include <signaldata/LgmanContinueB.hpp>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 413
+
 extern EventLogger * g_eventLogger;
 
 DbtupProxy::DbtupProxy(Block_context& ctx) :
@@ -472,7 +475,8 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  return dbtup->disk_restart_alloc_extent(tableId, fragId, key, pages);
+  return dbtup->disk_restart_alloc_extent(jamBuffer(), tableId, fragId, key, 
+                                          pages);
 }
 
 void
@@ -487,7 +491,7 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  dbtup->disk_restart_page_bits(tableId, fragId, key, bits);
+  dbtup->disk_restart_page_bits(jamBuffer(), tableId, fragId, key, bits);
 }
 
 BLOCK_FUNCTIONS(DbtupProxy)

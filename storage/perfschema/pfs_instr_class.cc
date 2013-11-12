@@ -69,12 +69,12 @@ static void init_instr_class(PFS_instr_class *klass,
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 mutex_class_dirty_count= 0;
-static volatile uint32 mutex_class_allocated_count= 0;
-static volatile uint32 rwlock_class_dirty_count= 0;
-static volatile uint32 rwlock_class_allocated_count= 0;
-static volatile uint32 cond_class_dirty_count= 0;
-static volatile uint32 cond_class_allocated_count= 0;
+static uint32 mutex_class_dirty_count= 0;
+static uint32 mutex_class_allocated_count= 0;
+static uint32 rwlock_class_dirty_count= 0;
+static uint32 rwlock_class_allocated_count= 0;
+static uint32 cond_class_dirty_count= 0;
+static uint32 cond_class_allocated_count= 0;
 
 /** Size of the mutex class array. @sa mutex_class_array */
 ulong mutex_class_max= 0;
@@ -117,6 +117,13 @@ ulong memory_class_max= 0;
 /** Number of memory class lost. @sa memory_class_array */
 ulong memory_class_lost= 0;
 
+/**
+  Number of transaction classes. Although there is only one transaction class,
+  this is used for sizing by other event classes.
+  @sa global_transaction_class
+*/
+ulong transaction_class_max= 0;
+
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
 PFS_cond_class *cond_class_array= NULL;
@@ -127,8 +134,8 @@ PFS_cond_class *cond_class_array= NULL;
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 thread_class_dirty_count= 0;
-static volatile uint32 thread_class_allocated_count= 0;
+static uint32 thread_class_dirty_count= 0;
+static uint32 thread_class_allocated_count= 0;
 
 static PFS_thread_class *thread_class_array= NULL;
 
@@ -143,26 +150,31 @@ PFS_table_share *table_share_array= NULL;
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
+PFS_ALIGNED PFS_single_stat global_metadata_stat;
+PFS_ALIGNED PFS_transaction_stat global_transaction_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
+PFS_ALIGNED PFS_instr_class global_metadata_class;
+PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
-{&wait_timer,      /* PFS_CLASS_NONE */
- &wait_timer,      /* PFS_CLASS_MUTEX */
- &wait_timer,      /* PFS_CLASS_RWLOCK */
- &wait_timer,      /* PFS_CLASS_COND */
- &wait_timer,      /* PFS_CLASS_FILE */
- &wait_timer,      /* PFS_CLASS_TABLE */
- &stage_timer,     /* PFS_CLASS_STAGE */
- &statement_timer, /* PFS_CLASS_STATEMENT */
- &wait_timer,      /* PFS_CLASS_SOCKET */
- &wait_timer,      /* PFS_CLASS_TABLE_IO */
- &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
- &idle_timer,      /* PFS_CLASS_IDLE */
- &wait_timer,      /* PFS_CLASS_METADATA */
- &wait_timer       /* PFS_CLASS_MEMORY */
+{&wait_timer,        /* PFS_CLASS_NONE */
+ &wait_timer,        /* PFS_CLASS_MUTEX */
+ &wait_timer,        /* PFS_CLASS_RWLOCK */
+ &wait_timer,        /* PFS_CLASS_COND */
+ &wait_timer,        /* PFS_CLASS_FILE */
+ &wait_timer,        /* PFS_CLASS_TABLE */
+ &stage_timer,       /* PFS_CLASS_STAGE */
+ &statement_timer,   /* PFS_CLASS_STATEMENT */
+ &transaction_timer, /* PFS_CLASS_TRANSACTION */
+ &wait_timer,        /* PFS_CLASS_SOCKET */
+ &wait_timer,        /* PFS_CLASS_TABLE_IO */
+ &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
+ &idle_timer,        /* PFS_CLASS_IDLE */
+ &wait_timer,        /* PFS_CLASS_METADATA */
+ &wait_timer         /* PFS_CLASS_MEMORY */
 };
 
 /**
@@ -179,28 +191,28 @@ LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
 
-static volatile uint32 file_class_dirty_count= 0;
-static volatile uint32 file_class_allocated_count= 0;
+static uint32 file_class_dirty_count= 0;
+static uint32 file_class_allocated_count= 0;
 
 PFS_file_class *file_class_array= NULL;
 
-static volatile uint32 stage_class_dirty_count= 0;
-static volatile uint32 stage_class_allocated_count= 0;
+static uint32 stage_class_dirty_count= 0;
+static uint32 stage_class_allocated_count= 0;
 
 static PFS_stage_class *stage_class_array= NULL;
 
-static volatile uint32 statement_class_dirty_count= 0;
-static volatile uint32 statement_class_allocated_count= 0;
+static uint32 statement_class_dirty_count= 0;
+static uint32 statement_class_allocated_count= 0;
 
 static PFS_statement_class *statement_class_array= NULL;
 
-static volatile uint32 socket_class_dirty_count= 0;
-static volatile uint32 socket_class_allocated_count= 0;
+static uint32 socket_class_dirty_count= 0;
+static uint32 socket_class_allocated_count= 0;
 
 static PFS_socket_class *socket_class_array= NULL;
 
-static volatile uint32 memory_class_dirty_count= 0;
-static volatile uint32 memory_class_allocated_count= 0;
+static uint32 memory_class_dirty_count= 0;
+static uint32 memory_class_allocated_count= 0;
 
 static PFS_memory_class *memory_class_array= NULL;
 
@@ -235,12 +247,29 @@ void register_global_classes()
                    0, PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index= GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
-  
+
   /* Idle class */
   init_instr_class(&global_idle_class, "idle", 4,
                    0, PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index= GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
+
+  /* Metadata class */
+  init_instr_class(&global_metadata_class, "wait/lock/metadata/sql/mdl", 26,
+                   0, PFS_CLASS_METADATA);
+  global_metadata_class.m_event_name_index= GLOBAL_METADATA_EVENT_INDEX;
+  global_metadata_class.m_enabled= false; /* Disabled by default */
+  global_metadata_class.m_timed= false;
+  configure_instr_class(&global_metadata_class);
+
+  /* Transaction class */
+  init_instr_class(&global_transaction_class, "transaction", 11,
+                   0, PFS_CLASS_TRANSACTION);
+  global_transaction_class.m_event_name_index= GLOBAL_TRANSACTION_INDEX;
+  global_transaction_class.m_enabled= false; /* Disabled by default */
+  global_transaction_class.m_timed= false;
+  configure_instr_class(&global_transaction_class);
+  transaction_class_max= 1; /* used for sizing by other event classes */
 }
 
 /**
@@ -1224,7 +1253,7 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
     entry= &memory_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_MEMORY);
     entry->m_event_name_index= index;
-    entry->m_enabled= true; /* enabled by default */
+    entry->m_enabled= false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     entry->m_timed= false; /* unused anyway */
@@ -1278,6 +1307,34 @@ PFS_instr_class *find_idle_class(uint index)
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe)
 {
   if (likely(& global_idle_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_instr_class *find_metadata_class(uint index)
+{
+  if (index == 1)
+    return & global_metadata_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_metadata_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_transaction_class *find_transaction_class(uint index)
+{
+  if (index == 1)
+    return &global_transaction_class;
+  return NULL;
+}
+
+PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
+{
+  if (likely(&global_transaction_class == unsafe))
     return unsafe;
   return NULL;
 }
@@ -1337,6 +1394,8 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   /* See comments in register_mutex_class */
   PFS_table_share_key key;
 
@@ -1361,10 +1420,10 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
-  static uint PFS_ALIGNED table_share_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1404,50 +1463,47 @@ search:
   while (++attempts <= table_share_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& table_share_monotonic_index, 1) % table_share_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
     pfs= table_share_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+      pfs->m_schema_name_length= schema_name_length;
+      pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+      pfs->m_table_name_length= table_name_length;
+      pfs->m_enabled= enabled;
+      pfs->m_timed= timed;
+      pfs->init_refcount();
+      pfs->m_table_stat.fast_reset();
+      set_keys(pfs, share);
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&table_share_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_key= key;
-        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-        pfs->m_schema_name_length= schema_name_length;
-        pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-        pfs->m_table_name_length= table_name_length;
-        pfs->m_enabled= enabled;
-        pfs->m_timed= timed;
-        pfs->init_refcount();
-        pfs->m_table_stat.fast_reset();
-        set_keys(pfs, share);
-
-        int res;
-        res= lf_hash_insert(&table_share_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          pfs->m_lock.dirty_to_allocated();
-          return pfs;
-        }
-
-        pfs->m_lock.dirty_to_free();
-
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            table_share_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        /* OOM in lf_hash_insert */
-        table_share_lost++;
-        return NULL;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        /* Duplicate insert by another thread */
+        if (++retry_count > retry_max)
+        {
+          /* Avoid infinite loops */
+          table_share_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      /* OOM in lf_hash_insert */
+      table_share_lost++;
+      return NULL;
     }
   }
 
@@ -1541,6 +1597,7 @@ void reset_events_waits_by_class()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+  global_metadata_stat.reset();
 }
 
 /** Reset the io statistics per file class. */

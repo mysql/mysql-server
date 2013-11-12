@@ -75,7 +75,8 @@ SET @@global.lock_wait_timeout = 60020;
 SELECT @@global.lock_wait_timeout;
 SET @@global.lock_wait_timeout = 65535;
 SELECT @@global.lock_wait_timeout;
-
+SET @@global.lock_wait_timeout = 31536000;
+SELECT @@global.lock_wait_timeout;
 
 --echo '#--------------------FN_DYNVARS_002_04-------------------------#'
 ###############################################################################
@@ -87,6 +88,8 @@ SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = 50050;
 SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = 65535;
+SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = 31536000;
 SELECT @@session.lock_wait_timeout;
 
 
@@ -130,7 +133,7 @@ SET @@session.lock_wait_timeout = -2;
 SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = 3176990909;
 SELECT @@session.lock_wait_timeout;
-SET @@session.lock_wait_timeout = 31537000;
+SET @@session.lock_wait_timeout = 31536001;
 SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = -1024;
 SELECT @@session.lock_wait_timeout;

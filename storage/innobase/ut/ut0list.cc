@@ -38,7 +38,7 @@ ib_list_create(void)
 {
 	ib_list_t*	list;
 
-	list = static_cast<ib_list_t*>(mem_alloc(sizeof(*list)));
+	list = static_cast<ib_list_t*>(ut_malloc(sizeof(*list)));
 
 	list->first = NULL;
 	list->last = NULL;
@@ -82,7 +82,7 @@ ib_list_free(
 	to e.g. have all the nodes allocated from a single heap that is then
 	freed after the list itself is freed. */
 
-	mem_free(list);
+	ut_free(list);
 }
 
 /****************************************************************//**

@@ -103,10 +103,28 @@ PFS_engine_table* table_replication_connection_status::create(void)
 table_replication_connection_status::table_replication_connection_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
-{}
+{
+  /*
+    If we initialize m_row.received_transaction_set_length to zero, we can not
+    differentiate between the two cases:
+    1) get_row_count() returned zero and hence my_malloc() was never called by
+       Gtid_set::to_string() in make_row().
+    2) get_row_count() returned non-zero and Gtid_set::to_string() in
+       make_row() did a my_ malloc(1) but returned zero.
+    Hence, we may make an attempt to call my_free() even when there was no call
+    to my_malloc()
+  */
+  m_row.received_transaction_set_length= -1;
+}
 
 table_replication_connection_status::~table_replication_connection_status()
-{}
+{
+   if (m_row.received_transaction_set_length >= 0)
+   {
+     m_row.received_transaction_set_length= 0;
+     my_free(m_row.received_transaction_set);
+   }
+}
 
 void table_replication_connection_status::reset_position(void)
 {
@@ -171,14 +189,21 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH+1);
+  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
 
   m_row.thread_id= 0;
 
   if (active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
   {
-    m_row.thread_id= (ulonglong) active_mi->info_thd->thread_id;
-    m_row.thread_id_is_null= false;
+    PSI_thread *psi= thd_get_psi(active_mi->info_thd);
+    PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+    if(pfs)
+    {
+      m_row.thread_id= pfs->m_thread_internal_id;
+      m_row.thread_id_is_null= false;
+    }
+    else
+      m_row.thread_id_is_null= true;
   }
   else
     m_row.thread_id_is_null= true;

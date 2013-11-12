@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define STOP_REQ_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 188
+
 
 class StopReq 
 {
@@ -214,6 +216,9 @@ StopReq::setStopNodes(Uint32 & requestInfo, bool value)
   else
     requestInfo &= ~64;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

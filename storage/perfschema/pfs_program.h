@@ -35,16 +35,16 @@ extern ulong program_lost;
 /**
   Hash key for a program.
 */
-struct PFS_program_key                                                           
-{                                                                               
-  /**                                                                           
-    Hash search key.                                                            
-    This has to be a string for LF_HASH,                                        
-    the format is "<object_type><0x00><object_name><0x00><schema_name><0x00>"                            
+struct PFS_program_key
+{
+  /**
+    Hash search key.
+    This has to be a string for LF_HASH,
+    the format is "<object_type><0x00><object_name><0x00><schema_name><0x00>"
   */
   char m_hash_key[PROGRAM_HASH_KEY_LENGTH];
   uint m_key_length;
-}; 
+};
 
 struct PFS_ALIGNED PFS_program : public PFS_instr
 {
@@ -54,7 +54,7 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   /** Object name. */
   const char *m_object_name;
   int m_object_name_length;
- 
+
   /** Object Schema name. */
   const char *m_schema_name;
   int m_schema_name_length;
@@ -71,8 +71,8 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   /** Referesh setup object flags. */
   void referesh_setup_object_flags(PFS_thread* thread);
 
-  /** Reset data for this record. */                                            
-  void reset_data(); 
+  /** Reset data for this record. */
+  void reset_data();
 };
 
 extern PFS_program *program_array;
@@ -85,11 +85,11 @@ void cleanup_program_hash(void);
 void reset_esms_by_program();
 
 PFS_program*
-find_or_create_program(PFS_thread *thread,                                      
-                      enum_object_type object_type,                                         
-                      const char *object_name,                                  
-                      uint object_name_length,                                  
-                      const char *schema,                                       
+find_or_create_program(PFS_thread *thread,
+                      enum_object_type object_type,
+                      const char *object_name,
+                      uint object_name_length,
+                      const char *schema,
                       uint schema_length);
 
 void

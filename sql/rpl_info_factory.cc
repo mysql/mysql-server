@@ -386,7 +386,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   /*
     Define the name of the worker and its repository.
   */
-  char *pos= strmov(worker_file_data.name, worker_file_data.pattern);
+  char *pos= my_stpcpy(worker_file_data.name, worker_file_data.pattern);
   sprintf(pos, "%u", worker_id + 1);
 
   if (!(worker= new Slave_worker(rli
@@ -449,10 +449,10 @@ static void build_worker_info_name(char* to,
   DBUG_ASSERT(to);
   char* pos= to;
   if (path[0])
-    pos= strmov(pos, path);
-  pos= strmov(pos, "worker-");
-  pos= strmov(pos, fname);
-  strmov(pos, ".");
+    pos= my_stpcpy(pos, path);
+  pos= my_stpcpy(pos, "worker-");
+  pos= my_stpcpy(pos, fname);
+  my_stpcpy(pos, ".");
 }
 
 /**
@@ -473,16 +473,16 @@ void Rpl_info_factory::init_repository_metadata()
   rli_table_data.schema= MYSQL_SCHEMA_NAME.str;
   rli_table_data.name= RLI_INFO_NAME.str;
   rli_file_data.n_fields= Relay_log_info::get_number_info_rli_fields();
-  strmov(rli_file_data.name, relay_log_info_file);
-  strmov(rli_file_data.pattern, relay_log_info_file);
+  my_stpcpy(rli_file_data.name, relay_log_info_file);
+  my_stpcpy(rli_file_data.pattern, relay_log_info_file);
   rli_file_data.name_indexed= false;
 
   mi_table_data.n_fields= Master_info::get_number_info_mi_fields();
   mi_table_data.schema= MYSQL_SCHEMA_NAME.str;
   mi_table_data.name= MI_INFO_NAME.str;
   mi_file_data.n_fields= Master_info::get_number_info_mi_fields();
-  strmov(mi_file_data.name, master_info_file);
-  strmov(mi_file_data.pattern, master_info_file);
+  my_stpcpy(mi_file_data.name, master_info_file);
+  my_stpcpy(mi_file_data.pattern, master_info_file);
   rli_file_data.name_indexed= false;
 
   worker_table_data.n_fields= Slave_worker::get_number_worker_fields();

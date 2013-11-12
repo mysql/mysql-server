@@ -281,6 +281,12 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
 
   MYSQL_NET_WRITE_START(len);
 
+  DBUG_EXECUTE_IF("simulate_net_write_failure", {
+                  my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
+                  return 1;
+                  };
+                 );
+
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
     length. The last packet is always a packet that is < MAX_PACKET_LENGTH.
@@ -311,7 +317,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
-  rc= test(net_write_buff(net,packet,len));
+  rc= MY_TEST(net_write_buff(net,packet,len));
   MYSQL_NET_WRITE_DONE(rc);
   return rc;
 }
@@ -385,9 +391,9 @@ net_write_command(NET *net,uchar command,
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  rc= test(net_write_buff(net, buff, header_size) ||
-           (head_len && net_write_buff(net, header, head_len)) ||
-           net_write_buff(net, packet, len) || net_flush(net));
+  rc= MY_TEST(net_write_buff(net, buff, header_size) ||
+              (head_len && net_write_buff(net, header, head_len)) ||
+              net_write_buff(net, packet, len) || net_flush(net));
   MYSQL_NET_WRITE_DONE(rc);
   DBUG_RETURN(rc);
 }
@@ -520,7 +526,7 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 #endif
   }
 
-  return test(count);
+  return MY_TEST(count);
 }
 
 
@@ -696,7 +702,7 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
 #endif
   }
 
-  return test(count);
+  return MY_TEST(count);
 }
 
 
@@ -770,8 +776,9 @@ static my_bool net_read_packet_header(NET *net)
       the server expects the client to send a file, but the client
       may reply with a new command instead.
     */
-    fprintf(stderr, "Error: packets out of order (found %u, expected %u)\n",
-            (uint) pkt_nr, net->pkt_nr);
+    my_message_local(ERROR_LEVEL,
+                     "packets out of order (found %u, expected %u)",
+                     (uint) pkt_nr, net->pkt_nr);
     DBUG_ASSERT(pkt_nr == net->pkt_nr);
 #endif
     return TRUE;

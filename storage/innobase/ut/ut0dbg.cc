@@ -27,24 +27,6 @@ Created 1/30/1994 Heikki Tuuri
 
 #include "ut0dbg.h"
 
-#if defined(__GNUC__) && (__GNUC__ > 2)
-#else
-/** This is used to eliminate compiler warnings */
-ulint	ut_dbg_zero	= 0;
-#endif
-
-/*************************************************************//**
-Flush stderr and stdout, then abort execution. */
-
-void
-ut_abort(void)
-/************/
-{
-	fflush(stderr);
-	fflush(stdout);
-	abort();
-}
-
 /*************************************************************//**
 Report a failed assertion. */
 
@@ -80,13 +62,19 @@ ut_dbg_assertion_failed(
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
 	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
+
+	fflush(stderr);
+	fflush(stdout);
+	abort();
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#ifdef HAVE_SYS_RESOURCE_H
+# include <sys/resource.h>
+#endif
 
 #include <unistd.h>
 

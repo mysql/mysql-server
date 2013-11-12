@@ -45,9 +45,6 @@ Created 1/8/1996 Heikki Tuuri
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_BLOB_DEBUG
-# include "ut0rbt.h"
-#endif /* UNIV_BLOB_DEBUG */
 #include "sync0sync.h"
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
@@ -144,10 +141,12 @@ dict_mem_table_free(
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		if (table->fts) {
+			if (table->cached) {
+				fts_optimize_remove_table(table);
+			}
+
 			fts_free(table);
 		}
-
-		fts_optimize_remove_table(table);
 	}
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
@@ -588,12 +587,6 @@ dict_mem_index_free(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-#ifdef UNIV_BLOB_DEBUG
-	if (index->blobs) {
-		mutex_free(&index->blobs_mutex);
-		rbt_free(index->blobs);
-	}
-#endif /* UNIV_BLOB_DEBUG */
 
 	mutex_destroy(&index->zip_pad.mutex);
 

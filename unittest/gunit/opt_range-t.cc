@@ -17,6 +17,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "mock_field_long.h"
 #include <vector>
 #include <sstream>
 #include <string>
@@ -28,6 +29,9 @@
 #include "opt_range.cc"
 
 namespace opt_range_unittest {
+
+using std::vector;
+using std::string;
 
 /**
   Helper class to print which line a failing test was called from.
@@ -87,18 +91,42 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM
 {
   KEY_PART m_key_parts[64];
   Mem_root_array<KEY_PART_INFO, true> m_kpis;
-  
+  Fake_TABLE fake_table;
+
 public:
 
-  Fake_RANGE_OPT_PARAM(THD *thd_arg, MEM_ROOT *alloc_arg, TABLE *table_arg)
-    : m_kpis(alloc_arg)
+  /**
+    Creates a Fake_RANGE_OPT_PARAM and optionally a Fake_TABLE.
+
+    @note The Fake_TABLE is always created, but with zero columns if
+    number_columns is zero. However, it won't be used since
+    Fake_RANGE_OPT_PARAM::table is NULL.
+    
+    @param number_columns If non-zero, a Fake_TABLE is created with
+    this many columns.
+    
+    @param columns_nullable Creates nullable columns, if applicable.
+  */
+  Fake_RANGE_OPT_PARAM(THD *thd_arg, MEM_ROOT *alloc_arg, int number_columns,
+                       bool columns_nullable)
+    : m_kpis(alloc_arg),
+      fake_table(number_columns, columns_nullable)
   {
     m_kpis.reserve(64);
 
     thd= thd_arg;
     mem_root= alloc_arg;
-    current_table= 1<<0;
-    table= table_arg;
+
+    if (number_columns != 0)
+    {
+      table= &fake_table;
+      current_table= table->map;
+    }
+    else
+    {
+      table= NULL;
+      current_table= 1;
+    }
 
     alloced_sel_args= 0;
     using_real_indexes= true;
@@ -106,6 +134,11 @@ public:
     key_parts_end= m_key_parts;
     keys= 0;
     remove_jump_scans= false;
+
+    const Mock_HANDLER *mock_handler= &fake_table.mock_handler;
+
+    ON_CALL(*mock_handler, index_flags(_, _, true))
+      .WillByDefault(Return(HA_READ_RANGE));
   }
 
   void add_key(List<Field> fields_in_index)
@@ -154,6 +187,15 @@ public:
     add_key(index_list);
   }
 
+  /// Creates an index over all columns in the RANGE_OPT_PARAM's table.
+  void add_key()
+  {
+    List<Field> index_list;
+    for (uint i= 0; i < table->s->fields; ++i)
+      index_list.push_back(table->field[i]);
+    add_key(index_list);
+  }
+
   ~Fake_RANGE_OPT_PARAM()
   {
     for (uint i= 0; i < keys; i++)
@@ -165,49 +207,11 @@ public:
 
 };
 
-class Mock_field_long : public Field_long
-{
-private:
-  Fake_TABLE *m_fake_tbl;
 
-public:
-  Mock_field_long(THD *thd, Item *item, const char *name, bool create_table)
-    : Field_long(0,                           // ptr_arg
-                 8,                           // len_arg
-                 NULL,                        // null_ptr_arg
-                 0,                           // null_bit_arg
-                 Field::NONE,                 // unireg_check_arg
-                 name ? name : "field_name",  // field_name_arg
-                 false,                       // zero_arg
-                 false)                       // unsigned_arg
-  {
-    if (create_table)
-      m_fake_tbl= new Fake_TABLE(this);
-    else
-      m_fake_tbl= NULL;
-
-    this->ptr= (uchar*) alloc_root((thd->mem_root), KEY_LENGTH);
-    if (item)
-      item->save_in_field_no_warnings(this, true);
-  }
-
-  ~Mock_field_long()
-  {
-    delete m_fake_tbl;
-    m_fake_tbl= NULL;
-  }
-
-  // #bytes to store the value - see Field_long::key_lenght()
-  static const int KEY_LENGTH= 4;
-};
-
-
-class SelArgTest : public ::testing::Test
+class OptRangeTest : public ::testing::Test
 {
 protected:
-  SelArgTest() : m_ftable(NULL), m_opt_param(NULL), m_mock_handler(NULL)
-  {
-  }
+  OptRangeTest() : m_opt_param(NULL) {}
 
   virtual void SetUp()
   {
@@ -218,10 +222,7 @@ protected:
 
   virtual void TearDown()
   {
-    delete_container_pointers(m_table_fields);
-    delete m_mock_handler;
     delete m_opt_param;
-    delete m_ftable;
 
     initializer.TearDown();
     free_root(&m_alloc, MYF(0));
@@ -231,9 +232,7 @@ protected:
 
   /**
     Create a table with the requested number of fields. All fields are
-    indexed. After calling this function,
-    SelArgTest::m_table_fields[i] (i < nbr_fields) stores a
-    Mock_field_long.
+    indexed.
 
     @param  nbr_fields     The number of fields in the table
   */
@@ -241,33 +240,67 @@ protected:
   {
     create_table(nbr_fields);
     for (int i= 0; i < nbr_fields; i++)
-      m_opt_param->add_key(m_table_fields[i]);
+      m_opt_param->add_key(m_opt_param->table->field[i]);
   }
 
   /**
     Create a table with the requested number of fields without
-    creating indexes. After calling this function,
-    SelArgTest::m_table_fields[i] (i < nbr_fields) stores a
-    Mock_field_long.
+    creating indexes.
 
     @param  nbr_fields     The number of fields in the table
   */
-  void create_table(int nbr_fields)
+  void create_table(int nbr_fields, bool columns_nullable)
   {
-    for (int i= 1; i <= nbr_fields; i++)
-    {
-      std::stringstream str;
-      str << "field_" << i;
-      m_field_names.push_back(str.str());
-    }
-    create_table(&m_field_names);
+    m_opt_param=
+      new Fake_RANGE_OPT_PARAM(thd(), &m_alloc, nbr_fields, columns_nullable);
+    m_opt_param->table= m_opt_param->table;
   }
 
-  /**
-    Types of range predicates that create_tree() and create_item()
-    can create
+
+  void create_table(int nbr_fields) { create_table(nbr_fields, false); }
+
+  /*
+    The new_item_xxx are convenience functions for creating Item_func
+    descendents from Field's and ints without having to wrap them in
+    Item's and resolving them.
   */
-  enum pred_type_enum { GREATER, LESS, BETWEEN, EQUAL, NOT_EQUAL, XOR };
+  template<typename T> T *new_item(Field *field, int value)
+  {
+    T *item= new T(new Item_field(field), new Item_int(value));
+    Item *item_base= item;
+    item->fix_fields(thd(), &item_base);
+    return item;
+  }
+
+  Item_func_lt *new_item_lt(Field *field, int value)
+  {
+    return new_item<Item_func_lt>(field, value);
+  }
+
+  Item_func_gt *new_item_gt(Field *field, int value)
+  {
+    return new_item<Item_func_gt>(field, value);
+  }
+
+  Item_func_equal *new_item_equal(Field *field, int value)
+  {
+    return new_item<Item_func_equal>(field, value);
+  }
+
+  Item_func_xor *new_item_xor(Field *field, int value)
+  {
+    return new_item<Item_func_xor>(field, value);
+  }
+
+  Item_cond_and *new_item_between(Field *fld, int val1, int val2)
+  {
+    return new Item_cond_and(new_item_gt(fld, val1), new_item_lt(fld, val2));
+  }
+
+  Item_cond_or *new_item_ne(Field *fld, int val1)
+  {
+    return new Item_cond_or(new_item_lt(fld, val1), new_item_gt(fld, val1));
+  }
 
   /**
     Utility funtion used to simplify creation of SEL_TREEs with
@@ -278,7 +311,7 @@ protected:
     @param fld             The field used in the range predicate
     @param val1            The first value used in the range predicate
     @param val2            The second value used in the range predicate.
-                           Only used for range predicates that takes two 
+                           Only used for range predicates that takes two
                            values (BETWEEN).
     @param expected_result The range conditions the created SEL_TREE
                            is expected to consist of. The format of this
@@ -287,28 +320,12 @@ protected:
     @return SEL_TREE that has been verified to have expected range conditions.
   */
 // Undefined at end of this file
-#define create_tree(t, f, v1, v2, er) \
-  do_create_tree(t, f, v1, v2, er, TestFailLinePrinter(__LINE__))
-  SEL_TREE *do_create_tree(const pred_type_enum type, Mock_field_long *fld,
-                           int val1, int val2, const char* expected_result,
+#define create_tree(i, er)                                          \
+  do_create_tree(i, er, TestFailLinePrinter(__LINE__))
+  SEL_TREE *do_create_tree(Item *item, const char* expected_result,
                            TestFailLinePrinter called_from_line)
   {
-    SEL_TREE *result;
-    switch (type)
-    {
-    case BETWEEN:
-      result= get_mm_tree(m_opt_param,
-                          new Item_cond_and(create_item(GREATER, fld, val1),
-                                            create_item(LESS, fld, val2)));
-      break;
-    case NOT_EQUAL:
-      result= get_mm_tree(m_opt_param,
-                          new Item_cond_or(create_item(LESS, fld, val1),
-                                           create_item(GREATER, fld, val1)));
-      break;
-    default:
-      result= get_mm_tree(m_opt_param, create_item(type, fld, val1));
-    }
+    SEL_TREE *result= get_mm_tree(m_opt_param, item);
     SCOPED_TRACE(called_from_line);
     check_tree_result(result, SEL_TREE::KEY, expected_result);
     return result;
@@ -324,7 +341,7 @@ protected:
 
     @return Item for the specified range predicate
   */
-  Item_func *create_item(pred_type_enum type, Mock_field_long *fld, int value);
+  Item_func *create_item(Item_func::Functype type, Field *fld, int value);
 
   /**
     Create instance of Xor Item_func.
@@ -335,7 +352,7 @@ protected:
     @return pointer to newly created instance of Xor Item.
   */
   Item_func_xor *create_xor_item(Item *item1, Item *item2);
- 
+
 
   /**
     Check that the use_count of all SEL_ARGs in the SEL_TREE are
@@ -405,40 +422,25 @@ protected:
   Server_initializer initializer;
   MEM_ROOT           m_alloc;
 
-  std::vector<std::string> m_field_names;
-  List<Field> m_field_list;
-  Fake_TABLE *m_ftable;
   Fake_RANGE_OPT_PARAM *m_opt_param;
-  Mock_HANDLER *m_mock_handler;
-  std::vector<Mock_field_long*> m_table_fields;
-
-private:
-  /**
-    Create a table with the fields in field_names_arg. After calling
-    this function, SelArgTest::m_table_fields[i] 
-    (i < field_names_arg->size()) stores a Mock_field_long.
-
-    @param  field_names_arg  Fields in the table.
-  */
-  void create_table(std::vector<std::string> *field_names_arg);
 };
 
-Item_func*
-SelArgTest::create_item(pred_type_enum type, Mock_field_long *fld, int value)
+Item_func* OptRangeTest::create_item(Item_func::Functype type,
+                                     Field *fld, int value)
 {
   Item_func *result;
   switch (type)
   {
-  case GREATER:
+  case Item_func::GT_FUNC:
     result= new Item_func_gt(new Item_field(fld), new Item_int(value));
     break;
-  case LESS:
+  case Item_func::LT_FUNC:
     result= new Item_func_lt(new Item_field(fld), new Item_int(value));
     break;
-  case EQUAL:
+  case Item_func::MULT_EQUAL_FUNC:
     result= new Item_equal(new Item_int(value), new Item_field(fld));
     break;
-  case XOR:
+  case Item_func::XOR_FUNC:
     result= new Item_func_xor(new Item_field(fld), new Item_int(value));
     break;
   default:
@@ -452,7 +454,7 @@ SelArgTest::create_item(pred_type_enum type, Mock_field_long *fld, int value)
 }
 
 Item_func_xor*
-SelArgTest::create_xor_item(Item *item1, Item *item2)
+OptRangeTest::create_xor_item(Item *item1, Item *item2)
 {
   Item_func_xor *xor_item= new Item_func_xor(item1, item2);
   Item *itm= static_cast<Item*>(xor_item);
@@ -460,7 +462,7 @@ SelArgTest::create_xor_item(Item *item1, Item *item2)
   return xor_item;
 }
 
-void SelArgTest::check_use_count(SEL_TREE *tree)
+void OptRangeTest::check_use_count(SEL_TREE *tree)
 {
   for (uint i= 0; i < m_opt_param->keys; i++)
   {
@@ -471,9 +473,9 @@ void SelArgTest::check_use_count(SEL_TREE *tree)
 }
 
 
-void SelArgTest::check_tree_result(SEL_TREE *tree,
-                                   const SEL_TREE::Type expected_type,
-                                   const char* expected_result)
+void OptRangeTest::check_tree_result(SEL_TREE *tree,
+                                     const SEL_TREE::Type expected_type,
+                                     const char* expected_result)
 {
   EXPECT_EQ(expected_type, tree->type);
   if (expected_type != SEL_TREE::KEY)
@@ -483,7 +485,7 @@ void SelArgTest::check_tree_result(SEL_TREE *tree,
   String actual_result(buff, sizeof(buff), system_charset_info);
   actual_result.set_charset(system_charset_info);
   actual_result.length(0);
-  print_tree(&actual_result, "result", tree, m_opt_param);
+  print_tree(&actual_result, "result", tree, m_opt_param, false);
   EXPECT_STREQ(expected_result, actual_result.c_ptr());
   SCOPED_TRACE("check_use_count");
   check_use_count(tree);
@@ -491,7 +493,7 @@ void SelArgTest::check_tree_result(SEL_TREE *tree,
 
 
 SEL_TREE *
-SelArgTest::do_create_and_check_tree_or(SEL_TREE *tree1, SEL_TREE *tree2,
+OptRangeTest::do_create_and_check_tree_or(SEL_TREE *tree1, SEL_TREE *tree2,
                                         const SEL_TREE::Type expected_type,
                                         const char* expected_result,
                                         TestFailLinePrinter called_from_line)
@@ -514,7 +516,7 @@ SelArgTest::do_create_and_check_tree_or(SEL_TREE *tree1, SEL_TREE *tree2,
 
 
 SEL_TREE *
-SelArgTest::do_create_and_check_tree_and(SEL_TREE *tree1, SEL_TREE *tree2,
+OptRangeTest::do_create_and_check_tree_and(SEL_TREE *tree1, SEL_TREE *tree2,
                                          const SEL_TREE::Type expected_type,
                                          const char* expected_result,
                                          TestFailLinePrinter called_from_line)
@@ -536,40 +538,6 @@ SelArgTest::do_create_and_check_tree_and(SEL_TREE *tree1, SEL_TREE *tree2,
 }
 
 
-void SelArgTest::create_table(std::vector<std::string> *field_names_arg)
-{
-  std::vector<std::string>::iterator fld_name_it= field_names_arg->begin();
-  for ( ; fld_name_it != field_names_arg->end(); ++fld_name_it)
-    m_field_list.push_back(new Mock_field_long(thd(),
-                                               NULL,
-                                               (*fld_name_it).c_str(),
-                                               false)
-                           );
-
-  m_ftable= new Fake_TABLE(m_field_list);
-  /*
-    const_table must be false to avoid that the range optimizer
-    evaluates predicates
-  */
-  m_ftable->const_table= false;
-  m_opt_param= new Fake_RANGE_OPT_PARAM(thd(), &m_alloc, m_ftable);
-  handlerton *hton= NULL;
-  m_mock_handler=
-    new NiceMock<Mock_HANDLER>(hton, m_ftable->get_share());
-  m_ftable->set_handler(m_mock_handler);
-
-  List_iterator<Field> it(m_field_list);
-  for (Field *cur_field= it++; cur_field; cur_field= it++)
-  {
-    bitmap_set_bit(m_ftable->read_set, cur_field->field_index);
-    m_table_fields.push_back(static_cast<Mock_field_long*>(cur_field));
-  }
-
-  ON_CALL(*m_mock_handler, index_flags(_, _, true))
-    .WillByDefault(Return(HA_READ_RANGE));
-}
-
-
 /*
  Experiment with these to measure performance of
    'new (thd->mem_root)' Foo vs. 'new Foo'.
@@ -578,7 +546,7 @@ void SelArgTest::create_table(std::vector<std::string> *field_names_arg)
 const int num_iterations= 10;
 const int num_allocs= 10;
 
-TEST_F(SelArgTest, AllocateExplicit)
+TEST_F(OptRangeTest, AllocateExplicit)
 {
   for (int ix= 0; ix < num_iterations; ++ix)
   {
@@ -588,7 +556,7 @@ TEST_F(SelArgTest, AllocateExplicit)
   }
 }
 
-TEST_F(SelArgTest, AllocateImplicit)
+TEST_F(OptRangeTest, AllocateImplicit)
 {
   for (int ix= 0; ix < num_iterations; ++ix)
   {
@@ -606,15 +574,15 @@ const SEL_TREE *null_tree= NULL;
 const SEL_ARG  *null_arg= NULL;
 
 
-static void print_selarg_ranges(String *s, SEL_ARG *sel_arg, 
+static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi)
 {
-  for (SEL_ARG *cur= sel_arg->first(); 
-       cur != &null_element; 
+  for (SEL_ARG *cur= sel_arg->first();
+       cur != &null_element;
        cur= cur->right)
   {
     String current_range;
-    append_range(&current_range, kpi, cur->min_value, cur->max_value, 
+    append_range(&current_range, kpi, cur->min_value, cur->max_value,
                  cur->min_flag | cur->max_flag);
 
     if (s->length() > 0)
@@ -625,9 +593,9 @@ static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
 }
 
 
-TEST_F(SelArgTest, SimpleCond)
+TEST_F(OptRangeTest, SimpleCond)
 {
-  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, NULL);
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, 0, false);
   EXPECT_NE(null_tree, get_mm_tree(&opt_param, new Item_int(42)));
 }
 
@@ -635,11 +603,11 @@ TEST_F(SelArgTest, SimpleCond)
 /*
   Exercise range optimizer without adding indexes
 */
-TEST_F(SelArgTest, EqualCondNoIndexes)
+TEST_F(OptRangeTest, EqualCondNoIndexes)
 {
-  Mock_field_long field_long(thd(), NULL, NULL, true);
-  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, field_long.table);
-  SEL_TREE *tree= get_mm_tree(&opt_param, create_item(EQUAL, &field_long, 42));
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, 1, false);
+  SEL_TREE *tree=
+    get_mm_tree(&opt_param, new_item_equal(opt_param.table->field[0], 42));
   EXPECT_EQ(null_tree, tree);
 }
 
@@ -647,33 +615,33 @@ TEST_F(SelArgTest, EqualCondNoIndexes)
 /*
   Exercise range optimizer with xor operator.
 */
-TEST_F(SelArgTest, XorCondIndexes)
+TEST_F(OptRangeTest, XorCondIndexes)
 {
   create_table(1);
 
-  Mock_field_long *field_long= m_table_fields[0];
+  Field *field_long= m_opt_param->table->field[0];
   m_opt_param->add_key(field_long);
   /*
     XOR is not range optimizible ATM and is treated as
     always true. No SEL_TREE is therefore expected.
   */
-  SEL_TREE *tree= get_mm_tree(m_opt_param, create_item(XOR, field_long,  42));
+  SEL_TREE *tree= get_mm_tree(m_opt_param, new_item_xor(field_long, 42));
   EXPECT_EQ(null_tree, tree);
 }
 
 
 /*
-Exercise range optimizer with xor and different type of operator.
+  Exercise range optimizer with xor and different type of operator.
 */
-TEST_F(SelArgTest, XorCondWithIndexes)
+TEST_F(OptRangeTest, XorCondWithIndexes)
 {
   create_table(5);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
-  Mock_field_long *field_long4= m_table_fields[3];
-  Mock_field_long *field_long5= m_table_fields[4];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
+  Field *field_long4= m_opt_param->table->field[3];
+  Field *field_long5= m_opt_param->table->field[4];
   m_opt_param->add_key(field_long1);
   m_opt_param->add_key(field_long2);
   m_opt_param->add_key(field_long3);
@@ -681,38 +649,42 @@ TEST_F(SelArgTest, XorCondWithIndexes)
   m_opt_param->add_key(field_long5);
 
   /*
-    Create SEL_TREE from "field1=7 AND (field1 XOR 42)". Since XOR is not range
-    optimizible (treated as always true), we get a tree for "field1=7" only.
+    Create SEL_TREE from "field1=7 AND (field1 XOR 42)". Since XOR is
+    not range optimizible (treated as always true), we get a tree for
+    "field1=7" only.
   */
   const char expected1[]= "result keys[0]: (7 <= field_1 <= 7)\n";
 
-  SEL_TREE *tree= get_mm_tree(m_opt_param,
-                    new Item_cond_and(create_item(XOR, field_long1,  42),
-                                      create_item(EQUAL, field_long1, 7)));
+  SEL_TREE *tree=
+    get_mm_tree(m_opt_param,
+                new Item_cond_and (new_item_xor(field_long1, 42),
+                                   new_item_equal(field_long1,7)));
   SCOPED_TRACE("");
   check_tree_result(tree, SEL_TREE::KEY, expected1);
 
   /*
-    Create SEL_TREE from "(field1 XOR 0) AND (field1>14)". Since XOR is not range
-    optimizible (treated as always true), we get a tree for "field1>14" only.
+    Create SEL_TREE from "(field1 XOR 0) AND (field1>14)". Since XOR
+    is not range optimizible (treated as always true), we get a tree
+    for "field1>14" only.
   */
   const char expected2[]= "result keys[0]: (14 < field_1)\n";
 
   tree= get_mm_tree(m_opt_param,
-                    new Item_cond_and(create_item(XOR, field_long1,  0),
-                                      create_item(GREATER, field_long1, 14)));
+                    new Item_cond_and (new_item_xor(field_long1, 0),
+                                       new_item_gt(field_long1, 14)));
   SCOPED_TRACE("");
   check_tree_result(tree, SEL_TREE::KEY, expected2);
 
   /*
-    Create SEL_TREE from "(field1<0 AND field1>14) XOR (field1>17)". Since
-    XOR is not range optimizible (treated as always true), we get a NULL tree.
+    Create SEL_TREE from "(field1<0 AND field1>14) XOR
+    (field1>17)". Since XOR is not range optimizible (treated as
+    always true), we get a NULL tree.
   */
   tree= get_mm_tree(m_opt_param,
-                    create_xor_item(
-                      new Item_cond_and(create_item(LESS, field_long1, 0),
-                                        create_item(GREATER, field_long1, 14)),
-                      create_item(GREATER, field_long1, 17)));
+                    create_xor_item(new Item_cond_and
+                                    (new_item_lt(field_long1, 0),
+                                     new_item_gt(field_long1, 14)),
+                      new_item_gt(field_long1, 17)));
   SCOPED_TRACE("");
   EXPECT_EQ(null_tree, tree);
 
@@ -720,7 +692,7 @@ TEST_F(SelArgTest, XorCondWithIndexes)
     Create SEL_TREE from
     (field1<0 AND field2>14) AND
     ((field3<0 and field4>14) XOR field5>17) ".
-    Since XOR is not range  optimizible (treated as always true),
+    Since XOR is not range optimizible (treated as always true),
     we get a tree for "field1<0 AND field2>14" only.
   */
   const char expected3[]=
@@ -729,37 +701,39 @@ TEST_F(SelArgTest, XorCondWithIndexes)
 
   tree= get_mm_tree(m_opt_param,
                     new Item_cond_and(
-                      new Item_cond_and(create_item(LESS, field_long1, 0),
-                                        create_item(GREATER, field_long2, 14)),
+                      new Item_cond_and
+                      (new_item_lt(field_long1, 0),
+                       new_item_gt(field_long2, 14)),
                       create_xor_item(
-                        new Item_cond_and(create_item(LESS, field_long3, 0),
-                                          create_item(GREATER,
-                                                      field_long4, 14)),
-                        create_item(GREATER, field_long5, 17))));
+                        new Item_cond_and
+                        (new_item_lt(field_long3, 0),
+                         new_item_gt(field_long4, 14)),
+                        new_item_gt(field_long5, 17))));
   SCOPED_TRACE("");
   check_tree_result(tree, SEL_TREE::KEY, expected3);
 }
+
+
 /*
   Exercise range optimizer with single column index
 */
-TEST_F(SelArgTest, GetMMTreeSingleColIndex)
+TEST_F(OptRangeTest, GetMMTreeSingleColIndex)
 {
   // Create a single-column table with index
   create_table_singlecol_idx(1);
 
-  Mock_field_long *field_long= m_table_fields[0];
+  Field *field_long= m_opt_param->table->field[0];
 
   // Expected result of next test:
   const char expected[]= "result keys[0]: (42 <= field_1 <= 42)\n";
-  create_tree(EQUAL, field_long, 42, 0, expected);
+  create_tree(new_item_equal(field_long, 42), expected);
 
   // Expected result of next test:
   const char expected2[]=
     "result keys[0]: (42 <= field_1 <= 42) OR (43 <= field_1 <= 43)\n";
   SEL_TREE *tree=
-    get_mm_tree(m_opt_param,
-                new Item_cond_or(create_item(EQUAL, field_long, 42),
-                                 create_item(EQUAL, field_long, 43)));
+    get_mm_tree(m_opt_param, new Item_cond_or(new_item_equal(field_long, 42),
+                                              new_item_equal(field_long, 43)));
 
   SCOPED_TRACE("");
   check_tree_result(tree, SEL_TREE::KEY, expected2);
@@ -772,14 +746,14 @@ TEST_F(SelArgTest, GetMMTreeSingleColIndex)
     "(5 <= field_1 <= 5) OR (6 <= field_1 <= 6) OR "
     "(7 <= field_1 <= 7) OR (8 <= field_1 <= 8)\n";
   List<Item> or_list1;
-  or_list1.push_back(create_item(EQUAL, field_long, 1));
-  or_list1.push_back(create_item(EQUAL, field_long, 2));
-  or_list1.push_back(create_item(EQUAL, field_long, 3));
-  or_list1.push_back(create_item(EQUAL, field_long, 4));
-  or_list1.push_back(create_item(EQUAL, field_long, 5));
-  or_list1.push_back(create_item(EQUAL, field_long, 6));
-  or_list1.push_back(create_item(EQUAL, field_long, 7));
-  or_list1.push_back(create_item(EQUAL, field_long, 8));
+  or_list1.push_back(new_item_equal(field_long, 1));
+  or_list1.push_back(new_item_equal(field_long, 2));
+  or_list1.push_back(new_item_equal(field_long, 3));
+  or_list1.push_back(new_item_equal(field_long, 4));
+  or_list1.push_back(new_item_equal(field_long, 5));
+  or_list1.push_back(new_item_equal(field_long, 6));
+  or_list1.push_back(new_item_equal(field_long, 7));
+  or_list1.push_back(new_item_equal(field_long, 8));
 
   tree= get_mm_tree(m_opt_param, new Item_cond_or(or_list1));
   check_tree_result(tree, SEL_TREE::KEY, expected3);
@@ -787,8 +761,8 @@ TEST_F(SelArgTest, GetMMTreeSingleColIndex)
   // Expected result of next test:
   const char expected4[]= "result keys[0]: (7 <= field_1 <= 7)\n";
   tree= get_mm_tree(m_opt_param,
-                    new Item_cond_and(new Item_cond_or(or_list1),
-                                      create_item(EQUAL, field_long, 7)));
+                    new Item_cond_and (new Item_cond_or(or_list1),
+                                       new_item_equal(field_long, 7)));
   SCOPED_TRACE("");
   check_tree_result(tree, SEL_TREE::KEY, expected4);
 
@@ -798,11 +772,11 @@ TEST_F(SelArgTest, GetMMTreeSingleColIndex)
     "(1 <= field_1 <= 1) OR (3 <= field_1 <= 3) OR "
     "(5 <= field_1 <= 5) OR (7 <= field_1 <= 7)\n";
   List<Item> or_list2;
-  or_list2.push_back(create_item(EQUAL, field_long, 1));
-  or_list2.push_back(create_item(EQUAL, field_long, 3));
-  or_list2.push_back(create_item(EQUAL, field_long, 5));
-  or_list2.push_back(create_item(EQUAL, field_long, 7));
-  or_list2.push_back(create_item(EQUAL, field_long, 9));
+  or_list2.push_back(new_item_equal(field_long, 1));
+  or_list2.push_back(new_item_equal(field_long, 3));
+  or_list2.push_back(new_item_equal(field_long, 5));
+  or_list2.push_back(new_item_equal(field_long, 7));
+  or_list2.push_back(new_item_equal(field_long, 9));
 
   tree= get_mm_tree(m_opt_param,
                     new Item_cond_and(new Item_cond_or(or_list1),
@@ -815,12 +789,12 @@ TEST_F(SelArgTest, GetMMTreeSingleColIndex)
 /*
   Exercise range optimizer with multiple column index
 */
-TEST_F(SelArgTest, GetMMTreeMultipleSingleColIndex)
+TEST_F(OptRangeTest, GetMMTreeMultipleSingleColIndex)
 {
   // Create a single-column table without index
   create_table(1);
 
-  Mock_field_long *field_long= m_table_fields[0];
+  Field *field_long= m_opt_param->table->field[0];
 
   // Add two indexes covering the same field
   m_opt_param->add_key(field_long);
@@ -831,22 +805,22 @@ TEST_F(SelArgTest, GetMMTreeMultipleSingleColIndex)
   range_string.set_charset(system_charset_info);
 
   // Expected result of next test:
-  const char expected[]= 
+  const char expected[]=
     "result keys[0]: (42 <= field_1 <= 42)\n"
     "result keys[1]: (42 <= field_1 <= 42)\n";
-  create_tree(EQUAL, field_long, 42, 0, expected);
+  create_tree(new_item_equal(field_long, 42), expected);
 }
 
 
 /*
   Exercise range optimizer with multiple single column indexes
 */
-TEST_F(SelArgTest, GetMMTreeOneTwoColIndex)
+TEST_F(OptRangeTest, GetMMTreeOneTwoColIndex)
 {
   create_table(2);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
 
   m_opt_param->add_key(field_long1, field_long2);
 
@@ -856,32 +830,33 @@ TEST_F(SelArgTest, GetMMTreeOneTwoColIndex)
 
   // Expected result of next test:
   const char expected[]= "result keys[0]: (42 <= field_1 <= 42)\n";
-  create_tree(EQUAL, field_long1, 42, 0, expected);
+  create_tree(new_item_equal(field_long1, 42), expected);
 
   // Expected result of next test:
-  const char expected2[]= 
+  const char expected2[]=
     "result keys[0]: (42 <= field_1 <= 42 AND 10 <= field_2 <= 10)\n";
   SEL_TREE *tree=
     get_mm_tree(m_opt_param,
-                new Item_cond_and(create_item(EQUAL, field_long1, 42),
-                                  create_item(EQUAL, field_long2, 10))
-                );
+                new Item_cond_and(new_item_equal(field_long1, 42),
+                                  new_item_equal(field_long2, 10)));
 
   range_string.length(0);
-  print_tree(&range_string, "result",tree , m_opt_param);
+  print_tree(&range_string, "result",tree , m_opt_param, false);
   EXPECT_STREQ(expected2, range_string.c_ptr());
 }
 
+
 /*
-  Optimizer tracing should only print ranges for applicable keyparts.
- */
-TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
+  Optimizer tracing should only print ranges for applicable keyparts,
+  except when argument for print_tree() parameter 'print_full' is true.
+*/
+TEST_F(OptRangeTest, GetMMTreeNonApplicableKeypart)
 {
   create_table(3);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   List<Field> index_list;
   index_list.push_back(field_long1);
@@ -899,47 +874,67 @@ TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
     not applicable because there are no predicates on the second
     keypart.
   */
-  const char expected1[]= 
+  const char expected1[]=
     "result keys[0]: (42 <= field_1 <= 42)\n";
   SEL_TREE *tree=
     get_mm_tree(m_opt_param,
-                new Item_cond_and(create_item(EQUAL, field_long1, 42),
-                                  create_item(EQUAL, field_long3, 10))
-                );
-
+                new Item_cond_and (new_item_equal(field_long1, 42),
+                                   new_item_equal(field_long3, 10)));
   range_string.length(0);
-  print_tree(&range_string, "result", tree , m_opt_param);
+  print_tree(&range_string, "result", tree , m_opt_param, false);
   EXPECT_STREQ(expected1, range_string.c_ptr());
 
+  /*
+    Same SEL_ARG tree, but print_full argument is now true.
+    Non-applicable key parts are also printed in this case.
+  */
+  const char expected1_printfull[]= 
+    "result keys[0]: (42 <= field_1 <= 42 AND 10 <= field_3 <= 10)\n";
+
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param, true);
+  EXPECT_STREQ(expected1_printfull, range_string.c_ptr());
+  
   /*
     Expected result is range only on first keypart. Second keypart is
     not applicable because the predicate on the first keypart does not
     use an equality operator.
   */
-  const char expected2[]= 
+  const char expected2[]=
     "result keys[0]: (field_1 < 42)\n";
+
   tree=
     get_mm_tree(m_opt_param,
-                new Item_cond_and(create_item(LESS, field_long1, 42),
-                                  create_item(EQUAL, field_long2, 10))
-                );
-  
+                new Item_cond_and
+                (new_item_lt(field_long1, 42),
+                 new_item_equal(field_long2, 10)));
+
   range_string.length(0);
-  print_tree(&range_string, "result", tree , m_opt_param);
+  print_tree(&range_string, "result", tree , m_opt_param, false);
   EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  /*
+    Same SEL_ARG tree, but print_full argument is now true.
+    Non-applicable key parts are also printed in this case.
+  */
+  const char expected2_printfull[]= 
+    "result keys[0]: (field_1 < 42 AND 10 <= field_2 <= 10)\n";
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param, true);
+  EXPECT_STREQ(expected2_printfull, range_string.c_ptr());
 }
 
 
 /*
   Exercise range optimizer with three single column indexes
 */
-TEST_F(SelArgTest, treeAndSingleColIndex1)
+TEST_F(OptRangeTest, treeAndSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -952,17 +947,17 @@ TEST_F(SelArgTest, treeAndSingleColIndex1)
     Expected result when performing AND of:
       "(field_1 BETWEEN 10 AND 13) & (field_2 < 11)"
   */
-  const char expected_and1[]= 
+  const char expected_and1[]=
     "result keys[0]: (10 < field_1 < 13)\n"
     "result keys[1]: (field_2 < 11)\n";
 
   /*
     Expected result when performing AND of:
       "((field_1 BETWEEN 10 AND 13) & (field_2 < 11))
-       & 
+       &
        (field_3 BETWEEN 20 AND 30)"
   */
-  const char expected_and2[]= 
+  const char expected_and2[]=
     "result keys[0]: (10 < field_1 < 13)\n"
     "result keys[1]: (field_2 < 11)\n"
     "result keys[2]: (20 < field_3 < 30)\n";
@@ -970,26 +965,26 @@ TEST_F(SelArgTest, treeAndSingleColIndex1)
   /*
     Expected result when performing AND of:
       "((field_1 BETWEEN 10 AND 13) &
-        (field_2 < 11) & 
+        (field_2 < 11) &
         (field_3 BETWEEN 20 AND 30)
        )
        &
        field_2 > 8"
   */
-  const char expected_and3[]= 
+  const char expected_and3[]=
     "result keys[0]: (10 < field_1 < 13)\n"
     "result keys[1]: (8 < field_2 < 11)\n"        // <- notice lower bound
     "result keys[2]: (20 < field_3 < 30)\n";
 
   SEL_TREE *tree_and=
-    create_and_check_tree_and(
-      create_and_check_tree_and(
-        create_tree(BETWEEN, field_long1, 10, 13, expected_fld1),
-        create_tree(LESS, field_long2, 11, 0, expected_fld2_1),
-         SEL_TREE::KEY, expected_and1),
-      create_tree(BETWEEN, field_long3, 20, 30, expected_fld3),
-       SEL_TREE::KEY, expected_and2
-  );
+    create_and_check_tree_and
+    (create_and_check_tree_and
+     (create_tree(new_item_between(field_long1, 10, 13), expected_fld1),
+      create_tree(new_item_lt(field_long2, 11), expected_fld2_1),
+      SEL_TREE::KEY, expected_and1),
+     create_tree(new_item_between(field_long3, 20, 30), expected_fld3),
+     SEL_TREE::KEY, expected_and2
+     );
 
   /*
     Testing Axiom 7: AND'ing a predicate already part of a SEL_TREE
@@ -997,14 +992,14 @@ TEST_F(SelArgTest, treeAndSingleColIndex1)
   */
   create_and_check_tree_and(
     tree_and,
-    create_tree(BETWEEN, field_long3, 20, 30, expected_fld3),
-     SEL_TREE::KEY, expected_and2 // conditions did not change
+    create_tree(new_item_between(field_long3, 20, 30), expected_fld3),
+    SEL_TREE::KEY, expected_and2 // conditions did not change
   );
 
-  create_and_check_tree_and(
-    tree_and,
-    create_tree(GREATER, field_long2, 8, 0, expected_fld2_2),
-     SEL_TREE::KEY, expected_and3
+  create_and_check_tree_and(tree_and,
+                            create_tree(new_item_gt(field_long2, 8),
+                                        expected_fld2_2),
+                            SEL_TREE::KEY, expected_and3
   );
 
 }
@@ -1013,13 +1008,13 @@ TEST_F(SelArgTest, treeAndSingleColIndex1)
 /*
   Exercise range optimizer with three single column indexes
 */
-TEST_F(SelArgTest, treeOrSingleColIndex1)
+TEST_F(OptRangeTest, treeOrSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -1030,7 +1025,7 @@ TEST_F(SelArgTest, treeOrSingleColIndex1)
 
   /*
     Expected result when performing OR of:
-      "(field_1 BETWEEN 10 AND 13) | (field_2 < 11)"
+      "(field_1 Item_func::BETWEEN 10 AND 13) | (field_2 < 11)"
   */
   const char expected_or1[]=
     "result contains the following merges\n"
@@ -1044,7 +1039,7 @@ TEST_F(SelArgTest, treeOrSingleColIndex1)
        |
        (field_3 BETWEEN 20 AND 30)"
   */
-  const char expected_or2[]= 
+  const char expected_or2[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[0]: (10 < field_1 < 13)\n"
@@ -1054,11 +1049,11 @@ TEST_F(SelArgTest, treeOrSingleColIndex1)
   SEL_TREE *tree_or2=
     create_and_check_tree_or(
       create_and_check_tree_or(
-        create_tree(BETWEEN, field_long1, 10, 13, expected_fld1),
-        create_tree(LESS, field_long2, 11, 0, expected_fld2_1),
-         SEL_TREE::KEY, expected_or1),
-      create_tree(BETWEEN, field_long3, 20, 30, expected_fld3),
-       SEL_TREE::KEY, expected_or2
+        create_tree(new_item_between(field_long1, 10, 13), expected_fld1),
+        create_tree(new_item_lt(field_long2, 11), expected_fld2_1),
+        SEL_TREE::KEY, expected_or1),
+      create_tree(new_item_between(field_long3, 20, 30), expected_fld3),
+      SEL_TREE::KEY, expected_or2
   );
 
   /*
@@ -1068,8 +1063,8 @@ TEST_F(SelArgTest, treeOrSingleColIndex1)
   SEL_TREE *tree_or3=
     create_and_check_tree_or(
       tree_or2,
-      create_tree(BETWEEN, field_long3, 20, 30, expected_fld3),
-       SEL_TREE::KEY, expected_or2
+      create_tree(new_item_between(field_long3, 20, 30), expected_fld3),
+      SEL_TREE::KEY, expected_or2
   );
 
   /*
@@ -1079,27 +1074,27 @@ TEST_F(SelArgTest, treeOrSingleColIndex1)
         (field_3 BETWEEN 20 AND 30)
        ) |
        (field_2 > 8)"
-    
-    This is always TRUE due to 
+
+    This is always TRUE due to
        (field_2 < 11) | (field_2 > 8)  <==> true
   */
   create_and_check_tree_or(
     tree_or3,
-    create_tree(GREATER, field_long2, 8, 0, expected_fld2_2),
-     SEL_TREE::ALWAYS, ""
+    create_tree(new_item_gt(field_long2, 8), expected_fld2_2),
+    SEL_TREE::ALWAYS, ""
   );
 }
 
 /*
   Exercise range optimizer with three single column indexes
 */
-TEST_F(SelArgTest, treeAndOrComboSingleColIndex1)
+TEST_F(OptRangeTest, treeAndOrComboSingleColIndex1)
 {
   create_table_singlecol_idx(3);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Expected outputs
   // Single-field range predicates
@@ -1143,25 +1138,25 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex1)
 
   create_and_check_tree_or(
     create_and_check_tree_and(
-      create_tree(BETWEEN, field_long1, 10, 13, exected_fld1),
-      create_tree(LESS, field_long2, 11, 0, exected_fld2),
-       SEL_TREE::KEY, expected_and
+      create_tree(new_item_between(field_long1, 10, 13), exected_fld1),
+      create_tree(new_item_lt(field_long2, 11), exected_fld2),
+      SEL_TREE::KEY, expected_and
     ),
-    create_tree(BETWEEN, field_long3, 20, 30, exected_fld3),
-     SEL_TREE::KEY, expected_incorrect_or
+    create_tree(new_item_between(field_long3, 20, 30), exected_fld3),
+    SEL_TREE::KEY, expected_incorrect_or
   );
 }
 
 /**
   Test for BUG#16164031
 */
-TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
+TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2)
 {
   create_table_singlecol_idx(3);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
-  Mock_field_long *field_long3= m_table_fields[2];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
+  Field *field_long3= m_opt_param->table->field[2];
 
   // Single-index predicates
   const char exp_f2_eq1[]=  "result keys[1]: (1 <= field_2 <= 1)\n";
@@ -1170,21 +1165,21 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
   const char exp_f1_lt1[]=  "result keys[0]: (field_1 < 256)\n";
 
   // OR1: Result of OR'ing f2_eq with f3_eq
-  const char exp_or1[]= 
+  const char exp_or1[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
     "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
 
   // OR2: Result of OR'ing f1_lt with f2_eq
-  const char exp_or2[]= 
+  const char exp_or2[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[0]: (field_1 < 256)\n"
     "  merge_tree keys[1]: (2 <= field_2 <= 2)\n";
 
   // AND1: Result of "OR1 & OR2"
-  const char exp_and1[]= 
+  const char exp_and1[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
@@ -1196,18 +1191,18 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
   SEL_TREE *tree_and1=
     create_and_check_tree_and(
       create_and_check_tree_or(
-        create_tree(EQUAL, field_long2, 1, 0, exp_f2_eq1),
-        create_tree(EQUAL, field_long3, 1, 0, exp_f3_eq),
+        create_tree(new_item_equal(field_long2, 1), exp_f2_eq1),
+        create_tree(new_item_equal(field_long3, 1), exp_f3_eq),
         SEL_TREE::KEY, exp_or1),
       create_and_check_tree_or(
-        create_tree(LESS, field_long1, 256, 0, exp_f1_lt1),
-        create_tree(EQUAL, field_long2, 2, 0, exp_f2_eq2),
+        create_tree(new_item_lt(field_long1, 256), exp_f1_lt1),
+        create_tree(new_item_equal(field_long2, 2), exp_f2_eq2),
         SEL_TREE::KEY, exp_or2),
       SEL_TREE::KEY, exp_and1
     );
 
   // OR3: Result of "AND1 | field3 = 1"
-  const char exp_or3[]= 
+  const char exp_or3[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
@@ -1216,11 +1211,11 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
     "  merge_tree keys[0]: (field_1 < 256)\n"
     "  merge_tree keys[1]: (2 <= field_2 <= 2)\n"
     "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
-  
+
   SEL_TREE *tree_or3=
     create_and_check_tree_or(
       tree_and1,
-      create_tree(EQUAL, field_long3, 1, 0, exp_f3_eq),
+      create_tree(new_item_equal(field_long3, 1), exp_f3_eq),
       SEL_TREE::KEY, exp_or3
     );
 
@@ -1230,7 +1225,7 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
   const char exp_f1_or[]=  "result keys[0]: (field_1 < 35) OR (257 < field_1)\n";
 
   // OR4: Result of "OR3 | exp_f1_or"
-  const char exp_or4[]= 
+  const char exp_or4[]=
     "result contains the following merges\n"
     "--- alternative 1 ---\n"
     "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
@@ -1245,8 +1240,8 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
     create_and_check_tree_or(
       tree_or3,
       create_and_check_tree_or(
-        create_tree(LESS, field_long1, 35, 0, exp_f1_lt2),
-        create_tree(GREATER, field_long1, 257, 0, exp_f1_gt2),
+        create_tree(new_item_lt(field_long1, 35), exp_f1_lt2),
+        create_tree(new_item_gt(field_long1, 257), exp_f1_gt2),
         SEL_TREE::KEY, exp_f1_or
       ),
       SEL_TREE::KEY, exp_or4
@@ -1255,7 +1250,7 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
   // More single-index predicates
   const char exp_f1_neq[]= "result keys[0]: (field_1 < 255) OR (255 < field_1)\n";
   const char exp_f2_eq3[]= "result keys[1]: (3 <= field_2 <= 3)\n";
-  
+
   // AND2: Result of ANDing these two ^
   const char exp_and2[]=
     "result keys[0]: (field_1 < 255) OR (255 < field_1)\n"
@@ -1278,8 +1273,8 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
   create_and_check_tree_or(
     tree_or4,
     create_and_check_tree_and(
-      create_tree(NOT_EQUAL, field_long1, 255, 0, exp_f1_neq),
-      create_tree(EQUAL, field_long2, 3, 0, exp_f2_eq3),
+      create_tree(new_item_ne(field_long1, 255), exp_f1_neq),
+      create_tree(new_item_equal(field_long2, 3), exp_f2_eq3),
       SEL_TREE::KEY, exp_and2),
     SEL_TREE::KEY, exp_or5
   );
@@ -1289,12 +1284,12 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
 /**
   Test for BUG#16241773
 */
-TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
+TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3)
 {
   create_table_singlecol_idx(2);
 
-  Mock_field_long *field_long1= m_table_fields[0];
-  Mock_field_long *field_long2= m_table_fields[1];
+  Field *field_long1= m_opt_param->table->field[0];
+  Field *field_long2= m_opt_param->table->field[1];
 
   // Single-index predicates
   const char exp_f1_eq10[]=  "result keys[0]: (10 <= field_1 <= 10)\n";
@@ -1330,12 +1325,12 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
   SEL_TREE *tree_and1=
     create_and_check_tree_and(
       create_and_check_tree_or(
-        create_tree(EQUAL, field_long1, 10, 0, exp_f1_eq10),
-        create_tree(GREATER, field_long2, 20, 0, exp_f2_gtr20),
+        create_tree(new_item_equal(field_long1, 10), exp_f1_eq10),
+        create_tree(new_item_gt(field_long2, 20), exp_f2_gtr20),
         SEL_TREE::KEY, exp_or1),
       create_and_check_tree_or(
-        create_tree(EQUAL, field_long1, 11, 0, exp_f1_eq11),
-        create_tree(GREATER, field_long2, 10, 0, exp_f2_gtr10),
+        create_tree(new_item_equal(field_long1, 11), exp_f1_eq11),
+        create_tree(new_item_gt(field_long2, 10), exp_f2_gtr10),
         SEL_TREE::KEY, exp_or2),
       SEL_TREE::KEY, exp_and1
     );
@@ -1353,7 +1348,7 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
   SEL_TREE *tree_or3=
     create_and_check_tree_or(
       tree_and1,
-      create_tree(EQUAL, field_long2, 5, 0, exp_f2_eq5),
+      create_tree(new_item_equal(field_long2, 5), exp_f2_eq5),
       SEL_TREE::KEY, exp_or3
     );
 
@@ -1372,7 +1367,7 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
 
   create_and_check_tree_or(
     tree_or3,
-    create_tree(LESS, field_long2, 2, 0, exp_f2_lt2),
+    create_tree(new_item_lt(field_long2, 2), exp_f2_lt2),
     SEL_TREE::KEY, exp_or4
   );
 }
@@ -1381,45 +1376,46 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
 /*
   Create SelArg with various single valued predicate
 */
-TEST_F(SelArgTest, SelArgOnevalue)
+TEST_F(OptRangeTest, SelArgOnevalue)
 {
-  Mock_field_long field_long7(thd(), new Item_int(7), NULL, true);
+  Fake_TABLE fake_table(new Item_int(7));
+  Field *field_long7= fake_table.field[0];
 
   KEY_PART_INFO kpi;
-  kpi.init_from_field(&field_long7);
+  kpi.init_from_field(field_long7);
 
-  uchar range_val7[field_long7.KEY_LENGTH];
-  field_long7.get_key_image(range_val7, kpi.length, Field::itRAW);
+  uchar range_val7[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long7->get_key_image(range_val7, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg7(&field_long7, range_val7, range_val7);
+  SEL_ARG sel_arg7(field_long7, range_val7, range_val7);
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected[]= "7 <= field_name <= 7";
+  const char expected[]= "7 <= field_1 <= 7";
   EXPECT_STREQ(expected, range_string.c_ptr());
 
   sel_arg7.min_flag|= NO_MIN_RANGE;
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected2[]= "field_name <= 7";
+  const char expected2[]= "field_1 <= 7";
   EXPECT_STREQ(expected2, range_string.c_ptr());
 
   sel_arg7.max_flag= NEAR_MAX;
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected3[]= "field_name < 7";
+  const char expected3[]= "field_1 < 7";
   EXPECT_STREQ(expected3, range_string.c_ptr());
 
   sel_arg7.min_flag= NEAR_MIN;
   sel_arg7.max_flag= NO_MAX_RANGE;
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected4[]= "7 < field_name";
+  const char expected4[]= "7 < field_1";
   EXPECT_STREQ(expected4, range_string.c_ptr());
 
   sel_arg7.min_flag= 0;
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected5[]= "7 <= field_name";
+  const char expected5[]= "7 <= field_1";
   EXPECT_STREQ(expected5, range_string.c_ptr());
 }
 
@@ -1427,90 +1423,92 @@ TEST_F(SelArgTest, SelArgOnevalue)
 /*
   Create SelArg with a between predicate
 */
-TEST_F(SelArgTest, SelArgBetween)
+TEST_F(OptRangeTest, SelArgBetween)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
-  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
+  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Field *field_long3= fake_table.field[0];
+  Field *field_long5= fake_table.field[1];
 
   KEY_PART_INFO kpi;
-  kpi.init_from_field(&field_long3);
+  kpi.init_from_field(field_long3);
 
-  uchar range_val3[field_long3.KEY_LENGTH];
-  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+  uchar range_val3[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long3->get_key_image(range_val3, kpi.length, Field::itRAW);
 
-  uchar range_val5[field_long5.KEY_LENGTH];
-  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+  uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg35(&field_long3, range_val3, range_val5);
+  SEL_ARG sel_arg35(field_long3, range_val3, range_val5);
 
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected[]= "3 <= field_name <= 5";
+  const char expected[]= "3 <= field_1 <= 5";
   EXPECT_STREQ(expected, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg35.min_flag= NEAR_MIN;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected2[]= "3 < field_name <= 5";
+  const char expected2[]= "3 < field_1 <= 5";
   EXPECT_STREQ(expected2, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg35.max_flag= NEAR_MAX;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected3[]= "3 < field_name < 5";
+  const char expected3[]= "3 < field_1 < 5";
   EXPECT_STREQ(expected3, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg35.min_flag= 0;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected4[]= "3 <= field_name < 5";
+  const char expected4[]= "3 <= field_1 < 5";
   EXPECT_STREQ(expected4, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg35.min_flag= NO_MIN_RANGE;
   sel_arg35.max_flag= 0;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected5[]= "field_name <= 5";
+  const char expected5[]= "field_1 <= 5";
   EXPECT_STREQ(expected5, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg35.min_flag= 0;
   sel_arg35.max_flag= NO_MAX_RANGE;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
-  const char expected6[]= "3 <= field_name";
+  const char expected6[]= "3 <= field_1";
   EXPECT_STREQ(expected6, range_string.c_ptr());
 }
 
 /*
   Test SelArg::CopyMax
 */
-TEST_F(SelArgTest, CopyMax)
+TEST_F(OptRangeTest, CopyMax)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
-  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
+  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Field *field_long3= fake_table.field[0];
+  Field *field_long5= fake_table.field[1];
 
   KEY_PART_INFO kpi;
-  kpi.init_from_field(&field_long3);
+  kpi.init_from_field(field_long3);
 
-  uchar range_val3[field_long3.KEY_LENGTH];
-  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+  uchar range_val3[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long3->get_key_image(range_val3, kpi.length, Field::itRAW);
 
-  uchar range_val5[field_long5.KEY_LENGTH];
-  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+  uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg3(&field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg3(field_long3, range_val3, range_val3);
   sel_arg3.min_flag= NO_MIN_RANGE;
-  SEL_ARG sel_arg5(&field_long5, range_val5, range_val5);
+  SEL_ARG sel_arg5(field_long5, range_val5, range_val5);
   sel_arg5.min_flag= NO_MIN_RANGE;
 
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg3, &kpi);
-  const char expected[]= "field_name <= 3";
+  const char expected[]= "field_1 <= 3";
   EXPECT_STREQ(expected, range_string.c_ptr());
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg5, &kpi);
-  const char expected2[]= "field_name <= 5";
+  const char expected2[]= "field_1 <= 5";
   EXPECT_STREQ(expected2, range_string.c_ptr());
 
   /*
@@ -1526,14 +1524,14 @@ TEST_F(SelArgTest, CopyMax)
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg3, &kpi);
-  const char expected3[]= "field_name <= 5";
+  const char expected3[]= "field_1 <= 5";
   EXPECT_STREQ(expected3, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg5.min_flag= 0;
   sel_arg5.max_flag= NO_MAX_RANGE;
   print_selarg_ranges(&range_string, &sel_arg5, &kpi);
-  const char expected4[]= "5 <= field_name";
+  const char expected4[]= "5 <= field_1";
   EXPECT_STREQ(expected4, range_string.c_ptr());
 
   /*
@@ -1550,40 +1548,41 @@ TEST_F(SelArgTest, CopyMax)
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg3, &kpi);
-  const char expected5[]= "field_name";
+  const char expected5[]= "field_1";
   EXPECT_STREQ(expected5, range_string.c_ptr());
 }
 
 /*
   Test SelArg::CopyMin
 */
-TEST_F(SelArgTest, CopyMin)
+TEST_F(OptRangeTest, CopyMin)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
-  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
+  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Field *field_long3= fake_table.field[0];
+  Field *field_long5= fake_table.field[1];
 
   KEY_PART_INFO kpi;
-  kpi.init_from_field(&field_long3);
+  kpi.init_from_field(field_long3);
 
-  uchar range_val3[field_long3.KEY_LENGTH];
-  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+  uchar range_val3[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long3->get_key_image(range_val3, kpi.length, Field::itRAW);
 
-  uchar range_val5[field_long5.KEY_LENGTH];
-  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+  uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg3(&field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg3(field_long3, range_val3, range_val3);
   sel_arg3.max_flag= NO_MAX_RANGE;
-  SEL_ARG sel_arg5(&field_long5, range_val5, range_val5);
+  SEL_ARG sel_arg5(field_long5, range_val5, range_val5);
   sel_arg5.max_flag= NO_MAX_RANGE;
 
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg3, &kpi);
-  const char expected[]= "3 <= field_name";
+  const char expected[]= "3 <= field_1";
   EXPECT_STREQ(expected, range_string.c_ptr());
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg5, &kpi);
-  const char expected2[]= "5 <= field_name";
+  const char expected2[]= "5 <= field_1";
   EXPECT_STREQ(expected2, range_string.c_ptr());
 
   /*
@@ -1599,20 +1598,20 @@ TEST_F(SelArgTest, CopyMin)
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg5, &kpi);
-  const char expected3[]= "3 <= field_name";
+  const char expected3[]= "3 <= field_1";
   EXPECT_STREQ(expected3, range_string.c_ptr());
 
   range_string.length(0);
   sel_arg3.max_flag= 0;
   sel_arg3.min_flag= NO_MIN_RANGE;
   print_selarg_ranges(&range_string, &sel_arg3, &kpi);
-  const char expected4[]= "field_name <= 3";
+  const char expected4[]= "field_1 <= 3";
   EXPECT_STREQ(expected4, range_string.c_ptr());
 
   /*
     Ranges now:
                        -inf ----------------3-5----------- +inf
-    sel_arg3:          [-------------------->                
+    sel_arg3:          [-------------------->
     sel_arg5:                               <-----------------]
     Below: merge these two ranges into sel_arg5 using copy_min()
   */
@@ -1623,7 +1622,7 @@ TEST_F(SelArgTest, CopyMin)
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg5, &kpi);
-  const char expected5[]= "field_name";
+  const char expected5[]= "field_1";
   EXPECT_STREQ(expected5, range_string.c_ptr());
 }
 
@@ -1631,48 +1630,49 @@ TEST_F(SelArgTest, CopyMin)
 /*
   Test SelArg::KeyOr
 */
-TEST_F(SelArgTest, KeyOr1)
+TEST_F(OptRangeTest, KeyOr1)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
-  Mock_field_long field_long4(thd(), new Item_int(4), NULL, true);
+  Fake_TABLE fake_table(new Item_int(3), new Item_int(4));
+  Field *field_long3= fake_table.field[0];
+  Field *field_long4= fake_table.field[1];
 
   KEY_PART_INFO kpi;
-  kpi.init_from_field(&field_long3);
+  kpi.init_from_field(field_long3);
 
-  uchar range_val3[field_long3.KEY_LENGTH];
-  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+  uchar range_val3[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long3->get_key_image(range_val3, kpi.length, Field::itRAW);
 
-  uchar range_val4[field_long4.KEY_LENGTH];
-  field_long4.get_key_image(range_val4, kpi.length, Field::itRAW);
+  uchar range_val4[Fake_TABLE::DEFAULT_PACK_LENGTH];
+  field_long4->get_key_image(range_val4, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg_lt3(&field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg_lt3(field_long3, range_val3, range_val3);
   sel_arg_lt3.part= 0;
   sel_arg_lt3.min_flag= NO_MIN_RANGE;
   sel_arg_lt3.max_flag= NEAR_MAX;
 
-  SEL_ARG sel_arg_gt3(&field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg_gt3(field_long3, range_val3, range_val3);
   sel_arg_gt3.part= 0;
   sel_arg_gt3.min_flag= NEAR_MIN;
   sel_arg_gt3.max_flag= NO_MAX_RANGE;
 
-  SEL_ARG sel_arg_lt4(&field_long4, range_val4, range_val4);
+  SEL_ARG sel_arg_lt4(field_long4, range_val4, range_val4);
   sel_arg_lt4.part= 0;
   sel_arg_lt4.min_flag= NO_MIN_RANGE;
   sel_arg_lt4.max_flag= NEAR_MAX;
 
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg_lt3, &kpi);
-  const char expected_lt3[]= "field_name < 3";
+  const char expected_lt3[]= "field_1 < 3";
   EXPECT_STREQ(expected_lt3, range_string.c_ptr());
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg_gt3, &kpi);
-  const char expected_gt3[]= "3 < field_name";
+  const char expected_gt3[]= "3 < field_1";
   EXPECT_STREQ(expected_gt3, range_string.c_ptr());
 
   range_string.length(0);
   print_selarg_ranges(&range_string, &sel_arg_lt4, &kpi);
-  const char expected_lt4[]= "field_name < 4";
+  const char expected_lt4[]= "field_1 < 4";
   EXPECT_STREQ(expected_lt4, range_string.c_ptr());
 
 
@@ -1694,13 +1694,259 @@ TEST_F(SelArgTest, KeyOr1)
   */
   range_string.length(0);
   print_selarg_ranges(&range_string, tmp, &kpi);
-  const char expected_merged[]= 
-    "field_name < 3\n"
-    "3 < field_name";
+  const char expected_merged[]=
+    "field_1 < 3\n"
+    "3 < field_1";
   EXPECT_STREQ(expected_merged, range_string.c_ptr());
 
   SEL_ARG *tmp2= key_or(NULL, tmp, &sel_arg_lt4);
   EXPECT_EQ(null_arg, tmp2);
+}
+
+
+class Mock_SEL_ARG : public SEL_ARG
+{
+private:
+  ulong m_expected_use_count;
+public:
+  Mock_SEL_ARG(SEL_ARG *next_key_part_ptr,
+               int use_count_arg)
+    :m_expected_use_count(use_count_arg)
+  {
+    next_key_part= next_key_part_ptr;
+    make_root();
+  }
+
+  // Verify that use_count is as expected on destruction
+  ~Mock_SEL_ARG()
+  {
+    EXPECT_EQ (m_expected_use_count, use_count);
+  }
+};
+
+
+/**
+  @todo
+  - Move some place it can be reused
+  - Use varargs instead of copy-paste.
+*/
+Item_row *new_Item_row(int a, int b)
+{
+  /*
+    The Item_row CTOR doesn't store the reference to the list, hence
+    it can live on the stack.
+  */
+  List<Item> items;
+  items.push_front(new Item_int(b));
+  items.push_front(new Item_int(a));
+  return new Item_row(items);
+}
+
+
+Item_row *new_Item_row(int a, int b, int c)
+{
+  /*
+    The Item_row CTOR doesn't store the reference to the list, hence
+    it can live on the stack.
+  */
+  List<Item> items;
+  items.push_front(new Item_int(c));
+  items.push_front(new Item_int(b));
+  items.push_front(new Item_int(a));
+  return new Item_row(items);
+}
+
+
+/// @todo Move some place it can be reused.
+Item_row *new_Item_row(Field **fields, int count)
+{
+  /*
+    The Item_row CTOR doesn't store the reference to the list, hence
+    it can live on the stack.
+  */
+  List<Item> items;
+  for (int i= count - 1; i >= 0; --i)
+    items.push_front(new Item_field(fields[i]));
+  return new Item_row(items);
+}
+
+
+TEST_F(OptRangeTest, RowConstructorIn2)
+{
+  create_table(2);
+
+  m_opt_param->add_key();
+
+  // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
+  List<Item> all_args;
+  all_args.push_front(new_Item_row(1, 2));
+  all_args.push_front(new_Item_row(3, 4));
+  all_args.push_front(new_Item_row(m_opt_param->table->field, 2));
+  Item_func_in *cond= new Item_func_in(all_args);
+
+  // ... and resolve it.
+  Item *item= cond;
+  cond->fix_fields(thd(), &item);
+
+  SEL_TREE *sel_tree= get_mm_tree(m_opt_param, cond);
+
+  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_EQ(Bitmap<64>(1), sel_tree->keys_map);
+
+  const char *expected=
+    "result keys[0]: "
+    "(1 <= field_1 <= 1 AND 2 <= field_2 <= 2) OR "
+    "(3 <= field_1 <= 3 AND 4 <= field_2 <= 4)\n";
+  check_tree_result(sel_tree, SEL_TREE::KEY, expected);
+}
+
+
+TEST_F(OptRangeTest, RowConstructorIn3)
+{
+  create_table(3);
+
+  m_opt_param->add_key();
+
+  // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
+  List<Item> all_args;
+  all_args.push_front(new_Item_row(1, 2, 3));
+  all_args.push_front(new_Item_row(4, 5, 6));
+  all_args.push_front(new_Item_row(m_opt_param->table->field, 3));
+  Item_func_in *cond= new Item_func_in(all_args);
+
+  // ... and resolve it.
+  Item *item= cond;
+  cond->fix_fields(thd(), &item);
+
+  SEL_TREE *sel_tree= get_mm_tree(m_opt_param, cond);
+
+  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_EQ(Bitmap<64>(1), sel_tree->keys_map);
+
+  const char *expected=
+    "result keys[0]: "
+    "(1 <= field_1 <= 1 AND 2 <= field_2 <= 2 AND 3 <= field_3 <= 3) OR "
+    "(4 <= field_1 <= 4 AND 5 <= field_2 <= 5 AND 6 <= field_3 <= 6)\n";
+
+  check_tree_result(sel_tree, SEL_TREE::KEY, expected);
+}
+
+/*
+  Sets up a simplified tree to represent the interval list. The result
+  is not a proper RB-tree: on the "left" side of 'root', only 'left'
+  and 'parent' pointers are used, and on the "right" side of 'root'
+  only 'right' and 'parent' pointers are used. In addition, the nodes
+  are connected via 'next' linked list pointers.
+
+  This is sufficient for SEL_ARG's first() / last() /
+  increment_use_count() functions to work.
+
+  The root node of the tree will not change by calling this function.
+
+  @param root    The root of the tree that 'other' will be added to
+  @param other   SEL_ARG that will be added to the tree.
+
+  @note While it's perfectly fine for 'root' to be a tree of SEL_ARGs,
+  'other' can currently only be a single SEL_ARG (i.e., it cannot
+  refer to any other SEL_ARGs through next/prev/left/right)
+*/
+
+void build_interval_list(Mock_SEL_ARG *root, Mock_SEL_ARG *other)
+{
+  /*
+    Keep the tree balanced by adding nodes to left and right of
+    'root' in an alternating fashion
+  */
+  if (root->elements % 2)
+  {
+    SEL_ARG *add_to= root->first();
+    add_to->left=  other;
+    other->next=   add_to;
+    other->parent= add_to;
+  }
+  else
+  {
+    SEL_ARG *add_to= root->last();
+    add_to->next=  other;
+    add_to->right= other;
+    other->parent= add_to;
+  }
+
+  root->elements++;
+}
+
+
+TEST_F(OptRangeTest, IncrementUseCount)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND (kp12 = c OR kp22 = c) AND kp3 = c) OR
+    (kp12 = c AND (kp12 = c OR kp22 = c) AND kp3 = c)
+
+    [kp11*]---[kp21*]---[kp3*]
+       |      /  |      /
+    [kp12]---/ [kp22]--/
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+  Mock_SEL_ARG kp3(NULL, 4);
+
+  Mock_SEL_ARG kp21(&kp3, 2);
+  Mock_SEL_ARG kp22(&kp3, 0);
+  build_interval_list(&kp21, &kp22);
+
+  Mock_SEL_ARG kp11(&kp21, 0);
+  Mock_SEL_ARG kp12(&kp21, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+   */
+  kp11.increment_use_count(1);
+}
+
+
+TEST_F(OptRangeTest, IncrementUseCount2)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND kp2 = c AND (kp31 = c OR kp32 = c)) OR
+    (kp12 = c AND kp2 = c AND (kp31 = c OR kp32 = c))
+
+    [kp11*]---[kp2*]---[kp31*]
+       |      /           |
+    [kp12]---/         [kp32]
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+
+  Mock_SEL_ARG kp31(NULL, 2);
+  Mock_SEL_ARG kp32(NULL, 0);
+  build_interval_list(&kp31, &kp32);
+
+  Mock_SEL_ARG kp2(&kp31, 2);
+
+  Mock_SEL_ARG kp11(&kp2, 0);
+  Mock_SEL_ARG kp12(&kp2, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+ 
+   */
+  kp11.increment_use_count(1);
 }
 
 }

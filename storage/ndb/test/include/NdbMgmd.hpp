@@ -125,7 +125,7 @@ public:
   }
 
   bool connect(const char* connect_string = NULL,
-               int num_retries = 0, int retry_delay_in_seconds = 0) {
+               int num_retries = 12, int retry_delay_in_seconds = 5) {
     assert(m_handle == NULL);
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){

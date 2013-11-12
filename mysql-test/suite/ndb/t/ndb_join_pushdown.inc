@@ -788,6 +788,76 @@ from t1
  left join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c;
 
+# Bug#16199028:
+# Tescase where a too strict 'root' was checked:
+# In these cases t4 was not pushed as it was incorrectly
+# concluded that its grandparent ref of 't2' through 't3'
+# introduced dependencies on the outer joined t1.
+#
+explain extended
+select straight_join *
+from
+ ( t1 as t0 left join t1 as t1 on t1.a = t0.a and t1.b = t0.b
+ )
+ left join
+ ( t1 as t2 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
+            join t1 as t4 on t4.a = t3.c and t4.b = t2.c
+ )
+ on t2.a = t1.a and t2.b = t1.b;
+
+explain extended
+select straight_join *
+from
+  t1 as x1
+  left join 
+  ( t1 as x2 join t1 as x3 on x3.a=x2.c
+             join t1 as x4 on x4.a=x2.d
+             join t1 as x5 on x5.a=x3.d and x5.b=x4.d
+  )
+  on x2.a=x1.c and x2.b=x1.c and 
+     x3.b=x1.d and
+     x4.b=x1.d;
+
+
+# Bug#16198866:
+# Additional tests where equality set [t1.d, t3.b, t4.d]
+# propagation incorrectly allowed grandparent references
+# to be allowed 'through' outer joins (t2):
+#
+# Test: don't allow t4 to propagate parent deps past 
+# outer joined 't2' into t3.
+# (As that would implicit cause t3 to depend on t2.)
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+# However, if t3 already depends on t2 (t3.a = t2.b)
+# it *is* allowed as it will not introduce any new 
+# t3 dependencies.
+#
+# Note: Both these two queries are fully pushable, but 
+# the later will likely result in a better query plan.
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
 
 # Test a combination of pushed table scan (x, y)
 #  & pushed EQ-bound (indexScan) (z, t1)
@@ -4268,6 +4338,147 @@ select scan_count.VARIABLE_NAME,
        where old.variable_name = 'Ndb_scan_count';
 
 drop table scan_count;
+
+connection ddl;
+drop table t1;
+
+##############
+# Bug#16925513: HIT DBUG_ASSERT IN SPJ BLOCK, ~LINE 4406
+#
+# Testcase extracted from failing RQG test.
+
+connection ddl;
+CREATE TABLE table1 (
+  col_int_unique int(11) DEFAULT NULL,
+  PRIMARY KEY (col_int_unique)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table3 (
+  col_int int(11) NOT NULL DEFAULT '0',
+  KEY (col_int)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table4 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table6 (
+  col_int int(11) DEFAULT NULL,
+  col_int_unique int(11) DEFAULT NULL
+) ENGINE=ndbcluster;
+
+connection spj;
+insert into table6 values
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL);
+
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+EXPLAIN EXTENDED
+ SELECT * FROM
+ table1 RIGHT JOIN 
+   table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+     JOIN
+   table6 ON table4.pk = table6.col_int_unique 
+ ON table1.col_int_unique = table6.col_int;
+
+--sorted_result
+ SELECT * FROM
+ table1 RIGHT JOIN 
+   table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+     JOIN
+   table6 ON table4.pk = table6.col_int_unique 
+ ON table1.col_int_unique = table6.col_int;
+
+
+--error 0,1193
+set global debug=@save_debug;
+
+connection ddl;
+drop table table6;
+drop table table4;
+drop table table3;
+drop table table1;
+
+
+--echo 5.6 tests
+#######################################
+# MySQL 5.6 include improved optimizer
+# handling of subqueries. Some specific
+# test for handling limitations / problems
+# specific to these features
+
+##############
+# Bug #16664035
+# PUSHED JOIN TOGETHER WITH 'FIRSTMATCH' STRATEGY MAY RETURN TOO MANY ROWS
+
+connection ddl;
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`),
+  key(c), key(d)
+) engine=ndbcluster;
+
+connection spj;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Use debug hook to enforce only 4 rows in each batch (Two roundtips)
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+# Make use of FirstMatch more likely:
+set optimizer_switch='materialization=off';
+
+# 'subq' should use 'ref, FirstMatch(t1)', preventing join pushdown
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq);
+select count(*) from t1 where
+  t1.c in (select c from t1 as subq);
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1) and
+  t1.d in (select d from t1 as subq2);
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1) and
+  t1.d in (select d from t1 as subq2);
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1 where 
+    subq1.c in (select c from t1 as subq2));
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1 where 
+    subq1.c in (select c from t1 as subq2));
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+select count(*) from t1 where 
+  t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+
+set optimizer_switch='materialization=default';
+
+--error 0,1193
+set global debug=@save_debug;
 
 connection ddl;
 drop table t1;

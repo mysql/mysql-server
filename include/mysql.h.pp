@@ -11,7 +11,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID,
+  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
   COM_END
 };
 struct st_vio;
@@ -172,6 +172,46 @@ extern LIST *list_reverse(LIST *root);
 extern void list_free(LIST *root,unsigned int free_data);
 extern unsigned int list_length(LIST *);
 extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
+#include "mysql/client_plugin.h"
+struct st_mysql_client_plugin
+{
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(); int (*options)(const char *option, const void *);
+};
+struct st_mysql;
+#include <mysql/plugin_auth_common.h>
+typedef struct st_plugin_vio_info
+{
+  enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
+         MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
+  int socket;
+} MYSQL_PLUGIN_VIO_INFO;
+typedef struct st_plugin_vio
+{
+  int (*read_packet)(struct st_plugin_vio *vio,
+                     unsigned char **buf);
+  int (*write_packet)(struct st_plugin_vio *vio,
+                      const unsigned char *packet,
+                      int packet_len);
+  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+} MYSQL_PLUGIN_VIO;
+struct st_mysql_client_plugin_AUTHENTICATION
+{
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(); int (*options)(const char *option, const void *);
+  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
+};
+struct st_mysql_client_plugin *
+mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
+                  int argc, ...);
+struct st_mysql_client_plugin *
+mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
+                    int argc, va_list args);
+struct st_mysql_client_plugin *
+mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
+struct st_mysql_client_plugin *
+mysql_client_register_plugin(struct st_mysql *mysql,
+                             struct st_mysql_client_plugin *plugin);
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                         const char *option, const void *value);
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 typedef struct st_mysql_field {
@@ -276,7 +316,8 @@ enum mysql_option
   MYSQL_OPT_CONNECT_ATTR_DELETE,
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+  MYSQL_OPT_SSL_ENFORCE
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -478,6 +519,8 @@ int mysql_options(MYSQL *mysql,enum mysql_option option,
           const void *arg);
 int mysql_options4(MYSQL *mysql,enum mysql_option option,
                                        const void *arg1, const void *arg2);
+int mysql_get_option(MYSQL *mysql, enum mysql_option option,
+                                         const void *arg);
 void mysql_free_result(MYSQL_RES *result);
 void mysql_data_seek(MYSQL_RES *result,
      my_ulonglong offset);
@@ -502,6 +545,7 @@ void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
 my_bool mysql_read_query_result(MYSQL *mysql);
+int mysql_reset_connection(MYSQL *mysql);
 enum enum_mysql_stmt_state
 {
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,

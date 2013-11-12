@@ -536,6 +536,8 @@ static const char* helpTextReport =
 "        node, or for all data nodes using ALL\n"
 ;
 static void helpTextReportFn();
+static void helpTextReportTypeOptionFn();
+
 
 static const char* helpTextQuit =
 "---------------------------------------------------------------------------\n"
@@ -1035,9 +1037,11 @@ CommandInterpreter::execute(const char *_line, int try_reconnect,
 }
 
 static void
-invalid_command(const char *cmd)
+invalid_command(const char *cmd, const char *msg=0)
 {
   ndbout << "Invalid command: " << cmd << endl;
+  if(msg)
+      ndbout << msg << endl;
   ndbout << "Type HELP for help." << endl << endl;
 }
 
@@ -1092,7 +1096,10 @@ public:
     {
       if (m_status->node_states[i].node_id == nodeid &&
           m_status->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB)
+      {
         found = true;
+        break;
+      }
     }
 
     if (!found)
@@ -1566,6 +1573,8 @@ CommandInterpreter::executeHelp(char* parameters)
       }
     }
     ndbout << endl;
+
+    helpTextReportTypeOptionFn();
 
     ndbout << "<level>    = " << "0 - 15" << endl;
     ndbout << "<id>       = " << "ALL | Any database node id" << endl;
@@ -2668,6 +2677,18 @@ helpTextReportFn()
     ndbout_c("    %s\t- %s", report_cmd->name, report_cmd->help);
 }
 
+static void 
+helpTextReportTypeOptionFn()
+{
+  ndbout << "<report-type> = ";
+  const st_report_cmd* report_cmd = report_cmds;
+  for (; report_cmd->name; report_cmd++){
+    if (report_cmd != report_cmds)
+      ndbout << " | ";
+    ndbout << BaseString(report_cmd->name).ndb_toupper().c_str();
+  }
+  ndbout << endl;
+}
 
 //*****************************************************************************
 //*****************************************************************************
@@ -2903,6 +2924,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   struct ndb_mgm_reply reply;
   unsigned int backupId;
   unsigned int input_backupId = 0;
+  unsigned long long int tmp_backupId = 0;
 
   Vector<BaseString> args;
   if (parameters)
@@ -2932,11 +2954,17 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   */
   for (int i= 1; i < sz; i++)
   {
-    if (i == 1 && sscanf(args[1].c_str(), "%u", &input_backupId) == 1) {
-      if (input_backupId > 0 && input_backupId < MAX_BACKUPS)
+    if (i == 1 && sscanf(args[1].c_str(), "%llu", &tmp_backupId) == 1) {
+      char out[1024];
+      BaseString::snprintf(out, sizeof(out), "%u: ", MAX_BACKUPS);
+      // to detect wraparound due to overflow, check if number of digits in 
+      // input backup ID <= number of digits in max backup ID
+      if (tmp_backupId > 0 && tmp_backupId < MAX_BACKUPS && args[1].length() <= strlen(out)) {
+        input_backupId = static_cast<unsigned>(tmp_backupId);
         continue;
-      else {
-        invalid_command(parameters);
+      } else {
+        BaseString::snprintf(out, sizeof(out), "Backup ID out of range [1 - %u]", MAX_BACKUPS-1);
+        invalid_command(parameters, out);
         return -1;
       }
     }
@@ -3088,7 +3116,8 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 int
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
-  int bid = -1;
+  unsigned int bid = 0;
+  unsigned long long int tmp_bid = 0;
   struct ndb_mgm_reply reply;
   if (emptyString(parameters))
     goto executeAbortBackupError1;
@@ -3096,8 +3125,17 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   {
     strtok(parameters, " ");
     char* id = strtok(NULL, "\0");
-    if(id == 0 || sscanf(id, "%d", &bid) != 1)
+    if(id == 0 || sscanf(id, "%llu", &tmp_bid) != 1) 
       goto executeAbortBackupError1;
+
+    // to detect wraparound due to overflow, check if number of digits in 
+    // input backup ID > number of digits in max backup ID
+    char out[1024];
+    BaseString::snprintf(out, sizeof(out), "%u", MAX_BACKUPS);
+    if(tmp_bid <= 0 || tmp_bid >= MAX_BACKUPS || strlen(id) > strlen(out))
+      goto executeAbortBackupError2;
+    else 
+      bid = static_cast<unsigned>(tmp_bid);
   }
   {
     int result= ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
@@ -3112,6 +3150,9 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   return 0;
  executeAbortBackupError1:
   ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return -1;
+ executeAbortBackupError2:
+  ndbout << "Invalid arguments: <BackupId> out of range [1-" << MAX_BACKUPS-1 << "]" << endl;
   return -1;
 }
 

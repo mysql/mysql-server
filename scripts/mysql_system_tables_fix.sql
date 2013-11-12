@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -212,12 +212,12 @@ ALTER TABLE func
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
 ALTER TABLE general_log
-  MODIFY event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  MODIFY event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   MODIFY user_host MEDIUMTEXT NOT NULL,
   MODIFY thread_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
   MODIFY command_type VARCHAR(64) NOT NULL,
-  MODIFY argument MEDIUMTEXT NOT NULL;
+  MODIFY argument MEDIUMBLOB NOT NULL;
 ALTER TABLE general_log
   MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
 SET GLOBAL general_log = @old_log_state;
@@ -225,17 +225,17 @@ SET GLOBAL general_log = @old_log_state;
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
 ALTER TABLE slow_log
-  MODIFY start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  MODIFY start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   MODIFY user_host MEDIUMTEXT NOT NULL,
-  MODIFY query_time TIME NOT NULL,
-  MODIFY lock_time TIME NOT NULL,
+  MODIFY query_time TIME(6) NOT NULL,
+  MODIFY lock_time TIME(6) NOT NULL,
   MODIFY rows_sent INTEGER NOT NULL,
   MODIFY rows_examined INTEGER NOT NULL,
   MODIFY db VARCHAR(512) NOT NULL,
   MODIFY last_insert_id INTEGER NOT NULL,
   MODIFY insert_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
-  MODIFY sql_text MEDIUMTEXT NOT NULL;
+  MODIFY sql_text MEDIUMBLOB NOT NULL;
 ALTER TABLE slow_log
   ADD COLUMN thread_id INTEGER NOT NULL AFTER sql_text;
 ALTER TABLE slow_log
@@ -606,8 +606,10 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
-ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
+ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
+UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
+UPDATE user SET plugin=IF(length(password) = 16, 'mysql_old_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
@@ -628,6 +630,8 @@ INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now(
 INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
 DROP TABLE tmp_proxies_priv;
 
+# Convering the host name to lower case for existing users
+UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 
 #
 # mysql.ndb_binlog_index
@@ -659,8 +663,17 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
-ALTER TABLE innodb_table_stats STATS_PERSISTENT=0;
-ALTER TABLE innodb_index_stats STATS_PERSISTENT=0;
+
+SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_index_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- Check for accounts with old pre-4.1 passwords and issue a warning

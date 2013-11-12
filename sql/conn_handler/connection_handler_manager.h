@@ -19,19 +19,19 @@
 #define CONNECTION_HANDLER_MANAGER_INCLUDED
 
 #include "my_global.h"          // uint
+#include "my_pthread.h"         // mysql_mutex_t
 #include "connection_handler.h" // Connection_handler
-#include "mysqld.h"             // LOCK_connection_count
 
 class Channel_info;
 class THD;
 
 
 /**
-  Callback functions to notify interested connection handlers
+  Functions to notify interested connection handlers
   of events like begining of wait and end of wait and post-kill
   notification events.
 */
-struct Connection_handler_callback
+struct THD_event_functions
 {
   void (*thd_wait_begin)(THD* thd, int wait_type);
   void (*thd_wait_end)(THD* thd);
@@ -49,6 +49,8 @@ class Connection_handler_manager
   // Singleton instance to Connection_handler_manager
   static Connection_handler_manager* m_instance;
 
+  static mysql_mutex_t LOCK_connection_count;
+
   // Pointer to current connection handler in use
   Connection_handler* m_connection_handler;
   // Pointer to saved connection handler
@@ -56,12 +58,16 @@ class Connection_handler_manager
   // Saved scheduler_type
   ulong m_saved_thread_handling;
 
+  // Status variables
+  ulong m_aborted_connects;
+  ulong m_connection_errors_max_connection; // Protected by LOCK_connection_count
+
   /**
     Increment connection count if max_connections is not exceeded.
 
     @retval   true if max_connections is not exceeded else false.
   */
-  static bool check_and_incr_conn_count();
+  bool check_and_incr_conn_count();
 
   /**
     Constructor to instantiate an instance of this class.
@@ -69,7 +75,9 @@ class Connection_handler_manager
   Connection_handler_manager(Connection_handler *connection_handler)
   : m_connection_handler(connection_handler),
     m_saved_connection_handler(NULL),
-    m_saved_thread_handling(0)
+    m_saved_thread_handling(0),
+    m_aborted_connects(0),
+    m_connection_errors_max_connection(0)
   { }
 
   ~Connection_handler_manager()
@@ -104,17 +112,23 @@ public:
     SCHEDULER_TYPES_COUNT
   };
 
-  // Status variables related to connection management
-  static ulong aborted_connects;
+  // Status variables. Must be static as they are used by the signal handler.
   static uint connection_count;          // Protected by LOCK_connection_count
-  static ulong max_used_connections;
-  static ulong thread_created;           // Protected by LOCK_thread_created
+  static ulong max_used_connections;     // Protected by LOCK_connection_count
+
   // System variable
   static ulong thread_handling;
-  // Callback for lock wait and post-kill notification events
-  static Connection_handler_callback* callback;
-  // Saved callback
-  static Connection_handler_callback* saved_callback;
+
+  // Functions for lock wait and post-kill notification events
+  static THD_event_functions *event_functions;
+  // Saved event functions
+  static THD_event_functions *saved_event_functions;
+
+  /**
+     Maximum number of threads that can be created by the current
+     connection handler. Must be static as it is used by the signal handler.
+  */
+  static uint max_threads;
 
   /**
     Singleton method to return an instance of this class.
@@ -144,20 +158,46 @@ public:
 
     @return true if a new connection can be accepted, false otherwise.
   */
-  static bool valid_connection_count()
+  bool valid_connection_count();
+
+  /**
+    Reset the max_used_connections counter to the number of current
+    connections.
+  */
+  static void reset_max_used_connections()
   {
     mysql_mutex_lock(&LOCK_connection_count);
-    bool count_ok= (Connection_handler_manager::connection_count <= max_connections);
+    max_used_connections= connection_count;
     mysql_mutex_unlock(&LOCK_connection_count);
-    return count_ok;
   }
 
   /**
-    @return Maximum number of threads that can be created by the current
-            connection handler.
+    Decrease the number of current connections.
   */
-  uint get_max_threads() const
-  { return m_connection_handler->get_max_threads(); }
+  static void dec_connection_count()
+  {
+    mysql_mutex_lock(&LOCK_connection_count);
+    connection_count--;
+    mysql_mutex_unlock(&LOCK_connection_count);
+  }
+
+  void inc_aborted_connects()
+  {
+    m_aborted_connects++;
+  }
+
+  ulong aborted_connects() const
+  {
+    return m_aborted_connects;
+  }
+
+  /**
+    @note This is a dirty read.
+  */
+  ulong connection_errors_max_connection() const
+  {
+    return m_connection_errors_max_connection;
+  }
 
   /**
     Dynamically load a connection handler implemented as a plugin.
@@ -182,31 +222,5 @@ public:
                            connection channel information.
   */
   void process_new_connection(Channel_info* channel_info);
-
-  void remove_connection(THD *thd);
 };
-
-
-/////////////////////////////////////////////////
-// Functions needed by plugins (thread pool)
-/////////////////////////////////////////////////
-
-/**
-  Create a THD object from channel_info.
-
-  @note If creation fails, ER_OUT_OF_RESOURCES will be be reported.
-
-  @param channel_info     Pointer to Channel_info object or NULL if
-                          creation failed.
-*/
-THD* create_thd(Channel_info* channel_info);
-
-void destroy_channel_info(Channel_info* channel_info);
-
-void dec_connection_count();
-
-void inc_thread_created();
-
-void inc_aborted_connects();
-
 #endif // CONNECTION_HANDLER_MANAGER_INCLUDED.

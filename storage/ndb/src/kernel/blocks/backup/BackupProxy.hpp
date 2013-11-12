@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #include <LocalProxy.hpp>
 #include <signaldata/UtilSequence.hpp>
 
+#define JAM_FILE_ID 478
+
+
 class BackupProxy : public LocalProxy {
 public:
   BackupProxy(Block_context& ctx);
@@ -33,6 +36,32 @@ protected:
   void sendUTIL_SEQUENCE_REQ(Signal*);
   void execUTIL_SEQUENCE_CONF(Signal*);
   void execUTIL_SEQUENCE_REF(Signal*);
+
+  struct Ss_SUM_DUMP_STATE_ORD : SsParallel {
+    static const int MAX_REQ_SIZE = 2;
+    static const int MAX_REP_SIZE = 11;
+    Uint32 m_request[ MAX_REQ_SIZE ];
+    Uint32 m_report[ MAX_REP_SIZE ];
+    
+    Ss_SUM_DUMP_STATE_ORD() {
+      m_sendREQ = (SsFUNCREQ)&BackupProxy::sendSUM_DUMP_STATE_ORD;
+      m_sendCONF = (SsFUNCREP)&BackupProxy::sendSUM_EVENT_REP;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_SUM_DUMP_STATE_ORD>& pool(LocalProxy* proxy) {
+      return ((BackupProxy*)proxy)->c_ss_SUM_DUMP_STATE_ORD;
+    }
+  };
+  SsPool<Ss_SUM_DUMP_STATE_ORD> c_ss_SUM_DUMP_STATE_ORD;
+
+  // DUMP_STATE_ORD
+  void execDUMP_STATE_ORD(Signal* );
+  void sendSUM_DUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
+  void execEVENT_REP(Signal* );
+  void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

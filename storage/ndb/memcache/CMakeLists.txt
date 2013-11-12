@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,6 +63,7 @@ include_directories(BEFORE include)
 include_directories(BEFORE ${CACHE_SRC})
 include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
+include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
 
@@ -103,8 +104,10 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/timing.c
     src/workitem.c
     src/workqueue.c
+    src/Scheduler.cc
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
+    src/schedulers/Scheduler73.cc
     ${CACHE_SRC}/items.c
     ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/slabs.c
@@ -127,6 +130,7 @@ ENDIF()
 IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "SunPro")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -features=extensions") # __func__
 ENDIF()
+
 
 ########## ENVIRONMENT TESTS #########
 
@@ -157,11 +161,12 @@ if(HAVE_FUNC_IN_CXX)
   add_definitions(-DDEBUG_OUTPUT)
 endif()
 
+
 ########### GENERATED FILES #############
 
 # Build ndbmemcache_config.h
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in 
-               ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/include/ndbmemcache_config.h)
 
 # Build sandbox.sh
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
@@ -174,25 +179,35 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
 # Copy the SQL script into /scripts/ in the build directory.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
                ${CMAKE_BINARY_DIR}/scripts/ndb_memcache_metadata.sql COPYONLY)
+
+# Build the "memclient" utility
+SET(MEMCACHE_PM ${CMAKE_SOURCE_DIR}/mysql-test/lib/My/Memcache.pm)
+SET(MEMCLIENT_PL ${CMAKE_CURRENT_SOURCE_DIR}/memclient.pl)
+SET(MEMCLIENT ${CMAKE_CURRENT_BINARY_DIR}/memclient)
+FILE(READ   ${MEMCLIENT_PL} CONTENTS)
+FILE(WRITE  ${MEMCLIENT} "${CONTENTS}")
+FILE(READ   ${MEMCACHE_PM} CONTENTS)
+FILE(APPEND ${MEMCLIENT} "${CONTENTS}")
+
                
 ######### TARGETS ############
-# Build the convenience library
+
+### Build the convenience library
 ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
 
 target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
 
-# Build the module
+### Build the module
 add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 
-
-# If we are using the bundled memcache, it is a dependency:
+### If we are using the bundled memcache, it is a dependency:
 if(WITH_BUNDLED_MEMCACHED)
   add_dependencies(ndb_engine memcached)
 endif()
 
-# Extra linker flags because CMake's "MODULE" support is not quite right.  
+### Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
   set(FINAL_LINK_FLAGS "-flat_namespace -undefined suppress -bind_at_load")
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
@@ -212,8 +227,11 @@ set_target_properties(ndb_engine PROPERTIES
 ###
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
+### Install memclient 
+### 
+install(PROGRAMS ${MEMCLIENT} DESTINATION ${INSTALL_BINDIR})
 
-### Install the memcache-api directory  ################
+### Install the memcache-api directory
 ###
 SET(MEMCACHE_API_DIR "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )

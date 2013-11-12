@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@
 // For readv and writev
 #include <sys/uio.h>
 #include <dirent.h>
+
+#define JAM_FILE_ID 384
+
 
 PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
   AsyncFile(fs),

@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_utf8.inc
 
 #
 # Some simple test of load data
@@ -615,7 +616,7 @@ disconnect con1;
 --echo #
 
 CREATE TABLE t1(f1 INT);
-EVAL SELECT 0xE1BB30 INTO OUTFILE 't1.dat';
+EVAL SELECT 0xE1C330 INTO OUTFILE 't1.dat';
 --disable_warnings
 LOAD DATA INFILE 't1.dat' IGNORE INTO TABLE t1 CHARACTER SET utf8;
 --enable_warnings

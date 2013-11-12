@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1256,5 +1256,8 @@ main(int argc, char** argv)
 template class Vector<Chunk>;
 
 #endif
+
+#define JAM_FILE_ID 296
+
 
 template class Vector<InitChunk>;

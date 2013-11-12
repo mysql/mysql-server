@@ -21,7 +21,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-static uchar ctype_bin[]=
+static const uchar ctype_bin[]=
 {
   0,
   32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -45,7 +45,7 @@ static uchar ctype_bin[]=
 
 /* Dummy array for toupper / tolower / sortorder */
 
-static uchar bin_char_array[] =
+static const uchar bin_char_array[] =
 {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,

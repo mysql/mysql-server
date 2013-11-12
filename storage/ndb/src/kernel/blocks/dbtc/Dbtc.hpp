@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <DLHashTable.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
@@ -39,7 +37,11 @@
 #include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
+#include <KeyTable.hpp>
 #endif
+
+
+#define JAM_FILE_ID 350
 
 #ifdef DBTC_C
 /*
@@ -123,6 +125,7 @@
 #define ZNODEFAIL_BEFORE_COMMIT 286
 #define ZINDEX_CORRUPT_ERROR 287
 #define ZSCAN_FRAGREC_ERROR 291
+#define ZMISSING_TRIGGER_DATA 240
 
 // ----------------------------------------
 // Seize error
@@ -139,6 +142,8 @@
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 #define ZNOTUNIQUE 893
+#define ZFK_NO_PARENT_ROW_EXISTS 255
+#define ZFK_CHILD_ROW_EXISTS 256
 
 #define ZINVALID_KEY 290
 #define ZUNLOCKED_IVAL_TOO_HIGH 294
@@ -217,7 +222,6 @@ public:
     OS_WAIT_COMMIT_CONF = 15,
     OS_WAIT_ABORT_CONF = 16,
     OS_WAIT_COMPLETE_CONF = 17,
-    OS_WAIT_SCAN = 18,
 
     OS_FIRE_TRIG_REQ = 19,
   };
@@ -343,7 +347,9 @@ public:
      * Trigger id, used to identify the trigger
      */
     UintR triggerId;
-    
+
+    Uint32 refCount;
+
     /**
      * Trigger type, defines what the trigger is used for
      */
@@ -369,6 +375,7 @@ public:
     union {
       Uint32 indexId; // For unique index trigger
       Uint32 tableId; // For reorg trigger
+      Uint32 fkId;    // For FK trigger
     };
 
     /**
@@ -599,7 +606,8 @@ public:
       transIdAIState(ITAS_WAIT_HEADER),
       pendingTransIdAI(0),
       transIdAISectionIVal(RNIL),
-      indexReadTcConnect(RNIL)
+      indexReadTcConnect(RNIL),
+      savedFlags(0)
     {}
 
     ~TcIndexOperation()
@@ -622,6 +630,8 @@ public:
     UintR connectionIndex;
     UintR indexReadTcConnect; //
     
+    Uint32 savedFlags; // Saved transaction flags
+
     /**
      * Next ptr (used in pool/list)
      */
@@ -644,6 +654,50 @@ public:
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   UintR c_maxNumberOfIndexOperations;   
+
+  struct TcFKData {
+    TcFKData() {}
+
+    Uint32 m_magic;
+
+    union {
+      Uint32 key;
+      Uint32 fkId;
+    };
+
+    /**
+     * Columns used in parent table
+     */
+    IndexAttributeList parentTableColumns;
+
+    /**
+     * Columns used in child table
+     */
+    IndexAttributeList childTableColumns;
+
+    Uint32 parentTableId; // could be unique index table...
+    Uint32 childTableId;  //
+    Uint32 childIndexId;  // (could be tableId too)
+    Uint32 bits;          // CreateFKImplReq::Bits
+
+    Uint32 nextPool;
+    Uint32 nextHash;
+    Uint32 prevHash;
+
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    bool equal(const TcFKData& obj) const {
+      return key == obj.key;
+    }
+  };
+
+  typedef RecordPool<TcFKData, RWPool> FK_pool;
+  typedef KeyTableImpl<FK_pool, TcFKData> FK_hash;
+
+  FK_pool c_fk_pool;
+  FK_hash c_fk_hash;
 
   /************************** API CONNECT RECORD ***********************
    * The API connect record contains the connection record to which the
@@ -751,11 +805,17 @@ public:
       TF_COMMIT_ACK_MARKER_RECEIVED = 8,
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
+      TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
+
+      TF_DEFERRED_TRIGGERS    = (32 + 64),
+
+      TF_DISABLE_FK_CONSTRAINTS = 128,
+
       TF_END = 0
     };
     Uint32 m_flags;
 
-    Uint8 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
+    Uint16 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
 
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
@@ -881,24 +941,23 @@ public:
                              /* 1 = UPDATE REQUEST                          */
                              /* 2 = INSERT REQUEST                          */
                              /* 3 = DELETE REQUEST                          */
-    Uint8 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
+    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_INDEX_BASE_TABLE_ACCESS = 2,// Execute on "real" table
       SOF_REORG_TRIGGER_BASE = 4,
       SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_UK_TRIGGER = 128   // Op has deferred trigger
+      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
+      SOF_DEFERRED_FK_TRIGGER = 256,
+      SOF_FK_READ_COMMITTED = 512     // reply to TC even for dirty read
     };
     
-    static inline bool isIndexOp(Uint8 flags) {
-      return
-        flags == SOF_INDEX_TABLE_READ ||
-        flags == SOF_INDEX_BASE_TABLE_ACCESS;
+    static inline bool isIndexOp(Uint16 flags) {
+      return (flags & SOF_INDEX_TABLE_READ) != 0;
     }
 
     //---------------------------------------------------
@@ -919,13 +978,20 @@ public:
     UintR noReceivedTriggers;   // FIRE_TRIG_ORD
     UintR triggerExecutionCount;// No of outstanding op due to triggers
     UintR savedState[LqhKeyConf::SignalLength];
+    /**
+     * The list of pending fired triggers
+     */
+    DLFifoList<TcFiredTriggerData>::Head thePendingTriggers;
 
     UintR triggeringOperation;  // Which operation was "cause" of this op
     
     // Index data
     UintR indexOp;
     UintR currentTriggerId;
-    UintR attrInfoLen;
+    union {
+      Uint32 attrInfoLen;
+      Uint32 triggerErrorCode;
+    };
   };
   
   friend struct TcConnectRecord;
@@ -961,7 +1027,6 @@ public:
     /* TCKEYREQ/TCINDXREQ only fields */
       UintR  schemaVersion;/* SCHEMA VERSION USED IN TRANSACTION         */
       UintR  tableref;     /* POINTER TO THE TABLE IN WHICH THE FRAGMENT EXISTS*/
-      Uint16 apiVersionNo;
     
       UintR  fragmentid;   /* THE COMPUTED FRAGMENT ID                     */
       UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
@@ -1152,7 +1217,6 @@ public:
     }
 
     Uint32 m_ops;
-    Uint32 m_chksum;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
     union {
@@ -1237,7 +1301,9 @@ public:
 
     // State of this scan
     ScanState scanState;
-    
+    Uint32 scanKeyInfoPtr;
+    Uint32 scanAttrInfoPtr;
+
     DLList<ScanFragRec>::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
@@ -1254,15 +1320,10 @@ public:
     Uint32 nextScan;
 
     // Length of expected attribute information
-    union { Uint32 scanAiLength; Uint32 m_booked_fragments_count; };
-
-    Uint32 scanKeyLen;
+    Uint32 m_booked_fragments_count;
 
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
-
-    // Reference to TcConnectRecord
-    Uint32 scanTcrec;
 
     // Number of scan frag processes that belong to this scan 
     Uint32 scanParallel;
@@ -1300,6 +1361,12 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+
+    /**
+     *
+     */
+    bool m_scan_dist_key_flag;
+    Uint32 m_scan_dist_key;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
@@ -1423,6 +1490,9 @@ private:
   void execFIRE_TRIG_REF(Signal*);
   void execFIRE_TRIG_CONF(Signal*);
 
+  void execCREATE_FK_IMPL_REQ(Signal* signal);
+  void execDROP_FK_IMPL_REQ(Signal* signal);
+
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
   void execTCKEYREF(Signal* signal);
@@ -1447,9 +1517,10 @@ private:
                        UintR Tstart);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
-  void printState(Signal* signal, int place);
+  void printState(Signal* signal, int place, bool force_trace=false);
   int seizeTcRecord(Signal* signal);
   int seizeCacheRecord(Signal* signal);
+  void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
   void reportNodeFailed(Signal* signal, Uint32 nodeId);
@@ -1463,7 +1534,9 @@ private:
   Uint32 sendCompleteLqh(Signal* signal,
                          TcConnectRecord * const regTcPtr);
 
-  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>, Uint32 firstTcConnect);
+  void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
+  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>,
+                       Uint32 firstTcConnect, Uint32 lastTcConnect);
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
 
   void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
@@ -1494,8 +1567,6 @@ private:
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
                      const UintR noOprecPerFrag,
-                     const Uint32 aiLength,
-                     const Uint32 keyLength,
                      const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
@@ -1593,7 +1664,8 @@ private:
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
   void readIndexTable(Signal* signal, 
 		      ApiConnectRecord* regApiPtr,
-		      TcIndexOperation* indexOp);
+		      TcIndexOperation* indexOp,
+                      Uint32 special_op_flags);
   void executeIndexOperation(Signal* signal, 
 			     ApiConnectRecord* regApiPtr,
 			     TcIndexOperation* indexOp);
@@ -1626,6 +1698,10 @@ private:
                            TcFiredTriggerData* firedTriggerData,
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
+  Uint32 appendDataToSection(Uint32& sectionIVal,
+                             DataBuffer<11> & src,
+                             DataBuffer<11>::DataBufferIterator & iter,
+                             Uint32 len);
   bool appendAttrDataToSection(Uint32& sectionIVal,
                                DataBuffer<11>& values,
                                bool withHeaders,
@@ -1648,7 +1724,59 @@ private:
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
 
+  void executeFKParentTrigger(Signal* signal,
+                              TcDefinedTriggerData* definedTriggerData,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr);
+
+  void executeFKChildTrigger(Signal* signal,
+                              TcDefinedTriggerData* definedTriggerData,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr);
+
+  void fk_readFromParentTable(Signal* signal,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr,
+                              TcFKData* fkData);
+  void fk_readFromChildTable(Signal* signal,
+                             TcFiredTriggerData* firedTriggerData,
+                             ApiConnectRecordPtr* transPtr,
+                             TcConnectRecordPtr* opPtr,
+                             TcFKData* fkData,
+                             Uint32 op, Uint32 attrValuesPtrI);
+
+  Uint32 fk_buildKeyInfo(Uint32& keyInfoPtrI, bool& hasNull,
+                         LocalDataBuffer<11>& values,
+                         TcFKData* fkData,
+                         bool parent);
+
+  void fk_execTCINDXREQ(Signal*, ApiConnectRecordPtr, TcConnectRecordPtr,
+                        Uint32 operation);
+  void fk_scanFromChildTable(Signal* signal,
+                             TcFiredTriggerData* firedTriggerData,
+                             ApiConnectRecordPtr* transPtr,
+                             TcConnectRecordPtr* opPtr,
+                             TcFKData* fkData,
+                             Uint32 op, Uint32 attrValuesPtrI);
+  void fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr);
+  void fk_scanFromChildTable_abort(Signal* signal, TcConnectRecordPtr);
+
+  void execSCAN_TABREF(Signal*);
+  void execSCAN_TABCONF(Signal*);
+  void execKEYINFO20(Signal*);
+
+  Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
+                        LocalDataBuffer<11> & src,
+                        TcFKData* fkData);
+  Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
+  Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
+                                           DataBuffer<11>::Head&);
+
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
+  void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
                              Uint32 error);
   // Generated statement blocks
@@ -2153,6 +2281,14 @@ private:
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
 #endif
+
+#ifndef DBTC_STATE_EXTRACT
+  void dump_trans(ApiConnectRecordPtr transPtr);
+  bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
+#endif
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

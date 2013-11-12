@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,11 +62,14 @@
 
 #include <EventLogger.hpp>
 
+#define JAM_FILE_ID 458
+
+
 extern EventLogger * g_eventLogger;
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
-Uint32 g_currentStartPhase;
+Uint32 g_currentStartPhase = 0;
 
 /**
  * ALL_BLOCKS Used during start phases and while changing node state
@@ -297,6 +300,7 @@ struct ddentry
  */
 Vector<ddentry> f_dd;
 
+static
 Uint64
 parse_size(const char * src)
 {
@@ -2179,10 +2183,10 @@ Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
   CreateHashMapReq* const req = (CreateHashMapReq*)signal->getDataPtrSend();
   req->clientRef = reference();
   req->clientData = idx;
-  req->requestInfo = 0;
+  req->requestInfo = CreateHashMapReq::CreateDefault;
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
-  req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
+  req->buckets = 0;
   req->fragments = 0;
   sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
 	     CreateHashMapReq::SignalLength, JBB);

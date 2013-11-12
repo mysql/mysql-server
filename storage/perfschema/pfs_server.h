@@ -25,7 +25,7 @@
   #define PFS_MAX_MUTEX_CLASS 200
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-  #define PFS_MAX_RWLOCK_CLASS 30
+  #define PFS_MAX_RWLOCK_CLASS 40
 #endif
 #ifndef PFS_MAX_COND_CLASS
   #define PFS_MAX_COND_CLASS 80
@@ -83,6 +83,9 @@ struct PFS_global_param
   bool m_consumer_events_statements_current_enabled;
   bool m_consumer_events_statements_history_enabled;
   bool m_consumer_events_statements_history_long_enabled;
+  bool m_consumer_events_transactions_current_enabled;
+  bool m_consumer_events_transactions_history_enabled;
+  bool m_consumer_events_transactions_history_long_enabled;
   bool m_consumer_events_waits_current_enabled;
   bool m_consumer_events_waits_history_enabled;
   bool m_consumer_events_waits_history_long_enabled;
@@ -160,7 +163,7 @@ struct PFS_global_param
   long m_file_handle_sizing;
   /**
     Maxium number of instrumented socket instances
-    @sa socket_lost  
+    @sa socket_lost
   */
   long m_socket_sizing;
   /**
@@ -196,7 +199,7 @@ struct PFS_global_param
     @sa statement_class_lost.
   */
   ulong m_statement_class_sizing;
-  /** Maximum number of rows per thread in table EVENTS_STATEMENT_HISTORY. */
+  /** Maximum number of rows per thread in table EVENTS_STATEMENTS_HISTORY. */
   long m_events_statements_history_sizing;
   /** Maximum number of rows in table EVENTS_STATEMENTS_HISTORY_LONG. */
   long m_events_statements_history_long_sizing;
@@ -204,9 +207,14 @@ struct PFS_global_param
   long m_digest_sizing;
   /** Maximum number of programs to be captured */
   long m_program_sizing;
+  /** Maximum number of rows per thread in table EVENTS_TRANSACTIONS_HISTORY. */
+  long m_events_transactions_history_sizing;
+  /** Maximum number of rows in table EVENTS_TRANSACTIONS_HISTORY_LONG. */
+  long m_events_transactions_history_long_sizing;
+
   /** Maximum number of session attribute strings per thread */
   long m_session_connect_attrs_sizing;
-  /** Maximum size of statement stack */ 
+  /** Maximum size of statement stack */
   ulong m_statement_stack_sizing;
 
   /**
@@ -214,6 +222,9 @@ struct PFS_global_param
     @sa memory_class_lost.
   */
   ulong m_memory_class_sizing;
+
+  long m_metadata_lock_sizing;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
@@ -235,7 +246,7 @@ void pre_initialize_performance_schema();
 /**
   Initialize the performance schema.
   @param param Size parameters to use.
-  @return A boostrap handle, or NULL.
+  @return A bootstrap handle, or NULL.
 */
 struct PSI_bootstrap*
 initialize_performance_schema(PFS_global_param *param);
@@ -246,8 +257,8 @@ void pfs_automated_sizing(PFS_global_param *param);
   Initialize the performance schema ACL.
   ACL is strictly enforced when the server is running in normal mode,
   to enforce that only legal operations are allowed.
-  When running in boostrap mode, ACL restrictions are relaxed,
-  to allow the boostrap scripts to DROP / CREATE performance schema tables.
+  When running in bootstrap mode, ACL restrictions are relaxed,
+  to allow the bootstrap scripts to DROP / CREATE performance schema tables.
   @sa ACL_internal_schema_registry
   @param bootstrap True if the server is starting in bootstrap mode.
 */

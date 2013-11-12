@@ -66,6 +66,7 @@ pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
 pfs_events_statements.h
+pfs_events_transactions.h
 pfs_events_waits.h
 pfs_global.h
 pfs_host.h
@@ -94,8 +95,14 @@ table_esms_by_program.h
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
+table_ets_by_account_by_event_name.h
+table_ets_by_host_by_event_name.h
+table_ets_by_thread_by_event_name.h
+table_ets_by_user_by_event_name.h
+table_ets_global_by_event_name.h
 table_events_stages.h
 table_events_statements.h
+table_events_transactions.h
 table_events_waits.h
 table_events_waits_summary.h
 table_ews_by_account_by_event_name.h
@@ -104,6 +111,7 @@ table_ews_by_thread_by_event_name.h
 table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
+table_md_locks.h
 table_mems_global_by_event_name.h
 table_mems_by_account_by_event_name.h
 table_mems_by_host_by_event_name.h
@@ -125,6 +133,7 @@ table_setup_instruments.h
 table_setup_objects.h
 table_setup_timers.h
 table_sync_instances.h
+table_table_handles.h
 table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
@@ -158,6 +167,7 @@ pfs_program.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
+pfs_events_transactions.cc
 pfs_events_waits.cc
 pfs_global.cc
 pfs_host.cc
@@ -184,8 +194,14 @@ table_esms_by_program.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc
+table_ets_by_account_by_event_name.cc
+table_ets_by_host_by_event_name.cc
+table_ets_by_thread_by_event_name.cc
+table_ets_by_user_by_event_name.cc
+table_ets_global_by_event_name.cc
 table_events_stages.cc
 table_events_statements.cc
+table_events_transactions.cc
 table_events_waits.cc
 table_events_waits_summary.cc
 table_ews_by_account_by_event_name.cc
@@ -194,6 +210,7 @@ table_ews_by_thread_by_event_name.cc
 table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
+table_md_locks.cc
 table_mems_global_by_event_name.cc
 table_mems_by_account_by_event_name.cc
 table_mems_by_host_by_event_name.cc
@@ -215,6 +232,7 @@ table_setup_instruments.cc
 table_setup_objects.cc
 table_setup_timers.cc
 table_sync_instances.cc
+table_table_handles.cc
 table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
@@ -237,3 +255,37 @@ IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
+
+# Note: there is no DISABLE_PSI_THREAD option,
+# because the thread instrumentation is not optional
+
+OPTION(DISABLE_PSI_MUTEX "Exclude the performance schema mutex instrumentation" OFF)
+OPTION(DISABLE_PSI_RWLOCK "Exclude the performance schema rwlock instrumentation" OFF)
+OPTION(DISABLE_PSI_COND "Exclude the performance schema condition instrumentation" OFF)
+OPTION(DISABLE_PSI_FILE "Exclude the performance schema file instrumentation" OFF)
+OPTION(DISABLE_PSI_TABLE "Exclude the performance schema table instrumentation" OFF)
+OPTION(DISABLE_PSI_SOCKET "Exclude the performance schema socket instrumentation" OFF)
+OPTION(DISABLE_PSI_STAGE "Exclude the performance schema stage instrumentation" OFF)
+OPTION(DISABLE_PSI_STATEMENT "Exclude the performance schema statement instrumentation" OFF)
+OPTION(DISABLE_PSI_SP "Exclude the performance schema stored procedure instrumentation" OFF)
+OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" OFF)
+OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" OFF)
+OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
+OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
+OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
+
+MARK_AS_ADVANCED(DISABLE_PSI_MUTEX)
+MARK_AS_ADVANCED(DISABLE_PSI_RWLOCK)
+MARK_AS_ADVANCED(DISABLE_PSI_COND)
+MARK_AS_ADVANCED(DISABLE_PSI_FILE)
+MARK_AS_ADVANCED(DISABLE_PSI_TABLE)
+MARK_AS_ADVANCED(DISABLE_PSI_SOCKET)
+MARK_AS_ADVANCED(DISABLE_PSI_STAGE)
+MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT)
+MARK_AS_ADVANCED(DISABLE_PSI_SP)
+MARK_AS_ADVANCED(DISABLE_PSI_IDLE)
+MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
+MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
+MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
+MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
+

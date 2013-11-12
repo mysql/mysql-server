@@ -128,9 +128,9 @@ table_threads::table_threads()
 
 void table_threads::make_row(PFS_thread *pfs)
 {
-  pfs_lock lock;
-  pfs_lock session_lock;
-  pfs_lock stmt_lock;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
+  pfs_optimistic_state stmt_lock;
   PFS_stage_class *stage_class;
   PFS_thread_class *safe_class;
 
@@ -224,7 +224,8 @@ void table_threads::make_row(PFS_thread *pfs)
     m_row.m_processlist_state_length= 0;
   }
 
-  m_row.m_enabled_ptr= &pfs->m_enabled;
+  m_row.m_enabled= pfs->m_enabled;
+  m_row.m_psi= pfs;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
@@ -331,7 +332,7 @@ int table_threads::read_row_values(TABLE *table,
         f->set_null();
         break;
       case 13: /* INSTRUMENTED */
-        set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
         break;
       default:
         DBUG_ASSERT(false);
@@ -371,7 +372,7 @@ int table_threads::update_row_values(TABLE *table,
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);
-        *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
         break;
       default:
         DBUG_ASSERT(false);

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,7 @@
 
 #include <assert.h>
 #include <ndb_types.h>
+#include "mt.hpp"
 
 void
 mt_init_thr_map()
@@ -68,6 +68,9 @@ NdbIsMultiThreaded()
 
 #include <BlockNumbers.h>
 
+#define JAM_FILE_ID 222
+
+
 Uint32
 mt_get_blocklist(class SimulatedBlock * block, Uint32 arr[], Uint32 len)
 {
@@ -78,8 +81,6 @@ mt_get_blocklist(class SimulatedBlock * block, Uint32 arr[], Uint32 len)
   }
   return NO_OF_BLOCKS;
 }
-
-#include "mt.hpp"
 
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst)

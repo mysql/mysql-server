@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_program.h"
 #include "table_helper.h"
 
 /**
@@ -38,16 +39,9 @@
 */
 struct row_os_global_by_type
 {
-  /** Column OBJECT_TYPE. */
-  enum_object_type m_object_type;
-  /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
+  PFS_object_row m_object;
+
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_stat_row m_stat;
 };
@@ -107,7 +101,8 @@ public:
   {}
 
 protected:
-  void make_row(PFS_table_share *table_share);
+  void make_table_row(PFS_table_share *table_share);
+  void make_program_row(PFS_program *pfs_program);
 
 private:
   /** Table share lock. */

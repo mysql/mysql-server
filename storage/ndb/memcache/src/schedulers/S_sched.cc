@@ -48,13 +48,13 @@ extern "C" {
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Lock that protects online reconfiguration */
-pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* Scheduler Global singleton */
-S::SchedulerGlobal * s_global;
+static S::SchedulerGlobal * s_global;
 
 /* Global scheduler generation number */
-int sched_generation_number;
+static int sched_generation_number;
 
 /* SchedulerGlobal methods */
 S::SchedulerGlobal::SchedulerGlobal(Configuration *cf) : 
@@ -314,7 +314,6 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   /* READ LOCK RELEASED */
   
   item->base.nsuffix = item->base.nkey - pfx->prefix_len;
-  if(item->base.nsuffix == 0) return ENGINE_EINVAL; // key too short
  
   if(wc == 0) return ENGINE_FAILED;
     
@@ -356,7 +355,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   op_status_t op_status = worker_prepare_operation(item);
 
   // Success; put the workitem on the send queue and return ENGINE_EWOULDBLOCK.
-  if(op_status == op_async_prepared) {
+  if(op_status == op_prepared) {
     /* Put the prepared item onto a send queue */
     wc->sendqueue->produce(inst);
     DEBUG_PRINT("%d.%d placed on send queue.", id, inst->wqitem->id);
@@ -376,14 +375,14 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
         DEBUG_PRINT("op_status is op_not_supported");
         response_code = ENGINE_ENOTSUP;
         break;
+      case op_bad_key:
+        DEBUG_PRINT("op_status is op_bad_key");
+        response_code = ENGINE_EINVAL;
+        break;
       case op_overflow:
         DEBUG_PRINT("op_status is op_overflow");
         response_code = ENGINE_E2BIG;
         break;
-      case op_async_sent:
-        DEBUG_PRINT("op_async_sent could be a bug");
-        response_code = ENGINE_FAILED;
-        break;      
       case op_failed:
         DEBUG_PRINT("op_status is op_failed");
         response_code = ENGINE_FAILED;
@@ -398,9 +397,12 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
 }
 
 
-void S::SchedulerWorker::reschedule(workitem *item) const {
-  DEBUG_ENTER();
-  item->base.reschedule = 1;
+void S::SchedulerWorker::prepare(NdbTransaction * tx, 
+                                 NdbTransaction::ExecType execType, 
+                                 NdbAsynchCallback callback, 
+                                 workitem * item, prepare_flags flags) { 
+  tx->executeAsynchPrepare(execType, callback, (void *) item);
+  if(flags == RESCHEDULE) item->base.reschedule = 1;
 }
 
 

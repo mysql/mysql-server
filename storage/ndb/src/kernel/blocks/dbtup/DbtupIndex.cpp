@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
+
+#define JAM_FILE_ID 418
+
 
 // methods used by ordered index
 
@@ -61,7 +64,8 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
 
   Local_key key;
   Uint32* ptr, frag_page_id, err;
-  if ((ptr= alloc_fix_rec(&err,fragPtr.p,tablePtr.p, &key, &frag_page_id)) == 0)
+  if ((ptr= alloc_fix_rec(jamBuf, &err,fragPtr.p,tablePtr.p, &key, 
+                          &frag_page_id)) == 0)
   {
     thrjam(jamBuf);
     return err;
@@ -428,7 +432,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
-  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seize(buildPtr)) {
+  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seizeFirst(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
     buildRec.m_request = *req;
@@ -810,6 +814,7 @@ Dbtup::execALTER_TAB_CONF(Signal* signal)
   {
     jam();
     TablerecPtr tablePtr;
+    (void)tablePtr; // hide unused warning
     ndbrequire(buildPtr.p->m_fragNo >= NDB_ARRAY_SIZE(tablePtr.p->fragid));
     buildIndexReply(signal, buildPtr.p);
     c_buildIndexList.release(buildPtr);
@@ -1013,6 +1018,7 @@ Dbtup::execBUILD_INDX_IMPL_REF(Signal* signal)
   buildPtr.p->m_outstanding--;
 
   TablerecPtr tablePtr;
+  (void)tablePtr; // hide unused warning
   buildPtr.p->m_errorCode = (BuildIndxImplRef::ErrorCode)err;
   // No point in starting any more
   buildPtr.p->m_fragNo = NDB_ARRAY_SIZE(tablePtr.p->fragrec);

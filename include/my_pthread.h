@@ -50,30 +50,9 @@ typedef struct st_pthread_link {
 
 /**
   Implementation of Windows condition variables.
-  We use native conditions on Vista and later, and fallback to own 
-  implementation on earlier OS version.
+  We use native conditions as they are available on Vista and later.
 */
-typedef union
-{
-  /* Native condition (used on Vista and later) */
-  CONDITION_VARIABLE native_cond;
-
-  /* Own implementation (used on XP) */
-  struct
-  { 
-    uint32 waiting;
-    CRITICAL_SECTION lock_waiting;
-    enum 
-    {
-      SIGNAL= 0,
-      BROADCAST= 1,
-      MAX_EVENTS= 2
-    } EVENTS;
-    HANDLE events[MAX_EVENTS];
-    HANDLE broadcast_block_event;
-  };
-} pthread_cond_t;
-
+typedef CONDITION_VARIABLE pthread_cond_t;
 
 typedef int pthread_mutexattr_t;
 #define pthread_self() GetCurrentThreadId()
@@ -132,32 +111,86 @@ struct timespec {
   ((TS1.tv.i64 - TS2.tv.i64) * 100)
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
+/*
+  Existing mysql_thread_create() or pthread_create() does not work well
+  in windows platform when threads are joined because
+  A)during thread creation, thread handle is not stored.
+  B)during thread join, thread handle is retrieved using OpenThread().
+    OpenThread() does not behave properly when thread to be joined is already
+    exited.
+  Use pthread_create_get_handle() and pthread_join_with_handle() function
+  instead of mysql_thread_create() function for windows joinable threads.
+*/
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-			   struct timespec *abstime);
+			   const struct timespec *abstime);
 int pthread_cond_signal(pthread_cond_t *cond);
 int pthread_cond_broadcast(pthread_cond_t *cond);
 int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
+int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
+/**
+  Create thread.
+
+  Existing mysql_thread_create does not work well in windows platform
+  when threads are joined. Use pthread_create_get_handle() and
+  pthread_join_with_handle() function instead of mysql_thread_create()
+  function for windows.
+
+  @param thread_id    reference to pthread object
+  @param attr         reference to pthread attribute
+  @param func         pthread handler function
+  @param param        parameters to pass to newly created thread
+  @param out_handle   output parameter to get newly created thread handle
+
+  @return int
+    @retval 0 success
+    @retval 1 failure
+*/
+int pthread_create_get_handle(pthread_t *thread_id,
+                              const pthread_attr_t *attr,
+                              pthread_handler func, void *param,
+                              HANDLE *out_handle);
+
+/**
+  Wait for thread termination.
+
+  @param handle       handle of the thread to wait for
+
+  @return  int
+    @retval 0 success
+    @retval 1 failure
+*/
+int pthread_join_with_handle(HANDLE handle);
+
 void pthread_exit(void *a);
+
+/*
+  Existing pthread_join() does not work well in windows platform when
+  threads are joined because
+  A)during thread creation thread handle is not stored.
+  B)during thread join, thread handle is retrieved using OpenThread().
+    OpenThread() does not behave properly when thread to be joined is already
+    exited.
+
+  Use pthread_create_get_handle() and pthread_join_with_handle()
+  function instead for windows joinable threads.
+*/
 int pthread_join(pthread_t thread, void **value_ptr);
 int pthread_cancel(pthread_t thread);
+extern int pthread_dummy(int);
 
 #ifndef ETIMEDOUT
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #endif
-#define HAVE_LOCALTIME_R		1
-#define _REENTRANT			1
-#define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
-
 
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
@@ -180,7 +213,6 @@ int pthread_cancel(pthread_t thread);
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_attr_setscope(A,B)
-#define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 #define pthread_yield() SwitchToThread()
@@ -189,12 +221,6 @@ int pthread_cancel(pthread_t thread);
 #else /* Normal threads */
 
 #include <pthread.h>
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
-#ifdef HAVE_THR_SETCONCURRENCY
-#include <thread.h>			/* Probably solaris */
-#endif
 #ifdef HAVE_SCHED_H
 #include <sched.h>
 #endif
@@ -205,7 +231,6 @@ int pthread_cancel(pthread_t thread);
 #define pthread_key(T,V) pthread_key_t V
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
 #define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
-#define pthread_detach_this_thread()
 #define pthread_handler_t EXTERNC void *
 typedef void *(* pthread_handler)(void *);
 
@@ -239,19 +264,6 @@ typedef void *(* pthread_handler)(void *);
 #endif
 
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
-
-#ifndef HAVE_LOCALTIME_R
-struct tm *localtime_r(const time_t *clock, struct tm *res);
-#endif
-
-#ifndef HAVE_GMTIME_R
-struct tm *gmtime_r(const time_t *clock, struct tm *res);
-#endif
-
-/* FSU THREADS */
-#if !defined(HAVE_PTHREAD_KEY_DELETE) && !defined(pthread_key_delete)
-#define pthread_key_delete(A) pthread_dummy(0)
-#endif
 
 #endif /* defined(_WIN32) */
 
@@ -379,7 +391,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 
 	/* READ-WRITE thread locking */
 
-#if defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
+#ifndef _WIN32  /* read/write locks using pthread */
 #define rw_lock_t pthread_rwlock_t
 #define my_rwlock_init(A,B) pthread_rwlock_init((A),(B))
 #define rw_rdlock(A) pthread_rwlock_rdlock(A)
@@ -388,14 +400,8 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) pthread_rwlock_trywrlock((A))
 #define rw_unlock(A) pthread_rwlock_unlock(A)
 #define rwlock_destroy(A) pthread_rwlock_destroy(A)
-#elif defined(HAVE_RWLOCK_INIT)
-#ifdef HAVE_RWLOCK_T				/* For example Solaris 2.6-> */
-#define rw_lock_t rwlock_t
-#endif
-#define my_rwlock_init(A,B) rwlock_init((A),USYNC_THREAD,0)
-#else
+#else /* _WIN32 */
 /* Use our own version of read/write locks */
-#define NEED_MY_RW_LOCK 1
 #define rw_lock_t my_rw_lock_t
 #define my_rwlock_init(A,B) my_rw_init((A))
 #define rw_rdlock(A) my_rw_rdlock((A))
@@ -404,9 +410,50 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rw_destroy((A))
-#define rw_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
-#define rw_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
-#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
+
+/**
+  Implementation of Windows rwlock.
+
+  We use native (slim) rwlocks on Win7 and later, and fallback to  portable
+  implementation on earlier Windows.
+
+  slim rwlock are also available on Vista/WS2008, but we do not use it
+  ("trylock" APIs are missing on Vista)
+*/
+typedef union
+{
+  /* Native rwlock (is_srwlock == TRUE) */
+  struct
+  {
+    SRWLOCK srwlock;             /* native reader writer lock */
+    BOOL have_exclusive_srwlock; /* used for unlock */
+  };
+
+  /*
+    Portable implementation (is_srwlock == FALSE)
+    Fields are identical with Unix my_rw_lock_t fields.
+  */
+  struct
+  {
+    pthread_mutex_t lock;       /* lock for structure		*/
+    pthread_cond_t  readers;    /* waiting readers		*/
+    pthread_cond_t  writers;    /* waiting writers		*/
+    int state;                  /* -1:writer,0:free,>0:readers	*/
+    int waiters;                /* number of waiting writers	*/
+#ifdef SAFE_MUTEX
+    pthread_t  write_thread;
+#endif
+  };
+} my_rw_lock_t;
+
+extern int my_rw_init(my_rw_lock_t *);
+extern int my_rw_destroy(my_rw_lock_t *);
+extern int my_rw_rdlock(my_rw_lock_t *);
+extern int my_rw_wrlock(my_rw_lock_t *);
+extern int my_rw_unlock(my_rw_lock_t *);
+extern int my_rw_tryrdlock(my_rw_lock_t *);
+extern int my_rw_trywrlock(my_rw_lock_t *);
+#endif /* _WIN32 */
 
 
 /**
@@ -480,95 +527,7 @@ extern int rw_pr_destroy(rw_pr_lock_t *);
 #define rw_pr_lock_assert_not_write_owner(A)
 #endif /* SAFE_MUTEX */
 
-
-#ifdef NEED_MY_RW_LOCK
-
-#ifdef _WIN32
-
-/**
-  Implementation of Windows rwlock.
-
-  We use native (slim) rwlocks on Win7 and later, and fallback to  portable
-  implementation on earlier Windows.
-
-  slim rwlock are also available on Vista/WS2008, but we do not use it
-  ("trylock" APIs are missing on Vista)
-*/
-typedef union
-{
-  /* Native rwlock (is_srwlock == TRUE) */
-  struct 
-  {
-    SRWLOCK srwlock;             /* native reader writer lock */
-    BOOL have_exclusive_srwlock; /* used for unlock */
-  };
-
-  /*
-    Portable implementation (is_srwlock == FALSE)
-    Fields are identical with Unix my_rw_lock_t fields.
-  */
-  struct 
-  {
-    pthread_mutex_t lock;       /* lock for structure		*/
-    pthread_cond_t  readers;    /* waiting readers		*/
-    pthread_cond_t  writers;    /* waiting writers		*/
-    int state;                  /* -1:writer,0:free,>0:readers	*/
-    int waiters;                /* number of waiting writers	*/
-#ifdef SAFE_MUTEX
-    pthread_t  write_thread;
-#endif
-  };
-} my_rw_lock_t;
-
-
-#else /* _WIN32 */
-
-/*
-  On systems which don't support native read/write locks we have
-  to use own implementation.
-*/
-typedef struct st_my_rw_lock_t {
-	pthread_mutex_t lock;		/* lock for structure		*/
-	pthread_cond_t	readers;	/* waiting readers		*/
-	pthread_cond_t	writers;	/* waiting writers		*/
-	int		state;		/* -1:writer,0:free,>0:readers	*/
-	int             waiters;        /* number of waiting writers	*/
-#ifdef SAFE_MUTEX
-        pthread_t       write_thread;
-#endif
-} my_rw_lock_t;
-
-#endif /*! _WIN32 */
-
-extern int my_rw_init(my_rw_lock_t *);
-extern int my_rw_destroy(my_rw_lock_t *);
-extern int my_rw_rdlock(my_rw_lock_t *);
-extern int my_rw_wrlock(my_rw_lock_t *);
-extern int my_rw_unlock(my_rw_lock_t *);
-extern int my_rw_tryrdlock(my_rw_lock_t *);
-extern int my_rw_trywrlock(my_rw_lock_t *);
-#ifdef SAFE_MUTEX
-#define my_rw_lock_assert_write_owner(A) \
-  DBUG_ASSERT((A)->state == -1 && pthread_equal(pthread_self(), \
-                                                (A)->write_thread))
-#define my_rw_lock_assert_not_write_owner(A) \
-  DBUG_ASSERT((A)->state >= 0 || ! pthread_equal(pthread_self(), \
-                                                 (A)->write_thread))
-#else
-#define my_rw_lock_assert_write_owner(A)
-#define my_rw_lock_assert_not_write_owner(A)
-#endif
-#endif /* NEED_MY_RW_LOCK */
-
-
 #define GETHOSTBYADDR_BUFF_SIZE 2048
-
-#ifndef HAVE_THR_SETCONCURRENCY
-#define thr_setconcurrency(A) pthread_dummy(0)
-#endif
-#if !defined(HAVE_PTHREAD_ATTR_SETSTACKSIZE) && ! defined(pthread_attr_setstacksize)
-#define pthread_attr_setstacksize(A,B) pthread_dummy(0)
-#endif
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
@@ -599,7 +558,6 @@ extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
 extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
-extern int pthread_dummy(int);
 
 #ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
 static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
@@ -625,7 +583,12 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 #endif
 #endif
 
+#ifdef MYSQL_SERVER
+#ifndef MYSQL_DYNAMIC_PLUGIN
 #include <pfs_thread_provider.h>
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+#endif /* MYSQL_SERVER */
+
 #include <mysql/psi/mysql_thread.h>
 
 struct st_my_thread_var
@@ -685,18 +648,6 @@ extern uint my_thread_end_wait_time;
         (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
-#endif
-#endif
-
-#ifndef thread_safe_add
-#ifdef _WIN32
-#define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
-#define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#else
-#define thread_safe_add(V,C,L) \
-        (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
-#define thread_safe_sub(V,C,L) \
-        (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
 #endif
 #endif
 

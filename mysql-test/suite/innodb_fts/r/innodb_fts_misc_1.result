@@ -34,36 +34,44 @@ INSERT INTO t2 (a2,b2) VALUES
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
 DELETE FROM t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
 id1
 1
 3
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ORDER BY id2;
 id2
 1
 3
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
 id1
+2
 3
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id2
-3
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-id1
-1
-3
+4
 5
 6
-2
-4
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
 id2
-1
+2
 3
+4
 5
 6
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
+id1
+1
 2
+3
 4
+5
+6
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
+id2
+1
+2
+3
+4
+5
+6
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id1
 1
@@ -81,15 +89,28 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN
 id1
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+6
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id1;
 id1
+2
 3
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+4
+5
+6
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id2;
 id2
+2
 3
-SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+4
+5
+6
+SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
 id2
+2
 3
+4
+5
+6
 DROP TABLE t2 , t1;
 create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
@@ -233,30 +254,32 @@ INSERT INTO t2 (a2,b2) VALUES
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
 DELETE FROM t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
 id1	a1	b1
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ORDER BY id2;
 id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
 id1	a1	b1
-3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id2	a2	b2
-3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
 2	How To Use MySQL Well	After you went through a ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
+id2	a2	b2
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
+id1	a1	b1
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
 id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
 2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id1	a1	b1
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
@@ -279,15 +302,15 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@02' IN BOOL
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
 id2	a2	b2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id1;
 id1	a1	b1
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-2	How To Use MySQL Well	After you went through a ...
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-5	MySQL vs. YourSQL	In the following database comparison ...
+2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t2;
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM t2 ORDER BY id2;
 id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
@@ -304,15 +327,28 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id1;
 id1	a1	b1
+2	changing column - on UPDATE cascade	to check foreign constraint
 3	changing column - on UPDATE cascade	to check foreign constraint
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
+4	changing column - on UPDATE cascade	to check foreign constraint
+5	changing column - on UPDATE cascade	to check foreign constraint
+6	changing column - on UPDATE cascade	to check foreign constraint
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id2;
 id2	a2	b2
+2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
-SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
+5	changing column - on UPDATE cascade	In the following database comparison ...
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
+SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
 id2	a2	b2
+2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
+4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
+5	changing column - on UPDATE cascade	In the following database comparison ...
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 DROP TABLE t2 , t1;
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
 CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
@@ -441,7 +477,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL Security','When configured properly, MySQL ...');
 ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE MATCH (a,b)
-AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
 id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 3	Optimizing MySQL	In this tutorial we will show ...
@@ -453,14 +489,14 @@ ERROR 42000: syntax error, unexpected '-'
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 id	a	b
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
 id	a	b
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 5	MySQL vs. YourSQL	In the following database comparison ...
-select *, MATCH(a,b) AGAINST("mysql stands" IN BOOLEAN MODE) as x from t1;
+6	MySQL Security	When configured properly, MySQL ...
+select *, MATCH(a,b) AGAINST("mysql stands" IN BOOLEAN MODE) as x from t1 ORDER BY id;
 id	a	b	x
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...	0.6055193543434143
 2	How To Use MySQL Well	After you went through a ...	0.000000001885928302414186
@@ -473,18 +509,18 @@ id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
 id	a	b
-select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION) ORDER BY id;
 id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 5	MySQL vs. YourSQL	In the following database comparison ...
 6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 SELECT * FROM t1 WHERE MATCH (a,b)
-AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
 id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 3	Optimizing MySQL	In this tutorial we will show ...
@@ -497,14 +533,14 @@ id	a	b
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 id	a	b
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
 id	a	b
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 5	MySQL vs. YourSQL	In the following database comparison ...
-select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1;
+6	MySQL Security	When configured properly, MySQL ...
+select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1 ORDER BY id;
 id	a	b	x
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...	0.6055193543434143
 2	How To Use MySQL Well	After you went through a ...	0.000000001885928302414186
@@ -514,14 +550,14 @@ id	a	b	x
 6	MySQL Security	When configured properly, MySQL ...	0.000000003771856604828372
 select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
 id	a	b
-select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION) ORDER BY id;
 id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 5	MySQL vs. YourSQL	In the following database comparison ...
 6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
 INSERT INTO t1 (a,b) VALUES
 ('test proximity search, test, proximity and phrase',
@@ -543,14 +579,14 @@ AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@3' IN BOOLEAN MODE) ORDER BY id;
 id	a	b
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
 10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+AGAINST ('"test proximity"@5' IN BOOLEAN MODE) ORDER BY id;
 id	a	b
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
@@ -578,7 +614,7 @@ select * from t1 where MATCH(a,b) AGAINST("+VÐƷWİ" IN BOOLEAN MODE);
 id	a	b
 1	MYSQL TUTORIAL	dbms stands for database vðʒwi...
 SELECT * FROM t1 WHERE MATCH (a,b)
-AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
 id	a	b
 1	MYSQL TUTORIAL	dbms stands for database vðʒwi...
 3	OPTIMIZING MYSQL	in this tutorial we will show ...
@@ -587,7 +623,7 @@ DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"proximity search"@14' IN BOOLEAN MOD
 SELECT * FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 id	a	b
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	a	b
 2	HOW TO USE MYSQL WELL	after you went through a ...
 4	1001 MYSQL TRICKS	1. never run mysqld as root. 2. ...
@@ -597,7 +633,6 @@ id	a	b
 DROP TABLE t1;
 SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_large_prefix=0;
 set names utf8;
 CREATE TABLE t1 (
@@ -620,14 +655,14 @@ INSERT INTO t1 (a,b) VALUES
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς") ORDER BY id;
 id	a	b
 1	Я могу есть стекло	оно мне не вредит
 3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
 id	a	b
 1	Я могу есть стекло	оно мне не вредит
-SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE) ORDER BY id;
 id	a	b
 1	Я могу есть стекло	оно мне не вредит
 2	Мога да ям стъкло	то не ми вреди
@@ -689,7 +724,7 @@ id	a	b
 7	Pchnąć w tę łódź jeża	lub osiem skrzyń fig
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
 id	a	b
-SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE) ORDER BY id;
 id	a	b
 1	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
 2	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
@@ -700,7 +735,7 @@ WHERE MATCH (a,b)
 AGAINST ('"łódź jeża"@2' IN BOOLEAN MODE);
 id	a	b
 7	Pchnąć w tę łódź jeża	lub osiem skrzyń fig
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	a	b
 1	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
 2	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ

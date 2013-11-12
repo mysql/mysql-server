@@ -1,6 +1,5 @@
 /* 
-   Copyright (C) 2007, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 
 #include "LockQueue.hpp"
 #include "SimulatedBlock.hpp"
+
+#define JAM_FILE_ID 318
+
 
 Uint32
 LockQueue::lock(SimulatedBlock* block,
@@ -214,10 +216,8 @@ void
 LockQueue::clear(Pool& thePool)
 {
   LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
-  queue.release();
+  while (queue.releaseFirst());
 }
-
-#include "SimulatedBlock.hpp"
 
 void
 LockQueue::dump_queue(Pool& thePool, SimulatedBlock* block)

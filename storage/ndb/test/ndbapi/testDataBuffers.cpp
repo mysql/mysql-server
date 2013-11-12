@@ -249,7 +249,7 @@ testcase(Ndb_cluster_connection&cc, int flag)
 	      ndbout << "-- column " << i << " size=" << c.aArraySize << endl;
 	}
 	c.buf = toAligned(c.data);
-	c.bufsiz = sizeof(c.data) - (c.buf - c.data);
+        c.bufsiz = (int)(sizeof(c.data) - (c.buf - c.data));
     }
     ndbout << "tab=" << tab << " cols=" << attrcnt
 	<< " size max=" << smax << " tot=" << stot << endl;

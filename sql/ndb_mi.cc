@@ -88,12 +88,6 @@ uint32 ndb_mi_get_slave_run_id()
 #endif
 }
 
-bool ndb_mi_get_in_relay_log_statement(Relay_log_info* rli)
-{
-  DBUG_ASSERT (rli != NULL);
-  return (rli->get_flag(Relay_log_info::IN_STMT) != 0);
-}
-
 ulong ndb_mi_get_relay_log_trans_retries()
 {
   DBUG_ASSERT (active_mi != NULL);

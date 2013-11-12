@@ -211,8 +211,6 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
-#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
-assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -221,7 +219,6 @@ and the insert buffer must be empty when the database is started */
                                                 related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
-#define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
 #define UNIV_SYNC_PERF_STAT			/* operation counts for
 						rw-locks and mutexes */
 #define UNIV_SEARCH_PERF_STAT			/* statistics for the
@@ -242,18 +239,18 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
                                                 info output */
+#define UNIV_LOG_DEBUG                          /* the above option prevents
+                                                forcing of log to disk
+                                                at a buffer page write:
+                                                it should be tested with
+                                                this option off; also some
+                                                ibuf tests are suppressed */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
-/*
-#define UNIV_SQL_DEBUG
-#define UNIV_LOG_DEBUG
-*/
-			/* the above option prevents forcing of log to disk
-			at a buffer page write: it should be tested with this
-			option off; also some ibuf tests are suppressed */
+// #define UNIV_SQL_DEBUG
 
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
@@ -373,9 +370,9 @@ limit both with this same constant. */
 /** Largest compressed page size */
 #define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
 
-/** Number of supported page sizes (The convention 'ssize' is used
+/** Largest possible ssize (The convention 'ssize' is used
 for 'log2 minus 9' or the number of shifts starting with 512.)
-This number varies depending on UNIV_PAGE_SIZE. */
+This max number varies depending on UNIV_PAGE_SIZE. */
 #define UNIV_PAGE_SSIZE_MAX					\
 	(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
@@ -433,7 +430,7 @@ macro ULINTPF. */
 # define UINT32PF	"%lu"
 # define INT64PF	"%lld"
 # define UINT64PF	"%llu"
-# define UINT64PFx	"%016llu" /* TODO: fix Bug#16559254 */
+# define UINT64PFx	"%016llx"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -594,9 +591,11 @@ functions. */
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(0)
+#define OS_PATH_SEPARATOR '\\'
 #else
 typedef void* os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(NULL)
+#define OS_PATH_SEPARATOR '/'
 #endif
 
 #include <stdio.h>

@@ -33,7 +33,7 @@ while ($1)
 --enable_query_log
 
 SELECT count(*) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 140))'));
 SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
 
@@ -62,7 +62,7 @@ while ($1)
 ALTER TABLE t1 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t1;
 SELECT count(*) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 
   GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
 SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 

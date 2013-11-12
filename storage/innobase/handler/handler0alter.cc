@@ -43,7 +43,9 @@ Smart ALTER TABLE
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
+#include "fts0plugin.h"
 #include "pars0pars.h"
+#include "row0sel.h"
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -123,6 +125,9 @@ my_error_innodb(
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
+		break;
+	case DB_TEMP_FILE_WRITE_FAILURE:
+		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
 		break;
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
@@ -315,10 +320,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	only go through the "Copy" method.*/
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
-		uint primary_key = altered_table->s->primary_key;
+		const uint my_primary_key = altered_table->s->primary_key;
 
 		/* See if MYSQL table has no pk but we do.*/
-		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
+		if (UNIV_UNLIKELY(my_primary_key >= MAX_KEY)
 		    && !row_table_got_default_clust_index(prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_PRIMARY_CANT_HAVE_NULL);
@@ -1483,6 +1488,7 @@ innobase_create_index_def(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->ind_type = 0;
+	index->parser = NULL;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
 	len = strlen(key->name) + 1;
@@ -1510,6 +1516,30 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
 		DBUG_ASSERT(!index->ind_type);
 		index->ind_type |= DICT_FTS;
+
+		/* Set plugin parser */
+		/* Note: key->parser is only parser name,
+			 we need to get parser from altered_table instead */
+		if (key->flags & HA_USES_PARSER) {
+			for (ulint j = 0; j < altered_table->s->keys; j++) {
+				if (ut_strcmp(altered_table->key_info[j].name,
+					      key->name) == 0) {
+					ut_ad(altered_table->key_info[j].flags
+					      & HA_USES_PARSER);
+
+					plugin_ref	parser=
+						altered_table->key_info[j].parser;
+					index->parser =
+						static_cast<st_mysql_ftparser*>(
+						plugin_decl(parser)->info);
+					break;
+				}
+			}
+
+			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
+				index->parser = &fts_default_parser;);
+			ut_ad(index->parser);
+		}
 	}
 
 	if (!new_clustered) {
@@ -3485,6 +3515,9 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
+#ifdef _WIN32
+	bool		add_fts_idx		= false;
+#endif /* _WIN32 */
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -3514,8 +3547,7 @@ ha_innobase::prepare_inplace_alter_table(
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
 		if (const char* invalid_opt = create_options_are_invalid(
-			    user_thd, altered_table,
-			    ha_alter_info->create_info,
+			    user_thd, ha_alter_info->create_info,
 			    prebuilt->table->space != 0)) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
@@ -3629,6 +3661,9 @@ check_if_ok_to_rename:
 				      & ~(HA_FULLTEXT
 					  | HA_PACK_KEY
 					  | HA_BINARY_PACK_KEY)));
+#ifdef _WIN32
+			add_fts_idx = true;
+#endif /* _WIN32 */
 			continue;
 		}
 
@@ -3638,6 +3673,20 @@ check_if_ok_to_rename:
 			goto err_exit_no_heap;
 		}
 	}
+
+#ifdef _WIN32
+	/* We won't be allowed to add fts index to a table with
+	fts indexes already but without AUX_HEX_NAME set.
+	This means the aux tables of the table failed to
+	rename to hex format but new created aux tables
+	shall be in hex format, which is contradictory.
+	It's only for Windows. */
+	if (!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS_AUX_HEX_NAME)
+	    && indexed_table->fts != NULL && add_fts_idx) {
+		my_error(ER_INNODB_FT_AUX_NOT_HEX_ID, MYF(0));
+		goto err_exit_no_heap;
+	}
+#endif /* _WIN32 */
 
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */
@@ -4143,7 +4192,8 @@ oom:
 	DEBUG_SYNC_C("inplace_after_index_build");
 
 	DBUG_EXECUTE_IF("create_index_fail",
-			error = DB_DUPLICATE_KEY;);
+			error = DB_DUPLICATE_KEY;
+			prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -4311,7 +4361,7 @@ rollback_inplace_alter_table(
 		/* Since the FTS index specific auxiliary tables has
 		not yet registered with "table->fts" by fts_add_index(),
 		we will need explicitly delete them here */
-		if (DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_FTS)) {
+		if (dict_table_has_fts_index(ctx->new_table)) {
 
 			err = innobase_drop_fts_index_table(
 				ctx->new_table, ctx->trx);
@@ -4881,16 +4931,38 @@ commit_get_autoinc(
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
-		/* An AUTO_INCREMENT value was supplied, but the table
-		was not rebuilt. Get the user-supplied value or the
-		last value from the sequence. */
-		ut_ad(old_table->found_next_number_field);
+		/* An AUTO_INCREMENT value was supplied, but the table was not
+		rebuilt. Get the user-supplied value or the last value from the
+		sequence. */
+		ib_uint64_t	max_value_table;
+		dberr_t		err;
+
+		Field*	autoinc_field =
+			old_table->found_next_number_field;
+
+		dict_index_t*	index = dict_table_get_index_on_first_col(
+			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
-		if (max_autoinc < ctx->old_table->autoinc) {
-			max_autoinc = ctx->old_table->autoinc;
+
+		err = row_search_max_autoinc(
+			index, autoinc_field->field_name, &max_value_table);
+
+		if (err != DB_SUCCESS) {
+			ut_ad(0);
+			max_autoinc = 0;
+		} else if (max_autoinc <= max_value_table) {
+			ulonglong	col_max_value;
+			ulonglong	offset;
+
+			col_max_value = autoinc_field->get_max_int_value();
+
+			offset = ctx->prebuilt->autoinc_offset;
+			max_autoinc = innobase_next_autoinc(
+				max_value_table, 1, 1, offset,
+				col_max_value);
 		}
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {
@@ -6089,6 +6161,9 @@ foreign_fail:
 
 			if (index->type & DICT_FTS) {
 				DBUG_ASSERT(index->type == DICT_FTS);
+				/* We reset DICT_TF2_FTS here because the bit
+				is left unset when a drop proceeds the add. */
+				DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 				fts_add_index(index, ctx->new_table);
 				add_fts = true;
 			}

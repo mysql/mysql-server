@@ -131,8 +131,11 @@ ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#
 ndb_optimized_node_selection	#
+ndb_recv_thread_activation_threshold	#
+ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
+ndb_show_foreign_key_mock_tables	#
 ndb_table_no_logging	#
 ndb_table_temporary	#
 ndb_use_copying_alter_table	#
@@ -913,7 +916,7 @@ b VARCHAR(255) NOT NULL,
 c VARCHAR(255) NOT NULL,
 CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
 CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
-drop table t1, t2;
+drop table t2, t1;
 create table t1 (a int not null primary key, b int) engine=ndb;
 insert into t1 values(1,1),(2,2),(3,3);
 create table t2 like t1;
