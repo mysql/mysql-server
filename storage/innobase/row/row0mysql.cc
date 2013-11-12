@@ -3453,20 +3453,23 @@ row_drop_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
+	
+		if (!row_is_mysql_tmp_table_name(name)) {
+			ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, name);
-		fputs(" does not exist in the InnoDB internal\n"
-		      "InnoDB: data dictionary though MySQL is"
-		      " trying to drop it.\n"
-		      "InnoDB: Have you copied the .frm file"
-		      " of the table to the\n"
-		      "InnoDB: MySQL database directory"
-		      " from another database?\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+			fputs("  InnoDB: Error: table ", stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fputs(" does not exist in the InnoDB internal\n"
+			      "InnoDB: data dictionary though MySQL is"
+			      " trying to drop it.\n"
+			      "InnoDB: Have you copied the .frm file"
+			      " of the table to the\n"
+			      "InnoDB: MySQL database directory"
+			      " from another database?\n"
+			      "InnoDB: You can look for further help from\n"
+			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+			      stderr);
+		}
 		goto funct_exit;
 	}
 
