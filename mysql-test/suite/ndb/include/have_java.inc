@@ -33,6 +33,7 @@ if(!IS_WINDOWS)
   $java_args = "-d32";
   if ($bits == 64) {
     $java_args = "-d64";
+    push(@arch_paths, ('/usr/java-local/jdk-64/bin', '/usr/local/jdk-64/bin', '/usr/local/java/jdk-64/bin'));
   }
 }
 else
