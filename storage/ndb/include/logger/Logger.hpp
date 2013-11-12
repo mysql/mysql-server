@@ -106,14 +106,16 @@ public:
 
   /*
     Convert time to local timezone and print in timestamp format
-    to string buffer
+    to string buffer. The function always some nul terminated string
+    to the buffer to ensure it can safely be printed.
+
       @epoch time to convert and print
       @str pointer to buffer where to print the resulting string
       @len max lenght of result buffer
+
   */
-  static char*
-  format_timestamp(const time_t epoch,
-                   char* str, size_t len);
+  static void format_timestamp(const time_t epoch,
+                               char* str, size_t len);
 
   /** The log levels. NOTE: Could not use the name LogLevel since 
    * it caused conflicts with another class.

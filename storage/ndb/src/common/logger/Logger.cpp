@@ -384,13 +384,23 @@ void Logger::setRepeatFrequency(unsigned val)
 }
 
 
-char*
+void
 Logger::format_timestamp(const time_t epoch,
                          char* str, size_t len)
 {
+  assert(len > 0); // Assume buffer has size
+
   // convert to local timezone
   tm tm_buf;
-  localtime_r(&epoch, &tm_buf);
+  if (localtime_r(&epoch, &tm_buf) == NULL)
+  {
+    // Failed to convert to local timezone.
+    // Fill with bogus time stamp value in order
+    // to ensure buffer can be safely printed
+    strncpy(str, "2001-01-01 00:00:00", len);
+    str[len-1] = 0;
+    return;
+  }
 
   // Print the broken down time in timestamp format
   // to the string buffer
@@ -402,5 +412,6 @@ Logger::format_timestamp(const time_t epoch,
                        tm_buf.tm_hour,
                        tm_buf.tm_min,
                        tm_buf.tm_sec);
-  return str;
+  str[len-1] = 0;
+  return;
 }
