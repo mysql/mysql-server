@@ -375,8 +375,8 @@ waitClusterStatus(const char* _addr,
     }
 
     if (!allInState) {
-      char time[9];
-      g_info << "[" << getTimeAsString(time, sizeof(time)) << "] "
+      char timestamp[9];
+      g_info << "[" << getTimeAsString(timestamp, sizeof(timestamp)) << "] "
              << "Waiting for cluster enter state "
              << ndb_mgm_get_node_status_string(_status) << endl;
     }
