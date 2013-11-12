@@ -85,6 +85,7 @@ fts_config_get_value(
 	que_t*		graph;
 	dberr_t		error;
 	ulint		name_len = strlen(name);
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -100,12 +101,14 @@ fts_config_get_value(
 	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		fts_table,
 		info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
+		"DECLARE CURSOR c IS SELECT value FROM $table_name"
 		" WHERE key = :name;\n"
 		"BEGIN\n"
 		""
@@ -212,6 +215,7 @@ fts_config_set_value(
 	undo_no_t	undo_no;
 	undo_no_t	n_rows_updated;
 	ulint		name_len = strlen(name);
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -220,10 +224,13 @@ fts_config_set_value(
 				       value->f_str, value->f_len);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		fts_table, info,
-		"BEGIN UPDATE \"%s\" SET value = :value WHERE key = :name;");
+		"BEGIN UPDATE $table_name SET value = :value "
+		"WHERE key = :name;");
 
 	trx->op_info = "setting FTS config value";
 
@@ -245,10 +252,13 @@ fts_config_set_value(
 		pars_info_bind_varchar_literal(
 			info, "value", value->f_str, value->f_len);
 
+		fts_get_table_name(fts_table, table_name);
+		pars_info_bind_id(info, true, "table_name", table_name);
+
 		graph = fts_parse_sql(
 			fts_table, info,
 			"BEGIN\n"
-			"INSERT INTO \"%s\" VALUES(:name, :value);");
+			"INSERT INTO $table_name VALUES(:name, :value);");
 
 		trx->op_info = "inserting FTS config value";
 
@@ -465,6 +475,7 @@ fts_config_increment_value(
 	que_t*		graph = NULL;
 	ulint		name_len = strlen(name);
 	pars_info_t*	info = pars_info_create();
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
@@ -479,11 +490,13 @@ fts_config_increment_value(
 		info, "my_func", fts_config_fetch_value, &value);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "config_table", table_name);
 
 	graph = fts_parse_sql(
 		fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
+		"DECLARE CURSOR c IS SELECT value FROM $config_table"
 		" WHERE key = :name FOR UPDATE;\n"
 		"BEGIN\n"
 		""
