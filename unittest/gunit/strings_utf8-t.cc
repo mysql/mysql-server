@@ -19,24 +19,25 @@
 
 #include <m_ctype.h>
 #include <sql_class.h>
+
 namespace strings_utf8_unittest {
 
 class StringsUTF8Test : public ::testing::Test
 {
 protected:
-    virtual void SetUp()
-    {
-      // Save global settings.
-      m_charset= system_charset_info;
+  virtual void SetUp()
+  {
+    // Save global settings.
+    m_charset= system_charset_info;
 
-      system_charset_info= &my_charset_utf8_bin;
-    }
+    system_charset_info= &my_charset_utf8_bin;
+  }
 
-    virtual void TearDown()
-    {
-      // Restore global settings.
-      system_charset_info= m_charset;
-    }
+  virtual void TearDown()
+  {
+    // Restore global settings.
+    system_charset_info= m_charset;
+  }
 
 private:
   CHARSET_INFO *m_charset;
@@ -44,6 +45,7 @@ private:
 
 TEST_F(StringsUTF8Test, MyStrchr)
 {
+  const char* null_pos= NULL;
   char* pos;
   char valid_utf8_string[]= "str1";
 
@@ -64,7 +66,7 @@ TEST_F(StringsUTF8Test, MyStrchr)
   pos= my_strchr(system_charset_info, valid_utf8_string,
                  valid_utf8_string + 3, 'd');
 
-  ASSERT_EQ(NULL, pos);
+  ASSERT_EQ(null_pos, pos);
 
   // Assign an invalid utf8 char to valid_utf8_str
   valid_utf8_string[0]= '\xff';
@@ -72,7 +74,7 @@ TEST_F(StringsUTF8Test, MyStrchr)
   // Invalid utf8 character in str arg passed to my_strchr.
   pos= my_strchr(system_charset_info, valid_utf8_string,
                  valid_utf8_string + 3,'y');
-  ASSERT_EQ(NULL, pos);
+  ASSERT_EQ(null_pos, pos);
 
 }
 
@@ -216,19 +218,19 @@ TEST_F(StringsUTF8Test, MyIsmbcharUtf8)
 class StringsUTF8mb4Test : public ::testing::Test
 {
 protected:
-    virtual void SetUp()
-    {
-      // Save global settings.
-      m_charset= system_charset_info;
+  virtual void SetUp()
+  {
+    // Save global settings.
+    m_charset= system_charset_info;
 
-      system_charset_info= &my_charset_utf8mb4_bin;
-    }
+    system_charset_info= &my_charset_utf8mb4_bin;
+  }
 
-    virtual void TearDown()
-    {
-      // Restore global settings.
-      system_charset_info= m_charset;
-    }
+  virtual void TearDown()
+  {
+    // Restore global settings.
+    system_charset_info= m_charset;
+  }
 
 private:
   CHARSET_INFO *m_charset;
