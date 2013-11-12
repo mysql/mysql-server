@@ -96,14 +96,13 @@ const char*
 LogHandler::getDefaultHeader(char* pStr, const char* pCategory, 
 			     Logger::LoggerLevel level) const
 {
-  char time[64];
-  Logger::format_timestamp(m_now, time, sizeof(time));
+  char timestamp[64];
+  Logger::format_timestamp(m_now, timestamp, sizeof(timestamp));
 
   BaseString::snprintf(pStr, MAX_HEADER_LENGTH, "%s [%s] %s -- ", 
-                       time,
-	     pCategory,
-	     Logger::LoggerLevelNames[level]);
- 
+                       timestamp,
+                       pCategory,
+                       Logger::LoggerLevelNames[level]);
   return pStr;
 }
 
