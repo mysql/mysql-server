@@ -106,8 +106,8 @@ public:
 
   /*
     Convert time to local timezone and print in timestamp format
-    to string buffer. The function always some nul terminated string
-    to the buffer to ensure it can safely be printed.
+    to string buffer. The function always write some null terminated
+    string to buffer so it can safely be printed.
 
       @epoch time to convert and print
       @str pointer to buffer where to print the resulting string
