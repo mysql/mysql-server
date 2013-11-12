@@ -80,6 +80,15 @@ private:
   void threadMain();
   
   int  theStop;
+  /**
+   * We could end up in a situation where signals are delayed for more
+   * than 100 ms, either due to slow operation or due to that we're
+   * closing the TransporterFacade object. To avoid sending more than
+   * signal to ourself in these cases we add this boolean variable to
+   * indicate if we already sent a signal to ourself, this signal will
+   * eventually arrive since it's a local signal within the same process.
+  */
+  bool m_sent_API_REGREQ_to_myself;
   class TransporterFacade & theFacade;
   class ArbitMgr * theArbitMgr;
 
