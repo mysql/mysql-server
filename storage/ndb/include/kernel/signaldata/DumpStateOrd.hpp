@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DUMP_STATE_ORD_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 137
+
 
 /**
  * DumpStateOrd is sent by the mgmtsrvr to CMVMI.
@@ -124,6 +127,7 @@ public:
     TcSetApplTransactionTimeout = 2508,
     TcStartDumpIndexOpCount = 2512,
     TcDumpIndexOpCount = 2513,
+    TcDumpApiConnectRecSummary = 2514,
     TcDumpPoolLevels = 2555,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
@@ -135,6 +139,11 @@ public:
                                       in clusterlog */
     CmvmiTestLongSig = 2605,  /* Long signal testing trigger */
     DumpEventLog = 2606,
+
+    CmvmiLongSignalMemorySnapshotStart = 2607,
+    CmvmiLongSignalMemorySnapshot = 2608,
+    CmvmiLongSignalMemorySnapshotCheck = 2609,
+
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
@@ -195,5 +204,8 @@ public:
   
   Uint32 args[25];          // Generic argument
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

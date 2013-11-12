@@ -1048,9 +1048,12 @@ static size_t
 my_snprintf_mb2(const CHARSET_INFO *cs __attribute__((unused)),
                 char* to, size_t n, const char* fmt, ...)
 {
+  size_t retval;
   va_list args;
   va_start(args,fmt);
-  return my_vsnprintf_mb2(to, n, fmt, args);
+  retval= my_vsnprintf_mb2(to, n, fmt, args);
+  va_end(args);
+  return retval;
 }
 
 
@@ -1160,29 +1163,29 @@ my_uni_utf16(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static inline void
-my_tolower_utf16(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tolower_utf16(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((*wc <= uni_plane->maxchar) && (page= uni_plane->page[*wc >> 8]))
     *wc= page[*wc & 0xFF].tolower;
 }
 
 
 static inline void
-my_toupper_utf16(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_toupper_utf16(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((*wc <= uni_plane->maxchar) && (page= uni_plane->page[*wc >> 8]))
     *wc= page[*wc & 0xFF].toupper;
 }
 
 
 static inline void
-my_tosort_utf16(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tosort_utf16(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
   if (*wc <= uni_plane->maxchar)
   {
-    MY_UNICASE_CHARACTER *page;
+    const MY_UNICASE_CHARACTER *page;
     if ((page= uni_plane->page[*wc >> 8]))
       *wc= page[*wc & 0xFF].sort;
   }
@@ -1202,9 +1205,9 @@ my_caseup_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
-  
+
   while ((src < srcend) &&
          (res= cs->cset->mb_wc(cs, &wc, (uchar *) src, (uchar *) srcend)) > 0)
   {
@@ -1224,7 +1227,7 @@ my_hash_sort_utf16(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e= s + cs->cset->lengthsp(cs, (const char *) s, slen);
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   ulong tmp1;
   ulong tmp2;
 
@@ -1255,7 +1258,7 @@ my_casedn_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
@@ -1280,7 +1283,7 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   while (s < se && t < te)
   {
@@ -1343,7 +1346,7 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
   int res;
   my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
@@ -1485,9 +1488,9 @@ my_wildcmp_utf16_ci(const CHARSET_INFO *cs,
                     const char *wildstr,const char *wildend,
                     int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
-                            escape, w_one, w_many, uni_plane); 
+                            escape, w_one, w_many, uni_plane);
 }
 
 
@@ -1960,29 +1963,29 @@ my_uni_utf32(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static inline void
-my_tolower_utf32(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tolower_utf32(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((*wc <= uni_plane->maxchar) && (page= uni_plane->page[*wc >> 8]))
     *wc= page[*wc & 0xFF].tolower;
 }
 
 
 static inline void
-my_toupper_utf32(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_toupper_utf32(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((*wc <= uni_plane->maxchar) && (page= uni_plane->page[*wc >> 8]))
     *wc= page[*wc & 0xFF].toupper;
 }
 
 
 static inline void
-my_tosort_utf32(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tosort_utf32(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
   if (*wc <= uni_plane->maxchar)
   {
-    MY_UNICASE_CHARACTER *page;
+    const MY_UNICASE_CHARACTER *page;
     if ((page= uni_plane->page[*wc >> 8]))
       *wc= page[*wc & 0xFF].sort;
   }
@@ -2001,9 +2004,9 @@ my_caseup_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
-  
+
   while ((src < srcend) &&
          (res= my_utf32_uni(cs, &wc, (uchar *)src, (uchar*) srcend)) > 0)
   {
@@ -2023,7 +2026,7 @@ my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e= s + slen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   ulong tmp1;
   ulong tmp2;
   uint ch;
@@ -2071,7 +2074,7 @@ my_casedn_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((res= my_utf32_uni(cs, &wc, (uchar*) src, (uchar*) srcend)) > 0)
@@ -2094,7 +2097,7 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   while (s < se && t < te)
   {
@@ -2158,7 +2161,7 @@ my_strnncollsp_utf32(const CHARSET_INFO *cs,
   int res;
   my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   DBUG_ASSERT((slen % 4) == 0);
   DBUG_ASSERT((tlen % 4) == 0);
@@ -2341,9 +2344,12 @@ static size_t
 my_snprintf_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   char* to, size_t n, const char* fmt, ...)
 {
+  size_t retval;
   va_list args;
   va_start(args,fmt);
-  return my_vsnprintf_utf32(to, n, fmt, args);
+  retval= my_vsnprintf_utf32(to, n, fmt, args);
+  va_end(args);
+  return retval;
 }
 
 
@@ -2568,12 +2574,17 @@ void my_fill_utf32(const CHARSET_INFO *cs,
                    char *s, size_t slen, int fill)
 {
   char buf[10];
+#ifndef DBUG_OFF
   uint buflen;
+#endif
   char *e= s + slen;
-  
+
   DBUG_ASSERT((slen % 4) == 0);
 
-  buflen= cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,
+#ifndef DBUG_OFF
+  buflen=
+#endif
+    cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,
                           (uchar*) buf + sizeof(buf));
   DBUG_ASSERT(buflen == 4);
   while (s < e)
@@ -2602,9 +2613,9 @@ my_wildcmp_utf32_ci(const CHARSET_INFO *cs,
                     const char *wildstr, const char *wildend,
                     int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
-                            escape, w_one, w_many, uni_plane); 
+                            escape, w_one, w_many, uni_plane);
 }
 
 
@@ -2871,7 +2882,7 @@ CHARSET_INFO my_charset_utf32_bin=
 
 #ifdef HAVE_CHARSET_ucs2
 
-static uchar ctype_ucs2[] = {
+static const uchar ctype_ucs2[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -2891,7 +2902,7 @@ static uchar ctype_ucs2[] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-static uchar to_lower_ucs2[] = {
+static const uchar to_lower_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -2910,7 +2921,7 @@ static uchar to_lower_ucs2[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-static uchar to_upper_ucs2[] = {
+static const uchar to_upper_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -2956,27 +2967,27 @@ static int my_uni_ucs2(const CHARSET_INFO *cs __attribute__((unused)) ,
 
 
 static inline void
-my_tolower_ucs2(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tolower_ucs2(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
     *wc= page[*wc & 0xFF].tolower;
 }
 
 
 static inline void
-my_toupper_ucs2(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_toupper_ucs2(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
     *wc= page[*wc & 0xFF].toupper;
 }
 
 
 static inline void
-my_tosort_ucs2(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tosort_ucs2(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 {
-  MY_UNICASE_CHARACTER *page;
+  const MY_UNICASE_CHARACTER *page;
   if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
     *wc= page[*wc & 0xFF].sort;
 }
@@ -2989,9 +3000,9 @@ static size_t my_caseup_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
-  
+
   while ((src < srcend) &&
          (res= my_ucs2_uni(cs, &wc, (uchar *)src, (uchar*) srcend)) > 0)
   {
@@ -3010,7 +3021,7 @@ static void my_hash_sort_ucs2(const CHARSET_INFO *cs, const uchar *s,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   ulong tmp1;
   ulong tmp2;
 
@@ -3042,7 +3053,7 @@ static size_t my_casedn_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
@@ -3075,7 +3086,7 @@ static int my_strnncoll_ucs2(const CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -3137,7 +3148,7 @@ static int my_strnncollsp_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
 {
   const uchar *se, *te;
   size_t minlen;
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
   /* extra safety to make sure the lengths are even numbers */
   slen&= ~1;
@@ -3233,9 +3244,9 @@ int my_wildcmp_ucs2_ci(const CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
-                            escape,w_one,w_many,uni_plane); 
+                            escape,w_one,w_many,uni_plane);
 }
 
 

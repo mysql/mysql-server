@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 #ifdef DBINFO_SCAN_TRACE
 #include <debugger/DebuggerNames.hpp>
 #endif
+
+#define JAM_FILE_ID 455
+
 
 Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
                            TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN,

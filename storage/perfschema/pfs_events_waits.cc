@@ -45,7 +45,7 @@ PFS_ALIGNED bool flag_thread_instrumentation= false;
 /** True if EVENTS_WAITS_HISTORY_LONG circular buffer is full. */
 PFS_ALIGNED bool events_waits_history_long_full= false;
 /** Index in EVENTS_WAITS_HISTORY_LONG circular buffer. */
-PFS_ALIGNED volatile uint32 events_waits_history_long_index= 0;
+PFS_ALIGNED PFS_cacheline_uint32 events_waits_history_long_index;
 /** EVENTS_WAITS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_waits *events_waits_history_long_array= NULL;
 
@@ -57,7 +57,7 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing)
 {
   events_waits_history_long_size= events_waits_history_long_sizing;
   events_waits_history_long_full= false;
-  PFS_atomic::store_u32(&events_waits_history_long_index, 0);
+  PFS_atomic::store_u32(&events_waits_history_long_index.m_u32, 0);
 
   if (events_waits_history_long_size == 0)
     return 0;
@@ -122,7 +122,7 @@ void insert_events_waits_history_long(PFS_events_waits *wait)
   if (unlikely(events_waits_history_long_size == 0))
     return;
 
-  uint index= PFS_atomic::add_u32(&events_waits_history_long_index, 1);
+  uint index= PFS_atomic::add_u32(&events_waits_history_long_index.m_u32, 1);
 
   index= index % events_waits_history_long_size;
   if (index == 0)
@@ -169,7 +169,7 @@ void reset_events_waits_history(void)
 /** Reset table EVENTS_WAITS_HISTORY_LONG data. */
 void reset_events_waits_history_long(void)
 {
-  PFS_atomic::store_u32(&events_waits_history_long_index, 0);
+  PFS_atomic::store_u32(&events_waits_history_long_index.m_u32, 0);
   events_waits_history_long_full= false;
 
   PFS_events_waits *wait= events_waits_history_long_array;

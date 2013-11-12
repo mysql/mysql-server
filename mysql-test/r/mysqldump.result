@@ -8,14 +8,16 @@ drop database if exists mysqldump_test_db;
 drop database if exists db1;
 drop database if exists db2;
 drop view if exists v1, v2, v3;
-CREATE TABLE t1(a INT, KEY (a)) KEY_BLOCK_SIZE=1024;
+set global innodb_file_format="Barracuda";
+set global innodb_file_per_table=1;
+CREATE TABLE t1(a INT, KEY (a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 ENGINE=Innodb;
 INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
-		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Null="YES" Index_type="BTREE" Comment="" Index_comment="" />
+		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Cardinality="2" Null="YES" Index_type="BTREE" Comment="" Index_comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -28,6 +30,8 @@ INSERT INTO t1 VALUES (1), (2);
 </database>
 </mysqldump>
 DROP TABLE t1;
+set global innodb_file_format=Antelope;
+SET GLOBAL innodb_file_per_table=1;
 #
 # Bug#2005 Long decimal comparison bug.
 #
@@ -38,7 +42,7 @@ INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` decimal(64,20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1234567890123456789012345678901234567890.00000000000000000000),(987654321098765432109876543210987654321.00000000000000000000);
 DROP TABLE t1;
@@ -53,7 +57,7 @@ Warning	1264	Out of range value for column 'a' at row 1
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (-1.7976931348623157e308);
 DROP TABLE t1;
@@ -75,7 +79,7 @@ SET SQL_MODE=@OLD_SQL_MODE;
 CREATE TABLE `t1` (
   `a` decimal(10,5) DEFAULT NULL,
   `b` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -213,7 +217,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` varchar(255) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=koi8r;
+) ENGINE=InnoDB DEFAULT CHARSET=koi8r;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -293,7 +297,7 @@ create table ```a` (i int);
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE ```a` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 drop table ```a`;
 #
@@ -316,7 +320,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -375,7 +379,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -438,7 +442,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -532,7 +536,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -566,7 +570,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -589,7 +593,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -612,7 +616,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -650,7 +654,7 @@ DROP TABLE IF EXISTS `t2`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t2` WRITE;
@@ -691,7 +695,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -732,7 +736,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -1432,7 +1436,7 @@ CREATE TABLE `t1` (
   `F_cd00692c3bfe59267d5ecfac5310286c` int(11) DEFAULT NULL,
   `F_6faa8040da20ef399b63a72d0e4ab575` int(11) DEFAULT NULL,
   `F_fe73f687e5bc5280214e0486b273a5f9` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -1478,7 +1482,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -1522,14 +1526,14 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1557,14 +1561,14 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1731,7 +1735,7 @@ t1	CREATE TABLE `t1` (
   `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
-) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 DROP TABLE `t1`;
 select * from t1;
 t1_name	t1_id
@@ -1745,7 +1749,7 @@ t1	CREATE TABLE `t1` (
   `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
-) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 drop table `t1`;
 #
 # Bug#18536 wrong table order
@@ -1769,21 +1773,21 @@ DROP TABLE IF EXISTS `t3`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1818,7 +1822,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1853,9 +1857,9 @@ DROP TABLE IF EXISTS "t1";
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE "t1" (
-  "a b" int(11) NOT NULL DEFAULT '0',
-  "c""d" int(11) NOT NULL DEFAULT '0',
-  "e`f" int(11) NOT NULL DEFAULT '0',
+  "a b" int(11) NOT NULL,
+  "c""d" int(11) NOT NULL,
+  "e`f" int(11) NOT NULL,
   PRIMARY KEY ("a b","c""d","e`f")
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1887,9 +1891,9 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
-  `a b` int(11) NOT NULL DEFAULT '0',
-  `c"d` int(11) NOT NULL DEFAULT '0',
-  `e``f` int(11) NOT NULL DEFAULT '0',
+  `a b` int(11) NOT NULL,
+  `c"d` int(11) NOT NULL,
+  `e``f` int(11) NOT NULL,
   PRIMARY KEY (`a b`,`c"d`,`e``f`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1943,7 +1947,7 @@ DROP TABLE IF EXISTS `t2`;
 CREATE TABLE `t2` (
   `a` varchar(30) DEFAULT NULL,
   KEY `a` (`a`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t2` WRITE;
@@ -2038,7 +2042,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2111,7 +2115,7 @@ DROP TABLE IF EXISTS `t2`;
 CREATE TABLE `t2` (
   `a` varchar(30) DEFAULT NULL,
   KEY `a` (`a`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t2` WRITE;
@@ -2177,7 +2181,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2225,7 +2229,7 @@ CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` varchar(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2383,7 +2387,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2454,7 +2458,7 @@ DROP TABLE IF EXISTS `t2`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t2` WRITE;
@@ -2512,7 +2516,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2525,7 +2529,7 @@ DROP TABLE IF EXISTS `t2`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t2` WRITE;
@@ -2656,7 +2660,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2808,7 +2812,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `d` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `d` (`d`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2845,7 +2849,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `d` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `d` (`d`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -2982,7 +2986,7 @@ CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(32) DEFAULT NULL,
   `c` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3111,7 +3115,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3171,7 +3175,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` binary(1) DEFAULT NULL,
   `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3206,7 +3210,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` binary(1) DEFAULT NULL,
   `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3384,7 +3388,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3448,7 +3452,7 @@ CREATE TABLE `basetable` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `tag` varchar(64) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET latin1 */;
@@ -3631,8 +3635,8 @@ CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 mysqldump: Input filename too long: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP TABLE t1;
-CREATE TABLE t2 (a INT);
-CREATE TABLE t3 (a INT);
+CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+CREATE TABLE t3 (a INT) ENGINE=MYISAM;
 CREATE TABLE t1 (a INT) ENGINE=merge UNION=(t2, t3);
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -3838,7 +3842,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -3893,7 +3897,7 @@ CREATE TABLE `straße` ( f1 INT );
 DROP TABLE IF EXISTS `straße`;
 CREATE TABLE `straße` (
   `f1` int(11) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `straße` WRITE;
 /*!40000 ALTER TABLE `straße` DISABLE KEYS */;
@@ -3915,7 +3919,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `stra�e`;
 CREATE TABLE `stra�e` (
   `f1` int(11) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `stra�e` WRITE;
 /*!40000 ALTER TABLE `stra�e` DISABLE KEYS */;
@@ -3939,7 +3943,7 @@ CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
 DROP TABLE IF EXISTS `כדשגכחךלדגכחשךדגחכךלדגכ`;
 CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` (
   `f1` int(11) DEFAULT NULL
-) TYPE=MyISAM;
+) TYPE=InnoDB;
 
 LOCK TABLES `כדשגכחךלדגכחשךדגחכךלדגכ` WRITE;
 /*!40000 ALTER TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` DISABLE KEYS */;
@@ -3985,7 +3989,7 @@ DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -4254,7 +4258,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -4358,7 +4362,7 @@ DROP TABLE IF EXISTS `test`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `test` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 LOCK TABLES `test` WRITE;
 /*!40000 ALTER TABLE `test` DISABLE KEYS */;
@@ -4607,8 +4611,8 @@ USE test;
 #
 CREATE DATABASE BUG52792;
 USE BUG52792;
-CREATE TABLE t1 (c1 INT, c2 VARCHAR(20));
-CREATE TABLE t2 (c1 INT);
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(20)) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
 INSERT INTO t2 VALUES (1),(2),(3);
 # Stored Procedures.
@@ -5172,7 +5176,7 @@ CREATE TABLE `t1` (
   `j` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `k` datetime DEFAULT NULL,
   `l` datetime DEFAULT '2010-05-26 12:34:56'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -5234,7 +5238,7 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -5256,7 +5260,7 @@ DROP TABLE IF EXISTS `t2`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -5304,7 +5308,7 @@ RESET MASTER;
 #
 DROP DATABASE IF EXISTS b12688860_db;
 CREATE DATABASE b12688860_db;
-Warning: Using a password on the command line interface can be insecure.
+mysqldump: [Warning] Using a password on the command line interface can be insecure.
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -5344,27 +5348,27 @@ Error	1146	Table 'mysql.event' doesn't exist
 SHOW CREATE TABLE mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 SHOW CREATE TABLE mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 SET @@global.log_output=       @old_log_output_state;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <SimulatedBlock.hpp>
 #include <LocalProxy.hpp>
+
+#define JAM_FILE_ID 340
+
 
 class Thrman : public SimulatedBlock
 {
@@ -44,5 +47,8 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

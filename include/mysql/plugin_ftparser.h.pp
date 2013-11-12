@@ -16,21 +16,21 @@ struct st_mysql_lex_string
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
 extern struct thd_alloc_service_st {
-  void *(*thd_alloc_func)(void*, unsigned int);
-  void *(*thd_calloc_func)(void*, unsigned int);
+  void *(*thd_alloc_func)(void*, size_t);
+  void *(*thd_calloc_func)(void*, size_t);
   char *(*thd_strdup_func)(void*, const char *);
-  char *(*thd_strmake_func)(void*, const char *, unsigned int);
-  void *(*thd_memdup_func)(void*, const void*, unsigned int);
+  char *(*thd_strmake_func)(void*, const char *, size_t);
+  void *(*thd_memdup_func)(void*, const void*, size_t);
   MYSQL_LEX_STRING *(*thd_make_lex_string_func)(void*, MYSQL_LEX_STRING *,
-                                        const char *, unsigned int, int);
+                                        const char *, size_t, int);
 } *thd_alloc_service;
-void *thd_alloc(void* thd, unsigned int size);
-void *thd_calloc(void* thd, unsigned int size);
+void *thd_alloc(void* thd, size_t size);
+void *thd_calloc(void* thd, size_t size);
 char *thd_strdup(void* thd, const char *str);
-char *thd_strmake(void* thd, const char *str, unsigned int size);
-void *thd_memdup(void* thd, const void* str, unsigned int size);
+char *thd_strmake(void* thd, const char *str, size_t size);
+void *thd_memdup(void* thd, const void* str, size_t size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
+                                      const char *str, size_t size,
                                       int allocate_lex_string);
 #include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
@@ -53,14 +53,15 @@ extern struct thd_wait_service_st {
 void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
 #include <mysql/service_thread_scheduler.h>
-struct Connection_handler_callback;
+struct Connection_handler_functions;
+struct THD_event_functions;
 extern struct my_thread_scheduler_service {
-  int (*connection_handler_set)(void* conn_handler,
-                                struct Connection_handler_callback *cb);
+  int (*connection_handler_set)(struct Connection_handler_functions *,
+                                struct THD_event_functions *);
   int (*connection_handler_reset)();
 } *my_thread_scheduler_service;
-int my_connection_handler_set(void* conn_handler,
-                              struct Connection_handler_callback *cb);
+int my_connection_handler_set(struct Connection_handler_functions *chf,
+                              struct THD_event_functions *tef);
 int my_connection_handler_reset();
 #include <mysql/service_my_plugin_log.h>
 enum plugin_log_level
@@ -250,6 +251,7 @@ typedef struct st_mysql_ftparser_boolean_info
   int weight_adjust;
   char wasign;
   char trunc;
+  int position;
   char prev;
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;

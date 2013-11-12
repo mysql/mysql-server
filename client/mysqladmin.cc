@@ -361,17 +361,7 @@ int main(int argc,char *argv[])
     uint tmp=opt_connect_timeout;
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
   }
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -1266,23 +1256,23 @@ static void nice_time(ulong sec,char *buff)
     tmp=sec/(3600L*24);
     sec-=3600L*24*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " days " : " day ");
+    buff=my_stpcpy(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600L)
   {
     tmp=sec/3600L;
     sec-=3600L*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
+    buff=my_stpcpy(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60)
   {
     tmp=sec/60;
     sec-=60*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff," min ");
+    buff=my_stpcpy(buff," min ");
   }
-  strmov(int10_to_str(sec, buff, 10)," sec");
+  my_stpcpy(int10_to_str(sec, buff, 10)," sec");
 }
 
 
@@ -1395,7 +1385,7 @@ static void store_values(MYSQL_RES *result)
 
   for (i = 0; (row = mysql_fetch_row(result)); i++)
   {
-    strmov(ex_var_names[i], row[0]);
+    my_stpcpy(ex_var_names[i], row[0]);
     last_values[i]=strtoull(row[1],NULL,10);
     ex_val_max_len[i]=2;		/* Default print width for values */
   }
@@ -1481,7 +1471,7 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   {
     MYSQL_ROW row=mysql_fetch_row(result);
     if (row)
-      strmov(pidfile, row[1]);
+      my_stpcpy(pidfile, row[1]);
     mysql_free_result(result);
     return row == 0;				/* Error if row = 0 */
   }

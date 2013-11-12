@@ -13,7 +13,6 @@ insert t1 values ('aaaaaa cccccc');
 select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
 b
 aaaaaa bbbbbb cccccc
-bbbbbb cccccc
 aaaaaa cccccc
 set ft_boolean_syntax=' +-><()~*:""&|';
 ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
@@ -21,13 +20,11 @@ set global ft_boolean_syntax=' +-><()~*:""&|';
 select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
 b
 aaaaaa bbbbbb cccccc
-bbbbbb cccccc
 aaaaaa cccccc
 set global ft_boolean_syntax='@ -><()~*:""&|';
 select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
 b
 aaaaaa bbbbbb cccccc
-bbbbbb cccccc
 aaaaaa cccccc
 select * from t1 where match b against ('+aaaaaa @bbbbbb' in boolean mode);
 ERROR 42000: syntax error, unexpected '@', expecting $end

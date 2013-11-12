@@ -54,10 +54,18 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_read_tuple_create,
 	(ib_cb_t*) &ib_cb_tuple_delete,
 	(ib_cb_t*) &ib_cb_tuple_copy,
+	(ib_cb_t*) &ib_cb_tuple_read_u8,
+	(ib_cb_t*) &ib_cb_tuple_write_u8,
+	(ib_cb_t*) &ib_cb_tuple_read_u16,
+	(ib_cb_t*) &ib_cb_tuple_write_u16,
 	(ib_cb_t*) &ib_cb_tuple_read_u32,
 	(ib_cb_t*) &ib_cb_tuple_write_u32,
 	(ib_cb_t*) &ib_cb_tuple_read_u64,
 	(ib_cb_t*) &ib_cb_tuple_write_u64,
+	(ib_cb_t*) &ib_cb_tuple_read_i8,
+	(ib_cb_t*) &ib_cb_tuple_write_i8,
+	(ib_cb_t*) &ib_cb_tuple_read_i16,
+	(ib_cb_t*) &ib_cb_tuple_write_i16,
 	(ib_cb_t*) &ib_cb_tuple_read_i32,
 	(ib_cb_t*) &ib_cb_tuple_write_i32,
 	(ib_cb_t*) &ib_cb_tuple_read_i64,
@@ -91,7 +99,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_get_idx_field_name,
 	(ib_cb_t*) &ib_cb_trx_get_start_time,
 	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
-	(ib_cb_t*) &ib_cb_ut_strerr
+	(ib_cb_t*) &ib_cb_ut_strerr,
+	(ib_cb_t*) &ib_cb_cursor_stmt_begin
 };
 
 /** Set expiration time. If the exp sent by client is larger than
@@ -250,10 +259,32 @@ innodb_api_begin(
 }
 
 /*************************************************************//**
-Read an integer value from an InnoDB tuple
+Read an unsigned int64 value from an InnoDB tuple
 @return integer value fetched */
 static
 uint64_t
+innodb_api_read_uint64(
+/*===================*/
+	const ib_col_meta_t*
+			m_col,		/*!< in: column info */
+	ib_tpl_t        read_tpl,	/*!< in: tuple to read */
+	int		i)		/*!< in: column number */
+{
+	uint64_t	value64;
+
+	assert (m_col->type == IB_INT && m_col->type_len == sizeof(uint64_t)
+		&& m_col->attr == IB_COL_UNSIGNED);
+
+	ib_cb_tuple_read_u64(read_tpl, i, &value64);
+
+	return(value64);
+}
+
+/*************************************************************//**
+Read an integer value from an InnoDB tuple
+@return integer value fetched */
+static
+int64_t
 innodb_api_read_int(
 /*================*/
 	const ib_col_meta_t*
@@ -261,29 +292,46 @@ innodb_api_read_int(
 	ib_tpl_t        read_tpl,	/*!< in: tuple to read */
 	int		i)		/*!< in: column number */
 {
-	uint64_t	value = 0;
+	int64_t	value = 0;
 
 	assert (m_col->type == IB_INT);
 	assert (m_col->type_len == sizeof(uint64_t)
-		|| m_col->type_len == sizeof(uint32_t));
+		|| m_col->type_len == sizeof(uint32_t)
+		|| m_col->type_len == sizeof(uint16_t)
+		|| m_col->type_len == sizeof(uint8_t));
 
 	if (m_col->attr == IB_COL_UNSIGNED) {
 		if (m_col->type_len == sizeof(uint64_t)) {
-			ib_cb_tuple_read_u64(read_tpl, i, &value);
+			/* We handle uint64 in innodb_api_read_uint64 */
+			assert(0);
 		} else if (m_col->type_len == sizeof(uint32_t)) {
 			uint32_t	value32;
 			ib_cb_tuple_read_u32(read_tpl, i, &value32);
-			value = (uint64_t) value32;
+			value = (int64_t) value32;
+		} else if (m_col->type_len == sizeof(uint16_t)) {
+			uint16_t	value16;
+			ib_cb_tuple_read_u16(read_tpl, i, &value16);
+			value = (int64_t) value16;
+		} else if (m_col->type_len == sizeof(uint8_t)) {
+			uint8_t	value8;
+			ib_cb_tuple_read_u8(read_tpl, i, &value8);
+			value = (int64_t) value8;
 		}
 	} else {
 		if (m_col->type_len == sizeof(int64_t)) {
-			int64_t		value64;
-			ib_cb_tuple_read_i64(read_tpl, i, &value64);
-			value = (uint64_t) value64;
+			ib_cb_tuple_read_i64(read_tpl, i, &value);
 		} else if (m_col->type_len == sizeof(int32_t)) {
 			int32_t		value32;
 			ib_cb_tuple_read_i32(read_tpl, i, &value32);
-			value = (uint64_t) value32;
+			value = (int64_t) value32;
+		} else if (m_col->type_len == sizeof(int16_t)) {
+			int16_t		value16;
+			ib_cb_tuple_read_i16(read_tpl, i, &value16);
+			value = (int64_t) value16;
+		} else if (m_col->type_len == sizeof(int8_t)) {
+			int8_t		value8;
+			ib_cb_tuple_read_i8(read_tpl, i, &value8);
+			value = (int64_t) value8;
 		}
 	}
 
@@ -299,6 +347,112 @@ innodb_api_write_int(
 /*=================*/
 	ib_tpl_t        tpl,		/*!< in/out: tuple to set */
 	int		field,		/*!< in: field to set */
+	int64_t		value,		/*!< in: value */
+	void*		table)		/*!< in/out: MySQL table. Only needed
+					when binlog is enabled */
+{
+	ib_col_meta_t   col_meta;
+	ib_col_meta_t*	m_col = &col_meta;
+	void*		src = NULL;
+	int64_t		value_i64;
+	uint32_t	value_u32;
+	int32_t		value_i32;
+	uint16_t	value_u16;
+	int16_t		value_i16;
+	uint8_t		value_u8;
+	int8_t		value_i8;
+
+	ib_cb_col_get_meta(tpl, field, m_col);
+
+	assert(m_col->type == IB_INT);
+	assert(m_col->type_len == 8 || m_col->type_len == 4
+	       || m_col->type_len == 2 || m_col->type_len == 1);
+
+	if (m_col->attr == IB_COL_UNSIGNED) {
+		if (m_col->type_len == 8) {
+			src = &value;
+
+			/* If table is non-NULL, set up corresponding
+			TABLE->record[0] field for replication */
+			if (table) {
+				handler_rec_setup_uint64(
+					table, field, value, true,
+					false);
+			}
+		} else if (m_col->type_len == 4) {
+			value_u32 = (uint32_t) value;
+
+			src = &value_u32;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_u32, true, false);
+			}
+		} else if (m_col->type_len == 2) {
+			value_u16 = (uint16_t) value;
+
+			src = &value_u16;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_u16, true, false);
+			}
+		} else if (m_col->type_len == 1) {
+			value_u8 = (uint8_t) value;
+
+			src = &value_u8;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_u8, true, false);
+			}
+		}
+	} else {
+		if (m_col->type_len == 8) {
+			value_i64 = (int64_t) value;
+
+			src= &value_i64;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_i64, false, false);
+			}
+		} else if (m_col->type_len == 4) {
+			value_i32 = (int32_t) value;
+
+			src = &value_i32;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_i32, false, false);
+			}
+		} else if (m_col->type_len == 2) {
+			value_i16 = (int16_t) value;
+
+			src = &value_i16;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_i16, false, false);
+			}
+		} else if (m_col->type_len == 1) {
+			value_i8 = (int8_t) value;
+
+			src = &value_i8;
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value_i8, false, false);
+			}
+		}
+	}
+
+	ib_cb_col_set_value(tpl, field, src, m_col->type_len, true);
+	return(DB_SUCCESS);
+}
+
+/*************************************************************//**
+set up an unsigned int64 type tuple field for write
+@return DB_SUCCESS if successful otherwise, error code */
+static
+ib_err_t
+innodb_api_write_uint64(
+/*====================*/
+	ib_tpl_t        tpl,		/*!< in/out: tuple to set */
+	int		field,		/*!< in: field to set */
 	uint64_t	value,		/*!< in: value */
 	void*		table)		/*!< in/out: MySQL table. Only needed
 					when binlog is enabled */
@@ -309,54 +463,100 @@ innodb_api_write_int(
 
 	ib_cb_col_get_meta(tpl, field, m_col);
 
-	assert(m_col->type == IB_INT);
-	assert(m_col->type_len == 8 || m_col->type_len == 4);
+	assert(m_col->type == IB_INT && m_col->type_len == 8
+	       && m_col->attr == IB_COL_UNSIGNED);
 
-	if (m_col->attr == IB_COL_UNSIGNED) {
-		if (m_col->type_len == 8) {
-			src = &value;
+	src = &value;
 
-			/* If table is non-NULL, set up corresponding
-			TABLE->record[0] field for replication */
-			if (table) {
-				handler_rec_setup_int(
-					table, field, value, true, false);
-			}
-		} else if (m_col->type_len == 4) {
-			uint32_t	value32;
-			value32 = (uint32_t) value;
-
-			src = &value32;
-			if (table) {
-				handler_rec_setup_int(
-					table, field, value32, true, false);
-			}
-		}
-
-	} else {
-		if (m_col->type_len == 8) {
-			int64_t		value64;
-			value64 = (int64_t) value;
-
-			src= &value64;
-			if (table) {
-				handler_rec_setup_int(
-					table, field, value64, false, false);
-			}
-		} else if (m_col->type_len == 4) {
-			int32_t		value32;
-			value32 = (int32_t) value;
-
-			src = &value32;
-			if (table) {
-				handler_rec_setup_int(
-					table, field, value32, false, false);
-			}
-		}
+	/* If table is non-NULL, set up corresponding
+	TABLE->record[0] field for replication */
+	if (table) {
+		handler_rec_setup_uint64(
+			table, field, value, true, false);
 	}
 
 	ib_cb_col_set_value(tpl, field, src, m_col->type_len, true);
 	return(DB_SUCCESS);
+}
+
+/*************************************************************//**
+set up a tuple field
+@return DB_SUCCESS if successful otherwise, error code */
+static
+ib_err_t
+innodb_api_setup_field_value(
+/*=========================*/
+	ib_tpl_t        tpl,		/*!< in/out: tuple to set */
+	int		field_id,	/*!< in: field to set */
+	meta_column_t*	col_info,	/*!< in: insert col info */
+	const char*	value,		/*!< in: value */
+	ib_ulint_t      val_len,	/*!< in: value length */
+	void*		table,		/*!< in/out: MySQL table. Only needed
+					when binlog is enabled */
+	bool		need_cpy)	/*!< in: if need memcpy */
+{
+	ib_err_t	err = DB_ERROR;
+
+	/* if value is null, we just set the field to NULL. */
+	if (val_len == IB_SQL_NULL)
+	{
+		assert(value == NULL);
+		err = ib_cb_col_set_value(tpl, field_id,
+					  value, val_len, need_cpy);
+		return(err);
+	}
+
+	if (col_info->col_meta.type == IB_INT) {
+		char*	end_ptr;
+		char	val_buf[256];
+
+		/* Need this memcpy to strip the junk */
+		memcpy(val_buf, value, val_len);
+		val_buf[val_len] = 0;
+
+		if (col_info->col_meta.attr == IB_COL_UNSIGNED) {
+			uint64_t int_value = 0;
+
+			int_value = strtoull(val_buf, &end_ptr, 10);
+
+			/* If the value is not a valid string of integer,
+			we will return error. */
+			if (end_ptr == val_buf) {
+				fprintf(stderr,
+					" InnoDB_Memcached: Unable to convert"
+					" value '%s' to integer\n", value);
+				return(DB_ERROR);
+			}
+
+			err = innodb_api_write_uint64(tpl, field_id,
+						   int_value, table);
+		} else {
+			int64_t	int_value = 0;
+
+			int_value = strtoll(val_buf, &end_ptr, 10);
+			/* If the value is not a valid string of integer,
+			we will return error. */
+			if (end_ptr == val_buf) {
+				fprintf(stderr,
+					" InnoDB_Memcached: Unable to convert"
+					" value '%s' to integer\n", value);
+				return(DB_ERROR);
+			}
+			err = innodb_api_write_int(tpl, field_id,
+						   int_value, table);
+		}
+
+	} else {
+		err = ib_cb_col_set_value(tpl, field_id,
+					  value, val_len, need_cpy);
+
+		if (table) {
+			handler_rec_setup_str(table, field_id,
+					      value, val_len);
+		}
+	}
+
+	return(err);
 }
 
 /*************************************************************//**
@@ -379,14 +579,37 @@ innodb_api_fill_mci(
 	if (data_len == IB_SQL_NULL) {
 		mci_item->value_str = NULL;
 		mci_item->value_len = 0;
+		mci_item->is_str = true;
 	} else {
-		mci_item->value_str = (char*)ib_cb_col_get_value(read_tpl, col_id);
-		mci_item->value_len = data_len;
+		if (col_meta.type == IB_INT) {
+			if (col_meta.attr == IB_COL_UNSIGNED
+			    && data_len == 8) {
+				mci_item->value_int =
+					innodb_api_read_uint64(&col_meta,
+							       read_tpl,
+							       col_id);
+			} else {
+				mci_item->value_int =
+					innodb_api_read_int(&col_meta,
+							    read_tpl,
+							    col_id);
+			}
+
+			mci_item->value_str = NULL;
+			mci_item->value_len = sizeof(mci_item->value_int);
+			mci_item->is_str = false;
+			mci_item->is_unsigned = (col_meta.attr == IB_COL_UNSIGNED);
+		} else {
+
+			mci_item->value_str = (char*)ib_cb_col_get_value(
+							read_tpl, col_id);
+			mci_item->value_len = data_len;
+			mci_item->is_str = true;
+		}
 	}
 
-	mci_item->is_str = true;
-	mci_item->is_valid = true;
 	mci_item->allocated = false;
+	mci_item->is_valid = true;
 
 	return(true);
 }
@@ -413,16 +636,46 @@ innodb_api_copy_mci(
 		mci_item->value_len = 0;
 		mci_item->allocated = false;
 	} else {
-		mci_item->value_str = malloc(data_len);
+		if (col_meta.type == IB_INT) {
+			mci_item->value_str = malloc(50);
+			memset(mci_item->value_str, 0, 50);
 
-		if (!mci_item->value_str) {
-			return(false);
+			if (col_meta.attr == IB_COL_UNSIGNED) {
+				uint64_t int_val = 0;
+
+				int_val = innodb_api_read_uint64(&col_meta,
+								 read_tpl,
+								 col_id);
+
+				sprintf(mci_item->value_str,
+					"%" PRIu64, int_val);
+			} else {
+				int64_t int_val = 0;
+
+				int_val = innodb_api_read_int(&col_meta,
+							      read_tpl,
+							      col_id);
+
+				sprintf(mci_item->value_str,
+					"%" PRIi64, int_val);
+			}
+
+			mci_item->value_len = strlen(mci_item->value_str);
+			mci_item->allocated = true;
+
+		} else {
+			mci_item->value_str = malloc(data_len);
+
+			if (!mci_item->value_str) {
+				return(false);
+			}
+
+			mci_item->allocated = true;
+			memcpy(mci_item->value_str,
+			       ib_cb_col_get_value(read_tpl, col_id),
+			       data_len);
+			mci_item->value_len = data_len;
 		}
-
-		mci_item->allocated = true;
-		memcpy(mci_item->value_str, ib_cb_col_get_value(read_tpl, col_id),
-		       data_len);
-		mci_item->value_len = data_len;
 	}
 
 	mci_item->is_str = true;
@@ -529,7 +782,12 @@ innodb_api_search(
 
 		ib_cb_cursor_set_cluster_access(idx_crsr);
 
-		key_tpl = ib_cb_search_tuple_create(idx_crsr);
+		if (!cursor_data->idx_tpl) {
+			key_tpl = ib_cb_search_tuple_create(idx_crsr);
+			cursor_data->idx_tpl = key_tpl;
+		} else {
+			key_tpl = cursor_data->idx_tpl;
+		}
 
 		srch_crsr = idx_crsr;
 
@@ -538,15 +796,31 @@ innodb_api_search(
 
 		if (sel_only) {
 			crsr = cursor_data->read_crsr;
+
+			if (!cursor_data->sel_tpl) {
+				key_tpl = ib_cb_search_tuple_create(crsr);
+				cursor_data->sel_tpl = key_tpl;
+			} else {
+				key_tpl = cursor_data->sel_tpl;
+			}
 		} else {
 			crsr = cursor_data->crsr;
+
+			if (!cursor_data->tpl) {
+				key_tpl = ib_cb_search_tuple_create(crsr);
+				cursor_data->tpl = key_tpl;
+			} else {
+				key_tpl = cursor_data->tpl;
+			}
 		}
 
-		key_tpl = ib_cb_search_tuple_create(crsr);
 		srch_crsr = crsr;
 	}
 
-	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len, true);
+	err = innodb_api_setup_field_value(key_tpl, 0,
+					   &col_info[CONTAINER_KEY],
+					   key, len,
+					   NULL, true);
 
 	ib_cb_cursor_set_match_mode(srch_crsr, IB_EXACT_MATCH);
 
@@ -566,19 +840,28 @@ innodb_api_search(
 		int		n_cols;
 		int		i;
 
-		read_tpl = ib_cb_read_tuple_create(
-				sel_only ? cursor_data->read_crsr
-					 : cursor_data->crsr);
+		if (!cursor_data->read_tpl) {
+			read_tpl = ib_cb_read_tuple_create(
+					sel_only ? cursor_data->read_crsr
+						 : cursor_data->crsr);
+			cursor_data->read_tpl = read_tpl;
+		} else {
+			read_tpl = cursor_data->read_tpl;
+		}
 
-		err = ib_cb_read_row(srch_crsr, read_tpl);
+		err = ib_cb_read_row(srch_crsr, read_tpl,
+				     &cursor_data->row_buf,
+				     &(cursor_data->row_buf_len));
 
 		if (err != DB_SUCCESS) {
-			ib_cb_tuple_delete(read_tpl);
-
 			if (r_tpl) {
 				*r_tpl = NULL;
 			}
 			goto func_exit;
+		}
+
+		if (sel_only) {
+			cursor_data->result_in_use = true;
 		}
 
 		n_cols = ib_cb_tuple_get_n_cols(read_tpl);
@@ -614,66 +897,104 @@ innodb_api_search(
 				item->col_value[MCI_COL_KEY].is_valid = true;
 			} else if (meta_info->flag_enabled
 				   && i == col_info[CONTAINER_FLAG].field_id) {
+				mci_column_t*	col_value;
+				ib_col_meta_t*	col_meta;
 
+				col_value = &(item->col_value[MCI_COL_FLAG]);
+				col_meta = &col_info[CONTAINER_FLAG].col_meta;
 				if (data_len == IB_SQL_NULL) {
-					item->col_value[MCI_COL_FLAG].is_null
-						= true;
+					col_value->is_null = true;
 				} else {
-					item->col_value[MCI_COL_FLAG].value_int =
-						innodb_api_read_int(
-						&col_info[CONTAINER_FLAG].col_meta,
-						read_tpl, i);
-					item->col_value[MCI_COL_FLAG].is_str
-						 = false;
-					item->col_value[MCI_COL_FLAG].value_len
-						 = data_len;
-					item->col_value[MCI_COL_FLAG].is_valid
-						 = true;
+					if (col_meta->attr == IB_COL_UNSIGNED
+					    && data_len == 8) {
+						col_value->value_int =
+							innodb_api_read_uint64(col_meta,
+									       read_tpl,
+									       i);
+					} else {
+						col_value->value_int =
+							innodb_api_read_int(col_meta,
+									    read_tpl,
+									    i);
+					}
+					col_value->is_str = false;
+					col_value->value_len = data_len;
+					col_value->is_valid = true;
 				}
 			} else if (meta_info->cas_enabled
 				   && i == col_info[CONTAINER_CAS].field_id) {
+				mci_column_t*	col_value;
+				ib_col_meta_t*	col_meta;
+
+				col_value = &(item->col_value[MCI_COL_CAS]);
+				col_meta = &col_info[CONTAINER_CAS].col_meta;
 				if (data_len == IB_SQL_NULL) {
-					item->col_value[MCI_COL_CAS].is_null
-						= true;
+					col_value->is_null = true;
+				} else {
+					if (col_meta->attr == IB_COL_UNSIGNED
+					   && data_len == 8) {
+						col_value->value_int =
+							innodb_api_read_uint64(col_meta,
+									       read_tpl,
+									       i);
+					} else {
+						/* Since the CAS value * must be
+						unsigned, we just cast sout the sign
+						value. */
+						col_value->value_int =
+							innodb_api_read_int(col_meta,
+									    read_tpl,
+									    i);
+					}
+					col_value->is_str = false;
+					col_value->value_len = data_len;
+					col_value->is_valid = true;
 				}
-				item->col_value[MCI_COL_CAS].value_int =
-					 innodb_api_read_int(
-						&col_info[CONTAINER_CAS].col_meta,
-						read_tpl, i);
-				item->col_value[MCI_COL_CAS].is_str = false;
-				item->col_value[MCI_COL_CAS].value_len = data_len;
-				item->col_value[MCI_COL_CAS].is_valid = true;
 			} else if (meta_info->exp_enabled
 				   && i == col_info[CONTAINER_EXP].field_id) {
-				if (data_len == IB_SQL_NULL) {
-					item->col_value[MCI_COL_EXP].is_null
-						= true;
-				}
+				mci_column_t*	col_value;
+				ib_col_meta_t*	col_meta;
 
-				item->col_value[MCI_COL_EXP].value_int =
-					 innodb_api_read_int(
-						&col_info[CONTAINER_EXP].col_meta,
-						read_tpl, i);
-				item->col_value[MCI_COL_EXP].is_str = false;
-				item->col_value[MCI_COL_EXP].value_len = data_len;
-				item->col_value[MCI_COL_EXP].is_valid = true;
-			} else {
+				col_value = &(item->col_value[MCI_COL_EXP]);
+				col_meta = &col_info[CONTAINER_EXP].col_meta;
+				if (data_len == IB_SQL_NULL) {
+					col_value->is_null = true;
+				} else {
+					if (col_meta->attr == IB_COL_UNSIGNED
+					    && data_len == 8) {
+						col_value->value_int =
+							innodb_api_read_uint64(col_meta,
+									       read_tpl,
+									       i);
+					} else {
+						col_value->value_int =
+							innodb_api_read_int(col_meta,
+									    read_tpl,
+									    i);
+					}
+					col_value->is_str = false;
+					col_value->value_len = data_len;
+					col_value->is_valid = true;
+				}
+			}
+
+			if ((meta_info->n_extra_col == 0
+			     && i == col_info[CONTAINER_VALUE].field_id)
+			    || meta_info->n_extra_col) {
 				innodb_api_fill_value(meta_info, item,
-						      read_tpl, i, sel_only);
+						      read_tpl, i, false);
 			}
 		}
 
 		if (r_tpl) {
 			*r_tpl = read_tpl;
-		} else if (key_tpl) {
-			ib_cb_tuple_delete(read_tpl);
+		} else if (key_tpl && !sel_only) {
+			cursor_data->result_in_use = false;
 		}
 	}
 
 func_exit:
 	*crsr = srch_crsr;
-
-	ib_cb_tuple_delete(key_tpl);
 
 	return(err);
 }
@@ -686,11 +1007,10 @@ uint64_t
 mci_get_cas(
 /*========*/
 	innodb_engine_t*	eng)	/*!< in: InnoDB Memcached engine */
-	
 {
 	static uint64_t cas_id = 0;
 
-#if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
 	return(__sync_add_and_fetch(&cas_id, 1));
 #else
 	pthread_mutex_lock(&eng->cas_mutex);
@@ -760,9 +1080,9 @@ innodb_api_set_multi_cols(
 	assert(sep_len > 0);
 
 	if (value[0] == *sep) {
-		err = ib_cb_col_set_value(
-			tpl, col_info[i].field_id,
-			NULL, IB_SQL_NULL, true);
+		err = innodb_api_setup_field_value(
+			tpl, col_info[i].field_id, &col_info[i],
+			NULL, IB_SQL_NULL, table, true);
 		i++;
 
 		if (err != DB_SUCCESS) {
@@ -778,13 +1098,14 @@ innodb_api_set_multi_cols(
 	     col_val = strtok_r(NULL, sep, &last), i++) {
 
 		if (!col_val) {
-			err = ib_cb_col_set_value(
-				tpl, col_info[i].field_id,
-				NULL, IB_SQL_NULL, true);
+			err = innodb_api_setup_field_value(
+				tpl, col_info[i].field_id, &col_info[i],
+				NULL, IB_SQL_NULL, table, true);
+			break;
 		} else {
-			err = ib_cb_col_set_value(
-				tpl, col_info[i].field_id,
-				col_val, strlen(col_val), true);
+			err = innodb_api_setup_field_value(
+				tpl, col_info[i].field_id, &col_info[i],
+				col_val, strlen(col_val), table, true);
 
 			if (table) {
 				handler_rec_setup_str(
@@ -799,9 +1120,9 @@ innodb_api_set_multi_cols(
 	}
 
 	for (; i < meta_info->n_extra_col; i++) {
-		err = ib_cb_col_set_value(
-			tpl, col_info[i].field_id,
-			NULL, IB_SQL_NULL, true);
+		err = innodb_api_setup_field_value(
+			tpl, col_info[i].field_id, &col_info[i],
+			NULL, IB_SQL_NULL, table, true);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -863,20 +1184,18 @@ innodb_api_set_tpl(
 {
 	ib_err_t	err = DB_ERROR;
 
-	err = ib_cb_col_set_value(tpl, col_info[CONTAINER_KEY].field_id,
-				  key, key_len, need_cpy);
-
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
-
 	/* If "table" is not NULL, we need to setup MySQL record
 	for binlogging */
 	if (table) {
 		handler_rec_init(table);
-		handler_rec_setup_str(
-			table, col_info[CONTAINER_KEY].field_id,
-			key, key_len);
+	}
+
+	err = innodb_api_setup_field_value(
+		tpl, col_info[CONTAINER_KEY].field_id,
+		&col_info[CONTAINER_KEY], key, key_len, table, need_cpy);
+
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	assert(err == DB_SUCCESS);
@@ -901,15 +1220,10 @@ innodb_api_set_tpl(
 			}
 		}
 	} else {
-		err = ib_cb_col_set_value(
+		err = innodb_api_setup_field_value(
 			tpl, col_info[CONTAINER_VALUE].field_id,
-			value, value_len, need_cpy);
-
-		if (table) {
-			handler_rec_setup_str(
-				table, col_info[CONTAINER_VALUE].field_id,
-				value, value_len);
-		}
+			&col_info[CONTAINER_VALUE], value,
+			value_len, table, need_cpy);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -996,8 +1310,8 @@ innodb_api_insert(
 		}
 
 	}
-
 	ib_cb_tuple_delete(tpl);
+
 	return(err);
 }
 
@@ -1097,7 +1411,6 @@ innodb_api_delete(
 				&result, &tpl_delete, false);
 
 	if (err != DB_SUCCESS) {
-		ib_cb_tuple_delete(tpl_delete);
 		return(ENGINE_KEY_ENOENT);
 	}
 
@@ -1124,7 +1437,6 @@ innodb_api_delete(
 		}
 	}
 
-	ib_cb_tuple_delete(tpl_delete);
 	return(err == DB_SUCCESS ? ENGINE_SUCCESS : ENGINE_KEY_ENOENT);
 }
 
@@ -1202,6 +1514,7 @@ innodb_api_link(
 	}
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
+
 	new_cas = mci_get_cas(engine);
 
 	if (exp) {
@@ -1224,8 +1537,6 @@ innodb_api_link(
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 	}
 
-	ib_cb_tuple_delete(new_tpl);
-
 	free(append_buf);
 	append_buf = NULL;
 
@@ -1238,6 +1549,8 @@ innodb_api_link(
 					   HDL_UPDATE);
 		}
 	}
+
+	ib_cb_tuple_delete(new_tpl);
 
 	return(err);
 }
@@ -1285,7 +1598,6 @@ innodb_api_arithmetic(
 	/* If the return message is not success or record not found, just
 	exit */
 	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
-		ib_cb_tuple_delete(old_tpl);
 		goto func_exit;
 	}
 
@@ -1293,8 +1605,6 @@ innodb_api_arithmetic(
 
 	/* Can't find the row, decide whether to insert a new row */
 	if (err != DB_SUCCESS) {
-		ib_cb_tuple_delete(old_tpl);
-
 		/* If create is true, insert a new row */
 		if (create) {
 			snprintf(value_buf, sizeof(value_buf),
@@ -1337,7 +1647,6 @@ innodb_api_arithmetic(
 	}
 
 	if (before_len >= (sizeof(value_buf) - 1)) {
-		ib_cb_tuple_delete(old_tpl);
 		ret = ENGINE_EINVAL;
 		goto func_exit;
 	}
@@ -1349,7 +1658,6 @@ innodb_api_arithmetic(
 	}
 
 	if (errno == ERANGE) {
-		ib_cb_tuple_delete(old_tpl);
 		ret = ENGINE_EINVAL;
 		goto func_exit;
 	}
@@ -1387,7 +1695,6 @@ create_new_value:
 
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(new_tpl);
-		ib_cb_tuple_delete(old_tpl);
 		goto func_exit;
 	}
 
@@ -1410,7 +1717,6 @@ create_new_value:
 	}
 
 	ib_cb_tuple_delete(new_tpl);
-	ib_cb_tuple_delete(old_tpl);
 
 func_exit:
 	/* Free memory of result. */
@@ -1542,8 +1848,6 @@ innodb_api_store(
 	}
 
 func_exit:
-	ib_cb_tuple_delete(old_tpl);
-
 	if (err == DB_SUCCESS && stored == ENGINE_NOT_STORED) {
 		stored = ENGINE_SUCCESS;
 	}
@@ -1642,44 +1946,22 @@ innodb_reset_conn(
 		}
 
 		if (commit) {
-			ib_cb_cursor_commit_trx(
-				ib_crsr, conn_data->crsr_trx);
-
 			if (has_binlog && conn_data->thd
 			    && conn_data->mysql_tbl) {
 				handler_binlog_commit(conn_data->thd,
 						      conn_data->mysql_tbl);
 			}
-		} else {
-			ib_cb_trx_rollback(conn_data->crsr_trx);
 
+			ib_cb_cursor_commit_trx(
+				ib_crsr, conn_data->crsr_trx);
+		} else {
 			if (has_binlog && conn_data->thd
 			    && conn_data->mysql_tbl) {
 				handler_binlog_rollback(conn_data->thd,
 							conn_data->mysql_tbl);
 			}
-		}
 
-		conn_data->crsr_trx = NULL;
-
-		if (conn_data->crsr) {
-			ib_cb_cursor_clear_trx(
-				conn_data->crsr);
-		}
-
-		if (conn_data->read_crsr) {
-			ib_cb_cursor_clear_trx(
-				conn_data->read_crsr);
-		}
-
-		if (conn_data->idx_crsr) {
-			ib_cb_cursor_clear_trx(
-				conn_data->idx_crsr);
-		}
-
-		if (conn_data->idx_read_crsr) {
-			ib_cb_cursor_clear_trx(
-				conn_data->idx_read_crsr);
+			ib_cb_trx_rollback(conn_data->crsr_trx);
 		}
 
 		commit_trx = true;
@@ -1779,17 +2061,6 @@ innodb_cb_close_thd(
 	return(ib_cb_close_thd(thd));
 }
 
-/*************************************************************//**
-Start a transaction
-@return DB_SUCCESS if successful or error code */
-ib_trx_t
-innodb_cb_trx_begin(
-/*================*/
-	ib_trx_level_t	ib_trx_level)	/*!< in: trx isolation level */
-{
-	return(ib_cb_trx_begin(ib_trx_level));
-}
-
 /*****************************************************************//**
 update the cursor with new transactions and also reset the cursor
 @return DB_SUCCESS or err code */
@@ -1851,18 +2122,6 @@ innodb_cb_cursor_first(
 	ib_crsr_t	ib_crsr)	/*!< in: InnoDB cursor instance */
 {
 	return(ib_cb_cursor_first(ib_crsr));
-}
-
-/*****************************************************************//**
-Read current row.
-@return DB_SUCCESS or err code */
-ib_err_t
-innodb_cb_read_row(
-/*===============*/
-	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
-	ib_tpl_t	ib_tpl)		/*!< out: read cols into this tuple */
-{
-	return(ib_cb_read_row(ib_crsr, ib_tpl));
 }
 
 /*****************************************************************//**

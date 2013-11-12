@@ -133,6 +133,13 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     */
     thd->lex->sql_command= backup.sql_command;
 
+    if (opt_readonly && !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !thd->slave_thread)
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      goto end;
+    }
+
     if (add_table_for_trigger(thd,
                               thd->lex->spname->m_db,
                               thd->lex->spname->m_name,
@@ -289,7 +296,7 @@ end:
   {
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
+    MYSQL_DROP_SP(SP_TYPE_TRIGGER,
                   thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
                   thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
 #endif

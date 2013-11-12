@@ -35,12 +35,12 @@ extern const ulint UTF8_ERROR;
 #define fts_utf8_is_valid(b) (((b) & 0xC0) == 0x80)
 
 /******************************************************************//**
-Duplicate an UTF-8 string.
+Duplicate a string.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 void
-fts_utf8_string_dup(
-/*================*/
+fts_string_dup(
+/*===========*/
 	fts_string_t*		dst,		/*!< in: dup to here */
 	const fts_string_t*	src,		/*!< in: src string */
 	mem_heap_t*		heap)		/*!< in: heap to use */

@@ -133,16 +133,16 @@ int main(int argc,char *argv[])
           if (maxlen<keylen2)
           {
             maxlen=keylen2;
-            strmov(buf_maxlen, buf2);
+            my_stpcpy(buf_maxlen, buf2);
           }
           if (max_doc_cnt < doc_cnt)
           {
             max_doc_cnt=doc_cnt;
-            strmov(buf_min_gws, buf2);
+            my_stpcpy(buf_min_gws, buf2);
             min_gws=gws;
           }
         }
-        strmov(buf2, buf);
+        my_stpcpy(buf2, buf);
         keylen2=keylen;
         doc_cnt=0;
       }
@@ -171,12 +171,12 @@ int main(int argc,char *argv[])
       if (maxlen<keylen2)
       {
         maxlen=keylen2;
-        strmov(buf_maxlen, buf2);
+        my_stpcpy(buf_maxlen, buf2);
       }
       if (max_doc_cnt < doc_cnt)
       {
         max_doc_cnt=doc_cnt;
-        strmov(buf_min_gws, buf2);
+        my_stpcpy(buf_min_gws, buf2);
         min_gws=gws;
       }
     }

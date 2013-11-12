@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
 #include <ErrorReporter.hpp>
 #include <ErrorHandlingMacros.hpp>
 
-#include "DLList.hpp"
+#include "IntrusiveList.hpp"
 #include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "WOPool.hpp"
@@ -58,6 +58,9 @@
 #include <blocks/record_types.hpp>
 
 #include "Ndbinfo.hpp"
+
+#define JAM_FILE_ID 248
+
 
 #ifdef VM_TRACE
 #define D(x) \
@@ -126,6 +129,7 @@ class SimulatedBlock {
   friend struct SectionHandle;
   friend class LockQueue;
   friend class SimplePropertiesSectionWriter;
+  friend class SegmentedSectionGuard;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -355,13 +359,14 @@ protected:
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
   bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
+
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
   bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
   bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
-  void handle_invalid_sections_in_send_signal(Signal*) const;
-  void handle_lingering_sections_after_execute(Signal*) const;
-  void handle_lingering_sections_after_execute(SectionHandle*) const;
+  void handle_invalid_sections_in_send_signal(const Signal*) const;
+  void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
   void handle_send_failed(SendStatus, Signal*) const;
   void handle_out_of_longsignal_memory(Signal*) const;
@@ -912,6 +917,9 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
+  void check_sections(Signal* signal, 
+                      Uint32 oldSecCount, 
+                      Uint32 newSecCount) const;
 protected:
 
   void fsRefError(Signal* signal, Uint32 line, const char *msg);
@@ -1296,6 +1304,25 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #endif
 }
 
+// Do a consictency check before reusing a signal.
+inline void 
+SimulatedBlock::check_sections(Signal* signal, 
+                               Uint32 oldSecCount, 
+                               Uint32 newSecCount) const
+{ 
+  // Sections from previous use should have been consumed by now.
+  if (unlikely(oldSecCount != 0))
+  { 
+    handle_invalid_sections_in_send_signal(signal); 
+  } 
+  else if (unlikely(newSecCount == 0 &&
+                    signal->header.m_fragmentInfo != 0 && 
+                    signal->header.m_fragmentInfo != 3))
+  { 
+    handle_invalid_fragmentInfo(signal); 
+  }
+}
+
 /**
  * Defines for backward compatiblility
  */
@@ -1316,17 +1343,6 @@ private: \
 void \
 BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
   addRecSignalImpl(gsn, (ExecFunction)f, force);\
-}
-
-#include "Mutex.hpp"
-
-inline
-SectionHandle::~SectionHandle()
-{
-  if (unlikely(m_cnt))
-  {
-    m_block->handle_lingering_sections_after_execute(this);
-  }
 }
 
 #ifdef ERROR_INSERT
@@ -1368,7 +1384,7 @@ SectionHandle::~SectionHandle()
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_DEFAULT_HASHMAP_BUCKETS );
+  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];
@@ -1377,6 +1393,49 @@ struct Hash2FragmentMap
 };
 
 extern ArrayPool<Hash2FragmentMap> g_hash_map;
+
+/**
+ * Guard class for auto release of segmentedsectionptr's
+ */
+class SegmentedSectionGuard
+{
+  Uint32 cnt;
+  Uint32 ptr[3];
+  SimulatedBlock * block;
+
+public:
+  SegmentedSectionGuard(SimulatedBlock* b) : cnt(0), block(b) { }
+  SegmentedSectionGuard(SimulatedBlock* b, Uint32 ptrI) : cnt(1), block(b) {
+    ptr[0] = ptrI;
+  }
+
+  void add(Uint32 ptrI) {
+    if (ptrI != RNIL)
+    {
+      assert(cnt < NDB_ARRAY_SIZE(ptr));
+      ptr[cnt] = ptrI;
+      cnt++;
+    }
+  }
+
+  void release() {
+    for (Uint32 i = 0; i < cnt; i++) {
+      if (ptr[i] != RNIL)
+        block->releaseSection(ptr[i]);
+    }
+    cnt = 0;
+  }
+
+  void clear() {
+    cnt = 0;
+  }
+
+  ~SegmentedSectionGuard() {
+    release();
+  }
+};
+
+#undef JAM_FILE_ID
 
 #endif
 

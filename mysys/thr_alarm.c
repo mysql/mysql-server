@@ -205,10 +205,13 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   if (!found)
   {
     if (*alarmed)
-      fprintf(stderr,"Warning: Didn't find alarm 0x%lx in queue of %d alarms\n",
-	      (long) *alarmed, alarm_queue.elements);
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL,
+                       "Didn't find alarm 0x%lx in queue of %d alarms",
+                       (long) *alarmed, alarm_queue.elements);
+      /* purecov: end */
     DBUG_PRINT("warning",("Didn't find alarm 0x%lx in queue\n",
-			  (long) *alarmed));
+                          (long) *alarmed));
   }
   mysql_mutex_unlock(&LOCK_alarm);
   DBUG_VOID_RETURN;
@@ -637,7 +640,6 @@ static void *signal_hand(void *arg __attribute__((unused)))
   int sig,error,err_count=0;;
 
   my_thread_init();
-  pthread_detach_this_thread();
   init_thr_alarm(10);				/* Setup alarm handler */
   mysql_mutex_lock(&LOCK_thread_count);         /* Required by bsdi */
   mysql_cond_signal(&COND_thread_count);        /* Tell main we are ready */
@@ -734,7 +736,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("signal thread created"));
 
-  thr_setconcurrency(3);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
   printf("Main thread: %s\n",my_thread_name());
   for (i=0 ; i < 2 ; i++)

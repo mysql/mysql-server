@@ -35,6 +35,7 @@
 
 */
 #include <m_string.h>
+#include <my_sys.h>
 
 TEST(StringToULLTest, OverflowedNumber)
 {

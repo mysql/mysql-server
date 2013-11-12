@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
 #include <signaldata/FsOpenReq.hpp>
+
+#define JAM_FILE_ID 385
+
 
 class AsyncIoThread;
 
@@ -146,6 +149,9 @@ private:
   // Used for uniqe number generation
   Uint32 c_maxFileNo;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
 

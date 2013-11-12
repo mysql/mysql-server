@@ -478,7 +478,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
 
     fn_format(tmp_share->data_file_name, table_name, "",
               ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-    strmov(tmp_share->table_name, table_name);
+    my_stpcpy(tmp_share->table_name, table_name);
     DBUG_PRINT("ha_archive", ("Data File %s",
                         tmp_share->data_file_name));
 

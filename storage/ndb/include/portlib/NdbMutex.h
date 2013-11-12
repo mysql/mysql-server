@@ -81,6 +81,7 @@ int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
  * * returnvalue: 0 = succeeded, -1 = failed
  */
 int NdbMutex_Destroy(NdbMutex* p_mutex);
+int NdbMutex_Deinit(NdbMutex* p_mutex);
 
 /**
  * Lock a mutex

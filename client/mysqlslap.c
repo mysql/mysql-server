@@ -335,15 +335,7 @@ int main(int argc, char **argv)
   mysql_init(&mysql);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -925,7 +917,7 @@ build_table_string(void)
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= table_string.length+1;
   ptr->type= CREATE_TABLE_TYPE;
-  strmov(ptr->string, table_string.str);
+  my_stpcpy(ptr->string, table_string.str);
   dynstr_free(&table_string);
   DBUG_RETURN(ptr);
 }
@@ -999,7 +991,7 @@ build_update_string(void)
     ptr->type= UPDATE_TYPE_REQUIRES_PREFIX ;
   else
     ptr->type= UPDATE_TYPE;
-  strmov(ptr->string, update_string.str);
+  my_stpcpy(ptr->string, update_string.str);
   dynstr_free(&update_string);
   DBUG_RETURN(ptr);
 }
@@ -1092,7 +1084,7 @@ build_insert_string(void)
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= insert_string.length+1;
   ptr->type= INSERT_TYPE;
-  strmov(ptr->string, insert_string.str);
+  my_stpcpy(ptr->string, insert_string.str);
   dynstr_free(&insert_string);
   DBUG_RETURN(ptr);
 }
@@ -1162,7 +1154,7 @@ build_select_string(my_bool key)
     ptr->type= SELECT_TYPE_REQUIRES_PREFIX;
   else
     ptr->type= SELECT_TYPE;
-  strmov(ptr->string, query_string.str);
+  my_stpcpy(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
 }

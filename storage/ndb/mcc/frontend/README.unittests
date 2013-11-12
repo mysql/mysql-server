@@ -1,0 +1,101 @@
+Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+
+================================================================================
+              Running unit tests with Dojo Object Harness (DOH)
+================================================================================
+
+1. Dojo src/sdk
+--------------------------------------------------------------------------------
+To get access to doh, make a src version of dojo available (softlink or 
+whatever) at configurator/frontend/dojo.src. 
+
+2. Source code modules and unit tests
+--------------------------------------------------------------------------------
+The mcc source is divided into modules with submodules that are reflected in
+the directory structure. E.g., the utility module is called "mcc.util" and
+resides in frontend/js/mcc/util.js. Its submodules are located in the
+javascript files in the directory frontend/js/mcc/util/. Further down, in
+frontend/js/mcc/util/tests, the unit test files for the util module (and its
+submodules) are located. 
+
+Javascript modules (example): 
+
+mcc.util                // Public interface of submodules
+mcc.util.html           // One out of several submodules
+mcc.util.tests.util     // Collection of all util unit tests
+mcc.util.tests.html     // Unit tests for the html submodule
+
+Directory structure (example): 
+
+frontend->
+    js->
+        mcc->
+            util.js
+            util->
+                html.js
+                tests->
+                    html.js
+                    util.js
+                    runTest.html
+
+Tests can be run in a browser by invoking doh through "runner.js". This is 
+done by html files that can be opened in a browser and just redirects the 
+browser to the appropriate URL. These html files are locate in the tests 
+directories, and are called "runTest.html". Note that runTest redirects to 
+a url which assumes dojo is available at "dojo.src", that's why the dojo 
+source version should be located in a directory with the name and location 
+as described above. 
+
+3. Unit tests and dijit widgets
+--------------------------------------------------------------------------------
+Much of the code is tightly coupled to the dijit widgets, and hence hard to test
+without a browser environment. Unit tests in need of a browser environment with
+a document to manipulate is run with a special html page which doh sets up to 
+run in a separate frame. E.g., to continue the example from the previous 
+section, the mcc.util.html module has some code that can be tested without a 
+gui, and some code in need of one. The code for the gui-related unit tests is
+located in two additional files: 
+
+Javascript modules (example, continued from above): 
+
+mcc.util                    // Public interface of submodules
+mcc.util.html               // One out of several submodules
+mcc.util.tests.util         // Collection of all util unit tests
+mcc.util.tests.html         // Unit tests for the html submodule
+mcc.util.tests.html_gui     // GUI unit tests for the html submodule
+
+Directory structure (example, continued from above): 
+
+frontend->
+    js->
+        mcc->
+            util.js
+            util->
+                html.js
+                tests->
+                    html.js
+                    html_gui.js
+                    html_gui.html
+                    util.js
+                    runTest.html
+
+The mcc.util.tests.util module includes the gui related unit tests for the html
+module, so opening the runTest.html in a browser will run all unit tests for the
+util module, including the gui related tests.
+
+
+

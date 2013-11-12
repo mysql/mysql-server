@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,6 +83,9 @@ void lookup_setup_actor(PFS_thread *thread,
                         const char *user, uint user_length,
                         const char *host, uint host_length,
                         bool *enabled);
+
+/** Update derived flags for all setup_actors. */
+void update_setup_actors_derived_flags(PFS_thread *thread);
 
 /* For iterators and show status. */
 

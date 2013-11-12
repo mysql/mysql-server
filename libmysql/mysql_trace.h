@@ -19,7 +19,7 @@
   @file
 
   =====================================================
-   Declarations for client-side tracing infrastructure 
+   Declarations for client-side tracing infrastructure
   =====================================================
 
   See libmysql/mysql_trace.c for a brief description. Trace plugin
@@ -52,13 +52,13 @@ C_MODE_START
 
   For each connection which is traced an instance of this structure
   is pointed by the trace_data member of st_mysql_extension structure
-  attached to that connection handle. 
-  
-  If trace_data is NULL, for an initialized connection, then it means 
+  attached to that connection handle.
+
+  If trace_data is NULL, for an initialized connection, then it means
   that tracing in this connection is disabled.
 */
 
-struct st_mysql_trace_info 
+struct st_mysql_trace_info
 {
   struct st_mysql_client_plugin_TRACE *plugin;
   void *trace_plugin_data;
@@ -86,13 +86,13 @@ void mysql_trace_start(struct st_mysql*);
   If tracing of the connection is not disabled, it calls
   mysql_trace_trace() function to report the event to the
   trace plugin.
-  
+
   @param E    trace event (without TRACE_EVENT_ prefix)
   @param M    connection handle (pointer to MYSQL structure)
   @param ARGS event specific arguments
 
   Event arguments are processed with appropriate TRACE_ARGS_* macro
-  (see below) to put them inside st_trace_event_args strcuture.
+  (see below) to put them inside st_trace_event_args structure.
 */
 
 #define MYSQL_TRACE(E, M, ARGS)                  \
@@ -110,13 +110,13 @@ void mysql_trace_start(struct st_mysql*);
 
 /**
   A hook to set the current protocol stage.
- 
+
   @param M  connection handle (pointer to MYSQL structure)
   @param S  the current stage (without PROTOCOL_STAGE_ prefix)
 
   If tracing is not disabled, the stage is stored in connection's
   tracing state. A special case is if the current stage is the
-  initial CONNECTING one. In that case functin mysql_trace_start()
+  initial CONNECTING one. In that case function mysql_trace_start()
   is called to initialize tracing in this connection, provided that
   a trace plugin is loaded.
 */
@@ -131,8 +131,8 @@ void mysql_trace_start(struct st_mysql*);
   } while(0)
 
 /*
-  Macros to parse event arguments and initialize the 
-  st_trace_event_args structure accordingly. See description of 
+  Macros to parse event arguments and initialize the
+  st_trace_event_args structure accordingly. See description of
   the structure in plugin_trace.h.
 */
 

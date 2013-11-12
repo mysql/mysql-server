@@ -897,7 +897,7 @@ dict_init(void)
 {
 	int	i;
 
-	dict_sys = static_cast<dict_sys_t*>(mem_zalloc(sizeof(*dict_sys)));
+	dict_sys = static_cast<dict_sys_t*>(ut_zalloc(sizeof(*dict_sys)));
 
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
@@ -1444,7 +1444,7 @@ dict_table_rename_in_cache(
 
 	if (dict_table_is_discarded(table)) {
 		os_file_type_t	type;
-		ibool		exists;
+		bool		exists;
 		char*		filepath;
 
 		ut_ad(!Tablespace::is_system_tablespace(table->space));
@@ -1472,7 +1472,7 @@ dict_table_rename_in_cache(
 				"Delete of %s failed.", filepath);
 		}
 
-		mem_free(filepath);
+		ut_free(filepath);
 
 	} else if (!Tablespace::is_system_tablespace(table->space)) {
 		char*	new_path = NULL;
@@ -1496,25 +1496,25 @@ dict_table_rename_in_cache(
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
 
-			mem_free(old_path);
+			ut_free(old_path);
 
 			dberr_t	err = fil_create_link_file(
 				new_name, new_path);
 
 			if (err != DB_SUCCESS) {
-				mem_free(new_path);
+				ut_free(new_path);
 				return(DB_TABLESPACE_EXISTS);
 			}
 		}
 
-		ibool	success = fil_rename_tablespace(
+		bool	success = fil_rename_tablespace(
 			old_name, table->space, new_name, new_path);
 
 		/* If the tablespace is remote, a new .isl file was created
 		If success, delete the old one. If not, delete the new one.  */
 		if (new_path) {
 
-			mem_free(new_path);
+			ut_free(new_path);
 			fil_delete_link_file(success ? old_name : new_name);
 		}
 
@@ -1743,7 +1743,7 @@ dict_table_rename_in_cache(
 				       dict_remove_db_name(old_id));
 			}
 
-			mem_free(old_id);
+			ut_free(old_id);
 		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
@@ -2961,7 +2961,7 @@ dict_index_build_internal_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		mem_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -2989,7 +2989,7 @@ dict_index_build_internal_clust(
 		}
 	}
 
-	mem_free(indexed);
+	ut_free(indexed);
 
 	ut_ad(dict_index_is_ibuf(index)
 	      || (UT_LIST_GET_LEN(table->indexes) == 0));
@@ -3046,7 +3046,7 @@ dict_index_build_internal_non_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		mem_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -3075,7 +3075,7 @@ dict_index_build_internal_non_clust(
 		}
 	}
 
-	mem_free(indexed);
+	ut_free(indexed);
 
 	if (dict_index_is_unique(index)) {
 		new_index->n_uniq = index->n_fields;
@@ -3975,7 +3975,7 @@ Removes MySQL comments from an SQL string. A comment is either
 (c) '[slash][asterisk]' till the next '[asterisk][slash]' (like the familiar
 C comment syntax).
 @return own: SQL string stripped from comments; the caller must free
-this with mem_free()! */
+this with ut_free()! */
 static
 char*
 dict_strip_comments(
@@ -3995,7 +3995,7 @@ dict_strip_comments(
 
 	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
-	str = static_cast<char*>(mem_alloc(sql_length + 1));
+	str = static_cast<char*>(ut_malloc(sql_length + 1));
 
 	sptr = sql_string;
 	ptr = str;
@@ -4802,7 +4802,7 @@ dict_create_foreign_constraints(
 		reject_fks);
 
 	mem_heap_free(heap);
-	mem_free(str);
+	ut_free(str);
 
 	return(err);
 }
@@ -4853,7 +4853,7 @@ loop:
 	ptr = dict_scan_to(ptr, "DROP");
 
 	if (*ptr == '\0') {
-		mem_free(str);
+		ut_free(str);
 
 		return(DB_SUCCESS);
 	}
@@ -4928,7 +4928,7 @@ loop:
 			mutex_exit(&dict_foreign_err_mutex);
 		}
 
-		mem_free(str);
+		ut_free(str);
 
 		return(DB_CANNOT_DROP_CONSTRAINT);
 	}
@@ -4950,7 +4950,7 @@ syntax_error:
 		mutex_exit(&dict_foreign_err_mutex);
 	}
 
-	mem_free(str);
+	ut_free(str);
 
 	return(DB_CANNOT_DROP_CONSTRAINT);
 }
@@ -6325,7 +6325,7 @@ dict_close(void)
 				HASH_GET_NEXT(name_hash, prev_table));
 #ifdef UNIV_DEBUG
 			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
-#endif
+#endif /* UNIV_DEBUG */
 			/* Acquire only because it's a pre-condition. */
 			mutex_enter(&dict_sys->mutex);
 
@@ -6346,13 +6346,12 @@ dict_close(void)
 	mutex_free(&dict_sys->mutex);
 
 	rw_lock_free(&dict_operation_lock);
-	memset(&dict_operation_lock, 0x0, sizeof(dict_operation_lock));
 
 	if (!srv_read_only_mode) {
 		mutex_free(&dict_foreign_err_mutex);
 	}
 
-	mem_free(dict_sys);
+	ut_free(dict_sys);
 	dict_sys = NULL;
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {

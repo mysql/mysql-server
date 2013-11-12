@@ -73,7 +73,7 @@ Ndb::init(int aMaxNoOfTransactions)
   }//if
   theInitState = StartingInit;
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
-  theEventBuffer->m_mutex = theFacade->theMutexPtr;
+  theEventBuffer->m_mutex = theImpl->m_mutex;
 
   const Uint32 tRef = theImpl->open(theFacade);
 
@@ -92,9 +92,9 @@ Ndb::init(int aMaxNoOfTransactions)
   }
 
   /* Init cached min node version */
-  theFacade->lock_mutex();
+  theFacade->lock_poll_mutex();
   theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();
-  theFacade->unlock_mutex();
+  theFacade->unlock_poll_mutex();
   
   theDictionary->setTransporter(this, theFacade);
   
@@ -213,11 +213,14 @@ Ndb::report_node_failure(Uint32 node_id)
    * 
    * This method is only called by ClusterMgr (via lots of methods)
    */
-
-  theImpl->the_release_ind[node_id] = 1;
-  // must come after
-  theImpl->the_release_ind[0] = 1;
-  theImpl->theWaiter.nodeFail(node_id);
+  assert(node_id < NDB_ARRAY_SIZE(theImpl->the_release_ind));
+  if (node_id < NDB_ARRAY_SIZE(theImpl->the_release_ind))
+  {
+    theImpl->the_release_ind[node_id] = 1;
+    // must come after
+    theImpl->the_release_ind[0] = 1;
+    theImpl->theWaiter.nodeFail(node_id);
+  }
   return;
 }//Ndb::report_node_failure()
 
@@ -325,7 +328,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
                             ((secs > 1)? ptr[1].sz << 2: 0) +
                             ((secs > 0)? ptr[0].sz << 2: 0)));
   }
-  
+
   /*
     In order to support 64 bit processes in the application we need to use
     id's rather than a direct pointer to the object used. It is also a good
@@ -710,7 +713,13 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }//if
       break;
     }
-      
+     
+  case GSN_CLOSE_COMREQ:
+    {
+      TransporterFacade * theFacade =  theImpl->m_transporter_facade;
+      theFacade->perform_close_clnt(theImpl);
+      break;
+    }
   case GSN_GET_TABINFOREF:
   case GSN_GET_TABINFO_CONF:
   case GSN_CREATE_TABLE_REF:
@@ -747,6 +756,10 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   case GSN_WAIT_GCP_REF:
   case GSN_CREATE_HASH_MAP_REF:
   case GSN_CREATE_HASH_MAP_CONF:
+  case GSN_CREATE_FK_REF:
+  case GSN_CREATE_FK_CONF:
+  case GSN_DROP_FK_REF:
+  case GSN_DROP_FK_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
@@ -914,11 +927,17 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   {
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            aSignal->getDataPtr());
-    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
-         i != NdbNodeBitmask::NotFound;
-         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    Uint32 len = NodeFailRep::getNodeMaskLength(aSignal->getLength());
+    assert(len == NodeBitmask::Size); // only full length in ndbapi
+    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+         i != BitmaskImpl::NotFound;
+         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
     {
-      report_node_failure(i);
+      if (i <= MAX_DATA_NODE_ID)
+      {
+        // Ndbif only cares about data-nodes (so far??)
+        report_node_failure(i);
+      }
     }
 
     NdbDictInterface::execSignal(&theDictionary->m_receiver, aSignal, ptr);
@@ -1472,7 +1491,7 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
   Uint32 * dataPtr = aSignal->getDataPtrSend();
   dataPtr[0] = transId1;
   dataPtr[1] = transId2;
-  impl->safe_sendSignal(aSignal, refToNode(aTCRef));
+  impl->safe_noflush_sendSignal(aSignal, refToNode(aTCRef));
 }
 
 int
@@ -1510,6 +1529,7 @@ NdbImpl::send_event_report(bool has_lock,
 done:
   if (!has_lock)
   {
+    flush_send_buffers();
     unlock();
   }
   return ret;

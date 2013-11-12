@@ -42,9 +42,16 @@ struct PFS_socket_class;
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
+#include "pfs_events_transactions.h"
 #include "pfs_server.h"
 #include "lf.h"
 #include "pfs_con_slice.h"
+#include "pfs_column_types.h"
+#include "mdl.h"
+
+extern PFS_single_stat *thread_instr_class_waits_array_start;
+extern PFS_single_stat *thread_instr_class_waits_array_end;
+
 
 /**
   @addtogroup Performance_schema_buffers
@@ -220,14 +227,20 @@ public:
 
   /** Internal lock. */
   pfs_lock m_lock;
-  /** Owner. */
+  /** Thread Owner. */
   PFS_thread *m_thread_owner;
+  /** Event Owner. */
+  ulonglong m_owner_event_id;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
   const void *m_identity;
   /** Table statistics. */
   PFS_table_stat m_table_stat;
+  /** Current internal lock. */
+  PFS_TL_LOCK_TYPE m_internal_lock;
+  /** Current external lock. */
+  PFS_TL_LOCK_TYPE m_external_lock;
 
 private:
   static void safe_aggregate(PFS_table_stat *stat,
@@ -262,6 +275,24 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
   PFS_socket_stat m_socket_stat;
 };
 
+/** Instrumented metadata lock implementation. @see PSI_metadata_lock. */
+struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
+{
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
+  /** Lock identity. */
+  const void *m_identity;
+  MDL_key m_mdl_key;
+  opaque_mdl_type m_mdl_type;
+  opaque_mdl_duration m_mdl_duration;
+  opaque_mdl_status m_mdl_status;
+  const char *m_src_file;
+  uint m_src_line;
+  ulonglong m_owner_thread_id;
+  ulonglong m_owner_event_id;
+};
+
 /**
   @def WAIT_STACK_LOGICAL_SIZE
   Maximum number of nested waits.
@@ -286,7 +317,7 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
 /**
   @def WAIT_STACK_BOTTOM
   Maximum number dummy waits records.
-  One dummy record is reserved for the parent stage / statement,
+  One dummy record is reserved for the parent stage / statement / transaction,
   at the bottom of the wait stack.
 */
 #define WAIT_STACK_BOTTOM 1
@@ -299,67 +330,6 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
 /** Max size of the statements stack. */
 extern uint statement_stack_max;
 
-/**
-  @def PFS_MAX_ALLOC_RETRY
-  Maximum number of times the code attempts to allocate an item
-  from internal buffers, before giving up.
-*/
-#define PFS_MAX_ALLOC_RETRY 1000
-
-/** The maximun number of passes in @sa PFS_scan. */
-#define PFS_MAX_SCAN_PASS 2
-
-/**
-  Helper to scan circular buffers.
-  Given a buffer of size [0, max_size - 1],
-  and a random starting point in the buffer,
-  this helper returns up to two [first, last -1] intervals that:
-  - fit into the [0, max_size - 1] range,
-  - have a maximum combined length of at most PFS_MAX_ALLOC_RETRY.
-*/
-struct PFS_scan
-{
-public:
-  /**
-    Initialize a new scan.
-    @param random a random index to start from
-    @param max_size the max size of the interval to scan
-  */
-  void init(uint random, uint max_size);
-
-  /**
-    Predicate, has a next pass.
-    @return true if there is a next pass to perform.
-  */
-  bool has_pass() const
-  { return (m_pass < m_pass_max); }
-
-  /**
-    Iterator, proceed to the next pass.
-  */
-  void next_pass()
-  { m_pass++; }
-  
-  /** First index for this pass. */
-  uint first() const
-  { return m_first[m_pass]; }
-
-  /** Last index for this pass. */
-  uint last() const
-  { return m_last[m_pass]; }
-
-private:
-  /** Current pass. */
-  uint m_pass;
-  /** Maximum number of passes. */
-  uint m_pass_max;
-  /** First element for each pass. */
-  uint m_first[PFS_MAX_SCAN_PASS];
-  /** Last element for each pass. */
-  uint m_last[PFS_MAX_SCAN_PASS];
-};
-
-
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 {
@@ -367,6 +337,16 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 
   /** Thread instrumentation flag. */
   bool m_enabled;
+  /**
+    Thread instrumentation flag, for disconnect.
+    This flag is derived, and set to true if
+    at any time during the thread life time,
+    the following 3 conditions hold:
+    - consumer 'global_instrumentation' is enabled
+    - consumer 'thread_instrumentation' is enabled
+    - this thread m_enabled flag is true
+  */
+  bool m_aggregate_on_disconnect;
   /** Current wait event in the event stack. */
   PFS_events_waits *m_events_waits_current;
   /** Event ID counter */
@@ -408,7 +388,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /**
     Stack of events waits.
     This member holds the data for the table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
-    Note that stack[0] is a dummy record that represents the parent stage/statement.
+    Note that stack[0] is a dummy record that represents the parent stage/statement/transaction.
     For example, assuming the following tree:
     - STAGE ID 100
       - WAIT ID 101, parent STAGE 100
@@ -468,12 +448,24 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   PFS_events_statements *m_statements_history;
 
+  /** True if the circular buffer @c m_transactions_history is full. */
+  bool m_transactions_history_full;
+  /** Current index in the circular buffer @c m_transactions_history. */
+  uint m_transactions_history_index;
+  /**
+    Statements history circular buffer.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY.
+  */
+  PFS_events_transactions *m_transactions_history;
+
   /**
     Internal lock, for session attributes.
     Statement attributes are expected to be updated in frequently,
     typically per session execution.
   */
   pfs_lock m_session_lock;
+
   /**
     User name.
     Protected by @c m_session_lock.
@@ -533,6 +525,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   uint m_events_statements_count;
   PFS_events_statements *m_statement_stack;
 
+  PFS_events_transactions m_transaction_current;
+
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
@@ -554,9 +548,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Character set in which @c m_connect_attrs are encoded.
     Protected by @c m_session_lock.
   */
-  const CHARSET_INFO *m_session_connect_attrs_cs;
+  uint m_session_connect_attrs_cs_number;
 
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+
+  void set_enabled(bool enabled);
 };
 
 void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
@@ -571,6 +567,7 @@ PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
 PFS_socket *sanitize_socket(PFS_socket *unsafe);
+PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -603,6 +600,15 @@ PFS_socket* create_socket(PFS_socket_class *socket_class,
                           socklen_t addr_len);
 void destroy_socket(PFS_socket *pfs);
 
+PFS_metadata_lock* create_metadata_lock(void *identity,
+                                        const MDL_key *mdl_key,
+                                        opaque_mdl_type mdl_type,
+                                        opaque_mdl_duration mdl_duration,
+                                        opaque_mdl_status mdl_status,
+                                        const char *src_file,
+                                        uint src_line);
+void destroy_metadata_lock(PFS_metadata_lock *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -624,10 +630,13 @@ extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
+extern ulong events_transactions_history_per_thread;
 extern ulong locker_lost;
 extern ulong statement_lost;
 extern ulong session_connect_attrs_lost;
 extern ulong session_connect_attrs_size_per_thread;
+extern ulong metadata_lock_max;
+extern ulong metadata_lock_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -639,6 +648,7 @@ extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
 extern PFS_socket *socket_array;
+extern PFS_metadata_lock *metadata_lock_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
@@ -661,6 +671,12 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
 void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array_1,
                               PFS_statement_stat *to_array_2);
+
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array);
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array_1,
+                                PFS_transaction_stat *to_array_2);
 
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
@@ -686,10 +702,16 @@ void aggregate_thread_statements(PFS_thread *thread,
                                  PFS_account *safe_account,
                                  PFS_user *safe_user,
                                  PFS_host *safe_host);
+void aggregate_thread_transactions(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host);
+
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,
                              PFS_host *safe_host);
+
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
 
@@ -705,6 +727,10 @@ void update_file_derived_flags();
 void update_table_derived_flags();
 /** Update derived flags for all socket instances. */
 void update_socket_derived_flags();
+/** Update derived flags for all metadata instances. */
+void update_metadata_derived_flags();
+/** Update derived flags for all thread instances. */
+void update_thread_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 

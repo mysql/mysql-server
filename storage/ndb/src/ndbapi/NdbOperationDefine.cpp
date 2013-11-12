@@ -1409,5 +1409,10 @@ NdbOperation::handleOperationOptions (const OperationType type,
     op->m_flags |= OF_DEFERRED_CONSTRAINTS;
   }
 
+  if (opts->optionsPresent & OperationOptions::OO_DISABLE_FK)
+  {
+    op->m_flags |= OF_DISABLE_FK;
+  }
+
   return 0;
 }

@@ -20,24 +20,24 @@
    Client-side protocol tracing infrastructure
   =============================================
 
-  If a plugin of type MYSQL_CLIENT_TRACE_PLUGIN is loaded into 
+  If a plugin of type MYSQL_CLIENT_TRACE_PLUGIN is loaded into
   libmysql and its instance is pointed by the global trace_plugin
-  pointer, this plugin is notified of various protocol trace events. 
+  pointer, this plugin is notified of various protocol trace events.
   See include/mysql/plugin_trace.h for documentation of trace plugin
   methods and the list of possible trace events.
 
-  These trace events are generated with MYSQL_TRACE() macro put in 
+  These trace events are generated with MYSQL_TRACE() macro put in
   relevant places in libmysql code. The macro calls mysql_trace_trace()
-  function defined here. This function calls trace plugin's 
+  function defined here. This function calls trace plugin's
   trace_event() method, if it is defined.
 
   For each traced connection, the state is kept in st_mysql_trace_info
   structure (see mysql_trace.h).
-  
+
   To correctly interpret each trace event, trace plugin is informed
   of the current protocol stage (see include/mysql/plugin_trace.h for
-  list of stages). The current protocol stage is part of the 
-  connection tracing state. It is updated with MYSQL_TRACE_STAGE() 
+  list of stages). The current protocol stage is part of the
+  connection tracing state. It is updated with MYSQL_TRACE_STAGE()
   hooks within libmysql code.
 */
 
@@ -52,7 +52,7 @@
 struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
 
 /*
-  Macros for manipulating trace_info structure. 
+  Macros for manipulating trace_info structure.
 */
 #define GET_DATA(TI)      (TI)->trace_plugin_data
 #define SET_DATA(TI,D)    GET_DATA(TI) = (D)
@@ -65,16 +65,16 @@ struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
   Initialize tracing in a given connection.
 
   This function is called from MYSQL_TRACE_STAGE() when the initial
-  CONNECTING stage is reported. It allocates and intializes trace_info 
+  CONNECTING stage is reported. It allocates and initializes trace_info
   structure which is then attached to the connection handle.
 */
 
 void mysql_trace_start(struct st_mysql *m)
 {
   struct st_mysql_trace_info *trace_info;
- 
+
   trace_info= my_malloc(PSI_NOT_INSTRUMENTED,
-                        sizeof(struct st_mysql_trace_info), 
+                        sizeof(struct st_mysql_trace_info),
                         MYF(MY_ZEROFILL));
   if (!trace_info)
   {
@@ -103,7 +103,7 @@ void mysql_trace_start(struct st_mysql *m)
   {
     trace_info->trace_plugin_data=
       trace_info->plugin->tracing_start(
-        trace_info->plugin, 
+        trace_info->plugin,
         m, PROTOCOL_STAGE_CONNECTING);
   }
   else
@@ -131,7 +131,7 @@ void mysql_trace_start(struct st_mysql *m)
 */
 
 void mysql_trace_trace(struct st_mysql  *m,
-                       enum trace_event ev, 
+                       enum trace_event ev,
                        struct st_trace_event_args args)
 {
   struct st_mysql_trace_info *trace_info= TRACE_DATA(m);
@@ -172,10 +172,10 @@ void mysql_trace_trace(struct st_mysql  *m,
   {
     /* Note: this disables further tracing */
     TRACE_DATA(m)= NULL;
-    
+
     if (plugin->tracing_stop)
       plugin->tracing_stop(plugin, m, GET_DATA(trace_info));
-    
+
     my_free(trace_info);
   }
 }

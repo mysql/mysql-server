@@ -376,7 +376,6 @@ extern my_bool validate_user_plugins;
 
 /* sql_authentication */
 
-void init_default_auth_plugin();
 int set_default_auth_plugin(char *plugin_name, int plugin_name_length);
 int acl_authenticate(THD *thd, uint com_change_user_pkt_len);
 int check_password_strength(String *password);

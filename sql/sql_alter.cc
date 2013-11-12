@@ -133,7 +133,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
     }
     else if (lower_case_table_names == 2) // Convert new_name to lower case
     {
-      strmov(new_alias= new_alias_buff, new_name);
+      my_stpcpy(new_alias= new_alias_buff, new_name);
       my_casedn_str(files_charset_info, new_name);
     }
     else

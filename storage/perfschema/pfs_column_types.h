@@ -172,12 +172,15 @@ enum enum_operation_type
   OPERATION_TYPE_SOCKETSELECT = 54,
 
   /* Idle operation */
-  OPERATION_TYPE_IDLE= 55
+  OPERATION_TYPE_IDLE= 55,
+
+  /* Metadata lock operation */
+  OPERATION_TYPE_METADATA= 56
 };
 /** Integer, first value of @sa enum_operation_type. */
 #define FIRST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_LOCK))
 /** Integer, last value of @sa enum_operation_type. */
-#define LAST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_IDLE))
+#define LAST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_METADATA))
 /** Integer, number of values of @sa enum_operation_type. */
 #define COUNT_OPERATION_TYPE (LAST_OPERATION_TYPE - FIRST_OPERATION_TYPE + 1)
 
@@ -186,18 +189,27 @@ enum enum_operation_type
 */
 enum enum_object_type
 {
+  NO_OBJECT_TYPE= 0,
+
+  /* Advertised in SQL ENUM */
+
   OBJECT_TYPE_EVENT= 1,
   OBJECT_TYPE_FUNCTION= 2,
   OBJECT_TYPE_PROCEDURE= 3,
   OBJECT_TYPE_TABLE= 4,
   OBJECT_TYPE_TRIGGER= 5,
+
+  /* Not advertised in SQL ENUM, only displayed as VARCHAR */
+
   OBJECT_TYPE_TEMPORARY_TABLE= 6,
-  OBJECT_TYPE_NONE= 7
+  OBJECT_TYPE_GLOBAL= 7,
+  OBJECT_TYPE_SCHEMA= 8,
+  OBJECT_TYPE_COMMIT= 9
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_NONE))
+#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_COMMIT))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 
@@ -210,17 +222,92 @@ enum enum_object_type
 */
 enum enum_event_type
 {
-  EVENT_TYPE_STATEMENT= 1,
-  EVENT_TYPE_STAGE= 2,
-  EVENT_TYPE_WAIT= 3
+  EVENT_TYPE_TRANSACTION= 1,
+  EVENT_TYPE_STATEMENT= 2,
+  EVENT_TYPE_STAGE= 3,
+  EVENT_TYPE_WAIT= 4
 };
 
 /** Integer, first value of @sa enum_event_type. */
-#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_STATEMENT))
+#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_TRANSACTION))
 /** Integer, last value of @sa enum_event_type. */
 #define LAST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_WAIT))
 /** Integer, number of values of @sa enum_event_type. */
 #define COUNT_EVENT_TYPE (LAST_EVENT_TYPE - FIRST_EVENT_TYPE + 1)
+
+/**
+  Enum values for transaction state columns.
+*/
+enum enum_transaction_state
+{
+  TRANS_STATE_ACTIVE= 1,
+  TRANS_STATE_COMMITTED= 2,
+  TRANS_STATE_ROLLED_BACK= 3
+};
+
+/** Integer, first value of @sa enum_transaction_state. */
+#define FIRST_TRANS_STATE (static_cast<int> (TRANS_STATE_ACTIVE))
+/** Integer, last value of @sa enum_transaction_state. */
+#define LAST_TRANS_STATE (static_cast<int> (TRANS_STATE_ROLLED_BACK))
+/** Integer, number of values of @sa enum_transaction_state. */
+#define COUNT_TRANS_STATE (LAST_TRANS_STATE - FIRST_TRANS_STATE + 1)
+
+/**
+  Enum values for XA transaction state columns. Enums 1-5 match those used by
+  the server. See XID_STATE::enum xa_states in xa.h.
+*/
+enum enum_xa_transaction_state
+{
+  TRANS_STATE_XA_NOTR,
+  TRANS_STATE_XA_ACTIVE,
+  TRANS_STATE_XA_IDLE,
+  TRANS_STATE_XA_PREPARED,
+  TRANS_STATE_XA_ROLLBACK_ONLY,
+  TRANS_STATE_XA_COMMITTED
+};
+
+/** Integer, first value of @sa enum_xa_transaction_state. */
+#define FIRST_TRANS_STATE_XA (static_cast<int> (TRANS_STATE_XA_NOTR))
+/** Integer, last value of @sa enum_xa_transaction_state. */
+#define LAST_TRANS_STATE_XA (static_cast<int> (TRANS_STATE_XA_COMMITTED))
+/** Integer, number of values of @sa enum_xa_transaction_state. */
+#define COUNT_TRANS_STATE_XA (LAST_TRANS_STATE_XA - FIRST_TRANS_STATE_XA + 1)
+
+/**
+  Enum values for transaction isolation level columns.
+  See enum_tx_isolation in handler.h.
+*/
+enum enum_isolation_level
+{
+  TRANS_LEVEL_READ_UNCOMMITTED,
+  TRANS_LEVEL_READ_COMMITTED,
+  TRANS_LEVEL_REPEATABLE_READ,
+  TRANS_LEVEL_SERIALIZABLE
+};
+
+/** Integer, first value of @sa enum_isolation_level. */
+#define FIRST_TRANS_LEVEL (static_cast<int> (TRANS_LEVEL_READ_UNCOMMITTED))
+/** Integer, last value of @sa enum_isolation_level. */
+#define LAST_TRANS_LEVEL (static_cast<int> (TRANS_LEVEL_SERIALIZABLE))
+/** Integer, number of values of @sa enum_isolation_level. */
+#define COUNT_TRANS_LEVEL (LAST_TRANS_LEVEL - FIRST_TRANS_LEVEL + 1)
+
+/**
+  Enum values for transaction acces mode columns.
+*/
+enum enum_transaction_mode
+{
+  TRANS_MODE_READ_ONLY= 1,
+  TRANS_MODE_READ_WRITE= 2
+};
+
+/** Integer, first value of @sa enum_transaction_mode. */
+#define FIRST_TRANS_MODE (static_cast<int> (TRANS_MODE_READ_WRITE))
+/** Integer, last value of @sa enum_transaction_mode. */
+#define LAST_TRANS_MODE (static_cast<int> (TRANS_MODE_READ_ONLY))
+/** Integer, number of values of @sa enum_transaction_mode. */
+#define COUNT_TRANS_MODE (LAST_TRANS_MODE - FIRST_TRANS_MODE + 1)
+
 
 #endif
 

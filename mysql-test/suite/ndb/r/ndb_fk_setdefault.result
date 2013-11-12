@@ -1,0 +1,22 @@
+create table counties (
+county varchar(30) not null primary key,
+country varchar(30)
+) engine=ndb;
+insert into counties values ('Berkshire','England'),('Shropshire','England'),
+('Oxfordshire','England'),('Buckinghamshire','England'),('Somewhere','Earth');
+create table towns (
+town varchar(30) not null primary key,
+county varchar(30) default "Somewhere",
+index county_county_index (county),
+constraint county_town foreign key (county)
+references counties(county) on delete set default on update restrict
+) engine=ndb;
+insert into towns values ('Maidenhead','Berkshire'),('Reading','Berkshire'),
+('Shrewsbury','Shropshire'),('Oxford','Oxfordshire');
+delete from counties where county='Shropshire';
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 256 'Foreign key constraint violated: Referenced row exists' from NDB
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table towns, counties;

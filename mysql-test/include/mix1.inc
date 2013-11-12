@@ -460,7 +460,7 @@ EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 DELETE FROM t1;
 --echo # Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 
@@ -748,14 +748,14 @@ set @@sort_buffer_size=8192;
 
 SELECT COUNT(*) FROM t1;
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;

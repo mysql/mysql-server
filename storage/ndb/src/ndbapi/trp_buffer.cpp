@@ -31,6 +31,7 @@ TFPool::init(size_t mem, size_t page_sz)
   {
     TFPage * p = (TFPage*)(ptr + i);
     p->m_size = (Uint16)(page_sz - offsetof(TFPage, m_data));
+    assert(((UintPtr)(&p->m_data[0]) & 3) == 0);
     p->init();
     p->m_next = m_first_free;
     m_first_free = p;
@@ -44,6 +45,11 @@ TFPool::~TFPool()
     free (m_alloc_ptr);
 }
 
+TFMTPool::TFMTPool(const char * name)
+{
+  NdbMutex_InitWithName(&m_mutex, name);
+}
+
 void
 TFBuffer::validate() const
 {
@@ -52,8 +58,8 @@ TFBuffer::validate() const
     assert(m_head == m_tail);
     if (m_head)
     {
-      assert(m_head->m_bytes < m_head->m_size);  // Full pages should be release
-      assert(m_head->m_bytes == m_head->m_start);
+      assert(m_head->m_start < m_head->m_size);  // Full pages should be release
+      assert(m_head->m_bytes == 0);
     }
     return;
   }
@@ -67,10 +73,10 @@ TFBuffer::validate() const
   while (p)
   {
     assert(p->m_bytes <= p->m_size);
-    assert(p->m_start <= p->m_bytes);
-    assert((p->m_start & 3) == 0);
-    assert(p->m_bytes - p->m_start > 0);
-    assert(p->m_bytes - p->m_start <= (int)m_bytes_in_buffer);
+    assert(p->m_start <= p->m_size);
+    assert((p->m_bytes & 3) == 0);
+    assert(p->m_start + p->m_bytes <= p->m_size);
+    assert(p->m_bytes <= (int)m_bytes_in_buffer);
     assert(p->m_next != p);
     if (p == m_tail)
     {
@@ -80,7 +86,7 @@ TFBuffer::validate() const
     {
       assert(p->m_next != 0);
     }
-    sum += p->m_bytes - p->m_start;
+    sum += p->m_bytes;
     p = p->m_next;
   }
   assert(sum == m_bytes_in_buffer);

@@ -1967,7 +1967,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return test(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
 }
 
 
@@ -5240,7 +5240,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
 
 
 bool
-Field_temporal_with_date::convert_str_to_TIME(const char *str, uint len,
+Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
                                               const CHARSET_INFO *cs,
                                               MYSQL_TIME *ltime,
                                               MYSQL_TIME_STATUS *status)
@@ -5380,7 +5380,7 @@ longlong Field_temporal_with_date_and_timef::val_int()
 }
 
 
-my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
+my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
@@ -5390,7 +5390,7 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   }
-  return date2my_decimal(&ltime, dec);
+  return date2my_decimal(&ltime, dec_arg);
 }
 
 
@@ -5760,7 +5760,7 @@ type_conversion_status Field_timestampf::validate_stored_val(THD *thd)
 
 
 bool
-Field_time_common::convert_str_to_TIME(const char *str, uint len,
+Field_time_common::convert_str_to_TIME(const char *str, size_t len,
                                        const CHARSET_INFO *cs,
                                        MYSQL_TIME *ltime,
                                        MYSQL_TIME_STATUS *status)
@@ -7170,9 +7170,10 @@ uint Field_string::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_string::max_packed_col_length(uint max_length)
+uint Field_string::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -7571,11 +7572,6 @@ uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_varstring::max_packed_col_length(uint max_length)
-{
-  return (max_length > 255 ? 2 : 1)+max_length;
-}
-
 uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
 {
   uint f_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
@@ -7836,7 +7832,6 @@ Field_blob::store_to_mem(const char *from, uint length,
     queries having GROUP_CONCAT with ORDER BY or DISTINCT,
     hence some assersions:
   */
-  DBUG_ASSERT(!f_is_hex_escape(flags));
   DBUG_ASSERT(field_charset == cs);
   DBUG_ASSERT(length <= max_data_length());
 
@@ -7895,16 +7890,6 @@ Field_blob::store_internal(const char *from, uint length,
   if (value.alloc(new_length))
     goto oom_error;
   tmp= const_cast<char*>(value.ptr());
-
-  if (f_is_hex_escape(flags))
-  {
-    uint copy_length= my_copy_with_hex_escaping(field_charset,
-                                                tmp, new_length,
-                                                from, length);
-    store_ptr_and_length(tmp, copy_length);
-    return TYPE_OK;
-  }
-
 
   {
     const char *well_formed_error_pos;
@@ -8328,9 +8313,12 @@ uint Field_blob::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_blob::max_packed_col_length(uint max_length)
+uint Field_blob::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  // We do not use addon fields for blobs.
+  DBUG_ASSERT(false);
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -9670,7 +9658,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + test(length & 7);
+      key_length= pack_length + MY_TEST(length & 7);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:

@@ -16,6 +16,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef RECORDS_HPP
+#define RECORDS_HPP
+
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <ndb_types.h>
@@ -243,3 +246,5 @@ struct NewPrepareOperation {
 struct FragmentSplit {
 
 };
+
+#endif

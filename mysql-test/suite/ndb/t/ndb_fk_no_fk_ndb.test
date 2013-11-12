@@ -1,0 +1,6 @@
+#
+# Run the legacy compatibility test with NDB as engine
+#
+--source include/have_ndb.inc
+let $engine=ndb;
+--source ndb_fk_no_fk_compat.inc

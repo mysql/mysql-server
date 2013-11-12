@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -149,20 +149,7 @@ public class AllTests {
             System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
             TestResult res = junit.textui.TestRunner.run(suite);
             System.out.println("Finished running tests in '" + jarFile + "'");
-            if (res.wasSuccessful()) {
-              System.out.println("All tests suceeded!");
-              System.exit(0);
-            }
-            // Print report saying which tests failed
-            String sep = "";
-            System.out.print("Failing test(s):  ");
-            for (String test_name : res.failures) {
-              System.out.print(sep + test_name);
-              sep = ", ";
-            }
-            System.out.println();
-            System.out.println("Some tests failed!");
-            System.exit(1);
+            System.exit(res.wasSuccessful() ? 0 : 1);
         } else {
             usage();
         }

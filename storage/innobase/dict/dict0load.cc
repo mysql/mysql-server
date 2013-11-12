@@ -1076,7 +1076,7 @@ loop:
 				"Table '%s' in InnoDB data dictionary"
 				" has unknown type %lx", table_name, flags);
 
-			mem_free(name);
+			ut_free(name);
 			goto loop;
 		}
 
@@ -1181,10 +1181,7 @@ loop:
 					"ignored.", table_name);
 			}
 
-			if (filepath) {
-				mem_free(filepath);
-			}
-
+			ut_free(filepath);
 			break;
 		}
 
@@ -1193,7 +1190,7 @@ loop:
 		}
 
 next_tablespace:
-		mem_free(name);
+		ut_free(name);
 		mtr_start(&mtr);
 
 		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
@@ -1394,7 +1391,7 @@ dict_load_columns(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 		const char*	err_msg;
-		const char*	name;
+		const char*	name = NULL;
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -1945,7 +1942,7 @@ dict_load_indexes(
 		}
 
 		if (index->type & DICT_FTS
-		    && !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+		    && !dict_table_has_fts_index(table)) {
 			/* This should have been created by now. */
 			ut_a(table->fts != NULL);
 			DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
@@ -2034,7 +2031,7 @@ next_rec:
 	}
 
 	/* If the table contains FTS indexes, populate table->fts->indexes */
-	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+	if (dict_table_has_fts_index(table)) {
 		/* table->fts->indexes should have been created. */
 		ut_a(table->fts->indexes != NULL);
 		dict_table_get_all_fts_indexes(table, table->fts->indexes);
@@ -2231,7 +2228,7 @@ dict_save_data_dir_path(
 		but it makes dict_table_t consistent */
 		table->flags &= ~DICT_TF_MASK_DATA_DIR;
 	}
-	mem_free(default_filepath);
+	ut_free(default_filepath);
 }
 
 /*****************************************************************//**
@@ -2259,7 +2256,7 @@ dict_get_and_save_data_dir_path(
 
 		if (path) {
 			dict_save_data_dir_path(table, path);
-			mem_free(path);
+			ut_free(path);
 		}
 
 		if (!dict_mutex_own) {
@@ -2440,7 +2437,7 @@ err_exit:
 	} else if (!fil_space_for_table_exists_in_mem(
 			   table->space, name, false, true, heap, table->id)) {
 
-		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
+		if (dict_table_is_temporary(table)) {
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 
@@ -2481,9 +2478,8 @@ err_exit:
 
 				table->ibd_file_missing = TRUE;
 			}
-			if (filepath) {
-				mem_free(filepath);
-			}
+
+			ut_free(filepath);
 		}
 	}
 

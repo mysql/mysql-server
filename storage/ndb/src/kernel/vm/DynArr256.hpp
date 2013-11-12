@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "Pool.hpp"
 #include <NdbMutex.h>
+
+#define JAM_FILE_ID 299
+
 
 class DynArr256;
 struct DA256Page;
@@ -108,5 +110,8 @@ Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator& iter)
 {
   return truncate(pos, iter, NULL);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

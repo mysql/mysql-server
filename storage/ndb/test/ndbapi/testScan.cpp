@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -539,7 +539,11 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
     for (int j=0; j<10; j++){
       if (hugoTrans.scanReadRecords(GETNDB(step), 
 				    records, 0, parallelism) != 0)
+      {
+        // Remember that one scan read failed, but continue to
+        // read to put load on the system
 	result = NDBT_FAILED;
+      }
     }
 	
 
@@ -864,8 +868,8 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
   AttribList alist; 
   alist.buildAttribList(pTab);
   UtilTransactions utilTrans(*pTab);  
-  for(size_t i = 0; i < alist.attriblist.size(); i++){
-    g_info << (unsigned)i << endl;
+  for(unsigned i = 0; i < alist.attriblist.size(); i++){
+    g_info << i << endl;
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
 				 NdbOperation::LM_Read,
@@ -1337,7 +1341,7 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
           cnt++;
       }
       
-      for (size_t t = 0; t < translist.size(); t++)
+      for (unsigned t = 0; t < translist.size(); t++)
         translist[t]->close();
       translist.clear();
     }
@@ -1896,6 +1900,242 @@ runBug13394788(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+/** 
+ * Tests reated to TupKeyRef (cf. Bug#16176006: TUPLE WITH CHECKSUM ERROR
+ * SILENTLY DISCARDED).
+ */
+namespace TupErr
+{
+  static const char* const tabName = "tupErrTab";
+  static const int totalRowCount = 2000;
+  
+  struct Row
+  {
+    int pk1;
+    int pk2;
+    int a1;
+  };
+
+  static int
+  createDataBase(NDBT_Context* ctx, NDBT_Step* step)
+  {
+    // Create table.
+    NDBT_Attribute pk1("pk1", NdbDictionary::Column::Int, 1, true);
+    NDBT_Attribute pk2("pk2", NdbDictionary::Column::Int, 1, true);
+    NDBT_Attribute a1("a1", NdbDictionary::Column::Int, 1);
+  
+    NdbDictionary::Column* columns[] = {&pk1, &pk2, &a1};
+  
+    const NDBT_Table tabDef(tabName, sizeof columns/sizeof columns[0], 
+                            columns);
+    Ndb* const ndb = step->getNdb();
+  
+    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
+  
+    dictionary->dropTable(tabName);
+    require(dictionary->createTable(tabDef) == 0);
+
+    // Populate table.
+    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbRecord* const record = tab->getDefaultRecord();
+
+    NdbTransaction* const trans = ndb->startTransaction();
+
+    for (int i = 0; i<totalRowCount; i++)
+    {
+      const Row row = {i, 0, i};
+
+      const NdbOperation* const operation=
+        trans->insertTuple(record, reinterpret_cast<const char*>(&row));
+      require(operation != NULL);
+    }
+    require(trans->execute( NdbTransaction::Commit) != -1);
+    ndb->closeTransaction(trans);
+
+    return NDBT_OK;
+  }
+
+  static int
+  doCheckSumQuery(NDBT_Context* ctx, NDBT_Step* step)
+  {
+    // Insert error.
+    const int errInsertNo = 4036;
+    NdbRestarter restarter;
+    const int nodeId = restarter.getDbNodeId(0);
+
+    /**
+     * Let the first tuple from one fragment cause error 896 
+     * (tuple checksum error).
+     */
+    g_info << "Inserting error " << errInsertNo << " in node " << nodeId 
+           << endl;
+    require(restarter.insertErrorInNode(nodeId, errInsertNo) == 0);
+  
+    // Build query.
+    Ndb* const ndb = step->getNdb();
+  
+    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
+    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbRecord* const record = tab->getDefaultRecord();
+
+  
+    NdbTransaction* const trans = ndb->startTransaction();
+
+    NdbScanOperation* const scanOp = trans->scanTable(record);
+    require(scanOp != NULL);
+    require(trans->execute(Commit) == 0);
+  
+    int queryRes = 0;
+  
+    // Loop through the result set.
+    int rowCount = -1;
+    while(queryRes == 0)
+    {
+      const Row* resRow;
+      queryRes = scanOp->nextResult(reinterpret_cast<const char**>(&resRow), 
+                                    true, false);
+      rowCount++;
+    }
+
+    int res = NDBT_OK;
+    switch (queryRes)
+    {
+    case 1: // Scan complete
+      g_err << "Did not get expected error 896. Query returned " << rowCount 
+            << " rows out of " << totalRowCount << endl;
+      res = NDBT_FAILED;
+      break;
+    
+    case -1: // Error
+      {
+        const int errCode = trans->getNdbError().code;
+        if (errCode == 896)
+        {
+          g_info << "Got expected error 896. Query returned " << rowCount
+                 << " rows." << endl;
+        }
+        else
+        {
+          g_err << "Got unexpected error " << errCode << ". Query returned " 
+                << rowCount << " rows." << endl;
+          res = NDBT_FAILED;
+        }
+      }
+      break;
+    
+    default:
+      require(false);
+    }
+    ndb->closeTransaction(trans);
+    dictionary->dropTable(tabName);
+
+    return res;
+  }
+
+  static int
+  doInterpretNok6000Query(NDBT_Context* ctx, NDBT_Step* step)
+  {
+    // Build query.
+    Ndb* const ndb = step->getNdb();
+  
+    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
+    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbRecord* const record = tab->getDefaultRecord();
+
+    NdbTransaction* const trans = ndb->startTransaction();
+
+    NdbInterpretedCode code(tab);
+
+    /**
+     * Build an interpreter code sequence that causes rows with pk1==50 to 
+     * abort the scan, and that skips all other rows.
+     */ 
+    const NdbDictionary::Column* const col = tab->getColumn("pk1");
+    require(col != NULL);
+    require(code.read_attr(1, col) == 0);
+    require(code.load_const_u32(2, 50) == 0);
+    require(code.branch_eq(1, 2, 0) == 0);
+
+    // Exit here if pk1!=50. Skip this row.
+    require(code.interpret_exit_nok(626) == 0);
+
+    // Go here if pk1==50. Abort scan.
+    require(code.def_label(0) == 0);
+    require(code.interpret_exit_nok(6000) == 0);
+    require(code.finalise() == 0);
+
+    NdbScanOperation::ScanOptions opts;
+    opts.optionsPresent = NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    opts.interpretedCode = &code;
+
+    //NdbScanOperation* const scanOp = trans->scanTable(record);
+    NdbScanOperation* const scanOp = trans->scanTable(record, 
+                                                      NdbOperation::LM_Read,
+                                                      NULL,
+                                                      &opts,
+                                                      sizeof(opts));
+    require(scanOp != NULL);
+    require(trans->execute(Commit) == 0);
+  
+    int queryRes = 0;
+  
+    // Loop through the result set.
+    int rowCount = -1;
+    while(queryRes == 0)
+    {
+      const Row* resRow;
+      queryRes = 
+        scanOp->nextResult(reinterpret_cast<const char**>(&resRow), true, false);
+      rowCount++;
+    }
+
+    int res = NDBT_OK;
+    switch (queryRes)
+    {
+    case 1: // Scan complete
+      g_err << "Query did not fail as it should have. Query returned " 
+            << rowCount << " rows out of " << totalRowCount << endl;
+      res = NDBT_FAILED;
+      break;
+    
+    case -1: // Error
+      {
+        const int errCode = trans->getNdbError().code;
+        if (errCode == 6000)
+        {
+          if (rowCount==0)
+          {
+            g_info << "Got expected error 6000. Query returned 0 rows out of " 
+                   << totalRowCount  << endl;
+          }
+          else
+          {
+            g_err << "Got expected error 6000. Query returned " 
+                  << rowCount << " rows out of " << totalRowCount 
+                  << ". Exepected 0 rows."<< endl;
+            res = NDBT_FAILED;
+          }
+        }
+        else
+        {
+          g_err << "Got unexpected error " << errCode << ". Query returned " 
+                << rowCount << " rows out of " << totalRowCount  << endl;
+          res = NDBT_FAILED;
+        }
+      }
+      break;
+    
+    default:
+      require(false);
+    }
+
+    ndb->closeTransaction(trans);
+    dictionary->dropTable(tabName);
+
+    return res;
+  }
+} // namespace TupErr
 
 /**
  * This is a regression test for bug #11748194 "TRANSACTION OBJECT CREATED 
@@ -2573,6 +2813,14 @@ TESTCASE("Bug13394788", "")
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
 }
+TESTCASE("TupCheckSumError", ""){
+  INITIALIZER(TupErr::createDataBase);
+  INITIALIZER(TupErr::doCheckSumQuery);
+}
+TESTCASE("InterpretNok6000", ""){
+  INITIALIZER(TupErr::createDataBase);
+  INITIALIZER(TupErr::doInterpretNok6000Query);
+}
 TESTCASE("extraNextResultBug11748194",
          "Regression test for bug #11748194")
 {
@@ -2614,6 +2862,16 @@ TESTCASE("ScanKeyInfoExhaust",
   FINALIZER(checkResourceSnapshot);
   FINALIZER(runInsertError);
   FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug16402744", 
+	 "Test scan behaviour with multiple DIH_SCAN_GET_NODES_REQ "\
+         "and _CONF handling possible delayed/incomplete due to "\
+         "CONTINUEB(ZSTART_FRAG_SCAN)"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("Parallelism", 240);
+  TC_PROPERTY("ErrorCode", 8097);
+  STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
   

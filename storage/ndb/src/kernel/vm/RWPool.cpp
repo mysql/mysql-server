@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2006-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 #include "RWPool.hpp"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp>
+
+#define JAM_FILE_ID 278
+
 
 #define REC_NIL GLOBAL_PAGE_SIZE_WORDS
 

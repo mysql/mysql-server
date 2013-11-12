@@ -190,33 +190,41 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			6
+#define DICT_TF2_BITS			7
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
 #define DICT_TF2_TEMPORARY		1
+
 /** The table has an internal defined DOC ID column */
 #define DICT_TF2_FTS_HAS_DOC_ID		2
+
 /** The table has an FTS index */
 #define DICT_TF2_FTS			4
+
 /** Need to add Doc ID column for FTS index build.
 This is a transient bit for index build */
 #define DICT_TF2_FTS_ADD_DOC_ID		8
+
 /** This bit is used during table creation to indicate that it will
 use its own tablespace instead of the system tablespace. */
-#define DICT_TF2_USE_TABLESPACE		16
+#define DICT_TF2_USE_FILE_PER_TABLE	16
 
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32
+
+/** This bit is set if all aux table names (both common tables and
+index tables) of a FTS table are in HEX format. */
+#define DICT_TF2_FTS_AUX_HEX_NAME	64
 /* @} */
 
-#define DICT_TF2_FLAG_SET(table, flag)				\
+#define DICT_TF2_FLAG_SET(table, flag)		\
 	(table->flags2 |= (flag))
 
-#define DICT_TF2_FLAG_IS_SET(table, flag)			\
+#define DICT_TF2_FLAG_IS_SET(table, flag)	\
 	(table->flags2 & (flag))
 
-#define DICT_TF2_FLAG_UNSET(table, flag)			\
+#define DICT_TF2_FLAG_UNSET(table, flag)	\
 	(table->flags2 &= ~(flag))
 
 /** Tables could be chained together with Foreign key constraint. When
@@ -586,6 +594,7 @@ struct dict_index_t{
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
+	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -634,13 +643,6 @@ struct dict_index_t{
 	zip_pad_info_t	zip_pad;/*!< Information about state of
 				compression failures and successes */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_BLOB_DEBUG
-	ib_mutex_t		blobs_mutex;
-				/*!< mutex protecting blobs */
-	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
-				to first_blob_page_no; protected by
-				blobs_mutex; @see btr_blob_dbg_t */
-#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_t::magic_n */

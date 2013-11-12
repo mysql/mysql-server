@@ -18,8 +18,6 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_parse.h"                          // check_access
-#include "global_threads.h"
-
 #include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"
 #include "rpl_filter.h"
@@ -28,6 +26,7 @@
 #include "rpl_master.h"
 #include "debug_sync.h"
 #include "rpl_binlog_sender.h"
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -431,6 +430,36 @@ String *get_slave_uuid(THD *thd, String *value)
     return NULL;
 }
 
+/**
+  Callback function used by kill_zombie_dump_threads() function to
+  to find zombie dump thread from the thd list.
+
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_zombie_dump_thread : public Find_THD_Impl
+{
+public:
+  Find_zombie_dump_thread(char* value): m_slave_uuid(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd != current_thd && (thd->get_command() == COM_BINLOG_DUMP ||
+                               thd->get_command() == COM_BINLOG_DUMP_GTID))
+    {
+      String tmp_uuid;
+      if (get_slave_uuid(thd, &tmp_uuid) != NULL &&
+          !strncmp(m_slave_uuid, tmp_uuid.c_ptr(), UUID_LENGTH))
+      {
+        mysql_mutex_lock(&thd->LOCK_thd_data);
+        return true;
+      }
+    }
+    return false;
+  }
+private:
+  char* m_slave_uuid;
+};
+
 /*
 
   Kill all Binlog_dump threads which previously talked to the same slave
@@ -450,33 +479,15 @@ String *get_slave_uuid(THD *thd, String *value)
 
 */
 
-
 void kill_zombie_dump_threads(String *slave_uuid)
 {
   if (slave_uuid->length() == 0)
     return;
   DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  THD *tmp= NULL;
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    if ((*it) != current_thd && ((*it)->get_command() == COM_BINLOG_DUMP ||
-                                 (*it)->get_command() == COM_BINLOG_DUMP_GTID))
-    {
-      String tmp_uuid;
-      if (get_slave_uuid((*it), &tmp_uuid) != NULL &&
-          !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
-      {
-        tmp= *it;
-        mysql_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
-        break;
-      }
-    }
-  }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Find_zombie_dump_thread find_zombie_dump_thread(slave_uuid->c_ptr());
+  THD *tmp= Global_THD_manager::get_instance()->
+                                find_thd(&find_zombie_dump_thread);
   if (tmp)
   {
     /*

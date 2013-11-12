@@ -1,7 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/have_innodb.inc
 
 #------------------------------------------------------------------------------
 # Test With alter/create/drop index
@@ -667,7 +664,7 @@ DROP TABLE t1;
 
 --echo "----------Test27---------"
 #27 Crash after server restart
-CREATE TABLE t1 (id INT,char_column VARCHAR(60));
+CREATE TABLE t1 (id INT,char_column VARCHAR(60)) ENGINE=InnoDB;
 SET @@autocommit=0;
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 INSERT INTO t1 values (1,'aaa');
@@ -1255,7 +1252,7 @@ INSERT INTO articles (title,body) VALUES
         ('( that''s me )','When configured properly, MySQL ...');
 
 SELECT * FROM articles WHERE MATCH (title,body)
-        AGAINST ('( that''s* )' IN BOOLEAN MODE);
+        AGAINST ('( yours''s* )' IN BOOLEAN MODE);
 
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('s*' IN BOOLEAN MODE);

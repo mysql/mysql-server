@@ -334,13 +334,13 @@ statement/sp/jump	NULL	SampleProc4	STATEMENT	1
 statement/sp/jump_if_not	NULL	SampleProc4	STATEMENT	1
 statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	SampleProc4	STATEMENT	1
 statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	trg1	STATEMENT	1
-statement/sp/jump_if_not	NULL	trg1	STATEMENT	2
-statement/sp/jump_if_not	NULL	trg1	STATEMENT	2
-statement/sp/stmt	UPDATE t1 SET i=new.id+i	trg2	STATEMENT	2
-statement/sp/stmt	SET @change:= @change + new.id - old.id	trg3	STATEMENT	1
-statement/sp/stmt	SET @del:= @del + 1	trg4	STATEMENT	1
-statement/sp/stmt	SET @del:= @del + 8 + old.j	trg5	STATEMENT	1
+statement/sp/jump_if_not	NULL	trg1	TRANSACTION	1
+statement/sp/jump_if_not	NULL	trg1	TRANSACTION	2
+statement/sp/jump_if_not	NULL	trg1	TRANSACTION	2
+statement/sp/stmt	UPDATE t1 SET i=new.id+i	trg2	TRANSACTION	2
+statement/sp/stmt	SET @change:= @change + new.id - old.id	trg3	TRANSACTION	1
+statement/sp/stmt	SET @del:= @del + 1	trg4	TRANSACTION	1
+statement/sp/stmt	SET @del:= @del + 8 + old.j	trg5	TRANSACTION	1
 statement/sp/set	NULL	wt_avg	STATEMENT	1
 statement/sp/set	NULL	wt_avg	STATEMENT	1
 statement/sp/freturn	NULL	wt_avg	STATEMENT	1
@@ -1492,10 +1492,10 @@ statement/sp/stmt	INSERT INTO t1 VALUES (x, y)	inc2	STATEMENT	2
 statement/sp/stmt	CALL inc2(x2, y)	iotest	STATEMENT	1
 statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	iotest	STATEMENT	1
 statement/sp/freturn	NULL	mul	STATEMENT	2
-statement/sp/stmt	CALL ifac(10)	trg	STATEMENT	1
-statement/sp/stmt	CALL ifac(10)	trg	STATEMENT	2
-statement/sp/stmt	CALL ifac(10)	trg	STATEMENT	3
-statement/sp/stmt	CALL ifac(10)	trg	STATEMENT	5
+statement/sp/stmt	CALL ifac(10)	trg	TRANSACTION	1
+statement/sp/stmt	CALL ifac(10)	trg	TRANSACTION	2
+statement/sp/stmt	CALL ifac(10)	trg	TRANSACTION	3
+statement/sp/stmt	CALL ifac(10)	trg	TRANSACTION	5
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 DROP PROCEDURE c4;
 DROP PROCEDURE c3;

@@ -24,7 +24,7 @@
 
 class NdbRestarter {
 public:
-  NdbRestarter(const char* _addr = 0);
+  NdbRestarter(const char* _addr = 0, class Ndb_cluster_connection * con = 0);
   ~NdbRestarter();
 
   int getDbNodeId(int _i);
@@ -83,6 +83,9 @@ public:
   int getNumDbNodes();
   int insertErrorInNode(int _nodeId, int error);
   int insertErrorInAllNodes(int error);
+
+  int insertError2InNode(int _nodeId, int error, int extra);
+  int insertError2InAllNodes(int error, int extra);
 
   int enterSingleUserMode(int _nodeId);
   int exitSingleUserMode();
@@ -148,7 +151,9 @@ protected:
 protected:
   ndb_mgm_configuration * getConfig();
 
-public:  
+  class Ndb_cluster_connection * m_cluster_connection;
+  int wait_until_ready(const int * nodes = 0, int cnt = 0, int timeout = 60);
+public:
   Vector<ndb_mgm_node_state> ndbNodes;
 };
 

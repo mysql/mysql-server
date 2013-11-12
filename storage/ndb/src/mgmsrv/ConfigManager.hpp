@@ -256,6 +256,8 @@ public:
                              BaseString& msg);
 
   bool set_dynamic_port(int node1, int node2, int value, BaseString& msg);
+  bool set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],
+                         unsigned num_ports, BaseString& msg);
   bool get_dynamic_port(int node1, int node2, int *value,
                         BaseString& msg) const;
 

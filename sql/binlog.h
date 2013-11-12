@@ -26,6 +26,23 @@ class Master_info;
 class Format_description_log_event;
 
 /**
+  Logical timestamp generator for binlog Prepare stage.
+ */
+class  Logical_clock
+{
+private:
+  my_atomic_rwlock_t m_state_lock;
+  int64 state;
+protected:
+  void init(){ state= 0; }
+public:
+  Logical_clock();
+  int64 step();
+  int64 get_timestamp();
+  ~Logical_clock();
+};
+
+/**
   Class for maintaining the commit stages for binary log group commit.
  */
 class Stage_manager {
@@ -246,9 +263,6 @@ private:
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key key_LOG_INFO_lock;
-#endif
 
 /*
   Note that we destroy the lock mutex in the destructor here.
@@ -262,15 +276,12 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   int entry_index; //used in purge_logs(), calculatd in find_log_pos().
-  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
@@ -538,6 +549,11 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+
+public:
+  /* Clock to timestamp the commits */
+   Logical_clock commit_clock;
+
   /**
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
@@ -561,6 +577,8 @@ public:
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
+    @param last_gtid Will be filled with the last availble GTID information
+    in the binary/relay log files.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
@@ -568,7 +586,8 @@ public:
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum, bool need_lock);
+                      Gtid *last_gtid, bool verify_checksum,
+                      bool need_lock);
 
   void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
   {
@@ -691,8 +710,10 @@ public:
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
   bool write_incident(THD *thd, bool need_lock_log,
+                      const char* err_msg,
                       bool do_flush_and_sync= true);
   bool write_incident(Incident_log_event *ev, bool need_lock_log,
+                      const char* err_msg,
                       bool do_flush_and_sync= true);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
@@ -880,7 +901,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   DBUG_ASSERT(ptr);
   if (ptr)
   {
-    uint length= strlen(ptr);
+    size_t length= strlen(ptr);
 
     // Strips the CR+LF at the end of log name and \0-terminates it.
     if (length && ptr[length-1] == '\n')

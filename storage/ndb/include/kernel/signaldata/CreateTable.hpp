@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define CREATE_TABLE_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 151
+
 
 struct CreateTableReq {
   STATIC_CONST( SignalLength = 5 );
@@ -59,6 +62,7 @@ struct CreateTableRef {
     Inconsistency = 706,
     NoMoreTableRecords = 707,
     NoMoreAttributeRecords = 708,
+    NoMoreHashmapRecords = 712,
     AttributeNameTwice = 720,
     TableAlreadyExist = 721,
     InvalidArraySize = 736,
@@ -98,5 +102,8 @@ struct CreateTableRef {
     return errorLine;
   }
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

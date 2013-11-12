@@ -1,0 +1,2 @@
+--binlog-row-image=MINIMAL
+--result-file=../suite/ndb_rpl/r/ndb_rpl_conflict_max

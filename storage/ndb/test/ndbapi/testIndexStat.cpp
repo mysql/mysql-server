@@ -467,7 +467,7 @@ Val::make(uint numattrs, const Lim& lim)
       const uint len = urandom(urandom(g_charlen + 1) + 1);
       c[0] = len;
       for (uint j = 0; j < len; j++) {
-        uint k = urandom(strlen(lim.c_char));
+        uint k = urandom((uint)strlen(lim.c_char));
         c[1 + j] = lim.c_char[k];
       }
       c_null = 0;

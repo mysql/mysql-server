@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,9 @@ void printErrorAndFlags(Uint32 used_flags);
 #define DEBUG(x)
 #define PRINT_ERRORANDFLAGS(f)
 #endif
+
+
+#define JAM_FILE_ID 381
 
 const int ERR_ReadUnderflow = 1000;
 
@@ -180,5 +183,8 @@ private:
   void attach(AsyncFile*);
   void detach(AsyncFile*);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

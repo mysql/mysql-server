@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
+    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
   }
 };
@@ -470,7 +470,7 @@ int table_events_stages_history_long::rnd_next(void)
   if (events_stages_history_long_full)
     limit= events_stages_history_long_size;
   else
-    limit= events_stages_history_long_index % events_stages_history_long_size;
+    limit= events_stages_history_long_index.m_u32 % events_stages_history_long_size;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next())
   {
@@ -501,7 +501,7 @@ int table_events_stages_history_long::rnd_pos(const void *pos)
   if (events_stages_history_long_full)
     limit= events_stages_history_long_size;
   else
-    limit= events_stages_history_long_index % events_stages_history_long_size;
+    limit= events_stages_history_long_index.m_u32 % events_stages_history_long_size;
 
   if (m_pos.m_index > limit)
     return HA_ERR_RECORD_DELETED;

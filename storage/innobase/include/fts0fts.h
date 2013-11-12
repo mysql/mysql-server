@@ -364,7 +364,10 @@ need a sync to free some memory */
 extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
+#define FTS_MAX_WORD_LEN		HA_FT_MAXBYTELEN
+
+/** Maximum possible Fulltext word length (in characters) */
+#define FTS_MAX_WORD_LEN_IN_CHAR	HA_FT_MAXCHARLEN
 
 /** Variable specifying the table that has Fulltext index to display its
 content through information schema table */
@@ -771,16 +774,11 @@ fts_cache_destroy(
 	fts_cache_t*	cache);			/*!< in: cache*/
 
 /*********************************************************************//**
-Clear cache. If the shutdown flag is TRUE then the cache can contain
-data that needs to be freed. For regular clear as part of normal
-working we assume the caller has freed all resources. */
-
+Clear cache. */
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,			/*!< in: cache */
-	ibool		free_words);		/*!< in: TRUE if free
-						in memory word cache. */
+	fts_cache_t*	cache);			/*!< in: cache */
 
 /*********************************************************************//**
 Initialize things in cache. */
@@ -830,8 +828,7 @@ fts_drop_index_split_tables(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)			/*!< in: table */
@@ -910,10 +907,27 @@ innobase_mysql_fts_get_token(
 	const byte*	start,			/*!< in: start of text */
 	const byte*	end,			/*!< in: one character past
 						end of text */
-	fts_string_t*	token,			/*!< out: token's text */
-	ulint*		offset);		/*!< out: offset to token,
-						measured as characters from
-						'start' */
+	fts_string_t*	token);			/*!< out: token's text */
+
+/*************************************************************//**
+Get token char size by charset
+@return the number of token char size */
+ulint
+fts_get_token_size(
+/*===============*/
+	const CHARSET_INFO*	cs,		/*!< in: Character set */
+	const char*		token,		/*!< in: token */
+	ulint			len);		/*!< in: token length */
+
+/*************************************************************//**
+FULLTEXT tokenizer internal in MYSQL_FTPARSER_SIMPLE_MODE
+@return 0 if tokenize sucessfully */
+int
+fts_tokenize_document_internal(
+/*===========================*/
+	MYSQL_FTPARSER_PARAM*	param,	/*!< in: parser parameter */
+	char*			doc,	/*!< in: document to tokenize */
+	int			len);	/*!< in: document length */
 
 /*********************************************************************//**
 Fetch COUNT(*) from specified table.

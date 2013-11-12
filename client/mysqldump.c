@@ -901,8 +901,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       {
         if (mode & 1)
         {
-          end= strmov(end, compatible_mode_names[i]);
-          end= strmov(end, ",");
+          end= my_stpcpy(end, compatible_mode_names[i]);
+          end= my_stpcpy(end, ",");
         }
       }
       if (end!=compatible_mode_normal_str)
@@ -1441,12 +1441,12 @@ static char *cover_definer_clause(const char *stmt_str,
   */
   query_str= alloc_query_str(stmt_length + 23);
 
-  query_ptr= strnmov(query_str, stmt_str, definer_begin - stmt_str);
-  query_ptr= strnmov(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
-  query_ptr= strnmov(query_ptr, definer_version_str, definer_version_length);
-  query_ptr= strnmov(query_ptr, definer_begin, definer_end - definer_begin);
-  query_ptr= strnmov(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
-  query_ptr= strnmov(query_ptr, stmt_version_str, stmt_version_length);
+  query_ptr= my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
+  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, definer_version_str, definer_version_length);
+  query_ptr= my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
+  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr= strxmov(query_ptr, definer_end, NullS);
 
   return query_str;
@@ -1595,17 +1595,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql_connection,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql_connection);
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
@@ -1993,7 +1983,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
                           const char *str_create)
 {
   uint i;
-  my_bool body_found= 0;
   char *create_stmt_ptr= NULL;
   ulong create_stmt_len= 0;
   MYSQL_FIELD *field;
@@ -2011,7 +2000,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
       {
         create_stmt_ptr= (*row)[i];
         create_stmt_len= lengths[i];
-        body_found= 1;
       }
       else
       {
@@ -2027,7 +2015,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
   if (create_stmt_len)
   {
-    DBUG_ASSERT(body_found);
     fputs(">\n", xml_file);
     print_xml_cdata(xml_file, create_stmt_ptr, create_stmt_len);
     fprintf(xml_file, "\t\t</%s>\n", row_name);
@@ -2616,7 +2603,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                    "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
-    strmov(query_buff+len,
+    my_stpcpy(query_buff+len,
            "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
   result_table=     quote_name(table, table_buff, 1);
@@ -4467,7 +4454,7 @@ static int dump_all_tables_in_db(char *database)
   int using_mysql_db= !my_strcasecmp(charset_info, database, "mysql");
   DBUG_ENTER("dump_all_tables_in_db");
 
-  afterdot= strmov(hash_key, database);
+  afterdot= my_stpcpy(hash_key, database);
   *afterdot++= '.';
 
   if (init_dumping(database, init_dumping_tables))
@@ -4481,7 +4468,7 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
     for (numrows= 0 ; (table= getTableName(1)) ; )
     {
-      char *end= strmov(afterdot, table);
+      char *end= my_stpcpy(afterdot, table);
       if (include_table((uchar*) hash_key,end - hash_key))
       {
         numrows++;
@@ -4504,7 +4491,7 @@ static int dump_all_tables_in_db(char *database)
   }
   while ((table= getTableName(0)))
   {
-    char *end= strmov(afterdot, table);
+    char *end= my_stpcpy(afterdot, table);
     if (include_table((uchar*) hash_key, end - hash_key))
     {
       dump_table(table,database);
@@ -4606,7 +4593,7 @@ static my_bool dump_all_views_in_db(char *database)
   char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
   char *afterdot;
 
-  afterdot= strmov(hash_key, database);
+  afterdot= my_stpcpy(hash_key, database);
   *afterdot++= '.';
 
   if (init_dumping(database, init_dumping_views))
@@ -4619,7 +4606,7 @@ static my_bool dump_all_views_in_db(char *database)
     init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
     for (numrows= 0 ; (table= getTableName(1)); )
     {
-      char *end= strmov(afterdot, table);
+      char *end= my_stpcpy(afterdot, table);
       if (include_table((uchar*) hash_key,end - hash_key))
       {
         numrows++;
@@ -4642,7 +4629,7 @@ static my_bool dump_all_views_in_db(char *database)
   }
   while ((table= getTableName(0)))
   {
-    char *end= strmov(afterdot, table);
+    char *end= my_stpcpy(afterdot, table);
     if (include_table((uchar*) hash_key, end - hash_key))
       get_view_structure(table, database);
   }
@@ -5303,7 +5290,7 @@ static char *primary_key_fields(const char *table_name)
     mysql_data_seek(res, 0);
     row= mysql_fetch_row(res);
     quoted_field= quote_name(row[4], buff, 0);
-    end= strmov(result, quoted_field);
+    end= my_stpcpy(result, quoted_field);
     while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1)
     {
       quoted_field= quote_name(row[4], buff, 0);

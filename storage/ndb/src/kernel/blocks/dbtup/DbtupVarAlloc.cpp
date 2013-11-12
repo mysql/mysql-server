@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #define DBTUP_C
 #define DBTUP_VAR_ALLOC_CPP
 #include "Dbtup.hpp"
+
+#define JAM_FILE_ID 405
+
 
 void Dbtup::init_list_sizes(void)
 {
@@ -71,7 +74,8 @@ Uint32* Dbtup::alloc_var_rec(Uint32 * err,
   /**
    * TODO alloc fix+var part
    */
-  Uint32 *ptr = alloc_fix_rec(err, fragPtr, tabPtr, key, out_frag_page_id);
+  Uint32 *ptr = alloc_fix_rec(jamBuffer(), err, fragPtr, tabPtr, key,
+                              out_frag_page_id);
   if (unlikely(ptr == 0))
   {
     return 0;
@@ -122,7 +126,7 @@ Dbtup::alloc_var_part(Uint32 * err,
     pagePtr.p->list_index = MAX_FREE_LIST - 1;
     LocalDLList<Page> list(c_page_pool, 
 			   fragPtr->free_var_page_array[MAX_FREE_LIST-1]);
-    list.add(pagePtr);
+    list.addFirst(pagePtr);
   } else {
     c_page_pool.getPtr(pagePtr);
     jam();
@@ -403,7 +407,7 @@ Dbtup::get_alloc_page(Fragrecord* fragPtr, Uint32 alloc_size)
     if (!fragPtr->free_var_page_array[i].isEmpty()) 
     {
       jam();
-      return fragPtr->free_var_page_array[i].firstItem;
+      return fragPtr->free_var_page_array[i].getFirst();
     }
   }
   ndbrequire(start_index > 0);
@@ -427,7 +431,7 @@ Dbtup::get_empty_var_page(Fragrecord* fragPtr)
 {
   PagePtr ptr;
   Uint32 cnt;
-  allocConsPages(1, cnt, ptr.i);
+  allocConsPages(jamBuffer(), 1, cnt, ptr.i);
   fragPtr->noOfVarPages+= cnt;
   if (unlikely(cnt == 0))
   {
@@ -483,7 +487,7 @@ void Dbtup::update_free_page_list(Fragrecord* fragPtr,
     {
       LocalDLList<Page> list(c_page_pool, 
                              fragPtr->free_var_page_array[new_list_index]);
-      list.add(pagePtr);
+      list.addFirst(pagePtr);
       pagePtr.p->list_index = new_list_index;
     }
   }

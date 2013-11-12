@@ -541,7 +541,7 @@ rw_lock_s_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_s_exit_count++;
+	rw_lock_stats.rw_s_exit_count.inc();
 #endif
 }
 
@@ -605,7 +605,7 @@ rw_lock_x_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_x_exit_count++;
+	rw_lock_stats.rw_x_exit_count.inc();
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -662,7 +662,7 @@ rw_lock_sx_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_sx_exit_count++;
+	rw_lock_stats.rw_sx_exit_count.inc();
 #endif /* UNIV_SYNC_PERF_STAT */
 }
 
@@ -767,7 +767,7 @@ pfs_rw_lock_x_lock_func_nowait(
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
 		if (locker != NULL) {
-			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, int(ret));
 		}
 
 	} else {
@@ -857,7 +857,7 @@ pfs_rw_lock_s_lock_low(
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
 		if (locker != NULL) {
-			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, int(ret));
 		}
 	} else {
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);

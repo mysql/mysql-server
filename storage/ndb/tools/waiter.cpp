@@ -316,18 +316,22 @@ waitClusterStatus(const char* _addr,
        * Make special check if we are waiting for
        * cluster to become started
        */
-      if(_status == NDB_MGM_NODE_STATUS_STARTED){
-	waitMore = true;
-	/**
-	 * First check if any node is not starting
-	 * then it's no idea to wait anymore
-	 */
-	for (unsigned n = 0; n < ndbNodes.size(); n++){
-	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
-	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
-	    waitMore = false;
-
-	}
+      if(_status == NDB_MGM_NODE_STATUS_STARTED)
+      {
+        waitMore = true;
+        /**
+         * First check if any node is not starting
+         * then it's no idea to wait anymore
+         */
+        for (unsigned n = 0; n < ndbNodes.size(); n++)
+        {
+          if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
+              ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
+          {
+            waitMore = false;
+            break;
+          }
+        }
       }
 
       if (!waitMore || resetAttempts > MAX_RESET_ATTEMPTS){

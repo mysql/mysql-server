@@ -18,9 +18,6 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 #include "mysys_err.h"
-#ifdef HAVE_GETWD
-#include <sys/param.h>
-#endif
 #if defined(_WIN32)
 #include <m_ctype.h>
 #include <dos.h>
@@ -57,7 +54,6 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
     (void) strmake(buf,&curr_dir[0],size-1);
   else
   {
-#if defined(HAVE_GETCWD)
     if (size < 2)
       DBUG_RETURN(-1);
     if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
@@ -68,15 +64,6 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
                errno, my_strerror(errbuf, sizeof(errbuf), errno));
       DBUG_RETURN(-1);
     }
-#elif defined(HAVE_GETWD)
-    {
-      char pathname[MAXPATHLEN];
-      getwd(pathname);
-      strmake(buf,pathname,size-1);
-    }
-#else
-#error "No way to get current directory"
-#endif
     if (*((pos=strend(buf))-1) != FN_LIBCHAR)  /* End with FN_LIBCHAR */
     {
       pos[0]= FN_LIBCHAR;
@@ -162,12 +149,12 @@ int test_if_hard_path(const char *dir_name)
 
 my_bool has_path(const char *name)
 {
-  return test(strchr(name, FN_LIBCHAR)) 
+  return MY_TEST(strchr(name, FN_LIBCHAR)) 
 #if FN_LIBCHAR != '/'
-    || test(strchr(name,'/'))
+    || MY_TEST(strchr(name,'/'))
 #endif
 #ifdef FN_DEVCHAR
-    || test(strchr(name, FN_DEVCHAR))
+    || MY_TEST(strchr(name, FN_DEVCHAR))
 #endif
     ;
 }

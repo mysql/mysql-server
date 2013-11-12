@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #define DBTUX_NODE_CPP
 #include "Dbtux.hpp"
+
+#define JAM_FILE_ID 372
+
 
 /*
  * Allocate index node in TUP.
@@ -165,7 +168,7 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
   if (index.m_prefAttrs > 0) {
     KeyData prefKey(index.m_keySpec, false, 0);
     prefKey.set_buf(node.getPref(), index.m_prefBytes);
-    jam();
+    thrjam(ctx.jamBuffer);
     readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {

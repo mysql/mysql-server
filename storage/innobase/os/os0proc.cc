@@ -142,9 +142,6 @@ skip:
 		mutex_exit(&ut_list_mutex);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
-#elif !defined OS_MAP_ANON
-	size = *n;
-	ptr = ut_malloc_low(size, TRUE, FALSE);
 #else
 # ifdef HAVE_GETPAGESIZE
 	size = getpagesize();

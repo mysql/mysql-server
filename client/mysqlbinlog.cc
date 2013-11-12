@@ -33,6 +33,7 @@
 #include "client_priv.h"
 #include "my_default.h"
 #include <my_time.h>
+#include <sslopt-vars.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "sql_priv.h"
 #include <signal.h>
@@ -1528,6 +1529,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+#include <sslopt-longopts.h>
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -1729,7 +1731,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   long dummy_my_timezone;
   my_bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
-  if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &status) ||
+  if (str_to_datetime(str, strlen(str), &l_time, 0, &status) ||
       l_time.time_type != MYSQL_TIMESTAMP_DATETIME || status.warnings)
   {
     error("Incorrect date and time argument: %s", str);
@@ -1756,6 +1758,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #endif
+#include <sslopt-case.h>
   case 'd':
     one_database = 1;
     break;
@@ -1882,6 +1885,8 @@ static Exit_status safe_connect()
     return ERROR_STOP;
   }
 
+  SSL_SET_OPTIONS(mysql);
+
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
@@ -1939,7 +1944,7 @@ static Exit_status dump_log_entries(const char* logname)
   {
     fprintf(result_file, "DELIMITER /*!*/;\n");
   }
-  strmov(print_event_info.delimiter, "/*!*/;");
+  my_stpcpy(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
 
@@ -1982,7 +1987,7 @@ static Exit_status dump_log_entries(const char* logname)
       fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info.delimiter);
 
     fprintf(result_file, "DELIMITER ;\n");
-    strmov(print_event_info.delimiter, ";");
+    my_stpcpy(print_event_info.delimiter, ";");
   }
   DBUG_RETURN(rc);
 }
@@ -2296,7 +2301,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
           else
           {
-            strmov(log_file_name, rev->new_log_ident);
+            my_stpcpy(log_file_name, rev->new_log_ident);
           }
         }
 

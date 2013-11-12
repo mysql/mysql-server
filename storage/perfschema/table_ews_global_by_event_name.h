@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ protected:
   void make_table_lock_row(PFS_instr_class *klass);
   void make_socket_row(PFS_socket_class *klass);
   void make_idle_row(PFS_instr_class *klass);
+  void make_metadata_row(PFS_instr_class *klass);
 
 private:
   /** Table share lock. */

@@ -18,13 +18,13 @@ typedef struct charset_info_st
   const char *name;
   const char *comment;
 
-  uchar    *ctype;
-  uchar    *to_lower;
-  uchar    *to_upper;
-  uchar    *sort_order;
+  const uchar *ctype;
+  const uchar *to_lower;
+  const uchar *to_upper;
+  const uchar *sort_order;
 
-  uint16      *tab_to_uni;
-  MY_UNI_IDX  *tab_from_uni;
+  const uint16     *tab_to_uni;
+  const MY_UNI_IDX *tab_from_uni;
 
   uchar state_map[256];
   uchar ident_map[256];

@@ -135,15 +135,6 @@ page_cur_try_search_shortcut(
 			goto exit_func;
 		}
 
-#ifdef UNIV_SEARCH_DEBUG
-		page_cur_search_with_match(block, index, tuple, PAGE_CUR_DBG,
-					   iup_matched_fields,
-					   ilow_matched_fields,
-					   cursor);
-		ut_a(cursor->rec == rec);
-		ut_a(*iup_matched_fields == up_match);
-		ut_a(*ilow_matched_fields == low_match);
-#endif
 		*iup_matched_fields = up_match;
 	}
 
@@ -248,10 +239,6 @@ page_cur_search_with_match(
 	ulint		low_matched_fields;
 	ulint		cur_matched_fields;
 	int		cmp;
-#ifdef UNIV_SEARCH_DEBUG
-	int		dbg_cmp;
-	ulint		dbg_matched_fields;
-#endif
 #ifdef UNIV_ZIP_DEBUG
 	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
@@ -423,52 +410,6 @@ up_rec_match:
 		}
 	}
 
-#ifdef UNIV_SEARCH_DEBUG
-
-	/* Check that the lower and upper limit records have the
-	right alphabetical order compared to tuple. */
-	dbg_matched_fields = 0;
-
-	offsets = rec_get_offsets(low_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, low_rec, offsets,
-						 &dbg_matched_fields);
-	if (mode == PAGE_CUR_G) {
-		ut_a(dbg_cmp >= 0);
-	} else if (mode == PAGE_CUR_GE) {
-		ut_a(dbg_cmp > 0);
-	} else if (mode == PAGE_CUR_L) {
-		ut_a(dbg_cmp > 0);
-	} else if (mode == PAGE_CUR_LE) {
-		ut_a(dbg_cmp >= 0);
-	}
-
-	if (!page_rec_is_infimum(low_rec)) {
-
-		ut_a(low_matched_fields == dbg_matched_fields);
-	}
-
-	dbg_matched_fields = 0;
-
-	offsets = rec_get_offsets(up_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, up_rec, offsets,
-						 &dbg_matched_fields);
-	if (mode == PAGE_CUR_G) {
-		ut_a(dbg_cmp < 0);
-	} else if (mode == PAGE_CUR_GE) {
-		ut_a(dbg_cmp <= 0);
-	} else if (mode == PAGE_CUR_L) {
-		ut_a(dbg_cmp <= 0);
-	} else if (mode == PAGE_CUR_LE) {
-		ut_a(dbg_cmp < 0);
-	}
-
-	if (!page_rec_is_supremum(up_rec)) {
-
-		ut_a(up_matched_fields == dbg_matched_fields);
-	}
-#endif
 	if (mode <= PAGE_CUR_GE) {
 		page_cur_position(up_rec, block, cursor);
 	} else {
@@ -526,14 +467,13 @@ page_cur_insert_rec_write_log(
 	ulint	extra_size;
 	ulint	cur_extra_size;
 	const byte* ins_ptr;
-	byte*	log_ptr;
 	const byte* log_end;
 	ulint	i;
 
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
 	if (dict_table_is_temporary(index->table)) {
-		log_ptr = mlog_open(mtr, 0);
+		byte*	log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
 		}
@@ -601,6 +541,8 @@ page_cur_insert_rec_write_log(
 			}
 		} while (i < min_rec_size);
 	}
+
+	byte*	log_ptr;
 
 	if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
 
@@ -753,7 +695,7 @@ page_cur_parse_insert_rec(
 
 		cursor_rec = page + offset;
 
-		if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)) {
+		if (offset >= UNIV_PAGE_SIZE) {
 
 			recv_sys->found_corrupt_log = TRUE;
 
@@ -768,7 +710,7 @@ page_cur_parse_insert_rec(
 		return(NULL);
 	}
 
-	if (UNIV_UNLIKELY(end_seg_len >= UNIV_PAGE_SIZE << 1)) {
+	if (end_seg_len >= UNIV_PAGE_SIZE << 1) {
 		recv_sys->found_corrupt_log = TRUE;
 
 		return(NULL);
@@ -804,7 +746,7 @@ page_cur_parse_insert_rec(
 		ut_a(mismatch_index < UNIV_PAGE_SIZE);
 	}
 
-	if (UNIV_UNLIKELY(end_ptr < ptr + (end_seg_len >> 1))) {
+	if (end_ptr < ptr + (end_seg_len >> 1)) {
 
 		return(NULL);
 	}
@@ -836,7 +778,7 @@ page_cur_parse_insert_rec(
 		buf = buf1;
 	} else {
 		buf = static_cast<byte*>(
-			mem_alloc(mismatch_index + end_seg_len));
+			ut_malloc(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */
@@ -886,7 +828,7 @@ page_cur_parse_insert_rec(
 
 	if (buf != buf1) {
 
-		mem_free(buf);
+		ut_free(buf);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -929,8 +871,10 @@ page_cur_insert_rec_low(
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || recv_recovery_is_on()
+	      || mtr->is_inside_ibuf());
+
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1108,8 +1052,6 @@ use_heap:
 					      current_rec, index, mtr);
 	}
 
-	btr_blob_dbg_add_rec(insert_rec, index, offsets, "insert");
-
 	return(insert_rec);
 }
 
@@ -1156,8 +1098,9 @@ page_cur_insert_rec_zip(
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || mtr->is_inside_ibuf()
+	      || recv_recovery_is_on());
 
 	ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
@@ -1339,12 +1282,10 @@ page_cur_insert_rec_zip(
 			}
 
 			/* Out of space: restore the page */
-			btr_blob_dbg_remove(page, index, "insert_zip_fail");
 			if (!page_zip_decompress(page_zip, page, FALSE)) {
 				ut_error; /* Memory corrupted? */
 			}
 			ut_ad(page_validate(page, index));
-			btr_blob_dbg_add(page, index, "insert_zip_fail");
 			insert_rec = NULL;
 		}
 
@@ -1558,8 +1499,6 @@ use_heap:
 
 	page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 
-	btr_blob_dbg_add_rec(insert_rec, index, offsets, "insert_zip_ok");
-
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
 		page_cur_insert_rec_write_log(insert_rec, rec_size,
@@ -1680,7 +1619,6 @@ page_copy_rec_list_end_to_created_page(
 	ulint	n_recs;
 	ulint	slot_index;
 	ulint	rec_size;
-	ulint	log_mode;
 	byte*	log_ptr;
 	ulint	log_data_len;
 	mem_heap_t*	heap		= NULL;
@@ -1713,9 +1651,12 @@ page_copy_rec_list_end_to_created_page(
 	log_ptr = page_copy_rec_list_to_created_page_write_log(new_page,
 							       index, mtr);
 
-	log_data_len = dyn_array_get_data_size(&(mtr->log));
+	log_data_len = mtr->get_log()->size();
 
 	/* Individual inserts are logged in a shorter form */
+
+	mtr_log_t	log_mode;
+
 	if (!dict_table_is_temporary(index->table)) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
 	} else {
@@ -1776,8 +1717,6 @@ page_copy_rec_list_end_to_created_page(
 		heap_top += rec_size;
 
 		rec_offs_make_valid(insert_rec, index, offsets);
-		btr_blob_dbg_add_rec(insert_rec, index, offsets, "copy_end");
-
 		page_cur_insert_rec_write_log(insert_rec, rec_size, prev_rec,
 					      index, mtr);
 		prev_rec = insert_rec;
@@ -1805,11 +1744,11 @@ page_copy_rec_list_end_to_created_page(
 		mem_heap_free(heap);
 	}
 
-	log_data_len = dyn_array_get_data_size(&(mtr->log)) - log_data_len;
+	log_data_len = mtr->get_log()->size() - log_data_len;
 
 	ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
-	if (UNIV_LIKELY(log_ptr != NULL)) {
+	if (log_ptr != NULL) {
 		mach_write_to_4(log_ptr, log_data_len);
 	}
 
@@ -1961,8 +1900,9 @@ page_cur_delete_rec(
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || mtr->is_inside_ibuf()
+	      || recv_recovery_is_on());
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
@@ -2052,8 +1992,6 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	btr_blob_dbg_remove_rec(current_rec, const_cast<dict_index_t*>(index),
-				offsets, "delete");
 	page_mem_free(page, page_zip, current_rec, index, offsets);
 
 	/* 7. Now we have decremented the number of owned records of the slot.

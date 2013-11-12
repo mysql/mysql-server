@@ -1,0 +1,160 @@
+-- source include/have_ndb.inc
+
+-- disable_warnings
+drop table if exists t2, t1;
+-- enable_warnings
+
+# bug#16285826 - NDB_RESTORE -M DOES NOT RESTORE FK CONSTRAINTS
+-- echo # bug#16285826
+
+create table t1 (
+  a1 int primary key
+) engine ndb;
+
+insert into t1 (a1) values
+  (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  key xb2 (b2),
+  foreign key fkb2a1 (b2) references t1 (a1)
+) engine ndb;
+
+-- echo # TEST: basic meta
+
+-- source ndb_fk_restore.inc
+
+-- echo # TEST: basic data
+
+insert into t2 (b2) select x.a1 from t1 x,t1 y;
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2) values (10);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where a1 = 1;
+
+# t1 fragment may be restored before t2 fragment but in MTR
+# there are two fragments so likely FK disable is required
+
+-- source ndb_fk_restore.inc
+
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2) values (10);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where a1 = 1;
+
+-- echo # TEST: child part key
+
+drop table t2;
+
+create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  c2 int not null,
+  key xb2c2 (b2,c2),
+  foreign key fkb2a1 (b2) references t1 (a1)
+) engine ndb;
+
+insert into t2 (b2,c2) select x.a1,99 from t1 x,t1 y;
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (10,99);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where a1 = 1;
+
+-- source ndb_fk_restore.inc
+
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (10,99);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where a1 = 1;
+
+-- echo # TEST: column order
+
+drop table t2,t1;
+
+create table t1 (
+  a1 int primary key,
+  b1 int not null,
+  c1 int not null,
+  unique key (b1,c1) using hash
+) engine ndb;
+
+insert into t1 (a1,b1,c1) values
+  (1,11,12),(2,21,22),(3,31,32),(4,41,42),(5,51,52),(6,61,62);
+
+create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  c2 int not null,
+  key xb2c2 (b2,c2),
+  foreign key fkb2c2c1b1 (b2,c2) references t1 (c1,b1)
+) engine ndb;
+
+insert into t2 (b2,c2) select x.c1,x.b1 from t1 x,t1 y;
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (61,62);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
+
+-- source ndb_fk_restore.inc
+
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (61,62);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
+
+-- echo # TEST: disable indexes
+
+-- let $disable_indexes=1
+-- source ndb_fk_restore.inc
+
+-- echo # TEST: rebuild indexes meta
+
+# previous tables are unusable via mysql
+drop table t2, t1;
+
+create table t1 (
+  a1 int primary key,
+  b1 int not null,
+  c1 int not null,
+  unique key (b1,c1) using hash
+) engine ndb;
+
+create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  c2 int not null,
+  key xb2c2 (b2,c2),
+  foreign key fkb2c2c1b1 (b2,c2) references t1 (c1,b1)
+) engine ndb;
+
+-- let $rebuild_indexes=1
+-- source ndb_fk_restore.inc
+
+-- echo # TEST: rebuild indexes data
+
+# there may be a bug with add FK and reversed column order
+
+alter table t2 algorithm=inplace,
+  drop foreign key fkb2c2c1b1;
+alter table t2 algorithm=inplace,
+  add foreign key fkb2c2b1c1 (b2,c2) references t1 (b1,c1);
+
+insert into t1 (a1,b1,c1) values
+  (1,11,12),(2,21,22),(3,31,32),(4,41,42),(5,51,52),(6,61,62);
+
+insert into t2 (b2,c2) select x.b1,x.c1 from t1 x,t1 y;
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (62,61);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
+
+-- let $rebuild_indexes=1
+-- source ndb_fk_restore.inc
+
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (62,61);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
+
+drop table t2, t1;

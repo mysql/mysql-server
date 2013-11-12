@@ -149,6 +149,15 @@ list(const char * tabname,
         case NdbDictionary::Object::TableEvent:
             strcpy(type, "TableEvent");
             break;
+        case NdbDictionary::Object::ForeignKey:
+            strcpy(type, "ForeignKey");
+            break;
+        case NdbDictionary::Object::FKParentTrigger:
+            strcpy(type, "FKParentTrigger");
+            break;
+        case NdbDictionary::Object::FKChildTrigger:
+            strcpy(type, "FKChildTrigger");
+            break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
             break;

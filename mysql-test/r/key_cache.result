@@ -116,15 +116,19 @@ cache index t1 key (`primary`) in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 explain select p from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`p` AS `p` from `test`.`t1`
 select p from t1;
 p
 2
 11
 explain select i from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	k1	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	k1	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`
 select i from t2;
 i
 2
@@ -132,9 +136,11 @@ i
 2
 3
 explain select count(*) from t1, t2 where t1.p = t2.i;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
-1	SIMPLE	t2	ref	k1	k1	5	test.t1.p	2	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	t2	NULL	ref	k1	k1	5	test.t1.p	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`p`)
 select count(*) from t1, t2 where t1.p = t2.i;
 count(*)
 3
@@ -158,8 +164,10 @@ p	i	a
 3000	3	zzzz
 2000	3	yyyy
 explain select p from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	5	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p` from `test`.`t2`
 select p from t2;
 p
 2
@@ -168,8 +176,10 @@ p
 2000
 3000
 explain select i from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	k1	5	NULL	5	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	k1	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`
 select i from t2;
 i
 2
@@ -178,8 +188,10 @@ i
 3
 3
 explain select a from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	k2	11	NULL	5	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	k2	11	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`
 select a from t2;
 a
 pppp
@@ -228,8 +240,10 @@ p
 2000
 4000
 explain select i from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	k1	5	NULL	5	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	k1	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`
 select i from t2;
 i
 2
@@ -238,8 +252,10 @@ i
 3
 3
 explain select a from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	k2	11	NULL	5	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	k2	11	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`
 select a from t2;
 a
 pppp

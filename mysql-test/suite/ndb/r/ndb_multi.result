@@ -203,9 +203,7 @@ begin;
 select count(*) from t1;
 count(*)
 2
-ALTER OFFLINE TABLE t1 ADD COLUMN c int;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
 select a from t1 where b = 2;
 a
 2
@@ -220,3 +218,14 @@ SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
 count(1)
 0
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+drop table mysql.dummy;
+show create table mysql.dummy;
+Table	Create Table
+dummy	CREATE TABLE `dummy` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table mysql.dummy;

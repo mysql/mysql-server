@@ -953,7 +953,7 @@ void field_decimal::get_opt_type(String *answer,
                       (int) (max_length - (item->decimals ? 1 : 0)),
                       item->decimals);
   if (is_unsigned)
-    length= (uint) (strmov(buff+length, " UNSIGNED")- buff);
+    length= (uint) (my_stpcpy(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);
 }
 

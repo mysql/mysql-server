@@ -237,10 +237,12 @@ SET(TESTS
   my_bitmap
   my_error
   my_fileutils
+  my_murmur3
   my_regex
   mysys_base64
   mysys_lf
   mysys_my_atomic
+  mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
@@ -279,11 +281,15 @@ SET(SERVER_TESTS
   make_sortkey
   my_decimal
   opt_range
+  opt_ref
   opt_trace
   segfault
   sql_table
+  strings_utf8
   table_cache
   tc_log_mmap
+  thd_manager
+  unique
 )
 
 ## Merging tests into fewer executables saves *a lot* of

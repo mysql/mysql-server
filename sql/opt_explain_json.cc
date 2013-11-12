@@ -82,7 +82,6 @@ static const char K_POSSIBLE_KEYS[]=                "possible_keys";
 static const char K_QUERY_BLOCK[]=                  "query_block";
 static const char K_QUERY_SPECIFICATIONS[]=         "query_specifications";
 static const char K_REF[]=                          "ref";
-static const char K_ROWS[]=                         "rows";
 static const char K_SELECT_ID[]=                    "select_id";
 static const char K_SELECT_LIST_SUBQUERIES[]=       "select_list_subqueries";
 static const char K_TABLE[]=                        "table";
@@ -92,6 +91,18 @@ static const char K_UPDATE_VALUE_SUBQUERIES[]=      "update_value_subqueries";
 static const char K_USED_KEY_PARTS[]=               "used_key_parts";
 static const char K_USING_FILESORT[]=               "using_filesort";
 static const char K_USING_TMP_TABLE[]=              "using_temporary_table";
+
+static const char K_ROWS[]=                         "rows_examined_per_scan";
+static const char K_PREFIX_ROWS[]=                  "rows_produced_per_join";
+
+static const char K_COST_INFO[]=                    "cost_info";
+static const char K_READ_TIME[]=                    "read_cost";
+static const char K_PREFIX_COST[]=                  "prefix_cost";
+static const char K_COND_COST[]=                    "eval_cost";
+static const char K_SORT_COST[]=                    "sort_cost";
+static const char K_QUERY_COST[]=                   "query_cost";
+static const char K_DATA_SIZE_QUERY[]=              "data_read_per_join";
+static const char K_USED_COLUMNS[]=                 "used_columns";
 
 static const char *mod_type_name[]=
 {
@@ -525,7 +536,7 @@ public:
 };
 
 
-class table_base_ctx : virtual public context, public qep_row
+class table_base_ctx : virtual public context, virtual public qep_row
 {
 protected:
   bool is_hidden_id; //< if true, don't output K_SELECT_ID property
@@ -566,6 +577,14 @@ static void add_string_array(Opt_trace_context *json, const char *list_name,
   }
 }
 
+static void print_cost(char *buf, uint buf_len, double cost)
+{
+  if (cost < 100000000000000.0)
+    my_snprintf(buf, buf_len, "%.2f", cost);
+  else
+    my_snprintf(buf, buf_len, "%.14g", cost);
+}
+
 bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 {
   StringBuffer<64> buff;
@@ -599,6 +618,8 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 
   if (!col_rows.is_empty())
     obj->add(K_ROWS, col_rows.value);
+  if (!col_prefix_rows.is_empty())
+    obj->add(K_PREFIX_ROWS, col_prefix_rows.value);
 
   if (!col_filtered.is_empty())
     obj->add(K_FILTERED, col_filtered.value);
@@ -616,6 +637,31 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
         obj->add(json_extra_tags[e->tag], true);
     }
   }
+
+  if (!col_read_cost.is_empty())
+  {
+    Opt_trace_object cost_info(json, K_COST_INFO);
+    char buf[32];                         // 32 is enough for digits of a double
+
+    print_cost(buf, sizeof(buf), col_read_cost.value);
+    cost_info.add_utf8(K_READ_TIME, buf);
+
+    if (!col_cond_cost.is_empty())
+    {
+      print_cost(buf, sizeof(buf), col_cond_cost.value);
+      cost_info.add_utf8(K_COND_COST, buf);
+    }
+    if (!col_prefix_cost.is_empty())
+    {
+      print_cost(buf, sizeof(buf), col_prefix_cost.value);
+      cost_info.add_utf8(K_PREFIX_COST, buf);
+    }
+    if (!col_data_size_query.is_empty())
+      cost_info.add_utf8(K_DATA_SIZE_QUERY, col_data_size_query.str);
+  }
+
+  if (!col_used_columns.is_empty())
+    add_string_array(json, K_USED_COLUMNS, col_used_columns);
 
   if (!col_message.is_empty() && type != CTX_MESSAGE)
   {
@@ -995,7 +1041,7 @@ private:
   Node class for the CTX_JOIN context
 */
 
-class join_ctx : public unit_ctx
+class join_ctx : public unit_ctx, virtual public qep_row
 {
 protected:
   List<joinable_ctx> join_tabs; ///< hosted JOIN_TAB nodes
@@ -1019,6 +1065,7 @@ public:
     DBUG_ASSERT(!sort);
     sort= ctx;
   }
+  virtual qep_row *entry() { return this; }
 
   /**
     Associate a CTX_DERIVED node with its CTX_JOIN_TAB node
@@ -1032,6 +1079,7 @@ public:
 protected:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj);
   bool format_body_inner(Opt_trace_context *json, Opt_trace_object *obj);
+  virtual const char *get_cost_tag() { return K_QUERY_COST; }
 
 public:
   virtual bool format_nested_loop(Opt_trace_context *json);
@@ -1106,6 +1154,7 @@ protected:
 
     return join_ctx::format_body(json, obj);
   }
+  const char *get_cost_tag() { return K_SORT_COST; }
 };
 
 
@@ -1200,6 +1249,14 @@ bool join_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 {
   if (type == CTX_JOIN)
     obj->add(K_SELECT_ID, id(true));
+  if (!col_read_cost.is_empty())
+  {
+    char buf[32];                         // 32 is enough for digits of a double
+
+    Opt_trace_object cost_info(json, K_COST_INFO);
+    print_cost(buf, sizeof(buf), col_read_cost.value);
+    cost_info.add_utf8(get_cost_tag(), buf);
+  }
   // Print target table for INSERT/REPLACE SELECT outside of nested loop
   if (join_tabs.elements &&
       (join_tabs.head()->get_mod_type() == MT_INSERT ||
@@ -1505,7 +1562,26 @@ public:
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
-    return union_result->format(json) || format_unit(json);
+    if (union_result)
+      return (union_result->format(json)) || format_unit(json);
+    else
+    {
+      /*
+        UNION without temporary table. There is no union_result since
+        there is no fake_select_lex.
+      */
+      Opt_trace_object union_res(json, K_UNION_RESULT);
+      union_res.add(K_USING_TMP_TABLE, false);
+      Opt_trace_array specs(json, K_QUERY_SPECIFICATIONS);
+      List_iterator<context> it(query_specs);
+      context *ctx;
+      while ((ctx= it++))
+      {
+        if (ctx->format(json))
+          return true; /* purecov: inspected */
+      }
+      return format_unit(json);
+    }
   }
 
 public:

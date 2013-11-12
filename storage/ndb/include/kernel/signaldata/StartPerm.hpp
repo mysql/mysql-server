@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,9 @@
 
 #ifndef START_PERM_REQ_HPP
 #define START_PERM_REQ_HPP
+
+#define JAM_FILE_ID 204
+
 
 /**
  * This signal is sent by starting DIH to master DIH
@@ -75,4 +77,7 @@ private:
     InitialStartRequired = 320
   };
 };
+
+#undef JAM_FILE_ID
+
 #endif

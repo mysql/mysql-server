@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <ndb_global.h>
 #include <ndb_types.h>
+
+#define JAM_FILE_ID 129
+
 
 struct QueryNode  // Effectively used as a base class for QN_xxxNode
 {
@@ -374,5 +377,8 @@ struct QueryPattern
    */
   static Uint32 parent(Uint32 no) { return (P_PARENT << 16) | no;}
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

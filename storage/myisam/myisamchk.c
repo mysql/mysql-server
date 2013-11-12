@@ -1116,7 +1116,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   if ((param->testflag & T_AUTO_INC) ||
       ((param->testflag & T_REP_ANY) && info->s->base.auto_key))
     update_auto_increment_key(param, info,
-			      (my_bool) !test(param->testflag & T_AUTO_INC));
+			      (my_bool) !MY_TEST(param->testflag & T_AUTO_INC));
 
   if (!(param->testflag & T_DESCRIPT))
   {
@@ -1217,21 +1217,21 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
     }
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      my_stpcpy(buff,"crashed");
     else
     {
       if (share->state.open_count)
-	pos=strmov(pos,"open,");
+	pos=my_stpcpy(pos,"open,");
       if (share->state.changed & STATE_CHANGED)
-	pos=strmov(pos,"changed,");
+	pos=my_stpcpy(pos,"changed,");
       else
-	pos=strmov(pos,"checked,");
+	pos=my_stpcpy(pos,"checked,");
       if (!(share->state.changed & STATE_NOT_ANALYZED))
-	pos=strmov(pos,"analyzed,");
+	pos=my_stpcpy(pos,"analyzed,");
       if (!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
-	pos=strmov(pos,"optimized keys,");
+	pos=my_stpcpy(pos,"optimized keys,");
       if (!(share->state.changed & STATE_NOT_SORTED_PAGES))
-	pos=strmov(pos,"sorted index pages,");
+	pos=my_stpcpy(pos,"sorted index pages,");
       pos[-1]=0;				/* Remove extra ',' */
     }      
     printf("Status:              %s\n",buff);
@@ -1301,19 +1301,19 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
     pos=buff;
     if (keyseg->flag & HA_REVERSE_SORT)
       *pos++ = '-';
-    pos=strmov(pos,type_names[keyseg->type]);
+    pos=my_stpcpy(pos,type_names[keyseg->type]);
     *pos++ = ' ';
     *pos=0;
     if (keyinfo->flag & HA_PACK_KEY)
-      pos=strmov(pos,prefix_packed_txt);
+      pos=my_stpcpy(pos,prefix_packed_txt);
     if (keyinfo->flag & HA_BINARY_PACK_KEY)
-      pos=strmov(pos,bin_packed_txt);
+      pos=my_stpcpy(pos,bin_packed_txt);
     if (keyseg->flag & HA_SPACE_PACK)
-      pos=strmov(pos,diff_txt);
+      pos=my_stpcpy(pos,diff_txt);
     if (keyseg->flag & HA_BLOB_PART)
-      pos=strmov(pos,blob_txt);
+      pos=my_stpcpy(pos,blob_txt);
     if (keyseg->flag & HA_NULL_PART)
-      pos=strmov(pos,null_txt);
+      pos=my_stpcpy(pos,null_txt);
     *pos=0;
 
     printf("%-4d%-6ld%-3d %-8s%-21s",
@@ -1332,14 +1332,14 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
       pos=buff;
       if (keyseg->flag & HA_REVERSE_SORT)
 	*pos++ = '-';
-      pos=strmov(pos,type_names[keyseg->type]);
+      pos=my_stpcpy(pos,type_names[keyseg->type]);
       *pos++= ' ';
       if (keyseg->flag & HA_SPACE_PACK)
-	pos=strmov(pos,diff_txt);
+	pos=my_stpcpy(pos,diff_txt);
       if (keyseg->flag & HA_BLOB_PART)
-	pos=strmov(pos,blob_txt);
+	pos=my_stpcpy(pos,blob_txt);
       if (keyseg->flag & HA_NULL_PART)
-	pos=strmov(pos,null_txt);
+	pos=my_stpcpy(pos,null_txt);
       *pos=0;
       printf("    %-6ld%-3d         %-21s",
 	     (long) keyseg->start+1,keyseg->length,buff);
@@ -1391,13 +1391,13 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	type=share->rec[field].base_type;
       else
 	type=(enum en_fieldtype) share->rec[field].type;
-      end=strmov(buff,field_pack[type]);
+      end=my_stpcpy(buff,field_pack[type]);
       if (share->options & HA_OPTION_COMPRESS_RECORD)
       {
 	if (share->rec[field].pack_type & PACK_TYPE_SELECTED)
-	  end=strmov(end,", not_always");
+	  end=my_stpcpy(end,", not_always");
 	if (share->rec[field].pack_type & PACK_TYPE_SPACE_FIELDS)
-	  end=strmov(end,", no empty");
+	  end=my_stpcpy(end,", no empty");
 	if (share->rec[field].pack_type & PACK_TYPE_ZERO_FILL)
 	{
 	  sprintf(end,", zerofill(%d)",share->rec[field].space_length_bits);
@@ -1405,7 +1405,7 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	}
       }
       if (buff[0] == ',')
-	strmov(buff,buff+2);
+	my_stpcpy(buff,buff+2);
       int10_to_str((long) share->rec[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
       if (share->rec[field].null_bit)

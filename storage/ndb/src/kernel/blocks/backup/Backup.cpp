@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,9 @@
 
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
+
+#define JAM_FILE_ID 475
+
 
 static NDB_TICKS startTime;
 
@@ -144,7 +147,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
       count++;
 
       NodePtr node;
-      ndbrequire(c_nodes.seize(node));
+      ndbrequire(c_nodes.seizeFirst(node));
       
       node.p->nodeId = i;
       if(NdbNodeBitmask::get(conf->inactiveNodes, i)) {
@@ -554,6 +557,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   switch (signal->theData[0]) {
   case DumpStateOrd::BackupStatus:
   {
+    /* See code in BackupProxy.cpp as well */
     BlockReference result_ref = CMVMI_REF;
     if (signal->length() == 2)
       result_ref = signal->theData[1];
@@ -1423,7 +1427,7 @@ Backup::execBACKUP_REQ(Signal* signal)
    * Seize a backup record
    */
   BackupRecordPtr ptr;
-  c_backups.seize(ptr);
+  c_backups.seizeFirst(ptr);
   if (ptr.i == RNIL)
   {
     jam();
@@ -1842,7 +1846,7 @@ Backup::sendCreateTrig(Signal* signal,
     jam();
 
     TriggerPtr trigPtr;
-    if(!ptr.p->triggers.seize(trigPtr)) {
+    if (!ptr.p->triggers.seizeFirst(trigPtr)) {
       jam();
       ptr.p->m_gsn = GSN_START_BACKUP_REF;
       StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
@@ -2883,7 +2887,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
     return;
   }
 
-  if (SEND_BACKUP_COMPLETED_FLAG(ptr.p->flags))
+  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
   {
     BackupAbortRep* rep = (BackupAbortRep*)signal->getDataPtrSend();
     rep->backupId = ptr.p->backupId;
@@ -3060,10 +3064,11 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #ifdef DEBUG_ABORT
     dumpUsedResources();
 #endif
-    if(!c_backups.seizeId(ptr, ptrI)) {
+    if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
       ndbrequire(false); // If master has succeeded slave should succed
     }//if
+    c_backups.addFirst(ptr);
   }//if
 
   CRASH_INSERTION((10014));
@@ -3147,7 +3152,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       files[i].i = RNIL;
       continue;
     }
-    if(!ptr.p->files.seize(files[i])) {
+    if (!ptr.p->files.seizeFirst(files[i])) {
       jam();
       defineBackupRef(signal, ptr, 
 		      DefineBackupRef::FailedToAllocateFileRecord);
@@ -3286,6 +3291,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
              DictTabInfo::isFilegroup(tableType) ||
              DictTabInfo::isFile(tableType)
              || DictTabInfo::isHashMap(tableType)
+             || DictTabInfo::isForeignKey(tableType)
              ))
       {
         jam();
@@ -3299,7 +3305,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       }
 
       TablePtr tabPtr;
-      ptr.p->tables.seize(tabPtr);
+      ptr.p->tables.seizeLast(tabPtr);
       if(tabPtr.i == RNIL) {
         jam();
         defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateTables);
@@ -4445,6 +4451,7 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   dataBuffer.updateWritePtr(len);
   noOfBytes += (len << 2);
   m_bytes_total += (len << 2);
+  m_records_total += noOfOps;
   return true;
 }
 
@@ -4600,6 +4607,9 @@ Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
   ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_REF;
+
+  CRASH_INSERTION((10044));
+  CRASH_INSERTION((10045));
   
   BackupFragmentRef * ref = (BackupFragmentRef*)signal->getDataPtrSend();
   ref->backupId = ptr.p->backupId;
@@ -4877,6 +4887,14 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
       jam();
       closeFile(signal, ptr, filePtr);
     }
+
+    if (ptr.p->is_lcp())
+    {
+      jam();
+      /* Close file with error - will delete it */
+      closeFile(signal, ptr, filePtr);
+    }
+   
     return;
   }
 
@@ -4891,6 +4909,39 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   else if (sz > 0)
   {
     jam();
+#ifdef ERROR_INSERT
+    /* Test APPENDREF handling */
+    if (filePtr.p->fileType == BackupFormat::DATA_FILE)
+    {
+      if (ERROR_INSERTED(10045))
+      {
+        ndbout_c("BF_SCAN_THREAD = %u",
+                 (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
+      }
+
+      if ((ERROR_INSERTED(10044) &&
+           !(filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)) ||
+          (ERROR_INSERTED(10045) && 
+           (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)))
+      { 
+        jam();
+        ndbout_c("REFing on append to data file for table %u, fragment %u, "
+                 "BF_SCAN_THREAD running : %u",
+                 filePtr.p->tableId,
+                 filePtr.p->fragmentNo,
+                 filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
+        FsRef* ref = (FsRef *)signal->getDataPtrSend();
+        ref->userPointer = filePtr.i;
+        ref->errorCode = FsRef::fsErrInvalidParameters;
+        ref->osErrorCode = ~0;
+        /* EXEC DIRECT to avoid change in BF_SCAN_THREAD state */
+        EXECUTE_DIRECT(BACKUP, GSN_FSAPPENDREF, signal,
+                       3);
+        return;
+      }
+    }
+#endif
+
     ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
     FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
     req->filePointer   = filePtr.p->filePointer;
@@ -5658,9 +5709,9 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
     filePtr.p->pages.release();
   }//for
 
-  ptr.p->files.release();
-  ptr.p->tables.release();
-  ptr.p->triggers.release();
+  while (ptr.p->files.releaseFirst());
+  while (ptr.p->tables.releaseFirst());
+  while (ptr.p->triggers.releaseFirst());
   ptr.p->backupId = ~0;
   
   /*
@@ -5769,16 +5820,16 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     {
       jam();
       tabPtr.p->fragments.release();
-      ptr.p->tables.release();
+      while (ptr.p->tables.releaseFirst());
       ptr.p->errorCode = 0;
       // fall-through
     }
   }
   
-  if(!ptr.p->tables.seize(tabPtr) || !tabPtr.p->fragments.seize(1))
+  if (!ptr.p->tables.seizeLast(tabPtr) || !tabPtr.p->fragments.seize(1))
   {
     if(!tabPtr.isNull())
-      ptr.p->tables.release();
+      while (ptr.p->tables.releaseFirst());
     ndbrequire(false); // TODO
   }
   tabPtr.p->tableId = req.tableId;
@@ -5826,7 +5877,27 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   Uint32 fragmentId = fragPtr.p->fragmentId;
   
   tabPtr.p->fragments.release();
-  ptr.p->tables.release();
+  while (ptr.p->tables.releaseFirst());
+
+  if (ptr.p->errorCode != 0)
+  {
+    jam();
+    ndbout_c("Fatal : LCP Frag scan failed with error %u",
+             ptr.p->errorCode);
+    ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
+    
+    if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
+    {
+      jam();
+      /* No active scan thread to 'find' the file error.
+       * Scan is closed, so let's send backupFragmentRef 
+       * back to LQH now...
+       */
+      backupFragmentRef(signal, filePtr);
+    }
+    return;
+  }
+
   ptr.p->errorCode = 0;
   
   BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
@@ -5941,7 +6012,7 @@ Backup::execEND_LCPREQ(Signal* signal)
     TablePtr tabPtr;
     ptr.p->tables.first(tabPtr);
     tabPtr.p->fragments.release();
-    ptr.p->tables.release();
+    while (ptr.p->tables.releaseFirst());
     ptr.p->errorCode = 0;
   }
 

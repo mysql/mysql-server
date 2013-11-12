@@ -104,6 +104,13 @@ public:
   /* Get the configured maximum send buffer usage. */
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
 
+  Uint32 get_connect_count() { return m_connect_count; }
+
+  void inc_overload_count() { m_overload_count++; }
+  Uint32 get_overload_count() { return m_overload_count; }
+  void inc_slowdown_count() { m_slowdown_count++; }
+  Uint32 get_slowdown_count() { return m_slowdown_count; }
+
 protected:
   Transporter(TransporterRegistry &,
 	      TransporterType,
@@ -158,8 +165,12 @@ protected:
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
   Uint32 m_slowdown_limit;
+  void resetCounters();
   Uint64 m_bytes_sent;
   Uint64 m_bytes_received;
+  Uint32 m_connect_count;
+  Uint32 m_overload_count;
+  Uint32 m_slowdown_count;
 
 private:
 

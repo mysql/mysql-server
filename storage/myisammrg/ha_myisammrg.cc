@@ -1251,12 +1251,12 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 int ha_myisammrg::truncate()
 {
   int err= 0;
-  MYRG_TABLE *table;
+  MYRG_TABLE *my_table;
   DBUG_ENTER("ha_myisammrg::truncate");
 
-  for (table= file->open_tables; table != file->end_table; table++)
+  for (my_table= file->open_tables; my_table != file->end_table; my_table++)
   {
-    if ((err= mi_delete_all_rows(table->table)))
+    if ((err= mi_delete_all_rows(my_table->table)))
       break;
   }
 

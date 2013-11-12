@@ -101,7 +101,7 @@ bool update_user_table(THD *thd, TABLE *table,
                        const char *host, const char *user,
                        const char *new_password, uint new_password_len,
                        enum mysql_user_table_field password_field,
-                       bool password_expired, bool is_user_table_positioned);
+                       bool password_expired);
 int replace_db_table(TABLE *table, const char *db,
                      const LEX_USER &combo,
                      ulong rights, bool revoke_grant);

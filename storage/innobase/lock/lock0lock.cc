@@ -576,7 +576,7 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	const buf_block_t*	block)	/*!< in: buffer block */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -646,7 +646,7 @@ Checks that a transaction id is sensible, i.e., not in the future.
 #ifdef UNIV_DEBUG
 
 #else
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 #endif
 bool
 lock_check_trx_id_sanity(
@@ -766,7 +766,7 @@ lock_sys_create(
 	lock_sys_sz = sizeof(*lock_sys)
 		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
-	lock_sys = static_cast<lock_sys_t*>(mem_zalloc(lock_sys_sz));
+	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
 
 	void*	ptr = &lock_sys[1];
 
@@ -807,7 +807,15 @@ lock_sys_close(void)
 	mutex_destroy(&lock_sys->mutex);
 	mutex_destroy(&lock_sys->wait_mutex);
 
-	mem_free(lock_sys);
+	srv_slot_t*	slot = lock_sys->waiting_threads;
+
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+		if (slot->event != NULL) {
+			os_event_destroy(slot->event);
+		}
+	}
+
+	ut_free(lock_sys);
 
 	lock_sys = NULL;
 }
@@ -1943,7 +1951,7 @@ lock_rec_create(
 	any locks. See comment in trx_set_rw_mode explaining why this
 	conditional check is required in debug code. */
 	if (caller_owns_trx_mutex) {
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1982,9 +1990,9 @@ lock_rec_create(
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
 	lock->index = index;
 
-	lock->un_member.rec_lock.space = space;
-	lock->un_member.rec_lock.page_no = page_no;
-	lock->un_member.rec_lock.n_bits = n_bytes * 8;
+	lock->un_member.rec_lock.space = ib_uint32_t(space);
+	lock->un_member.rec_lock.page_no = ib_uint32_t(page_no);
+	lock->un_member.rec_lock.n_bits = ib_uint32_t(n_bytes * 8);
 
 	/* Reset to zero the bitmap which resides immediately after the
 	lock struct */
@@ -3693,7 +3701,7 @@ lock_table_create(
 	ut_ad(trx_mutex_own(trx));
 	ut_ad(!(type_mode & LOCK_CONV_BY_OTHER));
 
-	assert_trx_in_list(trx);
+	check_trx_state(trx);
 
 	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
 		++table->n_waiting_or_granted_auto_inc_locks;
@@ -3719,7 +3727,7 @@ lock_table_create(
 
 	}
 
-	lock->type_mode = type_mode | LOCK_TABLE;
+	lock->type_mode = ib_uint32_t(type_mode | LOCK_TABLE);
 	lock->trx = trx;
 
 	lock->un_member.tab_lock.table = table;
@@ -4964,19 +4972,7 @@ public:
 
 	const trx_t* current()
 	{
-		const trx_t* trx = reposition();
-
-		/* Check the read-only transaction list next. */
-
-		if (trx == 0 && m_trx_list == &trx_sys->rw_trx_list) {
-			m_index = 0;
-			m_lock_iter.rewind();
-			m_trx_list = &trx_sys->ro_trx_list;
-
-			return(reposition());
-		}
-
-		return(trx);
+		return(reposition());
 	}
 
 	/** Advance the transaction current ordinal value and reset the
@@ -5011,7 +5007,7 @@ private:
 		     trx != NULL && (i < m_index);
 		     trx = UT_LIST_GET_NEXT(trx_list, trx), ++i) {
 
-			assert_trx_in_list(trx);
+			check_trx_state(trx);
 		}
 
 		return(trx);
@@ -5209,7 +5205,7 @@ lock_print_info_all_transactions(
 
 	while ((trx = trx_iter.current()) != 0) {
 
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 
 		if (trx != prev_trx) {
 			lock_trx_print_wait_and_mvcc_state(file, trx);
@@ -5378,7 +5374,7 @@ lock_rec_queue_validate(
 		     lock != NULL;
 		     lock = lock_rec_get_next_const(heap_no, lock)) {
 
-			ut_a(trx_in_trx_list(lock->trx));
+			ut_ad(!trx_is_ac_nl_ro(lock->trx));
 
 			if (lock_get_wait(lock)) {
 				ut_a(lock_rec_has_to_wait_in_queue(lock));
@@ -5419,7 +5415,7 @@ lock_rec_queue_validate(
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
-		ut_a(trx_in_trx_list(lock->trx));
+		ut_ad(!trx_is_ac_nl_ro(lock->trx));
 
 		if (index) {
 			ut_a(lock->index == index);
@@ -5496,7 +5492,7 @@ loop:
 		}
 	}
 
-	ut_a(trx_in_trx_list(lock->trx));
+	ut_ad(!trx_is_ac_nl_ro(lock->trx));
 
 # ifdef UNIV_SYNC_DEBUG
 	/* Only validate the record queues when this thread is not
@@ -5557,8 +5553,7 @@ lock_validate_table_locks(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_sys_mutex_own());
 
-	ut_ad(trx_list == &trx_sys->rw_trx_list
-	      || trx_list == &trx_sys->ro_trx_list);
+	ut_ad(trx_list == &trx_sys->rw_trx_list);
 
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
@@ -5566,9 +5561,7 @@ lock_validate_table_locks(
 
 		const lock_t*	lock;
 
-		assert_trx_in_list(trx);
-		ut_ad((trx->read_only || trx->rsegs.m_redo.rseg == 0)
-		      == (trx_list == &trx_sys->ro_trx_list));
+		check_trx_state(trx);
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -5588,7 +5581,7 @@ lock_validate_table_locks(
 /*********************************************************************//**
 Validate record locks up to a limit.
 @return lock at limit or NULL if no more locks in the hash bucket */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const lock_t*
 lock_rec_validate(
 /*==============*/
@@ -5607,8 +5600,8 @@ lock_rec_validate(
 
 		ib_uint64_t	current;
 
-		ut_a(trx_in_trx_list(lock->trx));
-		ut_a(lock_get_type(lock) == LOCK_REC);
+		ut_ad(!trx_is_ac_nl_ro(lock->trx));
+		ut_ad(lock_get_type(lock) == LOCK_REC);
 
 		current = ut_ull_create(
 			lock->un_member.rec_lock.space,
@@ -5675,7 +5668,6 @@ lock_validate()
 	mutex_enter(&trx_sys->mutex);
 
 	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
-	ut_a(lock_validate_table_locks(&trx_sys->ro_trx_list));
 
 	/* Iterate over all the record locks and validate the locks. We
 	don't want to hog the lock_sys_t::mutex and the trx_sys_t::mutex.
@@ -6671,7 +6663,7 @@ lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	assert_trx_in_list(trx);
+	check_trx_state(trx);
 
 	if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 
@@ -6845,19 +6837,13 @@ lock_table_locks_lookup(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_sys_mutex_own());
 
-	ut_ad(trx_list == &trx_sys->rw_trx_list
-	      || trx_list == &trx_sys->ro_trx_list);
-
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		const lock_t*	lock;
 
-		assert_trx_in_list(trx);
-
-		ut_ad((trx->read_only || trx->rsegs.m_redo.rseg == 0)
-		      == (trx_list == &trx_sys->ro_trx_list));
+		check_trx_state(trx);
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -6883,9 +6869,9 @@ lock_table_locks_lookup(
 
 /*******************************************************************//**
 Check if there are any locks (table or rec) against table.
-@return TRUE if table has either table or record locks. */
+@return true if table has either table or record locks. */
 
-ibool
+bool
 lock_table_has_locks(
 /*=================*/
 	const dict_table_t*	table)	/*!< in: check if there are any locks
@@ -6903,7 +6889,6 @@ lock_table_has_locks(
 		mutex_enter(&trx_sys->mutex);
 
 		ut_ad(!lock_table_locks_lookup(table, &trx_sys->rw_trx_list));
-		ut_ad(!lock_table_locks_lookup(table, &trx_sys->ro_trx_list));
 
 		mutex_exit(&trx_sys->mutex);
 	}
@@ -7276,7 +7261,7 @@ DeadlockChecker::search()
 
 	ut_ad(m_start != NULL);
 	ut_ad(m_wait_lock != NULL);
-	assert_trx_in_list(m_wait_lock->trx);
+	check_trx_state(m_wait_lock->trx);
 	ut_ad(m_mark_start <= s_lock_mark_counter);
 
 	/* Look at the locks ahead of wait_lock in the lock queue. */
@@ -7427,7 +7412,7 @@ const trx_t*
 DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 {
 	ut_ad(lock_mutex_own());
-	assert_trx_in_list(trx);
+	check_trx_state(trx);
 	ut_ad(!srv_read_only_mode);
 
 	const trx_t*	victim_trx;
@@ -7481,7 +7466,7 @@ void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	byte*	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	/* We allocate one big chunk and then distribute it among
 	the rest of the elements. The allocated chunk pointer is always
@@ -7493,7 +7478,7 @@ lock_trx_alloc_locks(trx_t* trx)
 	}
 
 	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
 		trx->lock.table_pool.push_back(

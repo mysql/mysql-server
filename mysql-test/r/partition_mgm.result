@@ -82,7 +82,7 @@ alter table t1 reorganize partition p0 into
 subpartition sp01, subpartition sp02));
 ERROR HY000: Wrong number of subpartitions defined, mismatch with previous setting
 drop table t1;
-CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30)) ENGINE=MYISAM
 PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -123,7 +123,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 5 */
 DROP TABLE t1;
@@ -135,7 +135,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 5 */
 DROP TABLE t1;
@@ -146,7 +146,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 5 */
 DROP TABLE t1;
@@ -155,7 +155,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 5 */
 DROP TABLE t1;

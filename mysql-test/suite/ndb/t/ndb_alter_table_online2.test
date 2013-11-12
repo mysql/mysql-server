@@ -13,7 +13,6 @@
 # Purpose: Add testing for online alter w/partitions
 #          and some original test cleanup and additions
 ##############################################################
---source include/ndb_have_online_alter.inc
 -- source include/have_multi_ndb.inc
 # test uses mysqlslap, hence not in embedded
 -- source include/not_embedded.inc
@@ -89,7 +88,7 @@ while ($val)
 --echo
 
 # add a column online
-ALTER ONLINE TABLE t1 ADD b INT;
+ALTER TABLE t1 algorithm=inplace, ADD b INT;
 
 --echo
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,7 +129,7 @@ while ($val)
 --echo
 
 # add a column online
-ALTER ONLINE TABLE t1 ADD c INT;
+ALTER TABLE t1 algorithm=inplace, ADD c INT;
 
 --echo
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,14 +173,21 @@ while ($val)
 
 select * from t1;
 
+
+--echo
+--echo BUG#17400320 algorithm= is not supported for ALTER TABLE with <partition_options>
+--echo - thus disabling parts of this test
+if (0)
+{
 --echo
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo ~ Alter table t1 and try to add partitions
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
---error ER_NOT_SUPPORTED_YET
-ALTER ONLINE TABLE t1 PARTITION BY HASH(pk);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 algorithm=inplace, PARTITION BY HASH(pk);
+}
 
 --echo
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -210,9 +216,9 @@ SELECT * FROM t1;
 --connection con1
 SET lock_wait_timeout=1;
 --error ER_LOCK_WAIT_TIMEOUT
-ALTER ONLINE TABLE t1 ADD d INT;
+ALTER TABLE t1 algorithm=inplace, ADD d INT;
 --error ER_LOCK_WAIT_TIMEOUT
-ALTER ONLINE TABLE t1 ADD d INT;
+ALTER TABLE t1 algorithm=inplace, ADD d INT;
 SELECT * FROM t1;
 
 connection default;

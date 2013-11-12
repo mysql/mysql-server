@@ -694,6 +694,40 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
 void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
                          uint code, const char *format, ...);
 
+/**
+  Generates a warning that a feature is deprecated.
+
+  Using it as
+    push_deprecated_warn(thd, "BAD", "'GOOD'");
+  Will result in a warning:
+    "The syntax 'BAD' is deprecated and will be removed in a
+     future release. Please use 'GOOD' instead"
+
+  @param thd         Thread context. If NULL, warning is written
+                     to the error log, otherwise the warning is
+                     sent to the client.
+  @param old_syntax
+  @param new_syntax
+*/
+void push_deprecated_warn(THD *thd, const char *old_syntax,
+                          const char *new_syntax);
+
+/**
+  Generates a warning that a feature is deprecated.
+
+  Using it as
+    push_deprecated_warn_no_replacement(thd, "old");
+  Will result in a warning:
+    "The syntax 'old' is deprecated and will be removed in a
+     future release.
+
+  @param thd         Thread context. If NULL, warning is written
+                     to the error log, otherwise the warning is
+                     sent to the client.
+  @param old_syntax
+*/
+void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax);
+
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 uint32 convert_error_message(char *to, uint32 to_length,

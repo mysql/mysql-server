@@ -39,6 +39,7 @@ SET(tests
  pfs_account-oom
  pfs_host-oom
  pfs_user-oom
+ pfs_noop
  pfs
 )
 FOREACH(testname ${tests})

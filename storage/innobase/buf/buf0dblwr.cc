@@ -24,7 +24,6 @@ Created 2011/12/19
 *******************************************************/
 
 #include "ha_prototypes.h"
-
 #include "buf0dblwr.h"
 
 #ifdef UNIV_NONINL
@@ -128,7 +127,7 @@ buf_dblwr_init(
 	ulint	buf_size;
 
 	buf_dblwr = static_cast<buf_dblwr_t*>(
-		mem_zalloc(sizeof(buf_dblwr_t)));
+		ut_zalloc(sizeof(buf_dblwr_t)));
 
 	/* There are two blocks of same size in the doublewrite
 	buffer. */
@@ -153,7 +152,7 @@ buf_dblwr_init(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
 
 	buf_dblwr->in_use = static_cast<bool*>(
-		mem_zalloc(buf_size * sizeof(bool)));
+		ut_zalloc(buf_size * sizeof(bool)));
 
 	buf_dblwr->write_buf_unaligned = static_cast<byte*>(
 		ut_malloc((1 + buf_size) * UNIV_PAGE_SIZE));
@@ -163,7 +162,7 @@ buf_dblwr_init(
 			 UNIV_PAGE_SIZE));
 
 	buf_dblwr->buf_block_arr = static_cast<buf_page_t**>(
-		mem_zalloc(buf_size * sizeof(void*)));
+		ut_zalloc(buf_size * sizeof(void*)));
 }
 
 /****************************************************************//**
@@ -574,14 +573,14 @@ buf_dblwr_free(void)
 	ut_free(buf_dblwr->write_buf_unaligned);
 	buf_dblwr->write_buf_unaligned = NULL;
 
-	mem_free(buf_dblwr->buf_block_arr);
+	ut_free(buf_dblwr->buf_block_arr);
 	buf_dblwr->buf_block_arr = NULL;
 
-	mem_free(buf_dblwr->in_use);
+	ut_free(buf_dblwr->in_use);
 	buf_dblwr->in_use = NULL;
 
 	mutex_free(&buf_dblwr->mutex);
-	mem_free(buf_dblwr);
+	ut_free(buf_dblwr);
 	buf_dblwr = NULL;
 }
 

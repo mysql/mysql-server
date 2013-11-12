@@ -375,6 +375,12 @@ public class Utility {
                     // the xx byte is signed, so shift left 16 and arithmetic shift right 40
                     packedTime |= ((value & ooooffoooooooooo) << 16) >> 40;
                     return unpackTime((int)packedTime);
+                case Datetime2:
+                    return unpackDatetime2(storeColumn.getPrecision(), value);
+                case Timestamp2:
+                    return unpackTimestamp2(storeColumn.getPrecision(), value);
+                case Time2:
+                    return unpackTime2(storeColumn.getPrecision(), value);
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -504,6 +510,21 @@ public class Utility {
                     result.putInt((int)(value/1000L));
                     result.flip();
                     return result;
+                case Datetime2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packDatetime2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
+                case Time2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packTime2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
+                case Timestamp2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packTimestamp2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -543,6 +564,15 @@ public class Utility {
                     // timestamp is an int so put the value into the high bytes
                     // the original is 00000000tttttttt and the result is tttttttt00000000
                     return (value/1000L) << 32;
+                case Datetime2:
+                    // value is in milliseconds since the epoch
+                    return packDatetime2(storeColumn.getPrecision(), value);
+                case Time2:
+                    // value is in milliseconds since the epoch
+                    return packTime2(storeColumn.getPrecision(), value);
+                case Timestamp2:
+                    // value is in milliseconds since the epoch
+                    return packTimestamp2(storeColumn.getPrecision(), value);
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -703,6 +733,15 @@ public class Utility {
                     return unpackDate((int)(value));
                 case Time:
                     return unpackTime((int)(value));
+                case Datetime2:
+                    // datetime2 is stored in big endian format so need to swap the input
+                    return unpackDatetime2(storeColumn.getPrecision(), swap(value));
+                case Timestamp2:
+                    // timestamp2 is stored in big endian format so need to swap the input
+                    return unpackTimestamp2(storeColumn.getPrecision(), swap(value));
+                case Time2:
+                    // time2 is stored in big endian format so need to swap the input
+                    return unpackTime2(storeColumn.getPrecision(), swap(value));
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -818,6 +857,21 @@ public class Utility {
                     put3byteInt(result, packTime(value));
                     result.flip();
                     return result;
+                case Datetime2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packDatetime2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
+                case Time2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packTime2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
+                case Timestamp2:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putLong(packTimestamp2(storeColumn.getPrecision(), value));
+                    result.flip();
+                    return result;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -838,6 +892,18 @@ public class Utility {
                     return packDate(value);
                 case Time:
                     return packTime(value);
+                case Datetime2:
+                    // value is in milliseconds since the epoch
+                    // datetime2 is in big endian format so need to swap the result 
+                    return swap(packDatetime2(storeColumn.getPrecision(), value));
+                case Time2:
+                    // value is in milliseconds since the epoch
+                    // time2 is in big endian format so need to swap the result 
+                    return swap(packTime2(storeColumn.getPrecision(), value));
+                case Timestamp2:
+                    // value is in milliseconds since the epoch
+                    // timestamp2 is in big endian format so need to swap the result 
+                    return swap(packTimestamp2(storeColumn.getPrecision(), value));
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -1319,6 +1385,200 @@ public class Utility {
         long packedDatetime = (year * 10000000000L) + (month * 100000000L) + (day * 1000000L)
                 + (hour * 10000L) + (minute * 100) + second;
         return packedDatetime;
+    }
+
+    /** Pack milliseconds since the Epoch into a long in database Datetime2 format.
+     * Reference: http://dev.mysql.com/doc/internals/en/date-and-time-data-type-representation.html
+     * The packed datetime2 integer part is:
+     *  1 bit  sign (1= non-negative, 0= negative) [ALWAYS POSITIVE IN MYSQL 5.6]
+     * 17 bits year*13+month (year 0-9999, month 1-12)
+     *  5 bits day           (0-31)
+     *  5 bits hour          (0-23)
+     *  6 bits minute        (0-59)
+     *  6 bits second        (0-59)
+     *  ---------------------------
+     * 40 bits = 5 bytes
+     * Calendar month is 0 origin so add 1 to get packed month
+     * @param millis milliseconds since the Epoch
+     * @return the long in big endian packed Datetime2 format
+     */
+    protected static long packDatetime2(int precision, long millis) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.setTimeInMillis(millis);
+        long year = calendar.get(Calendar.YEAR);
+        long month = calendar.get(Calendar.MONTH);
+        long day = calendar.get(Calendar.DATE);
+        long hour = calendar.get(Calendar.HOUR);
+        long minute = calendar.get(Calendar.MINUTE);
+        long second = calendar.get(Calendar.SECOND);
+        long milliseconds = calendar.get(Calendar.MILLISECOND);
+        long packedMillis = packFractionalSeconds(precision, milliseconds);
+        long result =         0x8000000000000000L  // 1 bit sign
+                + (year     * 0x0003400000000000L) // 17 bits year * 13
+                + ((month+1)* 0x0000400000000000L) //         + month
+                + (day      * 0x0000020000000000L) // 5 bits day 
+                + (hour     * 0x0000001000000000L) // 5 bits hour
+                + (minute   * 0x0000000040000000L) // 6 bits minute
+                + (second   * 0x0000000001000000L) // 6 bits second
+                + packedMillis;        // fractional microseconds
+        return result;
+    }
+
+    protected static long unpackDatetime2(int precision, long packedDatetime2) {
+        int yearMonth = (int)((packedDatetime2 & 0x7FFFC00000000000L) >>> 46); // 17 bits year * 13 + month
+        int year = yearMonth / 13;
+        int month= (yearMonth % 13) - 1; // calendar month is 0-11
+        int day =       (int)((packedDatetime2 & 0x00003E0000000000L) >>> 41); // 5 bits day
+        int hour =      (int)((packedDatetime2 & 0x000001F000000000L) >>> 36); // 5 bits hour
+        int minute =    (int)((packedDatetime2 & 0x0000000FC0000000L) >>> 30); // 6 bits minute
+        int second =    (int)((packedDatetime2 & 0x000000003F000000L) >>> 24); // 6 bits second
+        int milliseconds = unpackFractionalSeconds(precision, (int)(packedDatetime2 & 0x0000000000FFFFFFL));
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.set(Calendar.YEAR, year);
+        calendar.set(Calendar.MONTH, month);
+        calendar.set(Calendar.DATE, day);
+        calendar.set(Calendar.HOUR, hour);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, second);
+        calendar.set(Calendar.MILLISECOND, milliseconds);
+        return calendar.getTimeInMillis();
+    }
+
+    /** Convert milliseconds to packed time2 format
+     * Fractional format
+
+     * FSP      nBytes MaxValue MaxValueHex
+     * ---      -----  -------- -----------
+     * FSP=1    1byte  9                 9
+     * FSP=2    1byte  99               63
+
+     * FSP=3    2bytes 999             3E7
+     * FSP=4    2bytes 9999           270F
+
+     * FSP=5    3bytes 99999         1869F
+     * FSP=6    3bytes 999999        F423F
+
+     * @param precision number of digits of precision, 0 to 6
+     * @param milliseconds
+     * @return
+     */
+    protected static long packFractionalSeconds(int precision, long milliseconds) {
+        switch (precision) {
+            case 0:
+                if (milliseconds > 0) throwOnTruncation();
+                return 0L;
+            case 1: // possible truncation
+                if (milliseconds % 100 != 0) throwOnTruncation();
+                return (milliseconds / 100L) * 0x0000000000010000L;
+            case 2: // possible truncation
+                if (milliseconds % 10 != 0) throwOnTruncation();
+                return (milliseconds / 10L)  * 0x0000000000010000L;
+            case 3:
+                return milliseconds * 0x0000000000000100L;
+            case 4:
+                return milliseconds * 0x0000000000000A00L; // milliseconds * 10
+            case 5:
+                return milliseconds * 0x0000000000000064L; // milliseconds * 100
+            case 6:
+                return milliseconds * 0x00000000000003E8L; // milliseconds * 1000
+            default:
+                return 0L;
+        }
+    }
+
+    protected static int unpackFractionalSeconds(int precision, int fraction) {
+        switch (precision) {
+            case 0:
+                return 0;
+            case 1:
+                return (fraction & 0x00FF0000) * 100;
+            case 2:
+                return (fraction & 0x00FF0000) * 10;
+            case 3:
+                return  fraction & 0x00FFFF00;
+            case 4:
+                return (fraction & 0x00FFFF00) / 10;
+            case 5:
+                return  fraction / 100;
+            case 6:
+                return  fraction / 1000;
+            default:
+                return 0;
+        }
+    }
+
+    /** Throw an exception if truncation is not allowed
+     * Not currently implemented.
+     */
+    protected static void throwOnTruncation() {
+    }
+
+    /** Pack milliseconds since the Epoch into a long in database Time2 format.
+     *       1 bit sign (1= non-negative, 0= negative)
+     *       1 bit unused (reserved for INTERVAL type)
+     *      10 bits hour   (0-838)
+     *       6 bits minute (0-59) 
+     *       6 bits second (0-59) 
+     *       --------------------
+     *       24 bits = 3 bytes
+
+     * @param millis milliseconds since the Epoch
+     * @return the long in big endian packed Time format
+     */
+    protected static long packTime2(int precision, long millis) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.setTimeInMillis(millis);
+        long hour = calendar.get(Calendar.HOUR);
+        long minute = calendar.get(Calendar.MINUTE);
+        long second = calendar.get(Calendar.SECOND);
+        long milliseconds = calendar.get(Calendar.MILLISECOND);
+        long packedMillis = packFractionalSeconds(precision, milliseconds);
+        long result =     0x8000000000000000L |
+                (hour   * 0x0010000000000000L) |
+                (minute * 0x0000400000000000L) |
+                (second * 0x0000010000000000L) |
+                packedMillis << 16;
+        return result;
+    }
+
+    protected static long unpackTime2(int precision, long value) {
+        int hour =     (int)((value & 0x3FF0000000000000L) >>> 52);
+        int minute =   (int)((value & 0x000FC00000000000L) >>> 46);
+        int second =   (int)((value & 0x00003F0000000000L) >>> 40);
+        int fraction = (int)((value & 0x000000FFFFFF0000L) >>> 16);        
+           
+        int milliseconds = unpackFractionalSeconds(precision, fraction);
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.set(Calendar.HOUR, hour);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, second);
+        calendar.set(Calendar.MILLISECOND, milliseconds);
+        return calendar.getTimeInMillis();
+    }
+
+    /** Pack milliseconds since the Epoch into a long in database Timestamp2 format.
+     * First four bytes are Unix time format: seconds since the epoch;
+     * Fractional part is 0-3 bytes
+     * @param millis milliseconds since the Epoch
+     * @return the long in big endian packed Timestamp2 format
+     */
+    protected static long packTimestamp2(int precision, long millis) {
+        long milliseconds = millis % 1000; // extract milliseconds
+        long seconds = millis/1000; // truncate to seconds
+        long packedMillis = packFractionalSeconds(precision, milliseconds);
+        long result = (seconds << 32) +
+                (packedMillis << 8);
+        return result;
+    }
+
+    protected static long unpackTimestamp2(int precision, long value) {
+        long result = ((value >>> 32) * 1000) +
+                (unpackFractionalSeconds(precision, (int)value) >>> 8) ;
+        return result;
     }
 
     /** Convert the byte[] into a String to be used for logging and debugging.

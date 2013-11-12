@@ -27,8 +27,7 @@
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
 
-static void default_reporter(enum loglevel level, const char *format, ...);
-my_error_reporter my_getopt_error_reporter= &default_reporter;
+my_error_reporter my_getopt_error_reporter= &my_message_local;
 
 static bool findopt(char *, uint, const struct my_option **);
 my_bool getopt_compare_strings(const char *, const char *, uint);
@@ -73,21 +72,6 @@ my_bool my_getopt_print_errors= 1;
 */
 
 my_bool my_getopt_skip_unknown= 0;
-
-static void default_reporter(enum loglevel level,
-                             const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  if (level == WARNING_LEVEL)
-    fprintf(stderr, "%s", "Warning: ");
-  else if (level == INFORMATION_LEVEL)
-    fprintf(stderr, "%s", "Info: ");
-  vfprintf(stderr, format, args);
-  va_end(args);
-  fputc('\n', stderr);
-  fflush(stderr);
-}
 
 static my_getopt_value getopt_get_addr;
 
@@ -357,19 +341,17 @@ int my_handle_options(int *argc, char ***argv,
 	    {
 	      if (my_getopt_print_errors)
                 my_getopt_error_reporter(option_is_loose ? 
-                                           WARNING_LEVEL : ERROR_LEVEL,
-                                         "%s: unknown variable '%s'",
-                                         my_progname, cur_arg);
+                                         WARNING_LEVEL : ERROR_LEVEL,
+                                         "unknown variable '%s'", cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
 	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(option_is_loose ? 
-                                           WARNING_LEVEL : ERROR_LEVEL,
-                                         "%s: unknown option '--%s'", 
-                                         my_progname, cur_arg);
+                my_getopt_error_reporter(option_is_loose ?
+                                         WARNING_LEVEL : ERROR_LEVEL,
+                                         "unknown option '--%s'", cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_OPTION;
 	    }
@@ -383,9 +365,9 @@ int my_handle_options(int *argc, char ***argv,
 	if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
 	{
 	  if (my_getopt_print_errors)
-	    fprintf(stderr,
-		    "%s: %s: Option '%s' used, but is disabled\n", my_progname,
-		    option_is_loose ? "WARNING" : "ERROR", opt_str);
+            my_message_local(option_is_loose ? WARNING_LEVEL : ERROR_LEVEL,
+                             "%s: Option '%s' used, but is disabled",
+                             my_progname, opt_str);
 	  if (option_is_loose)
 	  {
 	    (*argc)--;
@@ -395,7 +377,7 @@ int my_handle_options(int *argc, char ***argv,
 	}
         error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
-	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
+	  (*getopt_get_addr)(key_name, strlen(key_name), optp, &error) :
           optp->value;
         if (error)
           return error;
@@ -486,9 +468,9 @@ int my_handle_options(int *argc, char ***argv,
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
 	      {
 		if (my_getopt_print_errors)
-		  fprintf(stderr,
-			  "%s: ERROR: Option '-%c' used, but is disabled\n",
-			  my_progname, optp->id);
+                  my_message_local(ERROR_LEVEL,
+                                   "%s: Option '-%c' used, but is disabled",
+                                   my_progname, optp->id);
 		return EXIT_OPTION_DISABLED;
 	      }
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
@@ -634,9 +616,8 @@ static void print_cmdline_password_warning()
 
   if (!password_warning_announced)
   {
-    fprintf(stderr, "Warning: Using a password on the command line "
-            "interface can be insecure.\n");
-    (void) fflush(stderr);
+    my_message_local(WARNING_LEVEL, "Using a password on the command line "
+                                    "interface can be insecure.");
     password_warning_announced= TRUE;
   }
 }
@@ -945,9 +926,9 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
     num*= 1024L * 1024L * 1024L;
   else if (*endchar)
   {
-    fprintf(stderr,
-	    "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
-	    *endchar, option_name, argument);
+    my_message_local(ERROR_LEVEL,
+                     "Unknown suffix '%c' used for variable '%s' (value '%s')",
+                     *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
@@ -987,9 +968,9 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
     num*= 1024L * 1024L * 1024L;
   else if (*endchar)
   {
-    fprintf(stderr,
-            "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
-            *endchar, option_name, argument);
+    my_message_local(ERROR_LEVEL,
+                     "Unknown suffix '%c' used for variable '%s' (value '%s')",
+                     *endchar, option_name, argument);
     *error= 1;
     return 0;
   }

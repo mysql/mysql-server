@@ -224,7 +224,7 @@ mem_pool_create(
 
 	pool = static_cast<mem_pool_t*>(ut_malloc(sizeof(mem_pool_t)));
 
-	pool->buf = static_cast<byte*>(ut_malloc_low(size, TRUE));
+	pool->buf = static_cast<byte*>(ut_malloc(size));
 	pool->size = size;
 
 	mutex_create("mem_pool", &pool->mutex);

@@ -331,16 +331,6 @@ Rsa_authentication_keys::read_rsa_keys()
 #endif /* HAVE_OPENSSL */
 
 /**
- Sets the default default auth plugin value if no option was specified.
-*/
-void init_default_auth_plugin()
-{
-  default_auth_plugin_name.str= native_password_plugin_name.str;
-  default_auth_plugin_name.length= native_password_plugin_name.length;
-
-}
-
-/**
  Initialize default authentication plugin based on command line options or
  configuration file settings.
  
@@ -512,17 +502,14 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip);      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip);
   }
   else
   {
@@ -534,18 +521,15 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
                                    passwd_used ? ER(ER_YES) : ER(ER_NO));
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip,
-                        passwd_used ? ER(ER_YES) : ER(ER_NO));      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip,
+                          passwd_used ? ER(ER_YES) : ER(ER_NO));
   }
 }
 
@@ -555,7 +539,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
   after the connection was established
 
   Packet format:
-   
+
     Bytes       Content
     -----       ----
     1           protocol version (always 10)
@@ -637,7 +621,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     data_len= SCRAMBLE_LENGTH;
   }
 
-  end= strnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
+  end= my_stpnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
   int4store((uchar*) end, mpvio->thread_id);
   end+= 4;
 
@@ -990,7 +974,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
+  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs))
     sql_print_warning("Connection attributes of length %lu were truncated",
                       (unsigned long) length);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1046,9 +1030,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        if (log_warnings)
-          sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
-                            acl_user->ssl_cipher, SSL_get_cipher(ssl));
+        sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
+                              acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
       }
     }
@@ -1063,9 +1046,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 issuer mismatch: should be '%s' "
-                            "but is '%s'", acl_user->x509_issuer, ptr);
+        sql_print_information("X509 issuer mismatch: should be '%s' "
+                              "but is '%s'", acl_user->x509_issuer, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
@@ -1080,8 +1062,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
+        sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
@@ -1260,7 +1241,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
-    return test(packet_error);
+    return MY_TEST(packet_error);
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 
@@ -1886,6 +1867,13 @@ wrap_plguin_data_into_proper_command(NET *net,
   return net_write_command(net, 1, (uchar *) "", 0, packet, packet_len);
 }
 
+/*
+  Note: The following functions are declared inside extern "C" because
+  they are used to initialize C structure MPVIO (see
+  server_mpvio_initialize()).
+*/
+
+extern "C" {
 
 /**
   vio->write_packet() callback method for server authentication plugins
@@ -2035,6 +2023,7 @@ static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
   mpvio_info(mpvio->net->vio, info);
 }
 
+} // extern "C"
 
 static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
                         MPVIO_EXT *mpvio)
@@ -2052,11 +2041,6 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
     plugin= old_password_plugin;
   else
   {
-    if (auth_plugin_name->length == 0)
-    {
-      auth_plugin_name->str= default_auth_plugin_name.str;
-      auth_plugin_name->length= default_auth_plugin_name.length;
-    }
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;
@@ -2399,8 +2383,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      if (log_warnings > 1)
-        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -2410,7 +2393,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     /* Don't allow the user to connect if he has done too many queries */
     if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn || 
+         acl_user->user_resource.user_conn ||
          global_system_variables.max_user_connections) &&
         get_or_create_user_conn(thd,
           (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
@@ -2446,10 +2429,9 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
 #ifndef EMBEDDED_LIBRARY
-    if (!Connection_handler_manager::valid_connection_count())
+    if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
-      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

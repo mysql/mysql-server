@@ -17,15 +17,14 @@
 
 #include "connection_handler_impl.h"
 
-#include "my_pthread.h"                  // pthread_handler_t
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "global_threads.h"              // LOCK_thread_count
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
+#include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release
 #include "sql_class.h"                   // THD
-#include "sql_connect.h"                 // init_new_connection_handler_thread
+#include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
 
 
@@ -35,17 +34,71 @@ ulong Per_thread_connection_handler::slow_launch_threads = 0;
 ulong Per_thread_connection_handler::max_blocked_pthreads= 0;
 std::list<Channel_info*> *Per_thread_connection_handler
                             ::waiting_channel_info_list= NULL;
+mysql_mutex_t Per_thread_connection_handler::LOCK_thread_cache;
+mysql_cond_t Per_thread_connection_handler::COND_thread_cache;
+mysql_cond_t Per_thread_connection_handler::COND_flush_thread_cache;
 
 /*
   Number of pthreads currently being woken up to handle new connections.
-  Protected by LOCK_thread_count.
+  Protected by LOCK_thread_cache.
 */
 static uint wake_pthread= 0;
 /*
   Set if we are trying to kill of pthreads in the thread cache.
-  Protected by LOCK_thread_count.
+  Protected by LOCK_thread_cache.
 */
 static uint kill_blocked_pthreads_flag= 0;
+
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_thread_cache;
+
+static PSI_mutex_info all_per_thread_mutexes[]=
+{
+  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL}
+};
+
+static PSI_cond_key key_COND_thread_cache;
+static PSI_cond_key key_COND_flush_thread_cache;
+
+static PSI_cond_info all_per_thread_conds[]=
+{
+  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
+  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
+};
+#endif
+
+
+void Per_thread_connection_handler::init()
+{
+#ifdef HAVE_PSI_INTERFACE
+  int count= array_elements(all_per_thread_mutexes);
+  mysql_mutex_register("sql", all_per_thread_mutexes, count);
+
+  count= array_elements(all_per_thread_conds);
+  mysql_cond_register("sql", all_per_thread_conds, count);
+#endif
+
+  mysql_mutex_init(key_LOCK_thread_cache, &LOCK_thread_cache,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
+  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
+  waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
+  DBUG_ASSERT(waiting_channel_info_list != NULL);
+}
+
+
+void Per_thread_connection_handler::destroy()
+{
+  if (waiting_channel_info_list != NULL)
+  {
+    delete waiting_channel_info_list;
+    waiting_channel_info_list= NULL;
+    mysql_mutex_destroy(&LOCK_thread_cache);
+    mysql_cond_destroy(&COND_thread_cache);
+    mysql_cond_destroy(&COND_flush_thread_cache);
+  }
+}
 
 
 /**
@@ -59,7 +112,7 @@ static uint kill_blocked_pthreads_flag= 0;
 Channel_info* Per_thread_connection_handler::block_until_new_connection()
 {
   Channel_info *new_conn= NULL;
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_cache);
   if (blocked_pthread_count < max_blocked_pthreads &&
       !kill_blocked_pthreads_flag)
   {
@@ -74,18 +127,10 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
     DBUG_POP();
     DBUG_ASSERT( ! _db_is_pushed_());
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed,
-      before blocking this pthread (blocked on COND_thread_cache).
-    */
-    PSI_THREAD_CALL(delete_current_thread)();
-#endif
-
     // Block pthread
     blocked_pthread_count++;
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
-      mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
+      mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
     if (kill_blocked_pthreads_flag)
@@ -99,7 +144,7 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
       DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
     }
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_cache);
   return new_conn;
 }
 
@@ -119,15 +164,14 @@ static THD* init_new_thd(Channel_info *channel_info)
   THD *thd= channel_info->create_thd();
   if (thd == NULL)
   {
-    connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     delete channel_info;
-    goto error;
+    return NULL;
   }
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.pseudo_thread_id=
+    Global_THD_manager::get_instance()->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
@@ -158,7 +202,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     close_connection(thd, ER_OUT_OF_RESOURCES);
     thd->release_resources();
     delete thd;
-    goto error;
+    return NULL;
   }
 
   /*
@@ -168,11 +212,6 @@ static THD* init_new_thd(Channel_info *channel_info)
   */
   thd->mysys_var->abort= 0;
   return thd;
-
-error:
-  inc_aborted_connects();
-  dec_connection_count();
-  return NULL;
 }
 
 
@@ -192,33 +231,55 @@ error:
 
 pthread_handler_t handle_connection(void *arg)
 {
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  Connection_handler_manager *handler_manager=
+    Connection_handler_manager::get_instance();
   Channel_info* channel_info= static_cast<Channel_info*>(arg);
-  THD *thd= NULL;
+  bool pthread_reused __attribute__((unused))= false;
 
-  if (init_new_connection_handler_thread())
+  if (my_thread_init())
   {
+    connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
-    inc_aborted_connects();
-    dec_connection_count();
+    handler_manager->inc_aborted_connects();
+    Connection_handler_manager::dec_connection_count();
     delete channel_info;
-    goto end_thread;
+    pthread_exit(0);
+    return NULL;
   }
-
-  thd= init_new_thd(channel_info);
-  if (thd == NULL)
-    goto end_thread;
 
   for (;;)
   {
+    THD *thd= init_new_thd(channel_info);
+    if (thd == NULL)
+    {
+      connection_errors_internal++;
+      handler_manager->inc_aborted_connects();
+      Connection_handler_manager::dec_connection_count();
+      break; // We are out of resources, no sense in continuing.
+    }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (pthread_reused)
+    {
+      /*
+        Reusing existing pthread:
+        Create new instrumentation for the new THD job,
+        and attach it to this running pthread.
+      */
+      PSI_thread *psi= PSI_THREAD_CALL(new_thread)
+        (key_thread_one_connection, thd, thd->thread_id);
+      PSI_THREAD_CALL(set_thread)(psi);
+    }
+#endif
+
     mysql_thread_set_psi_id(thd->thread_id);
     mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
-    mysql_mutex_lock(&LOCK_thread_count);
-    add_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    thd_manager->add_thd(thd);
 
     if (thd_prepare_connection(thd))
-      inc_aborted_connects();
+      handler_manager->inc_aborted_connects();
     else
     {
       while (thd_is_connection_alive(thd))
@@ -230,7 +291,24 @@ pthread_handler_t handle_connection(void *arg)
       end_connection(thd);
     }
     close_connection(thd);
-    Connection_handler_manager::get_instance()->remove_connection(thd);
+    Connection_handler_manager::dec_connection_count();
+
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->release_resources();
+
+    // Clean up errors now, before possibly waiting for a new connection.
+    ERR_remove_state(0);
+
+    thd_manager->remove_thd(thd);
+    delete thd;
+    my_pthread_set_THR_THD(0);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    /*
+      Delete the instrumentation for the job that just completed.
+    */
+    PSI_THREAD_CALL(delete_current_thread)();
+#endif
 
     if (abort_loop) // Server is shutting down so end the pthread.
       break;
@@ -238,26 +316,10 @@ pthread_handler_t handle_connection(void *arg)
     channel_info= Per_thread_connection_handler::block_until_new_connection();
     if (channel_info == NULL)
       break;
-
-    thd= init_new_thd(channel_info);
-    if (thd == NULL)
-      break;
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Reusing existing pthread:
-      Create new instrumentation for the new THD job,
-      and attach it to this running pthread.
-    */
-    PSI_thread *psi= PSI_THREAD_CALL(new_thread)
-      (key_thread_one_connection, thd, thd->thread_id);
-    PSI_THREAD_CALL(set_thread)(psi);
-#endif
+    pthread_reused= true;
   }
 
-end_thread:
   my_thread_end();
-  mysql_cond_broadcast(&COND_thread_count);
   pthread_exit(0);
   return NULL;
 }
@@ -265,12 +327,12 @@ end_thread:
 
 void Per_thread_connection_handler::kill_blocked_pthreads()
 {
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_cache);
   kill_blocked_pthreads_flag++;
   while (Per_thread_connection_handler::blocked_pthread_count)
   {
     mysql_cond_broadcast(&COND_thread_cache);
-    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_count);
+    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
   }
   kill_blocked_pthreads_flag--;
 
@@ -283,8 +345,7 @@ void Per_thread_connection_handler::kill_blocked_pthreads()
     channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
     delete channel_info;
   }
-
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_cache);
 }
 
 
@@ -293,7 +354,7 @@ bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
 {
   bool res= true;
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_cache);
   if (Per_thread_connection_handler::blocked_pthread_count > wake_pthread)
   {
     DBUG_PRINT("info",("waiting_channel_info_list->push %p", channel_info));
@@ -302,7 +363,7 @@ bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
     mysql_cond_signal(&COND_thread_cache);
     res= false;
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_cache);
 
   return res;
 }
@@ -314,10 +375,6 @@ bool Per_thread_connection_handler::add_connection(Channel_info* channel_info)
   pthread_t id;
 
   DBUG_ENTER("Per_thread_connection_handler::add_connection");
-  /*
-    TBD  Need to be refactored and access to caching functionality
-    via class interface (WL#6407 is currently doing this).
-  */
 
   // Simulate thread creation for test case before we check thread cache
   DBUG_EXECUTE_IF("fail_thread_create", error= 1; goto handle_error;);
@@ -343,34 +400,13 @@ handle_error:
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD,
                                                error, true);
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 
-  inc_thread_created();
+  Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info",("Thread created"));
   DBUG_RETURN(false);
-}
-
-
-void Per_thread_connection_handler::remove_connection(THD* thd)
-{
-  thd->get_stmt_da()->reset_diagnostics_area();
-  thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  /*
-    Used by binlog_reset_master.  It would be cleaner to use
-    DEBUG_SYNC here, but that's not possible because the THD's debug
-    sync feature has been shut down at this point.
-  */
-  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
-  remove_global_thread(thd);
-
-  // Clean up errors now, before possibly waiting for a new connection.
-  ERR_remove_state(0);
-
-  mysql_mutex_unlock(&LOCK_thread_count);
-  delete thd;
 }
 
 

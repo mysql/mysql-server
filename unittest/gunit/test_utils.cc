@@ -19,6 +19,7 @@
 
 #include "test_utils.h"
 #include "rpl_handler.h"                        // delegates_init()
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 namespace my_testing {
 
@@ -81,11 +82,18 @@ void Server_initializer::SetUp()
   m_thd->store_globals();
   lex_start(m_thd);
   m_thd->set_current_time();
+
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  m_thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  m_thd->thread_id= m_thd->variables.pseudo_thread_id;
+
+  my_pthread_setspecific_ptr(THR_THD, m_thd);
 }
 
 void Server_initializer::TearDown()
 {
   m_thd->cleanup_after_query();
+  my_pthread_setspecific_ptr(THR_THD, NULL);
   delete m_thd;
 }
 

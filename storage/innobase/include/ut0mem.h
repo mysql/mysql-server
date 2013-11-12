@@ -77,20 +77,24 @@ void
 ut_mem_init(void);
 /*=============*/
 
-/**********************************************************************//**
-Allocates memory.
-@return own: allocated memory */
+/** Allocate memory.
+@param[in]	n number of bytes to allocate
+@return		allocated memory block */
 
 void*
-ut_malloc_low(
-/*==========*/
-	ulint	n,			/*!< in: number of bytes to allocate */
-	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
-					the memory cannot be allocated */
+ut_malloc(
+	ulint	n)
 	__attribute__((malloc));
-/**********************************************************************//**
-Allocates memory. */
-#define ut_malloc(n) ut_malloc_low(n, TRUE)
+
+/** Allocate zero-filled memory.
+@param[in]	n number of bytes to allocate
+@return		zero-filled allocated memory block */
+
+void*
+ut_zalloc(
+	ulint	n)
+	__attribute__((malloc));
+
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
@@ -202,7 +206,7 @@ ut_strcount(
 /**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
-@return own: modified string, must be freed with mem_free() */
+@return own: modified string, must be freed with ut_free() */
 
 char*
 ut_strreplace(
@@ -218,7 +222,7 @@ char*
 ut_str3cat(
 /*=======*/
 				/* out, own: concatenated string, must be
-				freed with mem_free() */
+				freed with ut_free() */
 	const char*	s1,	/* in: string 1 */
 	const char*	s2,	/* in: string 2 */
 	const char*	s3);	/* in: string 3 */

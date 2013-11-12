@@ -33,16 +33,21 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 * readPtr,
                             Uint32 sizeOfData,
                             NodeId remoteNodeId,
-                            IOState state) {
+                            IOState state,
+			    bool & stopReceiving)
+{
+  assert(stopReceiving == false);
   SignalHeader signalHeader;
   LinearSectionPtr ptr[3];
   
   Uint32 usedData   = 0;
   Uint32 loop_count = 0; 
+  bool doStopReceiving = false;
  
   if(state == NoHalt || state == HaltOutput){
     while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
-           (loop_count < MAX_RECEIVED_SIGNALS)) {
+           (loop_count < MAX_RECEIVED_SIGNALS) &&
+	   doStopReceiving == false) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
@@ -113,19 +118,21 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
 
-      recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+      doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr     += messageLen32;
       sizeOfData  -= messageLenBytes;
       usedData    += messageLenBytes;
     }//while
-    
+
+    stopReceiving = doStopReceiving;
     return usedData;
   } else {
     /** state = HaltIO || state == HaltInput */
 
     while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
-           (loop_count < MAX_RECEIVED_SIGNALS)) {
+           (loop_count < MAX_RECEIVED_SIGNALS) &&
+	   doStopReceiving == false) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
@@ -199,7 +206,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
-	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -210,7 +217,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       usedData    += messageLenBytes;
     }//while
     
-
+    stopReceiving = doStopReceiving;
     return usedData;
   }//if
 }
@@ -220,12 +227,15 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 * readPtr,
                             Uint32 * eodPtr,
                             NodeId remoteNodeId,
-                            IOState state) {
+                            IOState state,
+			    bool & stopReceiving) {
+  assert(stopReceiving == false);
   SignalHeader signalHeader;
   LinearSectionPtr ptr[3];
   Uint32 loop_count = 0;
+  bool doStopReceiving = false;
   if(state == NoHalt || state == HaltOutput){
-    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS)) {
+    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
@@ -291,14 +301,14 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
       
-      recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+      doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr += messageLen32;
     }//while
   } else {
     /** state = HaltIO || state == HaltInput */
 
-    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS)) {
+    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
@@ -368,7 +378,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
-	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -377,6 +387,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       readPtr += messageLen32;
     }//while
   }//if
+  stopReceiving = doStopReceiving;
   return readPtr;
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 #include <NdbSqlUtil.hpp>
 #include <ndb_global.h>
 
+#define JAM_FILE_ID 87
+
+
 #ifndef my_decimal_h
 
 // sql/my_decimal.h requires many more sql/*.h new to ndb
@@ -48,7 +51,7 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
   { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -222,6 +225,10 @@ public:
     Undofile = 23,          ///< Undofile
     HashMap = 24,
 
+    ForeignKey = 25,        // The definition
+    FKParentTrigger = 26,
+    FKChildTrigger = 27,
+
     SchemaTransaction = 30
   };
 
@@ -274,7 +281,9 @@ public:
       tableType == SubscriptionTrigger ||
       tableType == ReadOnlyConstraint ||
       tableType == IndexTrigger ||
-      tableType == ReorgTrigger;
+      tableType == ReorgTrigger ||
+      tableType == FKParentTrigger ||
+      tableType == FKChildTrigger;
   }
   static inline bool
   isFilegroup(int tableType) {
@@ -295,7 +304,12 @@ public:
     return
       tableType == HashMap;
   }
-  
+
+  static inline bool
+  isForeignKey(int tableType) {
+    return tableType == ForeignKey;
+  }
+
   // Object state for translating from/to API
   enum ObjectState {
     StateUndefined = 0,
@@ -674,7 +688,7 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
   { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -795,7 +809,7 @@ struct DictFilegroupInfo {
 };
 
 #define DHMIMAP(x, y, z) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DHMIMAP2(x, y, z, u, v) \
   { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -821,7 +835,7 @@ struct DictHashMapInfo {
   struct HashMap {
     char   HashMapName[MAX_TAB_NAME_SIZE];
     Uint32 HashMapBuckets;
-    Uint16 HashMapValues[NDB_DEFAULT_HASHMAP_BUCKETS];
+    Uint16 HashMapValues[NDB_MAX_HASHMAP_BUCKETS];
     Uint32 HashMapObjectId;
     Uint32 HashMapVersion;
     HashMap() {}
@@ -830,5 +844,82 @@ struct DictHashMapInfo {
   static const Uint32 MappingSize;
   static const SimpleProperties::SP2StructMapping Mapping[];
 };
+
+/**
+ * Foreign Keys
+ */
+struct DictForeignKeyInfo
+{
+  enum KeyValues {
+    ForeignKeyName               = 1,
+    ForeignKeyId                 = 2,
+    ForeignKeyVersion            = 3,
+    ForeignKeyParentTableId      = 4,
+    ForeignKeyParentTableVersion = 5,
+    ForeignKeyChildTableId       = 6,
+    ForeignKeyChildTableVersion  = 7,
+    ForeignKeyParentIndexId      = 8,
+    ForeignKeyParentIndexVersion = 9,
+    ForeignKeyChildIndexId       = 10,
+    ForeignKeyChildIndexVersion  = 11,
+    ForeignKeyOnUpdateAction     = 12,
+    ForeignKeyOnDeleteAction     = 13,
+    ForeignKeyParentTableName    = 14,
+    ForeignKeyParentIndexName    = 15,
+    ForeignKeyChildTableName     = 16,
+    ForeignKeyChildIndexName     = 17,
+    ForeignKeyParentColumnsLength= 18,
+    ForeignKeyParentColumns      = 19,
+    ForeignKeyChildColumnsLength = 20,
+    ForeignKeyChildColumns       = 21
+  };
+
+  // Table data interpretation
+  struct ForeignKey {
+    char   Name[MAX_TAB_NAME_SIZE];
+    char   ParentTableName[MAX_TAB_NAME_SIZE];
+    char   ParentIndexName[MAX_TAB_NAME_SIZE];
+    char   ChildTableName[MAX_TAB_NAME_SIZE];
+    char   ChildIndexName[MAX_TAB_NAME_SIZE];
+    Uint32 ForeignKeyId;
+    Uint32 ForeignKeyVersion;
+    Uint32 ParentTableId;
+    Uint32 ParentTableVersion;
+    Uint32 ChildTableId;
+    Uint32 ChildTableVersion;
+    Uint32 ParentIndexId;
+    Uint32 ParentIndexVersion;
+    Uint32 ChildIndexId;
+    Uint32 ChildIndexVersion;
+    Uint32 OnUpdateAction;
+    Uint32 OnDeleteAction;
+    Uint32 ParentColumnsLength;
+    Uint32 ParentColumns[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 ChildColumnsLength;
+    Uint32 ChildColumns[MAX_ATTRIBUTES_IN_INDEX];
+    ForeignKey() {}
+    void init();
+  };
+  static const Uint32 MappingSize;
+  static const SimpleProperties::SP2StructMapping Mapping[];
+};
+
+#define DFKIMAP(x, y, z) \
+  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+
+#define DFKIMAP2(x, y, z, u, v) \
+  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+
+#define DFKIMAPS(x, y, z, u, v) \
+  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+
+#define DFKIMAPB(x, y, z, u, v, l) \
+  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     my_offsetof(x, l) }
+
+#define DFKIBREAK(x) \
+  { DictForeignKeyInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
+
+#undef JAM_FILE_ID
 
 #endif

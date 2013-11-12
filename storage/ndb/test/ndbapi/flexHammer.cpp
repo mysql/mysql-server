@@ -165,7 +165,9 @@ waitForThreads(ThreadNdb *threadArrayP)
     cont = 0;
     for (int i = 0; i < tNoOfThreads ; i++) {
       if (threadArrayP[i].threadReady == 0) {
+        // Found one thread not yet ready, continue waiting
 	cont = 1;
+        break;
       } // if
     } // for
   } // while

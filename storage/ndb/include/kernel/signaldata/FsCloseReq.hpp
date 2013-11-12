@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define FS_CLOSE_REQ_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 202
+
 
 /**
  * 
@@ -86,5 +88,8 @@ FsCloseReq::setRemoveFileFlag(UintR & fileflag, bool removefile){
     fileflag = 0;
 }
 
+
+
+#undef JAM_FILE_ID
 
 #endif

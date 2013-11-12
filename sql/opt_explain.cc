@@ -25,10 +25,10 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_union.h"     // mysql_union_prepare_and_optimize
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
-#include "global_threads.h"  // LOCK_thread_count
 #include "debug_sync.h"    // DEBUG_SYNC
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 typedef qep_row::extra extra;
 
@@ -136,7 +136,6 @@ protected:
   bool explain_subqueries();
   bool mark_subqueries(Item *item, qep_row *destination);
   bool prepare_columns();
-  bool describe(uint8 mask) const { return thd->lex->describe & mask; }
 
   /**
     Push a part of the "extra" column into formatter
@@ -258,15 +257,15 @@ private:
   const ha_rows rows; ///< HA_POS_ERROR or cached "rows" argument
 
 public:
-  Explain_no_table(THD *thd_arg, SELECT_LEX *select_lex,
+  Explain_no_table(THD *thd_arg, SELECT_LEX *select_lex_arg,
                    const char *message_arg,
                    enum_parsing_context context_type_arg= CTX_JOIN,
                    ha_rows rows_arg= HA_POS_ERROR)
-  : Explain(context_type_arg, thd_arg, select_lex),
+  : Explain(context_type_arg, thd_arg, select_lex_arg),
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= test(select_lex->order_list.elements);
+      order_list= MY_TEST(select_lex_arg->order_list.elements);
   }
 
 protected:
@@ -294,7 +293,7 @@ public:
     DBUG_ASSERT(select_lex_arg ==
     select_lex_arg->join->unit->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list= test(select_lex_arg->join->order);
+    order_list= MY_TEST(select_lex_arg->join->order);
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -381,7 +380,7 @@ public:
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list= test(join->order);
+    order_list= MY_TEST(join->order);
   }
 
 private:
@@ -434,14 +433,14 @@ private:
   const char *message; ///< cached "message" argument
 
 public:
-  Explain_table(THD *const thd_arg, SELECT_LEX *select_lex,
+  Explain_table(THD *const thd_arg, SELECT_LEX *select_lex_arg,
                 TABLE *const table_arg,
                 const SQL_SELECT *select_arg,
                 uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
                 const char *msg)
-  : Explain_table_base(CTX_JOIN, thd_arg, select_lex, table_arg),
+  : Explain_table_base(CTX_JOIN, thd_arg, select_lex_arg, table_arg),
     select(select_arg), key(key_arg),
     limit(limit_arg),
     need_tmp_table(need_tmp_table_arg), need_sort(need_sort_arg),
@@ -450,7 +449,7 @@ public:
   {
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= test(select_lex->order_list.elements);
+      order_list= MY_TEST(select_lex_arg->order_list.elements);
   }
 
   virtual bool explain_modify_flags();
@@ -1037,7 +1036,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
           pushed_cond)
       {
         StringBuffer<64> buff(cs);
-        if (describe(DESCRIBE_EXTENDED) && can_print_clauses())
+        if (can_print_clauses())
           ((Item *)pushed_cond)->print(&buff, cond_print_flags);
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff))
           return true;
@@ -1118,18 +1117,18 @@ bool Explain_join::explain_modify_flags()
       fmt->entry()->mod_type= MT_UPDATE;
     break;
   case SQLCOM_DELETE_MULTI:
+    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
+         at;
+         at= at->next_local)
     {
-      TABLE_LIST *aux_tables= query_plan->get_lex()->auxiliary_table_list.first;
-      for (TABLE_LIST *at= aux_tables; at; at= at->next_local)
+      if (at->correspondent_table->updatable &&
+          at->correspondent_table->updatable_base_table()->table == table)
       {
-        if (at->table == table)
-        {
-          fmt->entry()->mod_type= MT_DELETE;
-          break;
-        }
+        fmt->entry()->mod_type= MT_DELETE;
+        break;
       }
-      break;
     }
+    break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->leaf_tables_insert->table)
       fmt->entry()->mod_type= MT_INSERT;
@@ -1186,6 +1185,10 @@ bool Explain_join::end_simple_sort_context(Explain_sort_clause clause,
 
 bool Explain_join::shallow_explain()
 {
+  qep_row *join_entry= fmt->entry();
+
+  join_entry->col_read_cost.set(join->best_read);
+
   LEX const*query_lex= join->thd->query_plan.get_lex();
   if (query_lex->leaf_tables_insert &&
       query_lex->leaf_tables_insert->select_lex == join->select_lex)
@@ -1211,6 +1214,17 @@ bool Explain_join::shallow_explain()
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
+
+  if (join->sort_cost > 0.0)
+  {
+    /*
+      Due to begin_sort_context() calls above, fmt->entry() returns another
+      context than stored in join_entry.
+    */
+    DBUG_ASSERT(fmt->entry() != join_entry || !fmt->is_hierarchical());
+    fmt->entry()->col_read_cost.set(join->sort_cost);
+  }
+
   if (begin_sort_context(ESC_BUFFER_RESULT, CTX_BUFFER_RESULT))
     return true; /* purecov: inspected */
 
@@ -1230,7 +1244,7 @@ bool Explain_join::shallow_explain()
     return true;
   if (end_sort_context(ESC_ORDER_BY, CTX_ORDER_BY))
     return true;
-    
+
   return false;
 }
 
@@ -1419,6 +1433,17 @@ bool Explain_join::explain_ref()
   return explain_ref_key(fmt, tab->ref.key_parts, tab->ref.key_copy);
 }
 
+static void human_readable_size(char *buf, int buf_len, double data_size)
+{
+  char size[]= " KMGTP";
+  int i;
+  for (i= 0; data_size > 1024 && i < 5; i++)
+    data_size/= 1024;
+  const char mult= i == 0 ? 0 : size[i];
+  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  buf[buf_len - 1]= 0;
+}
+
 
 bool Explain_join::explain_rows_and_filtered()
 {
@@ -1431,18 +1456,33 @@ bool Explain_join::explain_rows_and_filtered()
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
     examined_rows= rows2double(tab->rowcount);
   else
-    examined_rows= tab->position->records_read;
+    examined_rows= tab->position->fanout;
 
-  fmt->entry()->col_rows.set(static_cast<longlong>(examined_rows));
+  fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
-  if (describe(DESCRIBE_EXTENDED))
   {
     float f= 0.0;
     if (examined_rows)
-      f= 100.0 * tab->position->records_read / examined_rows;
+      f= 100.0 * tab->position->fanout / examined_rows;
     fmt->entry()->col_filtered.set(f);
   }
+  // Print cost-related info
+  double prefix_rows= tab->position->prefix_record_count;
+  fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
+  double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
+  fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
+
+  fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
+                                  0.0 : tab->position->read_cost);
+  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
+
+  // Calculate amount of data from this table per query
+  char data_size_str[32];
+  double data_size= prefix_rows * tab->table->s->rec_buff_length;
+  human_readable_size(data_size_str, sizeof(data_size_str), data_size);
+  fmt->entry()->col_data_size_query.set(data_size_str);
+
   return false;
 }
 
@@ -1624,6 +1664,19 @@ bool Explain_join::explain_extra()
         return true;
     }
   }
+  if (fmt->is_hierarchical() &&
+      (!bitmap_is_clear_all(table->read_set) ||
+       !bitmap_is_clear_all(table->write_set)))
+  {
+    Field **fld;
+    for (fld= table->field; *fld; fld++)
+    {
+      if (!bitmap_is_set(table->read_set, (*fld)->field_index) &&
+          !bitmap_is_set(table->write_set, (*fld)->field_index))
+        continue;
+      fmt->entry()->col_used_columns.push_back((*fld)->field_name);
+    }
+  }
   return false;
 }
 
@@ -1757,8 +1810,7 @@ bool Explain_table::explain_rows_and_filtered()
   double examined_rows= table->in_use->query_plan.get_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
-  if (describe(DESCRIBE_EXTENDED))
-    fmt->entry()->col_filtered.set(100.0);
+  fmt->entry()->col_filtered.set(100.0);
   
   return false;
 }
@@ -2097,13 +2149,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
        against malformed queries, so skip it if we have an error.
     2) The code also isn't thread-safe, skip if explaining other thread
     (see Explain::can_print_clauses())
-    3) Print only when requested
-    4) Currently only SELECT queries can be printed (TODO: fix this)
+    3) Currently only SELECT queries can be printed (TODO: fix this)
   */
   if (!res &&                                       // (1)
       ethd == query_thd &&                          // (2)
-      (ethd->lex->describe & DESCRIBE_EXTENDED) &&  // (3)
-      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (4)
+      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (3)
   {
     StringBuffer<1024> str;
     /*
@@ -2156,6 +2206,32 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_RETURN(res || ethd->is_error());
 }
 
+/**
+  Callback function used by mysql_explain_other() to find thd based
+  on the thread id.
+
+  @note It acquires LOCK_thd_data mutex and LOCK_query_plan mutex,
+  when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_query_lock: public Find_THD_Impl
+{
+public:
+  Find_thd_query_lock(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      mysql_mutex_lock(&thd->LOCK_query_plan);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
+
 
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
@@ -2197,28 +2273,14 @@ void mysql_explain_other(THD *thd)
   // Pick thread
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD *tmp= *it;
-      if (tmp->thread_id != thd->lex->query_id)
-        continue;
-      query_thd= tmp;
-      unlock_thd_data= true;
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      mysql_mutex_lock(&tmp->LOCK_query_plan);
-      break;
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Find_thd_query_lock find_thd_query_lock(thd->lex->query_id);
+    query_thd= Global_THD_manager::
+               get_instance()->find_thd(&find_thd_query_lock);
+    if (query_thd) unlock_thd_data= true;
   }
 
   if (!query_thd)
-  {
-    send_ok= true;
     goto err;
-  }
 
   qp= &query_thd->query_plan;
 
@@ -2292,7 +2354,9 @@ err:
     mysql_mutex_unlock(&query_thd->LOCK_query_plan);
     if (unlock_thd_data)
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);
-  }
+  } 
+  else
+    my_error(ER_NO_SUCH_THREAD, MYF(0), thd->lex->query_id);
 
   DEBUG_SYNC(thd, "after_explain_other");
   if (!res && send_ok)

@@ -4,23 +4,22 @@
 #    InnoDB which were introduced by WL#6326+WL#6363.
 #    The file with expected results fits to this variant.
 #    The impact on code coverage is quite good.
-#    $max_row_count == 10000 means "Run variant a)".
-#    The file with expected results fits only to this variant.
 # b) As testbed for attempts to extend or improve the RQG test wl6326_sql.yy.
-#    1. The MTR based test uses
-#       - a table t1 with the same layout
-#       - the same stored functions
-#       - the same stored procedure proc_fill_t1 for inserting a configurable
-#         amount of records into t1
-#       like the RQG test wl6326_sql.yy.
-#    2. As soon as
-#          $max_row_count != 10000
-#       is fulfilled the variant b) will be executed.
-#       This variant produces debug output.
-#    The file with expected results fits only partially to this variant and
-#    it is to be expected that MTR reports "[ fail ]" because
-#    - test log and file with expected results differ
-#    - the test does not remove the file <$max_row_count>.out.
+#    The MTR based test uses
+#     - a table t1 with the same layout
+#     - the same stored functions
+#     - the same stored procedure proc_fill_t1 for inserting a configurable
+#       amount of records into t1
+#    like the RQG test wl6326_sql.yy.
+#    Feel free to modify parameters like $max_row_count, $max_con,
+#    $high_load_duration or switch debugging on (let $test_debug= 1).
+#    But please be aware that MTR will most probably report that the test
+#    failed because it got a difference to expected results.
+#    Reasons:
+#    - In general: The file with expected results fits to a) only.
+#    - The actual results might dependend on $max_row_count.
+#    - Additional result sets might be printed.
+#
 
 # WL#6326 is about the sx locks (InnoDB feature only).
 --source include/have_innodb.inc
@@ -51,29 +50,17 @@ let $load_unit= 10000;
 #    of rows in the table t1 exceeds $max_row_count.
 # let $max_row_count= 1000000;
 # let $max_row_count= 300000;
-  let $max_row_count= 10000;        # ~ 322s  on tmpfs (NB)
-# let $max_row_count= 30000;
 # let $max_row_count= 100000;
+# let $max_row_count= 30000;
+  let $max_row_count= 10000;        # ~ 322s  on tmpfs (NB)
 #
 # Determine which variant to run.
 let $test_debug= 0;
-if ($max_row_count != 10000)
-{
-   --echo # Execution for producing a DATALOAD file for RQG.
-   --echo # Result set diffs are to be expected.
-   let $test_debug= 1;
-}
-#
-# In case you want debug output though $max_row_count = 10000 is fulfilled
-# than set $test_debug to 1
-# let $test_debug= 1;
 #
 # Number of concurrent sessions to be used in the high load test.
 let $max_con=            10;
 # Duration of the high load test in seconds.
 let $high_load_duration= 60;
-
-
 
 # Putting all objects into the SCHEMA my_schema makes the final cleanup easier.
 # We simply run than DROP SCHEMA my_schema.
@@ -87,9 +74,8 @@ SELECT CONCAT('->', f_thread_id(12), '<-');
 # Definition of parameters used in functions.
 # We use here a "1" in order to make the impact on the results of the functions
 # good visible.
-let $val= 1;
-eval SET @extra_int    = $val;
-eval SET @extra_string = f_thread_id($val);
+SET @extra_int    = 1;
+SET @extra_string = f_thread_id(@extra_int);
 SELECT @extra_int , @extra_string;
 
 # The different functions are used later when filling t1 and also during
@@ -101,7 +87,7 @@ SELECT @extra_int , @extra_string;
 # The function f_<pattern> is for the column with the name <pattern>.
 # There is a function
 # - for every column except col_int0
-# - even if the SQL statement is simple.
+# - even if the SQL for generating the value is simple.
 # The reason for this is the architecture of the RQG test.
 
 let $part= AS my_result
@@ -126,7 +112,8 @@ eval SELECT $function_name(my_col) $part;
 let $function_name= f_col_blob;
 eval CREATE FUNCTION $function_name (i INT) RETURNS BLOB DETERMINISTIC
 RETURN RPAD(@extra_string,(@@innodb_page_size / 2 ) + 1,'a');
-eval SELECT CONCAT('->', $function_name(my_col), '<-') $part;
+eval SELECT CONCAT('->', SUBSTR($function_name(my_col) FROM 1 FOR 10),
+     '<-.....->', SUBSTR($function_name(my_col) FROM -10 FOR 10), '<-') $part;
 
 let $function_name= f_col_char0;
 eval CREATE FUNCTION $function_name (i INT) RETURNS CHAR(255) DETERMINISTIC
@@ -186,8 +173,12 @@ TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
 STATUS, 'after'
 FROM information_schema.innodb_metrics
 WHERE NAME LIKE 'innodb_rwlock_sx_%';
-let $print_after_my_metrics= SELECT NAME, COUNT_RESET FROM my_metrics
-WHERE phase = 'after' ORDER BY NAME;
+let $print_metrics= SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET, STATUS
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%'
+ORDER BY NAME;
 
 # The main table for testing.
 CREATE TABLE t1 (
@@ -395,6 +386,15 @@ if(`$check_statement`)
 --echo #    pass
 
 SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
+--disable_result_log
+if($test_debug)
+{
+   --enable_result_log
+   eval $print_metrics;
+}
+SHOW ENGINE INNODB STATUS;
+--enable_result_log
+
 eval $empty_my_metrics;
 eval $before_my_metrics;
 # These values (the "0") help to identify later if some record is in its
@@ -402,7 +402,7 @@ eval $before_my_metrics;
 SET @extra_string = '__0_';
 SET @extra_int    =    0;
 
---echo # TC-07 Insert some significant amount of rows into t1.
+--echo # TC-07 One session inserts some significant amount of rows into t1.
 --echo #       The system MUST survive that.
 --replace_result $max_row_count <max_row_count>
 eval SET @max_row_count = $max_row_count;
@@ -410,11 +410,11 @@ eval SET @max_row_count = $max_row_count;
 eval SET @load_unit = $load_unit;
 SET @start_time = UNIX_TIMESTAMP();
 SET AUTOCOMMIT = OFF;
-eval CALL proc_fill_t1 ( @max_row_count, @load_unit);
+CALL proc_fill_t1 (@max_row_count, @load_unit);
 --echo #    pass
 SET AUTOCOMMIT = ON;
-let $t1_half= `SELECT col_int0 FROM t1
-              WHERE col_int0 >= (@val DIV 2) ORDER BY col_int0 LIMIT 1`;
+SELECT col_int0 INTO @t1_half FROM t1
+WHERE col_int0 >= (@val DIV 2) ORDER BY col_int0 LIMIT 1;
 
 --disable_result_log
 if($test_debug)
@@ -423,7 +423,7 @@ if($test_debug)
    SELECT COUNT(*) AS table_row_count,
           UNIX_TIMESTAMP() - @start_time AS fill_run_time
    FROM t1;
-   eval $print_after_my_metrics;
+   eval $print_metrics;
 }
 SHOW ENGINE INNODB STATUS;
 --enable_result_log
@@ -431,7 +431,8 @@ SHOW ENGINE INNODB STATUS;
 # Show that the value distribution is according to the plan.
 --vertical_results
 SELECT col_int0, col_int1, col_int2, col_int3,
-   CONCAT('->', col_blob,'<-') AS  col_blobx,
+   CONCAT('->', SUBSTR(col_blob FROM 1 FOR 10),
+     '<-.....->', SUBSTR(col_blob FROM -10 FOR 10), '<-') AS  col_blobx,
    CONCAT('->',col_char0,'<-') AS col_char0x,
    CONCAT('->',col_char1,'<-') AS col_char1x,
    CONCAT('->',col_char2,'<-') AS col_char2x,
@@ -464,68 +465,12 @@ if (0)
    --horizontal_results
 }
 
-eval $after_my_metrics;
---echo # TC-8 There was a reset. COUNT_RESET = MAX_COUNT_RESET for ALL
---echo #      = @sx_count entries before activity.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics
-WHERE phase = 'before' AND COUNT_RESET = MAX_COUNT_RESET;
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
-
---echo # TC-9 Heavy activity after reset.
---echo #      COUNT_RESET = MAX_COUNT_RESET for ALL = @sx_count entries.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics
-WHERE phase = 'after' AND COUNT_RESET = MAX_COUNT_RESET;
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
-
---echo # TC-10 Heavy activity on sufficient big table + index structure after
---echo #       reset. COUNT_RESET grows for ALL = @sx_count entries.
-# NAME                         | COUNT_RESET
-# -----------------------------+------------
-# innodb_rwlock_sx_os_waits    |         26
-# innodb_rwlock_sx_spin_rounds |        824
-# innodb_rwlock_sx_spin_waits  |         14
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
-ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME
-WHERE t_after.phase = 'after' AND t_before.phase = 'before';
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
-
---echo # TC-11 Let several concurrent users perform updates in t1 like mad.
+--echo # TC-11 Several concurrent sessions perform updates in t1 like mad.
 --echo #       The system MUST survive this.
 --echo #       Printing of statements is partially suppressed.
-SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
-eval $empty_my_metrics;
-eval $before_my_metrics;
 SET @start_time = UNIX_TIMESTAMP();
-eval SELECT 1 FROM t1 WHERE col_int0 = $t1_half FOR UPDATE;
+SELECT 1 FROM t1 WHERE col_int0 = @t1_half FOR UPDATE;
 SELECT GET_LOCK('Blocker', 1000) ;
-
 --disable_query_log
 let $num= $max_con;
 while ($num)
@@ -542,7 +487,7 @@ while ($num)
    # innodb_rwlock_sx_spin_rounds |       44061        |       17031
    # innodb_rwlock_sx_spin_waits  |         996        |         515
    --send
-   eval CALL proc_dml($high_load_duration,$t1_half);
+   eval CALL proc_dml($high_load_duration,@t1_half);
    dec $num;
 }
 --connection default
@@ -559,79 +504,37 @@ while ($num)
 --echo #    pass
 --connection default
 --enable_query_log
-eval $after_my_metrics;
+
+# let $wait_timeout= 181;
+# --source include/wait_condition.inc
+# eval $after_my_metrics;
 --disable_result_log
 if($test_debug)
 {
    --enable_result_log
    SELECT UNIX_TIMESTAMP() - @start_time AS update_battle_run_time;
-   eval $print_after_my_metrics;
+   eval $print_metrics;
 }
 SHOW ENGINE INNODB STATUS;
 --enable_result_log
 
---echo # TC-12 Heavy activity on sufficient big table + index structure after
---echo #       reset. Several concurrent sessions were running updates.
---echo #       COUNT_RESET grows for ALL = @sx_count entries.
-# NAME                         | COUNT_RESET (5000)
-# -----------------------------+-------------------
-# innodb_rwlock_sx_os_waits    |        1412
-# innodb_rwlock_sx_spin_rounds |       44061
-# innodb_rwlock_sx_spin_waits  |         996
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
-ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME
-WHERE t_after.phase = 'after' AND t_before.phase = 'before';
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
-
---echo # TC-13 The system MUST survive a ALTER TABLE t1 ADD KEY ... on
---echo #       the fat table t1.
-SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
-eval $empty_my_metrics;
-eval $before_my_metrics;
+--echo # TC-13 One session performs ALTER TABLE t1 ADD KEY ... on the fat table t1.
+--echo #       The system MUST survive this.
 SET @start_time = UNIX_TIMESTAMP();
 ALTER TABLE t1 ADD KEY idx_col_char4_col_char0 (col_char4,col_char0);
-eval $after_my_metrics;
---echo #    pass
 --disable_result_log
 if($test_debug)
 {
    --enable_result_log
    SELECT UNIX_TIMESTAMP() - @start_time AS add_key_run_time;
-   eval $print_after_my_metrics;
+   eval $print_metrics;
 }
 SHOW ENGINE INNODB STATUS;
 --enable_result_log
-
---echo # TC-14 The ADD KEY caused heavy activity on the sufficient big table.
---echo #       COUNT_RESET grows for ALL = @sx_count entries.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
-ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME
-WHERE t_after.phase = 'after' AND t_before.phase = 'before';
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
 --echo #    pass
 
---echo # TC-15 The system MUST survive a fat update on the fat table t1.
-# Its the merge @extra_int and @extra_string into the values of most columns.
-SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
-eval $empty_my_metrics;
-eval $before_my_metrics;
+--echo # TC-15 One session performs a fat update on the fat table t1.
+--echo #       The system MUST survive this.
 SET @start_time   = UNIX_TIMESTAMP();
 SET @extra_int    = 13;
 SET @extra_string = f_thread_id(@extra_int);
@@ -641,25 +544,142 @@ eval UPDATE t1 SET
    col_char0 = f_col_char0(col_int0), col_char1 = f_col_char1(col_int0),
    col_char2 = f_col_char2(col_int0), col_char3 = f_col_char3(col_int0),
    col_char4 = f_col_char4(col_int0)
-WHERE col_int0 BETWEEN $t1_half - 2500 AND $t1_half + 2500;
+WHERE col_int0 BETWEEN @t1_half - 2500 AND @t1_half + 2500;
 COMMIT;
-eval $after_my_metrics;
 --disable_result_log
 if($test_debug)
 {
    --enable_result_log
    SELECT UNIX_TIMESTAMP() - @start_time AS total_update_run_time;
-   eval $print_after_my_metrics;
+   eval $print_metrics;
 }
 SHOW ENGINE INNODB STATUS;
 --enable_result_log
-
 --echo #    pass
---echo # TC-16 The UPDATE caused heavy activity on the sufficient big table.
---echo #       COUNT_RESET grows for ALL = @sx_count entries.
+
+# Basically every of the big activities causes some counter growth.
+# But caused by
+# - the architecture of InnoDB (certain things happen asynchronous)
+# - the actual test configuration (server/InnoDB options)
+# - conditions like parallel (./mtr --parallel=auto?) load on the testing box
+# this might be not fulfilled per single big activity every time except
+# we go with huge waits or similar.
+# Observation:
+# - non debug binaries: expectation frequent not fulfilled
+# - debug binaries:     expectation rare not fulfilled
+#
+let $wait_timeout= 121;
+let $wait_condition=
+SELECT COUNT(*) = @sx_count
+FROM information_schema.innodb_metrics t_after
+JOIN my_metrics t_before
+ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME;
+--source include/wait_condition.inc
+eval $after_my_metrics;
+
+--echo # TC-16 The following activities happend after reset in innodb_metrics
+--echo #       - Insert some significant amount of rows into t1.
+--echo #       - Several concurrent users perform excessive updates in t1.
+--echo #       - ALTER TABLE ... ADD KEY <sufficient big enough structure>
+--echo #       - One UPDATE statement modifying a huge slice of t1.
+--echo #       Any of them causes heavy use of SX lock and therefore COUNT_RESET
+--echo #       must have grown for ALL = @sx_count entries.
+# The former testcases TC-10 and TC12 had to be made a part of this testcase
+# because their results were unstable.
 let $check_statement=
 SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
 ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME
+WHERE t_after.phase = 'after' AND t_before.phase = 'before';
+if(`$check_statement`)
+{
+   --echo #    fail
+   eval $check_statement;
+   SELECT * FROM my_metrics
+   ORDER BY NAME, phase;
+   exit;
+}
+--echo #    pass
+
+--echo # TC-09 Heavy activity after reset.
+--echo #       COUNT_RESET = MAX_COUNT_RESET for ALL = @sx_count entries
+--echo #       needs to stay valid though he counters will have grown.
+let $check_statement=
+SELECT COUNT(*) <> @sx_count FROM my_metrics
+WHERE phase = 'after' AND COUNT_RESET = MAX_COUNT_RESET;
+if(`$check_statement`)
+{
+   --echo #    fail
+   eval $check_statement;
+   SELECT * FROM my_metrics
+   ORDER BY NAME, phase;
+   exit;
+}
+--echo #    pass
+
+eval $empty_my_metrics;
+eval $before_my_metrics;
+SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
+eval $after_my_metrics;
+--echo # TC-08 There was a reset. COUNT_RESET = MAX_COUNT_RESET for ALL
+--echo #       = @sx_count entries.
+let $check_statement=
+SELECT COUNT(*) <> @sx_count FROM my_metrics
+WHERE phase = 'before' AND COUNT_RESET = MAX_COUNT_RESET;
+if(`$check_statement`)
+{
+   --echo #    fail
+   eval $check_statement;
+   SELECT * FROM my_metrics
+   ORDER BY NAME, phase;
+   exit;
+}
+--echo #    pass
+
+--echo # TC-17 We had heavy activity causing big counters and after that a reset.
+--echo #       Reset causes COUNT > COUNT_RESET AND MAX_COUNT > MAX_COUNT_RESET
+--echo #       for ALL @sx_count entries.
+let $check_statement=
+SELECT COUNT(*) <> @sx_count FROM my_metrics
+WHERE phase = 'after'
+  AND COUNT > COUNT_RESET
+  AND MAX_COUNT > MAX_COUNT_RESET;
+if(`$check_statement`)
+{
+   --echo #    fail
+   eval $check_statement;
+   SELECT * FROM my_metrics
+   ORDER BY NAME, phase;
+   exit;
+}
+--echo #    pass
+
+--echo # TC-18 We had some reset but this must not decrease COUNT or MAX_COUNT
+--echo #       after.COUNT >= before.COUNT AND
+--echo #       after.MAX_COUNT >= before.MAX_COUNT for ALL @sx_count entries.
+let $check_statement=
+SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
+ON t_after.COUNT >= t_before.COUNT AND t_after.MAX_COUNT >= t_before.MAX_COUNT
+   AND t_after.NAME = t_before.NAME
+WHERE t_after.phase = 'after' AND t_before.phase = 'before';
+if(`$check_statement`)
+{
+   --echo #    fail
+   eval $check_statement;
+   SELECT * FROM my_metrics
+   ORDER BY NAME, phase;
+   exit;
+}
+--echo #    pass
+
+--echo # TC-19 We had some reset after heavy activity and this must cause
+--echo #       after.COUNT_RESET < before.COUNT_RESET
+--echo #       AND after.MAX_COUNT_RESET < before.MAX_COUNT_RESET AND
+--echo #       for ALL @sx_count entries.
+let $check_statement=
+SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
+ON t_after.COUNT_RESET < t_before.COUNT_RESET
+   AND t_after.MAX_COUNT_RESET < t_before.MAX_COUNT_RESET
+   AND t_after.NAME = t_before.NAME
 WHERE t_after.phase = 'after' AND t_before.phase = 'before';
 if(`$check_statement`)
 {

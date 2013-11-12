@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011-2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndb_index_stat.h"
 #include <mysql/plugin.h>
@@ -2375,6 +2372,8 @@ ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
   {
     sql_print_warning("execute index stats listener failed: error %d line %d",
                       is->getNdbError().code, is->getNdbError().line);
+    // Drop the created listener
+    (void)is->drop_listener(ndb);
     DBUG_RETURN(-1);
   }
 
@@ -3000,5 +2999,3 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
 
   DBUG_RETURN(err);
 }
-
-#endif

@@ -6353,26 +6353,40 @@ CREATE TABLE t1 (c1 INT, INDEX(c1));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 1)
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f1`())
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 1)
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f1`())
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(10))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(`test`.`t1`.`c1`))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(rand()))
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;

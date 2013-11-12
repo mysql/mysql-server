@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define WOPOOL_HPP
 
 #include "Pool.hpp"
+
+#define JAM_FILE_ID 303
+
 
 struct WOPage
 {
@@ -120,5 +123,8 @@ WOPool::getPtr(Uint32 i)
   handle_invalid_get_ptr(i);
   return 0;                                     /* purify: deadcode */
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

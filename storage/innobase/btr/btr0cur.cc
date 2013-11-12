@@ -201,7 +201,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/*!< in: update vector */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***********************************************************//**
@@ -216,7 +216,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -436,6 +436,7 @@ btr_cur_latch_for_root_leaf(
 	}
 
 	ut_error;
+	return(RW_NO_LATCH); /* avoid compiler warnings */
 }
 
 /**
@@ -972,7 +973,8 @@ retry_page_get:
 		rw_latch = upper_rw_latch;
 
 		rw_lock_s_lock(&block->lock);
-		left_page_no = btr_page_get_prev(page, mtr);
+		left_page_no = btr_page_get_prev(
+			buf_block_get_frame(block), mtr);
 		rw_lock_s_unlock(&block->lock);
 
 		if (left_page_no != FIL_NULL) {
@@ -2160,6 +2162,35 @@ btr_cur_ins_lock_and_undo(
 	return(DB_SUCCESS);
 }
 
+/**
+Prefetch siblings of the leaf for the pessimistic operation.
+@param block	leaf page */
+static
+void
+btr_cur_prefetch_siblings(
+	buf_block_t*	block)
+{
+	page_t*	page = buf_block_get_frame(block);
+
+	ut_ad(page_is_leaf(page));
+
+	ulint left_page_no = fil_page_get_prev(page);
+	ulint right_page_no = fil_page_get_next(page);
+
+	if (left_page_no != FIL_NULL) {
+		buf_read_page_background(buf_block_get_space(block),
+					 left_page_no, false);
+	}
+	if (right_page_no != FIL_NULL) {
+		buf_read_page_background(buf_block_get_space(block),
+					 right_page_no, false);
+	}
+	if (left_page_no != FIL_NULL
+	    || right_page_no != FIL_NULL) {
+		os_aio_simulated_wake_handler_threads();
+	}
+}
+
 /*************************************************************//**
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
@@ -2300,6 +2331,12 @@ too_big:
 		insertion. */
 fail:
 		err = DB_FAIL;
+
+		/* prefetch siblings of the leaf for the pessimistic
+		operation, if the page is leaf. */
+		if (page_is_leaf(page)) {
+			btr_cur_prefetch_siblings(block);
+		}
 fail_err:
 
 		if (big_rec_vec) {
@@ -2483,7 +2520,7 @@ btr_cur_pessimistic_insert(
 	big_rec_t*	big_rec_vec	= NULL;
 	dberr_t		err;
 	ibool		dummy_inh;
-	ibool		success;
+	bool		success;
 	ulint		n_reserved	= 0;
 
 	ut_ad(dtuple_check_typed(entry));
@@ -2645,7 +2682,6 @@ btr_cur_upd_lock_and_undo(
 
 /***********************************************************//**
 Writes a redo log record of updating a record in-place. */
-UNIV_INLINE __attribute__((nonnull))
 void
 btr_cur_update_in_place_log(
 /*========================*/
@@ -2673,18 +2709,29 @@ btr_cur_update_in_place_log(
 		return;
 	}
 
-	/* The code below assumes index is a clustered index: change index to
-	the clustered index if we are updating a secondary index record (or we
-	could as well skip writing the sys col values to the log in this case
-	because they are not needed for a secondary index record update) */
-
-	index = dict_table_get_first_index(index->table);
-
+	/* For secondary indexes, we could skip writing the dummy system fields
+	to the redo log but we have to change redo log parsing of
+	MLOG_REC_UPDATE_IN_PLACE/MLOG_COMP_REC_UPDATE_IN_PLACE or we have to add
+	new redo log record. For now, just write dummy sys fields to the redo
+	log if we are updating a secondary index record.
+	*/
 	mach_write_to_1(log_ptr, flags);
 	log_ptr++;
 
-	log_ptr = row_upd_write_sys_vals_to_log(
-		index, trx_id, roll_ptr, log_ptr, mtr);
+	if (dict_index_is_clust(index)) {
+		log_ptr = row_upd_write_sys_vals_to_log(
+				index, trx_id, roll_ptr, log_ptr, mtr);
+	} else {
+		/* Dummy system fields for a secondary index */
+		/* TRX_ID Position */
+		log_ptr += mach_write_compressed(log_ptr, 0);
+		/* ROLL_PTR */
+		trx_write_roll_ptr(log_ptr, 0);
+		log_ptr += DATA_ROLL_PTR_LEN;
+		/* TRX_ID */
+		log_ptr += mach_ull_write_compressed(log_ptr, 0);
+	}
+
 	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
@@ -3058,6 +3105,8 @@ btr_cur_optimistic_update(
 	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* This is intended only for leaf page updates */
+	ut_ad(page_is_leaf(page));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -3092,6 +3141,10 @@ btr_cur_optimistic_update(
 any_extern:
 		/* Externally stored fields are treated in pessimistic
 		update */
+
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 
 		return(DB_OVERFLOW);
 	}
@@ -3235,10 +3288,15 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
-	    && page_is_leaf(page)) {
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
+	}
+
+	if (err != DB_SUCCESS) {
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 	}
 
 	return(err);
@@ -3460,9 +3518,7 @@ btr_cur_pessimistic_update(
 		ut_ad(thr_get_trx(thr)->in_rollback);
 
 		btr_rec_free_updated_extern_fields(
-			index, rec, page_zip, *offsets, update,
-			trx_is_recv(thr_get_trx(thr))
-			? RB_RECOVERY : RB_NORMAL, mtr);
+			index, rec, page_zip, *offsets, update, true, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -3878,7 +3934,6 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
 
-	btr_blob_dbg_set_deleted_flag(rec, index, offsets, TRUE);
 	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
 	trx = thr_get_trx(thr);
@@ -4175,13 +4230,16 @@ btr_cur_optimistic_delete_func(
 			/* The change buffer does not handle inserts
 			into non-leaf pages, into clustered indexes,
 			or into the change buffer. */
-			if (page_is_leaf(page)
-			    && !dict_index_is_clust(cursor->index)
+			if (!dict_index_is_clust(cursor->index)
 			    && !dict_table_is_temporary(cursor->index->table)
 			    && !dict_index_is_ibuf(cursor->index)) {
 				ibuf_update_free_bits_low(block, max_ins, mtr);
 			}
 		}
+	} else {
+		/* prefetch siblings of the leaf for the pessimistic
+		operation. */
+		btr_cur_prefetch_siblings(block);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -4217,7 +4275,7 @@ btr_cur_pessimistic_delete(
 				stays valid: it points to successor of
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
@@ -4226,7 +4284,7 @@ btr_cur_pessimistic_delete(
 	dict_index_t*	index;
 	rec_t*		rec;
 	ulint		n_reserved	= 0;
-	ibool		success;
+	bool		success;
 	ibool		ret		= FALSE;
 	ulint		level;
 	mem_heap_t*	heap;
@@ -4277,7 +4335,7 @@ btr_cur_pessimistic_delete(
 	if (rec_offs_any_extern(offsets)) {
 		btr_rec_free_externally_stored_fields(index,
 						      rec, offsets, page_zip,
-						      rb_ctx, mtr);
+						      rollback, mtr);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -5118,8 +5176,6 @@ btr_cur_set_ownership_of_extern_field(
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 	}
-
-	btr_blob_dbg_owner(rec, index, offsets, i, val);
 }
 
 /*******************************************************************//**
@@ -5418,17 +5474,17 @@ btr_store_big_rec_extern_fields(
 	if (btr_blob_op_is_update(op)) {
 		/* Avoid reusing pages that have been previously freed
 		in btr_mtr. */
-		if (btr_mtr->n_freed_pages) {
+		if (btr_mtr->has_freed_pages()) {
 			if (heap == NULL) {
 				heap = mem_heap_create(
-					btr_mtr->n_freed_pages
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages);
 			}
 
 			freed_pages = static_cast<buf_block_t**>(
 				mem_heap_alloc(
 					heap,
-					btr_mtr->n_freed_pages
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages));
 			n_freed_pages = 0;
 		}
@@ -5528,7 +5584,8 @@ alloc_another:
 				allocate another page for the BLOB data. */
 				ut_ad(alloc_mtr == btr_mtr);
 				ut_ad(btr_blob_op_is_update(op));
-				ut_ad(n_freed_pages < btr_mtr->n_freed_pages);
+				ut_ad(n_freed_pages
+				      < btr_mtr->get_freed_page_count());
 				freed_pages[n_freed_pages++] = block;
 				goto alloc_another;
 			}
@@ -5671,11 +5728,6 @@ alloc_another:
 				}
 
 				if (prev_page_no == FIL_NULL) {
-					btr_blob_dbg_add_blob(
-						rec, big_rec_vec->fields[i]
-						.field_no, page_no, index,
-						"store");
-
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_SPACE_ID,
 							space_id);
@@ -5756,11 +5808,6 @@ next_zip_page:
 						 MLOG_4BYTES, alloc_mtr);
 
 				if (prev_page_no == FIL_NULL) {
-					btr_blob_dbg_add_blob(
-						rec, big_rec_vec->fields[i]
-						.field_no, page_no, index,
-						"store");
-
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
 							 space_id, MLOG_4BYTES,
@@ -5787,6 +5834,10 @@ next_zip_page:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;);
 	}
 
 func_exit:
@@ -5820,9 +5871,11 @@ func_exit:
 
 		field_ref = btr_rec_get_field_ref(rec, offsets, i);
 
-		/* The pointer must not be zero. */
+		/* The pointer must not be zero if the operation
+		succeeded. */
 		ut_a(0 != memcmp(field_ref, field_ref_zero,
-				 BTR_EXTERN_FIELD_REF_SIZE));
+				 BTR_EXTERN_FIELD_REF_SIZE)
+		     || error != DB_SUCCESS);
 		/* The column must not be disowned by this record. */
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 	}
@@ -5893,7 +5946,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
-	enum trx_rb_ctx	rb_ctx,		/*!< in: rollback context */
+	bool		rollback,	/*!< in: performing rollback? */
 	mtr_t*		local_mtr __attribute__((unused))) /*!< in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
@@ -5920,10 +5973,10 @@ btr_free_externally_stored_field(
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
-		/* In the rollback of uncommitted transactions, we may
-		encounter a clustered index record whose BLOBs have
-		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
+		/* In the rollback, we may encounter a clustered index
+		record with some unwritten off-page columns. There is
+		nothing to free then. */
+		ut_a(rollback);
 		return;
 	}
 
@@ -5947,36 +6000,6 @@ btr_free_externally_stored_field(
 		ut_ad(!page_zip);
 		rec_zip_size = 0;
 	}
-
-#ifdef UNIV_BLOB_DEBUG
-	if (!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG)
-	    && !((field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
-		 && (rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY))) {
-		/* This off-page column will be freed.
-		Check that no references remain. */
-
-		btr_blob_dbg_t	b;
-
-		b.blob_page_no = start_page;
-
-		if (rec) {
-			/* Remove the reference from the record to the
-			BLOB. If the BLOB were not freed, the
-			reference would be removed when the record is
-			removed. Freeing the BLOB will overwrite the
-			BTR_EXTERN_PAGE_NO in the field_ref of the
-			record with FIL_NULL, which would make the
-			btr_blob_dbg information inconsistent with the
-			record. */
-			b.ref_page_no = page_get_page_no(page_align(rec));
-			b.ref_heap_no = page_rec_get_heap_no(rec);
-			b.ref_field_no = i;
-			btr_blob_dbg_rbt_delete(index, &b, "free");
-		}
-
-		btr_blob_dbg_assert_empty(index, b.blob_page_no);
-	}
-#endif /* UNIV_BLOB_DEBUG */
 
 	for (;;) {
 #ifdef UNIV_SYNC_DEBUG
@@ -6003,7 +6026,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || ((rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY)
+		    || (rollback
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
@@ -6095,7 +6118,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -6114,7 +6137,7 @@ btr_rec_free_externally_stored_fields(
 		if (rec_offs_nth_extern(offsets, i)) {
 			btr_free_externally_stored_field(
 				index, btr_rec_get_field_ref(rec, offsets, i),
-				rec, offsets, page_zip, i, rb_ctx, mtr);
+				rec, offsets, page_zip, i, rollback, mtr);
 		}
 	}
 }
@@ -6133,7 +6156,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/*!< in: update vector */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -6159,7 +6182,7 @@ btr_rec_free_updated_extern_fields(
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
 				rec, offsets, page_zip,
-				ufield->field_no, rb_ctx, mtr);
+				ufield->field_no, rollback, mtr);
 		}
 	}
 }

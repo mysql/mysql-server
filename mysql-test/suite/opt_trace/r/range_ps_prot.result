@@ -39,8 +39,10 @@ Warning	1831	Duplicate index 'i2_2' defined on the table 'test.t2'. This is depr
 INSERT INTO t2 SELECT key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 FROM t1;
 
 EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i2	i2	4	NULL	47	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i2	i2	4	NULL	47	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key2` < 5) or (`test`.`t1`.`key2` > 1020))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -254,8 +256,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
 set @@optimizer_trace_features="range_optimizer=off";
 
 EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i2	i2	4	NULL	47	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i2	i2	4	NULL	47	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key2` < 5) or (`test`.`t1`.`key2` > 1020))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -402,8 +406,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
 set @@optimizer_trace_features="range_optimizer=on";
 
 EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	45	Using sort_union(i1,i2); Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	45	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` < 3) or (`test`.`t1`.`key2` > 1020))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -527,7 +533,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -574,7 +580,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       "cost_duplicate_removal": 38.361,
                       "total_cost": 58.363
                     }
-                  ] /* analyzing_index_merge */,
+                  ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_merge",
@@ -662,8 +668,10 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
 }	0	0
 
 EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	i2_1,i2_2	i2_1	4	NULL	103	Using index for group-by
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	i2_1,i2_2	i2_1	4	NULL	103	100.00	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key2` AS `key2`,min(`test`.`t2`.`key2_1`) AS `MIN(key2_1)` from `test`.`t2` group by `test`.`t2`.`key2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -894,8 +902,10 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
   ] /* steps */
 }	0	0
 EXPLAIN SELECT DISTINCT key2 FROM t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	i2_1,i2_2	i2_1	4	NULL	103	Using index for group-by
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	i2_1,i2_2	i2_1	4	NULL	103	100.00	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`key2` AS `key2` from `test`.`t2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -1127,8 +1137,10 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
 EXPLAIN SELECT key2, MIN(key2_1) FROM t2 
 WHERE key2 = 5 or key2 = 4 or key2 = 3 or key2 = 2 or key2 = 1 
 GROUP BY key2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	i2_1,i2_2	i2_1	4	NULL	47	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	i2_1,i2_2	i2_1	4	NULL	47	10.64	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key2` AS `key2`,min(`test`.`t2`.`key2_1`) AS `MIN(key2_1)` from `test`.`t2` where ((`test`.`t2`.`key2` = 5) or (`test`.`t2`.`key2` = 4) or (`test`.`t2`.`key2` = 3) or (`test`.`t2`.`key2` = 2) or (`test`.`t2`.`key2` = 1)) group by `test`.`t2`.`key2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -1442,8 +1454,10 @@ GROUP BY key2	{
 }	0	0
 
 EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	i2_1,i2_2	i2_1	4	const	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	i2_1,i2_2	i2_1	4	const	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key2` = 1) and ((`test`.`t2`.`key2_1` = 1) or (`test`.`t2`.`key3` = 5)))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -1629,8 +1643,8 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -1674,8 +1688,10 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
 }	0	0
 
 EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i2,i3,i4	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i2,i3,i4	i2,i3	4,4	NULL	2	100.00	Using union(i2,i3); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key2` = 10) or (`test`.`t1`.`key3` = 3) or (`test`.`t1`.`key4` <=> NULL))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -1806,7 +1822,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -1881,7 +1897,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       "members": 2,
                       "chosen": true
                     }
-                  ] /* analyzing_index_merge */,
+                  ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_roworder_union",
@@ -1969,8 +1985,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
 }	0	0
 
 EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	i2_1,i2_2	NULL	NULL	NULL	1024	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	i2_1,i2_2	NULL	NULL	NULL	1024	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key2_1` < 79) or (`test`.`t2`.`key2` = 2))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -2131,8 +2149,10 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
 }	0	0
 
 EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,i1b	PRIMARY	8	NULL	1	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY,i1b	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key1a` = 5) and (`test`.`t2`.`key1b` < 10))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -2355,8 +2375,10 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
 
 EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
 (key1a = 4 and key1b < 7 and key1b > 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,i1b	PRIMARY	8	NULL	2	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY,i1b	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where (((`test`.`t2`.`key1a` = 5) and (`test`.`t2`.`key1b` < 10) and (`test`.`t2`.`key1b` > 2)) or ((`test`.`t2`.`key1a` = 4) and (`test`.`t2`.`key1b` < 7) and (`test`.`t2`.`key1b` > 3)))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -2571,8 +2593,10 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
 
 EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and 
 (key1a = 4 or key1a = 5);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,i1b	i1b	4	NULL	2	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY,i1b	i1b	4	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key1b` < 10) and (`test`.`t2`.`key1b` > 7) and ((`test`.`t2`.`key1a` = 4) or (`test`.`t2`.`key1a` = 5)))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -2782,8 +2806,10 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
 }	0	0
 
 EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	i1,i2	NULL	NULL	NULL	1024	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` > 1) or (`test`.`t1`.`key2` > 2))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -2907,7 +2933,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -2955,7 +2981,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                       "chosen": false,
                       "cause": "cost"
                     }
-                  ] /* analyzing_index_merge */
+                  ] /* analyzing_index_merge_union */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -3018,9 +3044,11 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
 
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1, t2 
 WHERE t1.key1=t2.key1a AND t1.key2 > 1020;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i1,i2	i2	4	NULL	42	Using index condition
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.key1	10	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1,i2	i2	4	NULL	42	100.00	Using index condition
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.key1	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8`,`test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`key1a` = `test`.`t1`.`key1`) and (`test`.`t1`.`key2` > 1020))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3236,14 +3264,15 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 10,
-                      "cost": 432.08,
+                      "cost": 514.08,
                       "chosen": true
                     },
                     {
                       "access_type": "scan",
                       "using_join_cache": true,
+                      "buffers_needed": 1,
                       "rows": 768,
-                      "cost": 6510.7,
+                      "cost": 6511,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -3307,8 +3336,10 @@ INSERT INTO t1 VALUES ('foo','bar', 'ZZ'),('fuz','baz', 'ZZ');
 Inserting records
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	75.00	Using intersect(cola,colb); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3576,8 +3607,10 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
 }	0	0
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	cola	cola	3	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	cola	cola	3	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (`test`.`t1`.`cola` = 'f\no')
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3722,8 +3755,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -3773,10 +3806,12 @@ INSERT INTO t2 VALUES (),(),();
 SET optimizer_trace_features="greedy_search=off,dynamic_range=on";
 EXPLAIN SELECT 1 FROM 
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	DERIVED	t2	ALL	b	NULL	NULL	NULL	3	Range checked for each record (index map: 0x1)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by '' limit 1) `d2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3788,7 +3823,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1 limit 1"
+            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3798,7 +3833,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1 limit 1) `d2`"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1) `d2`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3912,7 +3947,7 @@ EXPLAIN SELECT 1 FROM
                                 {
                                   "index": "b",
                                   "chosen": false,
-                                  "cause": "unknown"
+                                  "cause": "depends_on_unread_values"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {
@@ -3939,7 +3974,7 @@ EXPLAIN SELECT 1 FROM
                 {
                   "clause_processing": {
                     "clause": "GROUP BY",
-                    "original_clause": "1",
+                    "original_clause": "''",
                     "items": [
                       {
                         "item": "1",
@@ -4098,10 +4133,12 @@ EXPLAIN SELECT 1 FROM
 SET optimizer_trace_features="greedy_search=off,dynamic_range=off";
 EXPLAIN SELECT 1 FROM 
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	DERIVED	t2	ALL	b	NULL	NULL	NULL	3	Range checked for each record (index map: 0x1)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by '' limit 1) `d2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -4113,7 +4150,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1 limit 1"
+            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4123,7 +4160,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1 limit 1) `d2`"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1) `d2`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4237,7 +4274,7 @@ EXPLAIN SELECT 1 FROM
                                 {
                                   "index": "b",
                                   "chosen": false,
-                                  "cause": "unknown"
+                                  "cause": "depends_on_unread_values"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {
@@ -4264,7 +4301,7 @@ EXPLAIN SELECT 1 FROM
                 {
                   "clause_processing": {
                     "clause": "GROUP BY",
-                    "original_clause": "1",
+                    "original_clause": "''",
                     "items": [
                       {
                         "item": "1",
@@ -4398,8 +4435,10 @@ KEY k2 (i1, i2)
 );
 INSERT INTO t1 VALUES (0,1,'2'),(3,2,'1');
 EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	k1,k2	k2	5	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1,k2	k2	5	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`i1` > '2') order by `test`.`t1`.`i1`,`test`.`t1`.`i2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -4695,8 +4734,10 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
 }	0	0
 
 EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	k1,k2	k1	5	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	k1,k2	k1	5	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (`test`.`t1`.`i1` >= '1') order by `test`.`t1`.`i1` desc
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5056,8 +5097,10 @@ INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
 
 # Covering ROR intersect not chosen: only one scan used
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	Using index condition; Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	100.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5337,8 +5380,10 @@ test.t1	analyze	status	OK
 
 # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	Using index condition; Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	100.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5644,8 +5689,10 @@ INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
 
 # Test trace for "access_type_changed 'ref' to 'range'"
 EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	PRIMARY	8	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,b	PRIMARY	8	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2)) group by `test`.`t1`.`a`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5930,8 +5977,10 @@ KEY k2 (c1, i1)
 );
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
 EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1,k2	k2	4	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1,k2	k2	4	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1` = '1') order by `test`.`t1`.`i1`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
@@ -6105,8 +6154,8 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,

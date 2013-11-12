@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,9 @@
 #define BACKUP_LOCK_TAB
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 82
+
 
 /* This class is used for both REQ, CONF, and REF. */
 
@@ -54,5 +56,8 @@ private:
   Uint32 m_backupRecordPtr_I;
   Uint32 m_tablePtr_I;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

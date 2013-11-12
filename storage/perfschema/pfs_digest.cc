@@ -69,14 +69,15 @@ bool flag_statements_digest= true;
   Current index in Stat array where new record is to be inserted.
   index 0 is reserved for "all else" case when entire array is full.
 */
-volatile uint32 digest_index= 1;
+static PFS_ALIGNED PFS_cacheline_uint32 digest_index;
+bool digest_full= false;
 
 LF_HASH digest_hash;
 static bool digest_hash_inited= false;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
-  @param param performance schema sizing      
+  @param param performance schema sizing
 */
 int init_digest(const PFS_global_param *param)
 {
@@ -88,6 +89,8 @@ int init_digest(const PFS_global_param *param)
   */
   digest_max= param->m_digest_sizing;
   digest_lost= 0;
+  digest_index.m_u32= 1;
+  digest_full= false;
 
   if (digest_max == 0)
     return 0;
@@ -228,10 +231,9 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  /* Dirty read of digest_index */
-  if (digest_index == 0)
+  if (digest_full)
   {
-    /*  digest_stat array is full. Add stat at index 0 and return. */
+    /* digest_stat array is full. Add stat at index 0 and return. */
     pfs= &statements_digest_stat_array[0];
 
     if (pfs->m_first_seen == 0)
@@ -240,11 +242,11 @@ search:
     return & pfs->m_stat;
   }
 
-  safe_index= PFS_atomic::add_u32(& digest_index, 1);
+  safe_index= PFS_atomic::add_u32(& digest_index.m_u32, 1);
   if (safe_index >= digest_max)
   {
     /* The digest array is now full. */
-    digest_index= 0;
+    digest_full= true;
     pfs= &statements_digest_stat_array[0];
 
     if (pfs->m_first_seen == 0)
@@ -352,7 +354,8 @@ void reset_esms_by_digest()
     Reset index which indicates where the next calculated digest information
     to be inserted in statements_digest_stat_array.
   */
-  digest_index= 1;
+  digest_index.m_u32= 1;
+  digest_full= false;
 }
 
 /*

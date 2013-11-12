@@ -92,7 +92,10 @@ static const char *handler_error_messages[]=
   "Row in wrong partition",
   "InnoDB is in read only mode",
   "FTS query exceeds result cache memory limit",
-  "Foreign key cascade delete/update exceeds max depth"
+  "Foreign key cascade delete/update exceeds max depth",
+  "Required Create option missing",
+  "Out of memory in storage engine",
+  "Temporary file write failure"
 };
 
 extern void my_handler_error_register(void);

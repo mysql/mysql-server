@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 #include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
+
+#define JAM_FILE_ID 453
+
 
 #define PAGES LCP_RESTORE_BUFFER
 
@@ -237,7 +240,7 @@ Restore::execRESTORE_LCP_REQ(Signal* signal){
   do
   {
     FilePtr file_ptr;
-    if(!m_file_list.seize(file_ptr))
+    if (!m_file_list.seizeFirst(file_ptr))
     {
       err= RestoreLcpRef::NoFileRecord;
       break;

@@ -36,6 +36,9 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+extern int g_errorInsert;
+#endif
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
@@ -155,6 +158,12 @@ static struct my_option my_long_options[] =
     "Nodes that will not be waited for during start",
     (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#if defined VM_TRACE || defined ERROR_INSERT
+  { "error-insert", NDB_OPT_NOSHORT,
+    "Start with error insert variable set",
+    (uchar**) &g_errorInsert, (uchar**) &g_errorInsert, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

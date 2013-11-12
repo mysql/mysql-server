@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define API_VERSION_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 35
+
 
 class ApiVersionReq {
 /**
@@ -65,5 +67,8 @@ class ApiVersionConf {
   Uint32 m_inet_addr; // The bare name "inet_addr" can conflict with arpa/inet.h
   Uint32 mysql_version; // MySQL version
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

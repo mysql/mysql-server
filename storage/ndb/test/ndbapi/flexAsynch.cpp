@@ -195,7 +195,9 @@ waitForThreads(Uint32 num_threads_to_wait_for)
     NdbSleep_MilliSleep(20);
     for (unsigned i = 0; i < num_threads_to_wait_for ; i++) {
       if (ThreadReady[i] == 0) {
+        // Found one thread not yet ready, continue waiting
         cont = 1;
+        break;
       }//if
     }//for
   } while (cont == 1);

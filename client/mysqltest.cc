@@ -360,6 +360,7 @@ enum enum_commands {
   Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
   Q_OUTPUT,                            /* redirect output to a file */
+  Q_RESET_CONNECTION,
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -462,6 +463,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
+  "resetconnection",
 
   0
 };
@@ -4554,7 +4556,7 @@ int do_save_master_pos()
     die("mysql_store_result() retuned NULL for '%s'", query);
   if (!(row = mysql_fetch_row(res)))
     die("empty result in show master status");
-  strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
+  my_stpnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res);
   DBUG_RETURN(0);
@@ -5505,6 +5507,9 @@ void do_connect(struct st_command *command)
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  my_bool save_opt_use_ssl= opt_use_ssl;
+#endif
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -5639,23 +5644,22 @@ void do_connect(struct st_command *command)
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
     con_ssl= 1;
-#endif
 
-  if (con_ssl)
+  opt_use_ssl= con_ssl;
+
+  if (opt_use_ssl)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-#if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &opt_ssl_verify_server_cert);
-#endif
-#endif
   }
+#else
+  /* keep the compiler happy about con_ssl */
+  con_ssl = con_ssl ? TRUE : FALSE;
+#endif
+  SSL_SET_OPTIONS(&con_slot->mysql);
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  opt_use_ssl= save_opt_use_ssl;
+#endif
 
   if (con_pipe)
   {
@@ -6059,6 +6063,25 @@ void do_delimiter(struct st_command* command)
   DBUG_VOID_RETURN;
 }
 
+/*
+  do_reset_connection
+
+  DESCRIPTION
+  Reset the current session.
+*/
+void do_reset_connection()
+{
+  MYSQL *mysql = &cur_con->mysql;
+
+  DBUG_ENTER("do_reset_connection");
+  if (mysql_reset_connection(mysql))
+    die("reset connection failed: %s", mysql_error(mysql));
+  if (cur_con->stmt)
+  {
+    mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt= NULL;
+  }
+}
 
 my_bool match_delimiter(int c, const char *delim, uint length)
 {
@@ -6284,17 +6307,18 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      if(charlen == 0)
+        DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
       {
-	int i;
 	char* mb_start = p;
 
 	*p++ = c;
 
-	for (i= 1; i < charlen; i++)
+	for (uint i= 1; i < charlen; i++)
 	{
 	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))
@@ -6804,7 +6828,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     break;
 #include <sslopt-case.h>
   case 't':
-    strnmov(TMPDIR, argument, sizeof(TMPDIR));
+    my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));
     break;
   case 'A':
     if (!embedded_server_arg_count)
@@ -8719,6 +8743,8 @@ int main(int argc, char **argv)
 
   st_connection *con= connections;
 #ifdef EMBEDDED_LIBRARY
+  if (ps_protocol)
+    die("--ps-protocol is not supported in embedded mode");
   init_connection_thd(con);
 #endif /*EMBEDDED_LIBRARY*/
   if (!( mysql_init(&con->mysql)))
@@ -8740,22 +8766,16 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #endif
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
   {
-    mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-#if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &opt_ssl_verify_server_cert);
-#endif
   }
 #endif
+  SSL_SET_OPTIONS(&con->mysql);
+
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
@@ -9096,6 +9116,9 @@ int main(int argc, char **argv)
         break;
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
+        break;
+      case Q_RESET_CONNECTION:
+        do_reset_connection();
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
@@ -10282,7 +10305,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=0 ; i < count ; i++)
     {
       to_array[i]=to_pos;
-      to_pos=strmov(to_pos,to[i])+1;
+      to_pos=my_stpcpy(to_pos,to[i])+1;
     }
     rep_str[0].found=1;
     rep_str[0].replace_string=0;
@@ -10578,7 +10601,7 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
   pa->typelib.type_names[pa->typelib.count++]= (char*) pa->str+pa->length;
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  (void) strmov((char*) pa->str+pa->length,name);
+  (void) my_stpcpy((char*) pa->str+pa->length,name);
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */

@@ -19,12 +19,14 @@ begin
   declare is_wait_socket integer;
   declare is_stage integer;
   declare is_statement integer;
+  declare is_transaction integer;
   declare is_memory integer;
   declare is_wait_table integer;
   declare is_wait_file_table integer;
   declare is_wait_socket_table integer;
   declare is_stage_table integer;
   declare is_statement_table integer;
+  declare is_transaction_table integer;
   declare is_memory_table integer;
   declare pfs_table_name varchar(64);
   declare msg varchar(512);
@@ -42,18 +44,20 @@ begin
   declare continue handler for sqlstate '02000'
     set done = 1;
 
-  select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
+  select (instr_name like "wait/%") or (instr_name like "idle") into is_wait;
   select (instr_name like "wait/io/file/%") into is_wait_file;
   select (instr_name like "wait/io/socket/%") into is_wait_socket;
   select (instr_name like "stage/%") into is_stage;
   select (instr_name like "statement/%") into is_statement;
   select (instr_name like "memory/%") into is_memory;
+  select (instr_name like "transaction") into is_transaction;
 
-  select instr_name, is_wait, is_wait_file, is_wait_socket, is_stage, is_statement, is_memory;
+  select instr_name, is_wait, is_wait_file, is_wait_socket, is_stage, is_statement, is_memory, is_transaction;
 
   select count(name)
     from performance_schema.setup_instruments
-    where name like (concat(instr_name, "%"))
+    where (name like (concat(instr_name, "%")))
+    and (not name like "%/abstract/%")
     into count_expected;
 
   set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
@@ -71,6 +75,7 @@ begin
       select (pfs_table_name like "%stages%") into is_stage_table;
       select (pfs_table_name like "%statements%") into is_statement_table;
       select (pfs_table_name like "%memory%") into is_memory_table;
+      select (pfs_table_name like "%transaction%") into is_transaction_table;
 
       select concat("Checking table ", pfs_table_name, " ...") as status;
       select concat(cmd_1, pfs_table_name, cmd_2) into @cmd;
@@ -178,6 +183,21 @@ begin
         end if;
       end if;
 
+      if is_transaction = 1
+      then
+        if is_transaction_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing transaction events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_transaction_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected transaction events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+      end if;
+
     end if;
   until done
   end repeat;
@@ -207,9 +227,11 @@ call check_instrument("wait/");
 call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
+call check_instrument("statement/abstract/");
 call check_instrument("statement/");
-call check_instrument("idle/");
+call check_instrument("idle");
 call check_instrument("memory/");
+call check_instrument("transaction");
 
 drop procedure check_instrument;
 

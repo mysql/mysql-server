@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DIH_RESTART_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 84
+
 
 struct DihRestartReq
 {
@@ -47,5 +50,8 @@ struct DihRestartConf
   Uint32 latest_gci;
   Uint32 no_nodegroup_mask[NdbNodeBitmask::Size];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

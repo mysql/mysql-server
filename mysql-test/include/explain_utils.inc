@@ -35,7 +35,7 @@ if ($select) {
 
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X
+--replace_column 10 X
   }
 }
 --eval EXPLAIN $query
@@ -48,7 +48,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X 10 X
+--replace_column 10 X 11 X
   }
 }
 --eval EXPLAIN EXTENDED $query
@@ -68,8 +68,8 @@ SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
 if ($json) {
 if ($innodb) {
   if ($no_rows) {
---replace_regex /"rows": [0-9]+/"rows": "X"/ /"filtered": [0-9.]+/"filtered": "X"/
-  }
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": [0-9.]+/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/
+}
 }
 --eval EXPLAIN FORMAT=JSON $query;
 if ($validation) {
@@ -88,7 +88,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 if ($innodb) {
   if ($no_rows) {
---replace_column 9 X 10 X
+--replace_column 10 X 11 X
   }
 }
 --eval EXPLAIN EXTENDED $select
@@ -103,7 +103,7 @@ SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
 if ($json) {
 if ($innodb) {
   if ($no_rows) {
---replace_regex /"rows": [0-9]+/"rows": "X"/ /"filtered": [0-9.]+/"filtered": "X"/
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": [0-9.]+/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/
   }
 }
 --eval EXPLAIN FORMAT=JSON $select;

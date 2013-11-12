@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "data0data.h"
 #include "rem0types.h"
+#include "page0types.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"
@@ -243,7 +244,8 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	mem_heap_t*	heap,		/*!< in: memory heap where copied */
+	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must

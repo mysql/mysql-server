@@ -1,7 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This is a Myisam engine specific testcase
+# Hence MTR starts mysqld with MyISAM as default
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # Initialize
 --disable_warnings
@@ -140,8 +140,8 @@ drop table t1;
 create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
 );
 insert into t1 VALUES(1,1,1), (2,2,1);
-select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
-explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS themax ON t1.E1 = themax.E2 AND t1.E1 = t1.E2;
+explain select count(*) from t1 INNER JOIN (SELECT a.E1, a.E2, a.E3 FROM t1 AS a WHERE a.E3 = (SELECT max(b.E3) FROM t1 AS b WHERE a.E2 = b.E2)) AS themax ON t1.E1 = themax.E2 AND t1.E1 = t1.E2;
 drop table t1;
 
 create table t1 (a int);
@@ -407,13 +407,13 @@ DROP VIEW viewC;
 --echo # Bug#55950: FROM Subquery joined by 2 varchar fields returns empty
 --echo #            set
 --echo #
-CREATE TABLE `CC` (
+CREATE TABLE `cc` (
   `i1` varchar(1) DEFAULT NULL,
   `i2` varchar(1) DEFAULT NULL
 );
 
-INSERT INTO `CC` VALUES ('m','m');
-INSERT INTO `CC` VALUES ('c','c');
+INSERT INTO `cc` VALUES ('m','m');
+INSERT INTO `cc` VALUES ('c','c');
 
 CREATE TABLE `C` (
   `o1` varchar(1) DEFAULT NULL
@@ -424,7 +424,7 @@ INSERT INTO `C` VALUES ('m');
 SELECT table1 . o1 
 FROM C table1  
   JOIN ( C table2  
-    JOIN ( SELECT * FROM CC ) table3  
+    JOIN ( SELECT * FROM cc ) table3  
     ON table3 .`i1`  = table2 .o1  
   ) ON table3 .`i2`  = table2 .o1   
 ;
@@ -433,12 +433,12 @@ FROM C table1
 EXPLAIN SELECT table1 . o1 
 FROM C table1  
   JOIN ( C table2  
-    JOIN ( SELECT * FROM CC ) table3  
+    JOIN ( SELECT * FROM cc ) table3  
     ON table3 .`i1`  = table2 .o1  
   ) ON table3 .`i2`  = table2 .o1   
 ;
 
-DROP TABLE CC;
+DROP TABLE cc;
 DROP TABLE C;
 --echo # End of test for bug#55950
 
@@ -455,19 +455,19 @@ INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
 (8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
 
 SELECT * FROM ( 
-  SELECT DISTINCT tableB.col_datetime_key 
-  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
-) AS FROM_SUBQUERY;
+  SELECT DISTINCT tableb.col_datetime_key 
+  FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
+) AS from_subquery;
 
 EXPLAIN SELECT * FROM ( 
-  SELECT DISTINCT tableB.col_datetime_key 
-  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
-) AS FROM_SUBQUERY;
+  SELECT DISTINCT tableb.col_datetime_key 
+  FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
+) AS from_subquery;
 
 EXPLAIN SELECT * FROM ( 
-  SELECT DISTINCT tableA.col_datetime_key 
-  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
-) AS FROM_SUBQUERY;
+  SELECT DISTINCT tablea.col_datetime_key 
+  FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
+) AS from_subquery;
 
 DROP TABLE t1;
 
@@ -1323,7 +1323,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
 CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
 SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
-EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS a NATURAL JOIN t1;
 DROP TABLE t1,t2;
 
 --echo #
