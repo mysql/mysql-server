@@ -38,8 +38,7 @@
 #include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
                           // handle_one_connection
 #include "sql_time.h"     // known_date_time_formats,
-                          // get_date_time_format_str,
-                          // date_time_format_make
+                          // get_date_time_format_str
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
 #include "auth_common.h"  // set_default_auth_plugin
@@ -6998,7 +6997,7 @@ pfs_error:
 C_MODE_START
 
 static void*
-mysql_getopt_value(const char *keyname, uint key_length,
+mysql_getopt_value(const char *keyname, size_t key_length,
        const struct my_option *option, int *error)
 {
   if (error)

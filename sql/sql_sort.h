@@ -369,7 +369,7 @@ public:
     *resl= Addon_fields::read_addon_length(plen);
     DBUG_ASSERT(*resl <= res_length);
     const uchar *record_end= plen + *resl;
-    *recl= (record_end - record_start);
+    *recl= static_cast<uint>(record_end - record_start);
   }
 
 private:
