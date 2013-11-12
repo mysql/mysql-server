@@ -466,7 +466,7 @@ extern PSI_memory_key key_memory_host_cache_hostname;
 extern PSI_memory_key key_memory_User_level_lock_key;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
 extern PSI_memory_key key_memory_Sort_param_tmp_buffer;
-extern PSI_memory_key key_memory_Filesort_info_buffpek;
+extern PSI_memory_key key_memory_Filesort_info_merge;
 extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
