@@ -188,7 +188,10 @@ protected:
   ~table_events_statements_common()
   {}
 
-  void make_row(PFS_events_statements *statement);
+  void make_row_part_1(PFS_events_statements *statement,
+                       PSI_digest_storage *digest);
+
+  void make_row_part_2(PSI_digest_storage *digest);
 
   /** Current row. */
   row_events_statements m_row;
@@ -230,6 +233,8 @@ private:
   */
   static TABLE_FIELD_DEF m_field_def;
 
+  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+  
   /** Current position. */
   pos_events_statements_current m_pos;
   /** Next position. */
@@ -261,6 +266,8 @@ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
+  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+
   /** Current position. */
   pos_events_statements_history m_pos;
   /** Next position. */
@@ -291,6 +298,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+
+  void make_row(PFS_events_statements *statement);
 
   /** Current position. */
   PFS_simple_index m_pos;
