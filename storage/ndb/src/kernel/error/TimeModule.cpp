@@ -54,20 +54,19 @@ TimeModule::~TimeModule(){
 void
 TimeModule::setTimeStamp()
 {
-   struct tm* rightnow;
    time_t now;
-
    time(&now);
 
-   rightnow = localtime(&now);
+   tm tm_buf;
+   localtime_r(&now, &tm_buf);
 
-   iYear     = rightnow->tm_year+1900; // localtime returns current year -1900
-   iMonth    = rightnow->tm_mon+1;     // and month 0-11
-   iMonthDay = rightnow->tm_mday;
-   iWeekDay  = rightnow->tm_wday;
-   iHour     = rightnow->tm_hour;
-   iMinute   = rightnow->tm_min;
-   iSecond   = rightnow->tm_sec;
+   iYear     = tm_buf.tm_year+1900; // localtime returns current year -1900
+   iMonth    = tm_buf.tm_mon+1;     // and month 0-11
+   iMonthDay = tm_buf.tm_mday;
+   iWeekDay  = tm_buf.tm_wday;
+   iHour     = tm_buf.tm_hour;
+   iMinute   = tm_buf.tm_min;
+   iSecond   = tm_buf.tm_sec;
 }
 
 int
