@@ -64,8 +64,9 @@ bool Configuration::connectToPrimary() {
   
   /* Build the startup timestamp for the log message */
   time(&now);
+  localtime_r(&now, &tm_buf);
   strftime(timestamp, sizeof(timestamp),
-           "%d-%b-%Y %T %Z", localtime_r(&now, &tm_buf));
+           "%d-%b-%Y %T %Z", &tm_buf);
   
   /* ndb_init() must be the first call into the NDB API */
   ndb_init();
