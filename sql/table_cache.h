@@ -161,7 +161,7 @@ public:
   /** Get index for the table cache in container. */
   uint cache_index(Table_cache *cache) const
   {
-    return (cache - &m_table_cache[0]);
+    return static_cast<uint>(cache - &m_table_cache[0]);
   }
 
   uint cached_tables();

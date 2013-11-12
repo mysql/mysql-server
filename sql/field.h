@@ -2392,7 +2392,7 @@ protected:
     @retval     false   Conversion went fine, ltime contains a valid time
     @retval     true    Conversion failed, ltime was reset and contains nothing
   */
-  virtual bool convert_str_to_TIME(const char *str, uint len,
+  virtual bool convert_str_to_TIME(const char *str, size_t len,
                                    const CHARSET_INFO *cs,
                                    MYSQL_TIME *ltime, 
                                    MYSQL_TIME_STATUS *status)= 0;
@@ -2562,7 +2562,7 @@ protected:
                                                 int nanoseconds,
                                                 MYSQL_TIME *ltime,
                                                 int *warning);
-  bool convert_str_to_TIME(const char *str, uint len, const CHARSET_INFO *cs,
+  bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   type_conversion_status store_internal_with_round(MYSQL_TIME *ltime,
                                                    int *warnings);
@@ -2944,7 +2944,7 @@ public:
 */
 class Field_time_common :public Field_temporal {
 protected:
-  bool convert_str_to_TIME(const char *str, uint len, const CHARSET_INFO *cs,
+  bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   /**
     @todo: convert_number_to_TIME returns conversion status through
