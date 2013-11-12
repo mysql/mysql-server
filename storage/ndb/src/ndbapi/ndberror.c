@@ -589,7 +589,7 @@ ErrorBundle ErrorCodes[] = {
   { 1323, DMEC, IE, "1323" },
   { 1324, DMEC, IE, "Backup log buffer full" },
   { 1325, DMEC, IE, "File or scan error" },
-  { 1326, DMEC, IE, "Backup abortet due to node failure" },
+  { 1326, DMEC, IE, "Backup aborted due to node failure" },
   { 1327, DMEC, IE, "1327" },
   
   { 1340, DMEC, IE, "Backup undefined error" },

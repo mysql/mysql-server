@@ -20,28 +20,42 @@
 
 #include <string>
 #include <vector>
-#include <set>
-
-#include "hrt_utils.h"
+#include <algorithm>
+#include <ostream>
 
 #include "Driver.hpp"
 
 using std::string;
 using std::vector;
-using std::set;
+using std::ostream;
 
 class CrundDriver : public Driver {
-protected:
+public:
 
-    // benchmark settings
-    enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
-    static const char* toStr(LockMode mode);
-    enum XMode { BULK, EACH, INDY }; // XXX not used yet
-    static const char* toStr(XMode mode); // XXX not used yet
+    // usage
+    CrundDriver() {}
+    virtual ~CrundDriver() {}
+
+    // operation execution and lock modes
+    struct XMode {
+        enum E { undef = 0x0, indy = 0x1, each = 0x2, bulk = 0x4 };
+
+        static E valueOf(const string & s);
+        static const char* toString(E e);
+        friend ostream& operator<< (ostream& os, const E& rhs);
+    };
+    struct LockMode {
+        enum E { undef = 0, none, shared, exclusive };
+
+        static E valueOf(const string & s);
+        static const char* toString(E e);
+        friend ostream& operator<< (ostream& os, const E& rhs);
+    };
+
+    // settings
+    vector< XMode::E > xModes;
+    LockMode::E lockMode;
     bool renewConnection;
-    bool renewOperations;
-    bool logSumOfOps;
-    LockMode lockMode;
     int nOpsStart;
     int nOpsEnd;
     int nOpsScale;
@@ -49,37 +63,82 @@ protected:
     int maxVarcharChars;
     int maxBlobBytes;
     int maxTextChars;
-    set< string > exclude;
+    vector< string > include;
+    vector< string > exclude;
 
-    // benchmark intializers/finalizers
+protected:
+
+    // resources
+    Loads myLoads;
+
+    // intializers/finalizers
+    virtual void init();
+    virtual void close();
     virtual void initProperties();
     virtual void printProperties();
+    virtual bool createLoad(const string& name);
 
-    // measured units of work
-    struct Op {
-        const string name;
-
-        virtual void run(int nOps) const = 0;
-
-        Op(const string& name) : name(name) {}
-
-        virtual ~Op() {}
-    };
-    typedef vector< const Op* > Operations;
-    Operations operations;
-
-    // benchmark operations
-    virtual void initOperations() = 0;
-    virtual void closeOperations() = 0;
-    virtual void runTests();
-    virtual void runLoads(int nOps);
-    virtual void runOperations(int nOps);
-    virtual void runOp(const Op& op, int nOps);
-
-    // datastore operations
-    virtual void initConnection() = 0;
-    virtual void closeConnection() = 0;
-    virtual void clearData() = 0;
+    // operations
+    virtual void runLoad(Load& load);
+    virtual void connectDB(Load& load);
+    virtual void disconnectDB(Load& load);
+    virtual void reconnectDB(Load& load);
+    virtual void runSeries(Load& load, int nOps);
+    virtual void runOperations(Load& load, int nOps);
 };
+
+// string converters and ostream inserters for enum types
+
+inline ostream&
+operator<< (ostream& os, const CrundDriver::XMode::E& rhs) {
+    os << CrundDriver::XMode::toString(rhs);
+    return os;
+}
+
+inline ostream&
+operator<< (ostream& os, const CrundDriver::LockMode::E& rhs) {
+    os << CrundDriver::LockMode::toString(rhs);
+    return os;
+}
+
+inline CrundDriver::XMode::E
+CrundDriver::XMode::valueOf(const string & s) {
+    string l(s);
+    std::transform(s.begin(), s.end(), l.begin(), ::tolower);
+    if (!l.compare("indy")) return CrundDriver::XMode::indy;
+    if (!l.compare("each")) return CrundDriver::XMode::each;
+    if (!l.compare("bulk")) return CrundDriver::XMode::bulk;
+    return undef;
+}
+
+inline const char*
+CrundDriver::XMode::toString(CrundDriver::XMode::E e) {
+    switch (e) {
+    case CrundDriver::XMode::indy: return "indy";
+    case CrundDriver::XMode::each: return "each";
+    case CrundDriver::XMode::bulk: return "bulk";
+    default: return "<undef>";
+    };
+}
+
+inline CrundDriver::LockMode::E
+CrundDriver::LockMode::valueOf(const string & s) {
+    string l(s);
+    std::transform(s.begin(), s.end(), l.begin(), ::tolower);
+    if (!l.compare("none")) return CrundDriver::LockMode::none;
+    if (!l.compare("shared")) return CrundDriver::LockMode::shared;
+    if (!l.compare("exclusive")) return CrundDriver::LockMode::exclusive;
+    return undef;
+}
+
+inline const char*
+CrundDriver::LockMode::toString(CrundDriver::LockMode::E e) {
+    switch (e) {
+    case CrundDriver::LockMode::none: return "none";
+    case CrundDriver::LockMode::shared: return "shared";
+    case CrundDriver::LockMode::exclusive: return "exclusive";
+    default: return "<undef>";
+    };
+}
 
 #endif // CrundDriver_hpp

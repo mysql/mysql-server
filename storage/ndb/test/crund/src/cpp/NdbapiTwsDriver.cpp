@@ -17,9 +17,10 @@
 
 #include "NdbapiTwsDriver.hpp"
 
+#include <cstddef>
+#include <cassert>
 #include <iostream>
 #include <string>
-#include <cassert>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
@@ -27,19 +28,17 @@
 using std::cout;
 using std::flush;
 using std::endl;
-using std::ios_base;
 using std::ostringstream;
 using std::string;
-
-using utils::toString;
 
 // ---------------------------------------------------------------------------
 // Helper Macros & Functions
 // ---------------------------------------------------------------------------
 
-// This benchmark's error handling of NDBAPI calls is rigorous but crude:
+// Current error handling is crude & simple:
 // - all calls' return value is checked for errors
 // - all errors are reported and then followed by a process exit
+
 #define ABORT_NDB_ERROR(error)                                          \
     do { cout << "!!! error in " << __FILE__ << ", line: " << __LINE__  \
               << ", code: " << (int)(error).code                        \
@@ -176,20 +175,9 @@ NdbapiTwsDriver::initProperties() {
 
     ostringstream msg;
 
-    mgmdConnect = toString(props[L"ndb.mgmdConnect"]);
-    if (mgmdConnect.empty()) {
-        mgmdConnect = string("localhost");
-    }
-
-    catalog = toString(props[L"ndb.catalog"]);
-    if (catalog.empty()) {
-        catalog = string("crunddb");
-    }
-
-    schema = toString(props[L"ndb.schema"]);
-    if (schema.empty()) {
-        schema = string("def");
-    }
+    mgmdConnect = toS(props[L"ndb.mgmdConnect"], L"localhost");
+    catalog = toS(props[L"ndb.catalog"], L"crunddb");
+    schema = toS(props[L"ndb.schema"], L"def");
 
     //if (msg.tellp() == 0) {
     if (msg.str().empty()) {
@@ -205,17 +193,10 @@ void
 NdbapiTwsDriver::printProperties() {
     TwsDriver::printProperties();
 
-    const ios_base::fmtflags f = cout.flags();
-    // no effect calling manipulator function, not sure why
-    //cout << ios_base::boolalpha;
-    cout.flags(ios_base::boolalpha);
-
     cout << endl << "ndb settings ..." << endl;
     cout << "ndb.mgmdConnect:                \"" << mgmdConnect << "\"" << endl;
     cout << "ndb.catalog:                    \"" << catalog << "\"" << endl;
     cout << "ndb.schema:                     \"" << schema << "\"" << endl;
-
-    cout.flags(f);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +220,7 @@ NdbapiTwsDriver::runOperations(int nOps) {
 void
 NdbapiTwsDriver::runInserts(XMode mode, int nOps) {
     const string name = string("insert_") + toStr(mode);
-    begin(name);
+    beginOp(name);
 
     if (mode == INDY) {
         for(int i = 0; i < nOps; i++) {
@@ -259,13 +240,13 @@ NdbapiTwsDriver::runInserts(XMode mode, int nOps) {
         ndbapiCloseTransaction();
     }
 
-    finish(name);
+    finishOp(name, nOps);
 }
 
 void
 NdbapiTwsDriver::runLookups(XMode mode, int nOps) {
     const string name = string("lookup_") + toStr(mode);
-    begin(name);
+    beginOp(name);
 
     if (mode == INDY) {
         for(int i = 0; i < nOps; i++) {
@@ -290,13 +271,13 @@ NdbapiTwsDriver::runLookups(XMode mode, int nOps) {
         ndbapiCloseTransaction();
     }
 
-    finish(name);
+    finishOp(name, nOps);
 }
 
 void
 NdbapiTwsDriver::runUpdates(XMode mode, int nOps) {
     const string name = string("update_") + toStr(mode);
-    begin(name);
+    beginOp(name);
 
     if (mode == INDY) {
             for(int i = 0; i < nOps; i++) {
@@ -316,13 +297,13 @@ NdbapiTwsDriver::runUpdates(XMode mode, int nOps) {
         ndbapiCloseTransaction();
     }
 
-    finish(name);
+    finishOp(name, nOps);
 }
 
 void
 NdbapiTwsDriver::runDeletes(XMode mode, int nOps) {
     const string name = string("delete_") + toStr(mode);
-    begin(name);
+    beginOp(name);
 
     if (mode == INDY) {
             for(int i = 0; i < nOps; i++) {
@@ -342,7 +323,7 @@ NdbapiTwsDriver::runDeletes(XMode mode, int nOps) {
         ndbapiCloseTransaction();
     }
 
-    finish(name);
+    finishOp(name, nOps);
 }
 
 void
@@ -773,7 +754,7 @@ NdbapiTwsDriver::initConnection() {
     cout << "creating cluster connection ..." << flush;
     assert(!mgmdConnect.empty());
     mgmd = new Ndb_cluster_connection(mgmdConnect.c_str());
-    cout << " [ok]" << endl; // no useful mgmd->string conversion
+    cout << " [ok: mgmd@" << mgmdConnect << "]" << endl;
 
     // connect to cluster management node (ndb_mgmd)
     cout << "connecting to mgmd ..." << flush;
