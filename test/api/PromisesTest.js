@@ -47,12 +47,12 @@ t_222.run = function() {
 
   function onSession(session) {
     n++;
+    assert(n === 1);  // 2.2.2.3 ; could happen after test has already passed
     test.errorIfUnset("onFulfilled gets a value", session);   // 2.2.2.1
-    test.errorIfNotEqual("calls to onFulfilled", n, 1);       // 2.2.2.3
     test.errorIfNotEqual("Not a session", typeof session.find, "function");
     test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
 
-    session.close(function() { test.failOnError() });
+    session.close(function() { test.failOnError(); });
   }
   
   p = mynode.openSession(good_properties, null);
@@ -67,10 +67,10 @@ tests.push(t_222);
 
 
 /* 2.2.3 if onRejected is a function:
-     2.2.2.1 it must be called after promise is rejected, with promise's reason
+     2.2.3.1 it must be called after promise is rejected, with promise's reason
        as its first argument.
      2.2.3.2 it must not be called before promise is rejected
-     2.2.2.3 it must not be called more than once. 
+     2.2.3.3 it must not be called more than once. 
 */
 var t_223 = new harness.ConcurrentTest("2.2.3");
 t_223.run = function() {
@@ -79,14 +79,14 @@ t_223.run = function() {
   test = this;
   
   function onSession(s) {
-    test.fail("openSession should fail");
+    assert("openSession should fail" === 0);
     s.close();
   }
   
   function onError(e) {
     n++;
+    assert(n === 1);   // 2.2.3.3 ; could happen after test has passed
     test.errorIfUnset("onRejected must get a reason", e);
-    test.errorIfNotEqual("calls to onRejected", n, 1);
     test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
     test.failOnError();
   }
@@ -183,13 +183,12 @@ t_227.run = function() {
     this.fail("p1 not thenable");
   } else {
     p2 = p1.then(onSession);
-    if(typeof p1 !== 'object' || typeof p1.then !== 'function') {
+    if(typeof p2 !== 'object' || typeof p2.then !== 'function') {
       this.appendErrorMessage("p2 not thenable");
     }
   }
 };
 tests.push(t_227);
-
 
 
 module.exports.tests = tests;
