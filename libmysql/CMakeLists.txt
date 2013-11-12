@@ -139,6 +139,7 @@ mysql_load_plugin_v
 mysql_options4
 mysql_plugin_options
 mysql_reset_connection
+mysql_get_option
 
 CACHE INTERNAL "Functions exported by client API"
 
