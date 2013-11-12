@@ -342,6 +342,10 @@ function main() {
   /* Finally store the complete properties object in the options */
   options.properties = properties;
 
+  /* Force GC is available if node is run with the --expose-gc option
+  */
+  options.use_gc = ( typeof global.gc === 'function' );
+
   var logFile = new ResultLog(options.log);
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
   new JSCRUND.mynode.TableMapping("b").applyToClass(B);
@@ -473,6 +477,7 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = indyTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
@@ -526,6 +531,7 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = eachTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
@@ -573,6 +579,7 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = bulkTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
