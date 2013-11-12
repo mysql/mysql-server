@@ -2186,3 +2186,47 @@ AVG(DISTINCT outr.col_int_nokey)
 7.5000
 DROP TABLE t1;
 # End of the bug#57932
+#
+# MDEV-5257: MIN/MAX Optimization (Select tables optimized away) does not work for DateTime
+# MDEV-3855: MIN/MAX optimization doesnt work for int_col > INET_ATON
+#  (correct the fix for Bug #884175)
+#
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL AUTO_INCREMENT,
+`b` datetime DEFAULT NULL,
+PRIMARY KEY (`a`),
+KEY `idx_b` (`b`)
+);
+INSERT INTO `t1` (b) VALUES ('2013-01-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-02-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-03-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-04-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-05-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-06-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-07-06 23:59:59');
+# The following should produce "Select tables optimized away"
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+set names utf8;
+# Should be the same as above:
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL AUTO_INCREMENT,
+`b` bigint(20) DEFAULT NULL,
+PRIMARY KEY (`a`),
+KEY `idx_b` (`b`)
+);
+insert into t1 (b) values (INET_ATON('192.168.0.1'));
+insert into t1 (b) values (INET_ATON('192.168.0.2'));
+insert into t1 (b) values (INET_ATON('192.168.0.3'));
+insert into t1 (b) values (INET_ATON('192.168.0.4'));
+insert into t1 (b) values (INET_ATON('192.168.200.200'));
+# should show "Select tables optimized away"
+explain select MIN(b) from t1 where b >= inet_aton('192.168.119.32');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP TABLE t1;

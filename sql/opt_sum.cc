@@ -479,6 +479,24 @@ int opt_sum_query(THD *thd,
 }
 
 
+/*
+  Check if both item1 and item2 are strings, and item1 has fewer characters 
+  than item2.
+*/
+
+static bool check_item1_shorter_item2(Item *item1, Item *item2)
+{
+  if (item1->cmp_type() == STRING_RESULT &&
+      item2->cmp_type() == STRING_RESULT)
+  {
+    int len1= item1->max_length / item1->collation.collation->mbmaxlen;
+    int len2= item2->max_length / item2->collation.collation->mbmaxlen;
+    return len1 < len2;
+  }
+  return false;  /* When the check is not applicable, it means "not bigger" */
+}
+
+
 /**
   Test if the predicate compares a field with constants.
 
@@ -509,7 +527,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
       if (!(item= it++))
         return 0;
       args[0]= item->real_item();
-      if (args[0]->max_length < args[1]->max_length)
+      if (check_item1_shorter_item2(args[0], args[1]))
         return 0;
       if (it++)
         return 0;
@@ -544,7 +562,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     }
     else
       return 0;
-    if (args[0]->max_length < args[1]->max_length)
+    if (check_item1_shorter_item2(args[0], args[1]))
       return 0;
     break;
   case 3:
@@ -559,7 +577,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
         if (!item->const_item())
           return 0;
         args[i]= item;
-        if (args[0]->max_length < args[i]->max_length)
+        if (check_item1_shorter_item2(args[0], args[1]))
           return 0;
       }
     }
