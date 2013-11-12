@@ -165,11 +165,12 @@ class NdbjtieS extends CrundSLoad {
         if (msg.length() == 0) {
             out.println("      [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
+        name = "ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
@@ -407,7 +408,7 @@ class NdbjtieS extends CrundSLoad {
         assert (ndb != null);
         assert (table_s != null);
         assert (column_c0 != null);
-        out.print("clearing metadata cache...");
+        out.print("clearing metadata cache ...");
         out.flush();
         column_c14 = null;
         column_c13 = null;
@@ -425,7 +426,7 @@ class NdbjtieS extends CrundSLoad {
         column_c1 = null;
         column_c0 = null;
         table_s = null;
-        out.println("      [ok]");
+        out.println("     [ok]");
     }
 
     public void initBuffers(int nRows) {
@@ -455,7 +456,7 @@ class NdbjtieS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runInsert(XMode mode, int[] id) throws Exception {
-        final String name = "S_insAttr_" + mode;
+        final String name = "S_insAttr," + mode;
         final int n = id.length;
         try {
             initBuffers(n);
@@ -563,7 +564,7 @@ class NdbjtieS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runLookup(XMode mode, int[] id) throws Exception {
-        final String name = "S_getAttr_" + mode;
+        final String name = "S_getAttr," + mode;
         final int n = id.length;
         try {
             initBuffers(n);
@@ -705,7 +706,7 @@ class NdbjtieS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runUpdate(XMode mode, int[] id) throws Exception {
-        final String name = "S_setAttr_" + mode;
+        final String name = "S_setAttr," + mode;
         final int n = id.length;
         try {
             initBuffers(n);
@@ -792,7 +793,7 @@ class NdbjtieS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runDelete(XMode mode, int[] id) throws Exception {
-        final String name = "S_del_" + mode;
+        final String name = "S_del," + mode;
         final int n = id.length;
         try {
             initBuffers(n);

@@ -59,11 +59,12 @@ class ClusterjS extends CrundSLoad {
         if (msg.length() == 0) {
             out.println(" [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
+        name = "clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
@@ -166,7 +167,7 @@ class ClusterjS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runInsert(XMode mode, int[] id) throws Exception {
-        final String name = "S_insAttr_" + mode;
+        final String name = "S_insAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         if (mode != XMode.indy) // indy uses auto-tx mode
@@ -207,7 +208,7 @@ class ClusterjS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runLookup(XMode mode, int[] id) throws Exception {
-        final String name = "S_getAttr_" + mode;
+        final String name = "S_getAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         if (mode != XMode.indy) // indy uses auto-tx mode
@@ -265,7 +266,7 @@ class ClusterjS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runUpdate(XMode mode, int[] id) throws Exception {
-        final String name = "S_setAttr_" + mode;
+        final String name = "S_setAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         if (mode != XMode.indy) // indy uses auto-tx mode
@@ -307,7 +308,7 @@ class ClusterjS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runDelete(XMode mode, int[] id) throws Exception {
-        final String name = "S_del_" + mode;
+        final String name = "S_del," + mode;
         final int n = id.length;
         driver.beginOp(name);
         if (mode != XMode.indy) // indy uses auto-tx mode
