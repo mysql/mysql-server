@@ -26,14 +26,13 @@ my $bits = $ENV{MYSQL_SYSTEM_ARCHITECTURE};
 
 if(!IS_WINDOWS)
 {
-  push(@arch_paths, ('/usr/bin', '/usr/lib/jvm/java/bin', '/usr/lib64/jvm/java/bin'));
-  push(@arch_paths, ('/usr/lib/jvm/default-java/bin'));
+  push(@arch_paths, ('/usr/lib/jvm/java/bin', '/usr/lib64/jvm/java/bin'));
   push(@arch_paths, ('/usr/local/jdk/bin', '/usr/local/java/bin', '/usr/local/java/jdk/bin'));
+  push(@arch_paths, ('/usr/jdk-latest/bin', '/usr/bin'));
 
   $java_args = "-d32";
   if ($bits == 64) {
     $java_args = "-d64";
-    push(@arch_paths, ('/usr/java-local/jdk-64/bin', '/usr/local/jdk-64/bin', '/usr/local/java/jdk-64/bin'));
   }
 }
 else
@@ -50,7 +49,8 @@ else
   push(@arch_paths, 'C:\Windows\System32');
 }
 
-my @java_paths = ($ENV{MTR_JAVA} . $pathsep . "bin");
+my @java_paths = ($ENV{JAVA_HOME} . $pathsep . "bin");
+push(@java_paths, $ENV{JDK_HOME} . $pathsep . "bin");
 push(@java_paths, @arch_paths);
 push(@java_paths, "*"); # last resort: empty path marker for "java on PATH variable"
 
