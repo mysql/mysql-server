@@ -20,7 +20,10 @@
 
 #include "TwsDriver.hpp"
 
-#include <Ndbapi.hpp>
+#include <cstddef>
+#include <cassert>
+
+#include <NdbApi.hpp>
 #include <NdbError.hpp>
 
 using std::string;
@@ -87,11 +90,6 @@ struct NdbapiTwsModel {
         int at = c->getArrayType(); // size of length prefix, practically
         return (s * al) + at;
     }
-
-private:
-
-    NdbapiTwsModel(const NdbapiTwsModel&);
-    NdbapiTwsModel& operator=(const NdbapiTwsModel&);
 };
 
 class NdbapiTwsDriver : public TwsDriver {
@@ -105,11 +103,6 @@ public:
         assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
         assert(model == NULL); assert(bb == NULL); assert(ra == NULL);
     }
-
-private:
-
-    NdbapiTwsDriver(const NdbapiTwsDriver&);
-    NdbapiTwsDriver& operator=(const NdbapiTwsDriver&);
 
 protected:
 

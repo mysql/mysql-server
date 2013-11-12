@@ -68,14 +68,15 @@ public class NdbjtieAB extends CrundLoad {
     protected String mgmdConnect;
     protected String catalog;
     protected String schema;
+    protected int nMaxConcTx;
     protected int nConcScans;
 
     // NDB JTie resources
-    protected Model model;
     protected Ndb_cluster_connection mgmd;
     protected Ndb ndb;
     protected NdbTransaction tx;
     protected int ndbOpLockMode;
+    protected Model model;
 
     // NDB JTie static resources
     static protected final ByteOrder bo = ByteOrder.nativeOrder();
@@ -106,7 +107,6 @@ public class NdbjtieAB extends CrundLoad {
         CrundDriver.parseArguments(args);
         final CrundDriver driver = new CrundDriver();
         final CrundLoad load = new NdbjtieAB(driver);
-        driver.addLoad(load);
         driver.run();
         System.out.println();
         System.out.println("NdbjtieAB.main(): done.");
@@ -124,19 +124,19 @@ public class NdbjtieAB extends CrundLoad {
         final String eol = System.getProperty("line.separator");
         final Properties props = driver.props;
 
-        // the hostname and port number of NDB mgmd
         mgmdConnect = props.getProperty("ndb.mgmdConnect", "localhost");
         assert mgmdConnect != null;
-
-        // the database
         catalog = props.getProperty("ndb.catalog", "crunddb");
         assert catalog != null;
-
-        // the schema
         schema = props.getProperty("ndb.schema", "def");
         assert schema != null;
 
-        // the number of concurrent scans
+        nMaxConcTx = driver.parseInt("ndb.nMaxConcTx", 1024);
+        if (nMaxConcTx < 1) {
+            msg.append("[IGNORED] ndb.nMaxConcTx:    " + nMaxConcTx + eol);
+            nMaxConcTx = 1024;
+        }
+
         nConcScans = driver.parseInt("ndb.nConcScans", 255);
         if (nConcScans < 1) {
             msg.append("[IGNORED] ndb.nConcScans:    " + nConcScans + eol);
@@ -146,11 +146,12 @@ public class NdbjtieAB extends CrundLoad {
         if (msg.length() == 0) {
             out.println("      [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
+        name = "ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
@@ -159,6 +160,7 @@ public class NdbjtieAB extends CrundLoad {
         out.println("ndb.mgmdConnect:                \"" + mgmdConnect + "\"");
         out.println("ndb.catalog:                    \"" + catalog + "\"");
         out.println("ndb.schema:                     \"" + schema + "\"");
+        out.println("ndb.nMaxConcTx:                 " + nMaxConcTx);
         out.println("ndb.nConcScans:                 " + nConcScans);
     }
 
@@ -208,6 +210,7 @@ public class NdbjtieAB extends CrundLoad {
 
     // the benchmark's schema information
     static protected class Model {
+        // dictionary objects
         public final TableConst table_A;
         public final TableConst table_B;
         public final ColumnConst column_A_id;
@@ -224,6 +227,8 @@ public class NdbjtieAB extends CrundLoad {
         public final ColumnConst column_B_cvarbinary_def;
         public final ColumnConst column_B_cvarchar_def;
         public final IndexConst idx_B_aid;
+
+        // attribute ids
         public final int attr_id;
         public final int attr_cint;
         public final int attr_clong;
@@ -233,14 +238,16 @@ public class NdbjtieAB extends CrundLoad {
         public final int attr_B_cvarbinary_def;
         public final int attr_B_cvarchar_def;
         public final int attr_idx_B_aid;
+
+        // widths
         public final int width_id;
         public final int width_cint;
         public final int width_clong;
         public final int width_cfloat;
         public final int width_cdouble;
         public final int width_B_aid;
-        public final int width_B_cvarbinary_def;
-        public final int width_B_cvarchar_def;
+        public final int width_B_cvarbinary_def; // width including prefix
+        public final int width_B_cvarchar_def; // width including prefix
         public final int width_A_row; // sum of width of columns in A
         public final int width_B_row; // sum of width of columns in B
         public final int width_AB_row; // sum of width of common columns in A,B
@@ -307,7 +314,7 @@ public class NdbjtieAB extends CrundLoad {
             if (attr_cdouble != column_B_cdouble.getColumnNo())
                 throw new RuntimeException("attribute id mismatch");
 
-            // get attribute ids for table B
+            // get extra attribute ids for table B
             attr_B_aid = column_B_aid.getColumnNo();
             attr_B_cvarbinary_def = column_B_cvarbinary_def.getColumnNo();
             attr_B_cvarchar_def = column_B_cvarchar_def.getColumnNo();
@@ -332,7 +339,7 @@ public class NdbjtieAB extends CrundLoad {
             if (width_cdouble != columnWidth(column_B_cdouble))
                 throw new RuntimeException("attribute id mismatch");
 
-            // get the width of columns in table B
+            // get the width of extra columns in table B
             width_B_aid = columnWidth(column_B_aid);
             width_B_cvarbinary_def = columnWidth(column_B_cvarbinary_def);
             width_B_cvarchar_def = columnWidth(column_B_cvarchar_def);
@@ -370,18 +377,15 @@ public class NdbjtieAB extends CrundLoad {
     // NDB JTie operations
     // ----------------------------------------------------------------------
 
-    // model assumptions: relationships: identity 1:1
+    // current model assumption: relationships only 1:1 identity
+    // (target id of a navigation operation is verified against source id)
     protected abstract class NdbjtieOp extends Op {
-        protected XMode xMode;
+        protected final XMode xMode;
 
         public NdbjtieOp(String name, XMode m) {
-            super(name + (m == null ? "" : m));
+            super(name + "," + m);
             this.xMode = m;
         }
-
-        public void init() {}
-
-        public void close() {}
     };
 
     protected abstract class WriteOp extends NdbjtieOp {
@@ -405,19 +409,26 @@ public class NdbjtieAB extends CrundLoad {
                 }
                 break;
             case each :
-            case bulk :
-                // Approach: control when persistent context is flushed,
-                // i.e., at commit for 1 database roundtrip only.
                 beginTransaction();
                 for (int i = 0; i < n; i++) {
                     write(id[i]);
-                    if (xMode == XMode.each)
-                        executeOperations();
+                    executeOperations();
                 }
                 commitTransaction();
                 closeTransaction();
                 break;
+            case bulk :
+                beginTransaction();
+                write(id);
+                commitTransaction();
+                closeTransaction();
+                break;
             }
+        }
+
+        protected void write(int[] id) {
+            for (int i = 0; i < id.length; i++)
+                write(id[i]);
         }
 
         protected void write(int id) {
@@ -508,7 +519,7 @@ public class NdbjtieAB extends CrundLoad {
                     check(id[i]);
                 }
                 commitTransaction();
-                free();
+                free(); // ok outside loop, no cloned RecAttrs
                 closeTransaction();
                 break;
             case bulk :
@@ -545,9 +556,7 @@ public class NdbjtieAB extends CrundLoad {
         }
 
         protected abstract void alloc(int n);
-
         protected abstract void rewind();
-
         protected abstract void free();
 
         protected abstract void getValues(int id);
@@ -633,8 +642,8 @@ public class NdbjtieAB extends CrundLoad {
                 for (int i = 0; i < n; i++) {
                     beginTransaction();
                     op = new NdbIndexScanOperation[1];
-                    final int o = 0; // current scan
-                    alloc(1); // no need to rewind()
+                    final int o = 0; // scan op index
+                    alloc(1); // not needed
                     read(o, id[i]);
                     executeOperations();
                     rewind();
@@ -649,9 +658,9 @@ public class NdbjtieAB extends CrundLoad {
             case each :
                 beginTransaction();
                 op = new NdbIndexScanOperation[1];
-                final int o = 0; // current scan
-                alloc(1);
+                final int o = 0; // scan op index
                 for (int i = 0; i < n; i++) {
+                    alloc(1);
                     rewind();
                     read(o, id[i]);
                     executeOperations();
@@ -659,8 +668,8 @@ public class NdbjtieAB extends CrundLoad {
                     fetch(o, id[i]);
                     rewind();
                     check(id[i]);
+                    free(); // delete RecAttrs cloned within loop
                 }
-                free();
                 commitTransaction();
                 closeTransaction();
                 break;
@@ -691,15 +700,14 @@ public class NdbjtieAB extends CrundLoad {
             final int n = id.length;
             assert n <= nConcScans;
             for (int i = 0; i < n; i++) {
-                rewind(); // single scan result buffer
-                final int o = i % nConcScans; // current scan
+                rewind();
+                final int o = i; // scan op index
                 read(o, id[i]);
             }
         }
 
         protected void read(int o, int id) {
             setOp(o);
-            setBounds(o, id);
             getValues(o, id);
         }
 
@@ -712,7 +720,7 @@ public class NdbjtieAB extends CrundLoad {
 
             // define a read scan
             final int lockMode = ndbOpLockMode; // LockMode.LM_CommittedRead;
-            final int scanFlags = 0 | ScanFlag.SF_OrderBy; // sort on the index
+            final int scanFlags = 0 | ScanFlag.SF_OrderBy; // sort on index
             final int parallel = 0; // #fragments to scan in parallel (0=max)
             final int batch = 0; // #rows to fetch in each batch
             if (iso.readTuples(lockMode, scanFlags, parallel, batch) != 0)
@@ -723,7 +731,7 @@ public class NdbjtieAB extends CrundLoad {
             final int n = id.length;
             assert n <= nConcScans;
             for (int i = 0; i < n; i++) {
-                final int o = i % nConcScans; // current scan
+                final int o = i; // scan op index
                 fetch(o, id[i]);
             }
         }
@@ -744,14 +752,9 @@ public class NdbjtieAB extends CrundLoad {
         }
 
         protected abstract void alloc(int n);
-
         protected abstract void rewind();
-
         protected abstract void copy(int o);
-
         protected abstract void free();
-
-        protected abstract void setBounds(int o, int id);
 
         protected abstract void getValues(int o, int id);
 
@@ -776,6 +779,7 @@ public class NdbjtieAB extends CrundLoad {
         }
 
         protected void alloc(int n) {
+            assert 0 <= n && n <= nConcScans;
             b = ByteBuffer.allocateDirect(rowWidth);
             b.order(bo); // initial order is BIG_ENDIAN
             bb = ByteBuffer.allocateDirect(rowWidth * n);
@@ -813,6 +817,7 @@ public class NdbjtieAB extends CrundLoad {
 
         @SuppressWarnings("unchecked")
         protected void alloc(int n) {
+            assert 0 <= n && n <= nConcScans;
             // 'unchecked' warning, no API to get from Class<H> cls
             // to a Class<H[]> instance for an explicit call to cast()
             oh = (H[])Array.newInstance(cls, n); // max: nConcScans
@@ -858,12 +863,12 @@ public class NdbjtieAB extends CrundLoad {
         //out.println("default charset: "
         //    + java.nio.charset.Charset.defaultCharset().displayName());
 
-        for (XMode m : driver.xMode) {
+        for (XMode m : driver.xModes) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
 
             ops.add(
-                new InsertOp("A_insAttr_", xMode, model.table_A) {
+                new InsertOp("A_insAttr", xMode, model.table_A) {
                     public void setValues(int id) {
                         setKeyA(op, id); // needs to be set first
                         setAttrA(op, -id);
@@ -871,7 +876,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new InsertOp("B_insAttr_", xMode, model.table_B) {
+                new InsertOp("B_insAttr", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
                         setAttrB(op, -id);
@@ -879,7 +884,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new UpdateOp("A_setAttr_", xMode, model.table_A) {
+                new UpdateOp("A_setAttr", xMode, model.table_A) {
                     public void setValues(int id) {
                         setKeyA(op, id); // needs to be set first
                         setAttrA(op, id);
@@ -887,7 +892,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new UpdateOp("B_setAttr_", xMode, model.table_B) {
+                new UpdateOp("B_setAttr", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
                         setAttrB(op, id);
@@ -895,7 +900,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new BBReadOp("A_getAttr_bb_", xMode,
+                new BBReadOp("A_getAttr_bb", xMode,
                              model.table_A, model.width_AB_row) {
                     protected void getValues(int id) {
                         setKeyA(op, id); // needs to be set first
@@ -910,7 +915,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new RAReadOp<RecAttrHolder>("A_getAttr_ra_", xMode,
+                new RAReadOp<RecAttrHolder>("A_getAttr_ra", xMode,
                              model.table_A, RecAttrHolder.class) {
                     protected void getValues(int id) {
                         setKeyA(op, id); // needs to be set first
@@ -927,7 +932,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new BBReadOp("B_getAttr_bb_", xMode,
+                new BBReadOp("B_getAttr_bb", xMode,
                              model.table_B, model.width_AB_row) {
                     protected void getValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -942,7 +947,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new RAReadOp<RecAttrHolder>("B_getAttr_ra_", xMode,
+                new RAReadOp<RecAttrHolder>("B_getAttr_ra", xMode,
                              model.table_B, RecAttrHolder.class) {
                     protected void getValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -972,7 +977,7 @@ public class NdbjtieAB extends CrundLoad {
                 }
 
             ops.add(
-                new UpdateOp("B_setVarbin_" + l + "_" , xMode,
+                new UpdateOp("B_setVarbin_" + l, xMode,
                              model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -981,7 +986,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new BBReadOp("B_getVarbin_" + l + "_" , xMode,
+                new BBReadOp("B_getVarbin_" + l, xMode,
                              model.table_B, model.width_B_cvarbinary_def) {
 
                     protected void getValues(int id) {
@@ -995,7 +1000,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new UpdateOp("B_clearVarbin_" + l + "_" , xMode,
+                new UpdateOp("B_clearVarbin_" + l, xMode,
                              model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -1018,7 +1023,7 @@ public class NdbjtieAB extends CrundLoad {
                 }
 
             ops.add(
-                new UpdateOp("B_setVarchar_" + l + "_" , xMode,
+                new UpdateOp("B_setVarchar_" + l, xMode,
                              model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -1027,7 +1032,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new BBReadOp("B_getVarchar_" + l + "_" , xMode,
+                new BBReadOp("B_getVarchar_" + l, xMode,
                              model.table_B, model.width_B_cvarchar_def) {
 
                     protected void getValues(int id) {
@@ -1041,7 +1046,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new UpdateOp("B_clearVarchar_" + l + "_" , xMode,
+                new UpdateOp("B_clearVarchar_" + l, xMode,
                              model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
@@ -1051,7 +1056,7 @@ public class NdbjtieAB extends CrundLoad {
             }
 
             ops.add(
-                new UpdateOp("B_setA_", xMode, model.table_B) {
+                new UpdateOp("B_setA", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
                         final int aid = id;
@@ -1059,11 +1064,11 @@ public class NdbjtieAB extends CrundLoad {
                     }
                 });
 
-            ops.add(new BBReadOp("B_getA_bb_", xMode,
+            ops.add(new BBReadOp("B_getA_bb", xMode,
                                  model.table_A, model.width_AB_row) {
                     // sub-query
                     protected final BBReadOp getAId
-                    = new BBReadOp("B_getAId_bb_", xMode,
+                    = new BBReadOp("B_getAId_bb", xMode,
                                    model.table_B, model.width_B_aid) {
                             protected void getValues(int id) {
                                 setKeyB(op, id); // needs to be set first
@@ -1121,11 +1126,11 @@ public class NdbjtieAB extends CrundLoad {
                     }
                 });
 
-            ops.add(new RAReadOp<RecAttrHolder>("B_getA_ra_", xMode,
+            ops.add(new RAReadOp<RecAttrHolder>("B_getA_ra", xMode,
                                  model.table_A, RecAttrHolder.class) {
                     // sub-query
                     protected final RAReadOp<RecIdHolder> getAId
-                    = new RAReadOp<RecIdHolder>("B_getAId_ra_", xMode,
+                    = new RAReadOp<RecIdHolder>("B_getAId_ra", xMode,
                                    model.table_B, RecIdHolder.class) {
                             protected void getValues(int id) {
                                 setKeyB(op, id); // needs to be set first
@@ -1185,13 +1190,14 @@ public class NdbjtieAB extends CrundLoad {
                     }
                 });
 
-            ops.add(new BBIndexScanOp("A_getBs_bb_", xMode,
+            ops.add(new BBIndexScanOp("A_getBs_bb", xMode,
                                       model.idx_B_aid, model.width_AB_row) {
                     protected final void setBounds(int o, int id) {
                         setBoundEqAIdB(op[o], id);
                     }
 
                     protected void getValues(int o, int id) {
+                        setBounds(o, id);
                         getKeyB(op[o], b);
                         getAttrB(op[o], b);
                     }
@@ -1202,7 +1208,7 @@ public class NdbjtieAB extends CrundLoad {
                     }
                 });
 
-            ops.add(new RAIndexScanOp<RecAttrHolder>("A_getBs_ra_", xMode,
+            ops.add(new RAIndexScanOp<RecAttrHolder>("A_getBs_ra", xMode,
                                                      model.idx_B_aid,
                                                      RecAttrHolder.class) {
                     protected final void setBounds(int o, int id) {
@@ -1210,6 +1216,7 @@ public class NdbjtieAB extends CrundLoad {
                     }
 
                     protected void getValues(int o, int id) {
+                        setBounds(o, id);
                         getKeyB(op[o], oh[o]);
                         getAttrB(op[o], oh[o]);
                     }
@@ -1222,7 +1229,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new UpdateOp("B_clearA_", xMode, model.table_B) {
+                new UpdateOp("B_clearA", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
                         final int aid = -1;
@@ -1231,35 +1238,35 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new DeleteOp("B_del_", xMode, model.table_B) {
+                new DeleteOp("B_del", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id);
                     }
                 });
 
             ops.add(
-                new DeleteOp("A_del_", xMode, model.table_A) {
+                new DeleteOp("A_del", xMode, model.table_A) {
                     public void setValues(int id) {
                         setKeyA(op, id);
                     }
                 });
 
             ops.add(
-                new InsertOp("A_ins_", xMode, model.table_A) {
+                new InsertOp("A_ins", xMode, model.table_A) {
                     public void setValues(int id) {
                         setKeyA(op, id);
                     }
                 });
 
             ops.add(
-                new InsertOp("B_ins_", xMode, model.table_B) {
+                new InsertOp("B_ins", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id);
                     }
                 });
 
             ops.add(
-                new Op("B_delAll") {
+                new NdbjtieOp("B_delAll", XMode.bulk) {
                     public void run(int[] id) {
                         final int d = delByScan(model.table_B);
                         verify(id.length, d);
@@ -1267,7 +1274,7 @@ public class NdbjtieAB extends CrundLoad {
                 });
 
             ops.add(
-                new Op("A_delAll") {
+                new NdbjtieOp("A_delAll", XMode.bulk) {
                     public void run(int[] id) {
                         final int d = delByScan(model.table_A);
                         verify(id.length, d);
@@ -1351,7 +1358,7 @@ public class NdbjtieAB extends CrundLoad {
             return h;
         }
 
-        public void delete() {
+        public void delete() { // must be called on cloned instances exactly
             NdbRecAttr.delete(id);
             id = null;
         }
@@ -1372,7 +1379,7 @@ public class NdbjtieAB extends CrundLoad {
             return h;
         }
 
-        public void delete() {
+        public void delete() { // must be called on cloned instances exactly
             NdbRecAttr.delete(cint);
             NdbRecAttr.delete(clong);
             NdbRecAttr.delete(cfloat);
@@ -1841,18 +1848,12 @@ public class NdbjtieAB extends CrundLoad {
         // connect to database
         out.print("connecting to database ...");
         ndb = Ndb.create(mgmd, catalog, schema);
-        final int max_no_tx = 10; // maximum number of parallel tx (<=1024)
         // note each scan or index scan operation uses one extra transaction
-        if (ndb.init(max_no_tx) != 0) {
+        if (ndb.init(nMaxConcTx) != 0) {
             String msg = "Error caught: " + ndb.getNdbError().message();
             throw new RuntimeException(msg);
         }
         out.println("      [ok: " + catalog + "." + schema + "]");
-
-        out.print("caching metadata ...");
-        out.flush();
-        model = new Model(ndb);
-        out.println("            [ok]");
 
         out.print("using lock mode for reads ...");
         out.flush();
@@ -1877,6 +1878,11 @@ public class NdbjtieAB extends CrundLoad {
         }
         out.println("   [ok: " + lm + "]");
 
+        out.print("caching metadata ...");
+        out.flush();
+        model = new Model(ndb);
+        out.println("            [ok]");
+
         initOperations();
     }
 
@@ -1888,10 +1894,10 @@ public class NdbjtieAB extends CrundLoad {
 
         closeOperations();
 
-        out.print("clearing metadata cache...");
+        out.print("clearing metadata cache ...");
         out.flush();
         model = null;
-        out.println("      [ok]");
+        out.println("     [ok]");
 
         out.print("closing database connection ...");
         out.flush();

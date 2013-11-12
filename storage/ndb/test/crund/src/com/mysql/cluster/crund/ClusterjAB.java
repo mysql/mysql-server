@@ -22,6 +22,12 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.Comparator;
+
+// XXX ndbapi constant not in clusterj-api.jar
+//import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.NotSpecified.MaxRangeNo;
 
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
@@ -81,11 +87,12 @@ public class ClusterjAB extends CrundLoad {
         if (msg.length() == 0) {
             out.println(" [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
+        name = "clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     @Override
@@ -132,12 +139,13 @@ public class ClusterjAB extends CrundLoad {
     // ClusterJ operations
     // ----------------------------------------------------------------------
 
-    // model assumptions: relationships: identity 1:1
+    // current model assumption: relationships only 1:1 identity
+    // (target id of a navigation operation is verified against source id)
     protected abstract class ClusterjOp extends Op {
         protected XMode xMode;
 
         public ClusterjOp(String name, XMode m) {
-            super(name + (m == null ? "" : m));
+            super(name + "," + m);
             this.xMode = m;
         }
 
@@ -249,9 +257,11 @@ public class ClusterjAB extends CrundLoad {
         protected QueryBuilder qbld;
         protected QueryDomainType<I> dobj;
         protected Query<I> q;
+        protected Comparator<I> cmp;
 
-        public QReadOp(String name, XMode m) {
+        public QReadOp(String name, XMode m, Comparator<I> cmp) {
             super(name, m);
+            this.cmp = cmp;
         }
 
         public void init() {
@@ -274,18 +284,37 @@ public class ClusterjAB extends CrundLoad {
 
         protected void read(int[] id) {
             final int n = id.length;
-            final List<Integer> p = new ArrayList<Integer>(n);
-            for (int i = 0; i < n; i++)
-                p.add(id[i]);
-            setParams(p);
+            final int maxInListLength = 0x0fff;
+            //assert maxInListLength == MaxRangeNo; // ndbjtie dependency
 
-            final List<I> os = q.getResultList();
-            assert os != null;
-            verify(n, os.size());
-            for (int i = 0; i < n; i++) {
-                final I o = os.get(i);
-                assert o != null;
-                check(id[i], o);
+            for (int i = 0; i < n; i += maxInListLength) {
+                final int k = n - i;
+                final int l = (k > maxInListLength ? maxInListLength : k);
+                final int m = i + l;
+                assert m <= n;
+
+                final List<Integer> p = new ArrayList<Integer>(m);
+                for (int j = i; j < m; j++)
+                    p.add(id[j]);
+                setParams(p);
+
+                final List<I> os = q.getResultList();
+                assert os != null;
+                verify(l, os.size());
+
+                // sort results, absent of order-by support for queries
+                if (cmp != null) {
+                    final Set<I> oss = new TreeSet<I>(cmp);
+                    oss.addAll(os);
+                    os.clear();
+                    os.addAll(oss);
+                }
+                
+                for (int j = i, jj = 0; j < m; j++, jj++) {
+                    final I o = os.get(jj);
+                    assert o != null;
+                    check(id[j], o);
+                }
             }
         }
 
@@ -300,13 +329,13 @@ public class ClusterjAB extends CrundLoad {
         out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : driver.xMode) {
+        for (XMode m : driver.xModes) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
             final boolean setAttrs = true;
 
             ops.add(
-                new WriteOp("A_insAttr_", xMode) {
+                new WriteOp("A_insAttr", xMode) {
                     protected void write(int id) {
                         final IA o = session.newInstance(IA.class);
                         o.setId(id);
@@ -316,7 +345,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_insAttr_", xMode) {
+                new WriteOp("B_insAttr", xMode) {
                     protected void write(int id) {
                         final IB o = session.newInstance(IB.class);
                         o.setId(id);
@@ -326,7 +355,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_setAttr_", xMode) {
+                new WriteOp("A_setAttr", xMode) {
                     protected void write(int id) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
@@ -337,7 +366,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_setAttr_", xMode) {
+                new WriteOp("B_setAttr", xMode) {
                     protected void write(int id) {
                         // blind update
                         final IB o = session.newInstance(IB.class);
@@ -349,7 +378,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new FetchOp<IA>("A_getAttr_", xMode, IA.class) {
+                new FetchOp<IA>("A_getAttr", xMode, IA.class) {
                     protected void check(int id, IA o) {
                         assert o != null;
                         verify(id, o.getId());
@@ -358,7 +387,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new FetchOp<IB>("B_getAttr_", xMode, IB.class) {
+                new FetchOp<IB>("B_getAttr", xMode, IB.class) {
                     protected void check(int id, IB o) {
                         assert o != null;
                         verify(id, o.getId());
@@ -367,7 +396,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<IA>("A_getAttr_wherein_", xMode) {
+                new QReadOp<IA>("A_getAttr_wherein", xMode, cmpIA) {
                     protected void setDOQuery() {
                         dobj = qbld.createQueryDefinition(IA.class);
                         dobj.where(dobj.get("id").in(dobj.param("id")));
@@ -385,7 +414,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<IB>("B_getAttr_wherein_", xMode) {
+                new QReadOp<IB>("B_getAttr_wherein", xMode, cmpIB) {
                     protected void setDOQuery() {
                         dobj = qbld.createQueryDefinition(IB.class);
                         dobj.where(dobj.get("id").in(dobj.param("id")));
@@ -410,7 +439,7 @@ public class ClusterjAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarbin_" + l + "_", xMode) {
+                    new WriteOp("B_setVarbin_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final IB o = session.newInstance(IB.class);
@@ -421,7 +450,7 @@ public class ClusterjAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new FetchOp<IB>("B_getVarbin_" + l + "_",
+                    new FetchOp<IB>("B_getVarbin_" + l,
                                     xMode, IB.class) {
                         protected void check(int id, IB o) {
                             assert o != null;
@@ -430,7 +459,7 @@ public class ClusterjAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarbin_" + l + "_", xMode) {
+                    new WriteOp("B_clearVarbin_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final IB o = session.newInstance(IB.class);
@@ -449,7 +478,7 @@ public class ClusterjAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarchar_" + l + "_", xMode) {
+                    new WriteOp("B_setVarchar_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final IB o = session.newInstance(IB.class);
@@ -460,7 +489,7 @@ public class ClusterjAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new FetchOp<IB>("B_getVarchar_" + l + "_",
+                    new FetchOp<IB>("B_getVarchar_" + l,
                                     xMode, IB.class) {
                         protected void check(int id, IB o) {
                             assert o != null;
@@ -469,7 +498,7 @@ public class ClusterjAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarchar_" + l + "_", xMode) {
+                    new WriteOp("B_clearVarchar_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final IB o = session.newInstance(IB.class);
@@ -481,7 +510,7 @@ public class ClusterjAB extends CrundLoad {
             }
 
             ops.add(
-                new WriteOp("B_setA_", xMode) {
+                new WriteOp("B_setA", xMode) {
                     protected void write(int id) {
                         // blind update
                         final IB o = session.newInstance(IB.class);
@@ -492,7 +521,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getA_", xMode) {
+                new ReadOp("B_getA", xMode) {
                     protected void read(int id) {
                         final IB b = session.find(IB.class, id);
                         assert b != null;
@@ -529,7 +558,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<IA>("B_getA_wherein_", xMode) {
+                new QReadOp<IA>("B_getA_wherein", xMode, null) { // XXX cmp
                     protected QueryDomainType<IB> dobjB;
 
                     public void init() {
@@ -561,7 +590,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<IB>("A_getBs_wherein_", xMode) {
+                new QReadOp<IB>("A_getBs_wherein", xMode, cmpIB) {
                     protected void setDOQuery() {
                         dobj = qbld.createQueryDefinition(IB.class);
                         dobj.where(dobj.get("aid").in(dobj.param("id")));
@@ -579,7 +608,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_clearA_", xMode) {
+                new WriteOp("B_clearA", xMode) {
                     protected void write(int id) {
                         // blind update
                         final IB o = session.newInstance(IB.class);
@@ -591,7 +620,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_del_", xMode) {
+                new WriteOp("B_del", xMode) {
                     protected void write(int id) {
                         // blind delete
                         final IB o = session.newInstance(IB.class);
@@ -601,7 +630,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_del_", xMode) {
+                new WriteOp("A_del", xMode) {
                     protected void write(int id) {
                         // blind delete
                         final IA o = session.newInstance(IA.class);
@@ -611,7 +640,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_ins_", xMode) {
+                new WriteOp("A_ins", xMode) {
                     protected void write(int id) {
                         final IA o = session.newInstance(IA.class);
                         o.setId(id);
@@ -620,7 +649,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_ins_", xMode) {
+                new WriteOp("B_ins", xMode) {
                     protected void write(int id) {
                         final IB o = session.newInstance(IB.class);
                         o.setId(id);
@@ -629,7 +658,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new ClusterjOp("B_delAll", null) {
+                new ClusterjOp("B_delAll", XMode.bulk) {
                     public void run(int[] id) {
                         final int n = id.length;
                         beginTransaction();
@@ -640,7 +669,7 @@ public class ClusterjAB extends CrundLoad {
                 });
 
             ops.add(
-                new ClusterjOp("A_delAll", null) {
+                new ClusterjOp("A_delAll", XMode.bulk) {
                     public void run(int[] id) {
                         final int n = id.length;
                         beginTransaction();
@@ -702,6 +731,18 @@ public class ClusterjAB extends CrundLoad {
         verify(id, o.getCdouble());
     }
 
+    protected final Comparator<IA> cmpIA = new Comparator<IA>() {
+        public int compare(IA o1, IA o2) {
+            return (o1.getId() - o2.getId());
+        }
+    };
+        
+    protected final Comparator<IB> cmpIB = new Comparator<IB>() {
+        public int compare(IB o1, IB o2) {
+            return (o1.getId() - o2.getId());
+        }
+    };
+        
     // ----------------------------------------------------------------------
 
     protected void beginTransaction() {

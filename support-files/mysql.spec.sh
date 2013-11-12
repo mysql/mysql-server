@@ -590,31 +590,6 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
-rm -f $RBR%{_mandir}/man1/ndb_blob_tool.1*
-rm -f $RBR%{_mandir}/man1/ndb_config.1*
-rm -f $RBR%{_mandir}/man1/ndb_cpcd.1*
-rm -f $RBR%{_mandir}/man1/ndb_delete_all.1*
-rm -f $RBR%{_mandir}/man1/ndb_desc.1*
-rm -f $RBR%{_mandir}/man1/ndb_drop_index.1*
-rm -f $RBR%{_mandir}/man1/ndb_drop_table.1*
-rm -f $RBR%{_mandir}/man1/ndb_error_reporter.1*
-rm -f $RBR%{_mandir}/man1/ndb_index_stat.1*
-rm -f $RBR%{_mandir}/man1/ndb_mgm.1*
-rm -f $RBR%{_mandir}/man1/ndb_print_backup_file.1*
-rm -f $RBR%{_mandir}/man1/ndb_print_schema_file.1*
-rm -f $RBR%{_mandir}/man1/ndb_print_sys_file.1*
-rm -f $RBR%{_mandir}/man1/ndb_restore.1*
-rm -f $RBR%{_mandir}/man1/ndb_select_all.1*
-rm -f $RBR%{_mandir}/man1/ndb_select_count.1*
-rm -f $RBR%{_mandir}/man1/ndb_show_tables.1*
-rm -f $RBR%{_mandir}/man1/ndb_size.pl.1*
-rm -f $RBR%{_mandir}/man1/ndb_waiter.1*
-rm -f $RBR%{_mandir}/man1/ndbd_redo_log_reader.1*
-rm -f $RBR%{_mandir}/man8/ndb_mgmd.8*
-rm -f $RBR%{_mandir}/man8/ndbd.8*
-rm -f $RBR%{_mandir}/man8/ndbmtd.8*
-rm -f $RBR%{_mandir}/man1/ndbinfo_select_all.1*
-rm -f $RBR%{_mandir}/man1/ndb-common-options.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1069,7 +1044,9 @@ echo "====="                                                       >> $STATUS_HI
 %doc release/Docs/INFO_BIN*
 %doc release/support-files/my-default.cnf
 
+%if 0%{?commercial}
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
+%endif
 
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
@@ -1095,32 +1072,31 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
-# commenting out ndb docs temporarily #Bug #16303451 	
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
-#%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
-#%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
-#%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
+%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
+%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
+%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
 
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
@@ -1295,6 +1271,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Removed non gpl file docs/mysql.info from community packages
+
 * Mon Oct 21 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Updated spec file for Cluster release
 
