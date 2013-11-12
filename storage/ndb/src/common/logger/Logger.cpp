@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -381,4 +381,26 @@ void Logger::setRepeatFrequency(unsigned val)
   {
     pHandler->setRepeatFrequency(val);
   }
+}
+
+
+char*
+Logger::format_timestamp(const time_t epoch,
+                         char* str, size_t len)
+{
+  // convert to local timezone
+  tm tm_buf;
+  localtime_r(&epoch, &tm_buf);
+
+  // Print the broken down time in timestamp format
+  // to the string buffer
+  BaseString::snprintf(str, len,
+                       "%d-%.2d-%.2d %.2d:%.2d:%.2d",
+                       tm_buf.tm_year + 1900,
+                       tm_buf.tm_mon + 1, //month is [0,11]. +1 -> [1,12]
+                       tm_buf.tm_mday,
+                       tm_buf.tm_hour,
+                       tm_buf.tm_min,
+                       tm_buf.tm_sec);
+  return str;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2536,16 +2536,10 @@ report_events(const ndb_logevent& event)
   }
   textF(out+pos, sizeof(out)-pos, event.SavedEvent.data, event.SavedEvent.len);
 
-  time_t t = event.SavedEvent.time;
-  struct tm * tm_now = localtime(&t);
-  ndbout_c("%d-%.2d-%.2d %.2d:%.2d:%.2d %s",
-           tm_now->tm_year + 1900,
-           tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
-           tm_now->tm_mday,
-           tm_now->tm_hour,
-           tm_now->tm_min,
-           tm_now->tm_sec,
-           out);
+  char timestamp_str[64];
+  Logger::format_timestamp(event.SavedEvent.time, timestamp_str, sizeof(timestamp_str));
+
+  ndbout_c("%s %s", timestamp_str, out);
 }
 
 static int
