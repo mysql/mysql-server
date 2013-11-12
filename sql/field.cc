@@ -5240,7 +5240,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
 
 
 bool
-Field_temporal_with_date::convert_str_to_TIME(const char *str, uint len,
+Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
                                               const CHARSET_INFO *cs,
                                               MYSQL_TIME *ltime,
                                               MYSQL_TIME_STATUS *status)
@@ -5760,7 +5760,7 @@ type_conversion_status Field_timestampf::validate_stored_val(THD *thd)
 
 
 bool
-Field_time_common::convert_str_to_TIME(const char *str, uint len,
+Field_time_common::convert_str_to_TIME(const char *str, size_t len,
                                        const CHARSET_INFO *cs,
                                        MYSQL_TIME *ltime,
                                        MYSQL_TIME_STATUS *status)
