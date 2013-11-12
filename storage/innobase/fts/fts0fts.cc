@@ -6146,11 +6146,9 @@ fts_set_hex_format(
 {
 	sel_node_t*	node = static_cast<sel_node_t*>(row);
 	dfield_t*	dfield = que_node_get_val(node->select_list);
-	dtype_t*	type = dfield_get_type(dfield);
-	ulint		len = dfield_get_len(dfield);
 
-	ut_ad(dtype_get_mtype(type) == DATA_INT);
-	ut_ad(len == sizeof(ib_uint32_t));
+	ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
+	ut_ad(dfield_get_len(dfield) == sizeof(ib_uint32_t));
 	/* There should be at most one matching record. So the value
 	must be the default value. */
 	ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
