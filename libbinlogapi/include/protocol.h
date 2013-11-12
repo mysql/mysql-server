@@ -316,8 +316,6 @@ std::istream &operator>>(std::istream &is, std::string &str);
 std::istream &operator>>(std::istream &is, Protocol_chunk_string_len &lenstr);
 std::istream &operator>>(std::istream &is, Protocol_chunk_string &str);
 
-//TODO: Place a call to the method to get one packet
-int proto_get_one_package(MYSQL *mysql, char *buff, uint8_t *packet_no);
 /**
   Allocates a new event and copy the header. The caller must be responsible for
   releasing the allocated memory.
