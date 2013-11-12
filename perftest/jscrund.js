@@ -36,6 +36,10 @@ JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
+// webkit-devtools-agent allows you to profile the process from a Chrome browser
+try {
+ require('webkit-devtools-agent');
+} catch(e) { };
 
 function usage() {
   var msg = "" +
@@ -466,7 +470,7 @@ function main() {
           name: testName + "," + modeName,
           time: timer.interval
         });
-        operationsDoneCallback();
+        setImmediate(operationsDoneCallback);
       }
     };
 
@@ -482,11 +486,11 @@ function main() {
         JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
-        indyOperationsLoop(null);
+        setImmediate(indyOperationsLoop, null);
       } else {
         // done with all indy tests
         // stop timer and report
-        testsDoneCallback();
+        setImmediate(testsDoneCallback);
       }
     };
 
@@ -502,7 +506,7 @@ function main() {
         name: testName + "," + modeName,
         time: timer.interval
       });
-      operationsDoneCallback();
+      setImmediate(operationsDoneCallback);
     };
 
     /** Call the operation numberOfIterations times within a transaction
@@ -537,7 +541,7 @@ function main() {
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.begin(function(err) {
-          eachOperationsLoop(null);
+          setImmediate(eachOperationsLoop, null);
         });
       } else {
         // done with all each tests
@@ -559,7 +563,7 @@ function main() {
         name: testName + "," + modeName,
         time: timer.interval
       });
-      bulkTestsLoop();
+      setImmediate(bulkTestsLoop);
     };
 
     /** Check the results of a bulk operation. It will be executed
@@ -642,7 +646,7 @@ function main() {
         batchLoopNumber++;
         parameters = generateAllParameters(numberOfIterations);
         modeNumber = 0;
-        modeLoop();
+        setImmediate(modeLoop);
       } else {
         mainTestLoop();
       }
