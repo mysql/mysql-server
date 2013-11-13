@@ -645,6 +645,7 @@ Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
                                                std::string unix_sockname)
   : m_bind_addr_str(bind_addr_str),
     m_tcp_port(tcp_port),
+    m_backlog(backlog),
     m_port_timeout(port_timeout),
     m_unix_sockname(unix_sockname),
     m_error_count(0)
