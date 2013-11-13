@@ -110,7 +110,7 @@ if ($have_default_index)
 
   while (!$my_errno)
   {
-    --error 0,1
+    --error 0,2
     --perl 
     use File::Copy;
     @files = glob "$ENV{my_datadir}/test/t1*";
@@ -122,7 +122,7 @@ if ($have_default_index)
       exit 0;
     }
     # No more files
-    exit 1;
+    exit 2;
   EOF
     let $my_errno = $errno;
     if (!$my_errno)
