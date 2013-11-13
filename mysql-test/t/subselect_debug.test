@@ -15,3 +15,13 @@ SELECT SUM(EXISTS(SELECT RAND() FROM t1)) FROM t1;
 SELECT REVERSE(EXISTS(SELECT RAND() FROM t1));
 SET GLOBAL debug_dbug=@orig_debug;
 DROP TABLE t1;
+
+#
+# MDEV-5284 Assertion `!(*expr)->fixed' fails in replace_where_subcondition with IN suquery
+#
+
+create table t1 (i int);
+insert into t1 values (1),(2);
+select * from t1 where (i < 200 or i = 300) and i in (select i from t1);
+drop table t1;
+

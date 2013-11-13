@@ -437,9 +437,7 @@ Currently, solution #2 is implemented.
 
 static
 bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
-static bool replace_where_subcondition(JOIN *join, Item **expr, 
-                                       Item *old_cond, Item *new_cond,
-                                       bool do_fix_fields);
+static bool replace_where_subcondition(JOIN *, Item **, Item *, Item *, bool);
 static int subq_sj_candidate_cmp(Item_in_subselect* el1, Item_in_subselect* el2,
                                  void *arg);
 static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred);
@@ -1309,7 +1307,7 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
       }
       else if (item->type() == Item::COND_ITEM)
       {
-        DBUG_ASSERT(!(*expr)->fixed);
+        DBUG_ASSERT(!do_fix_fields || !(*expr)->fixed);
         replace_where_subcondition(join, li.ref(),
                                    old_cond, new_cond,
                                    do_fix_fields);
