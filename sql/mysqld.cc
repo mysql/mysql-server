@@ -166,8 +166,6 @@ using std::vector;
 #include <sys/utsname.h>
 #endif /* _WIN32 */
 
-#include <my_libwrap.h>
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -1009,11 +1007,6 @@ static my_bool plugins_are_initialized= FALSE;
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
-#ifdef HAVE_LIBWRAP
-const char *libwrapName= NULL;
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-#endif /* HAVE_LIBWRAP */
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
@@ -4388,11 +4381,6 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifdef HAVE_LIBWRAP
-  libwrapName= my_progname+dirname_length(my_progname);
-  openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif /* HAVE_LIBWRAP */
-
 #ifndef DBUG_OFF
   test_lc_time_sz();
   srand(time(NULL));
@@ -6576,9 +6564,6 @@ static int mysql_init_variables(void)
   have_compress= SHOW_OPTION_YES;
 #else
   have_compress= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_LIBWRAP
-  libwrapName= NullS;
 #endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;

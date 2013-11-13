@@ -49,7 +49,6 @@ SET(SQL_EMBEDDED_SOURCES
   lib_sql.cc 
   libmysqld.c
   ${GEN_SOURCES}
-  ${MYSYS_LIBWRAP_SOURCE}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -98,7 +97,7 @@ ENDIF()
 SET(LIBS 
   dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS}
   sql_embedded
 )
