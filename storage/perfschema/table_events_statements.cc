@@ -745,6 +745,7 @@ void table_events_statements_current::make_row(PFS_thread *pfs_thread,
   pfs_optimistic_state lock;
   pfs_optimistic_state stmt_lock;
   
+  digest_reset(&digest);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
   /* Protect this reader against writing on statement information. */ 
@@ -871,6 +872,7 @@ void table_events_statements_history::make_row(PFS_thread *pfs_thread,
   PSI_digest_storage digest;
   pfs_optimistic_state lock;
   
+  digest_reset(&digest);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
@@ -974,6 +976,7 @@ void table_events_statements_history_long::make_row(PFS_events_statements *state
 {
   PSI_digest_storage digest;
   
+  digest_reset(&digest);
   table_events_statements_common::make_row_part_1(statement, &digest);
 
   table_events_statements_common::make_row_part_2(&digest);
