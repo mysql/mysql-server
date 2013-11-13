@@ -29,6 +29,10 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#endif
 
 using std::max;
 
@@ -634,6 +638,25 @@ public:
 // Mysqld_socket_listener implementation
 ///////////////////////////////////////////////////////////////////////////
 
+Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
+                                               uint tcp_port,
+                                               uint backlog,
+                                               uint port_timeout,
+                                               std::string unix_sockname)
+  : m_bind_addr_str(bind_addr_str),
+    m_tcp_port(tcp_port),
+    m_port_timeout(port_timeout),
+    m_unix_sockname(unix_sockname),
+    m_error_count(0)
+{
+#ifdef HAVE_LIBWRAP
+  m_deny_severity = LOG_WARNING;
+  m_libwrap_name= my_progname + dirname_length(my_progname);
+  openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
+#endif /* HAVE_LIBWRAP */
+}
+
+
 bool Mysqld_socket_listener::setup_listener()
 {
   // Setup tcp socket listener
@@ -714,12 +737,14 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 
   /* Is this a new connection request ? */
   MYSQL_SOCKET listen_sock= MYSQL_INVALID_SOCKET;
+  bool is_unix_socket= false;
 #ifdef HAVE_POLL
   for (uint i= 0; i < m_socket_map.size(); ++i)
   {
     if (m_poll_info.m_fds[i].revents & POLLIN)
     {
       listen_sock= m_poll_info.m_pfs_fds[i];
+      is_unix_socket= m_socket_map[listen_sock];
       break;
     }
   }
@@ -731,6 +756,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
                  &m_select_info.m_read_fds))
     {
       listen_sock= sock_map_iter->first;
+      is_unix_socket= sock_map_iter->second;
       break;
     }
   }
@@ -763,31 +789,25 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
   }
 
 #ifdef HAVE_LIBWRAP
-  if (mysql_socket_getfd(listen_sock) == mysql_socket_getfd(m_tcp_socket))
+  if (!is_unix_socket)
   {
     struct request_info req;
     signal(SIGCHLD, SIG_DFL);
-    request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE,
+    request_init(&req, RQ_DAEMON, m_libwrap_name, RQ_FILE,
                  mysql_socket_getfd(connect_sock), NULL);
-    my_fromhost(&req);
+    fromhost(&req);
 
-    if (!my_hosts_access(&req))
+    if (!hosts_access(&req))
     {
       /*
         This may be stupid but refuse() includes an exit(0)
         which we surely don't want...
         clean_exit() - same stupid thing ...
       */
-      syslog(deny_severity, "refused connect from %s", my_eval_client(&req));
+      syslog(m_deny_severity, "refused connect from %s", eval_client(&req));
 
-      /*
-        C++ sucks (the gibberish in front just translates the supplied
-        sink function pointer in the req structure from a void (*sink)();
-        to a void(*sink)(int) if you omit the cast, the C++ compiler
-        will cry...
-      */
       if (req.sink)
-        ((void (*)(int))req.sink)(req.fd);
+        (req.sink)(req.fd);
 
       mysql_socket_shutdown(listen_sock, SHUT_RDWR);
       mysql_socket_close(listen_sock);
@@ -802,7 +822,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 #endif // HAVE_LIBWRAP
 
   Channel_info* channel_info= NULL;
-  if (m_socket_map[listen_sock])
+  if (is_unix_socket)
     channel_info= new (std::nothrow) Channel_info_local_socket(listen_sock,
                                                                connect_sock);
   else
