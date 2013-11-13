@@ -83,6 +83,17 @@ EOF
   --disable_query_log
   eval CALL mtr.add_suppression('$storage_engine: Error:');
   --enable_query_log
+
+  # The sleep below is a very bad style, but so far there seems to be 
+  # no reliable way to prevent a failure on Windows, which is caused 
+  # by the fact that the error message that we added the above suppression for,
+  # on Windows appears in the error log with a delay, so MTR 
+  # thinks the error was raised on server shutdown, and the suppression
+  # does not work. Adding it globally is not an option because 
+  # it must be caught in other tests which do not produce the failure
+  # intentionally
+
+  --sleep 1
 }
 
 DROP TABLE t1;
