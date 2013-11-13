@@ -260,7 +260,7 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   }
   else
     m_row.m_gtid_length= 0;
-  
+
   m_row.m_xid= transaction->m_xid;
   m_row.m_isolation_level= transaction->m_isolation_level;
   m_row.m_read_only= transaction->m_read_only;
@@ -277,7 +277,7 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
 }
 
 /**
-  Convert the XID to HEX string prefixed by '0x' 
+  Convert the XID to HEX string prefixed by '0x'
   @buf has to be at least (XIDDATASIZE*2+2+1) in size
 */
 static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid)
@@ -302,7 +302,7 @@ static void xid_store(Field *field, PSI_xid *xid)
   else
   {
     uint xid_str_len;
-    /* 
+    /*
       xid_buf contains enough space for 0x followed by hex representation of
       the binary XID data and one null termination character.
     */
