@@ -1307,7 +1307,6 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
       }
       else if (item->type() == Item::COND_ITEM)
       {
-        DBUG_ASSERT(!do_fix_fields || !(*expr)->fixed);
         replace_where_subcondition(join, li.ref(),
                                    old_cond, new_cond,
                                    do_fix_fields);

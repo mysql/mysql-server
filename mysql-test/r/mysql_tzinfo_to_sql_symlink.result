@@ -1,0 +1,22 @@
+#
+# MDEV-5226 mysql_tzinfo_to_sql errors with tzdata 2013f and above
+#
+TRUNCATE TABLE time_zone;
+TRUNCATE TABLE time_zone_name;
+TRUNCATE TABLE time_zone_transition;
+TRUNCATE TABLE time_zone_transition_type;
+INSERT INTO time_zone (Use_leap_seconds) VALUES ('N');
+SET @time_zone_id= LAST_INSERT_ID();
+INSERT INTO time_zone_name (Name, Time_zone_id) VALUES ('GMT', @time_zone_id);
+INSERT INTO time_zone_transition_type (Time_zone_id, Transition_type_id, Offset, Is_DST, Abbreviation) VALUES
+ (@time_zone_id, 0, 0, 0, 'GMT')
+;
+INSERT INTO time_zone (Use_leap_seconds) VALUES ('N');
+SET @time_zone_id= LAST_INSERT_ID();
+INSERT INTO time_zone_name (Name, Time_zone_id) VALUES ('posix/GMT', @time_zone_id);
+INSERT INTO time_zone_transition_type (Time_zone_id, Transition_type_id, Offset, Is_DST, Abbreviation) VALUES
+ (@time_zone_id, 0, 0, 0, 'GMT')
+;
+Warning: Skipping directory 'MYSQLTEST_VARDIR/zoneinfo/posix/posix': to avoid infinite symlink recursion.
+ALTER TABLE time_zone_transition ORDER BY Time_zone_id, Transition_time;
+ALTER TABLE time_zone_transition_type ORDER BY Time_zone_id, Transition_type_id;
