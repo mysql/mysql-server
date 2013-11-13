@@ -3534,7 +3534,7 @@ void SELECT_LEX::update_used_tables()
   }
   for (ORDER *order= group_list.first; order; order= order->next)
     (*order->item)->update_used_tables();
-  if (!master_unit()->is_union())
+  if (master_unit()->global_parameters != this)
   {
     for (ORDER *order= order_list.first; order; order= order->next)
       (*order->item)->update_used_tables();
