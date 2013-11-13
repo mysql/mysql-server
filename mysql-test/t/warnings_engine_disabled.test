@@ -2,12 +2,10 @@
 # Only run this test with a compiled in but disabled
 # engine
 #
-disable_query_log;
 let $federated_support = `select engine from information_schema.engines where engine = 'FEDERATED'`;
 if(!$federated_support) {
 	skip "Test need FEDERATED engine";
 }
-enable_query_log;
 
 #
 # Test for using disabled engine
