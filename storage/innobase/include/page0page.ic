@@ -414,6 +414,8 @@ page_rec_is_user_rec(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_user_rec_low(page_offset(rec)));
 }
 
@@ -426,6 +428,8 @@ page_rec_is_supremum(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_supremum_low(page_offset(rec)));
 }
 
@@ -438,6 +442,8 @@ page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
