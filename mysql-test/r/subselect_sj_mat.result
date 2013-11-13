@@ -2078,3 +2078,24 @@ SELECT * FROM t1 WHERE 8 IN (SELECT MIN(pk) FROM t1) AND (pk = a OR pk = b);
 pk	a	b
 DROP TABLE t1;
 # End of 5.3 tests
+#
+# MDEV-5056: Wrong result (extra rows) with materialization+semijoin, IN subqueries
+#
+set @tmp_mdev5056=@@join_cache_level;
+SET join_cache_level = 2;
+CREATE TABLE t1 ( c1 VARCHAR(2), c2 VARCHAR(2), INDEX(c1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES 
+('JP','OM'),('VA','JP'),('CA','ML'),('ML','EG'),('DK','CA'),
+('DK','QA'),('YE','PL'),('TR','ZW'),('DK','SK'),('SK','DK'),
+('RO','ML'),('ML','BG'),('BG','ZW'),('ZW','GE'),('GE','JP'),
+('PL','EG'),('QA','YE'),('WF','DK'),('DK','JP'),('EG','OM');
+CREATE TABLE t2 ( c3 VARCHAR(2), c4 VARCHAR(2) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('CA','ML'),('IN','HU'),('HU','IN');
+SELECT * FROM t1 AS alias1, t1 AS alias2 
+WHERE ( alias2.c2, alias1.c1 ) IN ( SELECT c4, c3 FROM t2 ) AND alias1.c1 IN ( SELECT c2 FROM t1 );
+c1	c2	c1	c2
+CA	ML	CA	ML
+CA	ML	RO	ML
+DROP TABLE t1,t2;
+set join_cache_level=@tmp_mdev5056;
+# End of 5.5 tests

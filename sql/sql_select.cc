@@ -12295,12 +12295,14 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
       /*
         If we're inside an SJM-nest (current_sjm!=NULL), and the multi-equality
         doesn't include a constant, we should produce equality with the first
-        of the equals in this SJM.
+        of the equal items in this SJM (except for the first element inside the
+        SJM. For that, we produce the equality with the "head" item).
 
         In other cases, get the "head" item, which is either first of the
         equals on top level, or the constant.
       */
-      Item *head_item= (!item_const && current_sjm)? current_sjm_head: head;
+      Item *head_item= (!item_const && current_sjm && 
+                        current_sjm_head != field_item) ? current_sjm_head: head; 
       Item *head_real_item=  head_item->real_item();
       if (head_real_item->type() == Item::FIELD_ITEM)
         head_item= head_real_item;
