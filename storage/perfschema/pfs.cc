@@ -3724,7 +3724,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= mutex->m_class->m_event_name_index;
-  
+
     DBUG_ASSERT(index <= wait_class_max);
     DBUG_ASSERT(sanitize_thread(thread) != NULL);
     DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
@@ -5593,7 +5593,7 @@ void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker,
 {
   PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  
+
   if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
