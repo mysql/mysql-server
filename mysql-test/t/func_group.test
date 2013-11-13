@@ -1465,3 +1465,56 @@ SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
 outr.col_int_nokey = outr2.col_int_nokey;
 DROP TABLE t1;
 --echo # End of the bug#57932
+
+
+--echo #
+--echo # MDEV-5257: MIN/MAX Optimization (Select tables optimized away) does not work for DateTime
+--echo # MDEV-3855: MIN/MAX optimization doesnt work for int_col > INET_ATON
+--echo #  (correct the fix for Bug #884175)
+--echo #
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` datetime DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx_b` (`b`)
+);
+
+INSERT INTO `t1` (b) VALUES ('2013-01-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-02-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-03-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-04-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-05-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-06-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-07-06 23:59:59');
+
+--echo # The following should produce "Select tables optimized away"
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+
+-- connect (con1,localhost,root,,)
+-- connection con1
+set names utf8;
+-- echo # Should be the same as above:
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+
+--connection default
+--disconnect con1
+
+DROP TABLE t1;
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx_b` (`b`)
+);
+
+insert into t1 (b) values (INET_ATON('192.168.0.1'));
+insert into t1 (b) values (INET_ATON('192.168.0.2'));
+insert into t1 (b) values (INET_ATON('192.168.0.3'));
+insert into t1 (b) values (INET_ATON('192.168.0.4'));
+insert into t1 (b) values (INET_ATON('192.168.200.200'));
+--echo # should show "Select tables optimized away"
+explain select MIN(b) from t1 where b >= inet_aton('192.168.119.32');
+DROP TABLE t1;
+
