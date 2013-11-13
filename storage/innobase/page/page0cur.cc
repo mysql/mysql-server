@@ -977,7 +977,8 @@ page_cur_insert_rec_low(
 	      == (ibool) !!page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
+	      == index->id || recv_recovery_is_on()
+	      || (mtr ? mtr->inside_ibuf : dict_index_is_ibuf(index)));
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1204,7 +1205,8 @@ page_cur_insert_rec_zip(
 	ut_ad(page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	      == index->id || recv_recovery_is_on()
+	      || (mtr ? mtr->inside_ibuf : dict_index_is_ibuf(index)));
 
 	ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
@@ -1977,7 +1979,8 @@ page_cur_delete_rec(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const ulint*		offsets,/*!< in: rec_get_offsets(
 					cursor->rec, index) */
-	mtr_t*			mtr)	/*!< in: mini-transaction handle */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle
+					or NULL */
 {
 	page_dir_slot_t* cur_dir_slot;
 	page_dir_slot_t* prev_slot;
@@ -2006,7 +2009,8 @@ page_cur_delete_rec(
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	      == index->id || recv_recovery_is_on()
+	      || (mtr ? mtr->inside_ibuf : dict_index_is_ibuf(index)));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
