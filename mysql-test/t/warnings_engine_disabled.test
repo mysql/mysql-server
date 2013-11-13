@@ -3,14 +3,15 @@
 # engine
 #
 disable_query_log;
---require r/true.require
-select support = 'NO' as `TRUE` from information_schema.engines where engine = 'FEDERATED';
+let $federated_support = `select engine from information_schema.engines where engine = 'FEDERATED'`;
+if(!$federated_support) {
+	skip "Test need FEDERATED engine";
+}
 enable_query_log;
 
-
 #
-# Test for handler type, will select MyISAM and print a warning
-# about that - since NDB is disabled
+# Test for using disabled engine
+# The server will throw an error - since FEDERATED is disabled
 #
 --ERROR ER_UNKNOWN_STORAGE_ENGINE
 create table t1 (id int) engine=FEDERATED;
