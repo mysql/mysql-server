@@ -234,7 +234,7 @@ private:
   static TABLE_FIELD_DEF m_field_def;
 
   void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
-  
+
   /** Current position. */
   pos_events_statements_current m_pos;
   /** Next position. */
