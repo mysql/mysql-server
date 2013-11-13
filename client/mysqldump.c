@@ -473,7 +473,8 @@ static struct my_option my_long_options[] =
     "are not enabled on the server, an error is generated. If OFF is "
     "used, this option does nothing. If AUTO is used and GTIDs are enabled "
     "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
-    "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
+    "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
+    "then the default (AUTO) value will be considered.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
@@ -917,9 +918,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SET_GTID_PURGED:
     {
-      opt_set_gtid_purged_mode= find_type_or_exit(argument,
-                                                  &set_gtid_purged_mode_typelib,
-                                                  opt->name)-1;
+      if (argument)
+        opt_set_gtid_purged_mode= find_type_or_exit(argument,
+                                                    &set_gtid_purged_mode_typelib,
+                                                    opt->name)-1;
       break;
     }
   }
