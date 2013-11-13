@@ -78,7 +78,7 @@ EXTRA_DIST =	README README.suites \
 TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/ndb_backup50 std_data/ndb_backup51 \
 	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
-	std_data/funcs_1 \
+	std_data/funcs_1 std_data/zoneinfo \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/federated \
