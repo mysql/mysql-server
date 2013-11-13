@@ -2455,7 +2455,7 @@ char *root_name_end;
 
 */
 my_bool
-scan_tz_dir(char * name_end)
+scan_tz_dir(char * name_end, uint symlink_recursion_level)
 {
   MY_DIR *cur_dir;
   char *name_end_tmp;
@@ -2475,7 +2475,32 @@ scan_tz_dir(char * name_end)
 
       if (MY_S_ISDIR(cur_dir->dir_entry[i].mystat->st_mode))
       {
-        if (scan_tz_dir(name_end_tmp))
+        my_bool is_symlink;
+        if ((is_symlink= my_is_symlink(fullname)) &&
+            symlink_recursion_level > 0)
+        {
+          /*
+            The timezone definition data in some Linux distributions
+             (e.g. the "timezone-data-2013f" package in Gentoo)
+            may have synlimks like:
+              /usr/share/zoneinfo/posix/ -> /usr/share/zoneinfo/,
+            so the same timezone files are available under two names
+            (e.g. "CET" and "posix/CET").
+
+            We allow one level of symlink recursion for backward
+            compatibility with earlier timezone data packages that have
+            duplicate copies of the same timezone files inside the root
+            directory and the "posix" subdirectory (instead of symlinking).
+            This makes "posix/CET" still available, but helps to avoid
+            following such symlinks infinitely:
+              /usr/share/zoneinfo/posix/posix/posix/.../posix/
+          */
+          fflush(stdout);
+          fprintf(stderr, "Warning: Skipping directory '%s': "
+                          "to avoid infinite symlink recursion.\n", fullname);
+          continue;
+        }
+        if (scan_tz_dir(name_end_tmp, symlink_recursion_level + is_symlink))
         {
           my_dirend(cur_dir);
           return 1;
@@ -2487,14 +2512,20 @@ scan_tz_dir(char * name_end)
         if (!tz_load(fullname, &tz_info, &tz_storage))
           print_tz_as_sql(root_name_end + 1, &tz_info);
         else
+        {
+          fflush(stdout);
           fprintf(stderr,
                   "Warning: Unable to load '%s' as time zone. Skipping it.\n",
                   fullname);
+        }
         free_root(&tz_storage, MYF(0));
       }
       else
+      {
+        fflush(stdout);
         fprintf(stderr, "Warning: '%s' is not regular file or directory\n",
                 fullname);
+      }
     }
   }
 
@@ -2528,8 +2559,9 @@ main(int argc, char **argv)
     printf("TRUNCATE TABLE time_zone_transition;\n");
     printf("TRUNCATE TABLE time_zone_transition_type;\n");
 
-    if (scan_tz_dir(root_name_end))
+    if (scan_tz_dir(root_name_end, 0))
     {
+      fflush(stdout);
       fprintf(stderr, "There were fatal errors during processing "
                       "of zoneinfo directory\n");
       return 1;
@@ -2548,6 +2580,7 @@ main(int argc, char **argv)
     {
       if (tz_load(argv[2], &tz_info, &tz_storage))
       {
+        fflush(stdout);
         fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
         return 1;
       }
@@ -2557,6 +2590,7 @@ main(int argc, char **argv)
     {
       if (tz_load(argv[1], &tz_info, &tz_storage))
       {
+        fflush(stdout);
         fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
         return 1;
       }

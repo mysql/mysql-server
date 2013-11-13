@@ -1,0 +1,15 @@
+--source include/have_symlink.inc
+--source include/not_windows.inc
+
+--echo #
+--echo # MDEV-5226 mysql_tzinfo_to_sql errors with tzdata 2013f and above
+--echo #
+
+--exec mkdir $MYSQLTEST_VARDIR/zoneinfo
+--exec ln -s $MYSQLTEST_VARDIR/zoneinfo $MYSQLTEST_VARDIR/zoneinfo/posix
+--copy_file std_data/zoneinfo/GMT $MYSQLTEST_VARDIR/zoneinfo/GMT
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/zoneinfo 2>&1
+
+--exec rm -rf $MYSQLTEST_VARDIR/zoneinfo
