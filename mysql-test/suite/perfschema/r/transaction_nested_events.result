@@ -27,7 +27,7 @@ SET @all_threads= 0;
 
 ## Enable only transaction and statement instruments
 UPDATE performance_schema.setup_instruments SET enabled='NO', timed='NO';
-UPDATE performance_schema.setup_instruments SET enabled='YES', timed='YES'
+UPDATE performance_schema.setup_instruments SET enabled='YES'
   WHERE name LIKE ('statement/%') OR name = 'transaction';
 
 ## Clear statement and transaction history
@@ -43,12 +43,6 @@ INSERT INTO t1 VALUES (210, "INSERT 210");
 INSERT INTO t1 VALUES (211, "INSERT 211");
 INSERT INTO t1 VALUES (212, "INSERT 212");
 UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212;
-
-SELECT * FROM t1 ORDER BY s1;
-s1	s2
-210	INSERT 210
-211	INSERT 211
-213	INSERT 212
 #========================================================================
 # Verify
 #========================================================================
@@ -57,10 +51,9 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
@@ -68,7 +61,7 @@ thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nes
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/insert     	nesting_event_id	NULL              	INSERT INTO t1 VALUES (210, "INSERT 210")
@@ -78,8 +71,6 @@ event_id	transaction              	nesting_event_id	STATEMENT         	<transact
 event_id	statement/sql/insert     	nesting_event_id	NULL              	INSERT INTO t1 VALUES (212, "INSERT 212")
 event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
 event_id	statement/sql/update     	nesting_event_id	NULL              	UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/select     	nesting_event_id	NULL              	SELECT * FROM t1 ORDER BY s1
 event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
@@ -93,11 +84,6 @@ DELETE FROM db.t1;
 START TRANSACTION;
 INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221");
 UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221;
-
-SELECT * FROM t1 ORDER BY s1;
-s1	s2
-220	INSERT 220
-221	UPDATE 221
 COMMIT;
 #========================================================================
 # Verify
@@ -107,21 +93,20 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
 event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
 event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221")
 event_id	statement/sql/update     	nesting_event_id	TRANSACTION       	UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
 event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
@@ -143,13 +128,6 @@ INSERT INTO t1 VALUES (311, "INSERT 311");
 INSERT INTO t1 VALUES (312, "INSERT 312");
 INSERT INTO t1 VALUES (313, "INSERT 313");
 CALL tp_update();
-
-SELECT * FROM t1 ORDER BY s1;
-s1	s2
-311	INSERT 310
-312	INSERT 311
-313	INSERT 312
-314	INSERT 313
 COMMIT;
 #========================================================================
 # Verify
@@ -159,14 +137,14 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
@@ -178,7 +156,6 @@ event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT IN
 event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (313, "INSERT 313")
 event_id	statement/sql/call_proced	nesting_event_id	TRANSACTION       	CALL tp_update()
 event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	UPDATE t1 SET s1 = s1 + 1
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
 event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
@@ -211,14 +188,14 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_start() START TRANSACTION
@@ -271,7 +248,7 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
@@ -281,7 +258,7 @@ thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nes
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_rollback() ROLLBACK
@@ -352,7 +329,7 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
@@ -360,7 +337,7 @@ thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nes
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
@@ -402,7 +379,7 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
@@ -410,7 +387,7 @@ thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nes
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
@@ -531,7 +508,7 @@ EVENTS_TRANSACTIONS_CURRENT
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
 
-EVENTS_TRANSACTIONS_HISTORY
+EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
@@ -539,7 +516,7 @@ thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nes
 
 ## Combined statement and transaction event history ordered by event id
 
-EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY
+EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
 event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION

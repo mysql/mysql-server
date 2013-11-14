@@ -5680,6 +5680,40 @@ u
 n
 DROP TABLE t0;
 # End of bug#46556
+
+Bug#48834: Procedure with view + subquery + semijoin=on 
+crashes on second call.
+
+CREATE TABLE t1 ( t1field integer, primary key (t1field));
+CREATE TABLE t2 ( t2field integer, primary key (t2field));
+CREATE VIEW v1 AS 
+SELECT t1field as v1field
+FROM t1 A 
+WHERE A.t1field IN (SELECT t1field FROM t2 );
+CREATE VIEW v2 AS 
+SELECT t2field as v2field
+FROM t2 A 
+WHERE A.t2field IN (SELECT t2field FROM t2 );
+CREATE PROCEDURE p1 () 
+BEGIN 
+SELECT v1field
+FROM v1 
+WHERE v1field IN ( SELECT v2field as vf_inner FROM v2 );
+END|
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2),(3),(4);
+CALL p1;
+v1field
+2
+3
+CALL p1;
+v1field
+2
+3
+DROP TABLE t1,t2;
+DROP VIEW v1,v2;
+DROP PROCEDURE p1;
+# End of BUG#48834
 #
 # Bug#46692 "Crash occurring on queries with nested FROM subqueries 
 # using materialization."
