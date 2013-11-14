@@ -586,7 +586,17 @@ int ha_ndbinfo::rnd_next(uchar *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   assert(is_open());
-  assert(m_impl.m_scan_op);
+
+  if (!m_impl.m_scan_op)
+  {
+    /*
+     It should be impossible to come here without a scan operation.
+     But apparently it's not safe to assume that rnd_next() isn't
+     called even though rnd_init() returned an error. Thus double check
+     that the scan operation exists and bail out in case it doesn't.
+    */
+    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+  }
 
   if ((err = m_impl.m_scan_op->nextResult()) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
