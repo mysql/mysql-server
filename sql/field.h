@@ -4042,11 +4042,11 @@ public:
                           bool maybe_null, bool is_unsigned,
                           uint pack_length = ~0U);
 
-  bool init(THD *thd, char *field_name, enum_field_types type, char *length,
-            char *decimals, uint type_modifier, Item *default_value,
-            Item *on_update_value, LEX_STRING *comment, char *change,
-            List<String> *interval_list, const CHARSET_INFO *cs,
-            uint uint_geom_type);
+  bool init(THD *thd, const char *field_name, enum_field_types type,
+            const char *length, const char *decimals, uint type_modifier,
+            Item *default_value, Item *on_update_value, LEX_STRING *comment,
+            const char *change, List<String> *interval_list,
+            const CHARSET_INFO *cs, uint uint_geom_type);
 
   ha_storage_media field_storage_type() const
   {
