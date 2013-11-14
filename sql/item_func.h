@@ -151,8 +151,8 @@ public:
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
   void count_only_length(Item **item, uint nitems);
-  void count_real_length();
-  void count_decimal_length();
+  void count_real_length(Item **item, uint nitems);
+  void count_decimal_length(Item **item, uint nitems);
   void count_datetime_length(Item **item, uint nitems);
   bool count_string_result_length(enum_field_types field_type,
                                   Item **item, uint nitems);
