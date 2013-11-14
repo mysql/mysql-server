@@ -34,6 +34,8 @@
 #include <ndb_version.h>
 #endif /* NDB_MGMAPI */
 
+#include <portlib/ndb_localtime.h>
+
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
 #define MAX_INT32 0xffffffff
@@ -5412,7 +5414,7 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
     time(&now);
 
     tm tm_buf;
-    localtime_r(&now, &tm_buf);
+    ndb_localtime_r(&now, &tm_buf);
 
     char name_buf[18];
     BaseString::snprintf(name_buf, sizeof(name_buf),
