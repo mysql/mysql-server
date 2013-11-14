@@ -7097,6 +7097,10 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
+
+ER_INNODB_UNDO_LOG_FULL
+  eng "Undo Log error: %s"
+
 #
 #  End of 5.7 error messages.
 #
