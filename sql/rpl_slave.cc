@@ -6472,7 +6472,16 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
-                         mi->get_mi_description_event(), header);
+                         /*
+                          *  TODO: Change the return type of
+                          *  get_mi_description_event() from
+                          *  Format_description_log_event to
+                          *  binary_log::Format_description_event
+                          *   + mi->get_mi_description_event(), header);
+                          *   - des_ev, header);
+                          *  Hence, change it to the implementation above
+                          */
+                         des_ev, header);
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {

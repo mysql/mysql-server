@@ -6314,6 +6314,10 @@ void MYSQL_BIN_LOG::close(uint exiting)
 #ifdef HAVE_REPLICATION
     if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
     {
+      /**
+        TODO: Change the implementation to Stop_event after write() is
+        moved into libbinlogapi
+      */
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
         s.checksum_alg= is_relay_log ?

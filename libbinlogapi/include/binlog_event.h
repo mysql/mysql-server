@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  *machine independent format (low byte first).
  */
 #include "byteorder.h"
+#include "wrapper_functions.h"
 #include "cassert"
 #include <zlib.h> //for checksum calculations
 #include "m_string.h"//for strmov used in Format_description_event's constructor
@@ -50,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define SERVER_VERSION_LENGTH 60
 #endif
 extern char server_version[SERVER_VERSION_LENGTH];
+
 namespace binary_log
 {
 /*
@@ -333,7 +335,8 @@ public:
     STOP_HEADER_LEN= 0,
     LOAD_HEADER_LEN= (4 + 4 + 4 + 1 +1 + 4),
     START_V3_HEADER_LEN= (2 + ST_SERVER_VER_LEN + 4),
-    ROTATE_HEADER_LEN= 8, // this is FROZEN (the Rotate post-header is frozen)
+    // this is FROZEN (the Rotate post-header is frozen)
+    ROTATE_HEADER_LEN= 8,
     INTVAR_HEADER_LEN= 0,
     CREATE_FILE_HEADER_LEN= 4,
     APPEND_BLOCK_HEADER_LEN= 4,
@@ -348,7 +351,7 @@ public:
     ROWS_HEADER_LEN_V1= 8,
     TABLE_MAP_HEADER_LEN= 8,
     EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN= (4 + 4 + 4 + 1),
-    EXECUTE_LOAD_QUERY_HEADER_LEN= (QUERY_HEADER_LEN +
+    EXECUTE_LOAD_QUERY_HEADER_LEN= (QUERY_HEADER_LEN +\
                                     EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN),
     INCIDENT_HEADER_LEN= 2,
     HEARTBEAT_HEADER_LEN= 0,
@@ -370,6 +373,7 @@ public:
       m_header= *header;
   }
 
+  // TODO: Uncomment when the dependency of log_event on this class in removed
   /**
     Returns short information about the event
   */
@@ -377,9 +381,17 @@ public:
   /**
     Returns detailed information about the event
   */
- // virtual void print_long_info(std::ostream& info);
+  // virtual void print_long_info(std::ostream& info);
   virtual ~Binary_log_event();
-  uint8_t checksum_alg;
+  /*
+     The value is set by caller of FD constructor and
+     Log_event::write_header() for the rest.
+     In the FD case it's propagated into the last byte
+     of post_header_len[] at FD::write().
+     On the slave side the value is assigned from post_header_len[last]
+     of the last seen FD event.
+  */
+  enum_binlog_checksum_alg checksum_alg;
   /**
    * Helper method
    */
@@ -427,17 +439,133 @@ public:
     void print_long_info(std::ostream& info);
 };
 
-class Rotate_event: public Binary_log_event
+/**
+  @class Rotate_event
+
+  When a binary log file exceeds a size limit, a ROTATE_EVENT is written
+  at the end of the file that points to the next file in the squence.
+  This event is information for the slave to know the name of the next
+  binary log it is going to receive.
+
+  ROTATE_EVENT is generated locally and written to the binary log
+  on the master. It is written to the relay log on the slave when FLUSH LOGS
+  occurs, and when receiving a ROTATE_EVENT from the master.
+  In the latter case, there will be two rotate events in total originating
+  on different servers.
+
+  @section Rotate_event_binary_format Binary Format
+
+  <table>
+  <caption>Post-Header for Rotate_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>position</td>
+    <td>8 byte integer</td>
+    <td>The position within the binary log to rotate to.</td>
+  </tr>
+
+  </table>
+
+  The Body has one component:
+
+  <table>
+  <caption>Body for Rotate_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>new_log_ident</td>
+    <td>variable length string without trailing zero, extending to the
+    end of the event (determined by the length field of the
+    Common-Header)
+    </td>
+    <td>Name of the binlog to rotate to.</td>
+  </tr>
+
+  </table>
+*/
+class Rotate_event: public virtual Binary_log_event
 {
 public:
-    Rotate_event(Log_event_header *header) : Binary_log_event(header) {}
-    std::string binlog_file;
-    uint64_t binlog_pos;
+  const char* new_log_ident;
+  unsigned int ident_len;
+  unsigned int flags;
+  uint64_t pos;
 
-    Log_event_type get_type_code() { return ROTATE_EVENT; }
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);};
+  enum {
+    /* Values taken by the flag member variable */
+    DUP_NAME= 2, // if constructor should dup the string argument
+    RELAY_LOG= 4 // rotate event for the relay log
+  };
+
+  enum {
+    /* Rotate event post_header */
+    R_POS_OFFSET= 0,
+    R_IDENT_OFFSET= 8
+  };
+
+  Rotate_event() {}
+  Rotate_event(const char* buf, unsigned int event_len,
+               const Format_description_event *description_event,
+               Log_event_header *head);
+
+  Log_event_type get_type_code() { return ROTATE_EVENT; }
+  //TODO: is_valid() is to be handled as a separate patch
+  bool is_valid() const { return new_log_ident != 0; }
+
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+
+  ~Rotate_event()
+  {
+    if (flags & DUP_NAME)
+      bapi_free((void*) new_log_ident);
+  }
+};
+
+/**
+  @class Stop_event
+
+  A stop event is written to the log files under these circumstances:
+  - A master writes the event to the binary log when it shuts down.
+  - A slave writes the event to the relay log when it shuts down or
+    when a RESET SLAVE statement is executed.
+
+  @section Stop_log_event_binary_format Binary Format
+
+  The Post-Header and Body for this event type are empty; it only has
+  the Common-Header.
+*/
+
+class Stop_event: public virtual Binary_log_event
+{
+public:
+  Stop_event() : Binary_log_event()
+  {
+  }
+  Stop_event(const char* buf,
+             const Format_description_event *description_event,
+             Log_event_header *header)
+  : Binary_log_event(header)
+  {
+  }
+
+  Log_event_type get_type_code() { return STOP_EVENT; }
+  bool is_valid() const { return 1; }
+
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info);
+};
 
 class Format_description_event: public Binary_log_event
 {

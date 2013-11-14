@@ -90,6 +90,22 @@ uint32_t inline be32toh(uint32_t x)
   #endif
 }
 #endif
+
+#if !defined(le64toh)
+uint64_t inline le64toh(uint64_t x)
+{
+  #if !(IS_BIG_ENDIAN)
+    return x;
+  #else
+    x = ((x << 8) & 0xff00ff00ff00ff00ULL) |
+        ((x >> 8) & 0x00ff00ff00ff00ffULL);
+    x = ((x << 16) & 0xffff0000ffff0000ULL) |
+        ((x >> 16) & 0x0000ffff0000ffffULL);
+    return (x << 32) | (x >> 32);
+  #endif
+}
+#endif
+
 #define do_compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \

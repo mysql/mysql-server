@@ -20,6 +20,7 @@
 #cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
 /* Symbols we may use */
 #define IS_BIG_ENDIAN @IS_BIG_ENDIAN@
+#define HAVE_LE64TOH @HAVE_LE64TOH@
 #define HAVE_LE32TOH @HAVE_LE32TOH@
 #define HAVE_LE16TOH @HAVE_LE16TOH@
 #cmakedefine HAVE_ENDIAN_CONVERSION_MACROS @HAVE_ENDIAN_CONVERSION_MACROS@
@@ -27,4 +28,5 @@
 #define HAVE_LONG 1
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
 #define HAVE_INT 1
+
 #endif

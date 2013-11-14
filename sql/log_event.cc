@@ -56,10 +56,6 @@
 #include "hash.h"
 #include <map>
 
-PSI_memory_key key_memory_log_event;
-PSI_memory_key key_memory_Incident_log_event_message;
-PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-
 using std::min;
 using std::max;
 using binary_log::checksum_crc32;
@@ -856,8 +852,9 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
                      enum_event_logging_type logging_type_arg)
   :temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg),
-  crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0), thd(thd_arg)
 {
+  checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   common_header= new Log_event_header();
   server_id= thd->server_id;
   common_header->unmasked_server_id= server_id;
@@ -876,9 +873,9 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
 Log_event::Log_event(enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
   :temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
-  event_logging_type(logging_type_arg), crc(0), thd(0),
-  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  event_logging_type(logging_type_arg), crc(0), thd(0)
 {
+  checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   common_header= new Log_event_header();
   server_id=	::server_id;
   common_header->unmasked_server_id= server_id;
@@ -889,12 +886,13 @@ Log_event::Log_event(Log_event_header *header)
   :Binary_log_event(header), temp_buf(0), exec_time(0),
   event_cache_type(EVENT_INVALID_CACHE),
   event_logging_type(EVENT_INVALID_LOGGING),
-  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif
   common_header= header;
+  checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   /*
      Mask out any irrelevant parts of the server_id
   */
@@ -1651,7 +1649,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Load_log_event(buf, event_len, description_event, header);
       break;
     case ROTATE_EVENT:
-      ev = new Rotate_log_event(buf, event_len, description_event, header);
+      ev = new Rotate_log_event(buf, event_len, des_ev, header);
       break;
     case CREATE_FILE_EVENT:
       ev = new Create_file_log_event(buf, event_len, description_event, header);
@@ -1669,7 +1667,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Start_log_event_v3(buf, description_event, header);
       break;
     case STOP_EVENT:
-      ev = new Stop_log_event(buf, description_event, header);
+      ev = new Stop_log_event(buf, des_ev, header);
       break;
     case INTVAR_EVENT:
       ev = new Intvar_log_event(buf, description_event, header);
@@ -6828,13 +6826,17 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
-  :Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
-   new_log_ident(new_log_ident_arg), pos(pos_arg),ident_len(ident_len_arg ?
-   ident_len_arg : (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+  :Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
 {
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
+  new_log_ident= new_log_ident_arg;
+  pos= pos_arg;
+  ident_len= ident_len_arg ?
+             ident_len_arg : (uint) strlen(new_log_ident_arg);
+  flags= flags_arg;
+
 #ifndef DBUG_OFF
   char buff[22];
-  DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
@@ -6849,26 +6851,12 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
-                                   const Format_description_log_event* description_event,
+                                   const Format_description_event* description_event,
                                    Log_event_header* header)
-  :Log_event(header) ,new_log_ident(0), flags(DUP_NAME)
+  :Log_event(header), Rotate_event(buf, event_len, description_event, header)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
 
-  // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
-  uint8 header_size= description_event->common_header_len;
-  uint8 post_header_len= description_event->post_header_len[ROTATE_EVENT-1];
-  uint ident_offset;
-  if (event_len < header_size)
-    DBUG_VOID_RETURN;
-  buf += header_size;
-  pos = post_header_len ? uint8korr(buf + R_POS_OFFSET) : 4;
-  ident_len = (uint)(event_len -
-                     (header_size+post_header_len)); 
-  ident_offset = post_header_len; 
-  set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strndup(key_memory_log_event,
-                            buf + ident_offset, (uint) ident_len, MYF(MY_WME));
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
