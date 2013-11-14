@@ -9809,11 +9809,12 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     TRUE  on error.
 */
 
-bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
-                        char *fld_length, char *fld_decimals,
-                        uint fld_type_modifier, Item *fld_default_value,
-                        Item *fld_on_update_value, LEX_STRING *fld_comment,
-                        char *fld_change, List<String> *fld_interval_list,
+bool Create_field::init(THD *thd, const char *fld_name,
+                        enum_field_types fld_type, const char *fld_length,
+                        const char *fld_decimals, uint fld_type_modifier,
+                        Item *fld_default_value, Item *fld_on_update_value,
+                        LEX_STRING *fld_comment, const char *fld_change,
+                        List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type)
 {
   uint sign_len, allowed_type_modifier= 0;
