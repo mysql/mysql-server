@@ -380,7 +380,7 @@ buf_dblwr_init_or_restore_pages(
 
 	fil_io(OS_FILE_READ, true,
 	       page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-	       0, univ_page_size.bytes(), read_buf, NULL);
+	       0, univ_page_size.physical(), read_buf, NULL);
 
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
@@ -417,12 +417,12 @@ buf_dblwr_init_or_restore_pages(
 
 	fil_io(OS_FILE_READ, true,
 	       page_id_t(TRX_SYS_SPACE, block1), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.bytes(),
+	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
 	       buf, NULL);
 
 	fil_io(OS_FILE_READ, true,
 	       page_id_t(TRX_SYS_SPACE, block2), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.bytes(),
+	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
 	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE, NULL);
 
 	/* Check if any of these pages is half-written in data files, in the
@@ -453,7 +453,7 @@ buf_dblwr_init_or_restore_pages(
 
 			fil_io(OS_FILE_WRITE, true,
 			       page_id_t(0, source_page_no), univ_page_size,
-			       0, univ_page_size.bytes(), page, NULL);
+			       0, univ_page_size.physical(), page, NULL);
 		} else {
 
 			space_id = mach_read_from_4(
@@ -503,7 +503,7 @@ buf_dblwr_init_or_restore_pages(
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,
 			       page_id_t(space_id, page_no), page_size,
-			       0, page_size.bytes(), read_buf, NULL);
+			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
 
@@ -548,7 +548,7 @@ buf_dblwr_init_or_restore_pages(
 
 				fil_io(OS_FILE_WRITE, true,
 				       page_id_t(space_id, page_no), page_size,
-				       0, page_size.bytes(), page, NULL);
+				       0, page_size.physical(), page, NULL);
 
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Recovered the page from"
@@ -556,7 +556,7 @@ buf_dblwr_init_or_restore_pages(
 			}
 		}
 
-		page += univ_page_size.bytes();
+		page += univ_page_size.physical();
 	}
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
@@ -759,7 +759,7 @@ buf_dblwr_write_block_to_datafile(
 		ut_ad(bpage->size.is_compressed());
 
 		fil_io(flags, sync, bpage->id, bpage->size, 0,
-		       bpage->size.bytes(),
+		       bpage->size.physical(),
 		       (void*) bpage->zip.data,
 		       (void*) bpage);
 
@@ -772,7 +772,7 @@ buf_dblwr_write_block_to_datafile(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
-	fil_io(flags, sync, bpage->id, bpage->size, 0, bpage->size.bytes(),
+	fil_io(flags, sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 	       (void*) block->frame, (void*) block);
 }
 
@@ -961,26 +961,24 @@ try_again:
 		goto try_again;
 	}
 
+	byte*	p = buf_dblwr->write_buf
+		+ univ_page_size.physical() * buf_dblwr->first_free;
+
 	if (bpage->size.is_compressed()) {
-		UNIV_MEM_ASSERT_RW(bpage->zip.data, bpage->size.bytes());
+		UNIV_MEM_ASSERT_RW(bpage->zip.data, bpage->size.physical());
 		/* Copy the compressed page and clear the rest. */
-		memcpy(buf_dblwr->write_buf
-		       + UNIV_PAGE_SIZE * buf_dblwr->first_free,
-		       bpage->zip.data, bpage->size.bytes());
-		memset(buf_dblwr->write_buf
-		       + univ_page_size.bytes() * buf_dblwr->first_free
-		       + bpage->size.bytes(), 0,
-		       univ_page_size.bytes() - bpage->size.bytes());
+
+		memcpy(p, bpage->zip.data, bpage->size.physical());
+
+		memset(p + bpage->size.physical(), 0x0,
+		       univ_page_size.physical() - bpage->size.physical());
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(bpage->size.bytes() == univ_page_size.bytes());
 
 		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
-				   bpage->size.bytes());
+				   bpage->size.logical());
 
-		memcpy(buf_dblwr->write_buf
-		       + bpage->size.bytes() * buf_dblwr->first_free,
-		       ((buf_block_t*) bpage)->frame, bpage->size.bytes());
+		memcpy(p, ((buf_block_t*) bpage)->frame, bpage->size.logical());
 	}
 
 	buf_dblwr->buf_block_arr[buf_dblwr->first_free] = bpage;
@@ -1101,24 +1099,25 @@ retry:
 	bytes in the doublewrite page with zeros. */
 
 	if (bpage->size.is_compressed()) {
-		memcpy(buf_dblwr->write_buf + univ_page_size.bytes() * i,
-		       bpage->zip.data, bpage->size.bytes());
-		memset(buf_dblwr->write_buf + univ_page_size.bytes() * i
-		       + bpage->size.bytes(), 0,
-		       univ_page_size.bytes() - bpage->size.bytes());
+		memcpy(buf_dblwr->write_buf + univ_page_size.physical() * i,
+		       bpage->zip.data, bpage->size.physical());
+
+		memset(buf_dblwr->write_buf + univ_page_size.physical() * i
+		       + bpage->size.physical(), 0x0,
+		       univ_page_size.physical() - bpage->size.physical());
 
 		fil_io(OS_FILE_WRITE, true,
 		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-		       univ_page_size.bytes(),
+		       univ_page_size.physical(),
 		       (void*) (buf_dblwr->write_buf
-				+ univ_page_size.bytes() * i),
+				+ univ_page_size.physical() * i),
 		       NULL);
 	} else {
 		/* It is a regular page. Write it directly to the
 		doublewrite buffer */
 		fil_io(OS_FILE_WRITE, true,
 		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-		       univ_page_size.bytes(),
+		       univ_page_size.physical(),
 		       (void*) ((buf_block_t*) bpage)->frame,
 		       NULL);
 	}

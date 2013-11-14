@@ -34,7 +34,7 @@ fsp_descr_page(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size)
 {
-	return((page_id.page_no() & (page_size.bytes() - 1))
+	return((page_id.page_no() & (page_size.physical() - 1))
 	       == FSP_XDES_OFFSET);
 }
 
@@ -119,67 +119,6 @@ fsp_flags_is_compressed(
 	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/** Extract the raw page size from tablespace flags - only looking at the
-page_ssize field, without taking compression into account.
-@param[in] flags tablespace flags
-@return raw page size of the file-per-table tablespace */
-UNIV_INLINE
-ulint
-fsp_flags_get_raw_page_size(
-	ulint	flags)
-{
-	const ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
-
-	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (page_ssize != 0) {
-		const ulint	size = ((UNIV_ZIP_SIZE_MIN >> 1)
-					<< page_ssize);
-
-		ut_ad(size <= UNIV_PAGE_SIZE_MAX);
-
-		return(size);
-	} else {
-		/* If the page size was not stored, then it is the legacy 16k. */
-		return(UNIV_PAGE_SIZE_ORIG);
-	}
-}
-
-/** Extract the page size from tablespace flags. A tablespace has only one
-physical page size whether that page is compressed or not.
-@param[in] flags tablespace flags
-@return page size of the file-per-table tablespace */
-UNIV_INLINE
-const page_size_t
-fsp_flags_get_page_size(
-	ulint	flags)
-{
-	const ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-
-	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (zip_ssize != 0) {
-		const ulint	size = ((UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize);
-
-		ut_ad(size <= UNIV_ZIP_SIZE_MAX);
-
-		return(page_size_t(size, true));
-	}
-
-	const ulint	size = fsp_flags_get_raw_page_size(flags);
-
-#ifndef UNIV_INNOCHECKSUM
-	/* We assume that the page size of each tablespace is equal to
-	univ_page_size (--innodb-page-size=). Once we implement tablespaces
-	with different page sizes, then this assert should be removed. */
-	ut_ad(size == univ_page_size.bytes());
-#endif /* UNIV_INNOCHECKSUM */
-
-	return(page_size_t(size, false));
-}
-
-#ifndef UNIV_INNOCHECKSUM
-
 /********************************************************************//**
 Convert a page size, which is a power of 2, to an ssize, which is the
 number of bit shifts from 512 to make that page size.
@@ -245,7 +184,8 @@ xdes_calc_descriptor_index(
 	const page_size_t&	page_size,
 	ulint	offset)		/*!< in: page offset */
 {
-	return(ut_2pow_remainder(offset, page_size.bytes()) / FSP_EXTENT_SIZE);
+	return(ut_2pow_remainder(offset, page_size.physical())
+	       / FSP_EXTENT_SIZE);
 }
 
 /**********************************************************************//**
@@ -306,12 +246,12 @@ xdes_calc_descriptor_page(
 
 #ifdef UNIV_DEBUG
 	if (page_size.is_compressed()) {
-		ut_a(page_size.bytes() > XDES_ARR_OFFSET
-		     + (page_size.bytes() / FSP_EXTENT_SIZE) * XDES_SIZE);
+		ut_a(page_size.physical() > XDES_ARR_OFFSET
+		     + (page_size.physical() / FSP_EXTENT_SIZE) * XDES_SIZE);
 	}
 #endif /* UNIV_DEBUG */
 
-	return(ut_2pow_round(offset, page_size.bytes()));
+	return(ut_2pow_round(offset, page_size.physical()));
 }
 
 #endif /* !UNIV_INNOCHECKSUM */

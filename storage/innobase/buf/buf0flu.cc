@@ -85,12 +85,7 @@ incr_flush_list_size_in_bytes(
 {
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	const page_size_t&	page_size = block->page.size;
-
-	ut_ad(!page_size.is_compressed()
-	      || page_size.bytes() == page_zip_get_size(&block->page.zip));
-
-	buf_pool->stat.flush_list_bytes += page_size.bytes();
+	buf_pool->stat.flush_list_bytes += block->page.size.physical();
 
 	ut_ad(buf_pool->stat.flush_list_bytes <= buf_pool->curr_pool_size);
 }
@@ -330,13 +325,15 @@ buf_flush_insert_into_flush_list(
 	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	const page_size_t&	page_size = block->page.size;
+	void*	p;
 
-	if (page_size.is_compressed()) {
-		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
+	if (block->page.size.is_compressed()) {
+		p = block->page.zip.data;
 	} else {
-		UNIV_MEM_ASSERT_RW(block->frame, page_size.bytes());
+		p = block->frame;
 	}
+
+	UNIV_MEM_ASSERT_RW(p, block->page.size.physical());
 #endif /* UNIV_DEBUG_VALGRIND */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -389,13 +386,15 @@ buf_flush_insert_sorted_into_flush_list(
 	block->page.oldest_modification = lsn;
 
 #ifdef UNIV_DEBUG_VALGRIND
-	const page_size_t&	page_size = block->page.size;
+	void*	p;
 
-	if (page_size.is_compressed()) {
-		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
+	if (block->page.size.is_compressed()) {
+		p = block->page.zip.data;
 	} else {
-		UNIV_MEM_ASSERT_RW(block->frame, page_size.bytes());
+		p = block->frame;
 	}
+
+	UNIV_MEM_ASSERT_RW(p, block->page.size.physical());
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	prev_b = NULL;
@@ -568,10 +567,7 @@ buf_flush_remove(
 	because we assert on in_flush_list in comparison function. */
 	ut_d(bpage->in_flush_list = FALSE);
 
-	ut_ad(!bpage->size.is_compressed()
-	      || bpage->size.bytes() == page_zip_get_size(&bpage->zip));
-
-	buf_pool->stat.flush_list_bytes -= bpage->size.bytes();
+	buf_pool->stat.flush_list_bytes -= bpage->size.physical();
 
 	bpage->oldest_modification = 0;
 
@@ -885,7 +881,7 @@ buf_flush_write_block_low(
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
 
-		ut_a(page_zip_verify_checksum(frame, bpage->size.bytes()));
+		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
 
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
@@ -906,7 +902,7 @@ buf_flush_write_block_low(
 
 	if (!srv_use_doublewrite_buf || !buf_dblwr) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       sync, bpage->id, bpage->size, 0, bpage->size.bytes(),
+		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 		       frame, bpage);
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);

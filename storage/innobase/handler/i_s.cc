@@ -6374,7 +6374,7 @@ i_s_dict_fill_sys_tables(
 
 	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(
 			(double) page_size.is_compressed()
-			? page_size.bytes() : 0));
+			? page_size.physical() : 0));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8070,7 +8070,7 @@ i_s_dict_fill_sys_tablespaces(
 {
 	Field**			fields;
 	ulint			atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 	const char*		file_format;
 	const char*		row_format;
 
@@ -8100,11 +8100,11 @@ i_s_dict_fill_sys_tablespaces(
 			      row_format));
 
 	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(
-			(double) univ_page_size.bytes()));
+			(double) univ_page_size.physical()));
 
 	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(
 			(double) (page_size.is_compressed()
-				  ? page_size.bytes()
+				  ? page_size.physical()
 				  : 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));

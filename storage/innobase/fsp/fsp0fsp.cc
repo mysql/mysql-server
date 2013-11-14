@@ -192,7 +192,7 @@ fsp_get_space_header(
 	ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 #ifdef UNIV_DEBUG
 	const ulint	flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
-	ut_ad(fsp_flags_get_page_size(flags).equals_to(page_size));
+	ut_ad(page_size_t(flags).equals_to(page_size));
 #endif /* UNIV_DEBUG */
 	return(header);
 }
@@ -478,8 +478,9 @@ xdes_get_descriptor_with_space_hdr(
 	/* Read free limit and space size */
 	limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
 	size  = mach_read_from_4(sp_header + FSP_SIZE);
-	const page_size_t	page_size(fsp_flags_get_page_size(
-		mach_read_from_4(sp_header + FSP_SPACE_FLAGS)));
+
+	const page_size_t	page_size(mach_read_from_4(sp_header
+							   + FSP_SPACE_FLAGS));
 
 	if ((offset >= size) || (offset >= limit)) {
 		return(NULL);
@@ -712,7 +713,7 @@ fsp_header_init(
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
 	const page_id_t		page_id(space, 0);
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	block = buf_page_create(page_id, page_size, mtr);
 	buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
@@ -808,9 +809,7 @@ page_size_t
 fsp_header_get_page_size(
 	const page_t*	page)
 {
-	ulint	flags = fsp_header_get_flags(page);
-
-	return(fsp_flags_get_page_size(flags));
+	return(page_size_t(fsp_header_get_flags(page)));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -832,8 +831,7 @@ fsp_header_inc_size(
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
-	header = fsp_get_space_header(
-		space, fsp_flags_get_page_size(flags), mtr);
+	header = fsp_get_space_header(space, page_size_t(flags), mtr);
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
@@ -963,8 +961,8 @@ fsp_try_extend_data_file(
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(
-		mach_read_from_4(header + FSP_SPACE_FLAGS)));
+	const page_size_t	page_size(mach_read_from_4(header
+							   + FSP_SPACE_FLAGS));
 
 	old_size = size;
 
@@ -995,11 +993,11 @@ fsp_try_extend_data_file(
 					extent at a time. */
 
 		extent_size = FSP_EXTENT_SIZE
-			* UNIV_PAGE_SIZE / page_size.bytes();
+			* UNIV_PAGE_SIZE / page_size.physical();
 
 		/* The threshold is set at 32mb except when the physical page
 		size is small enough that it must be done sooner. */
-		threshold = ut_min((32 * extent_size), page_size.bytes());
+		threshold = ut_min((32 * extent_size), page_size.physical());
 
 		if (size < extent_size) {
 			/* Let us first extend the file to extent_size */
@@ -1043,7 +1041,7 @@ fsp_try_extend_data_file(
 	to the space header */
 
 	new_size = ut_calc_align_down(actual_size,
-				      (1024 * 1024) / page_size.bytes());
+				      (1024 * 1024) / page_size.physical());
 
 	mlog_write_ulint(header + FSP_SIZE, new_size, MLOG_4BYTES, mtr);
 
@@ -1085,8 +1083,8 @@ fsp_fill_free_list(
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(
-			mach_read_from_4(FSP_SPACE_FLAGS + header)));
+	const page_size_t	page_size(mach_read_from_4(FSP_SPACE_FLAGS
+							   + header));
 
 	if (((space == srv_sys_space.space_id()
 	      && srv_sys_space.can_auto_extend_last_file())
@@ -1112,8 +1110,8 @@ fsp_fill_free_list(
 	while ((init_space && i < 1)
 	       || ((i + FSP_EXTENT_SIZE <= size) && (count < FSP_FREE_ADD))) {
 
-		ibool	init_xdes;
-		init_xdes = ut_2pow_remainder(i, page_size.bytes()) == 0;
+		ibool	init_xdes
+			= (ut_2pow_remainder(i, page_size.physical()) == 0);
 
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 				 MLOG_4BYTES, mtr);
@@ -1708,8 +1706,8 @@ fsp_alloc_seg_inode_page(
 
 	space = page_get_space_id(page_align(space_header));
 
-	const page_size_t	page_size(fsp_flags_get_page_size(
-			mach_read_from_4(FSP_SPACE_FLAGS + space_header)));
+	const page_size_t	page_size(mach_read_from_4(FSP_SPACE_FLAGS
+							   + space_header));
 
 	block = fsp_alloc_free_page(space, page_size, 0, RW_SX_LATCH, mtr, mtr);
 
@@ -1772,8 +1770,8 @@ fsp_alloc_seg_inode(
 		}
 	}
 
-	const page_size_t	page_size(fsp_flags_get_page_size(
-		mach_read_from_4(FSP_SPACE_FLAGS + space_header)));
+	const page_size_t	page_size(
+		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 
 	const page_id_t		page_id(
 		page_get_space_id(page_align(space_header)),
@@ -2064,7 +2062,7 @@ fseg_create_general(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	if (page != 0) {
 		block = buf_page_get(page_id_t(space, page), page_size,
@@ -2237,7 +2235,7 @@ fseg_n_reserved_pages(
 	space = page_get_space_id(page_align(header));
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -2627,7 +2625,7 @@ got_hinted_page:
 
 	const ulint		flags = mach_read_from_4(FSP_SPACE_FLAGS
 							 + space_header);
-	const page_size_t	p_page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	p_page_size(flags);
 
 	return(fsp_page_create(page_id_t(space, ret_page), p_page_size,
 			       rw_latch, mtr, init_mtr));
@@ -2675,7 +2673,7 @@ fseg_alloc_free_page_general(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -2809,7 +2807,7 @@ fsp_reserve_free_extents(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -2836,7 +2834,8 @@ try_again:
 
 	if (n_free_up > 0) {
 		n_free_up--;
-		n_free_up -= n_free_up / (page_size.bytes() / FSP_EXTENT_SIZE);
+		n_free_up -= n_free_up / (page_size.physical()
+					  / FSP_EXTENT_SIZE);
 	}
 
 	n_free = n_free_list_ext + n_free_up;
@@ -2959,7 +2958,7 @@ fsp_get_available_space_in_free_extents(
 	pages _must_ still exist in the buffer pool and the tablespace
 	instance _must_ be in the file system hash table. */
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	space_header = fsp_get_space_header(space, page_size, &mtr);
 
@@ -2987,7 +2986,8 @@ fsp_get_available_space_in_free_extents(
 
 	if (n_free_up > 0) {
 		n_free_up--;
-		n_free_up -= n_free_up / (page_size.bytes() / FSP_EXTENT_SIZE);
+		n_free_up -= n_free_up / (page_size.physical()
+					  / FSP_EXTENT_SIZE);
 	}
 
 	n_free = n_free_list_ext + n_free_up;
@@ -3003,8 +3003,7 @@ fsp_get_available_space_in_free_extents(
 	}
 
 	return((ullint) (n_free - reserve)
-	       * FSP_EXTENT_SIZE
-	       * (page_size.bytes() / 1024));
+	       * FSP_EXTENT_SIZE * (page_size.physical() / 1024));
 }
 
 /********************************************************************//**
@@ -3212,7 +3211,7 @@ fseg_free_page(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3247,7 +3246,7 @@ fseg_page_is_free(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_start(&mtr);
 	mtr_x_lock(latch, &mtr);
@@ -3380,7 +3379,7 @@ fseg_free_step(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3465,7 +3464,7 @@ fseg_free_step_not_header(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3588,8 +3587,7 @@ fseg_validate_low(
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
 
-		const page_size_t	page_size(
-			fsp_flags_get_page_size(flags));
+		const page_size_t	page_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, page_size,
 						node_addr, &mtr);
@@ -3612,8 +3610,7 @@ fseg_validate_low(
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
 
-		const page_size_t	page_size(
-			fsp_flags_get_page_size(flags));
+		const page_size_t	page_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, page_size,
 						node_addr, &mtr);
@@ -3639,8 +3636,7 @@ fseg_validate_low(
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
 
-		const page_size_t	page_size(
-			fsp_flags_get_page_size(flags));
+		const page_size_t	page_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, page_size,
 						node_addr, &mtr);
@@ -3678,7 +3674,7 @@ fseg_validate(
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	inode = fseg_inode_get(header, space, page_size, mtr);
 
@@ -3754,7 +3750,7 @@ fseg_print(
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	inode = fseg_inode_get(header, space, page_size, mtr);
 
@@ -3794,7 +3790,7 @@ fsp_validate(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	/* Start first a mini-transaction mtr2 to lock out all other threads
 	from the fsp system */
@@ -3995,8 +3991,8 @@ fsp_validate(
 
 	ut_a(descr_count * FSP_EXTENT_SIZE == free_limit);
 	ut_a(n_used + n_full_frag_pages
-	     == n_used2 + 2 * ((free_limit + (page_size.bytes() - 1))
-			       / page_size.bytes())
+	     == n_used2 + 2 * ((free_limit + (page_size.physical() - 1))
+			       / page_size.physical())
 	     + seg_inode_len_full + seg_inode_len_free);
 	ut_a(frag_n_used == n_used);
 
@@ -4034,7 +4030,7 @@ fsp_print(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	/* Start first a mini-transaction mtr2 to lock out all other threads
 	from the fsp system */

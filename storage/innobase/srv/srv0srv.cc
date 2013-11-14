@@ -156,7 +156,7 @@ uint		srv_flush_log_at_timeout = 1;
 ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
 ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
 
-page_size_t	univ_page_size(0, false);
+page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */

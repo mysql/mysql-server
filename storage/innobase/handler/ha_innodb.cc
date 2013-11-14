@@ -10827,10 +10827,10 @@ ha_innobase::info_low(
 		stats.deleted = 0;
 		stats.data_file_length
 			= ((ulonglong) stat_clustered_index_size)
-			* page_size.bytes();
+			* page_size.physical();
 		stats.index_file_length
 			= ((ulonglong) stat_sum_of_other_index_sizes)
-			* page_size.bytes();
+			* page_size.physical();
 
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we

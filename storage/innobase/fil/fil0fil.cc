@@ -213,7 +213,7 @@ struct fil_space_t {
 				ignored if space == 0 */
 	ulint		flags;	/*!< tablespace flags; see
 				fsp_flags_is_valid(),
-				fsp_flags_get_page_size() */
+				page_size_t(ulint) (constructor) */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -759,12 +759,9 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		const page_size_t	page_size
-			= fsp_flags_get_page_size(flags);
+		const page_size_t	page_size(flags);
 
-		min_size = FIL_IBD_FILE_INITIAL_SIZE
-			   * (page_size.is_compressed()
-			      ? page_size.bytes() : UNIV_PAGE_SIZE);
+		min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
 
 		if (size_bytes < min_size) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -794,17 +791,23 @@ fil_node_open_file(
 				(ulong) space_id, node->name);
 		}
 
-		const page_size_t&	space_page_size
-			= fsp_flags_get_page_size(space->flags);
+		const page_size_t	space_page_size(space->flags);
 
 		if (!page_size.equals_to(space_page_size)) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Error: Tablespace file %s has page size"
-				ULINTPF " (flags=0x%lx) but the data "
+				"Tablespace file %s has page size "
+				"(physical=" ULINTPF ", logical=" ULINTPF ") "
+				"(flags=0x%lx) but the data "
 				"dictionary expects page size "
-				ULINTPF " (flags=0x%lx)!",
-				node->name, page_size.bytes(), flags,
-				space_page_size.bytes(), space->flags);
+				"(physical=" ULINTPF ", logical=" ULINTPF ") "
+				"(flags=0x%lx)!",
+				node->name,
+				page_size.physical(),
+				page_size.logical(),
+				flags,
+				space_page_size.physical(),
+				space_page_size.logical(),
+				space->flags);
 		}
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
@@ -820,8 +823,7 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		node->size = size_bytes
-			/ fsp_flags_get_page_size(flags).bytes();
+		node->size = size_bytes / page_size.physical();
 
 #ifdef UNIV_HOTBACKUP
 add_size:
@@ -1584,7 +1586,7 @@ fil_space_get_page_size(
 
 	if (flags == ULINT_UNDEFINED) {
 		*found = false;
-		return(page_size_t(0, false));
+		return(page_size_t(0, 0, false));
 	}
 
 	*found = true;
@@ -1595,7 +1597,7 @@ fil_space_get_page_size(
 		return(univ_page_size);
 	}
 
-	return(fsp_flags_get_page_size(flags));
+	return(page_size_t(flags));
 }
 
 /*******************************************************************//**
@@ -1840,13 +1842,14 @@ fil_write_lsn_and_arch_no_to_file(
 
 	const page_id_t	page_id(space, sum_of_sizes);
 
-	err = fil_read(page_id, univ_page_size, 0, univ_page_size.bytes(), buf);
+	err = fil_read(page_id, univ_page_size, 0, univ_page_size.physical(),
+		       buf);
 
 	if (err == DB_SUCCESS) {
 		mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
 		err = fil_write(page_id, univ_page_size, 0,
-				univ_page_size.bytes(), buf);
+				univ_page_size.physical(), buf);
 	}
 
 	ut_free(buf1);
@@ -1931,14 +1934,14 @@ fil_check_first_page(
 	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
 	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 
-	const ulint	raw_size = fsp_flags_get_raw_page_size(flags);
+	const page_size_t	page_size(flags);
 
-	if (univ_page_size.bytes() != raw_size) {
+	if (univ_page_size.logical() != page_size.logical()) {
 		return("innodb-page-size mismatch");
 	}
 
 	if (!space_id && !flags) {
-		ulint		nonzero_bytes = univ_page_size.bytes();
+		ulint		nonzero_bytes = univ_page_size.physical();
 		const byte*	b = page;
 
 		while (!*b && --nonzero_bytes) {
@@ -1949,8 +1952,6 @@ fil_check_first_page(
 			return("space header page consists of zero bytes");
 		}
 	}
-
-	const page_size_t&	page_size = fsp_flags_get_page_size(flags);
 
 	if (buf_page_is_corrupted(false, page, page_size)) {
 		return("checksum mismatch");
@@ -2286,8 +2287,8 @@ fil_recreate_tablespace(
 	}
 
 	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space_id,
-								  &found));
+	const page_size_t&	page_size =
+		fil_space_get_page_size(space_id, &found);
 
 	if (!found) {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -2297,7 +2298,7 @@ fil_recreate_tablespace(
 	}
 
 	/* Step-3: Initialize Header. */
-	if (fsp_flags_is_compressed(flags)) {
+	if (page_size.is_compressed()) {
 		byte*	buf;
 		page_t*	page;
 
@@ -2314,7 +2315,7 @@ fil_recreate_tablespace(
 			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
 		page_zip_des_t  page_zip;
-		page_zip_set_size(&page_zip, page_size.bytes());
+		page_zip_set_size(&page_zip, page_size.physical());
 		page_zip.data = page + UNIV_PAGE_SIZE;
 
 #ifdef UNIV_DEBUG
@@ -2324,7 +2325,7 @@ fil_recreate_tablespace(
 		buf_flush_init_for_writing(page, &page_zip, 0);
 
 		err = fil_write(page_id_t(space_id, 0), page_size, 0,
-				page_size.bytes(), page_zip.data);
+				page_size.physical(), page_zip.data);
 
 		ut_free(buf);
 
@@ -2387,7 +2388,7 @@ fil_recreate_tablespace(
 			buf_flush_init_for_writing(page, NULL, recv_lsn);
 
 			err = fil_write(cur_page_id, page_size, 0,
-					page_size.bytes(), page);
+					page_size.physical(), page);
 		} else {
 			ut_ad(page_size.is_compressed());
 
@@ -2401,14 +2402,17 @@ fil_recreate_tablespace(
 					page, page_zip, recv_lsn);
 
 				err = fil_write(cur_page_id, page_size, 0,
-						page_size.bytes(),
+						page_size.physical(),
 						page_zip->data);
 			} else {
 #ifdef UNIV_DEBUG
 				const byte*	data = block->page.zip.data;
 
 				/* Make sure that the page is really empty */
-				for (ulint i = 0; i < page_size.bytes(); ++i) {
+				for (ulint i = 0;
+				     i < page_size.physical();
+				     ++i) {
+
 					ut_a(data[i] == 0);
 				}
 #endif /* UNIV_DEBUG */
@@ -3785,15 +3789,16 @@ fil_create_new_single_table_tablespace(
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
-	const page_size_t&	page_size = fsp_flags_get_page_size(flags);
+	const page_size_t	page_size(flags);
 
 	if (!page_size.is_compressed()) {
 		buf_flush_init_for_writing(page, NULL, 0);
-		success = os_file_write(path, file, page, 0, page_size.bytes());
+		success = os_file_write(path, file, page, 0,
+					page_size.physical());
 	} else {
 		page_zip_des_t	page_zip;
 
-		page_zip_set_size(&page_zip, page_size.bytes());
+		page_zip_set_size(&page_zip, page_size.physical());
 		page_zip.data = page + UNIV_PAGE_SIZE;
 #ifdef UNIV_DEBUG
 		page_zip.m_start =
@@ -3802,7 +3807,7 @@ fil_create_new_single_table_tablespace(
 			page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(page, &page_zip, 0);
 		success = os_file_write(path, file, page_zip.data, 0,
-					page_size.bytes());
+					page_size.physical());
 	}
 
 	ut_free(buf2);
@@ -5153,8 +5158,7 @@ retry:
 		return(true);
 	}
 
-	const ulint	page_size
-		= fsp_flags_get_page_size(space->flags).bytes();
+	const ulint	page_size = page_size_t(space->flags).physical();
 
 	node = UT_LIST_GET_LAST(space->chain);
 
@@ -5305,8 +5309,8 @@ fil_extend_tablespaces_to_stored_len(void)
 					      single-threaded operation */
 		error = fil_read(
 			page_id_t(space->id, 0),
-			fsp_flags_get_page_size(space->flags),
-			0, univ_page_size.bytes(), buf);
+			page_size_t(space->flags),
+			0, univ_page_size.physical(), buf);
 
 		ut_a(error == DB_SUCCESS);
 
@@ -5771,7 +5775,7 @@ fil_io(
 	} else {
 		ulint	size_shift;
 
-		switch (page_size.bytes()) {
+		switch (page_size.physical()) {
 		case 1024:
 			size_shift = 10;
 			break;
@@ -5795,7 +5799,8 @@ fil_io(
 			+ byte_offset;
 
 		ut_a(node->size - cur_page_no
-		     >= (len + (page_size.bytes() - 1)) / page_size.bytes());
+		     >= (len + (page_size.physical() - 1))
+		     / page_size.physical());
 	}
 
 	/* Do aio */
@@ -6328,15 +6333,20 @@ fil_iterate(
 		if (callback.get_page_size().is_compressed()) {
 			page_zip_des_init(&block->page.zip);
 			page_zip_set_size(&block->page.zip, iter.page_size);
+
 			block->page.id = page_id_t(
 				block->page.id.space(),
 				block->page.id.page_no());
+
 			block->page.size.copy_from(
-				page_size_t(iter.page_size, true));
+				page_size_t(iter.page_size,
+					    univ_page_size.logical(),
+					    true));
+
 			block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
 			ut_d(block->page.zip.m_external = true);
 			ut_ad(iter.page_size
-			      == callback.get_page_size().bytes());
+			      == callback.get_page_size().physical());
 
 			/* Zip IO is done in the compressed page buffer. */
 			io_buffer = block->page.zip.data;
@@ -6510,7 +6520,7 @@ fil_tablespace_iterate(
 		iter.filepath = filepath;
 		iter.file_size = file_size;
 		iter.n_io_buffers = n_io_buffers;
-		iter.page_size = callback.get_page_size().bytes();
+		iter.page_size = callback.get_page_size().physical();
 
 		/* Compressed pages can't be optimised for block IO for now.
 		We do the IMPORT page by page. */
@@ -6518,7 +6528,7 @@ fil_tablespace_iterate(
 		if (callback.get_page_size().is_compressed()) {
 			iter.n_io_buffers = 1;
 			ut_a(iter.page_size
-			     == callback.get_page_size().bytes());
+			     == callback.get_page_size().physical());
 		}
 
 		/** Add an extra page for compressed page scratch area. */
