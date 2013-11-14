@@ -4670,9 +4670,6 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  /* In case some Connection_handler created THDs in this thread */
-  my_pthread_set_THR_THD(0);
-
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
   // Notify close_connections() that we have stopped listening for connections.
