@@ -2452,7 +2452,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
   
-  if (!isfinite(nr)) // Handle infinity as special case
+  if (!finite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return TYPE_WARN_OUT_OF_RANGE;

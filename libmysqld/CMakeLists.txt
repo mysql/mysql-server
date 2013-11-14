@@ -59,7 +59,6 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql-common/pack.c
   ../sql/binlog.cc 
   ../sql/event_parse_data.cc
-  ../sql/hash_filo.cc
   ../sql/log_event.cc
   ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc

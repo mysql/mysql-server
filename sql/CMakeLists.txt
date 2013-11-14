@@ -53,7 +53,6 @@ SET(SQL_SHARED_SOURCES
   datadict.cc
   debug_sync.cc
   derror.cc
-  des_key_file.cc
   discover.cc
   field.cc
   field_conv.cc 
@@ -83,7 +82,6 @@ SET(SQL_SHARED_SOURCES
   lock.cc
   log.cc
   mdl.cc
-  mf_iocache.cc
   my_decimal.cc
   net_serv.cc
   opt_explain.cc
@@ -200,12 +198,14 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
   event_queue.cc
   event_scheduler.cc
   events.cc
+  mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
