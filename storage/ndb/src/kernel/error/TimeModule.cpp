@@ -19,6 +19,7 @@
 
 #include <ndb_global.h>
 #include "TimeModule.hpp"
+#include <portlib/ndb_localtime.h>
 
 #define JAM_FILE_ID 488
 
@@ -58,7 +59,7 @@ TimeModule::setTimeStamp()
    time(&now);
 
    tm tm_buf;
-   localtime_r(&now, &tm_buf);
+   ndb_localtime_r(&now, &tm_buf);
 
    iYear     = tm_buf.tm_year+1900; // localtime returns current year -1900
    iMonth    = tm_buf.tm_mon+1;     // and month 0-11
