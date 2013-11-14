@@ -3400,16 +3400,6 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
   return res;
 }
 
-
-void Item_func_case::agg_num_lengths(Item *arg)
-{
-  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
-                                           arg->unsigned_flag) - arg->decimals;
-  set_if_bigger(max_length, len); 
-  set_if_bigger(decimals, arg->decimals);
-}
-
-
 /**
   Check if (*place) and new_value points to different Items and call
   THD::change_item_tree() if needed.
@@ -3431,6 +3421,33 @@ static void change_item_tree_if_needed(THD *thd,
   thd->change_item_tree(place, new_value);
 }
 
+/**
+  This function is a shared part to fix_length_and_dec() for numeric result
+  type of CASE and COALESCE.
+  COALESCE is a CASE abbreviation according to the standard.
+ */
+static void fix_num_length_and_dec_shared_for_case(Item_func *item_func,
+                                            Item_result result_type,
+                                            Item **item,
+                                            uint nitems)
+{
+  switch (result_type)
+  {
+  case DECIMAL_RESULT:
+    item_func->count_decimal_length(item, nitems);
+    break;
+  case REAL_RESULT:
+    item_func->count_real_length(item, nitems);
+    break;
+  case INT_RESULT:
+    item_func->count_only_length(item, nitems);
+    item_func->decimals= 0;
+    break;
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0);
+  }
+}
 
 void Item_func_case::fix_length_and_dec()
 {
@@ -3479,22 +3496,9 @@ void Item_func_case::fix_length_and_dec()
   }
   else
   {
-    /*
-      TODO: Perhaps CASE and COALESCE should eventually
-      share fix_length_and_dec() code for numeric result types.
-      COALESCE is a CASE abbreviation according to the standard,
-      so there is little sense to have separate fix_length_and_dec()
-      implementations for numeric result types and thus potentually
-      different behaviour.
-    */
     collation.set_numeric();
-    max_length= 0;
-    decimals= 0;
-    for (uint i= 0; i < nagg; i++)
-      agg_num_lengths(agg[i]);
-    max_length= my_decimal_precision_to_length_no_truncation(max_length +
-                                                             decimals, decimals,
-                                                             unsigned_flag);
+    fix_num_length_and_dec_shared_for_case(this, cached_result_type, agg,
+                                           nagg);
   }
 
 
@@ -3730,25 +3734,11 @@ void Item_func_coalesce::fix_length_and_dec()
 {
   cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, &unsigned_flag, args, arg_count);
-  switch (hybrid_type) {
-  case STRING_RESULT:
-    if (count_string_result_length(cached_field_type, args, arg_count))
-      return;
-    break;
-  case DECIMAL_RESULT:
-    count_decimal_length();
-    break;
-  case REAL_RESULT:
-    count_real_length();
-    break;
-  case INT_RESULT:
-    count_only_length(args, arg_count);
-    decimals= 0;
-    break;
-  case ROW_RESULT:
-  default:
-    DBUG_ASSERT(0);
-  }
+  if (hybrid_type == STRING_RESULT)
+    count_string_result_length(cached_field_type, args, arg_count);
+  else
+    fix_num_length_and_dec_shared_for_case(this, hybrid_type, args,
+                                           arg_count);
 }
 
 /****************************************************************************
