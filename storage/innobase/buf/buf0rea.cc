@@ -427,11 +427,13 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @param[in] page_id page id
+@param[in] sync true if synchronous aio is desired
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
-buf_read_page_async(
+buf_read_page_background(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size)
+	const page_size_t&	page_size,
+	bool			sync)
 {
 	ib_int64_t	tablespace_version;
 	ulint		count;
@@ -439,7 +441,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(page_id.space());
 
-	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, sync, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  page_id, page_size, FALSE,

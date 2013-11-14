@@ -538,23 +538,34 @@ buf_load()
 		std::sort(dump, dump + dump_n);
 	}
 
-	ulint	last_check_time = 0;
-	ulint	last_activity_cnt = 0;
+	ulint		last_check_time = 0;
+	ulint		last_activity_cnt = 0;
+
+	/* Avoid calling the expensive fil_space_get_page_size() for each
+	page within the same tablespace. dump[] is sorted by (space, page),
+	so all pages from a given tablespace are consecutive. */
+	ulint		page_size_is_for_space = BUF_DUMP_SPACE(dump[0]);
+	bool		found;
+	page_size_t	page_size(fil_space_get_page_size(
+					page_size_is_for_space, &found));
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		const ulint		space = BUF_DUMP_SPACE(dump[i]);
+		const ulint	space = BUF_DUMP_SPACE(dump[i]);
 
-		bool			found;
-		const page_size_t	page_size(
-			fil_space_get_page_size(space, &found));
+		if (space != page_size_is_for_space) {
+			page_size.copy_from(
+				fil_space_get_page_size(space, &found));
+			page_size_is_for_space = space;
+		}
 
 		if (!found) {
 			continue;
 		}
 
-		buf_read_page_async(page_id_t(space, BUF_DUMP_PAGE(dump[i])),
-				    page_size);
+		buf_read_page_background(
+			page_id_t(space, BUF_DUMP_PAGE(dump[i])),
+			page_size, true);
 
 		if (i % 64 == 63) {
 			os_aio_simulated_wake_handler_threads();
