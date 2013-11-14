@@ -24,6 +24,7 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <portlib/ndb_localtime.h>
 
 #include <NDBT.hpp>
 
@@ -256,7 +257,7 @@ getTimeAsString(char* pStr, size_t len)
 
   // Convert to local timezone
   tm tm_buf;
-  localtime_r(&now, &tm_buf);
+  ndb_localtime_r(&now, &tm_buf);
 
   // Print to string buffer
   BaseString::snprintf(pStr, len,

@@ -30,6 +30,8 @@
 #include <SysLogHandler.hpp>
 #endif
 
+#include <portlib/ndb_localtime.h>
+
 const char* Logger::LoggerLevelNames[] = { "ON      ", 
 					   "DEBUG   ",
 					   "INFO    ",
@@ -392,7 +394,7 @@ Logger::format_timestamp(const time_t epoch,
 
   // convert to local timezone
   tm tm_buf;
-  if (localtime_r(&epoch, &tm_buf) == NULL)
+  if (ndb_localtime_r(&epoch, &tm_buf) == NULL)
   {
     // Failed to convert to local timezone.
     // Fill with bogus time stamp value in order
