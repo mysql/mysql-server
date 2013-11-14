@@ -195,6 +195,9 @@ static PFS_events_statements *thread_statements_stack_array= NULL;
 static PFS_events_transactions *thread_transactions_history_array= NULL;
 static char *thread_session_connect_attrs_array= NULL;
 
+PFS_single_stat *thread_instr_class_waits_array_start= NULL;
+PFS_single_stat *thread_instr_class_waits_array_end= NULL;
+
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
@@ -386,6 +389,9 @@ int init_instruments(const PFS_global_param *param)
                        PFS_single_stat, MYF(MY_ZEROFILL));
     if (unlikely(thread_instr_class_waits_array == NULL))
       return 1;
+
+    thread_instr_class_waits_array_start= &thread_instr_class_waits_array[0];
+    thread_instr_class_waits_array_end= &thread_instr_class_waits_array[thread_instr_class_waits_sizing];
 
     for (index= 0; index < thread_instr_class_waits_sizing; index++)
       thread_instr_class_waits_array[index].reset();

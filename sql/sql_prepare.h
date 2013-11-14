@@ -214,7 +214,7 @@ public:
     @sa Documentation for C API function
     mysql_field_count()
   */
-  ulong get_field_count() const
+  size_t get_field_count() const
   {
     return m_current_rset ? m_current_rset->get_field_count() : 0;
   }

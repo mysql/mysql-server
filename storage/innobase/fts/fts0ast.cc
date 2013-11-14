@@ -112,9 +112,11 @@ fts_ast_create_node_term(
 
 		if (str.f_n_char > 0) {
 			/* If the subsequent term (after the first one)'s size
-			is less than fts_min_token_size, we shall ignore
-			that. This is to make consistent with MyISAM behavior */
-			if (first_node && (str.f_n_char < fts_min_token_size)) {
+			is less than fts_min_token_size or the term is greater
+			than fts_max_token_size, we shall ignore that. This is
+			to make consistent with MyISAM behavior */
+			if ((first_node && (str.f_n_char < fts_min_token_size))
+			    || str.f_n_char > fts_max_token_size) {
 				continue;
 			}
 
@@ -161,6 +163,10 @@ fts_ast_create_node_term_for_parser(
 	const ulint	len)		/*!< in: term string length */
 {
 	fts_ast_node_t*		node = NULL;
+
+	if (len > fts_max_token_size) {
+		return(NULL);
+	}
 
 	node = fts_ast_node_create();
 

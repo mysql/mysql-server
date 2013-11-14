@@ -470,7 +470,8 @@ public:
   void update_null_value () { (void) val_bool(); }
   bool val_bool();
   void top_level_item() { abort_on_null=1; }
-  inline bool is_top_level_item() { return abort_on_null; }
+  bool is_top_level_item() const { return abort_on_null; }
+
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
