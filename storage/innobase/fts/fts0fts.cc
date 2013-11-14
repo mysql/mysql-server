@@ -4507,15 +4507,11 @@ fts_process_token(
 	fts_string_t	str;
 	ulint		offset = 0;
 	fts_doc_t*	result_doc;
-	byte		buf[FTS_MAX_WORD_LEN + 1];
-
-	str.f_str = buf;
 
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;
 
 	/* The length of a string in characters is set here only. */
-
 	ret = innobase_mysql_fts_get_token(
 		doc->charset, doc->text.f_str + start_pos,
 		doc->text.f_str + doc->text.f_len, &str, &offset);
@@ -4546,6 +4542,7 @@ fts_process_token(
 			(char*) t_str.f_str, t_str.f_len);
 
 		t_str.f_len = newlen;
+		t_str.f_str[newlen] = 0;
 
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
