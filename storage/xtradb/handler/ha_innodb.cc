@@ -12632,6 +12632,7 @@ innodb_buffer_pool_evict_update(
 
 			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+				ibool have_LRU_mutex = TRUE;
 
 				//buf_pool_mutex_enter(buf_pool);
 				mutex_enter(&buf_pool->LRU_list_mutex);
@@ -12650,12 +12651,14 @@ innodb_buffer_pool_evict_update(
 
 					mutex_enter(&block->mutex);
 					buf_LRU_free_block(&block->page,
-							   FALSE, TRUE);
+							   FALSE, &have_LRU_mutex);
 					mutex_exit(&block->mutex);
 					block = prev_block;
 				}
 
-				mutex_exit(&buf_pool->LRU_list_mutex);
+				if (have_LRU_mutex) {
+					mutex_exit(&buf_pool->LRU_list_mutex);
+				}
 				//buf_pool_mutex_exit(buf_pool);
 			}
 		}
@@ -13469,6 +13472,11 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(use_stacktrace, srv_use_stacktrace,
+  PLUGIN_VAR_OPCMDARG,
+  "Print stacktrace on long semaphore wait (off by default)",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -13589,6 +13597,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(locking_fake_changes),
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(use_stacktrace),
   NULL
 };
 

@@ -89,6 +89,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
 # include "buf0lru.h" /* for buf_LRU_file_restore() */
+# include "os0stacktrace.h"
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -1254,6 +1255,28 @@ innobase_start_or_create_for_mysql(void)
 			" InnoDB: platforms you can allocate more than 4 GB "
 			"of memory.\n");
 	}
+
+	/* If stacktrace is used we set up signal handler for SIGUSR2 signal
+	here. If signal handler set fails we report that and disable
+	stacktrace feature. */
+
+	if (srv_use_stacktrace) {
+#ifndef __WIN__
+		 struct sigaction sigact;
+
+		 sigact.sa_sigaction = os_stacktrace_print;
+		 sigact.sa_flags = SA_RESTART | SA_SIGINFO;
+
+		 if (sigaction(SIGUSR2, &sigact, (struct sigaction *)NULL) != 0)
+		 {
+			 fprintf(stderr, " InnoDB:error setting signal handler for %d (%s)\n",
+				 SIGUSR2, strsignal(SIGUSR2));
+			 srv_use_stacktrace = FALSE;
+
+		 }
+#endif /*! __WIN__ */
+	}
+
 
 	/* System tables are created in tablespace 0.  Thus, we must
 	temporarily clear srv_file_per_table.  This is ok, because the

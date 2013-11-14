@@ -2040,6 +2040,8 @@ err_exit:
 		bpage->buf_fix_count++;
 		goto got_block;
 	case BUF_BLOCK_FILE_PAGE:
+	{
+		ibool have_LRU_mutex = FALSE;
 		ut_a(block_mutex == &((buf_block_t*) bpage)->mutex);
 
 		/* release mutex to obey to latch-order */
@@ -2048,6 +2050,7 @@ err_exit:
 		/* get LRU_list_mutex for buf_LRU_free_block() */
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		mutex_enter(block_mutex);
+		have_LRU_mutex = TRUE;
 
 		if (UNIV_UNLIKELY(bpage->space != space
 				  || bpage->offset != offset
@@ -2055,22 +2058,28 @@ err_exit:
 				  || !bpage->zip.data)) {
 			/* someone should interrupt, retry */
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
 			mutex_exit(block_mutex);
 			goto lookup;
 		}
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE, TRUE)) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
+		if (buf_LRU_free_block(bpage, FALSE, &have_LRU_mutex)) {
+			if (have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+			}
 			mutex_exit(block_mutex);
 			goto lookup;
 		}
 
-		mutex_exit(&buf_pool->LRU_list_mutex);
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+		}
 
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
 				      __FILE__, __LINE__);
 		goto got_block;
+	  }
 	}
 
 	ut_error;
@@ -2822,8 +2831,9 @@ wait_until_unfixed:
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer (change buffer) as much as possible. */
 		ulint	page_no	= buf_block_get_page_no(block);
+		ibool   have_LRU_mutex = FALSE;
 
-		if (buf_LRU_free_block(&block->page, TRUE, FALSE)) {
+		if (buf_LRU_free_block(&block->page, TRUE, &have_LRU_mutex)) {
 			mutex_exit(block_mutex);
 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 				/* Set the watch, as it would have

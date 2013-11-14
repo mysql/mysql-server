@@ -274,6 +274,8 @@ extern ulong	srv_adaptive_flushing_method;
 extern ulong	srv_expand_import;
 extern ulong	srv_pass_corrupt_table;
 
+extern my_bool  srv_use_stacktrace;
+
 /* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is FALSE,
 execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
 otherwise. The break statement in 'code' will obviously not work as expected. */

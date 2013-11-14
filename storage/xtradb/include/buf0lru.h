@@ -101,7 +101,7 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool		have_LRU_mutex)
+	ibool*		have_LRU_mutex)
 	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.

@@ -178,19 +178,23 @@ ibool
 buf_LRU_evict_from_unzip_LRU(
 /*=========================*/
 	buf_pool_t*	buf_pool,
-	ibool		have_LRU_mutex)
+	ibool*		have_LRU_mutex)
 {
 	ulint	io_avg;
 	ulint	unzip_avg;
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
 
-	if (!have_LRU_mutex)
+	if (!*have_LRU_mutex) {
 		mutex_enter(&buf_pool->LRU_list_mutex);
+		*have_LRU_mutex = TRUE;
+	}
 	/* If the unzip_LRU list is empty, we can only use the LRU. */
 	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0) {
-		if (!have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		return(FALSE);
 	}
 
@@ -199,20 +203,26 @@ buf_LRU_evict_from_unzip_LRU(
 	decompressed pages in the buffer pool. */
 	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)
 	    <= UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
-		if (!have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		return(FALSE);
 	}
 
 	/* If eviction hasn't started yet, we assume by default
 	that a workload is disk bound. */
 	if (buf_pool->freed_page_clock == 0) {
-		if (!have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		return(TRUE);
 	}
-	if (!have_LRU_mutex)
+	if (*have_LRU_mutex) {
 		mutex_exit(&buf_pool->LRU_list_mutex);
+		*have_LRU_mutex = FALSE;
+	}
 
 	/* Calculate the average over past intervals, and add the values
 	of the current interval. */
@@ -387,7 +397,7 @@ next_page:
 
 	//buf_pool_mutex_exit(buf_pool);
 	mutex_exit(&buf_pool->LRU_list_mutex);
-
+	
 	/* Drop any remaining batch of search hashed pages. */
 	buf_LRU_drop_page_hash_batch(id, zip_size, page_arr, num_entries);
 	ut_free(page_arr);
@@ -937,7 +947,7 @@ buf_LRU_free_from_unzip_LRU_list(
 					search n_iterations / 5 of the
 					unzip_LRU list, or nothing if
 					n_iterations >= 5 */
-	ibool		have_LRU_mutex)
+	ibool*		have_LRU_mutex)
 {
 	buf_block_t*	block;
 	ulint		distance;
@@ -1004,7 +1014,7 @@ buf_LRU_free_from_common_LRU_list(
 				n_iterations < 10, then we search
 				n_iterations / 10 * buf_pool->curr_size
 				pages from the end of the LRU list */
-	ibool		have_LRU_mutex)
+	ibool*		have_LRU_mutex)
 {
 	buf_page_t*	bpage;
 	ulint		distance;
@@ -1075,18 +1085,17 @@ buf_LRU_search_and_free_block(
 	ibool	freed = FALSE;
 	ibool	have_LRU_mutex = FALSE;
 
-	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU))
-		have_LRU_mutex = TRUE;
-
 	//buf_pool_mutex_enter(buf_pool);
-	if (have_LRU_mutex)
+	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)) {
 		mutex_enter(&buf_pool->LRU_list_mutex);
+		have_LRU_mutex = TRUE;
+	}
 
-	freed = buf_LRU_free_from_unzip_LRU_list(buf_pool, n_iterations, have_LRU_mutex);
+	freed = buf_LRU_free_from_unzip_LRU_list(buf_pool, n_iterations, &have_LRU_mutex);
 
 	if (!freed) {
 		freed = buf_LRU_free_from_common_LRU_list(
-			buf_pool, n_iterations, have_LRU_mutex);
+			buf_pool, n_iterations, &have_LRU_mutex);
 	}
 
 	buf_pool_mutex_enter(buf_pool);
@@ -1831,7 +1840,7 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool		have_LRU_mutex)
+	ibool*		have_LRU_mutex)
 {
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1897,8 +1906,10 @@ alloc:
 	/* not to break latch order, must re-enter block_mutex */
 	mutex_exit(block_mutex);
 
-	if (!have_LRU_mutex)
+	if (!*have_LRU_mutex) {
 		mutex_enter(&buf_pool->LRU_list_mutex); /* optimistic */
+		*have_LRU_mutex = TRUE;
+	}
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 	mutex_enter(block_mutex);
 
@@ -1909,8 +1920,10 @@ not_freed:
 		if (b) {
 			buf_page_free_descriptor(b);
 		}
-		if (!have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 		return(FALSE);
 	} else if (zip || !bpage->zip.data) {
@@ -2045,7 +2058,10 @@ not_freed:
 		}
 
 		//buf_pool_mutex_exit(buf_pool);
-		mutex_exit(&buf_pool->LRU_list_mutex);
+		if (*have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 		mutex_exit(block_mutex);
 
@@ -2079,8 +2095,10 @@ not_freed:
 		}
 
 		//buf_pool_mutex_enter(buf_pool);
-		if (have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_enter(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		mutex_enter(block_mutex);
 
 		if (b) {
@@ -2097,8 +2115,10 @@ not_freed:
 		ut_ad(block_mutex == &buf_pool->zip_mutex);
 		mutex_enter(block_mutex);
 
-		if (!have_LRU_mutex)
+		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 	}
 

@@ -4306,6 +4306,7 @@ btr_blob_free(
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 	ulint		space	= buf_block_get_space(block);
 	ulint		page_no	= buf_block_get_page_no(block);
+	ibool           have_LRU_mutex = FALSE;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
@@ -4313,6 +4314,7 @@ btr_blob_free(
 
 	//buf_pool_mutex_enter(buf_pool);
 	mutex_enter(&buf_pool->LRU_list_mutex);
+	have_LRU_mutex = TRUE;
 	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
@@ -4323,7 +4325,7 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (!buf_LRU_free_block(&block->page, all, TRUE)
+		if (!buf_LRU_free_block(&block->page, all, &have_LRU_mutex)
 		    && all && block->page.zip.data
 		    /* Now, buf_LRU_free_block() may release mutex temporarily */
 		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
@@ -4332,12 +4334,14 @@ btr_blob_free(
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_block(&block->page, FALSE, TRUE);
+			buf_LRU_free_block(&block->page, FALSE, &have_LRU_mutex);
 		}
 	}
 
 	//buf_pool_mutex_exit(buf_pool);
-	mutex_exit(&buf_pool->LRU_list_mutex);
+	if (have_LRU_mutex) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+	}
 	mutex_exit(&block->mutex);
 }
 

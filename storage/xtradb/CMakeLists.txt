@@ -274,6 +274,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			mem/mem0mem.c mem/mem0pool.c
 			mtr/mtr0log.c mtr/mtr0mtr.c
 			os/os0file.c os/os0proc.c os/os0sync.c os/os0thread.c
+			os/os0stacktrace.c
 			page/page0cur.c page/page0page.c page/page0zip.c
 			que/que0que.c
 			handler/ha_innodb.cc handler/handler0alter.cc handler/i_s.cc
