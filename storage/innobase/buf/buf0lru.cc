@@ -171,7 +171,7 @@ incr_LRU_size_in_bytes(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	buf_pool->stat.LRU_bytes += bpage->size.bytes();
+	buf_pool->stat.LRU_bytes += bpage->size.physical();
 
 	ut_ad(buf_pool->stat.LRU_bytes <= buf_pool->curr_pool_size);
 }
@@ -1543,7 +1543,7 @@ buf_LRU_remove_block(
 	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
 
-	buf_pool->stat.LRU_bytes -= bpage->size.bytes();
+	buf_pool->stat.LRU_bytes -= bpage->size.physical();
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1901,7 +1901,7 @@ func_exit:
 
 		ut_ad(b->size.is_compressed());
 
-		UNIV_MEM_DESC(b->zip.data, b->size.bytes());
+		UNIV_MEM_DESC(b->zip.data, b->size.physical());
 
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have
@@ -1987,7 +1987,9 @@ func_exit:
 
 		page_zip_set_size(&bpage->zip, 0);
 
-		bpage->size.copy_from(page_size_t(bpage->size.bytes(), false));
+		bpage->size.copy_from(page_size_t(bpage->size.logical(),
+						  bpage->size.logical(),
+						  false));
 
 		mutex_exit(block_mutex);
 
@@ -2051,7 +2053,7 @@ func_exit:
 
 		checksum = page_zip_calc_checksum(
 			b->zip.data,
-			b->size.bytes(),
+			b->size.physical(),
 			static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm));
 
@@ -2121,7 +2123,7 @@ buf_LRU_block_free_non_file_page(
 
 		ut_ad(block->page.size.is_compressed());
 
-		buf_buddy_free(buf_pool, data, block->page.size.bytes());
+		buf_buddy_free(buf_pool, data, block->page.size.physical());
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_mutex_enter(block);
@@ -2129,7 +2131,9 @@ buf_LRU_block_free_non_file_page(
 		page_zip_set_size(&block->page.zip, 0);
 
 		block->page.size.copy_from(
-			page_size_t(block->page.size.bytes(), false));
+			page_size_t(block->page.size.logical(),
+				    block->page.size.logical(),
+				    false));
 	}
 
 	UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
@@ -2214,7 +2218,7 @@ buf_LRU_block_remove_hashed(
 					to the compressed page, which will
 					be preserved. */
 					memcpy(bpage->zip.data, page,
-					       bpage->size.bytes());
+					       bpage->size.physical());
 				}
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
@@ -2232,11 +2236,11 @@ buf_LRU_block_remove_hashed(
 				fputs("  InnoDB: ERROR: The compressed page"
 				      " to be evicted seems corrupt:", stderr);
 				ut_print_buf(stderr, page,
-					     bpage->size.bytes());
+					     bpage->size.logical());
 				fputs("\nInnoDB: Possibly older version"
 				      " of the page:", stderr);
 				ut_print_buf(stderr, bpage->zip.data,
-					     bpage->size.bytes());
+					     bpage->size.physical());
 				putc('\n', stderr);
 				ut_error;
 			}
@@ -2248,7 +2252,7 @@ buf_LRU_block_remove_hashed(
 		ut_a(bpage->oldest_modification == 0);
 		if (bpage->size.is_compressed()) {
 			UNIV_MEM_ASSERT_W(bpage->zip.data,
-					  bpage->size.bytes());
+					  bpage->size.physical());
 		}
 		break;
 	case BUF_BLOCK_POOL_WATCH:
@@ -2316,7 +2320,8 @@ buf_LRU_block_remove_hashed(
 		rw_lock_x_unlock(hash_lock);
 		buf_pool_mutex_exit_forbid(buf_pool);
 
-		buf_buddy_free(buf_pool, bpage->zip.data, bpage->size.bytes());
+		buf_buddy_free(buf_pool, bpage->zip.data,
+			       bpage->size.physical());
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_free_descriptor(bpage);
@@ -2363,14 +2368,16 @@ buf_LRU_block_remove_hashed(
 			ut_ad(!bpage->in_LRU_list);
 			buf_pool_mutex_exit_forbid(buf_pool);
 
-			buf_buddy_free(buf_pool, data, bpage->size.bytes());
+			buf_buddy_free(buf_pool, data, bpage->size.physical());
 
 			buf_pool_mutex_exit_allow(buf_pool);
 
 			page_zip_set_size(&bpage->zip, 0);
 
 			bpage->size.copy_from(
-				page_size_t(bpage->size.bytes(), false));
+				page_size_t(bpage->size.logical(),
+					    bpage->size.logical(),
+					    false));
 		}
 
 		return(true);
@@ -2731,7 +2738,7 @@ buf_LRU_print_instance(
 			fprintf(stderr, "\ntype %lu size %lu"
 				" index id %llu\n",
 				(ulong) fil_page_get_type(frame),
-				(ulong) bpage->size.bytes(),
+				(ulong) bpage->size.physical(),
 				(ullint) btr_page_get_index_id(frame));
 			break;
 

@@ -32,6 +32,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "dict0types.h"
 #include "buf0types.h"
+#include "page0size.h"
 #include "ut0byte.h"
 #include "os0file.h"
 #ifndef UNIV_HOTBACKUP
@@ -924,7 +925,7 @@ struct PageCallback {
 	/** Default constructor */
 	PageCallback()
 		:
-		m_page_size(0, false),
+		m_page_size(0, 0, false),
 		m_filepath() UNIV_NOTHROW {}
 
 	virtual ~PageCallback() UNIV_NOTHROW {}

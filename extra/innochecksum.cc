@@ -43,6 +43,7 @@
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
 #include "univ.i"			/* include all of this */
+#include "page0size.h"			/* page_size_t */
 #include "page0zip.h"			/* page_zip_calc_checksum() */
 #include "page0page.h"			/* PAGE_* */
 #include "trx0undo.h"			/* TRX_UNDO_* */
@@ -70,7 +71,7 @@ static bool			use_end_page;
 static bool			do_one_page;
 /* replaces declaration in srv0srv.c */
 ulong				srv_page_size;
-page_size_t			univ_page_size(0, false);
+page_size_t			univ_page_size(0, 0, false);
 extern ulong			srv_checksum_algorithm;
 /* Current page number (0 based). */
 ullint				cur_page_num;
@@ -169,9 +170,10 @@ get_page_size(
 		srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 	}
 
-	univ_page_size.copy_from(page_size_t(srv_page_size, false));
+	univ_page_size.copy_from(
+		page_size_t(srv_page_size, srv_page_size, false));
 
-	return(fsp_flags_get_page_size(flags));
+	return(page_size_t(flags));
 }
 
 #ifdef _WIN32
@@ -329,7 +331,7 @@ is_page_corrupted(
 		for uncompressed tablespace. */
 		logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
 		logseqfield = mach_read_from_4(
-				buf + page_size.bytes() -
+				buf + page_size.logical() -
 				FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
 		if (is_log_enabled) {
@@ -1227,7 +1229,7 @@ int main(
 
 		const page_size_t&	page_size = get_page_size(buf);
 
-		pages = (ulint) (size / page_size.bytes());
+		pages = (ulint) (size / page_size.physical());
 
 		if (just_count) {
 			if (read_from_stdin) {
@@ -1264,7 +1266,7 @@ int main(
 				partial_page_read = false;
 
 				offset = (off_t) start_page
-					* (off_t) page_size.bytes();
+					* (off_t) page_size.physical();
 #ifdef _WIN32
 				if (_fseeki64(fil_in, offset, SEEK_SET)) {
 #else
@@ -1298,7 +1300,7 @@ int main(
 					if partial_page_read is enable. */
 					bytes = read_file(buf,
 							  partial_page_read,
-							  page_size.bytes(),
+							  page_size.physical(),
 							  fil_in);
 
 					partial_page_read = false;
@@ -1335,7 +1337,7 @@ int main(
 		while (!feof(fil_in)) {
 
 			bytes = read_file(buf, partial_page_read,
-					  page_size.bytes(), fil_in);
+					  page_size.physical(), fil_in);
 			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {
@@ -1344,16 +1346,16 @@ int main(
 
 			if (ferror(fil_in)) {
 				fprintf(stderr, "Error reading %lu bytes",
-					page_size.bytes());
+					page_size.physical());
 				perror(" ");
 
 				DBUG_RETURN(1);
 			}
 
-			if (bytes != page_size.bytes()) {
+			if (bytes != page_size.physical()) {
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
-					bytes, page_size.bytes());
+					bytes, page_size.physical());
 				DBUG_RETURN(1);
 			}
 
@@ -1397,7 +1399,7 @@ int main(
 			if (do_write
 			    && !write_file(filename, fil_in, buf,
 					   page_size.is_compressed(),
-					   &pos, page_size.bytes())) {
+					   &pos, page_size.physical())) {
 
 				DBUG_RETURN(1);
 			}

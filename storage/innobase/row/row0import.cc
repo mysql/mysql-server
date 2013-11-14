@@ -111,7 +111,7 @@ struct row_import {
 		m_hostname(),
 		m_table_name(),
 		m_autoinc(),
-		m_page_size(0, false),
+		m_page_size(0, 0, false),
 		m_flags(),
 		m_n_cols(),
 		m_cols(),
@@ -451,7 +451,8 @@ protected:
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow) xdes_t[m_page_size.bytes()];
+			m_xdes = new(std::nothrow)
+				xdes_t[m_page_size.physical()];
 
 			/* Trigger OOM */
 			DBUG_EXECUTE_IF("ib_import_OOM_13",
@@ -461,7 +462,7 @@ protected:
 				return(DB_OUT_OF_MEMORY);
 			}
 
-			memcpy(m_xdes, page, m_page_size.bytes());
+			memcpy(m_xdes, page, m_page_size.physical());
 		}
 
 		return(DB_SUCCESS);
@@ -553,16 +554,16 @@ AbstractCallback::init(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page size %lu of ibd file is not the same "
 			"as the server page size %lu",
-			m_page_size.bytes(), univ_page_size.bytes());
+			m_page_size.physical(), univ_page_size.physical());
 
 		return(DB_CORRUPTION);
 
-	} else if (file_size % m_page_size.bytes() != 0) {
+	} else if (file_size % m_page_size.physical() != 0) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File size " UINT64PF " is not a multiple "
 			"of the page size %lu",
-			(ib_uint64_t) file_size, (ulong) m_page_size.bytes());
+			(ib_uint64_t) file_size, (ulong) m_page_size.physical());
 
 		return(DB_CORRUPTION);
 	}
@@ -695,12 +696,12 @@ FetchIndexRootPages::operator() (
 
 	ulint	page_type = fil_page_get_type(page);
 
-	if (block->page.id.page_no() * m_page_size.bytes() != offset) {
+	if (block->page.id.page_no() * m_page_size.physical() != offset) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page offset doesn't match file offset: "
 			"page offset: %lu, file offset: %lu",
 			(ulint) block->page.id.page_no(),
-			(ulint) (offset / m_page_size.bytes()));
+			(ulint) (offset / m_page_size.physical()));
 
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
@@ -2022,14 +2023,14 @@ PageConverter::validate(
 	for LSN in buf_page_is_corrupted() */
 
 	if (buf_page_is_corrupted(false, page, get_page_size())
-	    || (page_get_page_no(page) != offset / m_page_size.bytes()
+	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
 		return(IMPORT_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
 		const byte*	b = page;
-		const byte*	e = b + m_page_size.bytes();
+		const byte*	e = b + m_page_size.physical();
 
 		/* If the page number is zero and offset > 0 then
 		the entire page MUST consist of zeroes. If not then
@@ -2100,7 +2101,7 @@ PageConverter::operator() (
 			pages for compressed tables explicitly here. */
 
 			buf_flush_update_zip_checksum(
-				get_frame(block), get_page_size().bytes(),
+				get_frame(block), get_page_size().physical(),
 				m_current_lsn);
 		}
 
@@ -2114,7 +2115,7 @@ PageConverter::operator() (
 
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"%s: Page %lu at offset " UINT64PF " looks corrupted.",
-			m_filepath, (ulong) (offset / m_page_size.bytes()),
+			m_filepath, (ulong) (offset / m_page_size.physical()),
 			offset);
 
 		return(DB_CORRUPTION);
@@ -3035,7 +3036,8 @@ row_import_read_v1(
 
 	byte*		ptr = row;
 
-	cfg->m_page_size.copy_from(page_size_t(mach_read_from_4(ptr), false));
+	const ulint	bytes = mach_read_from_4(ptr);
+	cfg->m_page_size.copy_from(page_size_t(bytes, bytes, false));
 
 	ptr += sizeof(ib_uint32_t);
 
@@ -3043,13 +3045,17 @@ row_import_read_v1(
 
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different "
-			"page size than this server. Server page size "
-			"is %lu (%scompressed), whereas tablespace page size "
-			"is %lu (%scompressed)",
-			univ_page_size.bytes(),
-			(univ_page_size.is_compressed() ? "" : "non-"),
-			cfg->m_page_size.bytes(),
-			(cfg->m_page_size.is_compressed() ? "" : "non-"));
+			"page size than this server. Server page size is "
+			"(physical=" ULINTPF ", logical=" ULINTPF ", "
+			"compressed=%u), whereas tablespace page size is "
+			"(physical=" ULINTPF ", logical=" ULINTPF ", "
+			"compressed=%u)",
+			univ_page_size.physical(),
+			univ_page_size.logical(),
+			univ_page_size.is_compressed(),
+			cfg->m_page_size.physical(),
+			cfg->m_page_size.logical(),
+			cfg->m_page_size.is_compressed());
 
 		return(DB_ERROR);
 	}
@@ -3516,7 +3522,7 @@ row_import_for_mysql(
 		FetchIndexRootPages	fetchIndexRootPages(table, trx);
 
 		err = fil_tablespace_iterate(
-			table, IO_BUFFER_SIZE(cfg.m_page_size.bytes()),
+			table, IO_BUFFER_SIZE(cfg.m_page_size.physical()),
 			fetchIndexRootPages);
 
 		if (err == DB_SUCCESS) {
@@ -3552,7 +3558,7 @@ row_import_for_mysql(
 	/* Set the IO buffer size in pages. */
 
 	err = fil_tablespace_iterate(
-		table, IO_BUFFER_SIZE(cfg.m_page_size.bytes()), converter);
+		table, IO_BUFFER_SIZE(cfg.m_page_size.physical()), converter);
 
 	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);

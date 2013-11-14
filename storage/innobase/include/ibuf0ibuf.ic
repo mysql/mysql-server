@@ -157,7 +157,7 @@ ibuf_bitmap_page(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size)
 {
-	return((page_id.page_no() & (page_size.bytes() - 1))
+	return((page_id.page_no() & (page_size.physical() - 1))
 	       == FSP_IBUF_BITMAP_OFFSET);
 }
 
@@ -201,13 +201,15 @@ ibuf_index_page_calc_free_from_bits(
 {
 	ut_ad(bits < 4);
 	ut_ad(!page_size.is_compressed()
-	      || page_size.bytes() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	      || page_size.physical() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
 	if (bits == 3) {
-		return(4 * page_size.bytes() / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+		return(4 * page_size.physical()
+		       / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 	}
 
-	return(bits * (page_size.bytes() / IBUF_PAGE_SIZE_PER_FREE_SPACE));
+	return(bits * (page_size.physical()
+		       / IBUF_PAGE_SIZE_PER_FREE_SPACE));
 }
 
 /*********************************************************************//**
@@ -246,7 +248,7 @@ ibuf_index_page_calc_free_zip(
 		max_ins_size = (ulint) zip_max_ins;
 	}
 
-	return(ibuf_index_page_calc_free_bits(block->page.size.bytes(),
+	return(ibuf_index_page_calc_free_bits(block->page.size.physical(),
 					      max_ins_size));
 }
 
@@ -266,7 +268,7 @@ ibuf_index_page_calc_free(
 			buf_block_get_frame(block), 1);
 
 		return(ibuf_index_page_calc_free_bits(
-				block->page.size.bytes(), max_ins_size));
+				block->page.size.physical(), max_ins_size));
 	} else {
 		return(ibuf_index_page_calc_free_zip(block));
 	}
@@ -307,14 +309,14 @@ ibuf_update_free_bits_if_full(
 	ut_ad(!buf_block_get_page_zip(block));
 
 	before = ibuf_index_page_calc_free_bits(
-		block->page.size.bytes(), max_ins_size);
+		block->page.size.physical(), max_ins_size);
 
 	if (max_ins_size >= increase) {
 #if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX
 # error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX"
 #endif
 		after = ibuf_index_page_calc_free_bits(
-			block->page.size.bytes(), max_ins_size - increase);
+			block->page.size.physical(), max_ins_size - increase);
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(after <= ibuf_index_page_calc_free(block));
 #endif

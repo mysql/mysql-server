@@ -996,9 +996,9 @@ log_group_file_header_flush(
 
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
 		       page_id_t(group->space_id,
-				 dest_offset / univ_page_size.bytes()),
+				 dest_offset / univ_page_size.physical()),
 		       univ_page_size,
-		       (ulint) (dest_offset % univ_page_size.bytes()),
+		       (ulint) (dest_offset % univ_page_size.physical()),
 		       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
 		srv_stats.os_log_pending_writes.dec();
@@ -1117,7 +1117,7 @@ loop:
 
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
 		       page_id_t(group->space_id,
-				 next_offset / univ_page_size.bytes()),
+				 next_offset / univ_page_size.physical()),
 		       univ_page_size,
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
@@ -1593,9 +1593,9 @@ log_group_checkpoint(
 
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
 		       page_id_t(group->space_id,
-				 write_offset / univ_page_size.bytes()),
+				 write_offset / univ_page_size.physical()),
 		       univ_page_size,
-		       write_offset % univ_page_size.bytes(),
+		       write_offset % univ_page_size.physical(),
 		       OS_FILE_LOG_BLOCK_SIZE,
 		       buf, ((byte*) group + 1));
 
@@ -1676,8 +1676,8 @@ log_group_read_checkpoint_info(
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
-	       page_id_t(group->space_id, field / univ_page_size.bytes()),
-	       univ_page_size, field % univ_page_size.bytes(),
+	       page_id_t(group->space_id, field / univ_page_size.physical()),
+	       univ_page_size, field % univ_page_size.physical(),
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
@@ -1959,9 +1959,9 @@ loop:
 
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync,
 	       page_id_t(group->space_id,
-			 source_offset / univ_page_size.bytes()),
+			 source_offset / univ_page_size.physical()),
 	       univ_page_size,
-	       (ulint) (source_offset % univ_page_size.bytes()),
+	       (ulint) (source_offset % univ_page_size.physical()),
 	       len, buf, NULL);
 
 	start_lsn += len;

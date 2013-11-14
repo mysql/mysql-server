@@ -938,7 +938,7 @@ dict_tf_to_fsp_flags(
 	ulint	flags)	/*!< in: dict_table_t::flags */
 	__attribute__((const));
 
-/** Extract the compressed page size from table flags.
+/** Extract the page size from table flags.
 @param[in] flags flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
@@ -947,7 +947,7 @@ dict_tf_get_page_size(
 	ulint	flags)
 	__attribute__((const));
 
-/** Check whether the table uses the compressed compact page format.
+/** Get the table page size.
 @param[in] table table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
