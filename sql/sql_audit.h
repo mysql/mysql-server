@@ -104,7 +104,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, 0, sql_command, host, external_user, ip);
+                       clientcs, static_cast<ha_rows>(0),
+                       sql_command, host, external_user, ip);
   }
 #endif
 }

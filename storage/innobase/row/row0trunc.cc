@@ -1224,6 +1224,7 @@ row_truncate_fts(
 
 	fts_table.id = new_id;
 	fts_table.name = table->name;
+	fts_table.flags2 = table->flags2;
 
 	dberr_t		err;
 

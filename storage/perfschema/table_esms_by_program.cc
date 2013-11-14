@@ -286,7 +286,7 @@ table_esms_by_program::rnd_pos(const void *pos)
 
 void table_esms_by_program::make_row(PFS_program* program)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   program->m_lock.begin_optimistic_lock(&lock);

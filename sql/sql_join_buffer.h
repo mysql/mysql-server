@@ -836,7 +836,8 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return std::max<ulong>(last_key_entry-end_pos-aux_buff_size, 0UL);
+    return std::max(static_cast<ulong>(last_key_entry - end_pos-aux_buff_size),
+                    0UL);
   }
 
   /* 
