@@ -5762,7 +5762,7 @@ default_service_handling(char **argv,
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
-  if (*extra_opt)
+  if (extra_opt && *extra_opt)
   {
     /*
      Add option after file_path. There will be zero or one extra option.  It's
