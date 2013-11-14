@@ -298,7 +298,8 @@ loop:
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
 
-	len_upper_limit = LOG_BUF_WRITE_MARGIN + (5 * len) / 4;
+	len_upper_limit = LOG_BUF_WRITE_MARGIN + srv_log_write_ahead_size
+			  + (5 * len) / 4;
 
 	if (log->buf_free + len_upper_limit > log->buf_size) {
 
@@ -1028,6 +1029,9 @@ log_group_write_buf(
 	byte*		buf,		/*!< in: buffer */
 	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
+#ifdef UNIV_DEBUG
+	ulint		pad_len,	/*!< in: pad len in the buffer len */
+#endif /* UNIV_DEBUG */
 	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
@@ -1093,16 +1097,19 @@ loop:
 				     buf + write_len
 				     - OS_FILE_LOG_BLOCK_SIZE))));
 
-	ut_ad(log_block_get_hdr_no(buf)
-	      == log_block_convert_lsn_to_no(start_lsn));
+	ut_ad(pad_len >= len
+	      || log_block_get_hdr_no(buf)
+		 == log_block_convert_lsn_to_no(start_lsn));
 
 	/* Calculate the checksums for each log block and write them to
 	the trailer fields of the log blocks */
 
 	for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
-		ut_ad(log_block_get_hdr_no(
+		ut_ad(pad_len >= len
+		      || i * OS_FILE_LOG_BLOCK_SIZE >= len - pad_len
+		      || log_block_get_hdr_no(
 			      buf + i * OS_FILE_LOG_BLOCK_SIZE)
-		      == log_block_get_hdr_no(buf) + i);
+			 == log_block_get_hdr_no(buf) + i);
 		log_block_store_checksum(buf + i * OS_FILE_LOG_BLOCK_SIZE);
 	}
 
@@ -1160,6 +1167,8 @@ log_write_up_to(
 	ulint		end_offset;
 	ulint		area_start;
 	ulint		area_end;
+	ulong		write_ahead_size = srv_log_write_ahead_size;
+	ulint		pad_size;
 #ifdef UNIV_DEBUG
 	ulint		loop_count	= 0;
 #endif /* UNIV_DEBUG */
@@ -1268,13 +1277,45 @@ loop:
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
+	/* Calculate pad_size if needed. */
+	pad_size = 0;
+	if (write_ahead_size > OS_FILE_LOG_BLOCK_SIZE) {
+		lsn_t	end_offset;
+		ulint	end_offset_in_unit;
+
+		end_offset = log_group_calc_lsn_offset(
+			ut_uint64_align_up(log_sys->lsn,
+					   OS_FILE_LOG_BLOCK_SIZE),
+			group);
+		end_offset_in_unit = (ulint) (end_offset % write_ahead_size);
+
+		if (end_offset_in_unit > 0
+		    && (area_end - area_start) > end_offset_in_unit) {
+			/* The first block in the unit was initialized
+			after the last writing.
+			Needs to be written padded data once. */
+			pad_size = write_ahead_size - end_offset_in_unit;
+
+			if (area_end + pad_size > log_sys->buf_size) {
+				pad_size = log_sys->buf_size - area_end;
+			}
+
+			::memset(log_sys->buf + area_end, 0, pad_size);
+		}
+	}
+
 	/* Do the write to the log files */
 	log_group_write_buf(
 		group, log_sys->buf + area_start,
-		area_end - area_start,
+		area_end - area_start + pad_size,
+#ifdef UNIV_DEBUG
+		pad_size,
+#endif /* UNIV_DEBUG */
 		ut_uint64_align_down(log_sys->write_lsn,
 				     OS_FILE_LOG_BLOCK_SIZE),
 		start_offset - area_start);
+
+	srv_stats.log_padded.add(pad_size);
 
 	log_sys->write_end_offset = log_sys->buf_free;
 
