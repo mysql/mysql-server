@@ -401,16 +401,6 @@ innobase_fts_text_case_cmp(
 	const void*	p1,		/*!< in: key */
 	const void*	p2);		/*!< in: node */
 
-/******************************************************************//**
-compare two character string according to their charset. */
-UNIV_INTERN
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
-
 /****************************************************************//**
 Get FTS field charset info from the field's prtype
 @return charset info */
