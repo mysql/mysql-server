@@ -24,7 +24,7 @@ var spi            = require('../Adapter/impl/SPI.js'),
     dbt_module     = require('../Adapter/impl/common/DBTableHandler.js'),
     DBTableHandler = dbt_module.DBTableHandler,
     unified_debug  = require('../Adapter/api/unified_debug.js'),
-    udebug         = unified_debug.getLogger('jscrund_dbspi.js')
+    udebug         = unified_debug.getLogger('jscrund_dbspi.js');
 
 function implementation() {
 };
@@ -34,7 +34,7 @@ implementation.prototype = {
   dbConnPool        :  null,
   dbSession         :  null,
   inBatchMode       :  false,  
-  operations        :  null,
+  operations        :  null
 };
 
 implementation.prototype.getDefaultProperties = function(adapter) {
