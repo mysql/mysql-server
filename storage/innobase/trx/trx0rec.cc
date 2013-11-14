@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "trx0rseg.h"
 #include "row0row.h"
+#include "srv0space.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 
@@ -1418,7 +1419,21 @@ trx_undo_report_row_operation(
 		mutex_exit(&undo_ptr->rseg->mutex);
 
 		page_no = undo->last_page_no;
+
+		DBUG_EXECUTE_IF("ib_err_ins_undo_page_add_failure",
+				undo_block = NULL;);
 	} while (undo_block != NULL);
+
+	ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+		ER_INNODB_UNDO_LOG_FULL,
+		"No more space left over in %s tablespace for allocating UNDO"
+		" log pages. Please add new data file to the tablespace or"
+		" check if filesystem is full or enable auto-extension for"
+		" the tablespace",
+		((undo->space == srv_sys_space.space_id())
+		? "system" :
+		  ((undo->space == srv_tmp_space.space_id())
+		   ? "temporary" : "undo")));
 
 	/* Did not succeed: out of space */
 	err = DB_OUT_OF_FILE_SPACE;

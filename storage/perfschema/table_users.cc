@@ -96,7 +96,7 @@ table_users::table_users()
 
 void table_users::make_row(PFS_user *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
   pfs->m_lock.begin_optimistic_lock(&lock);

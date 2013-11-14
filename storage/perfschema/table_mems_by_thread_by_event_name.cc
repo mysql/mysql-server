@@ -188,7 +188,7 @@ int table_mems_by_thread_by_event_name::rnd_pos(const void *pos)
 void table_mems_by_thread_by_event_name
 ::make_row(PFS_thread *thread, PFS_memory_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   /* Protect this reader against a thread termination */

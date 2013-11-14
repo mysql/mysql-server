@@ -17,6 +17,8 @@
 # The size of the data is tuned to match file sizes and rotations, so
 # it is only executed in statement-based replication.
 
+
+-- source include/no_valgrind_without_big.inc
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 -- source include/master-slave.inc
