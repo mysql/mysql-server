@@ -2311,9 +2311,11 @@ sub environment_setup {
   # ----------------------------------------------------
   # mysql_tzinfo_to_sql
   # ----------------------------------------------------
-  my $exe_mysql_tzinfo_to_sql= mtr_exe_exists("$basedir/sql$opt_vs_config/mysql_tzinfo_to_sql",
-				 "$path_client_bindir/mysql_tzinfo_to_sql");
-  $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
+  if (!IS_WINDOWS) {
+    my $exe_mysql_tzinfo_to_sql= mtr_exe_exists("$basedir/sql$opt_vs_config/mysql_tzinfo_to_sql",
+                                                "$path_client_bindir/mysql_tzinfo_to_sql");
+    $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
+  }
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
