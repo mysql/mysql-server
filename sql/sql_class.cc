@@ -352,6 +352,16 @@ THD *thd_get_current_thd()
   return current_thd;
 }
 
+/**
+  Set pthread key THR_THD
+
+  @param thd     THD object
+*/
+void set_pthread_THR_THD(THD* thd)
+{
+  my_pthread_set_THR_THD(thd);
+}
+
 extern "C"
 void thd_binlog_pos(const THD *thd,
                     const char **file_var,
@@ -4237,9 +4247,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     NOTE: is_fatal_sub_stmt_error can be set only if we've been in the
     sub-statement mode.
   */
-
-  DBUG_ASSERT((is_fatal_sub_stmt_error && !in_sub_stmt) ||
-              !is_fatal_sub_stmt_error);
 
   if (!in_sub_stmt)
     is_fatal_sub_stmt_error= false;

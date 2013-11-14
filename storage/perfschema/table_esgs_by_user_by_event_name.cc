@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -172,7 +172,7 @@ table_esgs_by_user_by_event_name::rnd_pos(const void *pos)
 void table_esgs_by_user_by_event_name
 ::make_row(PFS_user *user, PFS_stage_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   user->m_lock.begin_optimistic_lock(&lock);

@@ -377,7 +377,7 @@ int my_handle_options(int *argc, char ***argv,
 	}
         error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
-	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
+	  (*getopt_get_addr)(key_name, strlen(key_name), optp, &error) :
           optp->value;
         if (error)
           return error;

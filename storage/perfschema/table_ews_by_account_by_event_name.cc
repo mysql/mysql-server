@@ -234,7 +234,7 @@ table_ews_by_account_by_event_name::rnd_pos(const void *pos)
 void table_ews_by_account_by_event_name
 ::make_row(PFS_account *account, PFS_instr_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   account->m_lock.begin_optimistic_lock(&lock);

@@ -483,6 +483,22 @@ IF(WITH_UNIT_TESTS)
   IF(WIN32)
     ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
   ENDIF()
+  # libc++ doesn't have tuple in tr1
+  include(CheckCXXSourceRuns)
+  CHECK_CXX_SOURCE_RUNS(
+    "#include <ciso646>
+    int main()
+    {
+    #ifdef _LIBCPP_VERSION
+      return 0;
+    #else
+      return 1;
+    #endif
+    }"
+    HAVE_LIBCPP)
+  IF(HAVE_LIBCPP)
+    ADD_DEFINITIONS(-DGTEST_USE_OWN_TR1_TUPLE=1)
+  ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 

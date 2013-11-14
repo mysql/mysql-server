@@ -128,9 +128,9 @@ table_threads::table_threads()
 
 void table_threads::make_row(PFS_thread *pfs)
 {
-  pfs_lock lock;
-  pfs_lock session_lock;
-  pfs_lock stmt_lock;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
+  pfs_optimistic_state stmt_lock;
   PFS_stage_class *stage_class;
   PFS_thread_class *safe_class;
 
