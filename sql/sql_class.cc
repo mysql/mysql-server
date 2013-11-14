@@ -352,6 +352,16 @@ THD *thd_get_current_thd()
   return current_thd;
 }
 
+/**
+  Set pthread key THR_THD
+
+  @param thd     THD object
+*/
+void set_pthread_THR_THD(THD* thd)
+{
+  my_pthread_set_THR_THD(thd);
+}
+
 extern "C"
 void thd_binlog_pos(const THD *thd,
                     const char **file_var,
