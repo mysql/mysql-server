@@ -2214,18 +2214,18 @@ dict_index_too_big_for_tree(
 	const page_size_t	page_size(dict_table_page_size(table));
 
 	if (page_size.is_compressed()
-	    && page_size.bytes() < univ_page_size.bytes()) {
+	    && page_size.physical() < univ_page_size.physical()) {
 		/* On a compressed page, two records must fit in the
 		uncompressed page modification log. On compressed pages
-		with size.bytes() == univ_page_size.bytes(), this limit
-		will never be reached. */
+		with size.physical() == univ_page_size.physical(),
+		this limit will never be reached. */
 		ut_ad(comp);
 		/* The maximum allowed record size is the size of
 		an empty page, minus a byte for recoding the heap
 		number in the page modification log.  The maximum
 		allowed node pointer size is half that. */
 		page_rec_max = page_zip_empty_size(new_index->n_fields,
-						   page_size.bytes());
+						   page_size.physical());
 		if (page_rec_max) {
 			page_rec_max--;
 		}

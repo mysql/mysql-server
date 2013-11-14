@@ -141,7 +141,7 @@ TrxUndoRsegsIterator::set_next()
 		m_purge_sys->rseg = NULL;
 
 		/* return a dummy object, not going to be used by the caller */
-		return(page_size_t(0, false));
+		return(page_size_t(0, 0, false));
 	}
 
 	m_purge_sys->rseg = *m_iter++;

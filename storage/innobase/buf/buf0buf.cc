@@ -32,6 +32,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "page0size.h"
 #include "buf0buf.h"
 
 #ifdef UNIV_NONINL
@@ -487,7 +488,7 @@ buf_page_is_corrupted(
 
 	if (!page_size.is_compressed()
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
-		      read_buf + page_size.bytes()
+		      read_buf + page_size.logical()
 		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
 
 		/* Stored log sequence numbers at the start and the end
@@ -537,11 +538,13 @@ buf_page_is_corrupted(
 
 	if (page_size.is_compressed()) {
 #ifdef UNIV_INNOCHECKSUM
-		return(!page_zip_verify_checksum(read_buf, page_size.bytes(),
+		return(!page_zip_verify_checksum(read_buf,
+						 page_size.physical(),
 						 page_no, strict_check,
 						 is_log_enabled, log_file));
 #else
-		return(!page_zip_verify_checksum(read_buf, page_size.bytes()));
+		return(!page_zip_verify_checksum(read_buf,
+						 page_size.physical()));
 #endif /* UNIV_INNOCHECKSUM */
 	}
 
@@ -549,7 +552,7 @@ buf_page_is_corrupted(
 		read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
 
 	checksum_field2 = mach_read_from_4(
-		read_buf + page_size.bytes() - FIL_PAGE_END_LSN_OLD_CHKSUM);
+		read_buf + page_size.logical() - FIL_PAGE_END_LSN_OLD_CHKSUM);
 
 	/* declare empty pages non-corrupted */
 	if (checksum_field1 == 0 && checksum_field2 == 0
@@ -559,12 +562,12 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 		ulint	i;
 
-		for (i = 0; i < page_size.bytes(); i++) {
+		for (i = 0; i < page_size.logical(); i++) {
 			if (read_buf[i] != 0)
 				break;
 		}
 
-		if (i >= page_size.bytes()) {
+		if (i >= page_size.logical()) {
 			if (is_log_enabled) {
 				fprintf(log_file, "Page::%llu is empty and "
 					"uncorrupted\n", page_no);
@@ -573,7 +576,7 @@ buf_page_is_corrupted(
 		}
 #else
 
-		ut_d(for (ulint i = 0; i < page_size.bytes(); i++) {
+		ut_d(for (ulint i = 0; i < page_size.logical(); i++) {
 		     ut_a(read_buf[i] == 0); });
 
 		return(FALSE);
@@ -844,8 +847,8 @@ buf_page_print(
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Page dump in ascii and hex (" ULINTPF
-			" bytes):\n", page_size.bytes());
-		ut_print_buf(stderr, read_buf, page_size.bytes());
+			" bytes):\n", page_size.physical());
+		ut_print_buf(stderr, read_buf, page_size.physical());
 		fputs("\nInnoDB: End of page dump\n", stderr);
 	}
 
@@ -866,15 +869,15 @@ buf_page_print(
 			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 			buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32),
-			page_zip_calc_checksum(read_buf, page_size.bytes(),
+			page_zip_calc_checksum(read_buf, page_size.physical(),
 				SRV_CHECKSUM_ALGORITHM_CRC32),
 			buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB),
-			page_zip_calc_checksum(read_buf, page_size.bytes(),
+			page_zip_calc_checksum(read_buf, page_size.physical(),
 				SRV_CHECKSUM_ALGORITHM_INNODB),
 			buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_NONE),
-			page_zip_calc_checksum(read_buf, page_size.bytes(),
+			page_zip_calc_checksum(read_buf, page_size.physical(),
 				SRV_CHECKSUM_ALGORITHM_NONE),
 			mach_read_from_8(read_buf + FIL_PAGE_LSN),
 			mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
@@ -908,7 +911,7 @@ buf_page_print(
 			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE),
 			BUF_NO_CHECKSUM_MAGIC,
 
-			mach_read_from_4(read_buf + page_size.bytes()
+			mach_read_from_4(read_buf + page_size.logical()
 					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
 			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32),
 			buf_calc_page_crc32(read_buf),
@@ -919,7 +922,7 @@ buf_page_print(
 
 			mach_read_from_4(read_buf + FIL_PAGE_LSN),
 			mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
-			mach_read_from_4(read_buf + page_size.bytes()
+			mach_read_from_4(read_buf + page_size.logical()
 					 - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
 			mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
 			mach_read_from_4(read_buf
@@ -2362,7 +2365,7 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
 		/* Copy to uncompressed storage. */
-		memcpy(block->frame, frame, block->page.size.bytes());
+		memcpy(block->frame, frame, block->page.size.physical());
 		return(TRUE);
 	}
 
@@ -2641,9 +2644,9 @@ buf_page_get_gen(
 	const page_size_t&	space_page_size
 		= fil_space_get_page_size(page_id.space(), &found);
 
-	ut_a(found);
+	ut_ad(found);
 
-	ut_a(page_size.equals_to(space_page_size));
+	ut_ad(page_size.equals_to(space_page_size));
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_LOG_DEBUG
@@ -3527,7 +3530,7 @@ buf_page_init(
 	block->page.size.copy_from(page_size);
 
 	if (page_size.is_compressed()) {
-		page_zip_set_size(&block->page.zip, page_size.bytes());
+		page_zip_set_size(&block->page.zip, page_size.physical());
 	}
 }
 
@@ -3659,7 +3662,7 @@ err_exit:
 			been added to buf_pool->LRU and
 			buf_pool->page_hash. */
 			buf_page_mutex_exit(block);
-			data = buf_buddy_alloc(buf_pool, page_size.bytes(),
+			data = buf_buddy_alloc(buf_pool, page_size.physical(),
 					       &lru);
 			buf_page_mutex_enter(block);
 			block->page.zip.data = (page_zip_t*) data;
@@ -3681,7 +3684,7 @@ err_exit:
 		control block (bpage), in order to avoid the
 		invocation of buf_buddy_relocate_block() on
 		uninitialized data. */
-		data = buf_buddy_alloc(buf_pool, page_size.bytes(), &lru);
+		data = buf_buddy_alloc(buf_pool, page_size.physical(), &lru);
 
 		rw_lock_x_lock(hash_lock);
 
@@ -3700,7 +3703,7 @@ err_exit:
 				rw_lock_x_unlock(hash_lock);
 				watch_page = NULL;
 				buf_buddy_free(buf_pool, data,
-					       page_size.bytes());
+					       page_size.physical());
 
 				bpage = NULL;
 				goto func_exit;
@@ -3713,13 +3716,13 @@ err_exit:
 		bpage->buf_pool_index = buf_pool_index(buf_pool);
 
 		page_zip_des_init(&bpage->zip);
-		page_zip_set_size(&bpage->zip, page_size.bytes());
+		page_zip_set_size(&bpage->zip, page_size.physical());
 		bpage->zip.data = (page_zip_t*) data;
 
 		bpage->size.copy_from(page_size);
 
 		mutex_enter(&buf_pool->zip_mutex);
-		UNIV_MEM_DESC(bpage->zip.data, bpage->size.bytes());
+		UNIV_MEM_DESC(bpage->zip.data, bpage->size.physical());
 
 		buf_page_init_low(bpage);
 
@@ -3869,7 +3872,7 @@ buf_page_create(
 		the reacquisition of buf_pool->mutex.  We also must
 		defer this operation until after the block descriptor
 		has been added to buf_pool->LRU and buf_pool->page_hash. */
-		data = buf_buddy_alloc(buf_pool, page_size.bytes(), &lru);
+		data = buf_buddy_alloc(buf_pool, page_size.physical(), &lru);
 		buf_page_mutex_enter(block);
 		block->page.zip.data = (page_zip_t*) data;
 
@@ -5449,8 +5452,8 @@ buf_page_init_for_backup_restore(
 	/* We assume that block->page.data has been allocated
 	with page_size == univ_page_size. */
 	if (page_size.is_compressed()) {
-		page_zip_set_size(&block->page.zip, page_size.bytes());
-		block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
+		page_zip_set_size(&block->page.zip, page_size.physical());
+		block->page.zip.data = block->frame + page_size.logical();
 	} else {
 		page_zip_set_size(&block->page.zip, 0);
 	}

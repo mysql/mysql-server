@@ -541,7 +541,8 @@ btr_cur_will_modify_tree(
 		buffer pool */
 		/* needs 2 records' space also for worst compress rate. */
 		if (page_size.is_compressed()
-		    && page_zip_empty_size(index->n_fields, page_size.bytes())
+		    && page_zip_empty_size(index->n_fields,
+					   page_size.physical())
 		       < rec_size * 2 + page_get_data_size(page)
 			 + page_dir_calc_reserved_space(
 				page_get_n_recs(page) + 2) + 1) {
@@ -2224,8 +2225,8 @@ btr_cur_optimistic_insert(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	if (page_size.is_compressed()) {
-		UNIV_MEM_ASSERT_RW(page, univ_page_size.bytes());
-		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.bytes());
+		UNIV_MEM_ASSERT_RW(page, page_size.logical());
+		UNIV_MEM_ASSERT_RW(block->page.zip.data, page_size.physical());
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
@@ -2254,7 +2255,7 @@ btr_cur_optimistic_insert(
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
 		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, page_size.bytes());
+			cursor->index->n_fields, page_size.physical());
 		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
 
 		ut_ad(dict_table_is_comp(index->table));
@@ -3478,20 +3479,12 @@ btr_cur_pessimistic_update(
 	ut_ad(rec_offs_validate(rec, index, *offsets));
 	n_ext += btr_push_update_extern_fields(new_entry, update, entry_heap);
 
-	if (page_zip) {
-		ut_ad(page_is_comp(page));
-		if (page_zip_rec_needs_ext(
-			    rec_get_converted_size(index, new_entry, n_ext),
-			    TRUE,
-			    dict_index_get_n_fields(index),
-			    page_size_t(page_zip_get_size(page_zip), true))) {
+	if (page_zip_rec_needs_ext(
+			rec_get_converted_size(index, new_entry, n_ext),
+			page_is_comp(page),
+			dict_index_get_n_fields(index),
+			block->page.size)) {
 
-			goto make_external;
-		}
-	} else if (page_zip_rec_needs_ext(
-			   rec_get_converted_size(index, new_entry, n_ext),
-			   page_is_comp(page), 0, univ_page_size)) {
-make_external:
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
@@ -6273,7 +6266,7 @@ btr_copy_zblob_prefix(
 		}
 
 		d_stream.next_in = bpage->zip.data + offset;
-		d_stream.avail_in = (uInt) (page_size.bytes() - offset);
+		d_stream.avail_in = (uInt) (page_size.physical() - offset);
 
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {

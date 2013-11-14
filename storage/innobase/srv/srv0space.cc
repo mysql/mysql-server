@@ -677,8 +677,7 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
-		const page_size_t&	page_size
-			= fsp_flags_get_page_size(flags);
+		const page_size_t	page_size(flags);
 
 		if (check_tablespace_attributes
 		    && !page_size.equals_to(univ_page_size)) {
@@ -689,8 +688,8 @@ Tablespace::read_lsn_and_check_flags(
 				"--innodb-page-size=%lu",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 				it->m_filename,
-				page_size.bytes(),
-				univ_page_size.bytes());
+				page_size.physical(),
+				univ_page_size.physical());
 
 			return(DB_ERROR);
 		}

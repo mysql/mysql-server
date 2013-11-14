@@ -166,7 +166,7 @@ buf_read_page_low(
 	DBUG_PRINT("ib_buf", ("read page %u:%u size=%u unzip=%u,%s",
 			      (unsigned) page_id.space(),
 			      (unsigned) page_id.page_no(),
-			      (unsigned) page_size.bytes(),
+			      (unsigned) page_size.physical(),
 			      (unsigned) unzip,
 			      sync ? "sync" : "async"));
 
@@ -186,7 +186,7 @@ buf_read_page_low(
 	}
 
 	*err = fil_io(OS_FILE_READ | wake_later | ignore_nonexistent_pages,
-		      sync, page_id, page_size, 0, page_size.bytes(), dst,
+		      sync, page_id, page_size, 0, page_size.physical(), dst,
 		      bpage);
 
 	if (sync) {

@@ -622,7 +622,7 @@ ibuf_bitmap_page_init(
 
 	/* Write all zeros to the bitmap */
 
-	byte_offset = UT_BITS_IN_BYTES(block->page.size.bytes()
+	byte_offset = UT_BITS_IN_BYTES(block->page.size.physical()
 				       * IBUF_BITS_PER_PAGE);
 
 	memset(page + IBUF_BITMAP, 0, byte_offset);
@@ -708,7 +708,7 @@ ibuf_bitmap_page_get_bits_low(
 #endif
 	ut_ad(mtr_memo_contains_page(mtr, page, latch_type));
 
-	bit_offset = (page_id.page_no() % page_size.bytes())
+	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
 
 	byte_offset = bit_offset / 8;
@@ -758,7 +758,7 @@ ibuf_bitmap_page_set_bits(
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_id)));
 #endif
-	bit_offset = (page_id.page_no() % page_size.bytes())
+	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
 
 	byte_offset = bit_offset / 8;
@@ -795,7 +795,7 @@ ibuf_bitmap_page_no_calc(
 	ulint	bitmap_page_no;
 
 	bitmap_page_no = FSP_IBUF_BITMAP_OFFSET
-		+ (page_id.page_no() & ~(page_size.bytes() - 1));
+		+ (page_id.page_no() & ~(page_size.physical() - 1));
 
 	return(page_id_t(page_id.space(), bitmap_page_no));
 }
@@ -994,7 +994,7 @@ ibuf_update_free_bits_low(
 
 	ut_a(!buf_block_get_page_zip(block));
 
-	before = ibuf_index_page_calc_free_bits(block->page.size.bytes(),
+	before = ibuf_index_page_calc_free_bits(block->page.size.logical(),
 						max_ins_size);
 
 	after = ibuf_index_page_calc_free(block);
@@ -2063,7 +2063,7 @@ ibuf_add_free_page(void)
 	(level 2 page) */
 
 	const page_id_t		page_id(IBUF_SPACE_ID, block->page.id.page_no());
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	bitmap_page = ibuf_bitmap_get_map_page(page_id, page_size, &mtr);
 
@@ -2099,7 +2099,7 @@ ibuf_remove_free_page(void)
 	order */
 	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
 
-	const page_size_t	page_size(fsp_flags_get_page_size(flags));
+	const page_size_t	page_size(flags);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -3955,7 +3955,7 @@ ibuf_insert_to_index_page_low(
 		"InnoDB: space " UINT32PF ", page " UINT32PF
 		", size %lu, bitmap bits %lu\n",
 		block->page.id.space(), block->page.id.page_no(),
-		block->page.size.bytes(), (ulong) old_bits);
+		block->page.size.physical(), (ulong) old_bits);
 
 	fputs("InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com\n", stderr);
@@ -5079,8 +5079,8 @@ ibuf_check_bitmap_on_import(
 	ut_ad(trx->mysql_thd);
 
 	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space_id,
-								  &found));
+	const page_size_t&	page_size
+		= fil_space_get_page_size(space_id, &found);
 
 	if (!found) {
 		return(DB_TABLE_NOT_FOUND);
@@ -5100,7 +5100,7 @@ ibuf_check_bitmap_on_import(
 	below page_no is measured in number of pages since the beginning of
 	the space, like usually. */
 
-	for (page_no = 0; page_no < size; page_no += page_size.bytes()) {
+	for (page_no = 0; page_no < size; page_no += page_size.physical()) {
 		mtr_t	mtr;
 		page_t*	bitmap_page;
 		ulint	i;
@@ -5120,7 +5120,7 @@ ibuf_check_bitmap_on_import(
 			page_id_t(space_id, page_no), page_size, &mtr);
 
 		for (i = FSP_IBUF_BITMAP_OFFSET + 1;
-		     i < page_size.bytes();
+		     i < page_size.physical();
 		     i++) {
 
 			const ulint	offset = page_no + i;

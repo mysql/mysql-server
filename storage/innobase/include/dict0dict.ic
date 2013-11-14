@@ -850,7 +850,7 @@ dict_tf_to_sys_tables_type(
 	return(type);
 }
 
-/** Extract the compressed page size from table flags.
+/** Extract the page size from table flags.
 @param[in] flags flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
@@ -868,10 +868,10 @@ dict_tf_get_page_size(
 
 	ut_ad(size <= UNIV_ZIP_SIZE_MAX);
 
-	return(page_size_t(size, true));
+	return(page_size_t(size, univ_page_size.logical(), true));
 }
 
-/** Check whether the table uses the compressed compact page format.
+/** Get the table page size.
 @param[in] table table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE

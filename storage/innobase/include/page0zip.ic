@@ -191,7 +191,7 @@ page_zip_rec_needs_ext(
 		the encoded heap number.  Check also the available space
 		on the uncompressed page. */
 		return(rec_size - (REC_N_NEW_EXTRA_BYTES - 2 - 1)
-		       >= page_zip_empty_size(n_fields, page_size.bytes())
+		       >= page_zip_empty_size(n_fields, page_size.physical())
 		       || rec_size >= page_get_free_space_of_empty(TRUE) / 2);
 	}
 
