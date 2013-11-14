@@ -16,7 +16,6 @@
 */
 
 #include <ndb_global.h>
-#ifndef NDB_MGMAPI
 
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
@@ -28,11 +27,6 @@
 #include <ndb_opts.h>
 #include <ndb_version.h>
 
-#else
-#include "ConfigInfo.hpp"
-#include <mgmapi_config_parameters.h>
-#include <ndb_version.h>
-#endif /* NDB_MGMAPI */
 
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
@@ -54,7 +48,6 @@
 #define MGM_TOKEN "MGM"
 #define API_TOKEN "API"
 
-#ifndef NDB_MGMAPI
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
   {API_TOKEN, "MYSQLD"},
@@ -242,7 +235,6 @@ const DeprecationTransform f_deprecation[] = {
   { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
-#endif /* NDB_MGMAPI */
 
 static
 const ConfigInfo::Typelib arbit_method_typelib[] = {
@@ -3379,7 +3371,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 
-#ifndef NDB_MGMAPI
 /****************************************************************************
  * Ctor
  ****************************************************************************/
@@ -6118,4 +6109,3 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
 
 
 template class Vector<ConfigInfo::ConfigRuleSection>;
-#endif /* NDB_MGMAPI */
