@@ -1451,7 +1451,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   */
   if (!func->eqne_op() &&                                             // 1
       !select_lex->master_unit()->uncacheable &&                      // 2
-      (abort_on_null || (upper_item && upper_item->top_level()) ||    // 3
+      (abort_on_null || (upper_item && upper_item->is_top_level_item()) ||    // 3
        (!left_expr->maybe_null && !subquery_maybe_null)))
   {
     if (substitution)

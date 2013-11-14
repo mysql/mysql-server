@@ -21,6 +21,7 @@
 #include "test_utils.h"
 
 #include "sql_class.h"
+#include "uniques.h"
 
 namespace unique_unittest {
 

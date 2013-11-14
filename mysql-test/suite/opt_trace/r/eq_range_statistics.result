@@ -259,6 +259,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
         "select#": 1,
         "steps": [
           {
+            "IN_uses_bisection": true
+          },
+          {
             "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where ((`t1`.`a` = 5) or (`t1`.`a` > 10) or (`t1`.`a` in (1,2)))"
           }
         ] /* steps */

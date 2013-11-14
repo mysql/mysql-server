@@ -1774,6 +1774,7 @@ void test_leaks()
   param.m_program_sizing= 1000;
   param.m_statement_stack_sizing= 10;
 
+  pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "bootstrap");
   shutdown_performance_schema();
