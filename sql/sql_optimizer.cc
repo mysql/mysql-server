@@ -10117,7 +10117,11 @@ void JOIN::recount_field_types()
   {
     for (SELECT_LEX *s= u->first_select(); s != NULL; s= s->next_select())
     {
-      s->join->recount_field_types();
+       // ON DUPLICATE KEY UPDATE subqueries may be unprepared at this
+       // point.
+      DBUG_ASSERT(!(s->join == NULL && s->master_unit()->is_prepared()));
+      if (s->join != NULL)
+        s->join->recount_field_types();
     }
   }
 }
