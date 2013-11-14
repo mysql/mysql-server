@@ -1261,7 +1261,7 @@ innobase_start_or_create_for_mysql(void)
 	stacktrace feature. */
 
 	if (srv_use_stacktrace) {
-#ifndef __WIN__
+#ifdef __linux__
 		 struct sigaction sigact;
 
 		 sigact.sa_sigaction = os_stacktrace_print;
@@ -1274,7 +1274,7 @@ innobase_start_or_create_for_mysql(void)
 			 srv_use_stacktrace = FALSE;
 
 		 }
-#endif /*! __WIN__ */
+#endif /* __linux__ */
 	}
 
 

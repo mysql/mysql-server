@@ -19,7 +19,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0thread.h"
 
-#ifndef __WIN__
+#ifdef __linux__
 
 #include <execinfo.h>
 #include <signal.h>
@@ -33,6 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #ifndef __USE_GNU
 #define __USE_GNU
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE
 #endif
 
 /* Since kernel version 2.2 the undocumented parameter to the signal handler has been declared
@@ -122,4 +125,4 @@ os_stacktrace_print(
 	free(messages);
 }
 
-#endif /* ! __WIN__ */
+#endif /* __linux__ */

@@ -487,7 +487,7 @@ sync_array_cell_print(
 	signal to thread waiting for the semaphore. Signal handler
 	will then dump the current stack to error log. */
 	if (srv_use_stacktrace) {
-#ifndef __WIN__
+#ifdef __linux__
 		pthread_kill(cell->thread, SIGUSR2);
 #endif
 	}
@@ -551,7 +551,7 @@ sync_array_cell_print(
 		signal to thread that has locked RW-latch with write mode.
 		Signal handler will then dump the current stack to error log. */
 		if (writer != RW_LOCK_NOT_LOCKED && srv_use_stacktrace) {
-#ifndef __WIN__
+#ifdef __linux__
 			pthread_kill(rwlock->writer_thread, SIGUSR2);
 #endif
 		}
