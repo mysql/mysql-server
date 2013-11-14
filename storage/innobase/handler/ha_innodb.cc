@@ -5136,23 +5136,7 @@ innobase_fts_text_cmp_prefix(
 	to negate the result */
 	return(-result);
 }
-/******************************************************************//**
-compare two character string according to their charset. */
 
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*     p1,		/*!< in: key */
-	const void*     p2)		/*!< in: node */
-{
-	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-	uchar*			s1 = (uchar*) p1;
-	uchar*			s2 = *(uchar**) p2;
-
-	return(ha_compare_text(charset, s1, (uint) strlen((const char*) s1),
-			       s2, (uint) strlen((const char*) s2), 0, 0));
-}
 /******************************************************************//**
 Makes all characters in a string lower case. */
 
