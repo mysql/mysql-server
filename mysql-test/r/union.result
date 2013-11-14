@@ -1721,6 +1721,21 @@ foo
 deallocate prepare stmt1;
 End of 5.1 tests
 #
+# mdev-5091: Asseirtion failure for UNION with ORDER BY 
+#            in one of selects
+#
+CREATE TABLE t1 (i int, c char(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,'b');
+CREATE VIEW v1 AS SELECT * FROM t1;
+( SELECT i FROM v1 GROUP BY i ORDER BY CONCAT( c, c ) LIMIT 1 )
+UNION 
+( SELECT i FROM t1 );
+i
+6
+DROP VIEW v1;
+DROP TABLE t1;
+End of 5.3 tests
+#
 # Bug#57986 ORDER BY clause is not used after a UNION, 
 #           if embedded in a SELECT
 #
