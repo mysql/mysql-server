@@ -45,6 +45,7 @@ Smart ALTER TABLE
 #include "fts0priv.h"
 #include "fts0plugin.h"
 #include "pars0pars.h"
+#include "row0sel.h"
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -4910,16 +4911,38 @@ commit_get_autoinc(
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
-		/* An AUTO_INCREMENT value was supplied, but the table
-		was not rebuilt. Get the user-supplied value or the
-		last value from the sequence. */
-		ut_ad(old_table->found_next_number_field);
+		/* An AUTO_INCREMENT value was supplied, but the table was not
+		rebuilt. Get the user-supplied value or the last value from the
+		sequence. */
+		ib_uint64_t	max_value_table;
+		dberr_t		err;
+
+		Field*	autoinc_field =
+			old_table->found_next_number_field;
+
+		dict_index_t*	index = dict_table_get_index_on_first_col(
+			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
-		if (max_autoinc < ctx->old_table->autoinc) {
-			max_autoinc = ctx->old_table->autoinc;
+
+		err = row_search_max_autoinc(
+			index, autoinc_field->field_name, &max_value_table);
+
+		if (err != DB_SUCCESS) {
+			ut_ad(0);
+			max_autoinc = 0;
+		} else if (max_autoinc <= max_value_table) {
+			ulonglong	col_max_value;
+			ulonglong	offset;
+
+			col_max_value = autoinc_field->get_max_int_value();
+
+			offset = ctx->prebuilt->autoinc_offset;
+			max_autoinc = innobase_next_autoinc(
+				max_value_table, 1, 1, offset,
+				col_max_value);
 		}
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {

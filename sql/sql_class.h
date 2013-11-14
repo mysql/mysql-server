@@ -3299,7 +3299,7 @@ public:
   }
 
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
-                              const char* str, uint length,
+                              const char* str, size_t length,
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
@@ -4055,11 +4055,11 @@ my_eof(THD *thd)
 
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
-                     LEX_STRING *lex_str, const char* str, uint length,
+                     LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
 
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
-                                   const char *src, uint src_len)
+                                   const char *src, size_t src_len)
 {
   return make_lex_string_root(root, dst, src, src_len, false);
 }
@@ -4963,8 +4963,8 @@ public:
   static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
-    uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
-               (name.length() + 1) + extra_size;
+    size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+                 (name.length() + 1) + extra_size;
     if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
                                              size, MYF(MY_WME |
                                                        ME_FATALERROR))))

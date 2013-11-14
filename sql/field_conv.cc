@@ -106,15 +106,25 @@ type_conversion_status set_field_to_null(Field *field)
     field->reset();
     return TYPE_OK;
   }
-  DBUG_ASSERT(0);
 
-#ifdef DBUG_OFF
   /**
-    Can not be true, but do not take chances in production.
-    Test coverage discovered that the source code below wasn't
-    executed but to protect mysql server from unexpected behaviour
-    caused by some possible wrong code snippet in the server code base
-    we leave it for server compiled without debug.
+    The following piece of code is run for the case when a BLOB column
+    that has value NULL is queried with GROUP BY NULL and the result
+    is inserted into a some table's column declared having primitive type
+    (e.g. INT) and NOT NULL.
+
+    For example, the following test case will hit this piece of code:
+    CREATE TABLE t1 (a BLOB);
+    CREATE TABLE t2 (a INT NOT NULL);
+
+    INSERT t1 VALUES (NULL);
+    INSERT INTO t2(a) SELECT a FROM t1 GROUP BY NULL; <<== Hit here
+
+    In general, when set_field_to_null() is called a Field has to be either
+    declared as NULL-able or be marked as temporary NULL-able.
+    But in case of INSERT SELECT from a BLOB field and when GROUP BY NULL
+    is specified the Field object for a destination column doesn't set
+    neither NULL-able nor temporary NULL-able (see setup_copy_fields()).
   */
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
@@ -129,7 +139,7 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-#endif
+
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 

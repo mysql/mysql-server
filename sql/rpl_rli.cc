@@ -1830,10 +1830,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       last_retrieved_gtid_event if relay_log_recovery=1 (retrieved set will
       be cleared off in that case).
     */
-    Gtid *last_retrieved_gtid= is_relay_log_recovery ? NULL : get_last_retrieved_gtid();
     if (!current_thd &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
-                                 last_retrieved_gtid,
+                                 is_relay_log_recovery ? NULL : get_last_retrieved_gtid(),
                                  opt_slave_sql_verify_checksum,
                                  true/*true=need lock*/))
     {
