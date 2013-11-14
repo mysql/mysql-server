@@ -1566,7 +1566,7 @@ DROP TABLE t1,t2;
 
 --echo #
 --echo # mdev-5105: memory overwrite in multi-table update 
---echo #            using natuaral join with a view
+--echo #            using natural join with a view
 --echo #
 
 create table t1(a int,b tinyint,c tinyint)engine=myisam; 
@@ -1577,6 +1577,19 @@ create view v1 as select t2.b a, t1.b b, t2.c c, t2.d d, t2.e e, t2.f f from t1,
 update t3 natural join v1 set a:=1; 
 drop view v1; 
 drop table t1,t2,t3;
+
+--echo #
+--echo # mdev-5288: assertion failure for query over a view with ORDER BY
+--echo #
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4,1);
+
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED SELECT a FROM v1 WHERE a > 100 ORDER BY b;
+
+DROP VIEW v1;
+DROP TABLE t1;
 
 --echo #
 --echo # end of 5.3 tests
