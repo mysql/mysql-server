@@ -29,6 +29,12 @@ const unsigned long checksum_version_product=
   (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
   checksum_version_split[2];
 
+#ifdef _my_sys_h
+PSI_memory_key key_memory_log_event;
+PSI_memory_key key_memory_Incident_log_event_message;
+PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+#endif
+
 namespace binary_log
 {
 const char *get_event_type_str(Log_event_type type)
@@ -390,11 +396,80 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
     break;
   }
   //calc_server_version_split();
-  checksum_alg= (uint8_t) binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
+  checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 }
 
 //void Binary_log_event::print_event_info(std::ostream& info) {}
 //void Binary_log_event::print_long_info(std::ostream& info) {}
+
+/********************************************************************
+           Rotate_event methods
+*********************************************************************/
+/**
+  The variable part of the Rotate event contains the name of the next binary
+  log file,  and the position of the first event in the next binary log file.
+
+  The buffer layout is as follows:
+  +-----------------------------------------------------------------------+
+  | common_header | post_header | position og the first event | file name |
+  +-----------------------------------------------------------------------+
+
+  @param buf Buffer contain event data in the layout specified above
+  @param event_len The length of the event written in the log file
+  @param description_event FDE used to extract the post header length, which
+                           depends on the binlog version
+  @param head Header information of the event
+*/
+Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
+                           const Format_description_event *description_event,
+                           Log_event_header *head)
+: Binary_log_event(head), new_log_ident(0), flags(DUP_NAME)
+{
+  // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
+  size_t header_size= description_event->common_header_len;
+  size_t post_header_len= description_event->post_header_len[ROTATE_EVENT - 1];
+  unsigned int ident_offset;
+
+  if (event_len < header_size)
+    return;
+
+  buf += header_size;
+
+  /**
+    By default, an event start immediately after the magic bytes in the binary
+    log, which is at offset 4. In case if the slave has to rotate to a
+    different event instead of the first one, the binary log offset for that
+    event is specified in the post header. Else, the position is set to 4.
+  */
+  if (post_header_len)
+  {
+    memcpy(&pos, buf + R_POS_OFFSET, 8);
+    pos= le64toh(pos);
+  }
+  else
+    pos= 4;
+
+  ident_len= event_len - (header_size + post_header_len);
+  ident_offset= post_header_len;
+  set_if_smaller(ident_len,FN_REFLEN-1);
+
+  new_log_ident= bapi_strndup(buf + ident_offset, ident_len);
+}
+
+/**
+  This method is used by the binlog_browser to print short and long
+  information about the event. Since the body of Stop_event is empty
+  the relevant information contains only the timestamp.
+  Please note this is different from the print_event_info methods
+  used by mysqlbinlog.cc.
+
+  @param std output stream to which the event data is appended.
+*/
+void Stop_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << this->header()->when.tv_sec;
+  this->print_event_info(info);
+}
 
 void Unknown_event::print_event_info(std::ostream& info)
 {
@@ -429,8 +504,8 @@ void Query_event::print_long_info(std::ostream& info)
 
 void Rotate_event::print_event_info(std::ostream& info)
 {
-  info << "Binlog Position: " << binlog_pos;
-  info << ", Log name: " << binlog_file;
+  info << "Binlog Position: " << pos;
+  info << ", Log name: " << new_log_ident;
 }
 
 void Rotate_event::print_long_info(std::ostream& info)

@@ -57,10 +57,6 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "rpl_filter.h"
 #endif
 
-extern PSI_memory_key key_memory_log_event;
-extern PSI_memory_key key_memory_Incident_log_event_message;
-extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-
 #include "binary_log.h"
 using  binary_log::Binary_log_event;
 /* Forward declarations */
@@ -388,10 +384,6 @@ struct sql_ex_info
 #define L_NUM_FIELDS_OFFSET  14
 #define L_SQL_EX_OFFSET      18
 #define L_DATA_OFFSET        LOAD_HEADER_LEN
-
-/* Rotate event post-header */
-#define R_POS_OFFSET       0
-#define R_IDENT_OFFSET     8
 
 /* CF to DF handle LOAD DATA INFILE */
 
@@ -833,8 +825,8 @@ typedef struct st_print_event_info
   is documented separately.
 */
 
-//TODO the dependency on Binary_log_event will be removed in future 
-class Log_event : public Binary_log_event
+//TODO the dependency on Binary_log_event will be removed in future
+class Log_event : public virtual Binary_log_event
 {
 public:
   /**
@@ -1079,15 +1071,6 @@ public:
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
 #endif // ifdef MYSQL_SERVER ... else
-  /* 
-     The value is set by caller of FD constructor and
-     Log_event::write_header() for the rest.
-     In the FD case it's propagated into the last byte 
-     of post_header_len[] at FD::write().
-     On the slave side the value is assigned from post_header_len[last] 
-     of the last seen FD event.
-  */
-  enum_binlog_checksum_alg checksum_alg;
 
   static void *operator new(size_t size)
   {
@@ -2878,12 +2861,8 @@ private:
 /**
   @class Stop_log_event
 
-  @section Stop_log_event_binary_format Binary Format
-
-  The Post-Header and Body for this event type are empty; it only has
-  the Common-Header.
 */
-class Stop_log_event: public Log_event
+class Stop_log_event: public Log_event, public Stop_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -2894,7 +2873,7 @@ public:
 #endif
 
   Stop_log_event(const char* buf,
-                 const Format_description_log_event *description_event,
+                 const Format_description_event *description_event,
                  Log_event_header *header):
     Log_event(header)
   {}
@@ -2923,62 +2902,31 @@ private:
   @class Rotate_log_event
 
   This will be deprecated when we move to using sequence ids.
+  This class is a subclass of Rotate_event, defined in binlogapi, and is used
+  by the slave for updating the position in the relay log.
 
-  @section Rotate_log_event_binary_format Binary Format
+  It is used by the master inorder to write the rotate event in the binary log.
 
-  The Post-Header has one component:
+  The inheritance structure in the current design for the classess is
+  as follows:
 
-  <table>
-  <caption>Post-Header for Rotate_log_event</caption>
+                Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+           Rotate_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 Rotate_log_event
 
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>position</td>
-    <td>8 byte integer</td>
-    <td>The position within the binlog to rotate to.</td>
-  </tr>
-
-  </table>
-
-  The Body has one component:
-
-  <table>
-  <caption>Body for Rotate_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>new_log</td>
-    <td>variable length string without trailing zero, extending to the
-    end of the event (determined by the length field of the
-    Common-Header)
-    </td>
-    <td>Name of the binlog to rotate to.</td>
-  </tr>
-
-  </table>
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
 */
 
-class Rotate_log_event: public Log_event
+class Rotate_log_event: public Log_event, public Rotate_event
 {
 public:
-  enum {
-    DUP_NAME= 2, // if constructor should dup the string argument
-    RELAY_LOG=4  // rotate event for relay log
-  };
-  const char* new_log_ident;
-  ulonglong pos;
-  uint ident_len;
-  uint flags;
 #ifdef MYSQL_SERVER
   Rotate_log_event(const char* new_log_ident_arg,
 		   uint ident_len_arg,
@@ -2991,16 +2939,13 @@ public:
 #endif
 
   Rotate_log_event(const char* buf, uint event_len,
-                   const Format_description_log_event* description_event,
+                   const Format_description_event* description_event,
                    Log_event_header *header);
   ~Rotate_log_event()
-  {
-    if (flags & DUP_NAME)
-      my_free((void*) new_log_ident);
-  }
+  {}
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + Binary_log_event::ROTATE_HEADER_LEN;}
-  bool is_valid() const { return new_log_ident != 0; }
+  bool is_valid() const { return Rotate_event::is_valid(); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
