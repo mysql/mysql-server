@@ -54,7 +54,7 @@ BEGIN {
         $MYSQLDUMP = '@bindir@/mysqldump';
                                          #path to mysqldump executable
 
-        $MYSQLADMIN= 'http://foobar.com/MySQLadmin';
+        $MYSQLADMIN= 'http://example.com/MySQLadmin';
                                          #URL of CGI for manipulating
                                          #the temporary grant-tables
 }
