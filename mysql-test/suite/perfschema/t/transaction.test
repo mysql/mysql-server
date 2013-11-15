@@ -113,8 +113,8 @@ ROLLBACK;
 --echo
 --echo ## Expect 1 committed and 1 rolled back transaction
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED',   '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED',   '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
@@ -130,7 +130,7 @@ COMMIT;
 --echo
 --echo ## Expect 2 committed transactions
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 2);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 2);
 CALL clear_transaction_tables();
 
 --echo
@@ -168,10 +168,10 @@ SET binlog_format= @binlog_save;
 
 --echo
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', 'SERIALIZABLE', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', 'READ COMMITTED', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', 'READ UNCOMMITTED', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', 'SERIALIZABLE', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', 'READ COMMITTED', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', 'READ UNCOMMITTED', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
@@ -200,7 +200,7 @@ COMMIT;
 --echo
 --echo ## Expect 1 read only, committed transaction in events_transactions_history
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ ONLY', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ ONLY', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
@@ -244,7 +244,7 @@ INSERT INTO t1 VALUES (501, 'IMPLICIT START');
 --echo
 --echo ## Expect 1 active transaction in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --connection con1
 INSERT INTO t1 VALUES (502, 'IMPLICIT START');
@@ -253,8 +253,8 @@ COMMIT;
 --echo
 --echo ## Expect one committed transaction in events_transactions_current and history
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
@@ -271,8 +271,8 @@ INSERT INTO t1 VALUES (601, 'IMPLICIT COMMIT');
 --echo
 --echo ## Expect one active transaction in events_transactions_current, zero events in history
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', '', '', '', '', 'NO', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', '', '', '', '', '', 'NO', 0, 0, 0, 0);
 
 --connection con1
 INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
@@ -283,9 +283,9 @@ CREATE TABLE t2 (s1 INT, s2 VARCHAR(64)) ENGINE=INNODB;
 --echo
 --echo ## Expect 0 active transactions, 1 committed transaction
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 DROP TABLE test.t2;
 
@@ -302,7 +302,7 @@ XA START 'XA_CON1_001';
 --echo
 --echo ## Expect 1 active XA transaction, state ACTIVE
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'ACTIVE', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'ACTIVE', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --echo
 --echo # STEP 7.2 - XA END
@@ -314,7 +314,7 @@ XA END 'XA_CON1_001';
 --echo
 --echo ## Expect 1 active XA transaction, state IDLE
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'IDLE', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'IDLE', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --echo
 --echo #
@@ -326,7 +326,7 @@ XA PREPARE 'XA_CON1_001';
 --echo
 --echo ## Expect 1 active XA transaction, state PREPARED
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'PREPARED', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --echo
 --echo #
@@ -338,8 +338,8 @@ XA COMMIT 'XA_CON1_001';
 --echo
 --echo ## Expect 1 committed XA transaction, state COMMITTED in current and history
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 'XA_CON1_001', 'COMMITTED', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 'XA_CON1_001', 'COMMITTED', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 'XA_CON1_001', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 'XA_CON1_001', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 CALL clear_transaction_tables();
 
@@ -356,7 +356,7 @@ XA PREPARE 'XA_CON1_002';
 --echo
 --echo ## Expect 1 active XA transaction, state PREPARED
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_002', 'PREPARED', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_002', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --connection con1
 XA ROLLBACK 'XA_CON1_002';
@@ -364,8 +364,8 @@ XA ROLLBACK 'XA_CON1_002';
 --echo
 --echo ## Expect 1 XA transaction, state ROLLBACK ONLY in current and history
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
 --echo
@@ -393,7 +393,7 @@ INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 --echo
 --echo ## Expect 0 transactions in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '',  '','', '', '', '', '', 0, 0, 0, 0);
 
 --connection con1
 COMMIT;
@@ -401,7 +401,7 @@ COMMIT;
 --echo
 --echo ## Expect 0 transactions in events_transactions_history
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', '', '', '', '', '', '', 0, 0, 0, 0);
 
 --echo
 --echo #
@@ -416,7 +416,7 @@ INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 --echo
 --echo ## Expect 0 transactions in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', '', '', '', '', '', '', 0, 0, 0, 0);
 
 --echo
 --echo ## Now transactional. Transaction should be started.
@@ -426,7 +426,7 @@ INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
 --echo
 --echo ## Expect 1 transaction in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 ## Commit
 --echo
@@ -436,8 +436,8 @@ COMMIT;
 --echo
 --echo ## Expect 1 committed transaction in events_transactions_current and history
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
@@ -455,7 +455,7 @@ SAVEPOINT SVP001;
 --echo
 --echo ## Expect 1 active transaction with 1 savepoint
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 1, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 1, 0, 0, 1);
 
 --echo
 --echo #
@@ -479,7 +479,7 @@ ROLLBACK TO SVP002;
 --echo
 --echo ## Expect 1 active transaction with 3 savepoints, 1 rollback to savepoint
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 3, 1, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 0, 1);
 
 --echo
 --echo #
@@ -491,7 +491,7 @@ RELEASE SAVEPOINT SVP001;
 --echo
 --echo ## Expect 1 active transaction with 3 savepoints, 1 rollback to savepoint, 1 release savepoint
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
 
 --echo #
 --echo # STEP 9.5 - COMMIT
@@ -502,15 +502,63 @@ COMMIT;
 --echo
 --echo ## Expect 1 committed transaction with 3 savepoints, 1 rollback to savepoint, 1 release savepoint
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
 CALL clear_transaction_tables();
 
 --echo
 --echo ========================================================================
---echo # STEP 10 - MISCELLANY
+--echo # STEP 10 - GTIDs
 --echo ========================================================================
 --echo #
---echo # STEP 10.1 - TRUNCATE DURING ACTIVE TRANSACTION
+--echo # STEP 10.1 - GTID_NEXT 'AUTOMATIC'
+--echo #
+--connection con1
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+START TRANSACTION;
+INSERT INTO t1 VALUES (1010, 'INSERT 1010');
+COMMIT;
+--echo
+--echo ## Expect 1 committed transaction with GTID = 'AUTOMATIC'
+--connection default
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'AUTOMATIC', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL clear_transaction_tables();
+
+--echo #
+--echo # STEP 10.2 - GTID_NEXT = UUID:NUMBER
+--echo #
+--connection con1
+SET SESSION GTID_NEXT = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1';
+START TRANSACTION;
+INSERT INTO t1 VALUES (1020, 'INSERT 1020');
+COMMIT;
+--echo
+--echo ## Expect 1 committed transaction with GTID = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1'
+--connection default
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL clear_transaction_tables();
+
+--echo #
+--echo # STEP 10.3 - GTID_NEXT = UUID:NUMBER WITH ROLLBACK
+--echo #
+--connection con1
+SET SESSION GTID_NEXT = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:2';
+START TRANSACTION;
+INSERT INTO t1 VALUES (1030, 'INSERT 1030');
+ROLLBACK;
+# Reset
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+--echo
+--echo ## Expect 1 rolled back transaction with GTID = 'NULL'
+--connection default
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', 'NULL', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL clear_transaction_tables();
+
+--echo
+--echo ========================================================================
+--echo # STEP 11 - MISCELLANY
+--echo ========================================================================
+--echo #
+--echo # STEP 11.1 - TRUNCATE DURING ACTIVE TRANSACTION
 --echo #
 --echo
 --echo # Verify that truncating events_transactions_current during an active transaction
@@ -519,7 +567,7 @@ CALL clear_transaction_tables();
 --echo
 --connection con1
 START TRANSACTION;
-INSERT INTO t1 VALUES (1010, 'INSERT 1010');
+INSERT INTO t1 VALUES (1110, 'INSERT 1110');
 --connection default
 TRUNCATE performance_schema.events_transactions_current;
 --connection con1
@@ -527,18 +575,18 @@ TRUNCATE performance_schema.events_transactions_current;
 COMMIT;
 --echo
 START TRANSACTION;
-INSERT INTO t1 VALUES (1011, 'INSERT 1011');
+INSERT INTO t1 VALUES (1111, 'INSERT 1111');
 COMMIT;
 
 --echo
 --echo ## Expect 1 transaction for connection 1
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', '', '', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', '', '', '', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
 --echo
 --echo #
---echo # STEP 10.2 - DISABLE THREAD INSTRUMENTATION
+--echo # STEP 11.2 - DISABLE THREAD INSTRUMENTATION
 --echo #
 --connection default
 UPDATE performance_schema.setup_consumers
@@ -550,7 +598,7 @@ TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
 --connection con1
 --echo
 START TRANSACTION;
-INSERT INTO t1 VALUES (1020, 'INSERT 1020');
+INSERT INTO t1 VALUES (1120, 'INSERT 1120');
 COMMIT;
 
 --connection default
@@ -570,7 +618,7 @@ TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
 --connection default
 --echo
 START TRANSACTION;
-INSERT INTO t1 VALUES (1021, 'INSERT 1021');
+INSERT INTO t1 VALUES (1121, 'INSERT 1121');
 COMMIT;
 
 --connection default
@@ -588,7 +636,7 @@ CALL clear_history();
 
 --echo
 --echo #
---echo # STEP 10.3 - STATEMENT ROLLBACK - AUTOCOMMIT OFF - BINLOG FORMAT 'STATEMENT'
+--echo # STEP 11.3 - STATEMENT ROLLBACK - AUTOCOMMIT OFF - BINLOG FORMAT 'STATEMENT'
 --echo #
 --connection con1
 SET SESSION binlog_format = STATEMENT;
@@ -601,7 +649,7 @@ SET SESSION AUTOCOMMIT = 0;
 
 --echo
 START TRANSACTION;
-INSERT INTO t1 VALUES (1030, 'INSERT 1030');
+INSERT INTO t1 VALUES (1130, 'INSERT 1130');
 --echo
 --echo ## Expect binlog statement mode error
 --error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
@@ -615,14 +663,14 @@ SET SESSION AUTOCOMMIT = 1;
 --echo
 --echo ## Expect 1 committed transaction
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', '', '', 'NO', 0, 0, 0, 1);
 --echo
 DELETE FROM t1;
 CALL clear_history();
 
 --echo
 --echo #
---echo # STEP 10.4 - STATEMENT ROLLBACK - AUTOCOMMIT ON - BINLOG FORMAT 'STATEMENT'
+--echo # STEP 11.4 - STATEMENT ROLLBACK - AUTOCOMMIT ON - BINLOG FORMAT 'STATEMENT'
 --echo #
 --connection con1
 SET SESSION binlog_format = STATEMENT;
@@ -641,22 +689,22 @@ UPDATE t1, performance_schema.setup_instruments pfs
 --echo
 --echo ## Expect 1 rolled back transaction
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', '', '', 'YES', 0, 0, 0, 1);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', '', '', '', 'YES', 0, 0, 0, 1);
 CALL clear_history();
 
 --disable_parsing
 # TODO: Add wait timer 
 --echo
 --echo #
---echo # STEP 10.5 - DROPPED CONNECTION DURING TRANSACTION
+--echo # STEP 11.5 - DROPPED CONNECTION DURING TRANSACTION
 --echo #
 --connection con2
 START TRANSACTION;
-INSERT INTO t1 VALUES (1050, 'DROP CONNECTION');
+INSERT INTO t1 VALUES (1150, 'DROP CONNECTION');
 --echo
 --echo ## Expect 1 active transaction for connection 2
 --connection default
-CALL transaction_verifier(0, @con2_thread_id, 'transaction', 'ACTIVE', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con2_thread_id, 'transaction', 'ACTIVE', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 
 --echo
 --echo ## Drop connection
@@ -667,8 +715,8 @@ CALL transaction_verifier(0, @con2_thread_id, 'transaction', 'ACTIVE', '', '', '
 
 --echo
 --echo ## Expect 0 transactions for connection 2
-CALL transaction_verifier(0, @con2_thread_id, '', '', '', '', '', '', '', 0, 0, 0, 0);
-CALL transaction_verifier(1, @con2_thread_id, '', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con2_thread_id, '', '', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(1, @con2_thread_id, '', '', '', '', '', '', '', '', 0, 0, 0, 0);
 CALL clear_transaction_tables();
 
 --enable_parsing
