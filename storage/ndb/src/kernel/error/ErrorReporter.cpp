@@ -65,22 +65,18 @@ ndb_basename(const char * path)
   return p;
 }
 
+static
 const char*
-ErrorReporter::formatTimeStampString(){
+formatTimeStampString(char* theDateTimeString, size_t len){
   TimeModule DateTime;          /* To create "theDateTimeString" */
-  
-  static char theDateTimeString[39]; 
-  /* Used to store the generated timestamp */
-  /* ex: "Wednesday 18 September 2000 - 18:54:37" */
-
   DateTime.setTimeStamp();
   
-  BaseString::snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
+  BaseString::snprintf(theDateTimeString, len, "%s %d %s %d - %s:%s:%s",
 	   DateTime.getDayName(), DateTime.getDayOfMonth(),
 	   DateTime.getMonthName(), DateTime.getYear(), DateTime.getHour(),
 	   DateTime.getMinute(), DateTime.getSecond());
   
-  return (const char *)&theDateTimeString;
+  return theDateTimeString;
 }
 
 int
@@ -154,6 +150,9 @@ ErrorReporter::formatMessage(int thr_no,
     BaseString::snprintf(thrbuf, sizeof(thrbuf), " thr: %u", thr_no);
   }
 
+  char time_str[39];
+  formatTimeStampString(time_str, sizeof(time_str));
+
   BaseString::snprintf(messptr, MESSAGE_LENGTH,
                        "Time: %s\n"
                        "Status: %s\n"
@@ -165,7 +164,7 @@ ErrorReporter::formatMessage(int thr_no,
                        "Pid: %d%s\n"
                        "Version: %s\n"
                        "Trace: %s",
-                       formatTimeStampString() , 
+                       time_str,
                        exit_st_msg,
                        exit_msg, exit_cl_msg,
                        faultID, 
