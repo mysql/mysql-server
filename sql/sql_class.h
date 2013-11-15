@@ -3598,6 +3598,13 @@ public:
     gtids, owned_gtid.sidno==-1.
   */
   Gtid owned_gtid;
+
+  /**
+    For convenience, this contains the SID component of the GTID
+    stored in owned_gtid.
+  */
+  rpl_sid owned_sid;
+
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
     then this member variable contains the subset of those GTIDs that
@@ -3616,6 +3623,7 @@ public:
 #endif
     }
     owned_gtid.sidno= 0;
+    owned_sid.clear();
   }
 
   /**
