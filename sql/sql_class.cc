@@ -1390,6 +1390,7 @@ void THD::init(void)
 
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
+  owned_sid.clear();
 }
 
 
