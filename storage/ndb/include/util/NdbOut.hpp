@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,8 +114,6 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
 }
 extern "C"
 void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-extern "C"
-void vndbout_c(const char * fmt, va_list ap);
 
 class FilteredNdbOut : public NdbOut {
 public:
