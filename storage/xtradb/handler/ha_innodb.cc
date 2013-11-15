@@ -13473,8 +13473,8 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(use_stacktrace, srv_use_stacktrace,
-  PLUGIN_VAR_OPCMDARG,
-  "Print stacktrace on long semaphore wait (off by default)",
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Print stacktrace on long semaphore wait (off by default supported only on linux)",
   NULL, NULL, FALSE);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {

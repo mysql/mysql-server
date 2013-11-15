@@ -20,8 +20,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef os0stacktrace_h
 #define os0stacktrace_h
 
-#ifndef __WIN__
+#ifdef __linux__
+#if HAVE_EXECINFO_H
 #include <execinfo.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,5 +40,5 @@ os_stacktrace_print(
 	siginfo_t* info,     /*!< in: signal information */
 	void*      ucontext);/*!< in: signal context */
 
-#endif /* ! __WIN__ */
+#endif /*  __linux__ */
 #endif /* os0stacktrace.h */

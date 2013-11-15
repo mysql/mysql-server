@@ -19,9 +19,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0thread.h"
 
-#ifdef __linux__
+#if defined (__linux__) && HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS
 
+#if HAVE_EXECINFO_H
 #include <execinfo.h>
+#endif
+
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
