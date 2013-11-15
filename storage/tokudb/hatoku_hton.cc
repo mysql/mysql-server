@@ -1390,6 +1390,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) 
 #else
 static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     TABLE *table = tables->table;
 
@@ -1403,7 +1404,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_file_map_init(void *p) {
@@ -1534,6 +1535,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, Ite
 #else
 static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     TABLE *table = tables->table;
 
@@ -1550,7 +1552,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
 
     //3938: unlock the status flag lock
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_fractal_tree_info_init(void *p) {
@@ -1745,6 +1747,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
 #else
 static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     TABLE *table = tables->table;
 
@@ -1761,7 +1764,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
 
     //3938: unlock the status flag lock
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_fractal_tree_block_map_init(void *p) {
@@ -1890,6 +1893,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
 static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -1903,7 +1907,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_trx_init(void *p) {
@@ -1960,6 +1964,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, Item *cond
 #else
 static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -1973,7 +1978,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_lock_waits_init(void *p) {
@@ -2036,6 +2041,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
 static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
+    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -2049,7 +2055,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 static int tokudb_locks_init(void *p) {
