@@ -4771,8 +4771,14 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+#ifndef MCP_BUG17526814
+  /* Foreign keys are not supprted by ha_partition, waits for WL#148 */
+  if ((table->file->ht == partition_hton) &&
+      table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
+#else
   /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
   if (table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
+#endif
                            alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
