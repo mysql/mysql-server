@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
 ADD_EXECUTABLE(testRedo testRedo.cpp)
 ADD_EXECUTABLE(testUpgrade testUpgrade.cpp)
 ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp)
+ADD_EXECUTABLE(testDebugger testDebugger.cpp)
 ADD_EXECUTABLE(testFK testFK.cpp)
 
 SET(BINS create_all_tabs create_tab
@@ -88,6 +89,7 @@ SET(BINS create_all_tabs create_tab
   testIndexStat testRedo
   testUpgrade
   testAsynchMultiwait
+  testDebugger
   testFK)
 
 IF(MSVC)
