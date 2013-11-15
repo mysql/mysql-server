@@ -25,13 +25,11 @@ INCLUDE_DIRECTORIES(
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  # MCP_BUG16877045 ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
-                            PROPERTIES GENERATED 1) # MCP_BUG16877045
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
 IF(SSL_DEFINES)
@@ -175,7 +173,6 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc # MCP_BUG16877045
   ${MYSYS_LIBWRAP_SOURCE}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
@@ -343,16 +340,27 @@ ELSE()
     RENAME mysqld-debug)
 ENDIF()
 
-# MCP_BUG16877045 -->
+# Handle out-of-source build from source package with possibly broken 
+# bison. Copy bison output to from source to build directory, if not already 
+# there
+IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
+  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
+    IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
+      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc 
+        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc COPYONLY)
+      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
+        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h COPYONLY)
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
 )
-# MCP_BUG16877045 <--
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
