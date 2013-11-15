@@ -25,6 +25,9 @@
 #include "sql_error.h"
 #include "binlog.h"
 #include "log_event.h"
+#include <algorithm>
+using std::max;
+using std::min;
 
 /**
   The major logic of dump thread is implemented in this class. It sends
@@ -40,7 +43,8 @@ public:
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
-    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0)
+    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
+    m_half_buffer_size_req_counter(0)
   {}
 
   ~Binlog_sender() {}
@@ -91,7 +95,16 @@ private:
   char m_last_file_buf[FN_REFLEN];
   const char *m_last_file;
   my_off_t m_last_pos;
-
+  
+  /*
+    Needed to be able to evaluate if buffer needs to be resized (shrunk).
+  */
+  ushort m_half_buffer_size_req_counter;
+  const static ushort PACKET_SHRINK_COUNTER_THRESHOLD= 100;
+  const static uint PACKET_MINIMUM_SIZE= 4*1024 - 1; // 4KB
+  const static uint PACKET_GROW_FACTOR= 2;
+  const static float PACKET_SHRINK_FACTOR= 0.5;
+  
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.
@@ -256,8 +269,14 @@ private:
 
     @param[inout] packet  The buffer where a event will be stored.
     @param[in] flags      The flag used in reset_transmit hook.
+    @param[in] event_len  If the caller already knows the event length, then
+                          it can pass this value so that reset_transmit_packet
+                          already reallocates the buffer if needed. Otherwise,
+                          if event_len is 0, then the caller needs to extend
+                          the buffer itself.
   */
-  inline int reset_transmit_packet(String *packet, ushort flags);
+  inline int reset_transmit_packet(String *packet, ushort flags, 
+                                   uint32 event_len= 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -320,6 +339,58 @@ private:
   {
     strcpy(m_last_file_buf, log_file);
     m_last_file= m_last_file_buf;
+  }
+
+  inline void grow_packet(ulong cur_buffer_size, 
+                          ulong needed_buffer_size,
+                          String *packet)
+  {
+    /*
+      Grow the buffer if needed.
+    */
+    if (needed_buffer_size > cur_buffer_size)
+    {
+      ulong tentative_next_buffer_size= 
+        static_cast<ulong>(cur_buffer_size * PACKET_GROW_FACTOR);
+      
+      ulong new_buffer_size= min(
+              ALIGN_SIZE(max(tentative_next_buffer_size, needed_buffer_size)),
+              m_thd->variables.max_allowed_packet);
+      packet->realloc(new_buffer_size);
+    }
+  }
+
+  inline void shrink_packet(String *packet)
+  {
+    ulong cur_buffer_size= packet->alloced_length();
+    ulong buffer_used= packet->length();
+    uint32 new_buffer_size= ALIGN_SIZE(
+            static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR));
+
+    if (buffer_used < static_cast<ulong>(new_buffer_size))
+      this->m_half_buffer_size_req_counter ++;
+    else
+      this->m_half_buffer_size_req_counter= 0;
+
+    /* Check if we should shrink the buffer. */
+    if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
+    {
+      if (new_buffer_size >= PACKET_MINIMUM_SIZE &&
+          new_buffer_size != cur_buffer_size)
+      {
+        /* 
+         The last PACKET_SHRINK_COUNTER_THRESHOLD consecutive packets
+         required less than half of the current buffer size. Lets shrink
+         it to not waste memory.
+        */
+        packet->shrink(new_buffer_size);
+      }
+
+      /* Reset the counter. */
+      this->m_half_buffer_size_req_counter= 0;
+    }
+
+    DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
   }
 };
 

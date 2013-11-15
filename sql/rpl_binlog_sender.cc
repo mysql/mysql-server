@@ -37,6 +37,11 @@ void Binlog_sender::init()
   thd->current_linfo= &m_linfo;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+  /* Initialize the buffer only once. */
+  m_thd->packet.realloc(PACKET_MINIMUM_SIZE); // size of the buffer
+  DBUG_PRINT("info", ("Initial packet->alloced_length: %u", 
+                      m_thd->packet.alloced_length()));
+  
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
                         thd->thread_id, thd->server_id,
@@ -335,9 +340,18 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       */
       if (exclude_group_end_pos)
       {
-        if (unlikely(send_heartbeat_event(NULL, exclude_group_end_pos)))
+        /* Save a copy of the buffer content. */
+        String tmp;
+        tmp.copy(thd->packet);
+        tmp.length(thd->packet.length());
+        
+        if (unlikely(send_heartbeat_event(&thd->packet, exclude_group_end_pos)))
           DBUG_RETURN(1);
         exclude_group_end_pos= 0;
+        
+        /* Restore the copy back. */
+        thd->packet.copy(tmp);
+        thd->packet.length(tmp.length());
       }
 
       if (unlikely(send_packet(&thd->packet)))
@@ -569,14 +583,11 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
-  if (reset_transmit_packet(packet, 0))
+  if (reset_transmit_packet(packet, 0, event_len))
     DBUG_RETURN(1);
 
   uint32 event_offset= packet->length();
-
-  packet->realloc(event_len + event_offset);
   packet->length(event_len + event_offset);
-
   uchar *header= (uchar *)packet->ptr() + event_offset;
   uchar *rotate_header= header + LOG_EVENT_HEADER_LEN;
   /*
@@ -606,23 +617,37 @@ inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_le
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags)
+inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags, 
+                                                uint32 event_len)
 {
-  /* reserve and set default header */
-  packet->length(0);
-  /*
-    set() will free the original memory. It causes dump thread to free and
-    reallocate memory for each sending event. It consumes a little bit more CPU
-    resource. TODO: Use a shared send buffer to eliminate memory reallocating.
-  */
-  packet->set("\0", 1, &my_charset_bin);
+  DBUG_ENTER("Binlog_sender::reset_transmit_packet");
+  DBUG_ASSERT(packet);
+  DBUG_ASSERT(packet == &m_thd->packet);
+  DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u", 
+                      event_len, packet->alloced_length()));
+  DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
+  ulong cur_buffer_size= packet->alloced_length();
+  ulong needed_buffer_size=cur_buffer_size;
+  
+  packet->length(0);  // size of the string
+  packet->qs_append('\0');
 
+  /* reserve and set default header */
   if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, packet)))
   {
     set_unknow_error("Failed to run hook 'reserve_header'");
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+
+  needed_buffer_size= packet->length() + event_len;
+  
+  /* Resizes the buffer if needed. */
+  this->grow_packet(cur_buffer_size, needed_buffer_size, packet);
+  
+  DBUG_PRINT("info", ("packet->alloced_length: %u (after potential "
+                      "reallocation)", packet->alloced_length()));
+  
+  DBUG_RETURN(0);
 }
 
 int Binlog_sender::send_format_description_event(String *packet,
@@ -729,39 +754,33 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
 
   uint32 event_offset;
   String *packet= &m_thd->packet;
+  int error= 0;
 
-  if (reset_transmit_packet(packet, 0))
+  if ((error= Log_event::peek_event_length(event_len, log_cache)))
+    goto read_error;
+  
+  if (reset_transmit_packet(packet, 0, *event_len))
     DBUG_RETURN(1);
 
+  event_offset= packet->length();
+  *event_ptr= (uchar *)packet->ptr() + event_offset;
+  
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-
-  event_offset= packet->length();
-
-  int error= Log_event::read_log_event(log_cache, packet, NULL, checksum_alg);
-  if (error != 0)
-  {
-    /*
-      In theory, it should never happen. But RESET MASTER deletes binlog file
-      directly without checking if there is any dump thread working.
-    */
-    error= (error == LOG_READ_EOF) ? LOG_READ_IO : error;
-    set_fatal_error(log_read_error_msg(error));
-    DBUG_RETURN(1);
-  }
+  
+  /* 
+    packet is big enough to read the event, since we have reallocated based
+    on the length stated in the event header.
+  */
+  if ((error= Log_event::read_log_event(log_cache, packet, NULL, checksum_alg)))
+    goto read_error;
 
   set_last_pos(my_b_tell(log_cache));
-  /*
-    The pointer must be set after read_log_event(), cause packet->ptr() may has
-    been reallocated when reading the event.
-  */
-  *event_ptr= (uchar *)packet->ptr() + event_offset;
-  *event_len= packet->length() - event_offset;
-
+ 
   DBUG_PRINT("info",
              ("Read event %s",
               Log_event::get_type_str(Log_event_type
@@ -771,17 +790,21 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
     DBUG_RETURN(1);
 #endif
   DBUG_RETURN(0);
+read_error:
+  /*
+    In theory, it should never happen. But RESET MASTER deletes binlog file
+    directly without checking if there is any dump thread working.
+  */
+  error= (error == LOG_READ_EOF) ? LOG_READ_IO : error;
+  set_fatal_error(log_read_error_msg(error));
+  DBUG_RETURN(1);      
 }
 
 int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
 {
   DBUG_ENTER("send_heartbeat_event");
-  String tmp;
+  DBUG_ASSERT(packet);
   const char* filename= m_linfo.log_file_name;
-
-  if (packet == NULL)
-    packet= &tmp;
-
   const char* p= filename + dirname_length(filename);
   uint32 ident_len= (uint32) strlen(p);
   uint32 event_len= ident_len + LOG_EVENT_HEADER_LEN +
@@ -789,14 +812,11 @@ int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
 
-  if (reset_transmit_packet(packet, 0))
+  if (reset_transmit_packet(packet, 0, event_len))
     DBUG_RETURN(1);
 
   uint32 event_offset= packet->length();
-
-  packet->realloc(event_len + event_offset);
   packet->length(event_len + event_offset);
-
   uchar *header= (uchar *)packet->ptr() + event_offset;
 
   /* Timestamp field */
@@ -826,6 +846,9 @@ inline int Binlog_sender::flush_net()
 
 inline int Binlog_sender::send_packet(String *packet)
 {
+  // We should always use the same buffer to guarantee that the reallocation
+  // logic is not broken.
+  DBUG_ASSERT(packet == &m_thd->packet);
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
                        my_net_write(&m_thd->net, (uchar*) packet->ptr(),
                                     packet->length())))
@@ -833,6 +856,10 @@ inline int Binlog_sender::send_packet(String *packet)
     set_unknow_error("Failed on my_net_write()");
     return 1;
   }
+
+  /* Shrink the packet if needed. */
+  shrink_packet(packet);
+
   return 0;
 }
 
