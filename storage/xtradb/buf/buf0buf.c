@@ -1823,6 +1823,7 @@ buf_page_make_young(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	ut_a(buf_page_in_file(bpage));
@@ -1976,6 +1977,7 @@ buf_page_get_zip(
 	ib_uint64_t	start_time;
 	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ibool have_LRU_mutex = FALSE;
 
 	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
 		trx = innobase_get_trx();
@@ -2041,24 +2043,28 @@ err_exit:
 		goto got_block;
 	case BUF_BLOCK_FILE_PAGE:
 	{
-		ibool have_LRU_mutex = FALSE;
 		ut_a(block_mutex == &((buf_block_t*) bpage)->mutex);
 
 		/* release mutex to obey to latch-order */
 		mutex_exit(block_mutex);
 
 		/* get LRU_list_mutex for buf_LRU_free_block() */
-		mutex_enter(&buf_pool->LRU_list_mutex);
+		if (!have_LRU_mutex) {
+			mutex_enter(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = TRUE;
+		}
+
 		mutex_enter(block_mutex);
-		have_LRU_mutex = TRUE;
 
 		if (UNIV_UNLIKELY(bpage->space != space
 				  || bpage->offset != offset
 				  || !bpage->in_LRU_list
 				  || !bpage->zip.data)) {
 			/* someone should interrupt, retry */
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
+			if (have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
+			}
 			mutex_exit(block_mutex);
 			goto lookup;
 		}
@@ -2067,6 +2073,7 @@ err_exit:
 		if (buf_LRU_free_block(bpage, FALSE, &have_LRU_mutex)) {
 			if (have_LRU_mutex) {
 				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
 			}
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -2074,6 +2081,7 @@ err_exit:
 
 		if (have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
 		}
 
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
@@ -2458,6 +2466,7 @@ buf_page_get_gen(
 	ib_uint64_t	start_time;
 	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ibool           have_LRU_mutex = FALSE;
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -2558,6 +2567,13 @@ loop2:
 		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
 			return(NULL);
+		}
+
+		/* We should not hold LRU mutex below when trying
+		to read the page */
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
 		}
 
 		if (buf_read_page(space, zip_size, offset, trx)) {
@@ -2675,7 +2691,11 @@ wait_until_unfixed:
 		block_mutex = &block->mutex;
 
 		//buf_pool_mutex_enter(buf_pool);
-		mutex_enter(&buf_pool->LRU_list_mutex);
+		if (!have_LRU_mutex) {
+			mutex_enter(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = TRUE;
+		}
+
 		rw_lock_x_lock(&buf_pool->page_hash_latch);
 		mutex_enter(block_mutex);
 
@@ -2699,7 +2719,12 @@ wait_until_unfixed:
 					ut_a(block_mutex);
 				}
 				rw_lock_x_unlock(&buf_pool->page_hash_latch);
-				mutex_exit(&buf_pool->LRU_list_mutex);
+
+				if (have_LRU_mutex) {
+					mutex_exit(&buf_pool->LRU_list_mutex);
+					have_LRU_mutex = FALSE;
+				}
+
 				goto loop2;
 			}
 		}
@@ -2720,7 +2745,12 @@ wait_until_unfixed:
 			//mutex_exit(&block->mutex);
 
 			rw_lock_x_unlock(&buf_pool->page_hash_latch);
-			mutex_exit(&buf_pool->LRU_list_mutex);
+
+			if (have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
+			}
+
 			goto wait_until_unfixed;
 		}
 
@@ -2758,7 +2788,10 @@ wait_until_unfixed:
 		/* Insert at the front of unzip_LRU list */
 		buf_unzip_LRU_add_block(block, FALSE);
 
-		mutex_exit(&buf_pool->LRU_list_mutex);
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
+		}
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
@@ -2831,7 +2864,6 @@ wait_until_unfixed:
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer (change buffer) as much as possible. */
 		ulint	page_no	= buf_block_get_page_no(block);
-		ibool   have_LRU_mutex = FALSE;
 
 		if (buf_LRU_free_block(&block->page, TRUE, &have_LRU_mutex)) {
 			mutex_exit(block_mutex);
@@ -2870,12 +2902,21 @@ wait_until_unfixed:
 				block = NULL;
 				goto loop2;
 
-		} else if (buf_flush_page_try(buf_pool, block)) {
-			fprintf(stderr,
-				"innodb_change_buffering_debug flush %u %u\n",
-				(unsigned) space, (unsigned) offset);
-			guess = block;
-			goto loop;
+		} else {
+			/* We should not hold LRU mutex below when trying
+			to flush page */
+			if (have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
+			}
+
+			if (buf_flush_page_try(buf_pool, block)) {
+				fprintf(stderr,
+					"innodb_change_buffering_debug flush %u %u\n",
+					(unsigned) space, (unsigned) offset);
+				guess = block;
+				goto loop;
+			}
 		}
 
 		/* Failed to evict the page; change it directly */
@@ -3472,6 +3513,7 @@ buf_page_init_for_read(
 	fold = buf_page_address_fold(space, offset);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
@@ -3690,6 +3732,7 @@ buf_page_create(
 	fold = buf_page_address_fold(space, offset);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
@@ -3830,6 +3873,7 @@ buf_mark_space_corrupt(
 
 	/* First unfix and release lock on the bpage */
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 	mutex_enter(buf_page_get_mutex(bpage));
@@ -4068,11 +4112,12 @@ corrupt:
 		buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)) {
-		have_LRU_mutex = TRUE; /* optimistic */
 	}
 retry_mutex:
-	if (have_LRU_mutex)
+	if (!have_LRU_mutex) {
 		mutex_enter(&buf_pool->LRU_list_mutex);
+		have_LRU_mutex = TRUE;
+	}
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
 	if (io_type == BUF_IO_WRITE
@@ -4085,7 +4130,6 @@ retry_mutex:
 			  && !have_LRU_mutex) {
 
 		mutex_exit(block_mutex);
-		have_LRU_mutex = TRUE;
 		goto retry_mutex;
 	}
 	buf_pool_mutex_enter(buf_pool);
@@ -4111,6 +4155,11 @@ retry_mutex:
 		the x-latch to this OS thread: do not let this confuse you in
 		debugging! */
 
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
+		}
+
 		ut_a(!have_LRU_mutex);
 		ut_ad(buf_pool->n_pend_reads > 0);
 		buf_pool->n_pend_reads--;
@@ -4129,8 +4178,10 @@ retry_mutex:
 
 		buf_flush_write_complete(bpage);
 
-		if (have_LRU_mutex)
+		if (have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
+		}
 
 		if (uncompressed) {
 			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
@@ -4205,6 +4256,7 @@ buf_all_freed_instance(
 	ut_ad(buf_pool);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
@@ -4274,6 +4326,7 @@ buf_pool_invalidate_instance(
 	}
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
@@ -4331,6 +4384,7 @@ buf_pool_validate_instance(
 	ut_ad(buf_pool);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 	/* for keep the new latch order, it cannot validate correctly... */
@@ -4596,6 +4650,7 @@ buf_print_instance(
 	counts = mem_alloc(sizeof(ulint) * size);
 
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	mutex_enter(&buf_pool->free_list_mutex);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -4955,6 +5010,7 @@ buf_stats_get_pool_info(
 	/* Find appropriate pool_info to store stats for this buffer pool */
 	pool_info = &all_pool_info[pool_id];
 
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	mutex_enter(&buf_pool->free_list_mutex);
 	buf_pool_mutex_enter(buf_pool);

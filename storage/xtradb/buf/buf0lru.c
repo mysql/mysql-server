@@ -294,6 +294,8 @@ buf_LRU_drop_page_hash_for_tablespace(
 		sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE);
 
 	//buf_pool_mutex_enter(buf_pool);
+
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	num_entries = 0;
 
@@ -362,6 +364,7 @@ next_page:
 		num_entries = 0;
 
 		//buf_pool_mutex_enter(buf_pool);
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		/* Note that we released the buf_pool mutex above
@@ -438,6 +441,7 @@ buf_flush_yield(
 	/* Try and force a context switch. */
 	os_thread_yield();
 
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	mutex_enter(block_mutex);
@@ -690,6 +694,7 @@ buf_flush_dirty_pages(
 	ibool	all_freed;
 
 	do {
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		all_freed = buf_flush_or_remove_pages(buf_pool, id);
@@ -720,6 +725,7 @@ buf_LRU_remove_all_pages(
 
 scan_again:
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
@@ -1087,6 +1093,7 @@ buf_LRU_search_and_free_block(
 
 	//buf_pool_mutex_enter(buf_pool);
 	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)) {
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		have_LRU_mutex = TRUE;
 	}
@@ -1169,6 +1176,7 @@ buf_LRU_buf_pool_running_out(void)
 		buf_pool = buf_pool_from_array(i);
 
 		//buf_pool_mutex_enter(buf_pool);
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		mutex_enter(&buf_pool->free_list_mutex);
 
@@ -2095,9 +2103,9 @@ not_freed:
 		}
 
 		//buf_pool_mutex_enter(buf_pool);
-		if (*have_LRU_mutex) {
+		if (!*have_LRU_mutex) {
 			mutex_enter(&buf_pool->LRU_list_mutex);
-			*have_LRU_mutex = FALSE;
+			*have_LRU_mutex = TRUE;
 		}
 		mutex_enter(block_mutex);
 
@@ -2108,6 +2116,12 @@ not_freed:
 		}
 
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage, FALSE);
+
+		if (*have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			*have_LRU_mutex = FALSE;
+		}
+
 	} else {
 		/* The block_mutex should have been released by
 		buf_LRU_block_remove_hashed_page() when it returns
@@ -2488,6 +2502,7 @@ buf_LRU_old_ratio_update_instance(
 
 	if (adjust) {
 		//buf_pool_mutex_enter(buf_pool);
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		if (ratio != buf_pool->LRU_old_ratio) {
@@ -2661,6 +2676,7 @@ buf_LRU_file_dump(void)
 
 		buf_pool = buf_pool_from_array(i);
 
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		bpage = first_bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 		total_pages = UT_LIST_GET_LEN(buf_pool->LRU);
@@ -2717,6 +2733,7 @@ buf_LRU_file_dump(void)
 
 				/* Grab this here so that next_bpage can't
 				   be purged when we drop the fix_count */
+				ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 				mutex_enter(&buf_pool->LRU_list_mutex);
 
 				if (next_bpage) {
@@ -2968,6 +2985,7 @@ buf_LRU_validate_instance(
 
 	ut_ad(buf_pool);
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
@@ -3043,6 +3061,7 @@ buf_LRU_validate_instance(
 	}
 
 	mutex_exit(&buf_pool->free_list_mutex);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
@@ -3096,6 +3115,7 @@ buf_LRU_print_instance(
 
 	ut_ad(buf_pool);
 	//buf_pool_mutex_enter(buf_pool);
+	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
