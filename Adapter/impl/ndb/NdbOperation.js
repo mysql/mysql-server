@@ -26,6 +26,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     getIndexBounds = require("../common/IndexBounds.js").getIndexBounds,
+    markQuery     = require("../common/IndexBounds.js").markQuery,
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -264,9 +265,9 @@ BoundHelperSpec.prototype.buildPartialSpec = function(isLow, bound,
                                                       dbIndexHandler, buffer) {
   var base, nparts;
   base = isLow ? BoundHelper.low_key : BoundHelper.high_key;
-  nparts = countFiniteKeyParts(bound.key);
+  nparts = countFiniteKeyParts(bound.value.parts);
   if(nparts) {
-    this[base    ] = encodeBounds(bound.key, nparts, dbIndexHandler, buffer);
+    this[base    ] = encodeBounds(bound.value, nparts, dbIndexHandler, buffer);
     this[base + 1] = nparts;
     this[base + 2] = bound.inclusive;
   }
@@ -281,7 +282,7 @@ BoundHelperSpec.prototype.setHigh = function(bound, dbIndexHandler, buffer) {
 };
 
 
-/* Takes an array of IndexBounds;
+/* Takes a NumberLine containing IndexValues;
    Returns an array of BoundHelpers which will be used to build NdbIndexBounds.
    Builds a buffer of encoded parameters used in index bounds and 
    stores a reference to it in op.scan.
@@ -290,14 +291,14 @@ DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
   var dbIndexHandler, bound, sz, n, helper, allHelpers, mainBuffer, offset, i;
   dbIndexHandler = this.indexHandler;
   sz = dbIndexHandler.dbIndex.record.getBufferSize();
-  n  = indexBounds.length;
+  n  = indexBounds.countSegments();
   if(sz && n) {
     allHelpers = [];
     mainBuffer = new Buffer(sz * n * 2);
     offset = 0;
     this.scan.bound_param_buffer = mainBuffer; // maintain a reference!
     for(i = 0 ; i < n ; i++) {
-      bound = indexBounds[i];
+      bound = indexBounds.getSegment(i);
       helper = new BoundHelperSpec();
       helper.setLow(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
       offset += sz;
@@ -587,7 +588,8 @@ function getScanResults(scanop, userCallback) {
       /* Now remove the rows that should have been skipped 
          (fixme: do something more efficient) */
       for(i = 0 ; i < nSkip ; i++) results.shift();
-    
+ 
+      /* TODO: NdbScanOperation::close() ??? */
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
@@ -786,6 +788,9 @@ function newScanOperation(tx, QueryTree, properties) {
                            queryHandler.dbIndexHandler, 
                            queryHandler.dbTableHandler);
   prepareFilterSpec(queryHandler);
+  if(queryHandler.dbIndexHandler) {
+    markQuery(queryHandler);
+  }
   op.query = queryHandler;
   op.params = properties;
   return op;

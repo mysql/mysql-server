@@ -47,7 +47,7 @@ var udebug             = unified_debug.getLogger("IndexBounds.js");
    Of course -Infinity and +Infinity don't really represent infinite values,
    only the lowest and highest values of the index.  NULLs sort low, so
    -Infinity is equivalent to NULL, and "age IS NOT NULL" is expressed 
-   as "age > NULL".
+   as "age > -Infinity".
 
    The end result is that a predicate tree, evaluated with regard to an 
    index column, is transformed into the set of ranges (segments) of the index
@@ -67,55 +67,156 @@ var udebug             = unified_debug.getLogger("IndexBounds.js");
    MySQL collation rules.  So, we introduce the concept of an EncodedValue,
    for values that JavaScript cannot compare and whose comparison is delegated 
    elsewhere.
-   
-   EncodedValue.compare(otherValue) should return -1, 0, or +1 according to 
-   whether the stored value compares less, equal, or greater than otherValue.
 */
-
-//////// EncodedValue             /////////////////
-
-function EncodedValue() {
-}
-
-EncodedValue.prototype = {
-  isEncodedValue : true,
-  compare : function(that) {
-    //.. console.log("EncodedValue must implement compare()");
-    process.exit();
-  }
-};
-
 
 /* Utility functions 
 */
 function blah() {
   console.log("BLAH");
   console.log.apply(null, arguments);
+  console.trace();
   process.exit();
 }
 
-function isBoolean(x) {
-  return (typeof x === 'boolean');
+
+//////// EncodedValue             /////////////////
+
+/*
+  EncodedValue.compare(otherValue) should return -1, 0, or +1 according to 
+  whether the stored value compares less, equal, or greater than otherValue.
+  We don't implement compare() here.
+*/
+function EncodedValue() {
 }
+
+EncodedValue.prototype = {
+  isNonSimple    : true,
+  isEncodedValue : true,  
+  inspect : function() { return "<ENCODED>"; },
+  compare : function() { blah("EncodedValue must implement compare()"); }
+};
+
+
+/* compareValues() takes two values which are either JS Values or EncodedValues.
+   Returns -1, 0, or +1 as the first is less, equal to, or greater than the 
+   second.
+*/
+function compareValues(a, b) {
+  var cmp;
+  
+  /* First compare to infinity */
+  if(a == -Infinity || b == Infinity) {
+    return -1;
+  }
+
+  if(a == Infinity || b == -Infinity) {
+    return 1;
+  }
+
+  if(typeof a === 'object' && a.isEncodedValue) {
+    cmp = a.compare(b);
+  }
+  else {
+    /* Compare JavaScript values */
+    if(a == b) cmp = 0;
+    else if (a < b) cmp = -1;
+    else cmp = 1;
+  }
+
+  return cmp;
+}
+
+
+//////// IndexValue             /////////////////
+
+/* IndexValue represents the multi-part value of an index.
+   It is implemented as an array where each member is either a JS value or an
+   EncodedValue.  Like other values, it can be used in endpoints and
+   segments.
+*/
+
+function IndexValue() {
+  this.size = 0;
+  this.parts = [];
+}
+
+IndexValue.prototype = {
+  isNonSimple      : true,
+  isIndexValue     : true
+};
+
+IndexValue.prototype.push = function(v) {
+  this.size++;
+  this.parts.push(v);
+};
+
+IndexValue.prototype.copy = function() {
+  var that = new IndexValue();
+  that.size = this.size;
+  that.parts = this.parts.slice();
+  return that;
+};
+
+IndexValue.prototype.compare = function(that) {
+  var n, len, cmp, v1, v2;
+  
+  assert(that.isIndexValue);
+  len = this.size < that.size ? this.size : that.size;
+  
+  for(n = 0 ; n < len ; n++) {
+    v1 = this.parts[n];
+    v2 = that.parts[n];
+    cmp = compareValues(v1, v2);
+    if(cmp != 0) {
+      return cmp;
+    }
+  }
+  return 0; 
+};
+
+IndexValue.prototype.isFinite = function() {
+  var v;
+  if(this.size == 0) return false;
+  v = this.parts[this.size - 1];
+  return (typeof v === 'number') ?  isFinite(v) : true;
+};
+
+IndexValue.prototype.inspect = function() {
+  var i, result = "";
+  for(i = 0 ; i < this.size ; i++) {
+    if(i) result += ",";
+    result += this.parts[i];
+  }
+  return result;
+};
 
 
 //////// Endpoint                  /////////////////
 
-/* An Endpoint holds a value (either EncodedValue or plain JavaScript value), 
-   and, as the endpoint of a range of values, is either inclusive of the point 
-   value itself or not.  "inclusive" defaults to true.
+/* An Endpoint holds a value (plain JavaScript value, EncodedValue, 
+   or IndexValue), and, as the endpoint of a range of values, is either 
+   inclusive of the point value itself or not.  "inclusive" defaults to true.
 */
 function Endpoint(value, inclusive) {
   this.value = value;
   this.inclusive = (inclusive === false) ? false : true;
-  this.isFinite = (typeof value === 'number') ? isFinite(value) : true;
+  if(value.isIndexValue) {
+    this.isFinite = value.isFinite();
+  }
+  else {
+    this.isFinite = (typeof value === 'number') ? isFinite(value) : true;
+  }
 }
 
 Endpoint.prototype.isEndpoint = true;
 
+Endpoint.prototype.copy = function() {
+  return new Endpoint(this.value, this.inclusive);
+};
+
 Endpoint.prototype.asString = function(close) {
   var s = "";
-  var value = this.value.isEncodedValue ? "<ENCODED>" : this.value;
+  var value = util.inspect(this.value);
   if(close) {
     s += value;
     s += (this.inclusive ? "]" : ")");
@@ -133,35 +234,22 @@ Endpoint.prototype.asString = function(close) {
      +1 if this point's value is greater than the other's
      true if the values are equal and both points are inclusive
      false if the values are equal and either point is exclusive
-   Caller is encouraged to test the return value with isBoolean().
 */
 Endpoint.prototype.compare = function(that) {
-  assert(that.isEndpoint);
   var cmp;
-
-  /* First compare to infinity */
-  if(this.value == -Infinity || that.value == Infinity) {
-    return -1;
-  }
-
-  if(this.value == Infinity || that.value == -Infinity) {
-    return 1;
-  }
-
-  if(typeof this.value === 'object' && this.value.isEncodedValue) {
-    cmp = this.value.compare(that);
+  assert(that.isEndpoint);
+ 
+  if(this.value.isNonSimple) {
+    cmp = this.value.compare(that.value);
   }
   else {
-    /* Compare JavaScript values */
-    if(this.value == that.value) cmp = 0;
-    else if (this.value < that.value) cmp = -1;
-    else cmp = 1;
+    cmp = compareValues(this.value, that.value);
   }
 
   return (cmp === 0) ? (this.inclusive && that.inclusive) : cmp;
 };
 
-/* complement flips Endpoint between inclusive and exclusive
+/* complement flips Endpoint between inclusive and exclusive.
    Used in complementing number lines.
    e.g. the complement of [4,10] is [-Inf, 4) and (10, Inf]
 */
@@ -170,10 +258,48 @@ Endpoint.prototype.complement = function() {
     this.inclusive = ! this.inclusive;
 };
 
+/* push() is used only for endpoints that contain IndexValues
+*/
+Endpoint.prototype.push = function(e) { 
+  this.value.push(e.value);
+  this.isFinite = e.isFinite;
+  this.inclusive = e.inclusive;
+};
+
 /* Create (non-inclusive) endpoints for negative and positive infinity.
 */
 var negInf = new Endpoint(-Infinity);
 var posInf = new Endpoint(Infinity);
+
+
+/* Functions to compare two endpoints and return one
+*/
+function pointGreater(e1, e2, preferInclusive) {
+  switch(e1.compare(e2)) {
+    case -1: 
+      return e2;
+    case +1:
+      return e1;
+    case true:
+      return e1;
+    case false:
+      return (e1.inclusive === preferInclusive) ? e1 : e2;
+  }
+}
+
+function pointLesser(e1, e2, preferInclusive) {
+  switch(e1.compare(e2)) {
+    case -1: 
+      return e1;
+    case +1:
+      return e2;
+    case true:
+      return e1;
+    case false:
+      return (e1.inclusive === preferInclusive) ? e1 : e2;
+  }
+}
+
 
 //////// Segment                   /////////////////
 
@@ -194,10 +320,14 @@ function Segment(point1, point2) {
 
 Segment.prototype.isSegment = true;
 
-Segment.prototype.asString = function() {
-  var s = "";
-  s += this.low.asString(0) + "," + this.high.asString(1);
+Segment.prototype.inspect = function() {
+  var s = "{";
+  s += this.low.asString(0) + " -- " + this.high.asString(1) + "}";
   return s;
+};
+
+Segment.prototype.copy = function() {
+  return new Segment(this.low.copy(), this.high.copy());
 };
 
 Segment.prototype.contains = function(point) {
@@ -216,7 +346,7 @@ Segment.prototype.intersects = function(that) {
           || that.contains(this.low) || that.contains(this.high));
 };
 
-/* compare() returns 0 if segments intersect.  Otherwise like Endpoint.compare()
+/* compare() returns 0 if segments intersect; otherwise like Endpoint.compare()
 */
 Segment.prototype.compare = function(that) {  
   var r = 0; 
@@ -228,33 +358,14 @@ Segment.prototype.compare = function(that) {
 };
 
 /* intersection: greatest lower bound & least upper bound 
-   TODO:  GREATER AND LOWER FUNCTIONS THAT TAKE TWO ENDPOINTS */
-
+*/
 Segment.prototype.intersection = function(that) {
-  var s = null;
-  var lp, hp, lcmp, hcmp;
+  var lp, hp, s;
+  s = null;
   assert(that.isSegment);
   if(this.intersects(that)) {
-    lcmp = this.low.compare(that.low);
-    hcmp = this.high.compare(that.high);
-    if(lcmp === false) {  /* Values are equal but one is exclusive. */
-      lp = new Endpoint(this.low.value, false);
-    }
-    else if(lcmp === 1) {
-      lp = this.low;
-    }
-    else {
-      lp = that.low;
-    }
-    if(hcmp === false) {  /* Values are equal but one is exclusive. */
-      hp = new Endpoint(this.high.value, false);      
-    }
-    else if(hcmp === 1) {
-      hp = this.high;
-    }
-    else { 
-      hp = that.high;
-    }
+    lp = pointGreater(this.low, that.low, false);
+    hp = pointLesser(this.high, that.high, false);
     s = new Segment(lp, hp);
   }
   return s;
@@ -266,8 +377,8 @@ Segment.prototype.span = function(that) {
   var s = null;
   var lp, hp;
   if(this.intersects(that)) {
-    lp = (this.low.compare(that.low) == -1) ? this.low : that.low;
-    hp = (this.high.compare(that.high) == 1) ? this.high : that.high;
+    lp = pointLesser(this.low, that.low, true);
+    hp = pointGreater(this.high, that.high, true);
     s = new Segment(lp, hp);
   }
   return s;
@@ -290,7 +401,6 @@ Segment.prototype.getIterator = function() {
   return new SegmentIterator(this);
 };
 
-
 /* Create a segment between two points (inclusively) 
 */
 function createSegmentBetween(a, b) {
@@ -302,10 +412,7 @@ function createSegmentBetween(a, b) {
 /* Create a segment for a comparison expression */
 function createSegmentForComparator(operator, value) {
   var pt, segment;
-  /* OperationCodes, from api/Query.js:
-     LE: 0, LT: 1, GE: 2, GT: 3, EQ: 4, NE: 5 
-  */
-  switch(operator) {
+  switch(operator) {   // operation codes are from api/Query.js
     case 0:   // LE
       return new Segment(negInf, new Endpoint(value, true));
     case 1:   // LT 
@@ -315,14 +422,22 @@ function createSegmentForComparator(operator, value) {
     case 3:   // GT
       return new Segment(new Endpoint(value, false), posInf);
     case 4:   // EQ
-    case 5:   // NE   /* DONT SHARE CODE */
       pt = new Endpoint(value);
       segment = new Segment(pt, pt);
-      return (operator == 5 ? segment.complement() : segment);
+      return segment;      
+    case 5:   // NE 
+      pt = new Endpoint(value);
+      segment = new Segment(pt, pt);
+      return segment.complement();
     default:
       return null;
   }
 }
+
+/* A segment from -Inf to +Inf
+*/
+var boundingSegment = new Segment(negInf, posInf);
+
 
 //////// NumberLine                 /////////////////
 
@@ -342,7 +457,7 @@ function NumberLine() {
 
 NumberLine.prototype.isNumberLine = true;
 
-NumberLine.prototype.asString = function() {
+NumberLine.prototype.inspect = function() {
   var i, close;  
   var list = this.transitions;
   var str = "";
@@ -376,6 +491,14 @@ NumberLine.prototype.lowerBound = function() {
   return this.transitions[0];
 };
 
+NumberLine.prototype.countSegments = function() {
+  return this.transitions.length / 2;
+};
+
+NumberLine.prototype.getSegment = function(i) {
+  var n = i * 2;
+  return new Segment(this.transitions[n], this.transitions[n+1]);
+};
 
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
 */
@@ -410,6 +533,7 @@ NumberLine.prototype.getIterator = function() {
   return new NumberLineIterator(this);
 };
 
+
 /* Complement of a number line (Negation of an expression)
 */
 NumberLine.prototype.complement = function() {
@@ -433,7 +557,6 @@ NumberLine.prototype.complement = function() {
 
   return this;
 };
-
 
 /* Insert a segment into a number line.
    Assume as a given that the segment does not intersect any existing one.
@@ -536,108 +659,177 @@ Segment.prototype.complement = function() {
 };
 
 
-/****************************************** ColumnBoundVisitor ************
- *
- * Given a set of actual parameter values, 
- * calculate the bounding interval for a column
- */
-function ColumnBoundVisitor(indexName, column, idxPartNo, params) {
-  this.ixName = indexName;
-  this.column = column;
-  this.id     = idxPartNo;
-  this.params = params;
-  this.boundingSegment = new Segment(negInf, posInf);
+/* Returns the columnBound already stored in the node,
+   or the boundingSegment.
+*/
+function evaluateNodeForColumn(node, columnNumber) {
+  var segment = node.columnBound[columnNumber];
+  if(typeof segment === 'undefined') {
+    segment = boundingSegment;
+  }
+  return segment;
 }
 
-/** Store the index bounds inside the query node */
-ColumnBoundVisitor.prototype.storeRange = function(node, bounds) {
-  if(node.indexRanges === undefined) {
-    node.indexRanges = {};
-  }
-  if(node.indexRanges[this.ixName] === undefined) {
-    node.indexRanges[this.ixName] = [];
-  }
-  node.indexRanges[this.ixName][this.id] = bounds;
-};
-
-/** Fetch index bounds stored in a query node */
-ColumnBoundVisitor.prototype.fetchRange = function(node) {
-  return node.indexRanges[this.ixName][this.id];
-};
-
-
-/** Handle nodes QueryAnd, QueryOr 
-    OperationCode = 1 for AND, 2 for OR
+/* Returns a NumberLine 
 */
+function intersectionForColumn(predicates, columnNumber) {
+  var i, line;
+  line = new NumberLine().setAll();
+
+  for(i = 0 ; i < predicates.length ; i++) {
+    line.intersection(evaluateNodeForColumn(predicates[i], columnNumber));
+  }
+  return line;
+}
+
+/* Returns a NumberLine
+*/
+function unionForColumn(predicates, columnNumber) { 
+  var i, line;
+  line = new NumberLine();
+  
+  for(i = 0 ; i < predicates.length ; i++) {
+    line.union(evaluateNodeForColumn(predicates[i], columnNumber));
+  }
+  return line;
+}
+
+/******** This is a map operationCode => function 
+*/
+var queryNaryFunctions = [ null , intersectionForColumn , unionForColumn ] ;
+
+
+/* Returns an array containing the column numbers of used columns
+*/
+function maskToArray(mask) {
+  var i, columns;
+  i = 0;
+  columns = [];
+  
+  while(mask != 0) {
+    if(mask & Math.pow(2,i)) {
+      mask ^= Math.pow(2,i);
+      columns.push(i);
+    }
+    i++;
+  }
+  return columns;
+}
+
+/* Create a mask from a list of column numbers
+*/
+function arrayToMask(list) {
+  var c, mask;
+  mask = 0;
+  while(list.length) {  
+    c = list.pop();
+    mask |= Math.pow(2, c);    
+  }
+  return mask;
+}
+
+/****************************************** QueryMarkerVisitor ************
+ * Mark the query with a column mask indicating the columns used
+ * for every node.
+ * Note: JavaScript numbers get weird above about 2^51.  So the columnMask 
+ * code does not support the case where a table has more than about 50 columns,
+ * and high-numbered columns are used in the query.
+ */
+function QueryMarkerVisitor() {
+}
+
+function markComparator(node) {
+  node.columnMask = Math.pow(2, node.queryField.field.columnNumber);
+}
+
+QueryMarkerVisitor.prototype.visitQueryComparator = markComparator;
+QueryMarkerVisitor.prototype.visitQueryUnaryOperator = markComparator;
+QueryMarkerVisitor.prototype.visitQueryBetweenOperator = markComparator;
+
+QueryMarkerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  node.predicates[0].visit(this);
+  node.columnMask = node.predicates[0].columnMask;
+};
+
+QueryMarkerVisitor.prototype.visitQueryNaryPredicate = function(node) {
+  var i;
+  node.columnMask = 0;
+  for(i = 0 ; i < node.predicates.length ; i++) {
+    node.predicates[i].visit(this);
+    node.columnMask |= node.predicates[i].columnMask;
+  }
+};
+
+var theMarkerVisitor = new QueryMarkerVisitor();   // singleton
+
+function markQuery(queryHandler) {     // public exported function
+  queryHandler.predicate.visit(theMarkerVisitor);
+}
+
+
+/****************************************** ColumnBoundVisitor ************
+ *
+ * Given a set of actual parameter values, visit the query tree and store
+ * a segment for every comparator, BETWEEN, and IS NULL / NOT NULL node.
+ * 
+ * For grouping nodes AND, OR, NOT, store the intersection, union, or complement
+ * over the nodes grouped, for every column referenced in that group.
+ *
+ *
+ */
+function ColumnBoundVisitor(params) {
+  this.params = params;
+}
+
+/* Store a segment at a node
+*/
+ColumnBoundVisitor.prototype.store = function(node, segment) {
+  node.columnBound = {};
+  node.columnBound[node.queryField.field.columnNumber] = segment;
+};
+
+/** AND/OR nodes */
 ColumnBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
-  var i, line, segment;
+  var i, c, unionOrIntersection, doColumns;
+  unionOrIntersection = queryNaryFunctions[node.operationCode]; 
+
   for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
-  line = new NumberLine();
-
-  if(node.operationCode == 1) { // AND
-    line.insertSegment(this.boundingSegment);
-    for(i = 0 ; i < node.predicates.length ; i++) {
-      segment = this.fetchRange(node.predicates[i]);
-      line.intersection(segment);
-    }
+  node.columnBound = {};
+  doColumns = maskToArray(node.columnMask);
+  while(doColumns.length) {
+    c = doColumns.pop();
+    node.columnBound[c] = unionOrIntersection(node.predicates, c);
   }
-  else {                        // OR
-    if(node.operationCode != 2) {
-      blah(node);
-    }
-    for(i = 0 ; i < node.predicates.length ; i++) {
-      segment = this.fetchRange(node.predicates[i]);
-      line.union(segment);
-      //.. console.log("OR",i,segment.asString(),"=>",line.asString());
-    }
-  }  
-  this.storeRange(node, line);
+};
+
+/** NOT node */
+ColumnBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  var c, doColumns;
+  node.predicates[0].visit(this);
+  doColumns = maskToArray(node.columnMask);
+  node.columnBound = {};
+  while(doColumns.length) {
+    c = doColumns.pop();
+    node.columnBound[c] = node.predicates[0].columnBound[c].complement();
+  }
 };
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 ColumnBoundVisitor.prototype.visitQueryComparator = function(node) {
-  // node.queryField is the column being compared
-  // node.operationCode is the comparator
-  // node.parameter.name is the index into this.params 
-  var segment; 
-
-  if(node.queryField.field.columnNumber == this.column.columnNumber) {
-    /* This node is a comparison on my column */
-    segment = createSegmentForComparator(node.operationCode, 
-                                         this.params[node.parameter.name]);
-  }
-  else {
-    /* This node is a comparison on some other column */
-    segment = this.boundingSegment;
-  }
-  
-  /* Store it in the node */
-  this.storeRange(node, segment);
-};
-
-/** Handle node QueryNot */
-ColumnBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
-  var range = {};
-  node.predicates[0].visit(this);
-  range = this.fetchRange(node.predicates[0]);
-  this.storeRange(node, range.complement());
+  var segment = createSegmentForComparator(node.operationCode, 
+                                           this.params[node.parameter.name]);
+  this.store(node, segment);
 };
 
 /** Handle node QueryBetween */
 ColumnBoundVisitor.prototype.visitQueryBetweenOperator = function(node) {
-  var ep1, ep2, segment;
-  
-  if(node.queryField.field.columnNumber == this.column.columnNumber) {
-    ep1 = this.params[node.parameter1.name];
-    ep2 = this.params[node.parameter2.name];
-    segment = createSegmentBetween(ep1, ep2);
-  }
-  else {
-    segment = this.boundingSegment;
-  }
-  this.storeRange(node, segment);    
+  var ep1, ep2, segment;  
+  ep1 = this.params[node.parameter1.name];
+  ep2 = this.params[node.parameter2.name];
+  segment = createSegmentBetween(ep1, ep2);
+  this.store(node, segment);
 };
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
@@ -652,76 +844,79 @@ ColumnBoundVisitor.prototype.visitQueryUnaryOperator = function(node) {
     pt = new Endpoint(negInf, false);
     segment = new Segment(pt, posInf);
   }
-  this.storeRange(node, segment);
+  this.store(node, segment);
 };
 
 
-/* Consolidating column bounds into a full index bound
 
-   The code above is able to evaluate a query with regard to one column;
-   conditions are evaluated as Segments, and whole predicates are evaluated
-   as NumberLines.
-   
-   After the query has been evaluated with regard to each individual column
-   of the index, we must consolidate those per-column bounds into bounds
-   on the whole index.
-*/
-
-
-//////// CompositeEndpoint         /////////////////
-function CompositeEndpoint() {
-  this.key = [];
-  this.inclusive = true;
-}
-
-CompositeEndpoint.prototype.copy = function(that) {
-  that.inclusive = this.inclusive;
-  that.key = this.key.slice(0);  // slice() makes a copy
-};
-
-CompositeEndpoint.prototype.push = function(endpoint) {
-  this.key.push(endpoint.value);
-  this.inclusive = endpoint.inclusive;
-};
-
-CompositeEndpoint.prototype.asString = function() {
-  var open, close, result, i;
-  open = this.inclusive ? "[" : "(";
-  close = this.inclusive ? "]" : ")";
-  result = open;
-  for(i = 0 ; i < this.key.length ; i++) {
-    if(i) result += ",";
-    result += this.key[i];
+/****************************************** IndexBoundVisitor ************
+ *
+ * Visit a tree that has already been marked by a ColumnBoundVisitor.
+ * Construct a set of IndexBounds for a particular index.
+ */
+function IndexBoundVisitor(dbIndex) {
+  this.index = dbIndex;
+  this.ncol = this.index.columnNumbers.length;
+  this.mask = 0;
+  if(this.ncol > 1) {
+    this.mask |= Math.pow(2, this.index.columnNumbers[0]);
+    this.mask |= Math.pow(2, this.index.columnNumbers[1]);
   }
-  result += close;
-  return result;
-};
-
-//////// IndexBounds               /////////////////
-
-function IndexBounds() {
-  this.low =  new CompositeEndpoint();
-  this.high = new CompositeEndpoint();
 }
 
-IndexBounds.prototype.copy = function() {
-  var that = new IndexBounds();
-  this.low.copy(that.low);
-  this.high.copy(that.high);
-  return that;
+var Consolidator;  // forward declaration
+
+IndexBoundVisitor.prototype.consolidate = function(node) {
+  var i, allBounds, columnBounds, indexBounds, thisColumn, nextColumn;
+  if(! node.indexRange) {
+    allBounds = new NumberLine();
+    nextColumn = null;
+
+    for(i = this.ncol - 1; i >= 0 ; i--) {
+      columnBounds = node.columnBound[this.index.columnNumbers[i]]; 
+      thisColumn = new Consolidator(allBounds, columnBounds, nextColumn);
+      nextColumn = thisColumn;
+    }
+    /* nextColumn is now the first column */
+    indexBounds = new Segment(
+      new Endpoint(new IndexValue()),
+      new Endpoint(new IndexValue())
+    );
+    nextColumn.consolidate(indexBounds, true, true);
+    node.indexRange = allBounds;
+  }
 };
 
-IndexBounds.prototype.asString = function() {
-  return "{ " + this.low.asString() + " -- " + this.high.asString() + " }";
+
+/** Handle nodes QueryAnd, QueryOr 
+    OperationCode = 1 for AND, 2 for OR
+*/
+IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
+  var i;
+  if(node.columnMask & this.mask) {
+    for(i = 0 ; i < node.predicates.length ; i++) {
+      node.predicates[i].visit(this);
+    }
+    this.consolidate(node);    
+  }
 };
 
 
-//////// IndexColumn               /////////////////
+/** Handle node QueryNot */
+IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  if(node.columnMask & this.mask) {
+    node.predicates[0].visit(this);  
+    node.indexRange = node.predicates[0].indexRange.complement();
+  }
+};
 
-function IndexColumn(resultContainer, columnBounds, nextColumn) {
-  this.resultContainer = resultContainer;  // an array of finished IndexBounds
-  this.columnBounds = columnBounds;        // columnBounds is a NumberLine
-  this.nextColumn = nextColumn;            // nextColumn is an IndexColumn
+
+//////// Consolidator               /////////////////
+
+function Consolidator(resultContainer, columnBounds, nextColumn) {
+  this.resultContainer = resultContainer;  // a consolidated NumberLine
+  this.columnBounds = columnBounds;        // a single-column NumberLine
+  this.nextColumn = nextColumn;            // nextColumn is a Consolidator
 }
 
 /* consolidate() is a recursive algorithm, with each column 
@@ -733,18 +928,13 @@ function IndexColumn(resultContainer, columnBounds, nextColumn) {
    segment endpoint is exclusive, we have to stop there; otherwise,
    pass the partialBounds along to the next column.
 
-// TODO: If an intermediate column is exclusive you can just turn it into an
-   inclusive point? 
-
 */
-IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
+Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
   var boundsIterator, segment, idxBounds;
 
   boundsIterator = this.columnBounds.getIterator();
   segment = boundsIterator.next();
-  //.. console.log("consolidating", this.columnBounds.asString());
   while(segment) {
-    //.. console.log("in loop");
     idxBounds = partialBounds.copy();
 
     if(doLow) {
@@ -752,7 +942,7 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
       doLow = segment.low.inclusive && segment.low.isFinite;
     }
     if(doHigh) {
-      idxBounds.high.push(segment.high);
+      idxBounds.high.value.push(segment.high);
       doHigh = segment.high.inclusive && segment.high.isFinite;
     }
 
@@ -760,39 +950,12 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
       this.nextColumn.consolidate(idxBounds, doLow, doHigh);
     }
     else {
-      //.. console.log("pushing");
-      this.resultContainer.push(idxBounds);
+      this.resultContainer.insertSegment(idxBounds);
     }
 
     segment = boundsIterator.next();
   }
-  //.. console.log("out of loop");
 };
-
-
-function consolidateRanges(indexName, predicate) {
-  var i, allBounds, columnBounds, thisColumn, nextColumn;
-
-  allBounds = [];    // array of IndexBounds    
-  nextColumn = null;
-
-  function stringify() {
-    var i, str='';
-    for(i = 0 ; i < allBounds.length ; i++) str += allBounds[i].asString();
-    return str;
-  }
-
-  for(i = predicate.indexRanges[indexName].length - 1; i >= 0 ; i--) {
-    columnBounds = predicate.indexRanges[indexName][i];
-    thisColumn = new IndexColumn(allBounds, columnBounds, nextColumn);
-    nextColumn = thisColumn;
-  }
-
-  /* nextColumn is now the first column */  
-  nextColumn.consolidate(new IndexBounds(), true, true);
-  //.. console.log("Bounds:", stringify());
-  return allBounds;
-}
 
 
 /* getIndexBounds()
@@ -800,7 +963,7 @@ function consolidateRanges(indexName, predicate) {
    For each column in the index, evaluate the predicate for that column.
    Then consolidate the column bounds into a set of bounds on the index.
 
-   Returns an array of IndexBounds   
+   Returns a NumberLine of IndexValues
 
    @arg queryHandler 
    @arg dbIndex -- IndexMetadata of index to evaluate
@@ -811,19 +974,23 @@ function consolidateRanges(indexName, predicate) {
    The column record is queryHandler.dbTableHandler.dbTable.columns[n]      
 */
 function getIndexBounds(queryHandler, dbIndex, params) {
-  var nparts, i, columnNumber, column, visitors;
-  visitors = [];
-  nparts = dbIndex.columnNumbers.length;
-  for(i = 0  ; i < nparts ; i++) {
-    columnNumber = dbIndex.columnNumbers[i];
-    column = queryHandler.dbTableHandler.dbTable.columns[columnNumber];
-    visitors[i] = new ColumnBoundVisitor(dbIndex.name, column, i, params);
-    queryHandler.predicate.visit(visitors[i]);
-  }
+  var indexVisitor;
+
+  /* First evaluate the comparators in the tree.   
+  */
+  queryHandler.predicate.visit(new ColumnBoundVisitor(params));
+
+  /* Then evaluate the logical predicates for the index */
+  indexVisitor = new IndexBoundVisitor(dbIndex);
+  queryHandler.predicate.visit(indexVisitor);
+
+  /* Get the consolidated bound for the top-level predicate */
+  indexVisitor.consolidate(queryHandler.predicate);
   
-  return consolidateRanges(dbIndex.name, queryHandler.predicate);
+  return queryHandler.predicate.indexRange;  
 }
 
+exports.markQuery = markQuery;
 exports.getIndexBounds = getIndexBounds;
 
 
