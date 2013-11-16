@@ -2235,7 +2235,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
-  const char *m_trans_fixed_log_file;
+  char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2754,11 +2754,10 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
-      MEM_ROOT *log_file_mem_root= &main_mem_root;
       if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
-      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
-                                          file + dirname_length(file));
+        m_trans_fixed_log_file= (char*) alloc_root(&main_mem_root, FN_REFLEN+1);
+      DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
+      strcpy(m_trans_fixed_log_file, m_trans_log_file);
     }
     else
     {
