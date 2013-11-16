@@ -145,7 +145,7 @@ IndexValue.prototype = {
   isIndexValue     : true
 };
 
-IndexValue.prototype.push = function(v) {
+IndexValue.prototype.pushColumnValue = function(v) {
   this.size++;
   this.parts.push(v);
 };
@@ -261,7 +261,7 @@ Endpoint.prototype.complement = function() {
 /* push() is used only for endpoints that contain IndexValues
 */
 Endpoint.prototype.push = function(e) { 
-  this.value.push(e.value);
+  this.value.pushColumnValue(e.value);
   this.isFinite = e.isFinite;
   this.inclusive = e.inclusive;
 };
@@ -321,8 +321,8 @@ function Segment(point1, point2) {
 Segment.prototype.isSegment = true;
 
 Segment.prototype.inspect = function() {
-  var s = "{";
-  s += this.low.asString(0) + " -- " + this.high.asString(1) + "}";
+  var s = "{ ";
+  s += this.low.asString(0) + " -- " + this.high.asString(1) + " }";
   return s;
 };
 
@@ -458,14 +458,14 @@ function NumberLine() {
 NumberLine.prototype.isNumberLine = true;
 
 NumberLine.prototype.inspect = function() {
-  var i, close;  
-  var list = this.transitions;
-  var str = "";
-  for(i = 0 ; i < list.length ; i ++) {
-    if(i) str += ",";
-    str += list[i].asString(i % 2);
+  var it, str, segment;
+  it = this.getIterator();
+  str = "<< ";
+  while((segment = it.next()) !== null) {
+    str += segment.inspect() + " ";
   }
-  return str;
+  str += " >>";
+  return str;  
 };
 
 NumberLine.prototype.isEmpty = function() {
@@ -873,7 +873,7 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
     nextColumn = null;
 
     for(i = this.ncol - 1; i >= 0 ; i--) {
-      columnBounds = node.columnBound[this.index.columnNumbers[i]]; 
+      columnBounds = evaluateNodeForColumn(node, this.index.columnNumbers[i]);
       thisColumn = new Consolidator(allBounds, columnBounds, nextColumn);
       nextColumn = thisColumn;
     }
@@ -892,6 +892,9 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
     OperationCode = 1 for AND, 2 for OR
 */
 IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
+// FIXME:  If any child node is consolidated, then we need to consolidate
+// the rest of them, and construct the union or intersection of the 
+// consolidated bounds.  This is definitely the case for an OR node.
   var i;
   if(node.columnMask & this.mask) {
     for(i = 0 ; i < node.predicates.length ; i++) {
@@ -913,22 +916,22 @@ IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
 
 //////// Consolidator               /////////////////
 
+/* Each column builds its part of the consolidated index bound.
+
+   Take the partially completed bounds object that is passed in.
+   For each segment in this column's NumberLine, make a copy of
+   the partialBounds, and try to add the segment to it.  If the 
+   segment endpoint is exclusive or infinite, stop there; otherwise, 
+   pass the partialBounds along to the next column.
+
+*/
+
 function Consolidator(resultContainer, columnBounds, nextColumn) {
   this.resultContainer = resultContainer;  // a consolidated NumberLine
   this.columnBounds = columnBounds;        // a single-column NumberLine
   this.nextColumn = nextColumn;            // nextColumn is a Consolidator
 }
 
-/* consolidate() is a recursive algorithm, with each column 
-   building its part of the bound and then passing the result along
-   to the next column.
-   Take the partially completed bounds object that is passed in.
-   For each segment in this column's NumberLine, make a copy of
-   the partialBounds, and try to add the segment to it.  If the 
-   segment endpoint is exclusive, we have to stop there; otherwise,
-   pass the partialBounds along to the next column.
-
-*/
 Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
   var boundsIterator, segment, idxBounds;
 
@@ -942,7 +945,7 @@ Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
       doLow = segment.low.inclusive && segment.low.isFinite;
     }
     if(doHigh) {
-      idxBounds.high.value.push(segment.high);
+      idxBounds.high.push(segment.high);
       doHigh = segment.high.inclusive && segment.high.isFinite;
     }
 
@@ -963,28 +966,23 @@ Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
    For each column in the index, evaluate the predicate for that column.
    Then consolidate the column bounds into a set of bounds on the index.
 
-   Returns a NumberLine of IndexValues
+   @arg queryHandler:  query 
+   @arg dbIndex:       IndexMetadata of index to evaluate
+   @arg params:        params to substitute into query
 
-   @arg queryHandler 
-   @arg dbIndex -- IndexMetadata of index to evaluate
-   @arg params  -- params to substitute into query
-   
-   The chosen dbIndex is queryHandler.dbIndexHandler.dbIndex
-   Its first column is dbIndex.columnNumbers[0] 
-   The column record is queryHandler.dbTableHandler.dbTable.columns[n]      
+   Returns a NumberLine of IndexValues   
 */
 function getIndexBounds(queryHandler, dbIndex, params) {
   var indexVisitor;
 
-  /* First evaluate the comparators in the tree.   
-  */
+  /* Evaluate the query tree using the actual parameters */
   queryHandler.predicate.visit(new ColumnBoundVisitor(params));
 
-  /* Then evaluate the logical predicates for the index */
+  /* Then analyze it for this particular index */
   indexVisitor = new IndexBoundVisitor(dbIndex);
   queryHandler.predicate.visit(indexVisitor);
 
-  /* Get the consolidated bound for the top-level predicate */
+  /* Build a consolidated index bound for the top-level predicate */
   indexVisitor.consolidate(queryHandler.predicate);
   
   return queryHandler.predicate.indexRange;  
@@ -993,13 +991,3 @@ function getIndexBounds(queryHandler, dbIndex, params) {
 exports.markQuery = markQuery;
 exports.getIndexBounds = getIndexBounds;
 
-
-
-/* TODO: 
-    (A = 3 AND B > 6)  OR ( A = 5 AND B < 4) 
-
-  { 3,6 exc --  3 inc   }
-  { 5 inc   --  5,4 exc }
-
-  AND(A,B,C) is always a superset of AND(A,B,C,D)
-*/

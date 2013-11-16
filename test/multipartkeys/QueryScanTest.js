@@ -104,9 +104,7 @@ var q8 = {
   }
 };
 
-//var queryTests = [q1, q2, q3];
-// var queryTests = [ q3,q4,q5,q8 ];
-var queryTests = [ q8 ];
+var queryTests = [ q3,q4,q5,q8 ];
 
 /** Set up domain type */
 function mpk1() {};
