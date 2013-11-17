@@ -531,6 +531,12 @@ QueryIsNull = function(queryField) {
 
 QueryIsNull.prototype = new AbstractQueryUnaryOperator();
 
+QueryIsNull.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  udebug.log_detail('QueryIsNull.mark with columnNumber:', columnNumber);
+  candidateIndex.markNull(columnNumber);
+};
+
 /******************************************************************************
  *                 QUERY IS NOT NULL
  *****************************************************************************/
@@ -541,6 +547,12 @@ QueryIsNotNull = function(queryField) {
 };
 
 QueryIsNotNull.prototype = new AbstractQueryUnaryOperator();
+
+QueryIsNotNull.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  udebug.log_detail('QueryIsNotNull.mark with columnNumber:', columnNumber);
+  candidateIndex.markNotNull(columnNumber);
+};
 
 /******************************************************************************
  *                 QUERY AND
@@ -682,6 +694,17 @@ CandidateIndex.prototype.markLt = function(columnNumber, parameterName) {
   }
 };
 
+CandidateIndex.prototype.markNull = function(columnNumber) {
+  if(this.isOrdered) {  // Nulls sort low, so "IS NULL" acts like a high bound 
+    this.columnBounds[columnNumber].less = true;
+  }
+};
+
+CandidateIndex.prototype.markNotNull = function(columnNumber) {
+  if(this.isOrdered) {  // "IS NOT NULL" acts like a low bound
+    this.columnBounds[columnNumber].greater = true;
+  }
+};
 
 CandidateIndex.prototype.isUsable = function(numberOfPredicateTerms) {
   var i, columnNumber;
