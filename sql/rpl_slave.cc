@@ -6431,8 +6431,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_SET("");
     }
   );
- 
-  bapi_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+
+  binary_log_debug::debug_checksum_test=
+               DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
   Log_event_header *header;
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {

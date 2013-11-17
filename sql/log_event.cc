@@ -672,32 +672,6 @@ static bool write_str_at_most_255_bytes(IO_CACHE *file, const char *str,
 	  my_b_safe_write(file, (uchar*) str, length));
 }
 
-
-/*
-  Reads string from buf.
-
-  Reads str from buf in the following format:
-   1. Read length stored on buf first index, as it only has 1 byte values
-      bigger than 255 where lost.
-   2. Set str pointer to buf second index.
-  Despite str contains the complete stored string, when it is read until
-  len its value will be truncated if original length was bigger than 255.
-*/
-
-static inline int read_str_at_most_255_bytes(const char **buf,
-                                             const char *buf_end,
-                                             const char **str,
-                                             uint8 *len)
-{
-  if (*buf + ((uint) (uchar) **buf) >= buf_end)
-    return 1;
-  *len= (uint8) **buf;
-  *str= (*buf)+1;
-  (*buf)+= (uint) *len+1;
-  return 0;
-}
-
-
 /**
   Transforms a string into "" or its expression in 0x... form.
 */
@@ -882,7 +856,7 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
 }
 #endif /* !MYSQL_CLIENT */
 
-Log_event::Log_event(Log_event_header *header)
+Log_event::Log_event(Log_event_header *header, bool flag_moved)
   :Binary_log_event(header), temp_buf(0), exec_time(0),
   event_cache_type(EVENT_INVALID_CACHE),
   event_logging_type(EVENT_INVALID_LOGGING),
@@ -891,7 +865,12 @@ Log_event::Log_event(Log_event_header *header)
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif
-  common_header= header;
+  if (flag_moved)
+    common_header= this->header();
+  //TODO: remove the else clause after all the events are implemented
+  else
+    common_header= header;
+
   checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   /*
      Mask out any irrelevant parts of the server_id
@@ -1349,11 +1328,11 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
           DBUG_SET("-d,corrupt_read_log_event");
 	}
-      );                                                                                           
+      );
       /*
         CRC verification of the Dump thread
       */
-      bapi_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+      binary_log_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 
       if (opt_master_verify_checksum &&
           event_checksum_test((uchar*) packet->ptr() + ev_offset,
@@ -1581,7 +1560,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     }
   );
 
-  bapi_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+  binary_log_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
   binary_log::Format_description_event *des_ev;
   des_ev= new binary_log::Format_description_event(description_event->binlog_version);
   Log_event_header *header= new Log_event_header(buf, des_ev);
@@ -1643,25 +1622,25 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT, header);
       break;
     case LOAD_EVENT:
-      ev = new Load_log_event(buf, event_len, description_event, header);
+      ev = new Load_log_event(buf, event_len, des_ev, header);
       break;
     case NEW_LOAD_EVENT:
-      ev = new Load_log_event(buf, event_len, description_event, header);
+      ev = new Load_log_event(buf, event_len, des_ev, header);
       break;
     case ROTATE_EVENT:
       ev = new Rotate_log_event(buf, event_len, des_ev, header);
       break;
     case CREATE_FILE_EVENT:
-      ev = new Create_file_log_event(buf, event_len, description_event, header);
+      ev = new Create_file_log_event(buf, event_len, des_ev, header);
       break;
     case APPEND_BLOCK_EVENT:
-      ev = new Append_block_log_event(buf, event_len, description_event, header);
+      ev = new Append_block_log_event(buf, event_len, des_ev, header);
       break;
     case DELETE_FILE_EVENT:
-      ev = new Delete_file_log_event(buf, event_len, description_event, header);
+      ev = new Delete_file_log_event(buf, event_len, des_ev, header);
       break;
     case EXEC_LOAD_EVENT:
-      ev = new Execute_load_log_event(buf, event_len, description_event, header);
+      ev = new Execute_load_log_event(buf, event_len, des_ev, header);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
       ev = new Start_log_event_v3(buf, description_event, header);
@@ -1708,7 +1687,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
 #endif
     case BEGIN_LOAD_QUERY_EVENT:
-      ev = new Begin_load_query_log_event(buf, event_len, description_event, header);
+      ev = new Begin_load_query_log_event(buf, event_len, des_ev, header);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
       ev= new Execute_load_query_log_event(buf, event_len, description_event, header);
@@ -3733,7 +3712,8 @@ bool Query_log_event::write(IO_CACHE* file)
           write_post_header_for_derived(file) ||
           wrapper_my_b_safe_write(file, (uchar*) start_of_status,
                           (uint) (start-start_of_status)) ||
-          wrapper_my_b_safe_write(file, (db) ? (uchar*) db : (uchar*)"", db_len + 1) ||
+          wrapper_my_b_safe_write(file,
+                                  db ? (uchar*) db : (uchar*)"", db_len + 1) ||
           wrapper_my_b_safe_write(file, (uchar*) query, q_len) ||
 	  write_footer(file)) ? 1 : 0;
 }
@@ -3767,15 +3747,15 @@ Query_log_event::Query_log_event()
                       deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 ulong query_length, bool using_trans,
-				 bool immediate, bool suppress_use,
+                                 ulong query_length, bool using_trans,
+                                 bool immediate, bool suppress_use,
                                  int errcode, bool ignore_cmd_internals)
 
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
               0) |
              (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
-	     using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                           Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
@@ -4001,7 +3981,6 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 }
 #endif /* MYSQL_CLIENT */
 
-
 /* 2 utility functions for the next method */
 
 /**
@@ -4029,10 +4008,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
               string, which happends <code>*dst + *len >= end</code>.
 */
 static int
-get_str_len_and_pointer(const Log_event::Byte **src,
+get_str_len_and_pointer(const Log_event_header::Byte **src,
                         const char **dst,
                         uint *len,
-                        const Log_event::Byte *end)
+                        const Log_event_header::Byte *end)
 {
   if (*src >= end)
     return -1;       // Will be UINT_MAX in two-complement arithmetics
@@ -4048,8 +4027,8 @@ get_str_len_and_pointer(const Log_event::Byte **src,
   return 0;
 }
 
-static void copy_str_and_move(const char **src, 
-                              Log_event::Byte **dst, 
+static void copy_str_and_move(const char **src,
+                              Log_event_header::Byte **dst,
                               uint len)
 {
   memcpy(*dst, *src, len);
@@ -4084,7 +4063,6 @@ code_name(int code)
   return buf;
 }
 #endif
-
 /**
    Macro to check that there is enough space to read from memory.
 
@@ -4123,8 +4101,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   ulong data_len;
   uint32 tmp;
   uint8 common_header_len, post_header_len;
-  Log_event::Byte *start;
-  const Log_event::Byte *end;
+  Log_event_header::Byte *start;
+  const Log_event_header::Byte *end;
   bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
@@ -4197,10 +4175,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   */
 
   /* variable-part: the status vars; only in MySQL 5.0  */
-  
-  start= (Log_event::Byte*) (buf+post_header_len);
-  end= (const Log_event::Byte*) (start+status_vars_len);
-  for (const Log_event::Byte* pos= start; pos < end;)
+
+  start= (Log_event_header::Byte*) (buf+post_header_len);
+  end= (const Log_event_header::Byte*) (start+status_vars_len);
+  for (const Log_event_header::Byte* pos= start; pos < end;)
   {
     switch (*pos++) {
     case Q_FLAGS2_CODE:
@@ -4219,7 +4197,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       sql_mode_inited= 1;
       sql_mode= uint8korr(pos);
       DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
-			 llstr(sql_mode, buff)));
+                         llstr(sql_mode, buff)));
       pos+= 8;
       break;
     }
@@ -4372,7 +4350,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     */
 
 #if !defined(MYSQL_CLIENT)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+  if (!(start= data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
                                                        catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
@@ -4383,7 +4361,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                                     +  QUERY_CACHE_FLAGS_SIZE,
                                                        MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+  if (!(start= data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
                                                        catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
@@ -5969,11 +5947,15 @@ uint Load_log_event::get_query_buffer_length()
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
     13 + table_name_len*2 +                 // "INTO TABLE `table`"
-    21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
-    23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
-    12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
-    21 + sql_ex.line_term_len*4 + 2 +       // " LINES TERMINATED BY 'str'"
-    19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'"
+    21 + sql_ex.data_info.field_term_len*4 + 2 +
+                                            // " FIELDS TERMINATED BY 'str'"
+    23 + sql_ex.data_info.enclosed_len*4 + 2 +
+                                            // " OPTIONALLY ENCLOSED BY 'str'"
+    12 + sql_ex.data_info.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
+    21 + sql_ex.data_info.line_term_len*4 + 2 +
+                                            // " LINES TERMINATED BY 'str'"
+    19 + sql_ex.data_info.line_start_len*4 + 2 +
+                                            // " LINES STARTING BY 'str'"
     15 + 22 +                               // " IGNORE xxx  LINES"
     3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
 }
@@ -6014,9 +5996,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
   memcpy(pos, fname, fname_len);
   pos= my_stpcpy(pos+fname_len, "' ");
 
-  if (sql_ex.opt_flags & REPLACE_FLAG)
+  if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
     pos= my_stpcpy(pos, "REPLACE ");
-  else if (sql_ex.opt_flags & IGNORE_FLAG)
+  else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
     pos= my_stpcpy(pos, "IGNORE ");
 
   pos= my_stpcpy(pos ,"INTO");
@@ -6036,21 +6018,26 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   /* We have to create all optional fields as the default is not empty */
   pos= my_stpcpy(pos, " FIELDS TERMINATED BY ");
-  pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
-  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+  pos= pretty_print_str(pos, sql_ex.data_info.field_term,
+                        sql_ex.data_info.field_term_len);
+  if (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG)
     pos= my_stpcpy(pos, " OPTIONALLY ");
   pos= my_stpcpy(pos, " ENCLOSED BY ");
-  pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
+  pos= pretty_print_str(pos, sql_ex.data_info.enclosed,
+                        sql_ex.data_info.enclosed_len);
 
   pos= my_stpcpy(pos, " ESCAPED BY ");
-  pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
+  pos= pretty_print_str(pos, sql_ex.data_info.escaped,
+                        sql_ex.data_info.escaped_len);
 
   pos= my_stpcpy(pos, " LINES TERMINATED BY ");
-  pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
-  if (sql_ex.line_start_len)
+  pos= pretty_print_str(pos, sql_ex.data_info.line_term,
+                        sql_ex.data_info.line_term_len);
+  if (sql_ex.data_info.line_start_len)
   {
     pos= my_stpcpy(pos, " STARTING BY ");
-    pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
+    pos= pretty_print_str(pos, sql_ex.data_info.line_start,
+                          sql_ex.data_info.line_start_len);
   }
 
   if ((long) skip_lines > 0)
@@ -6147,19 +6134,20 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
                                bool is_concurrent_arg,
 			       enum enum_duplicates handle_dup,
 			       bool ignore, bool using_trans)
-  :Log_event(thd_arg,
+  :Load_event(),
+   Log_event(thd_arg,
              thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING),
-   thread_id(thd_arg->thread_id),
-   slave_proxy_id(thd_arg->variables.pseudo_thread_id),
-   num_fields(0),fields(0),
-   field_lens(0),field_block_len(0),
-   table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name), local_fname(FALSE),
-   is_concurrent(is_concurrent_arg)
+             Log_event::EVENT_NORMAL_LOGGING)
 {
+  thread_id= thd_arg->thread_id;
+  slave_proxy_id= thd_arg->variables.pseudo_thread_id;
+  table_name= table_name_arg ? table_name_arg : "";
+  db= db_arg;
+  fname= ex->file_name;
+  local_fname= FALSE;
+  is_concurrent= is_concurrent_arg;
   time_t end_time;
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
@@ -6167,48 +6155,49 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
   fname_len = (fname) ? (uint) strlen(fname) : 0;
-  sql_ex.field_term = (char*) ex->field_term->ptr();
-  sql_ex.field_term_len = (uint8) ex->field_term->length();
-  sql_ex.enclosed = (char*) ex->enclosed->ptr();
-  sql_ex.enclosed_len = (uint8) ex->enclosed->length();
-  sql_ex.line_term = (char*) ex->line_term->ptr();
-  sql_ex.line_term_len = (uint8) ex->line_term->length();
-  sql_ex.line_start = (char*) ex->line_start->ptr();
-  sql_ex.line_start_len = (uint8) ex->line_start->length();
-  sql_ex.escaped = (char*) ex->escaped->ptr();
-  sql_ex.escaped_len = (uint8) ex->escaped->length();
-  sql_ex.opt_flags = 0;
-  sql_ex.cached_new_format = -1;
-    
-  if (ex->dumpfile)
-    sql_ex.opt_flags|= DUMPFILE_FLAG;
-  if (ex->opt_enclosed)
-    sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
-  sql_ex.empty_flags= 0;
+  sql_ex.data_info.field_term = (char*) ex->field_term->ptr();
+  sql_ex.data_info.field_term_len = (uint8) ex->field_term->length();
+  sql_ex.data_info.enclosed = (char*) ex->enclosed->ptr();
+  sql_ex.data_info.enclosed_len = (uint8) ex->enclosed->length();
+  sql_ex.data_info.line_term = (char*) ex->line_term->ptr();
+  sql_ex.data_info.line_term_len = (uint8) ex->line_term->length();
+  sql_ex.data_info.line_start = (char*) ex->line_start->ptr();
+  sql_ex.data_info.line_start_len = (uint8) ex->line_start->length();
+  sql_ex.data_info.escaped = (char*) ex->escaped->ptr();
+  sql_ex.data_info.escaped_len = (uint8) ex->escaped->length();
+  sql_ex.data_info.opt_flags = 0;
+  sql_ex.data_info.cached_new_format = -1;
+
+  if (ex->dumpfile)
+    sql_ex.data_info.opt_flags|= DUMPFILE_FLAG;
+  if (ex->opt_enclosed)
+    sql_ex.data_info.opt_flags|= OPT_ENCLOSED_FLAG;
+
+  sql_ex.data_info.empty_flags= 0;
 
   switch (handle_dup) {
   case DUP_REPLACE:
-    sql_ex.opt_flags|= REPLACE_FLAG;
+    sql_ex.data_info.opt_flags|= REPLACE_FLAG;
     break;
   case DUP_UPDATE:				// Impossible here
   case DUP_ERROR:
-    break;	
+    break;
   }
   if (ignore)
-    sql_ex.opt_flags|= IGNORE_FLAG;
+    sql_ex.data_info.opt_flags|= IGNORE_FLAG;
 
   if (!ex->field_term->length())
-    sql_ex.empty_flags |= FIELD_TERM_EMPTY;
+    sql_ex.data_info.empty_flags |= FIELD_TERM_EMPTY;
   if (!ex->enclosed->length())
-    sql_ex.empty_flags |= ENCLOSED_EMPTY;
+    sql_ex.data_info.empty_flags |= ENCLOSED_EMPTY;
   if (!ex->line_term->length())
-    sql_ex.empty_flags |= LINE_TERM_EMPTY;
+    sql_ex.data_info.empty_flags |= LINE_TERM_EMPTY;
   if (!ex->line_start->length())
-    sql_ex.empty_flags |= LINE_START_EMPTY;
+    sql_ex.data_info.empty_flags |= LINE_START_EMPTY;
   if (!ex->escaped->length())
-    sql_ex.empty_flags |= ESCAPED_EMPTY;
-    
+    sql_ex.data_info.empty_flags |= ESCAPED_EMPTY;
+
   skip_lines = ex->skip_lines;
 
   List_iterator<Item> li(fields_arg);
@@ -6236,82 +6225,27 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
     constructed event.
 */
 Load_log_event::Load_log_event(const char *buf, uint event_len,
-                               const Format_description_log_event *description_event,
+                               const Format_description_event *description_event,
                                Log_event_header *header)
-  :Log_event(header), num_fields(0), fields(0),
-   field_lens(0),field_block_len(0),
-   table_name(0), db(0), fname(0), local_fname(FALSE),
-   /*
-     Load_log_event which comes from the binary log does not contain
-     information about the type of insert which was used on the master.
-     Assume that it was an ordinary, non-concurrent LOAD DATA.
-    */
-   is_concurrent(FALSE)
+  :Binary_log_event(header),
+   Load_event(buf, event_len, description_event, header),
+   Log_event(header, true)
 {
   DBUG_ENTER("Load_log_event");
-
-  /*
-    I (Guilhem) manually tested replication of LOAD DATA INFILE for 3.23->5.0,
-    4.0->5.0 and 5.0->5.0 and it works.
-  */
   if (event_len)
-    copy_log_event(buf, event_len,
-                   ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                    Binary_log_event::LOAD_HEADER_LEN +
-                    description_event->common_header_len :
-                    Binary_log_event::LOAD_HEADER_LEN + LOG_EVENT_HEADER_LEN),
-                   description_event, header);
-  /* otherwise it's a derived class, will call copy_log_event() itself */
+  {
+    /**
+      We need to set exec_time here, which is ued to calcutate seconds behind
+      master on the slave.
+    */
+    exec_time= load_exec_time;
+    /*
+      I (Guilhem) manually tested replication of LOAD DATA INFILE for 3.23->5.0,
+      4.0->5.0 and 5.0->5.0 and it works.
+    */
+    sql_ex.data_info= sql_ex_data;
+  }
   DBUG_VOID_RETURN;
-}
-
-
-/*
-  Load_log_event::copy_log_event()
-*/
-
-int Load_log_event::copy_log_event(const char *buf, ulong event_len,
-                                   int body_offset,
-                                   const Format_description_log_event
-                                   *description_event, Log_event_header *header)
-{
-  DBUG_ENTER("Load_log_event::copy_log_event");
-  uint data_len;
-  char* buf_end = (char*)buf + event_len;
-  /* this is the beginning of the post-header */
-  const char* data_head = buf + description_event->common_header_len;
-  slave_proxy_id= thread_id= uint4korr(data_head + L_THREAD_ID_OFFSET);
-  exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
-  skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
-  table_name_len = (uint)data_head[L_TBL_LEN_OFFSET];
-  db_len = (uint)data_head[L_DB_LEN_OFFSET];
-  num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
-	  
-  if ((int) event_len < body_offset)
-    DBUG_RETURN(1);
-  /*
-    Sql_ex.init() on success returns the pointer to the first byte after
-    the sql_ex structure, which is the start of field lengths array.
-  */
-  if (!(field_lens= (uchar*)sql_ex.init((char*)buf + body_offset,
-                                        buf_end,
-                                        buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
-    DBUG_RETURN(1);
-  
-  data_len = event_len - body_offset;
-  if (num_fields > data_len) // simple sanity check against corruption
-    DBUG_RETURN(1);
-  for (uint i = 0; i < num_fields; i++)
-    field_block_len += (uint)field_lens[i] + 1;
-
-  fields = (char*)field_lens + num_fields;
-  table_name  = fields + field_block_len;
-  db = table_name + table_name_len + 1;
-  fname = db + db_len + 1;
-  fname_len = (uint) strlen(fname);
-  // null termination is accomplished by the caller doing buf[event_len]=0
-
-  DBUG_RETURN(0);
 }
 
 
@@ -6376,9 +6310,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     my_b_printf(head, "LOCAL ");
   my_b_printf(head, "INFILE '%-*s' ", fname_len, fname);
 
-  if (sql_ex.opt_flags & REPLACE_FLAG)
+  if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
     my_b_printf(head,"REPLACE ");
-  else if (sql_ex.opt_flags & IGNORE_FLAG)
+  else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
     my_b_printf(head,"IGNORE ");
 
 #ifdef MYSQL_SERVER
@@ -6390,24 +6324,29 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   my_b_printf(head, "INTO TABLE %s", str_buf);
 
   my_b_printf(head, " FIELDS TERMINATED BY ");
-  pretty_print_str(head, sql_ex.field_term, sql_ex.field_term_len);
+  pretty_print_str(head, sql_ex.data_info.field_term,
+                   sql_ex.data_info.field_term_len);
 
-  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+  if (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG)
     my_b_printf(head," OPTIONALLY ");
   my_b_printf(head, " ENCLOSED BY ");
-  pretty_print_str(head, sql_ex.enclosed, sql_ex.enclosed_len);
-     
+  pretty_print_str(head, sql_ex.data_info.enclosed,
+                   sql_ex.data_info.enclosed_len);
+
   my_b_printf(head, " ESCAPED BY ");
-  pretty_print_str(head, sql_ex.escaped, sql_ex.escaped_len);
-     
+  pretty_print_str(head, sql_ex.data_info.escaped,
+                   sql_ex.data_info.escaped_len);
+
   my_b_printf(head," LINES TERMINATED BY ");
-  pretty_print_str(head, sql_ex.line_term, sql_ex.line_term_len);
+  pretty_print_str(head, sql_ex.data_info.line_term,
+                   sql_ex.data_info.line_term_len);
 
 
-  if (sql_ex.line_start)
+  if (sql_ex.data_info.line_start)
   {
     my_b_printf(head," STARTING BY ");
-    pretty_print_str(head, sql_ex.line_start, sql_ex.line_start_len);
+    pretty_print_str(head, sql_ex.data_info.line_start,
+                     sql_ex.data_info.line_start_len);
   }
   if ((long) skip_lines > 0)
     my_b_printf(head, " IGNORE %ld LINES", (long) skip_lines);
@@ -6595,9 +6534,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       *end= 0;
       thd->set_query(load_data_query, (uint) (end - load_data_query));
 
-      if (sql_ex.opt_flags & REPLACE_FLAG)
+      if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
         handle_dup= DUP_REPLACE;
-      else if (sql_ex.opt_flags & IGNORE_FLAG)
+      else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
       {
         ignore= 1;
         handle_dup= DUP_ERROR;
@@ -6630,12 +6569,17 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       thd->lex->sql_command= SQLCOM_LOAD;
       thd->lex->duplicates= handle_dup;
 
-      sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
-      String field_term(sql_ex.field_term,sql_ex.field_term_len,log_cs);
-      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len,log_cs);
-      String line_term(sql_ex.line_term,sql_ex.line_term_len,log_cs);
-      String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
-      String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
+      sql_exchange ex((char*)fname, sql_ex.data_info.opt_flags & DUMPFILE_FLAG);
+      String field_term(sql_ex.data_info.field_term,
+                        sql_ex.data_info.field_term_len,log_cs);
+      String enclosed(sql_ex.data_info.enclosed,
+                      sql_ex.data_info.enclosed_len,log_cs);
+      String line_term(sql_ex.data_info.line_term,
+                       sql_ex.data_info.line_term_len,log_cs);
+      String line_start(sql_ex.data_info.line_start,
+                        sql_ex.data_info.line_start_len,log_cs);
+      String escaped(sql_ex.data_info.escaped,
+                     sql_ex.data_info.escaped_len, log_cs);
       const String empty_str("", 0, log_cs);
       ex.field_term= &field_term;
       ex.enclosed= &enclosed;
@@ -6643,11 +6587,11 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       ex.line_start= &line_start;
       ex.escaped= &escaped;
 
-      ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
-      if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
+      ex.opt_enclosed= (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG);
+      if (sql_ex.data_info.empty_flags & FIELD_TERM_EMPTY)
         ex.field_term= &empty_str;
 
-      ex.skip_lines = skip_lines;
+      ex.skip_lines= skip_lines;
       List<Item> field_list;
       thd->lex->select_lex->context.resolve_in_table_list_only(&tables);
       set_fields(tables.db, field_list, &thd->lex->select_lex->context);
@@ -8136,14 +8080,15 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
                       enum enum_duplicates handle_dup,
                       bool ignore,
 		      uchar* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg, ex, db_arg, table_name_arg, fields_arg,
-                  is_concurrent_arg,
-                  handle_dup, ignore, using_trans),
-   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
-   file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
+   :Load_event(),
+    Load_log_event(thd_arg, ex, db_arg,
+                   table_name_arg, fields_arg,
+                   is_concurrent_arg, handle_dup, ignore, using_trans),
+   Create_file_event(block_arg, block_len_arg,
+                     (thd_arg->file_id = mysql_bin_log.next_file_id()))
 {
   DBUG_ENTER("Create_file_log_event");
-  sql_ex.force_new_format();
+  sql_ex.data_info= sql_ex_data;
   DBUG_VOID_RETURN;
 }
 
@@ -8204,54 +8149,20 @@ bool Create_file_log_event::write_base(IO_CACHE* file)
 
 Create_file_log_event::
 Create_file_log_event(const char* buf, uint len,
-                      const Format_description_log_event* description_event,
+                      const Format_description_event* description_event,
                       Log_event_header *header)
-  :Load_log_event(buf,0,description_event, header),fake_base(0),block(0),inited_from_old(0)
+ :Binary_log_event(header),
+  Load_event(buf, 0, description_event, header),
+  Load_log_event(buf,0,description_event, header),
+  Create_file_event(buf,len, description_event, header)
 {
   DBUG_ENTER("Create_file_log_event::Create_file_log_event(char*,...)");
-  uint block_offset;
-  uint header_len= description_event->common_header_len;
-  uint8 load_header_len= description_event->post_header_len[LOAD_EVENT-1];
-  uint8 create_file_header_len= description_event->post_header_len[CREATE_FILE_EVENT-1];
-  if (!(event_buf= (char*) my_memdup(key_memory_log_event,
-                                     buf, len, MYF(MY_WME))) ||
-      copy_log_event(event_buf,len,
-                     ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                      load_header_len + header_len :
-                      (fake_base ? (header_len+load_header_len) :
-                       (header_len+load_header_len) +
-                       create_file_header_len)),
-                     description_event, header))
-    DBUG_VOID_RETURN;
-  if (description_event->binlog_version!=1)
-  {
-    file_id= uint4korr(buf + 
-                       header_len +
-		       load_header_len + CF_FILE_ID_OFFSET);
-    /*
-      Note that it's ok to use get_data_size() below, because it is computed
-      with values we have already read from this event (because we called
-      copy_log_event()); we are not using slave's format info to decode
-      master's format, we are really using master's format info.
-      Anyway, both formats should be identical (except the common_header_len)
-      as these Load events are not changed between 4.0 and 5.0 (as logging of
-      LOAD DATA INFILE does not use Load_log_event in 5.0).
-
-      The + 1 is for \0 terminating fname  
-    */
-    block_offset= (description_event->common_header_len +
-                   Load_log_event::get_data_size() +
-                   create_file_header_len + 1);
-    if (len < block_offset)
-      DBUG_VOID_RETURN;
-    block = (uchar*)buf + block_offset;
-    block_len = len - block_offset;
-  }
-  else
-  {
-    sql_ex.force_new_format();
-    inited_from_old = 1;
-  }
+  /**
+    We need to set exec_time here, which is ued to calcutate seconds behind
+    master on the slave.
+  */
+  exec_time= load_exec_time;
+  sql_ex.data_info= sql_ex_data;
   DBUG_VOID_RETURN;
 }
 
@@ -8453,12 +8364,11 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 					       uchar *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
-  :Log_event(thd_arg, 0,
+  :Append_block_event(db_arg, block_arg, block_len_arg, thd_arg->file_id),
+   Log_event(thd_arg, 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING),
-   block(block_arg),
-   block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
+             Log_event::EVENT_NORMAL_LOGGING)
 {
 }
 #endif
@@ -8469,21 +8379,15 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 */
 
 Append_block_log_event::Append_block_log_event(const char* buf, uint len,
-                                               const Format_description_log_event* description_event,
-                                               Log_event_header *header)
-  :Log_event(header),block(0)
+                                               const Format_description_event*
+                                               description_event,
+                                               Log_event_header* header)
+  :Binary_log_event(header),
+   Append_block_event(buf, len, description_event, header),
+   Log_event(header, true)
 {
 
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
-  uint8 common_header_len= description_event->common_header_len; 
-  uint8 append_block_header_len=
-    description_event->post_header_len[APPEND_BLOCK_EVENT-1];
-  uint total_header_len= common_header_len+append_block_header_len;
-  if (len < total_header_len)
-    DBUG_VOID_RETURN;
-  file_id= uint4korr(buf + common_header_len + AB_FILE_ID_OFFSET);
-  block= (uchar*)buf + total_header_len;
-  block_len= len - total_header_len;
   DBUG_VOID_RETURN;
 }
 
@@ -8634,11 +8538,11 @@ err:
 #ifndef MYSQL_CLIENT
 Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 					     bool using_trans)
-  :Log_event(thd_arg, 0, 
+  :Log_event(thd_arg, 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
-  file_id(thd_arg->file_id), db(db_arg)
+   Delete_file_event(thd_arg->file_id, db_arg)
 {
 }
 #endif
@@ -8648,16 +8552,12 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 */
 
 Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
-                                             const Format_description_log_event* description_event,
+                                             const Format_description_event* description_event,
                                              Log_event_header *header)
-  :Log_event(header),file_id(0)
+  :Binary_log_event(header),
+   Log_event(header, true),
+   Delete_file_event(buf, len, description_event, header)
 {
-
-  uint8 common_header_len= description_event->common_header_len;
-  uint8 delete_file_header_len= description_event->post_header_len[DELETE_FILE_EVENT-1];
-  if (len < (uint)(common_header_len + delete_file_header_len))
-    return;
-  file_id= uint4korr(buf + common_header_len + DF_FILE_ID_OFFSET);
 }
 
 
@@ -8742,28 +8642,26 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
   :Log_event(thd_arg, 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING),
-  file_id(thd_arg->file_id), db(db_arg)
+             Log_event::EVENT_NORMAL_LOGGING)
 {
+  file_id= thd_arg->file_id;
+  db= db_arg;
 }
 #endif
-  
+
 
 /*
   Execute_load_log_event ctor
 */
 
 Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
-                                               const Format_description_log_event* description_event,
+                                               const Format_description_event*
+                                               description_event,
                                                Log_event_header *header)
-  :Log_event(header), file_id(0)
+  :Binary_log_event(header),
+   Log_event(header, true),
+   Execute_load_event(buf, len, description_event, header)
 {
-
-  uint8 common_header_len= description_event->common_header_len;
-  uint8 exec_load_header_len= description_event->post_header_len[EXEC_LOAD_EVENT-1];
-  if (len < (uint)(common_header_len+exec_load_header_len))
-    return;
-  file_id= uint4korr(buf + common_header_len + EL_FILE_ID_OFFSET);
 }
 
 
@@ -8931,8 +8829,11 @@ err:
 Begin_load_query_log_event::
 Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
                            uint block_len_arg, bool using_trans)
-  :Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
-                          using_trans)
+ :Append_block_event(db_arg, block_arg, block_len_arg,
+                     thd_arg->file_id),
+  Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
+                          using_trans),
+  Begin_load_query_event()
 {
    file_id= thd_arg->file_id= mysql_bin_log.next_file_id();
 }
@@ -8941,9 +8842,12 @@ Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
 
 Begin_load_query_log_event::
 Begin_load_query_log_event(const char* buf, uint len,
-                           const Format_description_log_event* desc_event,
+                           const Format_description_event* desc_event,
                            Log_event_header *header)
-  :Append_block_log_event(buf, len, desc_event, header)
+  :Binary_log_event(header),
+   Append_block_event(buf, len, desc_event, header),
+   Append_block_log_event(buf, len, desc_event, header),
+   Begin_load_query_event(buf, len, desc_event, header)
 {
 }
 
@@ -9192,14 +9096,19 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
 
 bool sql_ex_info::write_data(IO_CACHE* file)
 {
-  if (new_format())
+  if (data_info.new_format())
   {
-    return (write_str_at_most_255_bytes(file, field_term, (uint) field_term_len) ||
-	    write_str_at_most_255_bytes(file, enclosed,   (uint) enclosed_len) ||
-	    write_str_at_most_255_bytes(file, line_term,  (uint) line_term_len) ||
-	    write_str_at_most_255_bytes(file, line_start, (uint) line_start_len) ||
-	    write_str_at_most_255_bytes(file, escaped,    (uint) escaped_len) ||
-	    my_b_safe_write(file,(uchar*) &opt_flags,1));
+    return (write_str_at_most_255_bytes(file, data_info.field_term,
+                                        (uint) data_info.field_term_len) ||
+	    write_str_at_most_255_bytes(file, data_info.enclosed,
+                                        (uint) data_info.enclosed_len) ||
+	    write_str_at_most_255_bytes(file, data_info.line_term,
+                                        (uint) data_info.line_term_len) ||
+	    write_str_at_most_255_bytes(file, data_info.line_start,
+                                        (uint) data_info.line_start_len) ||
+	    write_str_at_most_255_bytes(file, data_info.escaped,
+                                        (uint) data_info.escaped_len) ||
+	    my_b_safe_write(file,(uchar*) &(data_info.opt_flags), 1));
   }
   else
   {
@@ -9208,68 +9117,29 @@ bool sql_ex_info::write_data(IO_CACHE* file)
       char[7], not an old_sql_ex. /sven
     */
     old_sql_ex old_ex;
-    old_ex.field_term= *field_term;
-    old_ex.enclosed=   *enclosed;
-    old_ex.line_term=  *line_term;
-    old_ex.line_start= *line_start;
-    old_ex.escaped=    *escaped;
-    old_ex.opt_flags=  opt_flags;
-    old_ex.empty_flags=empty_flags;
+    old_ex.field_term= *(data_info.field_term);
+    old_ex.enclosed=   *(data_info.enclosed);
+    old_ex.line_term=  *(data_info.line_term);
+    old_ex.line_start= *(data_info.line_start);
+    old_ex.escaped=    *(data_info.escaped);
+    old_ex.opt_flags=  data_info.opt_flags;
+    old_ex.empty_flags= data_info.empty_flags;
     return my_b_safe_write(file, (uchar*) &old_ex, sizeof(old_ex)) != 0;
   }
 }
 
-
-/*
+/**
   sql_ex_info::init()
-*/
+  This method initializes the members of strcuture variable sql_ex_info,
+  defined in a Load_log_event. The structure, initializes the sub struct
+  data_info, with the subclause characters in a LOAD_DATA_INFILE query.
 
+*/
 const char *sql_ex_info::init(const char *buf, const char *buf_end,
                               bool use_new_format)
 {
-  cached_new_format = use_new_format;
-  if (use_new_format)
-  {
-    empty_flags=0;
-    /*
-      The code below assumes that buf will not disappear from
-      under our feet during the lifetime of the event. This assumption
-      holds true in the slave thread if the log is in new format, but is not
-      the case when we have old format because we will be reusing net buffer
-      to read the actual file before we write out the Create_file event.
-    */
-    if (read_str_at_most_255_bytes(&buf, buf_end, &field_term, &field_term_len) ||
-        read_str_at_most_255_bytes(&buf, buf_end, &enclosed,   &enclosed_len) ||
-        read_str_at_most_255_bytes(&buf, buf_end, &line_term,  &line_term_len) ||
-        read_str_at_most_255_bytes(&buf, buf_end, &line_start, &line_start_len) ||
-        read_str_at_most_255_bytes(&buf, buf_end, &escaped,    &escaped_len))
-      return 0;
-    opt_flags = *buf++;
-  }
-  else
-  {
-    field_term_len= enclosed_len= line_term_len= line_start_len= escaped_len=1;
-    field_term = buf++;			// Use first byte in string
-    enclosed=	 buf++;
-    line_term=   buf++;
-    line_start=  buf++;
-    escaped=     buf++;
-    opt_flags =  *buf++;
-    empty_flags= *buf++;
-    if (empty_flags & FIELD_TERM_EMPTY)
-      field_term_len=0;
-    if (empty_flags & ENCLOSED_EMPTY)
-      enclosed_len=0;
-    if (empty_flags & LINE_TERM_EMPTY)
-      line_term_len=0;
-    if (empty_flags & LINE_START_EMPTY)
-      line_start_len=0;
-    if (empty_flags & ESCAPED_EMPTY)
-      escaped_len=0;
-  }
-  return buf;
+  return data_info.init(buf, buf_end, use_new_format);
 }
-
 #ifndef DBUG_OFF
 #ifndef MYSQL_CLIENT
 static uchar dbug_extra_row_data_val= 0;

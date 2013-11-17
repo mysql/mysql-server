@@ -21,7 +21,7 @@
 using std::min;
 using std::max;
 
-namespace bapi_debug
+namespace binary_log_debug
 {
   bool debug_checksum_test= false;
 }
@@ -92,7 +92,7 @@ bool event_checksum_test(unsigned char *event_buf, unsigned long event_len,
     res= !(computed == incoming);
   }
 #ifndef DBUG_OFF
-  if (bapi_debug::debug_checksum_test)
+  if (binary_log_debug::debug_checksum_test)
     return true;
 #endif
   return res;
