@@ -45,9 +45,8 @@ var udebug             = unified_debug.getLogger("IndexBounds.js");
    exclusive intervals (-Infinity, 0) and (30, +Infinity).
 
    Of course -Infinity and +Infinity don't really represent infinite values,
-   only the lowest and highest values of the index.  NULLs sort low, so
-   -Infinity is equivalent to NULL, and "age IS NOT NULL" is expressed 
-   as "age > -Infinity".
+   only the lowest and highest values of the index.  NULLs sort low, so 
+   JavaScript null is equivalent to -Infinity.
 
    The end result is that a predicate tree, evaluated with regard to an 
    index column, is transformed into the set of ranges (segments) of the index
@@ -105,11 +104,11 @@ function compareValues(a, b) {
   var cmp;
   
   /* First compare to infinity */
-  if(a == -Infinity || b == Infinity) {
+  if(a === -Infinity || a === null || b === Infinity) {
     return -1;
   }
 
-  if(a == Infinity || b == -Infinity) {
+  if(a === Infinity || b === -Infinity || b === null) {
     return 1;
   }
 
@@ -491,15 +490,6 @@ NumberLine.prototype.lowerBound = function() {
   return this.transitions[0];
 };
 
-NumberLine.prototype.countSegments = function() {
-  return this.transitions.length / 2;
-};
-
-NumberLine.prototype.getSegment = function(i) {
-  var n = i * 2;
-  return new Segment(this.transitions[n], this.transitions[n+1]);
-};
-
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
 */
 function NumberLineIterator(numberLine) {
@@ -836,12 +826,12 @@ ColumnBoundVisitor.prototype.visitQueryBetweenOperator = function(node) {
 ColumnBoundVisitor.prototype.visitQueryUnaryOperator = function(node) {
   var pt, segment;
   if(node.operationCode == 7) {  // NULL
-    pt = new Endpoint(negInf);
+    pt = new Endpoint(null);
     segment = new Segment(pt, pt);
   }
-  else {   // IS NOT NULL, "i.e. > -Infinity"
+  else {   // NOT NULL
     assert(node.operationCode == 8);
-    pt = new Endpoint(negInf, false);
+    pt = new Endpoint(null, false);
     segment = new Segment(pt, posInf);
   }
   this.store(node, segment);
@@ -960,6 +950,17 @@ Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
   }
 };
 
+/* Construct an exported IndexBound from a segment
+*/
+function IndexBoundEndpoint(endpoint) {
+  this.inclusive = endpoint.inclusive;
+  this.key = endpoint.value.parts;
+}
+
+function IndexBound(segment) {
+  this.low = new IndexBoundEndpoint(segment.low);
+  this.high = new IndexBoundEndpoint(segment.high);
+}
 
 /* getIndexBounds()
 
@@ -970,10 +971,10 @@ Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
    @arg dbIndex:       IndexMetadata of index to evaluate
    @arg params:        params to substitute into query
 
-   Returns a NumberLine of IndexValues   
+   Returns an array of IndexBounds   
 */
 function getIndexBounds(queryHandler, dbIndex, params) {
-  var indexVisitor;
+  var indexVisitor, it, segment, bounds;
 
   /* Evaluate the query tree using the actual parameters */
   queryHandler.predicate.visit(new ColumnBoundVisitor(params));
@@ -984,8 +985,15 @@ function getIndexBounds(queryHandler, dbIndex, params) {
 
   /* Build a consolidated index bound for the top-level predicate */
   indexVisitor.consolidate(queryHandler.predicate);
+
+  /* Transform NumberLine to array of IndexBound */
+  bounds = [];
+  it = queryHandler.predicate.indexRange.getIterator();
+  while((segment = it.next()) !== null) {
+    bounds.push(new IndexBound(segment));
+  }
   
-  return queryHandler.predicate.indexRange;  
+  return bounds;  
 }
 
 exports.markQuery = markQuery;
