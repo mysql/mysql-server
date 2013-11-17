@@ -33,6 +33,84 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
     stats      = stats_module.getWriter(["api", "UserContext"]),
     util       = require("util");
 
+function Promise() {
+  // implement Promises/A+ http://promises-aplus.github.io/promises-spec/
+  // until then is called, this is an empty promise with no performance impact
+}
+
+Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
+  var new_promise = new Promise();
+  if (typeof this.fulfilled_callbacks === 'undefined') {
+    this.fulfilled_callbacks = [];
+    this.rejected_callbacks = [];
+    this.progress_callbacks = [];
+  }
+  if (this.err) {
+    // this promise was already rejected
+    global.setImmediate(function() {
+      rejected_callback.call(this.err);
+      new_promise.reject(this.err);
+    });
+    return new_promise;
+  }
+  if (typeof this.result !== 'undefined') {
+    // this promise was already fulfilled, possibly with a null result
+    global.setImmediate(function() {
+      fulfilled_callback.call(this.result);
+      new_promise.fulfill(this.result);
+    });
+    return new_promise;
+  }
+  // create a closure for each fulfilled_callback
+  // the closure is a function that when called, calls setImmediate to call the fulfilled_callback with the result
+  if (typeof fulfilled_callback === 'function') {
+    this.fulfilled_callbacks.push(function(result) {
+      global.setImmediate(function() {
+        var new_result = fulfilled_callback.call(undefined, result);
+        new_promise.fulfill(new_result);
+      });
+    });
+  }
+  // create a closure for each rejected_callback
+  // the closure is a function that when called, calls setImmediate to call the rejected_callback with the error
+  if (typeof rejected_callback === 'function') {
+    this.rejected_callbacks.push(function(err) {
+      global.setImmediate(function() {
+        rejected_callback.call(undefined, err);
+      });
+    });
+  }
+  // todo: progress_callbacks
+  if (typeof progress_callback === 'function') {
+    this.progress_callbacks.push(progress_callback);
+  }
+
+  return new_promise;
+};
+
+Promise.prototype.fulfill = function(result) {
+  this.result = result;
+  var fulfilled_callback;
+  if (this.fulfilled_callbacks) {
+    while(this.fulfilled_callbacks.length > 0) {
+      fulfilled_callback = this.fulfilled_callbacks.shift();
+      udebug.log_detail('Promise.fulfill for', result);
+      fulfilled_callback(result);
+    }
+  }
+};
+
+Promise.prototype.reject = function(err) {
+  this.err = err;
+  var rejected_callback;
+  if (this.rejected_callbacks) {
+    while(this.rejected_callbacks.length > 0) {
+      rejected_callback = this.rejected_callbacks.shift();
+      udebug.log_detail('Promise.reject for', err);
+      rejected_callback(err);
+    }
+  }
+};
 
 /** Create a function to manage the context of a user's asynchronous call.
  * All asynchronous user functions make a callback passing
@@ -74,6 +152,7 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
     this.autocommit = !this.session.tx.isActive();
   }
   this.errorMessages = '';
+  this.promise = new Promise();
 };
 
 exports.UserContext.prototype.appendErrorMessage = function(message) {
@@ -434,40 +513,33 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
   };
   
   var dbConnectionPoolCreated_callback = function(error, dbConnectionPool) {
-    udebug.log('connect dbConnectionPoolCreated for', connectionKey, 'database', database);
-    if(error) {
-      callback(error, null);
-    } else {
-        if (connection.isConnecting) {
-        // the first requester for this connection
-        connection.isConnecting = false;
+    if (connection.isConnecting) {
+      // the first requester for this connection
+      connection.isConnecting = false;
+      if (error) {
+        callback(error, null);
+      } else {
+        udebug.log('dbConnectionPool created for', connectionKey, 'database', database);
         connection.dbConnectionPool = dbConnectionPool;
         factory = createFactory(dbConnectionPool);
         connection.factories[database] = factory;
         connection.count++;
-        udebug.log_detail('dbConnectionPoolCreated_callback created SessionFactory for database', database);
-        // notify all others that the connection is now ready
-        for (i = 0; i < connection.waitingForConnection.length; ++i) {
-          udebug.log_detail('dbConnectionPoolCreated_callback notifying...');
-          connection.waitingForConnection[i](null, dbConnectionPool);
-        }
-      } else {
-        // another created the db connection pool
-        udebug.log('connect dbConnectionPoolCreated checking for database', database);
-        factory = connection.factories[database];
-        if (!factory) {
-          // the first for this database
-          udebug.log('connect dbConnectionPoolCreated creating session factory for database', database);
-          factory = createFactory(dbConnectionPool);
-          connection.factories[database] = factory;
-          connection.count++;
-          udebug.log('connect created SessionFactory with key', database, 'count is', connection.count,
-              'connection\n', connection);          
-        }
+        resolveTableMappingsAndCallback();
       }
-      // resolve all table mappings before returning
-      resolveTableMappingsAndCallback();
-   }
+      // notify all others that the connection is now ready (or an error was signaled)
+      for (i = 0; i < connection.waitingForConnection.length; ++i) {
+        udebug.log_detail('dbConnectionPoolCreated_callback notifying...');
+        connection.waitingForConnection[i](error, dbConnectionPool);
+      }
+    } else {
+      // another user request created the dbConnectionPool and session factory
+      if (error) {
+        callback(error, null);
+      } else {
+        factory = connection.factories[database];
+        resolveTableMappingsAndCallback();
+      }
+    }
   };
 
   // getSessionFactory starts here
@@ -515,6 +587,7 @@ exports.UserContext.prototype.connect = function() {
   };
 
   getSessionFactory(this, this.user_arguments[0], this.user_arguments[1], connectOnSessionFactory);
+  return userContext.promise;
 };
 
 function checkOperation(err, dbOperation) {
@@ -604,6 +677,7 @@ exports.UserContext.prototype.find = function() {
     // get DBTableHandler for prototype/tableName
     getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
   }
+  return userContext.promise;
 };
 
 
@@ -833,7 +907,6 @@ exports.UserContext.prototype.persist = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       userContext.operation = dbSession.buildInsertOperation(dbTableHandler, userContext.values, transactionHandler,
@@ -861,6 +934,7 @@ exports.UserContext.prototype.persist = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, persistOnTableHandler);
+  return userContext.promise;
 };
 
 /** Save the object. If the row already exists, overwrite non-pk columns.
@@ -892,7 +966,6 @@ exports.UserContext.prototype.save = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       indexHandler = dbTableHandler.getIndexHandler(userContext.values);
@@ -926,6 +999,7 @@ exports.UserContext.prototype.save = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, saveOnTableHandler);
+  return userContext.promise;
 };
 
 /** Update the object.
@@ -957,7 +1031,6 @@ exports.UserContext.prototype.update = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       indexHandler = dbTableHandler.getIndexHandler(userContext.keys);
@@ -994,6 +1067,7 @@ exports.UserContext.prototype.update = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, updateOnTableHandler);
+  return userContext.promise;
 };
 
 /** Load the object.
@@ -1063,6 +1137,7 @@ exports.UserContext.prototype.load = function() {
   }
   var ctor = userContext.user_arguments[0].mynode.constructor;
   getTableHandler(ctor, userContext.session, loadOnTableHandler);
+  return userContext.promise;
 };
 
 /** Remove the object.
@@ -1130,6 +1205,7 @@ exports.UserContext.prototype.remove = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, removeOnTableHandler);
+  return userContext.promise;
 };
 
 /** Get Mapping
@@ -1147,6 +1223,7 @@ exports.UserContext.prototype.getMapping = function() {
   }
   // getMapping starts here
   getTableHandler(userContext.user_arguments[0], userContext.session, getMappingOnTableHandler);  
+  return userContext.promise;
 };
 
 /** Execute a batch
@@ -1226,6 +1303,7 @@ exports.UserContext.prototype.commit = function() {
     userContext.applyCallback(
         new Error('Fatal Internal Exception: UserContext.commit with no active transaction.'));
   }
+  return userContext.promise;
 };
 
 
@@ -1250,6 +1328,7 @@ exports.UserContext.prototype.rollback = function() {
     userContext.applyCallback(
         new Error('Fatal Internal Exception: UserContext.rollback with no active transaction.'));
   }
+  return userContext.promise;
 };
 
 
@@ -1295,6 +1374,7 @@ exports.UserContext.prototype.openSession = function() {
     getSessionFactory(userContext, userContext.user_arguments[0], userContext.user_arguments[1], 
         openSessionOnSessionFactory);
   }
+  return userContext.promise;
 };
 
 /** Close a session. Close the dbSession which might put the underlying connection
@@ -1314,6 +1394,7 @@ exports.UserContext.prototype.closeSession = function() {
   };
   // first, close the dbSession
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
+  return userContext.promise;
 };
 
 
@@ -1324,19 +1405,24 @@ exports.UserContext.prototype.closeSession = function() {
  * If there is no user callback, and there is an error (first argument to applyCallback)
  * throw the error.
  */
-exports.UserContext.prototype.applyCallback = function(err) {
+exports.UserContext.prototype.applyCallback = function(err, result) {
+  var promise_result = result || null;
   if (arguments.length !== this.returned_parameter_count) {
     throw new Error(
         'Fatal internal exception: wrong parameter count ' + arguments.length +' for UserContext applyCallback' + 
         '; expected ' + this.returned_parameter_count);
   }
+  // notify (either fulfill or reject) the promise
+  if (err) {
+    udebug.log_detail('UserContext.applyCallback.reject', err);
+    this.promise.reject(err);
+  } else {
+    udebug.log_detail('UserContext.applyCallback.fulfill', result);
+    this.promise.fulfill(promise_result);
+  }
   if (typeof(this.user_callback) === 'undefined') {
-    // if there is an error and no user callback for this operation, throw the error instead
-    if (err) {
-      throw err;
-    } else {
-      return;
-    }
+    udebug.log_detail('UserContext.applyCallback with no user_callback.');
+    return;
   }
   var args = [];
   var i, j;
