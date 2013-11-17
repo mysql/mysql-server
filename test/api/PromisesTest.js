@@ -48,18 +48,20 @@ t_222.run = function() {
   function onSession(session) {
     n++;
     assert(n === 1);  // 2.2.2.3 ; could happen after test has already passed
-    test.errorIfUnset("onFulfilled gets a value", session);   // 2.2.2.1
-    test.errorIfNotEqual("Not a session", typeof session.find, "function");
-    test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
+    test.errorIfUnset("PromisesTest.t_222 onFulfilled gets a value", session);   // 2.2.2.1
+    test.errorIfNotEqual("PromisesTest.t_222 Not a session", typeof session.find, "function");
+    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this);
 
-    session.close(function() { test.failOnError(); });
+    session.close(function() {
+      test.failOnError();
+      });
   }
   
   p = mynode.openSession(good_properties, null);
-  if(typeof p === 'object') {
+  if(typeof p === 'object' && typeof p.then === 'function') {
     p.then(onSession);
   } else {
-    this.fail("not thenable");
+    this.fail("PromisesTest.t_222 not thenable");
   }
 };
 tests.push(t_222);
@@ -79,7 +81,7 @@ t_223.run = function() {
   test = this;
   
   function onSession(s) {
-    assert("openSession should fail" === 0);
+    assert("PromisesTest.t_223 openSession should fail" === 0);
     s.close();
   }
   
@@ -87,15 +89,15 @@ t_223.run = function() {
     n++;
     assert(n === 1);   // 2.2.3.3 ; could happen after test has passed
     test.errorIfUnset("onRejected must get a reason", e);
-    test.errorIfNotEqual("typeof this (2.2.5)", typeof this, "undefined");
+    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this);
     test.failOnError();
   }
   
   p = mynode.openSession(bad_properties, null);
-  if(typeof p === 'object') {
+  if(typeof p === 'object' && typeof p.then === 'function') {
     p.then(onSession, onError);
   } else {
-    this.fail("not thenable");
+    this.fail("PromisesTest.t_223 not thenable");
   }
 };
 tests.push(t_223);
@@ -115,21 +117,21 @@ t_2261.run = function() {
   
   function onSession_1(s) {
     n++;
-    test.errorIfNotEqual("Wrong order", n, 1);
+    test.errorIfNotEqual("PromisesTest.t_2261 wrong order; onSession_1 should be called first", 1, n);
   }
 
   function onSession_2(s) {
     n++;
-    test.errorIfNotEqual("Wrong order", n, 2);
+    test.errorIfNotEqual("PromisesTest.t_2261 wrong order; onSession_2 should be called second", 2, n);
     s.close(function() { test.failOnError(); });
   }
 
   p = mynode.openSession(good_properties, null);
-  if(typeof p === 'object') {
+  if(typeof p === 'object' && typeof p.then === 'function') {
     p.then(onSession_1);
     p.then(onSession_2);
   } else {
-    this.fail("not thenable");
+    this.fail("PromisesTest.t_2261 not thenable");
   }  
 };
 tests.push(t_2261);
@@ -141,18 +143,18 @@ t_2262.run = function() {
   test = this;
 
   function onSession(s) {
-    test.fail("openSession should fail");
+    test.fail("PromisesTest.t_2262 openSession should fail");
     s.close();
   }
 
   function onErr_1(e) {
     n++;
-    test.errorIfNotEqual("Wrong order", n, 1);
+    test.errorIfNotEqual("PromisesTest.t_2262 wrong order; onErr_1 should be called first", 1, n);
   }
   
   function onErr_2(e) {
     n++;
-    test.errorIfNotEqual("Wrong order", n, 2);
+    test.errorIfNotEqual("PromisesTest.t_2262 wrong order; onErr_2 should be called second", 2, n);
     test.failOnError();
   }
 
@@ -161,7 +163,7 @@ t_2262.run = function() {
     p.then(onSession, onErr_1);
     p.then(onSession, onErr_2);
   } else {
-    this.fail("not thenable");
+    this.fail("PromisesTest.t_2262 not thenable");
   }
 };
 tests.push(t_2262);
@@ -180,11 +182,11 @@ t_227.run = function() {
 
   p1 = mynode.openSession(good_properties, null);
   if(typeof p1 !== 'object' || typeof p1.then !== 'function') {
-    this.fail("p1 not thenable");
+    this.fail("PromisesTest.t_227 p1 not thenable");
   } else {
     p2 = p1.then(onSession);
     if(typeof p2 !== 'object' || typeof p2.then !== 'function') {
-      this.appendErrorMessage("p2 not thenable");
+      this.appendErrorMessage("PromisesTest.t_227 p2 not thenable");
     }
   }
 };

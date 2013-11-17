@@ -42,33 +42,33 @@ exports.Session = Session;
 exports.Session.prototype.getTableMetadata = function() {
   var context = new userContext.UserContext(arguments, 3, 2, this, this.sessionFactory);
   // delegate to context's getTableMetadata for execution
-  context.getTableMetadata();
+  return context.getTableMetadata();
 };
 
 
 exports.Session.prototype.listTables = function() {
   var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
   // delegate to context's getTableMetadata for execution
-  context.listTables();
+  return context.listTables();
 };
 
 exports.Session.prototype.getMapping = function() {
   var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
-  context.getMapping();
+  return context.getMapping();
 };
 
 
 exports.Session.prototype.find = function() {
   var context = new userContext.UserContext(arguments, 3, 2, this, this.sessionFactory);
   // delegate to context's find function for execution
-  context.find();
+  return context.find();
 };
 
 
 exports.Session.prototype.load = function() {
   var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's load function for execution
-  context.load();
+  return context.load();
 };
 
 
@@ -82,7 +82,7 @@ exports.Session.prototype.persist = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
   }
   // delegate to context's persist function for execution
-  context.persist();
+  return context.persist();
 };
 
 
@@ -96,7 +96,7 @@ exports.Session.prototype.remove = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
   }    
   // delegate to context's remove function for execution
-  context.remove();
+  return context.remove();
 };
 
 
@@ -110,7 +110,7 @@ exports.Session.prototype.update = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 4, 1, this, this.sessionFactory);
   }
   // delegate to context's update function for execution
-  context.update();
+  return context.update();
 };
 
 
@@ -124,7 +124,7 @@ exports.Session.prototype.save = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
   }
   // delegate to context's save function for execution
-  context.save();
+  return context.save();
 };
 
 
@@ -137,7 +137,7 @@ exports.Session.prototype.createQuery = function() {
 
 exports.Session.prototype.close = function() {
   var context = new userContext.UserContext(arguments, 1, 1, this, this.sessionFactory);
-  context.closeSession();
+  return context.closeSession();
 };
 
 
