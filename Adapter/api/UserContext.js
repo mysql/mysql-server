@@ -173,6 +173,7 @@ exports.UserContext.prototype.getTableMetadata = function() {
   var dbSession = (this.session)?this.session.dbSession:null;
   this.session_factory.dbConnectionPool.getTableMetadata(
       databaseName, tableName, dbSession, getTableMetadataOnTableMetadata);
+  return userContext.promise;
 };
 
 
@@ -188,6 +189,7 @@ exports.UserContext.prototype.listTables = function() {
   var databaseName = this.user_arguments[0];
   var dbSession = (this.session)?this.session.dbSession:null;
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
+  return userContext.promise;
 };
 
 
