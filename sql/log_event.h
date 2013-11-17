@@ -137,83 +137,24 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 */
 #define BINLOG_VERSION    4
 
-
-/*
-  These are flags and structs to handle all the LOAD DATA INFILE options (LINES
-  TERMINATED etc).
-*/
-
-/*
-  These are flags and structs to handle all the LOAD DATA INFILE options (LINES
-  TERMINATED etc).
-  DUMPFILE_FLAG is probably useless (DUMPFILE is a clause of SELECT, not of LOAD
-  DATA).
-*/
-#define DUMPFILE_FLAG		0x1
-#define OPT_ENCLOSED_FLAG	0x2
-#define REPLACE_FLAG		0x4
-#define IGNORE_FLAG		0x8
-
-#define FIELD_TERM_EMPTY	0x1
-#define ENCLOSED_EMPTY		0x2
-#define LINE_TERM_EMPTY		0x4
-#define LINE_START_EMPTY	0x8
-#define ESCAPED_EMPTY		0x10
-
-/*****************************************************************************
-
-  old_sql_ex struct
-
- ****************************************************************************/
-struct old_sql_ex
-{
-  char field_term;
-  char enclosed;
-  char line_term;
-  char line_start;
-  char escaped;
-  char opt_flags;
-  char empty_flags;
-};
-
 #define NUM_LOAD_DELIM_STRS 5
 
 /*****************************************************************************
-
   sql_ex_info struct
+  The strcture contains a refernce to another structure sql_ex_data_info,
+  which is defined in binlogapi, and contains the characters specified in
+  the sub clause of a LOAD_DATA_INFILE.
+  //TODO: Remove this struct and only retain binary_log::sql_ex_data_info
+          when the encoder is moved to bapi
 
  ****************************************************************************/
 struct sql_ex_info
 {
   sql_ex_info() {}                            /* Remove gcc warning */
-  const char* field_term;
-  const char* enclosed;
-  const char* line_term;
-  const char* line_start;
-  const char* escaped;
-  int cached_new_format;
-  uint8 field_term_len,enclosed_len,line_term_len,line_start_len, escaped_len;
-  char opt_flags;
-  char empty_flags;
+  binary_log::sql_ex_data_info data_info;
 
-  // store in new format even if old is possible
-  void force_new_format() { cached_new_format = 1;}
-  int data_size()
-  {
-    return (new_format() ?
-	    field_term_len + enclosed_len + line_term_len +
-	    line_start_len + escaped_len + 6 : 7);
-  }
   bool write_data(IO_CACHE* file);
   const char* init(const char* buf, const char* buf_end, bool use_new_format);
-  bool new_format()
-  {
-    return ((cached_new_format != -1) ? cached_new_format :
-	    (cached_new_format=(field_term_len > 1 ||
-				enclosed_len > 1 ||
-				line_term_len > 1 || line_start_len > 1 ||
-				escaped_len > 1)));
-  }
 };
 
 /*****************************************************************************
@@ -298,12 +239,12 @@ struct sql_ex_info
 
 /* query event post-header */
 
-#define Q_THREAD_ID_OFFSET	0
-#define Q_EXEC_TIME_OFFSET	4
-#define Q_DB_LEN_OFFSET		8
-#define Q_ERR_CODE_OFFSET	9
+#define Q_THREAD_ID_OFFSET      0
+#define Q_EXEC_TIME_OFFSET      4
+#define Q_DB_LEN_OFFSET         8
+#define Q_ERR_CODE_OFFSET       9
 #define Q_STATUS_VARS_LEN_OFFSET 11
-#define Q_DATA_OFFSET		QUERY_HEADER_LEN
+#define Q_DATA_OFFSET           QUERY_HEADER_LEN
 /* these are codes, not offsets; not more than 256 values (1 byte). */
 #define Q_FLAGS2_CODE           0
 #define Q_SQL_MODE_CODE         1
@@ -313,7 +254,7 @@ struct sql_ex_info
   old masters.
 */
 #define Q_CATALOG_CODE          2
-#define Q_AUTO_INCREMENT	3
+#define Q_AUTO_INCREMENT        3
 #define Q_CHARSET_CODE          4
 #define Q_TIME_ZONE_CODE        5
 /*
@@ -374,32 +315,6 @@ struct sql_ex_info
 #define UV_VAL_TYPE_SIZE       1
 #define UV_NAME_LEN_SIZE       4
 #define UV_CHARSET_NUMBER_SIZE 4
-
-/* Load event post-header */
-#define L_THREAD_ID_OFFSET   0
-#define L_EXEC_TIME_OFFSET   4
-#define L_SKIP_LINES_OFFSET  8
-#define L_TBL_LEN_OFFSET     12
-#define L_DB_LEN_OFFSET      13
-#define L_NUM_FIELDS_OFFSET  14
-#define L_SQL_EX_OFFSET      18
-#define L_DATA_OFFSET        LOAD_HEADER_LEN
-
-/* CF to DF handle LOAD DATA INFILE */
-
-/* CF = "Create File" */
-#define CF_FILE_ID_OFFSET  0
-#define CF_DATA_OFFSET     CREATE_FILE_HEADER_LEN
-
-/* AB = "Append Block" */
-#define AB_FILE_ID_OFFSET  0
-#define AB_DATA_OFFSET     APPEND_BLOCK_HEADER_LEN
-
-/* EL = "Execute Load" */
-#define EL_FILE_ID_OFFSET  0
-
-/* DF = "Delete File" */
-#define DF_FILE_ID_OFFSET  0
 
 /* TM = "Table Map" */
 #define TM_MAPID_OFFSET    0
@@ -903,13 +818,6 @@ protected:
 
 public:
   /*
-    The following type definition is to be used whenever data is placed 
-    and manipulated in a common buffer. Use this typedef for buffers
-    that contain data containing binary and character data.
-  */
-  typedef unsigned char Byte;
-
-  /*
      A temp buffer for read_log_event; it is later analysed according to the
      event's type, and its content is distributed in the event-specific fields.
   */
@@ -1138,7 +1046,16 @@ public:
   {
     return(event_logging_type == EVENT_IMMEDIATE_LOGGING);
   }
-  Log_event(Log_event_header *header);
+
+  /*
+     Added a flag which is set for the events already moved into
+     binlogapi. For the events being decoded in BAPI, common_header should
+     point to the header object which is contained within the class
+    Binary_log_event.
+     Once all the events are moved, this parameter would be removed.
+  */
+  Log_event(Log_event_header *header, bool flag_moved= false);
+
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
@@ -1858,7 +1775,7 @@ class Query_log_event: public Log_event
   LEX_STRING user;
   LEX_STRING host;
 protected:
-  Log_event::Byte* data_buf;
+  Log_event_header::Byte* data_buf;
 public:
   const char* query;
   const char* catalog;
@@ -1885,7 +1802,7 @@ public:
     concerned) from here.
   */
 
-  uint catalog_len;			// <= 255 char; 0 means uninited
+  uint catalog_len;                     // <= 255 char; 0 means uninited
 
   /*
     We want to be able to store a variable number of N-bit status vars:
@@ -2088,247 +2005,43 @@ public:        /* !!! Public in this patch to allow old usage */
 /**
   @class Load_log_event
 
-  This log event corresponds to a "LOAD DATA INFILE" SQL query on the
-  following form:
-
-  @verbatim
-   (1)    USE db;
-   (2)    LOAD DATA [CONCURRENT] [LOCAL] INFILE 'file_name'
-   (3)    [REPLACE | IGNORE]
-   (4)    INTO TABLE 'table_name'
-   (5)    [FIELDS
-   (6)      [TERMINATED BY 'field_term']
-   (7)      [[OPTIONALLY] ENCLOSED BY 'enclosed']
-   (8)      [ESCAPED BY 'escaped']
-   (9)    ]
-  (10)    [LINES
-  (11)      [TERMINATED BY 'line_term']
-  (12)      [LINES STARTING BY 'line_start']
-  (13)    ]
-  (14)    [IGNORE skip_lines LINES]
-  (15)    (field_1, field_2, ..., field_n)@endverbatim
-
-  @section Load_log_event_binary_format Binary Format
-
-  The Post-Header consists of the following six components.
-
-  <table>
-  <caption>Post-Header for Load_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>slave_proxy_id</td>
-    <td>4 byte unsigned integer</td>
-    <td>An integer identifying the client thread that issued the
-    query.  The id is unique per server.  (Note, however, that two
-    threads on different servers may have the same slave_proxy_id.)
-    This is used when a client thread creates a temporary table local
-    to the client.  The slave_proxy_id is used to distinguish
-    temporary tables that belong to different clients.
-    </td>
-  </tr>
-
-  <tr>
-    <td>exec_time</td>
-    <td>4 byte unsigned integer</td>
-    <td>The time from when the query started to when it was logged in
-    the binlog, in seconds.</td>
-  </tr>
-
-  <tr>
-    <td>skip_lines</td>
-    <td>4 byte unsigned integer</td>
-    <td>The number on line (14) above, if present, or 0 if line (14)
-    is left out.
-    </td>
-  </tr>
-
-  <tr>
-    <td>table_name_len</td>
-    <td>1 byte unsigned integer</td>
-    <td>The length of 'table_name' on line (4) above.</td>
-  </tr>
-
-  <tr>
-    <td>db_len</td>
-    <td>1 byte unsigned integer</td>
-    <td>The length of 'db' on line (1) above.</td>
-  </tr>
-
-  <tr>
-    <td>num_fields</td>
-    <td>4 byte unsigned integer</td>
-    <td>The number n of fields on line (15) above.</td>
-  </tr>
-  </table>    
-
-  The Body contains the following components.
-
-  <table>
-  <caption>Body of Load_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>sql_ex</td>
-    <td>variable length</td>
-
-    <td>Describes the part of the query on lines (3) and
-    (5)&ndash;(13) above.  More precisely, it stores the five strings
-    (on lines) field_term (6), enclosed (7), escaped (8), line_term
-    (11), and line_start (12); as well as a bitfield indicating the
-    presence of the keywords REPLACE (3), IGNORE (3), and OPTIONALLY
-    (7).
-
-    The data is stored in one of two formats, called "old" and "new".
-    The type field of Common-Header determines which of these two
-    formats is used: type LOAD_EVENT means that the old format is
-    used, and type NEW_LOAD_EVENT means that the new format is used.
-    When MySQL writes a Load_log_event, it uses the new format if at
-    least one of the five strings is two or more bytes long.
-    Otherwise (i.e., if all strings are 0 or 1 bytes long), the old
-    format is used.
-
-    The new and old format differ in the way the five strings are
-    stored.
-
-    <ul>
-    <li> In the new format, the strings are stored in the order
-    field_term, enclosed, escaped, line_term, line_start. Each string
-    consists of a length (1 byte), followed by a sequence of
-    characters (0-255 bytes).  Finally, a boolean combination of the
-    following flags is stored in 1 byte: REPLACE_FLAG==0x4,
-    IGNORE_FLAG==0x8, and OPT_ENCLOSED_FLAG==0x2.  If a flag is set,
-    it indicates the presence of the corresponding keyword in the SQL
-    query.
-
-    <li> In the old format, we know that each string has length 0 or
-    1.  Therefore, only the first byte of each string is stored.  The
-    order of the strings is the same as in the new format.  These five
-    bytes are followed by the same 1 byte bitfield as in the new
-    format.  Finally, a 1 byte bitfield called empty_flags is stored.
-    The low 5 bits of empty_flags indicate which of the five strings
-    have length 0.  For each of the following flags that is set, the
-    corresponding string has length 0; for the flags that are not set,
-    the string has length 1: FIELD_TERM_EMPTY==0x1,
-    ENCLOSED_EMPTY==0x2, LINE_TERM_EMPTY==0x4, LINE_START_EMPTY==0x8,
-    ESCAPED_EMPTY==0x10.
-    </ul>
-
-    Thus, the size of the new format is 6 bytes + the sum of the sizes
-    of the five strings.  The size of the old format is always 7
-    bytes.
-    </td>
-  </tr>
-
-  <tr>
-    <td>field_lens</td>
-    <td>num_fields 1 byte unsigned integers</td>
-    <td>An array of num_fields integers representing the length of
-    each field in the query.  (num_fields is from the Post-Header).
-    </td>
-  </tr>
-
-  <tr>
-    <td>fields</td>
-    <td>num_fields null-terminated strings</td>
-    <td>An array of num_fields null-terminated strings, each
-    representing a field in the query.  (The trailing zero is
-    redundant, since the length are stored in the num_fields array.)
-    The total length of all strings equals to the sum of all
-    field_lens, plus num_fields bytes for all the trailing zeros.
-    </td>
-  </tr>
-
-  <tr>
-    <td>table_name</td>
-    <td>null-terminated string of length table_len+1 bytes</td>
-    <td>The 'table_name' from the query, as a null-terminated string.
-    (The trailing zero is actually redundant since the table_len is
-    known from Post-Header.)
-    </td>
-  </tr>
-
-  <tr>
-    <td>db</td>
-    <td>null-terminated string of length db_len+1 bytes</td>
-    <td>The 'db' from the query, as a null-terminated string.
-    (The trailing zero is actually redundant since the db_len is known
-    from Post-Header.)
-    </td>
-  </tr>
-
-  <tr>
-    <td>file_name</td>
-    <td>variable length string without trailing zero, extending to the
-    end of the event (determined by the length field of the
-    Common-Header)
-    </td>
-    <td>The 'file_name' from the query.
-    </td>
-  </tr>
-
-  </table>
-
-  @subsection Load_log_event_notes_on_previous_versions Notes on Previous Versions
+  This log event corresponds to a "LOAD DATA INFILE" SQL query.
+  it is a subclass of Rotate_event, defined in binlogapi, and is used
+  by the slave to execute the LOAD DATA INFILE query, as a series of events.
 
   This event type is understood by current versions, but only
   generated by MySQL 3.23 and earlier.
+
+  The inheritance structure in the current design for the classes is
+  as follows:
+
+                Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+             Load_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 Load_log_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
 */
-class Load_log_event: public Log_event
+class Load_log_event: public Log_event, public virtual Load_event
 {
 private:
 protected:
   int copy_log_event(const char *buf, ulong event_len,
                      int body_offset,
-                     const Format_description_log_event* description_event,
+                     const Format_description_event* description_event,
                      Log_event_header *header);
-
 public:
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
   ulong thread_id;
-  ulong slave_proxy_id;
-  uint32 table_name_len;
-  /*
-    No need to have a catalog, as these events can only come from 4.x.
-    TODO: this may become false if Dmitri pushes his new LOAD DATA INFILE in
-    5.0 only (not in 4.x).
-  */
-  uint32 db_len;
-  uint32 fname_len;
-  uint32 num_fields;
-  const char* fields;
-  const uchar* field_lens;
-  uint32 field_block_len;
-
-  const char* table_name;
-  const char* db;
-  const char* fname;
-  uint32 skip_lines;
   sql_ex_info sql_ex;
-  bool local_fname;
-  /**
-    Indicates that this event corresponds to LOAD DATA CONCURRENT,
-
-    @note Since Load_log_event event coming from the binary log
-          lacks information whether LOAD DATA on master was concurrent
-          or not, this flag is only set to TRUE for an auxiliary
-          Load_log_event object which is used in mysql_load() to
-          re-construct LOAD DATA statement from function parameters,
-          for logging.
-  */
-  bool is_concurrent;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
@@ -2371,24 +2084,24 @@ public:
     for the common_header_len (post_header_len will not be changed).
   */
   Load_log_event(const char* buf, uint event_len,
-                 const Format_description_log_event* description_event,
+                 const Format_description_event* description_event,
                  Log_event_header *header);
   ~Load_log_event()
   {}
   Log_event_type get_type_code()
   {
-    return sql_ex.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
+    return sql_ex.data_info.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
   }
 #ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
   bool write_data_body(IO_CACHE* file);
 #endif
-  bool is_valid() const { return table_name != 0; }
+  virtual bool is_valid() const { return Load_event::is_valid(); }
   int get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
 	    + Binary_log_event::LOAD_HEADER_LEN
-	    + sql_ex.data_size() + field_block_len + num_fields);
+            + sql_ex.data_info.data_size() + field_block_len + num_fields);
   }
 
 public:        /* !!! Public in this patch to allow old usage */
@@ -2907,7 +2620,7 @@ private:
 
   It is used by the master inorder to write the rotate event in the binary log.
 
-  The inheritance structure in the current design for the classess is
+  The inheritance structure in the current design for the classes is
   as follows:
 
                 Binary_log_event
@@ -2963,24 +2676,43 @@ private:
 /**
   @class Create_file_log_event
 
+  The Create_file_event contains the options to LOAD DATA INFILE.
+  This was a design flaw since the file cannot be loaded until the
+  Exec_load_event is seen. The use of this event was deprecated from
+  MySQL server version 5.0.3 and above.
+  To work around this, the slave, when executing the Create_file_log_event,
+  writes the Create_file_log_event to a temporary file.
+
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+              B_l:Load_event  Log_event
+                     /  \        /
+               <<v>>/    \<<v>> /
+                   /      \    /
+                  /        \  /
+              B_l:C_F_E  Load_log_event
+                  \        /
+                   \      /
+                    \    /
+                     \  /
+              Create_file_log_event
+
+  B_l: Namespace Binary_log
+  C_F_E: class Create_file_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Create_file_log_event_binary_format Binary Format
 */
-
-class Create_file_log_event: public Load_log_event
+class Create_file_log_event: public Load_log_event, public Create_file_event
 {
-protected:
-  /*
-    Pretend we are Load event, so we can write out just
-    our Load part - used on the slave when writing event out to
-    SQL_LOAD-*.info file
-  */
-  bool fake_base;
 public:
-  uchar* block;
-  const char *event_buf;
-  uint block_len;
-  uint file_id;
-  bool inited_from_old;
 
 #ifdef MYSQL_SERVER
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
@@ -3000,22 +2732,15 @@ public:
 #endif
 
   Create_file_log_event(const char* buf, uint event_len,
-                        const Format_description_log_event* description_event,
+                        const Format_description_event* description_event,
                         Log_event_header *header);
   ~Create_file_log_event()
   {
-    my_free((void*) event_buf);
   }
 
   Log_event_type get_type_code()
   {
     return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
-  }
-  int get_data_size()
-  {
-    return (fake_base ? Load_log_event::get_data_size() :
-	    Load_log_event::get_data_size() +
-	    4 + 1 + block_len);
   }
   bool is_valid() const { return inited_from_old || block != 0; }
 #ifdef MYSQL_SERVER
@@ -3038,28 +2763,37 @@ private:
 /**
   @class Append_block_log_event
 
+  This event is created to contain the file data. One LOAD_DATA_INFILE
+  can have 0 or more instances of this event written to the binary log
+  depending on the size of the file.
+
+  The inheritance structure is as follows
+
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+                  B_l:A_B_E  Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                Append_block_log_event
+
+  B_l: Namespace Binary_log
+  A_B_E: class Append_block_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Append_block_log_event_binary_format Binary Format
 */
-
-class Append_block_log_event: public Log_event
+class Append_block_log_event: public Log_event,
+                              public virtual Append_block_event
 {
 public:
-  uchar* block;
-  uint block_len;
-  uint file_id;
-  /*
-    'db' is filled when the event is created in mysql_load() (the
-    event needs to have a 'db' member to be well filtered by
-    binlog-*-db rules). 'db' is not written to the binlog (it's not
-    used by Append_block_log_event::write()), so it can't be read in
-    the Append_block_log_event(const char* buf, int event_len)
-    constructor.  In other words, 'db' is used only for filtering by
-    binlog-*-db rules.  Create_file_log_event is different: it's 'db'
-    (which is inherited from Load_log_event) is written to the binlog
-    and can be re-read.
-  */
-  const char* db;
-
 #ifdef MYSQL_SERVER
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
@@ -3072,13 +2806,13 @@ public:
 #endif
 
   Append_block_log_event(const char* buf, uint event_len,
-                         const Format_description_log_event
+                         const Format_description_event
                          *description_event,
                          Log_event_header *header);
   ~Append_block_log_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   int get_data_size() { return  block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN ;}
-  bool is_valid() const { return block != 0; }
+  bool is_valid() const { return Append_block_event::is_valid(); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
@@ -3094,10 +2828,37 @@ private:
 /**
   @class Delete_file_log_event
 
+  Delete_file_log_event is created when the LOAD_DATA query fails on the
+  master for some reason, and the slave should be notified to abort the
+  load. The event is required since the master starts writing the loaded
+  block into the binary log before the statement ends. In case of error,
+  the slave should abort, and delete any temporary file created while
+  applying the (NEW_)LOAD_EVENT.
+
+  The inheritance structure is as follows
+
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+                  B_l:D_F_E  Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                  Delete_file_log_event
+
+  B_l: Namespace Binary_log
+  D_F_E: class Delete_file_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Delete_file_log_event_binary_format Binary Format
 */
-
-class Delete_file_log_event: public Log_event
+class Delete_file_log_event: public Log_event, public Delete_file_event
 {
 public:
   uint file_id;
@@ -3115,7 +2876,7 @@ public:
 #endif
 
   Delete_file_log_event(const char* buf, uint event_len,
-                        const Format_description_log_event* description_event,
+                        const Format_description_event* description_event,
                         Log_event_header *header);
   ~Delete_file_log_event() {}
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
@@ -3136,15 +2897,38 @@ private:
 /**
   @class Execute_load_log_event
 
+  Execute_load_log_event is created when the LOAD_DATA query succeeds on
+  the master, The slave should be notified to load the temporary file into
+  the table. For server versions > 5.0.3, the temporary files that stores
+  the parameters to LOAD DATA INFILE is not needed anymore, since they are
+  stored in this event. There is still a temp file containing all the data
+  to be loaded.
+
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+                  B_l:E_L_E  Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                   Execute_load_log_event
+
+  B_l: Namespace Binary_log
+  E_L_E: class Execute_load_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
   @section Delete_file_log_event_binary_format Binary Format
 */
 
-class Execute_load_log_event: public Log_event
+class Execute_load_log_event: public Log_event, public Execute_load_event
 {
 public:
-  uint file_id;
-  const char* db; /* see comment in Append_block_log_event */
-
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
@@ -3155,7 +2939,7 @@ public:
 #endif
 
   Execute_load_log_event(const char* buf, uint event_len,
-                         const Format_description_log_event
+                         const Format_description_event
                          *description_event,
                          Log_event_header *header);
   ~Execute_load_log_event() {}
@@ -3190,9 +2974,36 @@ private:
   Append_block event is that this event creates or truncates existing file
   before writing data.
 
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+                  B_l:A_B_E   Log_event
+                     /  \        /
+               <<v>>/    \<<v>> /
+                   /      \    /
+                  /        \  /
+            B_l:B_L_Q_E Append_block_event
+                  \        /
+                   \      /
+                    \    /
+                     \  /
+          Begin_load_query_log_event
+
+  B_l: Namespace Binary_log
+  A_B_E: class Append_block_event
+  B_L_Q_E: Begin_load_query_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Begin_load_query_log_event_binary_format Binary Format
 */
-class Begin_load_query_log_event: public Append_block_log_event
+class Begin_load_query_log_event: public Append_block_log_event,
+                                  public Begin_load_query_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -3205,7 +3016,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,
-                             const Format_description_log_event
+                             const Format_description_event
                              *description_event,
                              Log_event_header *header);
   ~Begin_load_query_log_event() {}
@@ -3222,6 +3033,7 @@ private:
 */
 enum enum_load_dup_handling { LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE,
                               LOAD_DUP_REPLACE };
+
 
 /**
   @class Execute_load_query_log_event
@@ -3261,7 +3073,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
-	     const char *local_fname);
+             const char *local_fname);
 #endif
   Execute_load_query_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
@@ -4380,7 +4192,7 @@ protected:
   RESPONSIBILITIES
 
     - Act as a container for rows that has been deleted on the master
-      and should be deleted on the slave. 
+      and should be deleted on the slave.
 
   COLLABORATION
 
