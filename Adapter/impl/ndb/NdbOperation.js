@@ -202,20 +202,6 @@ function encodeRowBuffer(op) {
                               op.columnMask);
 }
 
-/* Count the consecutive finite parts of key
-*/
-function countFiniteKeyParts(key) {
-  var i, n;
-  n = 0;
-  for(i = 0; i < key.length ; i++) {
-    if((key[0] == Infinity) || (key[0] == -Infinity)) {
-      return n;
-    }
-    n += 1;
-  }
-  return n;
-}
-
 function HelperSpec() {
   this.clear();
 }
@@ -259,15 +245,27 @@ function BoundHelperSpec() {
   this[BoundHelper.range_no]       = 0;
 }
 
+function countFiniteKeyParts(key) {
+  var i, n;
+  n = 0;
+  for(i = 0; i < key.length ; i++) {
+    if((key[0] == Infinity) || (key[0] == -Infinity)) {
+      return n;
+    }
+    n += 1;
+  }
+  return n;
+}
+
 /* Create part of of a bound spec 
 */
 BoundHelperSpec.prototype.buildPartialSpec = function(isLow, bound, 
                                                       dbIndexHandler, buffer) {
   var base, nparts;
   base = isLow ? BoundHelper.low_key : BoundHelper.high_key;
-  nparts = countFiniteKeyParts(bound.value.parts);
+  nparts = countFiniteKeyParts(bound.key);
   if(nparts) {
-    this[base    ] = encodeBounds(bound.value, nparts, dbIndexHandler, buffer);
+    this[base    ] = encodeBounds(bound.key, nparts, dbIndexHandler, buffer);
     this[base + 1] = nparts;
     this[base + 2] = bound.inclusive;
   }
@@ -282,7 +280,7 @@ BoundHelperSpec.prototype.setHigh = function(bound, dbIndexHandler, buffer) {
 };
 
 
-/* Takes a NumberLine containing IndexValues;
+/* Takes an array of IndexBounds;
    Returns an array of BoundHelpers which will be used to build NdbIndexBounds.
    Builds a buffer of encoded parameters used in index bounds and 
    stores a reference to it in op.scan.
@@ -291,14 +289,14 @@ DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
   var dbIndexHandler, bound, sz, n, helper, allHelpers, mainBuffer, offset, i;
   dbIndexHandler = this.indexHandler;
   sz = dbIndexHandler.dbIndex.record.getBufferSize();
-  n  = indexBounds.countSegments();
+  n  = indexBounds.length;
   if(sz && n) {
     allHelpers = [];
     mainBuffer = new Buffer(sz * n * 2);
     offset = 0;
     this.scan.bound_param_buffer = mainBuffer; // maintain a reference!
     for(i = 0 ; i < n ; i++) {
-      bound = indexBounds.getSegment(i);
+      bound = indexBounds[i];
       helper = new BoundHelperSpec();
       helper.setLow(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
       offset += sz;
@@ -588,7 +586,7 @@ function getScanResults(scanop, userCallback) {
       /* Now remove the rows that should have been skipped 
          (fixme: do something more efficient) */
       for(i = 0 ; i < nSkip ; i++) results.shift();
- 
+
       /* TODO: NdbScanOperation::close() ??? */
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
