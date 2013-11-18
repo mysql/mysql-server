@@ -19,6 +19,7 @@
 #define NdbTransaction_H
 
 #include <ndb_types.h>
+#include <portlib/NdbTick.h>
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
@@ -935,7 +936,6 @@ private:
   void releaseCompletedOperations();
   void releaseCompletedQueries();
 
-  typedef Uint64 TimeMillis_t;
   /**************************************************************************
    *	These methods are service methods to other classes in the NDBAPI.   *
    **************************************************************************/
@@ -1085,7 +1085,7 @@ private:
   void*              theCallbackObject;      // The callback object pointer
   Uint32             theTransArrayIndex;     // Current index in a transaction 
                                              // array for this object
-  TimeMillis_t       theStartTransTime;      // Start time of the transaction
+  NDB_TICKS          theStartTransTime;      // Start time of the transaction
 
   NdbError theError;	      	// Errorcode on transaction
   int	   theErrorLine;	// Method number of last error in NdbOperation

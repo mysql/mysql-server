@@ -1918,7 +1918,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    Uint64 now = NdbTick_CurrentMillisecond();
     /**
      * running transaction while cluster is down...
      * causes *lots* of printouts...redirect to /dev/null

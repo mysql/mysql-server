@@ -62,7 +62,7 @@ static int indexToNumber(int index)
 #endif
 
 #define DBG_POLL 0
-#define dbg(x,y) if (DBG_POLL) printf("%llu : " x "\n", NdbTick_CurrentNanosecond() / 1000, y)
+#define dbg(x,y) //if (DBG_POLL) printf("%llu : " x "\n", NdbTick_CurrentNanosecond() / 1000, y)
 
 /*****************************************************************************
  * Call back functions
@@ -699,7 +699,7 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
 void
 TransporterFacade::checkClusterMgr(NDB_TICKS & lastTime)
 {
-  lastTime = NdbTick_CurrentMillisecond();
+  lastTime = NdbTick_getCurrentTicks();
   theClusterMgr->lock();
   theTransporterRegistry->update_connections();
   theClusterMgr->flush_send_buffers();
@@ -808,7 +808,7 @@ void TransporterFacade::threadMainReceive(void)
 {
   bool poll_owner = false;
   bool check_cluster_mgr;
-  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
+  NDB_TICKS currTime = NdbTick_getCurrentTicks();
   NDB_TICKS lastTime = currTime;
 
   while (theReceiveThread == NULL)
@@ -824,9 +824,10 @@ void TransporterFacade::threadMainReceive(void)
   lock_recv_thread_cpu();
   while(!theStopReceive)
   {
-    currTime = NdbTick_CurrentMillisecond();
+    currTime = NdbTick_getCurrentTicks();
+    Uint64 elapsed = NdbTick_Elapsed(lastTime,currTime).milliSec();
     check_cluster_mgr = false;
-    if (currTime > (lastTime + ((NDB_TICKS)100)))
+    if (elapsed > 100)
       check_cluster_mgr = true; /* 100 milliseconds have passed */
     if (!poll_owner)
     {
@@ -848,7 +849,8 @@ void TransporterFacade::threadMainReceive(void)
     if (poll_owner)
     {
       bool stay_poll_owner = !check_cluster_mgr;
-      if ((currTime - m_receive_activation_time) > (NDB_TICKS)1000)
+      elapsed = NdbTick_Elapsed(m_receive_activation_time,currTime).milliSec();
+      if (elapsed > 1000)
       {
         /* Reset timer for next activation check time */
         m_receive_activation_time = currTime;

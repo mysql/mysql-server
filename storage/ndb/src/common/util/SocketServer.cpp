@@ -367,14 +367,14 @@ SocketServer::stopSessions(bool wait, unsigned wait_timeout){
   if(!wait)
     return false; // No wait
 
-  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   m_session_mutex.lock();
   while(m_sessions.size() > 0){
     checkSessionsImpl();
     m_session_mutex.unlock();
 
     if (wait_timeout > 0 &&
-        (NdbTick_CurrentMillisecond() - start) > wait_timeout)
+        NdbTick_Elapsed(start,NdbTick_getCurrentTicks()).milliSec() > wait_timeout)
       return false; // Wait abandoned
 
     NdbSleep_MilliSleep(100);

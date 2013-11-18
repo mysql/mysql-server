@@ -440,14 +440,16 @@ Dbtup::load_diskpage(Signal* signal,
     if (ERROR_INSERTED(4022))
     {
       flags |= Page_cache_client::DELAY_REQ;
-      req.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)3000;
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      req.m_delay_until_time = NdbTick_AddMilliseconds(now,(Uint64)3000);
     }
     if (ERROR_INSERTED(4035) && (rand() % 13) == 0)
     {
       // Disk access have to randomly wait max 16ms for a diskpage
       Uint64 delay = (Uint64)(rand() % 16) + 1;
       flags |= Page_cache_client::DELAY_REQ;
-      req.m_delay_until_time = NdbTick_CurrentMillisecond()+delay;
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      req.m_delay_until_time = NdbTick_AddMilliseconds(now,delay);
     }
 #endif
     
@@ -4386,7 +4388,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       if (slp)
       {
 	flags |= Page_cache_client::DELAY_REQ;
-	preq.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)slp;
+        const NDB_TICKS now = NdbTick_getCurrentTicks();
+        preq.m_delay_until_time = NdbTick_AddMilliseconds(now,(Uint64)slp);
       }
     }
 #endif

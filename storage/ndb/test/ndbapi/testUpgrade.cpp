@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -897,9 +897,9 @@ runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
       sprintf(info1, "lm=%d nval=%d exist=%d",
                       lm, nval, exist);
       g_info << "PK read T1 exec: " << info1 << endl;
-      NDB_TICKS t1 = NdbTick_CurrentMillisecond();
+      Uint64 t1 = NdbTick_CurrentMillisecond();
       int ret = pTx->execute(NdbTransaction::NoCommit);
-      NDB_TICKS t2 = NdbTick_CurrentMillisecond();
+      Uint64 t2 = NdbTick_CurrentMillisecond();
       int msec = (int)(t2-t1);
       const NdbError& txerr = pTx->getNdbError();
       const NdbError& operr = pOp->getNdbError();

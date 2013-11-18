@@ -542,14 +542,15 @@ static void printHeading(){
 void runTest(TestThread** threads, int threadCount, 
              TestParameters& param){
   //ndbout << "Doing test " << name << endl;
-  const NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   for(int i = 0; i<threadCount; i++){
     threads[i]->start(param);
   }
   for(int i = 0; i<threadCount; i++){
     threads[i]->wait();
   }
-  const NDB_TICKS duration = NdbTick_CurrentMillisecond() - start;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 duration = NdbTick_Elapsed(start,now).milliSec();
   ndbout << param.m_useSQL << "; ";
   ndbout << param.m_useLinkedOperations << "; ";
   ndbout << threadCount << "; ";
