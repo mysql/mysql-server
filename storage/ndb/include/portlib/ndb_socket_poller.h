@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -280,7 +280,7 @@ public:
   {
     do
     {
-      const NDB_TICKS start = NdbTick_CurrentMillisecond();
+      const NDB_TICKS start = NdbTick_getCurrentTicks();
 
       const int res = poll_unsafe(timeout);
       if (likely(res >= 0))
@@ -293,7 +293,8 @@ public:
         // Retry if any time left of timeout
 
         // Subtract function call time from remaining timeout
-        timeout -= (int)(NdbTick_CurrentMillisecond() - start);
+        const NDB_TICKS now = NdbTick_getCurrentTicks();
+        timeout -= (int)NdbTick_Elapsed(start,now).milliSec();
 
         if (timeout <= 0)
           return 0; // Timeout occured

@@ -431,7 +431,7 @@ public:
       }
     
     /* next time to report backup status */
-    Uint64 m_next_report;
+    NDB_TICKS m_prev_report;
 
     Uint32 m_gsn;
     CompoundState slaveState; 

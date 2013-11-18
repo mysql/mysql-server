@@ -583,7 +583,8 @@ NdbIndexStatImpl::check_systables(Ndb* ndb)
 NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
   m_impl(impl),
   m_head(head),
-  m_ndb(ndb)
+  m_ndb(ndb),
+  m_start()
 {
   head.m_indexId = m_impl->m_indexId;
   head.m_indexVersion = m_impl->m_indexVersion;
@@ -598,8 +599,6 @@ NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
   m_cachePos = 0;
   m_cacheKeyOffset = 0;
   m_cacheValueOffset = 0;
-  m_start.seconds = 0;
-  m_start.micro_seconds = 0;
 }
 
 NdbIndexStatImpl::Con::~Con()
@@ -675,15 +674,14 @@ NdbIndexStatImpl::Con::getNdbIndexScanOperation()
 void
 NdbIndexStatImpl::Con::set_time()
 {
-  NdbTick_getMicroTimer(&m_start);
+  m_start = NdbTick_getCurrentTicks();
 }
 
-NDB_TICKS
+Uint64
 NdbIndexStatImpl::Con::get_time()
 {
-  MicroSecondTimer stop;
-  NdbTick_getMicroTimer(&stop);
-  NDB_TICKS us = NdbTick_getMicrosPassed(m_start, stop);
+  const NDB_TICKS stop = NdbTick_getCurrentTicks();
+  Uint64 us = NdbTick_Elapsed(m_start, stop).microSec();
   return us;
 }
 
@@ -1108,12 +1106,12 @@ NdbIndexStatImpl::read_stat(Ndb* ndb, Head& head)
   if (read_commit(con) == -1)
     return -1;
 
-  NDB_TICKS save_time = con.get_time();
+  Uint64 save_time = con.get_time();
   con.set_time();
 
   if (save_commit(con) == -1)
     return -1;
-  NDB_TICKS sort_time = con.get_time();
+  Uint64 sort_time = con.get_time();
 
   const Cache& c = *m_cacheBuild;
   c.m_save_time = save_time;
