@@ -4347,6 +4347,7 @@ bool mysql_unpack_partition(THD *thd,
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
@@ -4378,14 +4379,17 @@ bool mysql_unpack_partition(THD *thd,
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.

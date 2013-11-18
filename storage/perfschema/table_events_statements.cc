@@ -307,7 +307,7 @@ table_events_statements_common::table_events_statements_common
   @param statement                      the statement the cursor is reading
 */
 void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
-                                                     PSI_digest_storage *digest)
+                                                     sql_digest_storage *digest)
 {
   const char *base;
   const char *safe_source_file;
@@ -387,20 +387,20 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   /*
     Making a copy of digest storage.
   */
-  digest_copy(digest, & statement->m_digest_storage);
+  digest->copy(& statement->m_digest_storage);
 
   m_row_exists= true;
   return;
 }
 
-void table_events_statements_common::make_row_part_2(PSI_digest_storage *digest)
+void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*
     Filling up statement digest information.
   */
   int safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
-      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
+      safe_byte_count <= MAX_DIGEST_STORAGE_SIZE)
   {
     PFS_digest_key md5;
     compute_md5_hash((char *) md5.m_md5,
@@ -741,11 +741,11 @@ int table_events_statements_current::rnd_pos(const void *pos)
 void table_events_statements_current::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_optimistic_state lock;
   pfs_optimistic_state stmt_lock;
 
-  digest_reset(&digest);
+  digest.reset();
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
   /* Protect this reader against writing on statement information. */
@@ -869,10 +869,10 @@ int table_events_statements_history::rnd_pos(const void *pos)
 void table_events_statements_history::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_optimistic_state lock;
 
-  digest_reset(&digest);
+  digest.reset();
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
@@ -974,9 +974,9 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
 
 void table_events_statements_history_long::make_row(PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
 
-  digest_reset(&digest);
+  digest.reset();
   table_events_statements_common::make_row_part_1(statement, &digest);
 
   table_events_statements_common::make_row_part_2(&digest);

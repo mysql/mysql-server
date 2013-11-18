@@ -735,6 +735,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state digest_state;
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= & digest_state;
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_locker *parent_locker;
@@ -753,6 +757,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= parent_locker;
 #endif
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);

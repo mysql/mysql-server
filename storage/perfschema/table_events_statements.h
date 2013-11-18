@@ -189,9 +189,9 @@ protected:
   {}
 
   void make_row_part_1(PFS_events_statements *statement,
-                       PSI_digest_storage *digest);
+                       sql_digest_storage *digest);
 
-  void make_row_part_2(PSI_digest_storage *digest);
+  void make_row_part_2(const sql_digest_storage *digest);
 
   /** Current row. */
   row_events_statements m_row;

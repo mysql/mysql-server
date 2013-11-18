@@ -26,7 +26,7 @@ typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
-struct OPAQUE_LEX_YYSTYPE;
+struct sql_digest_storage;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -300,20 +300,6 @@ struct PSI_metadata_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
-struct PSI_digest_storage
-{
-  my_bool m_full;
-  int m_byte_count;
-  uint m_charset_number;
-  unsigned char m_token_array[1024];
-};
-typedef struct PSI_digest_storage PSI_digest_storage;
-struct PSI_digest_locker_state
-{
-  int m_last_id_index;
-  PSI_digest_storage m_digest_storage;
-};
-typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
@@ -339,7 +325,7 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_range;
   ulong m_sort_rows;
   ulong m_sort_scan;
-  PSI_digest_locker_state m_digest_state;
+  const struct sql_digest_storage *m_digest;
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
   PSI_sp_share *m_parent_sp_share;
@@ -624,8 +610,8 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
-typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
-  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
 typedef PSI_sp_locker* (*start_sp_v1_t)
   (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
 typedef void (*end_sp_v1_t)
@@ -766,7 +752,7 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   digest_start_v1_t digest_start;
-  digest_add_token_v1_t digest_add_token;
+  digest_end_v1_t digest_end;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
   start_sp_v1_t start_sp;
   end_sp_v1_t end_sp;

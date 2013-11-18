@@ -57,18 +57,8 @@ typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 
 struct TABLE_SHARE;
-/*
-  There are 3 known bison parsers in the server:
-  - (1) the SQL parser itself, sql/sql_yacc.yy
-  - (2) storage/innobase/fts/fts0pars.y
-  - (3) storage/innobase/pars/pars0grm.y
-  What is instrumented here are the tokens from the SQL query text (1),
-  to make digests.
-  Now, to avoid name pollution and conflicts with different YYSTYPE definitions,
-  an opaque structure is used here.
-  The real type to use when invoking the digest api is LEX_YYSTYPE.
-*/
-struct OPAQUE_LEX_YYSTYPE;
+
+struct sql_digest_storage;
 
 /**
   @file mysql/psi/psi.h
@@ -1105,37 +1095,6 @@ struct PSI_metadata_locker_state_v1
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
 
-#define PSI_MAX_DIGEST_STORAGE_SIZE 1024
-
-/**
-  Structure to store token count/array for a statement
-  on which digest is to be calculated.
-*/
-struct PSI_digest_storage
-{
-  my_bool m_full;
-  int m_byte_count;
-  /** Character set number. */
-  uint m_charset_number;
-  unsigned char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
-};
-typedef struct PSI_digest_storage PSI_digest_storage;
-
-/**
-  State data storage for @c digest_start, @c digest_add_token.
-  This structure provide temporary storage to a digest locker.
-  The content of this structure is considered opaque,
-  the fields are only hints of what an implementation
-  of the psi interface can use.
-  This memory is provided by the instrumented code for performance reasons.
-*/
-struct PSI_digest_locker_state
-{
-  int m_last_id_index;
-  PSI_digest_storage m_digest_storage;
-};
-typedef struct PSI_digest_locker_state PSI_digest_locker_state;
-
 /* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
 #define PSI_SCHEMA_NAME_LEN (64 * 3)
 
@@ -1198,7 +1157,7 @@ struct PSI_statement_locker_state_v1
   /** Metric, number of sort scans. */
   ulong m_sort_scan;
   /** Statement digest. */
-  PSI_digest_locker_state m_digest_state;
+  const struct sql_digest_storage *m_digest;
   /** Current schema name. */
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
@@ -2243,8 +2202,8 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
   @param token the lexical token to add
   @param yylval the lexical token attributes
 */
-typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
-  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
 
 typedef PSI_sp_locker* (*start_sp_v1_t)
   (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
@@ -2528,8 +2487,8 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
-  /** @sa digest_add_token_v1_t. */
-  digest_add_token_v1_t digest_add_token;
+  /** @sa digest_end_v1_t. */
+  digest_end_v1_t digest_end;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
   /** @sa start_sp_v1_t. */
