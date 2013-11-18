@@ -116,8 +116,7 @@ QueryField.prototype.isNotNull = function() {
   return new QueryIsNotNull(this);
 };
 
-QueryField.prototype.toString = function() {
-  udebug.log_detail('QueryField.toString: ', this.field.fieldName);
+QueryField.prototype.inspect = function() {
   return this.field.fieldName;
 };
 
@@ -148,7 +147,6 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
   mynode.dbTableHandler.fieldNumberToFieldMap.forEach(function(field) {
     fieldName = field.fieldName;
     queryField = new QueryField(queryDomainType, field);
-    udebug.log_detail('QueryDomainType<ctor> queryField for', fieldName, ':', queryField);
     if (keywords.indexOf(fieldName) === -1) {
       // field name is not a keyword
       queryDomainType[fieldName] = queryField;
@@ -185,7 +183,7 @@ QueryParameter = function(queryDomainType, name) {
   this.name = name;
 };
 
-QueryParameter.prototype.toString = function() {
+QueryParameter.prototype.inspect = function() {
   return '?' + this.name;
 };
 
@@ -257,6 +255,16 @@ AbstractQueryPredicate.prototype.markCandidateIndex = function(candidateIndex) {
 };
 
 AbstractQueryPredicate.prototype.mark = function(candidateIndex) {
+};
+
+AbstractQueryPredicate.prototype.inspect = function() {
+  var str = this.operator + "(";
+  this.predicates.forEach(function(value,index) { 
+    if(index) str += " , ";
+    str += value.inspect(); 
+  });
+  str += ")";
+  return str;
 };
 
 AbstractQueryPredicate.prototype.and = function(predicate) {
@@ -338,8 +346,8 @@ var AbstractQueryComparator = function() {
 /** AbstractQueryComparator inherits AbstractQueryPredicate */
 AbstractQueryComparator.prototype = new AbstractQueryPredicate();
 
-AbstractQueryComparator.prototype.toString = function() {
-  return this.queryField.toString() + this.comparator + this.parameter.toString();
+AbstractQueryComparator.prototype.inspect = function() {
+  return this.queryField.inspect() + this.comparator + this.parameter.inspect();
 };
 
 AbstractQueryComparator.prototype.visit = function(visitor) {
@@ -468,8 +476,8 @@ QueryBetween.prototype.mark = function(candidateIndex) {
   candidateIndex.markLe(columnNumber, parameterName2);
 };
 
-QueryBetween.prototype.toString = function() {
-  return this.queryField.toString() + ' BETWEEN ' + this.parameter1.toString() + ' AND ' + this.parameter2.toString();
+QueryBetween.prototype.inspect = function() {
+  return this.queryField.inspect() + ' BETWEEN ' + this.parameter1.inspect() + ' AND ' + this.parameter2.inspect();
 };
 
 QueryBetween.prototype.visit = function(visitor) {
@@ -509,9 +517,9 @@ var AbstractQueryUnaryOperator = function() {
 
 AbstractQueryUnaryOperator.prototype = new AbstractQueryPredicate();
 
-AbstractQueryUnaryOperator.prototype.toString = function() {
+AbstractQueryUnaryOperator.prototype.inspect = function() {
   return util.format(this);
-//  return this.queryField.toString() + this.comparator + this.parameter.toString();
+//  return this.queryField.inspect() + this.comparator + this.parameter.inspect();
 };
 
 AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
