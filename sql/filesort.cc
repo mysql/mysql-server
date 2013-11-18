@@ -37,6 +37,7 @@
 #include "debug_sync.h"
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
+#include "sql_base.h"
 
 #include <algorithm>
 #include <utility>
@@ -432,6 +433,10 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   }
   close_cached_file(&tempfile);
   close_cached_file(&buffpek_pointers);
+
+  /* free resources allocated  for QUICK_INDEX_MERGE_SELECT */
+  free_io_cache(table);
+
   if (my_b_inited(outfile))
   {
     if (flush_io_cache(outfile))
@@ -760,6 +765,8 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
                            (uchar*) sort_form);
 
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
+
+  DEBUG_SYNC(thd, "after_index_merge_phase1");
 
   for (;;)
   {
