@@ -254,7 +254,7 @@ void err(NdbError e){
 int
 run_read(){
   //int iter = g_paramters[P_LOOPS].value;
-  NDB_TICKS start1, stop;
+  Uint64 start1, stop;
   //int sum_time= 0;
   
   const Uint32 rows = g_paramters[P_ROWS].value;

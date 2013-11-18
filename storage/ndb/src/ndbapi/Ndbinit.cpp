@@ -62,7 +62,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theTransactionList= NULL;
   theConnectionArray= NULL;
   theConnectionArrayLast= NULL;
-  the_last_check_time= 0;
+  the_last_check_ticks = NdbTick_getCurrentTicks();
   theFirstTransId= 0;
   theRestartGCI= 0;
   theNdbBlockNumber= -1;

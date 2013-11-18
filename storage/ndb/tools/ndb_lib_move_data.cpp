@@ -855,7 +855,8 @@ Ndb_move_data::move_data(Ndb* ndb)
   stat.rows_moved = 0; // keep rows_total
   do
   {
-    ndb_srand((unsigned)NdbTick_CurrentMillisecond());
+    const NDB_TICKS now = NdbTick_getCurrentTicks(); 
+    ndb_srand((unsigned)now.getUint64());
     reset_error();
 
     CHK2(m_source != 0 && m_target != 0,
