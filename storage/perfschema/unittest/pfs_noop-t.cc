@@ -175,8 +175,7 @@ void test_noop()
   PSI_server->set_socket_thread_owner(NULL);
   digest_locker= PSI_server->digest_start(NULL);
   ok(digest_locker == NULL, "no digest_locker");
-  digest_locker= PSI_server->digest_add_token(NULL, 0, NULL);
-  ok(digest_locker == NULL, "no digest_locker");
+  PSI_server->digest_end(NULL, NULL);
   sp_locker= PSI_server->start_sp(NULL, NULL);
   ok(sp_locker == NULL, "no sp_locker");
   PSI_server->end_sp(NULL);

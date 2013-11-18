@@ -310,6 +310,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   Event_job_data job_data;
   bool res;
 
+  DBUG_ASSERT(thd->m_digest == NULL);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
   DBUG_ASSERT(thd->m_statement_psi == NULL);
@@ -349,9 +351,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data.dbname.str, job_data.name.str);
 end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-    thd->m_statement_psi= NULL;
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
 #endif
+
+  DBUG_ASSERT(thd->m_digest == NULL);
 
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));

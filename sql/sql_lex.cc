@@ -385,6 +385,13 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd,
   m_cpp_utf8_processed_ptr= end_ptr;
 }
 
+void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_add_token(m_digest, token, yylval);
+  }
+}
 
 /**
   Reset a LEX object so that it is ready for a new query preparation
@@ -1173,7 +1180,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
     yylloc->raw_start= lip->get_tok_start();
     yylloc->raw_end= lip->get_ptr();
     lip->lookahead_yylval= NULL;
-    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+    lip->add_digest_token(token, yylval);
     return token;
   }
 
@@ -1195,14 +1202,12 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
     case CUBE_SYM:
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_CUBE_SYM, yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_ROLLUP_SYM, yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -1213,7 +1218,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
       lip->lookahead_token= token;
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
+      lip->add_digest_token(WITH, yylval);
       return WITH;
     }
     break;
@@ -1222,7 +1227,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
   }
   yylloc->end= lip->get_cpp_ptr();
   yylloc->raw_end= lip->get_ptr();
-  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+  lip->add_digest_token(token, yylval);
   return token;
 }
 

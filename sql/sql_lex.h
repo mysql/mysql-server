@@ -172,6 +172,7 @@ typedef struct YYLTYPE
 #endif
 
 #include "sql_cmd.h"
+#include "sql_digest_stream.h"
 
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
@@ -2237,6 +2238,8 @@ public:
   /** LALR(2) resolution, value of the look ahead token.*/
   LEX_YYSTYPE lookahead_yylval;
 
+  void add_digest_token(uint token, LEX_YYSTYPE yylval);
+
 private:
   /** Pointer to the current position in the raw input stream. */
   char *m_ptr;
@@ -2347,7 +2350,7 @@ public:
   /**
     Current statement digest instrumentation. 
   */
-  PSI_digest_locker* m_digest_psi;
+  sql_digest_state* m_digest;
 };
 
 
@@ -2921,10 +2924,22 @@ public:
   */
 };
 
+/**
+  Input parameters to the parser.
+*/
+struct Parser_input
+{
+  bool m_compute_digest;
+
+  Parser_input()
+    : m_compute_digest(false)
+  {}
+};
 
 /**
   Internal state of the parser.
   The complete state consist of:
+  - input parameters that control the parser behavior
   - state data used during lexical parsing,
   - state data used during syntactic parsing.
 */
@@ -2932,7 +2947,7 @@ class Parser_state
 {
 public:
   Parser_state()
-    : m_lip(), m_yacc(), m_comment(false)
+    : m_input(), m_lip(), m_yacc(), m_comment(false)
   {}
 
   /**
@@ -2967,13 +2982,20 @@ public:
   }
 
 public:
+  Parser_input m_input;
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
+  /**
+    Current performance digest instrumentation. 
+  */
+  PSI_digest_locker* m_digest_psi;
 
 private:
   bool m_comment;                ///< True if current query contains comments
 };
 
+extern sql_digest_state *
+digest_add_token(sql_digest_state *state, uint token, LEX_YYSTYPE yylval);
 
 struct st_lex_local: public LEX
 {

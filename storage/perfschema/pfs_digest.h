@@ -24,6 +24,7 @@
 #include "pfs_column_types.h"
 #include "lf.h"
 #include "pfs_stat.h"
+#include "sql_digest.h"
 
 #define PFS_SIZE_OF_A_TOKEN 2
 
@@ -52,7 +53,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   PFS_digest_key m_digest_key;
 
   /** Digest Storage. */
-  PSI_digest_storage m_digest_storage;
+  sql_digest_storage m_digest_storage;
 
   /** Statement stat. */
   PFS_statement_stat m_stat;
@@ -73,139 +74,16 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
-                                          PSI_digest_storage *digest_storage,
+                                          const sql_digest_storage *digest_storage,
                                           const char *schema_name,
                                           uint schema_name_length);
 
-void get_digest_text(char *digest_text, PSI_digest_storage *digest_storage);
+void get_digest_text(char *digest_text, const sql_digest_storage *digest_storage);
 
 void reset_esms_by_digest();
 
 /* Exposing the data directly, for iterators. */
 extern PFS_statements_digest_stat *statements_digest_stat_array;
-
-static inline void digest_reset(PSI_digest_storage *digest)
-{
-  digest->m_full= false;
-  digest->m_byte_count= 0;
-  digest->m_charset_number= 0;
-}
-
-static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage *from)
-{
-  if (from->m_byte_count > 0)
-  {
-    to->m_full= from->m_full;
-    to->m_byte_count= from->m_byte_count;
-    to->m_charset_number= from->m_charset_number;
-    DBUG_ASSERT(to->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
-    memcpy(to->m_token_array, from->m_token_array, to->m_byte_count);
-  }
-  else
-  {
-    DBUG_ASSERT(from->m_byte_count == 0);
-    to->m_full= false;
-    to->m_byte_count= 0;
-    to->m_charset_number= 0;
-  }
-}
-
-/**
-  Read a single token from token array.
-*/
-inline int read_token(PSI_digest_storage *digest_storage,
-                      int index, uint *tok)
-{
-  int safe_byte_count= digest_storage->m_byte_count;
-
-  if (index + PFS_SIZE_OF_A_TOKEN <= safe_byte_count &&
-      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
-  {
-    unsigned char *src= & digest_storage->m_token_array[index];
-    *tok= src[0] | (src[1] << 8);
-    return index + PFS_SIZE_OF_A_TOKEN;
-  }
-
-  /* The input byte stream is exhausted. */
-  *tok= 0;
-  return PSI_MAX_DIGEST_STORAGE_SIZE + 1;
-}
-
-/**
-  Store a single token in token array.
-*/
-inline void store_token(PSI_digest_storage* digest_storage, uint token)
-{
-  DBUG_ASSERT(digest_storage->m_byte_count >= 0);
-  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
-
-  if (digest_storage->m_byte_count + PFS_SIZE_OF_A_TOKEN <= PSI_MAX_DIGEST_STORAGE_SIZE)
-  {
-    unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
-    dest[0]= token & 0xff;
-    dest[1]= (token >> 8) & 0xff;
-    digest_storage->m_byte_count+= PFS_SIZE_OF_A_TOKEN;
-  }
-  else
-  {
-    digest_storage->m_full= true;
-  }
-}
-
-/**
-  Read an identifier from token array.
-*/
-inline int read_identifier(PSI_digest_storage* digest_storage,
-                           int index, char ** id_string, int *id_length)
-{
-  int new_index;
-  DBUG_ASSERT(index <= digest_storage->m_byte_count);
-  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
-
-  /*
-    token + length + string are written in an atomic way,
-    so we do always expect a length + string here
-  */
-  unsigned char *src= & digest_storage->m_token_array[index];
-  uint length= src[0] | (src[1] << 8);
-  *id_string= (char *) (src + 2);
-  *id_length= length;
-
-  new_index= index + PFS_SIZE_OF_A_TOKEN + length;
-  DBUG_ASSERT(new_index <= digest_storage->m_byte_count);
-  return new_index;
-}
-
-/**
-  Store an identifier in token array.
-*/
-inline void store_token_identifier(PSI_digest_storage* digest_storage,
-                                   uint token,
-                                   uint id_length, const char *id_name)
-{
-  DBUG_ASSERT(digest_storage->m_byte_count >= 0);
-  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
-
-  uint bytes_needed= 2 * PFS_SIZE_OF_A_TOKEN + id_length;
-  if (digest_storage->m_byte_count + bytes_needed <= PSI_MAX_DIGEST_STORAGE_SIZE)
-  {
-    unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
-    /* Write the token */
-    dest[0]= token & 0xff;
-    dest[1]= (token >> 8) & 0xff;
-    /* Write the string length */
-    dest[2]= id_length & 0xff;
-    dest[3]= (id_length >> 8) & 0xff;
-    /* Write the string data */
-    if (id_length > 0)
-      memcpy((char *)(dest + 4), id_name, id_length);
-    digest_storage->m_byte_count+= bytes_needed;
-  }
-  else
-  {
-    digest_storage->m_full= true;
-  }
-}
 
 extern LF_HASH digest_hash;
 
