@@ -242,7 +242,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 //--------------------------------------------------------------------
     res1= NdbTick_getMicroTimer(&start_micro);
     if ((res1 + res3) || 
-        ((Uint32)NdbTick_getMicrosPassed(start_micro, yield_micro) > 10000))
+        ((Uint32)NdbTick_getMicrosPassed(yield_micro, start_micro) > 10000))
       yield_flag= TRUE;
     exec_again= 0;
     do
