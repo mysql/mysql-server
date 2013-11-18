@@ -101,7 +101,7 @@ private:
   */
   ushort m_half_buffer_size_req_counter;
   const static ushort PACKET_SHRINK_COUNTER_THRESHOLD= 100;
-  const static uint PACKET_MINIMUM_SIZE= 4*1024 - 1; // 4KB
+  const static uint PACKET_MINIMUM_SIZE= 4096;
   const static uint PACKET_GROW_FACTOR= 2;
   const static float PACKET_SHRINK_FACTOR= 0.5;
   
@@ -375,7 +375,7 @@ private:
     /* Check if we should shrink the buffer. */
     if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
     {
-      if (new_buffer_size >= PACKET_MINIMUM_SIZE &&
+      if (new_buffer_size > PACKET_MINIMUM_SIZE &&
           new_buffer_size != cur_buffer_size)
       {
         /* 
