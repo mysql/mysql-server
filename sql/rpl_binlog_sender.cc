@@ -25,6 +25,11 @@
   static uint binlog_dump_count= 0;
 #endif
 
+const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
+const uint Binlog_sender::PACKET_MINIMUM_SIZE= 4096;
+const uint Binlog_sender::PACKET_GROW_FACTOR= 2;
+const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+ 
 void Binlog_sender::init()
 {
   DBUG_ENTER("Binlog_sender::init");
@@ -642,7 +647,7 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
   needed_buffer_size= packet->length() + event_len;
   
   /* Resizes the buffer if needed. */
-  this->grow_packet(cur_buffer_size, needed_buffer_size, packet);
+  grow_packet(cur_buffer_size, needed_buffer_size, packet);
   
   DBUG_PRINT("info", ("packet->alloced_length: %u (after potential "
                       "reallocation)", packet->alloced_length()));
