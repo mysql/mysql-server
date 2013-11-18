@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ ENDIF(WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbCondition.c NdbMutex.c ndb_socket.cpp
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
-            NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
+            NdbMem.c NdbConfig.c NdbTick.cpp NdbDir.cpp
             ndb_daemon.cc ${EXTRA_SRC}
             NdbNuma.cpp NdbMutex_DeadlockDetector.cpp
             NdbGetRUsage.cpp NdbLockCpuUtil.c)

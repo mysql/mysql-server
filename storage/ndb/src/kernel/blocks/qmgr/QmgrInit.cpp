@@ -74,6 +74,10 @@ void Qmgr::initData()
   
   setHbApiDelay(hbDBAPI);
 
+  const NDB_TICKS now = NdbTick_getCurrentTicks(); //OJA bug#17757895
+  interface_check_timer.setDelay(1000);
+  interface_check_timer.reset(now);
+
 #ifdef ERROR_INSERT
   nodeFailCount = 0;
 #endif
@@ -94,7 +98,7 @@ void Qmgr::initData()
   cactivateApiCheck = 0;
   c_allow_api_connect = 0;
   ctoStatus = Q_NOT_ACTIVE;
-  clatestTransactionCheck = 0;
+  NdbTick_Invalidate(&clatestTransactionCheck);
 
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
   {

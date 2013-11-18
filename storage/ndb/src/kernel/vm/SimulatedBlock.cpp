@@ -4063,7 +4063,7 @@ SimulatedBlock::debugOutTag(char *buf, int line)
   timebuf[0] = 0;
 #ifdef VM_TRACE_TIME
   {
-    NDB_TICKS t = NdbTick_CurrentMillisecond();
+    Uint64 t = NdbTick_CurrentMillisecond();
     uint s = (t / 1000) % 3600;
     uint ms = t % 1000;
     sprintf(timebuf, " - %u.%03u -", s, ms);

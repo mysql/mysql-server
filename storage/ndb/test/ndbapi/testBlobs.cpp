@@ -4225,7 +4225,7 @@ struct Tmr {    // stolen from testOIBasic
     m_on = NdbTick_CurrentMillisecond();
   }
   void off(unsigned cnt = 0) {
-    NDB_TICKS off = NdbTick_CurrentMillisecond();
+    Uint64 off = NdbTick_CurrentMillisecond();
     assert(m_on != 0 && off >= m_on);
     m_ms += off - m_on;
     m_cnt += cnt;
@@ -4255,8 +4255,8 @@ struct Tmr {    // stolen from testOIBasic
       sprintf(m_text, "[cannot measure]");
     return m_text;
   }
-  NDB_TICKS m_on;
-  NDB_TICKS m_ms;
+  Uint64 m_on;
+  Uint64 m_ms;
   unsigned m_cnt;
   char m_time[100];
   char m_text[100];

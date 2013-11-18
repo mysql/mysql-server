@@ -912,7 +912,7 @@ done:
 #ifdef GCP_TIMER_HACK
   if (reason == CopyGCIReq::GLOBAL_CHECKPOINT) {
     jam();
-    NdbTick_getMicroTimer(&globalData.gcp_timer_copygci[0]);
+    globalData.gcp_timer_copygci[0] = NdbTick_getCurrentTicks();
   }
 #endif
 
@@ -1746,7 +1746,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     switch(typestart){
     case NodeState::ST_INITIAL_START:
     case NodeState::ST_SYSTEM_RESTART:
-      jam();
       jam();
       /*---------------------------------------------------------------------*/
       // WE EXECUTE A LOCAL CHECKPOINT AS A PART OF A SYSTEM RESTART.
@@ -3392,7 +3391,9 @@ add_lcp_counter(Uint32 * counter, Uint32 add)
 void
 Dbdih::check_force_lcp(Ptr<TakeOverRecord> takeOverPtr)
 {
-  Uint64 duration = c_current_time - takeOverPtr.p->toStartTime;
+  const Uint64 duration =
+    NdbTick_Elapsed(takeOverPtr.p->toStartTime, c_current_time).milliSec();
+
   Uint64 lcp_time = c_lcpState.m_lcp_time;
 
   Ptr<TakeOverRecord> tmp;
@@ -3404,7 +3405,8 @@ Dbdih::check_force_lcp(Ptr<TakeOverRecord> takeOverPtr)
     {
       jam();
       
-      Uint64 elapsed = c_current_time - tmp.p->toStartTime;
+      const Uint64 elapsed =
+        NdbTick_Elapsed(tmp.p->toStartTime, c_current_time).milliSec();
       if (elapsed >= duration)
       {
         jam();
@@ -4668,7 +4670,7 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr)
   takeOverPtr.p->toCurrentTabref = RNIL;
   takeOverPtr.p->toFailedNode = RNIL;
   takeOverPtr.p->toStartingNode = RNIL;
-  takeOverPtr.p->toStartTime = 0;
+  NdbTick_Invalidate(&takeOverPtr.p->toStartTime);
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_IDLE;
   takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MASTER_IDLE;
   
@@ -6089,8 +6091,8 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 {
   cmasterState = MASTER_ACTIVE;
 
-  m_micro_gcp.m_master.m_start_time = 0;
-  m_gcp_save.m_master.m_start_time = 0;
+  NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
+  NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
   if (m_gcp_monitor.m_micro_gcp.m_max_lag > 0)
   {
     infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
@@ -6727,7 +6729,7 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
       sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
     }
     
-    c_current_time = NdbTick_CurrentMillisecond();
+    c_current_time = NdbTick_getCurrentTicks();
     c_lcpState.m_start_time = c_current_time;
     c_lcpMasterTakeOverState.set(LMTOS_INITIAL, __LINE__);
     MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
@@ -8755,16 +8757,15 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     return;
   case AlterTabReq::AlterTableWaitScan:{
     jam();
-    Uint64 now = NdbTick_CurrentMillisecond();
-    now /= 1000;
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
     signal->theData[0] = DihContinueB::ZWAIT_OLD_SCAN;
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = senderRef;
     signal->theData[3] = senderData;
     signal->theData[4] = connectPtr.i;
-    signal->theData[5] = Uint32(now >> 32);
-    signal->theData[6] = Uint32(now);
-    signal->theData[7] = 3;
+    signal->theData[5] = Uint32(now.getUint64() >> 32);
+    signal->theData[6] = Uint32(now.getUint64());
+    signal->theData[7] = 3; // Seconds to wait
     sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
   }
@@ -8893,15 +8894,18 @@ Dbdih::wait_old_scan(Signal* signal)
     return;
   }
 
-  Uint32 start_hi = signal->theData[5];
-  Uint32 start_lo = signal->theData[6];
-  Uint64 start = (Uint64(start_hi) << 32) + start_lo;
-  Uint32 wait = signal->theData[7];
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  if (now > start + wait)
+  const Uint32 start_hi = signal->theData[5];
+  const Uint32 start_lo = signal->theData[6];
+  const Uint32 wait = signal->theData[7];
+
+  const NDB_TICKS start((Uint64(start_hi) << 32) | start_lo);
+  const NDB_TICKS now  = NdbTick_getCurrentTicks();
+  const Uint32 elapsed = (Uint32)NdbTick_Elapsed(start,now).seconds();
+
+  if (elapsed > wait)
   {
     infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
-              Uint32(now - start),
+              elapsed,
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
@@ -9824,8 +9828,7 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
       signal->theData[0] = 9999;
       sendSignal(numberToRef(CMVMI, refToNode(c_nodeStartMaster.startNode)),
                  GSN_NDB_TAMPER, signal, 1, JBB);
-
-      m_micro_gcp.m_master.m_start_time = 0; // Force start
+      NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time); // Force start
       // fall through
     }
     else
@@ -9846,17 +9849,23 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
     return;
   }
 
-  Uint32 delayMicro = m_micro_gcp.m_enabled ? 
-    m_micro_gcp.m_master.m_time_between_gcp : 
-    m_gcp_save.m_master.m_time_between_gcp;
-  
-  Uint64 now = c_current_time = NdbTick_CurrentMillisecond();
-  if (! (now >= m_micro_gcp.m_master.m_start_time + delayMicro))
+  const NDB_TICKS now = c_current_time = NdbTick_getCurrentTicks();
+
+  if (NdbTick_IsValid(m_micro_gcp.m_master.m_start_time))
   {
-    jam();
-    signal->theData[0] = DihContinueB::ZSTART_GCP;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-    return;
+    const Uint32 delayMicro = m_micro_gcp.m_enabled ? 
+      m_micro_gcp.m_master.m_time_between_gcp : 
+      m_gcp_save.m_master.m_time_between_gcp;
+    const Uint64 elapsed = 
+      NdbTick_Elapsed(m_micro_gcp.m_master.m_start_time, now).milliSec();
+
+    if (elapsed < delayMicro)
+    {
+      jam();
+      signal->theData[0] = DihContinueB::ZSTART_GCP;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+      return;
+    }
   }
 
   m_micro_gcp.m_master.m_start_time = now;
@@ -9878,9 +9887,14 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   ndbrequire(Uint32(currGCI) != ~(Uint32)0);
   m_micro_gcp.m_master.m_new_gci = currGCI + 1;
   
-  Uint32 delaySave = m_gcp_save.m_master.m_time_between_gcp;
+  const Uint32 delaySave = m_gcp_save.m_master.m_time_between_gcp;
+  const NDB_TICKS start  = m_gcp_save.m_master.m_start_time;
+  const bool need_gcp = 
+    !NdbTick_IsValid(start) ||                           //First or forced GCP
+    NdbTick_Elapsed(start, now).milliSec() >= delaySave; //Reached time limit
+
   if ((m_micro_gcp.m_enabled == false) ||
-      (now >= m_gcp_save.m_master.m_start_time + delaySave && 
+      (need_gcp &&
        m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
   {
     jam();
@@ -10399,7 +10413,7 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
     return;
   }
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_commit[0]);
+  globalData.gcp_timer_commit[0] = NdbTick_getCurrentTicks();
 #endif
 
 reply:
@@ -10562,7 +10576,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 #endif
 
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_commit[1]);
+  globalData.gcp_timer_commit[1] = NdbTick_getCurrentTicks();
 #endif
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT);
@@ -11077,19 +11091,19 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     }
     
 #ifdef GCP_TIMER_HACK
-    NdbTick_getMicroTimer(&globalData.gcp_timer_copygci[1]);
+    globalData.gcp_timer_copygci[1] = NdbTick_getCurrentTicks();
 
     // this is last timer point so we send local report here
     {
       const GlobalData& g = globalData;
-      Uint32 ms_commit = NdbTick_getMicrosPassed(
-          g.gcp_timer_commit[0], g.gcp_timer_commit[1]) / 1000;
-      Uint32 ms_save = NdbTick_getMicrosPassed(
-          g.gcp_timer_save[0], g.gcp_timer_save[1]) / 1000;
-      Uint32 ms_copygci = NdbTick_getMicrosPassed(
-          g.gcp_timer_copygci[0], g.gcp_timer_copygci[1]) / 1000;
+      const Uint32 ms_commit = NdbTick_Elapsed(
+	  g.gcp_timer_commit[0], g.gcp_timer_commit[1]).milliSec();
+      const Uint32 ms_save = NdbTick_Elapsed(
+          g.gcp_timer_save[0], g.gcp_timer_save[1]).milliSec();
+      const Uint32 ms_copygci = NdbTick_Elapsed(
+          g.gcp_timer_copygci[0], g.gcp_timer_copygci[1]).milliSec();
 
-      Uint32 ms_total = ms_commit + ms_save + ms_copygci;
+      const Uint32 ms_total = ms_commit + ms_save + ms_copygci;
 
       // random formula to report excessive duration
       bool report =
@@ -13104,7 +13118,7 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
 
   ndbrequire(retVal == 0);
   
-  c_lcpState.m_start_time = c_current_time;
+  c_lcpState.m_start_time = c_current_time = NdbTick_getCurrentTicks(); 
   
   setLcpActiveStatusStart(signal);
 
@@ -13116,7 +13130,7 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
   signal->theData[2] = 0;  /* FRAGMENT ID = 0       */
   sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
   return;
-}//Dbdih::execTCGETOPSIZECONF()
+}//Dbdih::lcpFragmentMutex_locked()
 
 /* ------------------------------------------------------------------------- */
 /*       WE NEED TO CALCULATE THE OLDEST GLOBAL CHECKPOINT THAT WILL BE      */
@@ -13791,7 +13805,7 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
    * Check if finished with all tables
    */
   for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++) {
-    jam();
+    //jam(); Removed as it flushed all other jam traces.
     ptrAss(tabPtr, tabRecord);
     if ((tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) &&
         (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE))
@@ -14058,7 +14072,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
   
   TabRecordPtr tabPtr;
   for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++) {
-    jam();
+    //jam(); Removed as it flushed all other jam traces.
     ptrAss(tabPtr, tabRecord);
     if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
     {
@@ -14376,7 +14390,9 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
   mutex.unlock();
 
-  c_lcpState.m_lcp_time = c_current_time - c_lcpState.m_start_time;
+  c_current_time = NdbTick_getCurrentTicks();
+  c_lcpState.m_lcp_time = 
+    NdbTick_Elapsed(c_lcpState.m_start_time, c_current_time).milliSec();
   
   if (cwaitLcpSr == true) {
     jam();
@@ -15604,6 +15620,8 @@ void Dbdih::initCommonData()
   
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
+  NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
+  NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
   {
     { // Set time-between global checkpoint
       Uint32 tmp = 2000;
@@ -18392,7 +18410,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     if (isMaster())
     {
       jam();
-      m_micro_gcp.m_master.m_start_time = 0;
+      // Invalidating timestamp will force an immediate microGCP
+      NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
     }
     else
     {
@@ -19039,7 +19058,9 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
        (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
     {
       jam();
-      m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
+      // Invalidating GCP timestamp will force an immediate GCP
+      NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
+      NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
     }//if
     return;
   }

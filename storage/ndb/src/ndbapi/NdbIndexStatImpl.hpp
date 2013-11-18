@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ public:
     uint m_cachePos;
     uint m_cacheKeyOffset;   // in bytes
     uint m_cacheValueOffset; // in bytes
-    MicroSecondTimer m_start;
+    NDB_TICKS m_start;
     Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb);
     ~Con();
     int startTransaction();
@@ -127,7 +127,7 @@ public:
     int getNdbOperation();
     int getNdbIndexScanOperation();
     void set_time();
-    NDB_TICKS get_time();
+    Uint64 get_time(); //Elapsed time(us) since set_time
   };
 
   // index
