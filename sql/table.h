@@ -354,9 +354,6 @@ public:
   uchar **alloc_sort_buffer(uint num_records, uint record_length)
   { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
 
-  std::pair<uint, uint> sort_buffer_properties() const
-  { return filesort_buffer.sort_buffer_properties(); }
-
   void free_sort_buffer()
   { filesort_buffer.free_sort_buffer(); }
 
