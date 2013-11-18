@@ -1,0 +1,69 @@
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
+#ifndef SQL_DIGEST_H
+#define SQL_DIGEST_H
+
+#define MAX_DIGEST_STORAGE_SIZE 1024
+
+#include <string.h>
+
+/**
+  Structure to store token count/array for a statement
+  on which digest is to be calculated.
+*/
+struct sql_digest_storage
+{
+  bool m_full;
+  int m_byte_count;
+  /** Character set number. */
+  uint m_charset_number;
+  unsigned char m_token_array[MAX_DIGEST_STORAGE_SIZE];
+
+  inline void reset()
+  {
+    m_full= false;
+    m_byte_count= 0;
+    m_charset_number= 0;
+  }
+
+  inline bool is_empty()
+  {
+    return (m_byte_count == 0);
+  }
+
+  inline void copy(const sql_digest_storage *from)
+  {
+    if (from->m_byte_count > 0)
+    {
+      m_full= from->m_full;
+      m_byte_count= from->m_byte_count;
+      m_charset_number= from->m_charset_number;
+      DBUG_ASSERT(m_byte_count <= MAX_DIGEST_STORAGE_SIZE);
+      memcpy(m_token_array, from->m_token_array, m_byte_count);
+    }
+    else
+    {
+      DBUG_ASSERT(from->m_byte_count == 0);
+      m_full= false;
+      m_byte_count= 0;
+      m_charset_number= 0;
+    }
+  }
+};
+typedef struct sql_digest_storage sql_digest_storage;
+
+#endif
+

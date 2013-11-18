@@ -3146,3 +3146,5 @@ storage/perfschema/pfs_lex_token.h
 storage/perfschema/gen_pfs_lex_token
 sql/share/bulgarian
 storage/ndb/test/dox
+sql/lex_token.h
+sql/gen_lex_token
