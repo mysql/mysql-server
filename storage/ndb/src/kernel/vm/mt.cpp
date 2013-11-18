@@ -41,6 +41,7 @@
 #include "ThreadConfig.hpp"
 #include <signaldata/StartOrd.hpp>
 
+#include <NdbTick.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 
@@ -934,7 +935,7 @@ struct thr_data
    */
   unsigned m_max_exec_signals;
 
-  Uint64 m_time;
+  NDB_TICKS m_ticks;
   struct thr_tq m_tq;
 
   /*
@@ -1518,10 +1519,10 @@ static void
 update_send_sched_config(THRConfigApplier & conf,
                          unsigned instance_no,
                          bool & real_time,
-                         NDB_TICKS & spin_time)
+                         Uint64 & spin_time)
 {
   real_time = conf.do_get_realtime_send(instance_no);
-  spin_time = (NDB_TICKS)conf.do_get_spintime_send(instance_no);
+  spin_time = (Uint64)conf.do_get_spintime_send(instance_no);
 }
 
 static void
@@ -1541,18 +1542,15 @@ yield_rt_break(NdbThread *thread,
 }
 
 static void
-check_real_time_break(struct MicroSecondTimer *yield_time,
-                      struct MicroSecondTimer *current_time,
-                      int res_start,
-                      int res_end,
+check_real_time_break(NDB_TICKS now,
+                      NDB_TICKS *yield_time,
                       NdbThread *thread,
                       enum ThreadTypes type)
 {
-  NDB_TICKS micros_passed = NdbTick_getMicrosPassed(*yield_time,
-                                                    *current_time);
-  if (micros_passed > (NDB_TICKS)50000 ||
-      res_start != 0 ||
-      res_end != 0)
+  const Uint64 micros_passed =
+    NdbTick_Elapsed(*yield_time, now).microSec();
+
+  if (micros_passed > 50000)
   {
     /**
      * Lower scheduling prio to time-sharing mode to ensure that
@@ -1560,56 +1558,34 @@ check_real_time_break(struct MicroSecondTimer *yield_time,
      * if we run for an extended time.
      */
     yield_rt_break(thread, type, TRUE);
-    *yield_time = *current_time;
+    *yield_time = now;
   }
 }
 
 static bool
-check_yield(struct MicroSecondTimer *start_spin_time,
-            int res_start,
-            bool *spin_flag,
-            NDB_TICKS min_spin_timer)
+check_yield(NDB_TICKS now,
+            NDB_TICKS *start_spin_ticks,
+            Uint64 min_spin_timer) //microseconds
 {
-  struct MicroSecondTimer current_time;
-  NDB_TICKS micros_passed = 0;
-  int loc_res;
-  if (min_spin_timer == (NDB_TICKS)0 || res_start != 0)
-    goto yield;
-  loc_res = NdbTick_getMicroTimer(&current_time);
-  if (!(*spin_flag))
+  assert(min_spin_timer > 0);
+
+  if (!NdbTick_IsValid(*start_spin_ticks))
   {
     /**
-     * We haven't started spinning yet, set spin flag and start spin
-     * timer.
+     * We haven't started spinning yet, start spin timer.
      */
-    *start_spin_time = current_time;
-    if (loc_res == 0)
-      goto no_yield;
-    else
-      goto yield;
+    *start_spin_ticks = now;
+    return false;
   }
-  if (loc_res != 0)
-    goto yield;
+
   /**
    * We have a minimum spin timer before we go to sleep.
    * We will go to sleep only if we have spun for longer
    * time than required by the minimum spin time.
-   * If the timer handling for some reason fails we will
-   * always yield.
    */
-  micros_passed =
-    NdbTick_getMicrosPassed(*start_spin_time, current_time);
-  if (min_spin_timer > micros_passed)
-    goto no_yield;
-  else
-    goto yield;
-yield:
-  *spin_flag = false;
-  return true;
-
-no_yield:
-  *spin_flag = true;
-  return false;
+  const Uint64 micros_passed =
+    NdbTick_Elapsed(*start_spin_ticks, now).microSec();
+  return (micros_passed >= min_spin_timer);
 }
 
 void
@@ -1665,14 +1641,13 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   this_send_thread->m_awake = FALSE;
   NdbMutex_Unlock(send_thread_mutex);
 
-  struct MicroSecondTimer start_spin_micro;
-  struct MicroSecondTimer current_micro;
-  struct MicroSecondTimer yield_micro;
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
   bool real_time = false;
-  NDB_TICKS min_spin_timer = (NDB_TICKS)0;
-  bool spin_flag = false;
-  int res_current;
-  int res_yield = NdbTick_getMicroTimer(&yield_micro);
+  Uint64 min_spin_timer = 0;
+
+  NdbTick_Invalidate(&start_spin_ticks);
+  yield_ticks = NdbTick_getCurrentTicks();
   THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
   update_send_sched_config(conf, instance_no, real_time, min_spin_timer);
 
@@ -1682,17 +1657,15 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
 
     if (real_time)
     {
-      res_current = NdbTick_getMicroTimer(&current_micro);
-      check_real_time_break(&yield_micro,
-                            &current_micro,
-                            res_yield,
-                            res_current,
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      check_real_time_break(now,
+                            &yield_ticks,
                             this_send_thread->m_thread,
                             SendThread);
     }
-    if (check_yield(&start_spin_micro,
-                    0,
-                    &spin_flag,
+    if (min_spin_timer == 0 ||
+        check_yield(NdbTick_getCurrentTicks(),
+                    &start_spin_ticks,
                     min_spin_timer))
     {
       /* Yield for a maximum of 1ms */
@@ -1983,14 +1956,14 @@ void
 scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
 {
   struct thr_tq * tq = &selfptr->m_tq;
-  NDB_TICKS last = selfptr->m_time;
+  const NDB_TICKS last = selfptr->m_ticks;
 
   Uint32 curr = tq->m_current_time;
   Uint32 cnt0 = tq->m_cnt[0];
   Uint32 cnt1 = tq->m_cnt[1];
 
-  assert(now > last);
-  Uint64 diff = now - last;
+  assert(NdbTick_Compare(now,last) > 0);
+  Uint64 diff = NdbTick_Elapsed(last, now).milliSec();
   Uint32 step = (Uint32)((diff > 20) ? 20 : diff);
   Uint32 end = (curr + step);
   if (end >= 32767)
@@ -2007,14 +1980,14 @@ scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
   tq->m_current_time = end;
   tq->m_cnt[0] = cnt0 - tmp0;
   tq->m_cnt[1] = cnt1 - tmp1;
-  selfptr->m_time = last + step;
+  selfptr->m_ticks = NdbTick_AddMilliseconds(last, step);
 }
 
 static inline
 void
 scan_time_queues(struct thr_data* selfptr, NDB_TICKS now)
 {
-  if (selfptr->m_time != now)
+  if (NdbTick_Compare(selfptr->m_ticks,now) != 0)
     scan_time_queues_impl(selfptr, now);
 }
 
@@ -3951,9 +3924,9 @@ update_rt_config(struct thr_data *selfptr,
  */
 static void
 update_spin_config(struct thr_data *selfptr,
-                   NDB_TICKS & min_spin_timer)
+                   Uint64 & min_spin_timer)
 {
-  min_spin_timer = (NDB_TICKS) selfptr->m_spintime;
+  min_spin_timer = selfptr->m_spintime;
 }
 
 extern "C"
@@ -3971,11 +3944,9 @@ mt_receiver_thread_main(void *thr_arg)
   bool has_received = false;
   int cnt = 0;
   bool real_time = false;
-  NDB_TICKS min_spin_timer;
-  struct MicroSecondTimer start_spin_micro;
-  struct MicroSecondTimer current_micro;
-  struct MicroSecondTimer yield_micro;
-
+  Uint64 min_spin_timer;
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
 
   init_thread(selfptr);
   signal = aligned_signal(signal_buf, thr_no);
@@ -3994,9 +3965,9 @@ mt_receiver_thread_main(void *thr_arg)
    */
   g_trp_receive_handle_ptr[recv_thread_idx] = &recvdata;
 
-  bool spin_flag = false;
-  int res_current;
-  int res_yield = NdbTick_getMicroTimer(&yield_micro);
+  NdbTick_Invalidate(&start_spin_ticks);
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  selfptr->m_ticks = yield_ticks = now;
 
   while (globalData.theRestartFlag != perform_stop)
   {
@@ -4009,7 +3980,7 @@ mt_receiver_thread_main(void *thr_arg)
 
     watchDogCounter = 2;
 
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    now = NdbTick_getCurrentTicks();
     scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
@@ -4028,19 +3999,16 @@ mt_receiver_thread_main(void *thr_arg)
 
     if (real_time)
     {
-      res_current = NdbTick_getMicroTimer(&current_micro);
-      check_real_time_break(&yield_micro,
-                            &current_micro,
-                            res_yield,
-                            res_current,
+      check_real_time_break(now,
+                            &yield_ticks,
                             selfptr->m_thread,
                             ReceiveThread);
     }
 
     Uint32 delay = 0;
-    if (check_yield(&start_spin_micro,
-                    0,
-                    &spin_flag,
+    if (min_spin_timer == 0 ||
+        check_yield(now,
+                    &start_spin_ticks,
                     min_spin_timer))
     {
       delay = 1;
@@ -4261,21 +4229,18 @@ mt_job_thread_main(void *thr_arg)
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
   Uint32 waits = 0;
 
-  struct MicroSecondTimer start_micro;
-  struct MicroSecondTimer start_spin_micro;
-  struct MicroSecondTimer end_micro;
-  struct MicroSecondTimer yield_micro;
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
 
-  NDB_TICKS min_spin_timer;
-  bool spin_flag = false;
+  Uint64 min_spin_timer;
   bool real_time = false;
 
   update_rt_config(selfptr, real_time, BlockThread);
   update_spin_config(selfptr, min_spin_timer);
 
-  int res_start = NdbTick_getMicroTimer(&start_micro);
-  NDB_TICKS now = selfptr->m_time = NdbTick_getMillisecond(&start_micro);
-  start_spin_micro = yield_micro = start_micro;
+  NdbTick_Invalidate(&start_spin_ticks);
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -4309,7 +4274,7 @@ mt_job_thread_main(void *thr_arg)
       watchDogCounter = 6;
       flush_jbb_write_state(selfptr);
       send_sum += sum;
-      spin_flag = false;
+      NdbTick_Invalidate(&start_spin_ticks);
 
       if (send_sum > MAX_SIGNALS_BEFORE_SEND)
       {
@@ -4335,9 +4300,9 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        if (check_yield(&start_spin_micro,
-                        res_start,
-                        &spin_flag,
+        if (min_spin_timer == 0 ||
+            check_yield(now,
+                        &start_spin_ticks,
                         min_spin_timer))
         {
           bool waited = yield(&selfptr->m_waiter,
@@ -4348,10 +4313,9 @@ mt_job_thread_main(void *thr_arg)
           {
             waits++;
             /* Update current time after sleeping */
-            res_start = NdbTick_getMicroTimer(&start_micro);
-            now = NdbTick_getMillisecond(&start_micro);
-            yield_micro = start_micro;
-            spin_flag = false;
+            now = NdbTick_getCurrentTicks();
+            yield_ticks = now;
+            NdbTick_Invalidate(&start_spin_ticks);
             selfptr->m_stat.m_wait_cnt += waits;
             selfptr->m_stat.m_loop_cnt += loops;
             waits = loops = 0;
@@ -4369,12 +4333,11 @@ mt_job_thread_main(void *thr_arg)
       if (update_sched_config(selfptr, pending_send + send_sum))
       {
         /* Update current time after sleeping */
-        NdbTick_getMicroTimer(&end_micro);
-        now = NdbTick_getMillisecond(&end_micro);
+        now = NdbTick_getCurrentTicks();
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
-        spin_flag = false;
+        NdbTick_Invalidate(&start_spin_ticks);
         update_rt_config(selfptr, real_time, BlockThread);
         update_spin_config(selfptr, min_spin_timer);
       }
@@ -4390,18 +4353,15 @@ mt_job_thread_main(void *thr_arg)
      */
     if (loops > maxloops)
     {
-      int res_end = NdbTick_getMicroTimer(&end_micro);
-      now = NdbTick_getMillisecond(&end_micro);
+      now = NdbTick_getCurrentTicks();
       if (real_time)
       {
-        check_real_time_break(&yield_micro,
-                              &end_micro,
-                              res_start,
-                              res_end,
+        check_real_time_break(now,
+                              &yield_ticks,
                               selfptr->m_thread,
                               BlockThread);
       }
-      Uint64 diff = now - selfptr->m_time;
+      const Uint64 diff = NdbTick_Elapsed(selfptr->m_ticks, now).milliSec();
 
       /* Adjust 'maxloop' to achieve clock reading frequency of 1ms */
       if (diff < 1)
@@ -5109,7 +5069,7 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
    */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
   {
-    rep->m_thread[thr_no].m_thr_data.m_time = NdbTick_CurrentMillisecond();
+    rep->m_thread[thr_no].m_thr_data.m_ticks = NdbTick_getCurrentTicks();
 
     if (thr_no == first_receiver_thread_no)
       continue;                 // Will run in the main thread.
@@ -5291,14 +5251,14 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   }
 
   static const Uint32 max_wait_seconds = 2;
-  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   while (g_thr_repository.stopped_threads < waitFor_count)
   {
     NdbCondition_WaitTimeout(&g_thr_repository.stop_for_crash_cond,
                              &g_thr_repository.stop_for_crash_mutex,
                              10);
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
-    if (now > start + max_wait_seconds * 1000)
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    if (NdbTick_Elapsed(start,now).seconds() > max_wait_seconds)
       break;                    // Give up
   }
   if (g_thr_repository.stopped_threads < waitFor_count)

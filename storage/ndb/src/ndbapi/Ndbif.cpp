@@ -1137,15 +1137,15 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
-  Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
-  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-  assert(current_time >= the_last_check_time);
-  if (current_time - the_last_check_time > 1000) {
-    the_last_check_time = current_time;
+  const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  assert(NdbTick_Compare(now, the_last_check_ticks) >= 0);
+  if (NdbTick_Elapsed(the_last_check_ticks, now).milliSec() > 1000) {
+    the_last_check_ticks = now;
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbTransaction* a_con = theSentTransactionsArray[i];
-      if ((current_time - a_con->theStartTransTime) > timeout)
+      if (NdbTick_Elapsed(a_con->theStartTransTime, now).milliSec() > timeout)
       {
 #ifdef VM_TRACE
         a_con->printState();
@@ -1246,8 +1246,8 @@ Ndb::sendPrepTrans(int forceSend)
       */
       if (theImpl->check_send_size(node_id, a_con->get_send_size())) {
         if (a_con->doSend() == 0) {
-          NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-          a_con->theStartTransTime = current_time;
+          const NDB_TICKS current_ticks = NdbTick_getCurrentTicks();
+          a_con->theStartTransTime = current_ticks;
           continue;
         } else {
           /*
@@ -1328,18 +1328,19 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
    * (see ReportFailure)
    */
   int waitTime = aMilliSecondsToWait;
-  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
-  NDB_TICKS maxTime = currTime + (NDB_TICKS)waitTime;
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
-  const int maxsleep = aMilliSecondsToWait > 10 ? 10 : aMilliSecondsToWait;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
+    const int maxsleep = waitTime > 10 ? 10 : waitTime;
     poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
-    waitTime = (int)(maxTime - NdbTick_CurrentMillisecond());
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    waitTime = aMilliSecondsToWait - 
+      (int)NdbTick_Elapsed(start,now).milliSec();
   } while (waitTime > 0);
 }//Ndb::waitCompletedTransactions()
 
