@@ -337,7 +337,7 @@ no_odirect:
 
 #ifdef TRACE_INIT
     Uint32 write_cnt = 0;
-    Uint64 start = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
 #endif
     while(off < sz)
     {
@@ -406,8 +406,8 @@ no_odirect:
     }
     ::fsync(theFd);
 #ifdef TRACE_INIT
-    Uint64 stop = NdbTick_CurrentMillisecond();
-    Uint64 diff = stop - start;
+    const NDB_TICKS stop = NdbTick_getCurrentTicks();
+    Uint64 diff = NdbTick_Elapsed(start, stop).milliSec();
     if (diff == 0)
       diff = 1;
     ndbout_c("wrote %umb in %u writes %us -> %ukb/write %umb/s",

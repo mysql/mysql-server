@@ -153,8 +153,11 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
       // Fall-through
     }
     
-    Uint64 now = NdbTick_CurrentMillisecond();
-    if(now > c_start.m_startFailureTimeout)
+    const Uint64 elapsed = NdbTick_Elapsed(
+                              c_start.m_startTime,
+                              NdbTick_getCurrentTicks()).milliSec();
+
+    if (elapsed > c_start.m_startFailureTimeout)
     {
       jam();
       Uint32 to_3= 0;
@@ -714,10 +717,8 @@ void Ndbcntr::ph2ALab(Signal* signal)
 
 inline
 Uint64
-setTimeout(Uint64 time, Uint32 timeoutValue){
-  if(timeoutValue == 0)
-    return ~(Uint64)0;
-  return time + timeoutValue;
+setTimeout(Uint32 timeoutValue){
+  return (timeoutValue != 0) ? timeoutValue : ~(Uint64)0;
 }
 
 /*******************************/
@@ -749,10 +750,10 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT, &to_2);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT, &to_3);
   
-  c_start.m_startTime = NdbTick_CurrentMillisecond();
-  c_start.m_startPartialTimeout = setTimeout(c_start.m_startTime, to_1);
-  c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
-  c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
+  c_start.m_startTime = NdbTick_getCurrentTicks();
+  c_start.m_startPartialTimeout = setTimeout(to_1);
+  c_start.m_startPartitionedTimeout = setTimeout(to_2);
+  c_start.m_startFailureTimeout = setTimeout(to_3);
   
   sendCntrStartReq(signal);
 
@@ -2987,7 +2988,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
   }
   
   c_stopRec.stopReq = * req;
-  c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+  c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
   
   if (stopnodes)
   {
@@ -3173,9 +3174,9 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
 void
 Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
   const Int32 timeout = stopReq.apiTimeout; 
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
-  if((timeout >= 0 && now >= alarm)){
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithApiInSomeMagicWay)
     jam();
     NodeState newState(NodeState::SL_STOPPING_2, 
@@ -3196,9 +3197,9 @@ Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
 void
 Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
   const Int32 timeout = stopReq.transactionTimeout;
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
-  if((timeout >= 0 && now >= alarm)){
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithTcInSomeMagicWay)
     jam();
     if(stopReq.getSystemStop(stopReq.requestInfo)  || stopReq.singleuser){
@@ -3263,7 +3264,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
     newState.setSingleUser(true);
     newState.setSingleUserApi(c_stopRec.stopReq.singleUserApi);
     updateNodeState(signal, newState);    
-    c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+    c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
 
     StopConf * const stopConf = (StopConf *)&signal->theData[0];
     stopConf->senderData = c_stopRec.stopReq.senderData;
@@ -3284,7 +3285,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
 			 StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
       updateNodeState(signal, newState);
   
-      c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+      c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
       
       signal->theData[0] = ZSHUTDOWN;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
@@ -3304,10 +3305,10 @@ void Ndbcntr::execABORT_ALL_REF(Signal* signal){
 void
 Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
   const Int32 timeout = stopReq.readOperationTimeout;
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   
-  if((timeout >= 0 && now >= alarm)){
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithLqhInSomeMagicWay)
     jam();
     
@@ -3364,7 +3365,7 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   updateNodeState(signal, newState);
   
-  c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+  c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
   signal->theData[0] = ZSHUTDOWN;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
 }
@@ -3372,10 +3373,10 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
 void
 Ndbcntr::StopRecord::checkLqhTimeout_2(Signal* signal){
   const Int32 timeout = stopReq.operationTimeout; 
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
 
-  if((timeout >= 0 && now >= alarm)){
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithLqhInSomeMagicWay)
     jam();
     if(StopReq::getPerformRestart(stopReq.requestInfo)){

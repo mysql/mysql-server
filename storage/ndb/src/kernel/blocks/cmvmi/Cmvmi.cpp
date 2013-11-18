@@ -164,7 +164,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   c_memusage_report_frequency = 0;
 
-  m_start_time = NdbTick_CurrentMillisecond() / 1000; // seconds
+  m_start_time = NdbTick_getCurrentTicks();
 
   bzero(g_acc_pages_used, sizeof(g_acc_pages_used));
 }
@@ -1864,7 +1864,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     jam();
     const NodeState& nodeState = getNodeState();
     const Uint32 start_level = nodeState.startLevel;
-    const NDB_TICKS uptime = (NdbTick_CurrentMillisecond()/1000) - m_start_time;
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint64 uptime = NdbTick_Elapsed(m_start_time, now).seconds();
     Uint32 generation = m_ctx.m_config.get_config_generation(); 
  
     Ndbinfo::Row row(signal, req);

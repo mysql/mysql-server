@@ -37,7 +37,7 @@ public:
   void doStart();
   void doStop();
   void doReset();
-  NDB_TICKS elapsedTime();
+  Uint64 elapsedTime() const;
   void printTransactionStatistics(const char* text, 
 				  int numTransactions, 
 				  int numOperations);
@@ -45,8 +45,8 @@ public:
 		      int numRecords);
   void printTotalTime(void);
 private:
-  NDB_TICKS startTime;
-  NDB_TICKS stopTime;
+  NDB_TICKS startTicks;
+  NDB_TICKS stopTicks;
 };
 
 inline NdbTimer::NdbTimer(){
@@ -54,20 +54,20 @@ inline NdbTimer::NdbTimer(){
 }
 
 inline void NdbTimer::doReset(void){
-  startTime = 0;
-  stopTime = 0;
+  NdbTick_Invalidate(&startTicks);
+  NdbTick_Invalidate(&stopTicks);
 }
 
 inline void NdbTimer::doStart(void){
-  startTime = NdbTick_CurrentMillisecond();
+  startTicks = NdbTick_getCurrentTicks();
 }
 
 inline void NdbTimer::doStop(void){
-  stopTime = NdbTick_CurrentMillisecond();
+  stopTicks = NdbTick_getCurrentTicks();
 }
 
-inline NDB_TICKS NdbTimer::elapsedTime(void){
-  return (stopTime - startTime); 
+inline Uint64 NdbTimer::elapsedTime(void) const {
+  return NdbTick_Elapsed(startTicks,stopTicks).milliSec(); 
 }
 
 inline void NdbTimer::printTransactionStatistics(const char* text, 

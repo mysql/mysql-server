@@ -255,8 +255,9 @@ struct Test
 void*
 thread_main(void * _t)
 {
+  const NDB_TICKS now = NdbTick_getCurrentTicks(); 
   unsigned seed =
-    (unsigned)NdbTick_CurrentNanosecond() +
+    (unsigned)now.getUint64() +
     (unsigned)(unsigned long long)_t;
 
   Thread * self = (Thread*) _t;
@@ -364,8 +365,8 @@ main(int argc, char ** argv)
          pct_force);
 
   Uint32 loop = 0;
-  Uint64 start = NdbTick_CurrentMillisecond() / 1000;
-  while (start + cnt_seconds > (NdbTick_CurrentMillisecond() / 1000))
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  while (NdbTick_Elapsed(start,NdbTick_getCurrentTicks()).seconds() <= cnt_seconds)
   {
     printf("%u ", loop++); fflush(stdout);
     if ((loop < 100 && (loop % 25) == 0) ||
@@ -467,7 +468,7 @@ Consumer::consume(unsigned D)
      */
     if (DO_SYSCALL)
     {
-      NdbTick_CurrentMillisecond();
+      NdbTick_getCurrentTicks();
     }
 
     unlock(&m_send_lock);
@@ -511,7 +512,7 @@ Consumer::forceConsume(unsigned D)
      */
     if (DO_SYSCALL)
     {
-      NdbTick_CurrentMillisecond();
+      NdbTick_getCurrentTicks();
     }
 
     unlock(&m_send_lock);

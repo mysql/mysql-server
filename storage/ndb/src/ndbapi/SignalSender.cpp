@@ -242,10 +242,11 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     delete m_usedBuffer[i];
   m_usedBuffer.clear();
 
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
-  NDB_TICKS stop = now + timeOutMillis;
-  Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  Uint32 waited = 0; //ms waited since 'start'
   do {
+    const Uint32 wait = (timeOutMillis == 0 ? 10 
+                        : timeOutMillis-waited);
     do_poll(wait);
     
     SimpleSignal * s = t.check(m_jobBuffer);
@@ -258,9 +259,11 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
       return s;
     }
     
-    now = NdbTick_CurrentMillisecond();
-    wait = (Uint32)(timeOutMillis == 0 ? 10 : stop - now);
-  } while(stop > now || timeOutMillis == 0);
+    // Calculate total wait(ms) since 'start'
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    waited = (Uint32)NdbTick_Elapsed(start,now).milliSec();
+
+  } while(timeOutMillis == 0 || waited < timeOutMillis);
   
   return 0;
 } 

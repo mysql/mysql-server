@@ -76,27 +76,19 @@ extern int localDbPrepare(UserHandle *uh);
 /*-----------------------------------*/
 double userGetTimeSync(void)
 {
-  static int initialized = 0;
-  static NDB_TICKS initSecs = 0;
-  static Uint32 initMicros = 0;
+  static NDB_TICKS initTicks;
   double timeValue = 0;
 
-  if ( !initialized ) {
-    initialized = 1;
-    NdbTick_CurrentMicrosecond(&initSecs, &initMicros);  
+  if ( !NdbTick_IsValid(initTicks)) {
+    initTicks = NdbTick_getCurrentTicks();
     timeValue = 0.0;
   } else {
-    NDB_TICKS secs = 0;
-    Uint32 micros = 0;
-  
-    NdbTick_CurrentMicrosecond(&secs, &micros);
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint64 elapsedMicro =
+      NdbTick_Elapsed(initTicks,now).microSec();
 
-    double s  = (double)secs  - (double)initSecs;
-    double us = (double)secs - (double)initMicros;
-    
-    timeValue = s + (us / 1000000.0);
+    timeValue = ((double)elapsedMicro) / 1000000.0;
   }
-
   return timeValue;
 }
 

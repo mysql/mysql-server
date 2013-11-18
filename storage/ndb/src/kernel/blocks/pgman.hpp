@@ -271,7 +271,7 @@ private:
     SimulatedBlock::Callback m_callback;
 
 #ifdef ERROR_INSERT
-    Uint64 m_delay_until_time;
+    NDB_TICKS m_delay_until_time;
 #endif
     Uint32 nextList;
     Uint32 m_magic;
@@ -573,7 +573,7 @@ public:
     SimulatedBlock::Callback m_callback;
     
 #ifdef ERROR_INSERT
-    Uint64 m_delay_until_time;
+    NDB_TICKS m_delay_until_time;
 #endif
   };
 
