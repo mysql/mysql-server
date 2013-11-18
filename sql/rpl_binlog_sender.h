@@ -100,10 +100,10 @@ private:
     Needed to be able to evaluate if buffer needs to be resized (shrunk).
   */
   ushort m_half_buffer_size_req_counter;
-  const static ushort PACKET_SHRINK_COUNTER_THRESHOLD= 100;
-  const static uint PACKET_MINIMUM_SIZE= 4096;
-  const static uint PACKET_GROW_FACTOR= 2;
-  const static float PACKET_SHRINK_FACTOR= 0.5;
+  const static ushort PACKET_SHRINK_COUNTER_THRESHOLD;
+  const static uint PACKET_MINIMUM_SIZE;
+  const static uint PACKET_GROW_FACTOR;
+  const static float PACKET_SHRINK_FACTOR;
   
   /*
     It initializes the context, checks if the dump request is valid and
@@ -368,9 +368,9 @@ private:
             static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR));
 
     if (buffer_used < static_cast<ulong>(new_buffer_size))
-      this->m_half_buffer_size_req_counter ++;
+      m_half_buffer_size_req_counter ++;
     else
-      this->m_half_buffer_size_req_counter= 0;
+      m_half_buffer_size_req_counter= 0;
 
     /* Check if we should shrink the buffer. */
     if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
@@ -387,7 +387,7 @@ private:
       }
 
       /* Reset the counter. */
-      this->m_half_buffer_size_req_counter= 0;
+      m_half_buffer_size_req_counter= 0;
     }
 
     DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
