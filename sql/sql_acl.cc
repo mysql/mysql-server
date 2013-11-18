@@ -2490,7 +2490,23 @@ bool change_password(THD *thd, const char *host, const char *user,
      Accept empty passwords
     */
     if (new_password_len == 0)
+    {
+      /*
+        Since we're changing the password for the user we need to reset the
+        expiration flag.
+      */
+      if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+          thd->security_ctx->password_expired)
+      {
+        /* the current user is not the same as the user we operate on */
+        my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+        result= 1;
+        mysql_mutex_unlock(&acl_cache->lock);
+        goto end;
+      }
+      acl_user->password_expired= false;
       acl_user->auth_string= empty_lex_str;
+    }
     /*
      Check if password begins with correct magic number
     */
