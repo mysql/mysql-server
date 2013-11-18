@@ -400,8 +400,8 @@ struct Tmr {
   const char* time();
   const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
-  NDB_TICKS m_on;
-  NDB_TICKS m_ms;
+  Uint64 m_on;
+  Uint64 m_ms;
   uint m_cnt;
   char m_time[100];
   char m_text[100];
@@ -424,7 +424,7 @@ Tmr::on()
 void
 Tmr::off(uint cnt)
 {
-  NDB_TICKS off = NdbTick_CurrentMillisecond();
+  const Uint64 off = NdbTick_CurrentMillisecond();
   assert(m_on != 0 && off >= m_on);
   m_ms += off - m_on;
   m_cnt += cnt;

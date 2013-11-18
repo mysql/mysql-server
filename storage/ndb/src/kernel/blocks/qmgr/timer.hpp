@@ -21,6 +21,8 @@
 /**
  *  @class Timer
  *  @brief A timer class that can't be fooled by NTP:ing the system clock to old time
+ *         The 'time' used by this class is 'ticks' since some platform 
+ *         specific epoch start. Typically retrieved by NdbTick_getCurrentTicks()
  */
 class Timer {
 public:
@@ -28,46 +30,50 @@ public:
     m_delay = 10;
   };
 
-  Timer(NDB_TICKS delay_time) {
+  Timer(Uint64 delay_time) {
     m_delay = delay_time;
   }
 
   /**
    *  Set/Get alarm time of timer
    */
-  inline void       setDelay(NDB_TICKS delay_time) { m_delay = delay_time;  }
-  inline NDB_TICKS  getDelay() const               { return m_delay; }
+  inline void    setDelay(Uint64 delay_time) { m_delay = delay_time;  }
+  inline Uint64  getDelay() const            { return m_delay; }
 
   /**
    *  Start timer
    */
   inline void reset(NDB_TICKS now) { 
-    m_current_time = now;
-    m_alarm_time = m_current_time + m_delay;
+    m_start_time = now;
   }
   
   inline bool check(NDB_TICKS now) {
+
+    /**
+     *  Protect against time moving backwards.
+     *  In that case use 'backtick' as new start.
+     */
+    if (NdbTick_Compare(m_start_time,now) > 0)
+    {
+      m_start_time = now;
+      return false;
+    }
+
     /**
      *  Standard alarm check
      */
-    if (now > m_alarm_time) return true;
+    if (NdbTick_Elapsed(m_start_time,now).milliSec() > m_delay)
+       return true;
 
     /**
      *  Time progressing, but it is not alarm time yet
      */
-    if (now >= m_current_time) return false;
-
-    /**
-     *  Time has moved backwards
-     */
-    reset(now);
     return false;
   }
 
 private:
-  NDB_TICKS m_current_time;
-  NDB_TICKS m_alarm_time;
-  NDB_TICKS m_delay;
+  NDB_TICKS m_start_time;
+  Uint64 m_delay;
 };
 
 #endif
