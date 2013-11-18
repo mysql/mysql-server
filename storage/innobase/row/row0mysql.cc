@@ -3240,7 +3240,6 @@ row_truncate_table_for_mysql(
 	ut_a(trx->dict_operation_lock_mode == 0);
 	/* Prevent foreign key checks etc. while we are truncating the
 	table */
-
 	row_mysql_lock_data_dictionary(trx);
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -3303,6 +3302,25 @@ row_truncate_table_for_mysql(
 
 		goto funct_exit;
 	}
+
+	/* Check if memcached plugin is running on this table. if is, we don't
+	allow truncate this table. */
+	if (table->memcached_sync_count != 0) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Cannot truncate table ", stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs(" by DROP+CREATE\n"
+		      "InnoDB: because there are memcached operations"
+		      " running on it.\n",
+		      stderr);
+		err = DB_ERROR;
+
+		goto funct_exit;
+	} else {
+                /* We need to set this counter to -1 for blocking
+                memcached operations. */
+		table->memcached_sync_count = DICT_TABLE_IN_DDL;
+        }
 
 	/* Remove all locks except the table-level X lock. */
 
@@ -3631,6 +3649,12 @@ next_rec:
 	trx_commit_for_mysql(trx);
 
 funct_exit:
+
+        if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+                /* We need to set the memcached sync back to 0, unblock
+                memcached operationse. */
+                table->memcached_sync_count = 0;
+        }
 
 	row_mysql_unlock_data_dictionary(trx);
 
