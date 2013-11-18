@@ -210,7 +210,8 @@ function Endpoint(value, inclusive) {
 Endpoint.prototype.isEndpoint = true;
 
 Endpoint.prototype.copy = function() {
-  return new Endpoint(this.value, this.inclusive);
+  /* used only when value is an IndexValue */
+  return new Endpoint(this.value.copy(), this.inclusive);
 };
 
 Endpoint.prototype.asString = function(close) {
@@ -320,8 +321,8 @@ function Segment(point1, point2) {
 Segment.prototype.isSegment = true;
 
 Segment.prototype.inspect = function() {
-  var s = "{ ";
-  s += this.low.asString(0) + " -- " + this.high.asString(1) + " }";
+  var s = "";
+  s += this.low.asString(0) + " -- " + this.high.asString(1);
   return s;
 };
 
@@ -459,11 +460,12 @@ NumberLine.prototype.isNumberLine = true;
 NumberLine.prototype.inspect = function() {
   var it, str, segment;
   it = this.getIterator();
-  str = "<< ";
+  str = "{ ";
   while((segment = it.next()) !== null) {
-    str += segment.inspect() + " ";
+    if(it.n > 2) str += ",";
+    str += segment.inspect();
   }
-  str += " >>";
+  str += " }";
   return str;  
 };
 
@@ -854,25 +856,68 @@ function IndexBoundVisitor(dbIndex) {
   }
 }
 
-var Consolidator;  // forward declaration
+/* A consolidated index bound for a multi-column index is a set of 
+   segments built from IndexValues.   Each single-column value is 
+   represented by a Consolidator that builds its part of the 
+   conslidated index bound.
+
+   Take the partially completed bounds object that is passed in.
+   For each segment in this column's own bound, make a copy of
+   the partialBounds, and try to add the segment to it.  If the 
+   segment endpoint is exclusive or infinite, stop there; otherwise, 
+   pass the partialBounds along to the next column.
+*/
+
+var initialIndexBounds = 
+  new Segment(new Endpoint(new IndexValue()), new Endpoint(new IndexValue()));
 
 IndexBoundVisitor.prototype.consolidate = function(node) {
-  var i, allBounds, columnBounds, indexBounds, thisColumn, nextColumn;
+  var i, allBounds, columnBounds, thisColumn, nextColumn;
+
+  function Consolidator(columnBounds, nextColumnConsolidator) {
+    this.columnBounds = columnBounds; // bounds of this column
+    this.nextColumnConsolidator = nextColumnConsolidator; 
+  }
+
+  Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
+    var boundsIterator, segment, idxBounds;
+
+    boundsIterator = this.columnBounds.getIterator();
+    segment = boundsIterator.next();
+    while(segment) {
+      idxBounds = partialBounds.copy();
+
+      if(doLow) {
+        idxBounds.low.push(segment.low);
+        doLow = segment.low.inclusive && segment.low.isFinite;
+      }
+      if(doHigh) {
+        idxBounds.high.push(segment.high);
+        doHigh = segment.high.inclusive && segment.high.isFinite;
+      }
+
+      if(this.nextColumnConsolidator && (doLow || doHigh)) {
+        this.nextColumnConsolidator.consolidate(idxBounds, doLow, doHigh);
+      }
+      else {
+        allBounds.insertSegment(idxBounds);
+      }
+
+      segment = boundsIterator.next();
+    }
+  };
+
   if(! node.indexRange) {
     allBounds = new NumberLine();
     nextColumn = null;
 
     for(i = this.ncol - 1; i >= 0 ; i--) {
       columnBounds = evaluateNodeForColumn(node, this.index.columnNumbers[i]);
-      thisColumn = new Consolidator(allBounds, columnBounds, nextColumn);
+      thisColumn = new Consolidator(columnBounds, nextColumn);
       nextColumn = thisColumn;
     }
     /* nextColumn is now the first column */
-    indexBounds = new Segment(
-      new Endpoint(new IndexValue()),
-      new Endpoint(new IndexValue())
-    );
-    nextColumn.consolidate(indexBounds, true, true);
+    nextColumn.consolidate(initialIndexBounds, true, true);
     node.indexRange = allBounds;
   }
 };
@@ -894,7 +939,6 @@ IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
   }
 };
 
-
 /** Handle node QueryNot */
 IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   if(node.columnMask & this.mask) {
@@ -903,61 +947,13 @@ IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   }
 };
 
-
-//////// Consolidator               /////////////////
-
-/* Each column builds its part of the consolidated index bound.
-
-   Take the partially completed bounds object that is passed in.
-   For each segment in this column's NumberLine, make a copy of
-   the partialBounds, and try to add the segment to it.  If the 
-   segment endpoint is exclusive or infinite, stop there; otherwise, 
-   pass the partialBounds along to the next column.
-
-*/
-
-function Consolidator(resultContainer, columnBounds, nextColumn) {
-  this.resultContainer = resultContainer;  // a consolidated NumberLine
-  this.columnBounds = columnBounds;        // a single-column NumberLine
-  this.nextColumn = nextColumn;            // nextColumn is a Consolidator
-}
-
-Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
-  var boundsIterator, segment, idxBounds;
-
-  boundsIterator = this.columnBounds.getIterator();
-  segment = boundsIterator.next();
-  while(segment) {
-    idxBounds = partialBounds.copy();
-
-    if(doLow) {
-      idxBounds.low.push(segment.low);
-      doLow = segment.low.inclusive && segment.low.isFinite;
-    }
-    if(doHigh) {
-      idxBounds.high.push(segment.high);
-      doHigh = segment.high.inclusive && segment.high.isFinite;
-    }
-
-    if(this.nextColumn && (doLow || doHigh)) {
-      this.nextColumn.consolidate(idxBounds, doLow, doHigh);
-    }
-    else {
-      this.resultContainer.insertSegment(idxBounds);
-    }
-
-    segment = boundsIterator.next();
-  }
-};
-
 /* Construct an exported IndexBound from a segment
 */
-function IndexBoundEndpoint(endpoint) {
-  this.inclusive = endpoint.inclusive;
-  this.key = endpoint.value.parts;
-}
-
 function IndexBound(segment) {
+  function IndexBoundEndpoint(endpoint) {
+    this.inclusive = endpoint.inclusive;
+    this.key = endpoint.value.parts;
+  }
   this.low = new IndexBoundEndpoint(segment.low);
   this.high = new IndexBoundEndpoint(segment.high);
 }
