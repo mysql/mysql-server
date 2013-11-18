@@ -555,15 +555,15 @@ function getScanResults(scanop, userCallback) {
 
     if(status < 0) { // error
       udebug.log("scan gather() error", status, error);
-      if(error && error.ndb_error && error.ndb_error.code == 274) {
-        // fetch();
-      }
-      else {
+      if(error && error.ndb_error && 
+         error.ndb_error.classification == 'TimeoutExpired') {
+        error.isTimeout = true;
+      } else {
         scanop.result.success = false;
         scanop.result.error = error;
-        postScanCallback.arg0 = error;
-        return postScanCallback;
       }
+      postScanCallback.arg0 = error;
+      return postScanCallback;
     }
     
     /* Gather more results. */
