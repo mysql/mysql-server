@@ -10284,7 +10284,23 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
                               join->group_list ?
 			       join->join_tab+join->const_tables :
                                join->get_sort_by_join_tab();
-     if (sort_by_tab)
+      /*
+        It could be that sort_by_tab==NULL, and the plan is to use filesort()
+        on the first table.
+      */
+      if (join->order)
+      {
+        join->simple_order= 0;
+        join->need_tmp= 1;
+      }
+
+      if (join->group && !join->group_optimized_away)
+      {
+        join->need_tmp= 1;
+        join->simple_group= 0;
+      }
+      
+      if (sort_by_tab)
       {
         join->need_tmp= 1;
         join->simple_order= join->simple_group= 0;
