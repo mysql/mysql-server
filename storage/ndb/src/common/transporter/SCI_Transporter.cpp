@@ -21,8 +21,6 @@
 #include "SCI_Transporter.hpp" 
 #include <NdbOut.hpp> 
 #include <NdbSleep.h> 
-#include <NdbTick.h> 
-#include <NdbTick.h> 
 
 #include "TransporterInternalDefinitions.hpp" 
 #include <TransporterCallback.hpp> 
@@ -315,10 +313,6 @@ sci_error_t SCI_Transporter::initLocalSegment() {
  
  
 bool SCI_Transporter::doSend() { 
-#ifdef DEBUG_TRANSPORTER  
-  NDB_TICKS startSec=0, stopSec=0; 
-  Uint32 startMicro=0, stopMicro=0, totalMicro=0; 
-#endif
   sci_error_t             err; 
   Uint32 retry=0; 
  

@@ -16,6 +16,7 @@
 */
 
 #include <ndb_global.h>
+#include <NdbTick.h>
 #include <NdbOut.hpp>
 #include "API.hpp"
 
@@ -39,7 +40,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theCallbackFunction(NULL),
   theCallbackObject(NULL),
   theTransArrayIndex(0),
-  theStartTransTime(0),
+  theStartTransTime(),
   theErrorLine(0),
   theErrorOperation(NULL),
   theNdb(aNdb),

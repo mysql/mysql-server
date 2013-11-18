@@ -36,7 +36,7 @@ waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);
 static int _no_contact = 0;
 static int _not_started = 0;
 static int _single_user = 0;
-static int _timeout = 120;
+static int _timeout = 120; // Seconds
 static const char* _wait_nodes = 0;
 static const char* _nowait_nodes = 0;
 static NdbNodeBitmask nowait_nodes_bitmask;
@@ -302,11 +302,12 @@ waitClusterStatus(const char* _addr,
   const int MAX_RESET_ATTEMPTS = 10;
   bool allInState = false;
 
-  Uint64 time_now = NdbTick_CurrentMillisecond();
-  Uint64 timeout_time = time_now + 1000 * _timeout;
+  NDB_TICKS start = NdbTick_getCurrentTicks();
+  NDB_TICKS now = start;
 
   while (allInState == false){
-    if (_timeout > 0 && time_now > timeout_time){
+    if (_timeout > 0 &&
+        NdbTick_Elapsed(start,now).seconds() > (Uint64)_timeout){
       /**
        * Timeout has expired waiting for the nodes to enter
        * the state we want
@@ -348,7 +349,7 @@ waitClusterStatus(const char* _addr,
 	    << " resetting timeout "
 	    << resetAttempts << endl;
 
-      timeout_time = time_now + 1000 * _timeout;
+      start = now;
 
       resetAttempts++;
     }
@@ -384,7 +385,7 @@ waitClusterStatus(const char* _addr,
 
     attempts++;
     
-    time_now = NdbTick_CurrentMillisecond();
+    now = NdbTick_getCurrentTicks();
   }
   return 0;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,8 +125,8 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs, int _cnt, int min_req,
   wakeNdb->theImpl->theWaiter.set_node(0);
   wakeNdb->theImpl->theWaiter.set_state(WAIT_TRANS);
 
-  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
-  NDB_TICKS maxTime = currTime + (NDB_TICKS) timeout_millis;
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  const int maxTime = timeout_millis;
 
   do {
     /* PollGuard will put us to sleep until something relevant happens */
@@ -138,7 +138,8 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs, int _cnt, int min_req,
       woken = false;  // reset for next time
       return 0;
     }
-    timeout_millis = (int) (maxTime - NdbTick_CurrentMillisecond());
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    timeout_millis = (maxTime - (int)NdbTick_Elapsed(start,now).milliSec());
   } while (timeout_millis > 0);
 
   return -1;  // timeout occured
