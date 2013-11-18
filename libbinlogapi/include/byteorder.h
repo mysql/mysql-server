@@ -25,7 +25,7 @@
 /*
  * Define types uint_t typedefs if stdint is not present
  */
-#ifndef HAVE_STDINT_H
+#if !defined(HAVE_STDINT_H)
   #if SIZEOF_INT == 4
     typedef int int32_t;
     typedef unsigned int uint32_t;
@@ -36,6 +36,11 @@
     #error Neither int nor long is of 4 bytes width
   #endif
   typedef unsigned short int uint16_t;
+  #if SIZEOF_LONG_LONG == 8
+     typedef unsigned long long int uint64_t;
+  #else
+     typedef unsigned long uint64_t;
+  #endif
 #else
   #include <stdint.h>
 #endif //end ifndef HAVE_STDINT_H
