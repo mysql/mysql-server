@@ -66,17 +66,49 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   if (typeof fulfilled_callback === 'function') {
     this.fulfilled_callbacks.push(function(result) {
       global.setImmediate(function() {
-        var new_result = fulfilled_callback.call(undefined, result);
-        new_promise.fulfill(new_result);
+        var new_result;
+        try {
+          new_result = fulfilled_callback.call(undefined, result);
+          if (typeof new_result !== 'undefined') {
+            new_promise.fulfill(new_result);
+          }
+        } catch (e) {
+          new_promise.reject(e);
+        }
+      });
+    });
+  } else {
+    // create a dummy function for a missing fulfilled callback per 2.2.7.3 
+    // If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value.
+    this.fulfilled_callbacks.push(function(result) {
+      global.setImmediate(function() {
+        new_promise.fulfill(result);
       });
     });
   }
+
   // create a closure for each rejected_callback
   // the closure is a function that when called, calls setImmediate to call the rejected_callback with the error
   if (typeof rejected_callback === 'function') {
     this.rejected_callbacks.push(function(err) {
       global.setImmediate(function() {
-        rejected_callback.call(undefined, err);
+        var new_result;
+        try {
+          new_result = rejected_callback.call(undefined, err);
+          if (typeof new_result !== 'undefined') {
+            new_promise.fulfill(new_result);
+          }
+        } catch (e) {
+          new_promise.reject(e);
+        }
+      });
+    });
+  } else {
+    // create a dummy function for a missing rejected callback per 2.2.7.4 
+    // If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason.
+    this.rejected_callbacks.push(function(err) {
+      global.setImmediate(function() {
+        new_promise.reject(err);
       });
     });
   }
