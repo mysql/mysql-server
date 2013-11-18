@@ -344,13 +344,13 @@ ClusterMgr::threadMain()
   nodeFail_signal.theTrace  = 0;
   nodeFail_signal.theLength = NodeFailRep::SignalLengthLong;
 
-  NDB_TICKS timeSlept = minHeartBeatInterval;
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  Uint32 timeSlept = minHeartBeatInterval;
+  NDB_TICKS now = NdbTick_getCurrentTicks();
 
   while(!theStop)
   {
     /* Sleep at 100ms between each heartbeat check */
-    NDB_TICKS before = now;
+    const NDB_TICKS before = now;
     for (Uint32 i = 0; i<10; i++)
     {
       NdbSleep_MilliSleep(minHeartBeatInterval/10);
@@ -364,8 +364,8 @@ ClusterMgr::threadMain()
         complete_poll();
       }
     }
-    now = NdbTick_CurrentMillisecond();
-    timeSlept = (now - before);
+    now = NdbTick_getCurrentTicks();
+    timeSlept = (Uint32)NdbTick_Elapsed(before, now).milliSec();
 
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
@@ -420,7 +420,7 @@ ClusterMgr::threadMain()
         continue;
       }
 
-      cm_node.hbCounter += (Uint32)timeSlept;
+      cm_node.hbCounter += timeSlept;
       if (cm_node.hbCounter >= m_max_api_reg_req_interval ||
           cm_node.hbCounter >= cm_node.hbFrequency)
       {

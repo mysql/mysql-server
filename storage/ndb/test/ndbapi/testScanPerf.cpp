@@ -275,12 +275,12 @@ setEqBound(NdbIndexScanOperation *isop,
 int
 run_scan(){
   int iter = g_paramters[P_LOOPS].value;
-  NDB_TICKS start1, stop;
+  Uint64 start1, stop;
   int sum_time= 0;
 
   Uint32 sample_rows = 0;
   int tot_rows = 0;
-  NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
+  Uint64 sample_start = NdbTick_CurrentMillisecond();
 
   Uint32 tot = g_paramters[P_ROWS].value;
 
