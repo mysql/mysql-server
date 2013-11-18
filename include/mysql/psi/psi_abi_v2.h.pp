@@ -15,7 +15,7 @@ typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
-struct OPAQUE_LEX_YYSTYPE;
+struct sql_digest_storage;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;

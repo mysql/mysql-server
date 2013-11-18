@@ -29,6 +29,7 @@
 #include "mysql/psi/psi.h"
 
 #define PSI_STATEMENT_CALL(M) pfs_ ## M ## _v1
+#define PSI_DIGEST_CALL(M) pfs_ ## M ## _v1
 
 C_MODE_START
 
@@ -103,9 +104,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da);
 
 PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
 
-PSI_digest_locker *pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                                           uint token,
-                                           OPAQUE_LEX_YYSTYPE *yylval);
+void pfs_digest_end_v1(PSI_digest_locker *locker,
+                       const sql_digest_storage *digest);
 
 C_MODE_END
 

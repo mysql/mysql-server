@@ -29,9 +29,21 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+
+# Gen_lex_token
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+# gen_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
+ADD_DEPENDENCIES(gen_lex_token sql_yacc.h)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
@@ -122,6 +134,7 @@ SET(SQL_SHARED_SOURCES
   sql_db.cc
   sql_delete.cc
   sql_derived.cc
+  sql_digest.cc
   sql_do.cc 
   sql_error.cc
   sql_executor.cc
