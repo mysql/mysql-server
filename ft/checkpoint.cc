@@ -136,6 +136,7 @@ PATENT RIGHTS GRANT:
 #include "checkpoint.h"
 #include <portability/toku_atomic.h>
 #include <util/status.h>
+#include <util/frwlock.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -187,7 +188,8 @@ toku_checkpoint_get_status(CACHETABLE ct, CHECKPOINT_STATUS statp) {
 
 static LSN last_completed_checkpoint_lsn;
 
-static toku_pthread_rwlock_t checkpoint_safe_lock;
+static toku_mutex_t checkpoint_safe_mutex;
+static toku::frwlock checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
 static toku_pthread_rwlock_t low_priority_multi_operation_lock;
 
@@ -237,27 +239,32 @@ multi_operation_checkpoint_unlock(void) {
 
 static void
 checkpoint_safe_lock_init(void) {
-    toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
+    toku_mutex_init(&checkpoint_safe_mutex, NULL);
+    checkpoint_safe_lock.init(&checkpoint_safe_mutex);
     locked_cs = false;
 }
 
 static void
 checkpoint_safe_lock_destroy(void) {
-    toku_pthread_rwlock_destroy(&checkpoint_safe_lock); 
+    checkpoint_safe_lock.deinit();
+    toku_mutex_destroy(&checkpoint_safe_mutex);
 }
 
 static void 
 checkpoint_safe_checkpoint_lock(void) {
-    toku_pthread_rwlock_wrlock(&checkpoint_safe_lock);   
+    toku_mutex_lock(&checkpoint_safe_mutex);
+    checkpoint_safe_lock.write_lock(false);
+    toku_mutex_unlock(&checkpoint_safe_mutex);
     locked_cs = true;
 }
 
 static void 
 checkpoint_safe_checkpoint_unlock(void) {
     locked_cs = false;
-    toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
+    toku_mutex_lock(&checkpoint_safe_mutex);
+    checkpoint_safe_lock.write_unlock();
+    toku_mutex_unlock(&checkpoint_safe_mutex);
 }
-
 
 // toku_xxx_client_(un)lock() functions are only called from client code,
 // never from checkpoint code, and use the "reader" interface to the lock functions.
@@ -286,17 +293,19 @@ void
 toku_checkpoint_safe_client_lock(void) {
     if (locked_cs)
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
-    toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
+    toku_mutex_lock(&checkpoint_safe_mutex);
+    checkpoint_safe_lock.read_lock();
+    toku_mutex_unlock(&checkpoint_safe_mutex);
     toku_multi_operation_client_lock();
 }
 
 void 
 toku_checkpoint_safe_client_unlock(void) {
-    toku_pthread_rwlock_rdunlock(&checkpoint_safe_lock); 
+    toku_mutex_lock(&checkpoint_safe_mutex);
+    checkpoint_safe_lock.read_unlock();
+    toku_mutex_unlock(&checkpoint_safe_mutex);
     toku_multi_operation_client_unlock();
 }
-
-
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
 void
