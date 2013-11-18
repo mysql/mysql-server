@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -673,7 +673,7 @@ exports.UserContext.prototype.find = function() {
   // find starts here
   // session.find(prototypeOrTableName, key, callback)
   // validate first two parameters must be defined
-  if (!((userContext.user_arguments[0]) !== undefined) && userContext.user_arguments[1] !== undefined ) {
+  if (userContext.user_arguments[0] === undefined || userContext.user_arguments[1] === undefined) {
     userContext.applyCallback(new Error('User error: find must have at least two arguments.'), null);
   } else {
     // get DBTableHandler for prototype/tableName
