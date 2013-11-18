@@ -177,9 +177,11 @@ NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end)
 static inline Uint64
 NdbTick_CurrentMillisecond(void)
 {
-  NdbDuration elapsed;
-  elapsed.t = NdbTick_getCurrentTicks().t;
-  return elapsed.milliSec();
+  const Uint64 ticks = NdbTick_getCurrentTicks().t;
+  if (ticks < (UINT_MAX64 / 1000))
+    return ((ticks*1000) / NdbDuration::tick_frequency); // Best precision
+  else
+    return (ticks / (NdbDuration::tick_frequency/1000)); // Avoids oveflow,
 }
 
 /******************************************************
