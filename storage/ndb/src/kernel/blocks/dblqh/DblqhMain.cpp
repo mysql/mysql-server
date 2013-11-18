@@ -14985,7 +14985,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   CRASH_INSERTION(5052);
 
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_save[0]);
+  globalData.gcp_timer_save[0] = NdbTick_getCurrentTicks();
 #endif
 
   ccurrentGcprec = 0;
@@ -15260,7 +15260,7 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   }//for
 
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_save[1]);
+  globalData.gcp_timer_save[1] = NdbTick_getCurrentTicks();
 #endif
 
   GCPSaveConf * const saveConf = (GCPSaveConf *)&signal->theData[0];
@@ -24637,21 +24637,19 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
 }
 
 void Dblqh::initReportStatus(Signal* signal){
-  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-  m_next_report_time = current_time + 
-                       ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
+  m_prev_report_time = NdbTick_getCurrentTicks();
 }
 
 void Dblqh::checkReportStatus(Signal* signal){
   if (m_startup_report_frequency == 0)
     return;
 
-  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-  if (current_time > m_next_report_time)
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 elapsed = NdbTick_Elapsed(m_prev_report_time, now).seconds();
+  if (elapsed > m_startup_report_frequency)
   {
     reportStatus(signal);
-    m_next_report_time = current_time +
-                         ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
+    m_prev_report_time = now;
   }
 }
 

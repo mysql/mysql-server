@@ -316,8 +316,8 @@ NDB_COMMAND(PortLibTest, "portlibtest", "portlibtest", "Test the portable functi
   {
   ndbout << "*------------------------------- Measure" << i << endl;
 
-  NDB_TICKS millisec_now; 
-  NDB_TICKS millisec_now2;
+  Uint64 millisec_now; 
+  Uint64 millisec_now2;
 
   millisec_now = NdbTick_CurrentMillisecond();
   NdbSleep_MilliSleep(sleeptimes[i]);
@@ -421,8 +421,8 @@ NDB_COMMAND(PortLibTest, "portlibtest", "portlibtest", "Test the portable functi
   {
     ndbout << "*------------------------------- Measure" << i << endl;
 
-  NDB_TICKS millisec_now; 
-  NDB_TICKS millisec_now2;
+  Uint64 millisec_now; 
+  Uint64 millisec_now2;
 
   millisec_now = NdbTick_CurrentMillisecond();
   if (NdbCondition_WaitTimeout(testcond, testmutex, sleeptimes[i]) != 0)
@@ -446,8 +446,8 @@ NDB_COMMAND(PortLibTest, "portlibtest", "portlibtest", "Test the portable functi
   {
     ndbout << "*------------------------------- Measure" << i << endl;
 
-  NDB_TICKS millisec_now; 
-  NDB_TICKS millisec_now2;
+  Uint64 millisec_now; 
+  Uint64 millisec_now2;
   Uint32 usec_now, usec_now2;
   Uint64 msec_now, msec_now2;
 
@@ -461,7 +461,7 @@ NDB_COMMAND(PortLibTest, "portlibtest", "portlibtest", "Test the portable functi
   NdbTick_CurrentMicrosecond( &msec_now2, &usec_now2);
 
   Uint64 usecdiff = time_diff(msec_now,msec_now2,usec_now,usec_now2);
-  NDB_TICKS msecdiff = millisec_now2 -millisec_now;
+  Uint64 msecdiff = millisec_now2 -millisec_now;
 
   ndbout << "     Slept "<<sleeptimes[i]<<" milliseconds." << endl;
   ndbout << "  Measured " << msecdiff <<" milliseconds with milli function ." << endl;

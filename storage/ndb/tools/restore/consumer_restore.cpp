@@ -1294,7 +1294,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
     const NdbDictionary::Index * const idx = indexes[i];
     const char * const idx_name = idx->getName();
     const char * const tab_name = idx->getTable();
-    Uint64 start = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     info << "Rebuilding index `" << idx_name << "` on table `"
       << tab_name << "` ..." << flush;
     if ((dict->getIndex(idx_name, tab_name) == NULL)
@@ -1307,8 +1307,9 @@ BackupRestore::rebuild_indexes(const TableS& table)
 
       return false;
     }
-    Uint64 stop = NdbTick_CurrentMillisecond();
-    info << "OK (" << ((stop - start)/1000) << "s)" <<endl;
+    const NDB_TICKS stop = NdbTick_getCurrentTicks();
+    const Uint64 elapsed = NdbTick_Elapsed(start,stop).seconds();
+    info << "OK (" << elapsed << "s)" <<endl;
   }
 
   return true;

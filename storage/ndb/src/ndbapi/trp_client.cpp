@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,16 +331,17 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   int ret_val;
   m_clnt->do_forceSend(forceSend ? 1 : 0);
 
-  NDB_TICKS curr_time = NdbTick_CurrentNanosecond();
-  /* Use nanosecond wait_time for max_time calculation */
-  NDB_TICKS max_time = curr_time + ((NDB_TICKS)wait_time * 1000000);
+  NDB_TICKS curr_ticks = NdbTick_getCurrentTicks();
+  /* Use nanosecond to calculate when wait_time has expired. */
+  Int64 remain_wait_nano = ((Int64)wait_time) * 1000000;
   const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
   do
   {
     wait_for_input(maxsleep);
-    NDB_TICKS start_time_nanos = curr_time;
-    curr_time = NdbTick_CurrentNanosecond();
-    m_clnt->recordWaitTimeNanos(curr_time - start_time_nanos);
+    const NDB_TICKS start_ticks = curr_ticks;
+    curr_ticks = NdbTick_getCurrentTicks();
+    const Uint64 waited_nano = NdbTick_Elapsed(start_ticks,curr_ticks).nanoSec();
+    m_clnt->recordWaitTimeNanos(waited_nano);
     Uint32 state= m_waiter->get_state();
     if (state == NO_WAIT)
     {
@@ -358,7 +359,8 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 #endif
       continue;
     }
-    if (curr_time >= max_time)
+    remain_wait_nano -= waited_nano;
+    if (remain_wait_nano <= 0)
     {
 #ifdef VM_TRACE
       ndbout << "Time-out state is " << m_waiter->get_state() << endl;

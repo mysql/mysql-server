@@ -974,6 +974,8 @@
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
 
+#include <portlib/NdbTick.h>
+
 class NdbObjectIdMap;
 class NdbOperation;
 class NdbEventOperationImpl;
@@ -2037,7 +2039,7 @@ private:
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node
   
-  Uint64               the_last_check_time;
+  NDB_TICKS            the_last_check_ticks;
   Uint64               theFirstTransId;
   // The tupleId is retrieved from DB
   const NdbDictionary::Table *m_sys_tab_0;

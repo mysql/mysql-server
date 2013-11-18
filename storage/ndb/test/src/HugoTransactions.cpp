@@ -944,15 +944,15 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    MicroSecondTimer timer_start;
-    MicroSecondTimer timer_stop;
+    NDB_TICKS timer_start;
+    NDB_TICKS timer_stop;
     bool timer_active =
       m_stats_latency != 0 &&
       r >= batch &&             // first batch is "warmup"
       r + batch != records;     // last batch is usually partial
 
     if (timer_active)
-      NdbTick_getMicroTimer(&timer_start);
+      timer_start = NdbTick_getCurrentTicks();
 
     NdbOperation::LockMode lmused;
     if (_rand == 0)
@@ -1062,9 +1062,9 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     if (timer_active) {
-      NdbTick_getMicroTimer(&timer_stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
-      m_stats_latency->addObservation((double)ticks);
+      timer_stop = NdbTick_getCurrentTicks();
+      Uint64 elapsed = NdbTick_Elapsed(timer_start, timer_stop).microSec();
+      m_stats_latency->addObservation((double)elapsed);
     }
   }
   deallocRows();
@@ -1149,15 +1149,15 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    MicroSecondTimer timer_start;
-    MicroSecondTimer timer_stop;
+    NDB_TICKS timer_start;
+    NDB_TICKS timer_stop;
     bool timer_active =
       m_stats_latency != 0 &&
       r >= batch &&             // first batch is "warmup"
       r + batch != records;     // last batch is usually partial
 
     if (timer_active)
-      NdbTick_getMicroTimer(&timer_start);
+      timer_start = NdbTick_getCurrentTicks();
 
     int rows_found = 0;
 
@@ -1261,9 +1261,9 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     if (timer_active) {
-      NdbTick_getMicroTimer(&timer_stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
-      m_stats_latency->addObservation((double)ticks);
+      timer_stop = NdbTick_getCurrentTicks();
+      Uint64 elapsed = NdbTick_Elapsed(timer_start, timer_stop).microSec();
+      m_stats_latency->addObservation((double)elapsed);
     }
 
     r += batch; // Read next record
@@ -1502,15 +1502,15 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    MicroSecondTimer timer_start;
-    MicroSecondTimer timer_stop;
+    NDB_TICKS timer_start;
+    NDB_TICKS timer_stop;
     bool timer_active =
       m_stats_latency != 0 &&
       r >= batch &&             // first batch is "warmup"
       r + batch != records;     // last batch is usually partial
 
     if (timer_active)
-      NdbTick_getMicroTimer(&timer_start);
+      timer_start = NdbTick_getCurrentTicks();
 
     if(pkDeleteRecord(pNdb, r, batch) != NDBT_OK)
     {
@@ -1565,9 +1565,9 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     if (timer_active) {
-      NdbTick_getMicroTimer(&timer_stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
-      m_stats_latency->addObservation((double)ticks);
+      timer_stop = NdbTick_getCurrentTicks();
+      Uint64 elapsed = NdbTick_Elapsed(timer_start, timer_stop).microSec();
+      m_stats_latency->addObservation((double)elapsed);
     }
 
     r += batch; // Read next record
@@ -1696,15 +1696,15 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    MicroSecondTimer timer_start;
-    MicroSecondTimer timer_stop;
+    NDB_TICKS timer_start;
+    NDB_TICKS timer_stop;
     bool timer_active =
       m_stats_latency != 0 &&
       r >= batch &&             // first batch is "warmup"
       r + batch != records;     // last batch is usually partial
 
     if (timer_active)
-      NdbTick_getMicroTimer(&timer_start);
+      timer_start = NdbTick_getCurrentTicks();
 
     Vector<const NdbLockHandle*> lockHandles;
 
@@ -1779,9 +1779,9 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
     closeTransaction(pNdb);
     
     if (timer_active) {
-      NdbTick_getMicroTimer(&timer_stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
-      m_stats_latency->addObservation((double)ticks);
+      timer_stop = NdbTick_getCurrentTicks();
+      Uint64 elapsed = NdbTick_Elapsed(timer_start, timer_stop).microSec();
+      m_stats_latency->addObservation((double)elapsed);
     }
   }
   deallocRows();

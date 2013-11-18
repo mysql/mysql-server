@@ -1066,7 +1066,6 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
 #ifdef UNIT_TEST
 
 #include <Vector.hpp>
-#include <NdbTick.h>
 
 struct Chunk {
   Uint32 pageId;
@@ -1185,7 +1184,6 @@ main(int argc, char** argv)
       Chunk chunk = chunks[ch];
       chunks.erase(ch);
       timer[0].start();
-      Uint64 start = NdbTick_CurrentMillisecond();      
       mem.release(chunk.pageId, chunk.pageCount);
       timer[0].stop();
       if(DEBUG)
