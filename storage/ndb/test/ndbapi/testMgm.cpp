@@ -101,14 +101,14 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   mgmd.setConnectString("1.1.1.1");
 
-  NDB_TICKS tstart= NdbTick_CurrentMillisecond();
+  const Uint64 tstart= NdbTick_CurrentMillisecond();
   if (mgmd.connect(0, 0, 0))
   {
     g_err << "Connect to illegal host suceeded" << endl;
     return NDBT_FAILED;
   }
 
-  NDB_TICKS msecs= NdbTick_CurrentMillisecond() - tstart;
+  const Uint64 msecs= NdbTick_CurrentMillisecond() - tstart;
   ndbout << "Took about " << msecs <<" milliseconds"<<endl;
 
   if(msecs > 6000)

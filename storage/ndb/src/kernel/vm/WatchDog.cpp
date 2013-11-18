@@ -73,7 +73,7 @@ WatchDog::registerWatchedThread(Uint32 *counter, Uint32 threadId)
   {
     m_watchedList[m_watchedCount].m_watchCounter = counter;
     m_watchedList[m_watchedCount].m_threadId = threadId;
-    NdbTick_getMicroTimer(&(m_watchedList[m_watchedCount].m_startTime));
+    m_watchedList[m_watchedCount].m_startTicks = NdbTick_getCurrentTicks();
     m_watchedList[m_watchedCount].m_slowWarnDelay = theInterval;
     m_watchedList[m_watchedCount].m_lastCounterValue = 0;
     ++m_watchedCount;
@@ -225,16 +225,16 @@ void
 WatchDog::run()
 {
   unsigned int sleep_time;
-  struct MicroSecondTimer last_time, now;
+  NDB_TICKS last_ticks, now;
   Uint32 numThreads;
   Uint32 counterValue[MAX_WATCHED_THREADS];
   Uint32 oldCounterValue[MAX_WATCHED_THREADS];
   Uint32 threadId[MAX_WATCHED_THREADS];
-  struct MicroSecondTimer start_time[MAX_WATCHED_THREADS];
+  NDB_TICKS start_ticks[MAX_WATCHED_THREADS];
   Uint32 theIntervalCheck[MAX_WATCHED_THREADS];
   Uint32 elapsed[MAX_WATCHED_THREADS];
 
-  NdbTick_getMicroTimer(&last_time);
+  last_ticks = NdbTick_getCurrentTicks();
 
   // WatchDog for the single threaded NDB
   while (!theStop)
@@ -245,8 +245,8 @@ WatchDog::run()
     if(theStop)
       break;
 
-    NdbTick_getMicroTimer(&now);
-    if (NdbTick_getMicrosPassed(last_time, now)/1000 > sleep_time*2)
+    now = NdbTick_getCurrentTicks();
+    if (NdbTick_Elapsed(last_ticks, now).milliSec() > sleep_time*2)
     {
       struct tms my_tms;
       if (times(&my_tms) != (clock_t)-1)
@@ -263,10 +263,10 @@ WatchDog::run()
                           errno);
       }
       g_eventLogger->warning("Watchdog: Warning overslept %llu ms, expected %u ms.",
-                             NdbTick_getMicrosPassed(last_time, now)/1000,
+                             NdbTick_Elapsed(last_ticks, now).milliSec(),
                              sleep_time);
     }
-    last_time = now;
+    last_ticks = now;
 
     /*
       Copy out all active counters under locked mutex, then check them
@@ -299,17 +299,17 @@ WatchDog::run()
         */
         *(m_watchedList[i].m_watchCounter) = 0;
 #endif
-        m_watchedList[i].m_startTime = now;
+        m_watchedList[i].m_startTicks = now;
         m_watchedList[i].m_slowWarnDelay = theInterval;
         m_watchedList[i].m_lastCounterValue = counterValue[i];
       }
       else
       {
-        start_time[i] = m_watchedList[i].m_startTime;
+        start_ticks[i] = m_watchedList[i].m_startTicks;
         threadId[i] = m_watchedList[i].m_threadId;
         oldCounterValue[i] = m_watchedList[i].m_lastCounterValue;
         theIntervalCheck[i] = m_watchedList[i].m_slowWarnDelay;
-        elapsed[i] = (Uint32)NdbTick_getMicrosPassed(start_time[i], now)/1000;
+        elapsed[i] = (Uint32)NdbTick_Elapsed(start_ticks[i], now).milliSec();
         if (oldCounterValue[i] == 9 && elapsed[i] >= theIntervalCheck[i])
           m_watchedList[i].m_slowWarnDelay += theInterval;
       }
