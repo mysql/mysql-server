@@ -406,6 +406,13 @@ int
 
 typedef
 ib_err_t
+(*cb_cursor_set_memcached_sync)(
+/*============================*/
+	ib_crsr_t	ib_crsr,
+	ib_bool_t	flag);
+
+typedef
+ib_err_t
 (*cb_cursor_open_index_using_name_t)(
 /*=================================*/
 	ib_crsr_t	ib_open_crsr,
@@ -513,6 +520,7 @@ cb_cursor_last_t		ib_cb_cursor_last;
 cb_cursor_open_index_using_name_t	ib_cb_cursor_open_index_using_name;
 cb_close_thd_t			ib_cb_close_thd;
 cb_get_cfg_t			ib_cb_get_cfg;
+cb_cursor_set_memcached_sync	ib_cb_cursor_set_memcached_sync;
 cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;

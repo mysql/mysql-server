@@ -58,7 +58,7 @@ struct Sort_addon_field {/* Sort addon packed field */
   uint8  null_bit;       /* Null bit mask for the field */
 };
 
-struct BUFFPEK_COMPARE_CONTEXT
+struct Merge_chunk_compare_context
 {
   qsort_cmp2 key_compare;
   const void *key_compare_arg;
@@ -295,9 +295,10 @@ public:
   bool not_killable;
   bool using_pq;
   char* tmp_buffer;
+
   // The fields below are used only by Unique class.
   qsort2_cmp compare;
-  BUFFPEK_COMPARE_CONTEXT cmp_context;
+  Merge_chunk_compare_context cmp_context;
 
   Sort_param()
   {
@@ -368,7 +369,7 @@ public:
     *resl= Addon_fields::read_addon_length(plen);
     DBUG_ASSERT(*resl <= res_length);
     const uchar *record_end= plen + *resl;
-    *recl= (record_end - record_start);
+    *recl= static_cast<uint>(record_end - record_start);
   }
 
 private:
@@ -490,9 +491,6 @@ public:
   uchar *alloc_sort_buffer(uint num_records, uint record_length)
   { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
 
-  std::pair<uint, uint> sort_buffer_properties() const
-  { return filesort_buffer.sort_buffer_properties(); }
-
   void free_sort_buffer()
   { filesort_buffer.free_sort_buffer(); }
 
@@ -512,13 +510,14 @@ public:
 typedef Bounds_checked_array<uchar> Sort_buffer;
 
 int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
-		    Merge_chunk *buffpek,
-		    uint *maxbuffer, IO_CACHE *t_file);
-uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *buffpek,
+		    Merge_chunk_array chunk_array,
+		    size_t *num_chunks, IO_CACHE *t_file);
+uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                     Sort_param *param);
 int merge_buffers(Sort_param *param,IO_CACHE *from_file,
                   IO_CACHE *to_file, Sort_buffer sort_buffer,
-                  Merge_chunk *lastbuff,Merge_chunk *Fb,
-                  Merge_chunk *Tb,int flag);
+                  Merge_chunk *lastbuff,
+                  Merge_chunk_array chunk_array,
+                  int flag);
 
 #endif /* SQL_SORT_INCLUDED */

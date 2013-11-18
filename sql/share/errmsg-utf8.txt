@@ -7033,6 +7033,12 @@ ER_TABLE_CORRUPT
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
 
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
+ER_OLD_TEMPORALS_UPGRADED
+  eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
+
 #
 #  End of 5.6 error messages.
 #
@@ -7098,6 +7104,9 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
 
+ER_INNODB_UNDO_LOG_FULL
+  eng "Undo Log error: %s"
+
 ER_GCS_REPLICATION_APPLIER_INIT_ERROR
   eng "The START GCS_REPLICATION command failed as the applier module failed to start."
 
@@ -7110,5 +7119,6 @@ ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR
 ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR
   eng "The START GCS_REPLICATION command failed as there was an error when joining the communication group"
 
+#
 #  End of 5.7 error messages.
 #

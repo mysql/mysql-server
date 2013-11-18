@@ -376,18 +376,6 @@ normalize_weight(MY_UCA_ITEM *item, size_t level,
     if (item->weight[level][i])
     {
       weight[num]= item->weight[level][i];
-#ifdef INVERT_TERTIARY_WEIGHTS
-      if (level == 2)
-      {
-        /* 
-          Invert tertiary weights to sort upper case letters
-          before their lower case counterparts.
-        */
-        if (weight[num] >= 0x20)
-          fprintf(stderr, "Tertiary weight is too big: %02X\n", weight[num]);
-        weight[num]= (uint) (0x20) - weight[num];
-      }
-#endif
       num++;
     }
   }

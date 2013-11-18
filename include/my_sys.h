@@ -881,11 +881,16 @@ int my_munmap(void *, size_t);
 #endif
 
 /* my_getpagesize */
-#ifdef HAVE_GETPAGESIZE
-#define my_getpagesize()        getpagesize()
+static inline int my_getpagesize()
+{
+#ifndef _WIN32
+  return getpagesize();
 #else
-int my_getpagesize(void);
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return (int)si.dwPageSize;
 #endif
+}
 
 int my_msync(int, void *, size_t, int);
 

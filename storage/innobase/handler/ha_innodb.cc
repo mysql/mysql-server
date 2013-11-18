@@ -470,6 +470,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
+	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level,
@@ -5136,23 +5137,7 @@ innobase_fts_text_cmp_prefix(
 	to negate the result */
 	return(-result);
 }
-/******************************************************************//**
-compare two character string according to their charset. */
 
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*     p1,		/*!< in: key */
-	const void*     p2)		/*!< in: node */
-{
-	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-	uchar*			s1 = (uchar*) p1;
-	uchar*			s2 = *(uchar**) p2;
-
-	return(ha_compare_text(charset, s1, (uint) strlen((const char*) s1),
-			       s2, (uint) strlen((const char*) s2), 0, 0));
-}
 /******************************************************************//**
 Makes all characters in a string lower case. */
 
@@ -9208,6 +9193,11 @@ index_bad:
 		*flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
+	/* Set the flags2 when create table or alter tables */
+	*flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			*flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
 	DBUG_RETURN(true);
 }
 
@@ -11134,7 +11124,8 @@ ha_innobase::optimize(
 	calls to OPTIMIZE, which is undesirable. */
 
 	if (innodb_optimize_fulltext_only) {
-		if (prebuilt->table->fts && prebuilt->table->fts->cache) {
+		if (prebuilt->table->fts && prebuilt->table->fts->cache
+		    && !dict_table_is_discarded(prebuilt->table)) {
 			fts_sync_table(prebuilt->table);
 			fts_optimize_table(prebuilt->table);
 		}

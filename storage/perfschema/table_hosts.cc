@@ -96,7 +96,7 @@ table_hosts::table_hosts()
 
 void table_hosts::make_row(PFS_host *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
   pfs->m_lock.begin_optimistic_lock(&lock);

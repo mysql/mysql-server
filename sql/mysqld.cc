@@ -38,8 +38,7 @@
 #include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
                           // handle_one_connection
 #include "sql_time.h"     // known_date_time_formats,
-                          // get_date_time_format_str,
-                          // date_time_format_make
+                          // get_date_time_format_str
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
 #include "auth_common.h"  // set_default_auth_plugin
@@ -167,8 +166,6 @@ using std::vector;
 #include <sys/utsname.h>
 #endif /* _WIN32 */
 
-#include <my_libwrap.h>
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -187,9 +184,9 @@ using std::vector;
 #include <sys/mman.h>
 #if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
     && defined(_XOPEN_SOURCE)
-extern int getpagesizes(size_t *, int);
-extern int getpagesizes2(size_t *, int);
-extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
+extern "C" int getpagesizes(size_t *, int);
+extern "C" int getpagesizes2(size_t *, int);
+extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
@@ -1011,11 +1008,6 @@ static my_bool plugins_are_initialized= FALSE;
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
-#ifdef HAVE_LIBWRAP
-const char *libwrapName= NULL;
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-#endif /* HAVE_LIBWRAP */
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
@@ -4399,11 +4391,6 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifdef HAVE_LIBWRAP
-  libwrapName= my_progname+dirname_length(my_progname);
-  openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif /* HAVE_LIBWRAP */
-
 #ifndef DBUG_OFF
   test_lc_time_sz();
   srand(time(NULL));
@@ -4695,9 +4682,6 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 */
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
-
-  /* In case some Connection_handler created THDs in this thread */
-  my_pthread_set_THR_THD(0);
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -6591,9 +6575,6 @@ static int mysql_init_variables(void)
 #else
   have_compress= SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_LIBWRAP
-  libwrapName= NullS;
-#endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;
 #ifndef EMBEDDED_LIBRARY
@@ -7011,7 +6992,7 @@ pfs_error:
 C_MODE_START
 
 static void*
-mysql_getopt_value(const char *keyname, uint key_length,
+mysql_getopt_value(const char *keyname, size_t key_length,
        const struct my_option *option, int *error)
 {
   if (error)
@@ -8159,7 +8140,7 @@ PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Gtid_state_to_string;
 PSI_memory_key key_memory_Owned_gtids_to_string;
 PSI_memory_key key_memory_Sort_param_tmp_buffer;
-PSI_memory_key key_memory_Filesort_info_buffpek;
+PSI_memory_key key_memory_Filesort_info_merge;
 PSI_memory_key key_memory_Filesort_info_record_pointers;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
@@ -8293,7 +8274,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Rows_query_log_event_rows_query, "Rows_query_log_event::rows_query", 0},
 
   { &key_memory_Sort_param_tmp_buffer, "Sort_param::tmp_buffer", 0},
-  { &key_memory_Filesort_info_buffpek, "Filesort_info::buffpek", 0},
+  { &key_memory_Filesort_info_merge, "Filesort_info::merge", 0},
   { &key_memory_Filesort_info_record_pointers, "Filesort_info::record_pointers", 0},
   { &key_memory_Filesort_buffer_sort_keys, "Filesort_buffer::sort_keys", 0},
   { &key_memory_handler_errmsgs, "handler::errmsgs", 0},

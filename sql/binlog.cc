@@ -34,6 +34,8 @@
 #include <m_ctype.h>				// For is_number
 #include <my_stacktrace.h>
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 #include "gcs_replication.h"
 
 using std::max;
@@ -1108,6 +1110,13 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   }
 
   global_sid_lock->unlock();
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /* Set the transaction GTID in the Performance Schema */
+  if (thd->m_transaction_psi != NULL && !error && thd->owned_gtid.sidno >= 1)
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
+                               &thd->variables.gtid_next);
+#endif
 
   /*
     If an automatic group number was generated, change the first event

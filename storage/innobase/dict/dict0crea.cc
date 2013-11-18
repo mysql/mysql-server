@@ -297,6 +297,12 @@ dict_build_tablespace(
 
 	use_file_per_table = dict_table_use_file_per_table(table);
 
+	/* Always set this bit for all new created tables */
+	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			DICT_TF2_FLAG_UNSET(table,
+					    DICT_TF2_FTS_AUX_HEX_NAME););
+
 	if (use_file_per_table) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */

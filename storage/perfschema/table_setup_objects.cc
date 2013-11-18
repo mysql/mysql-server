@@ -225,7 +225,7 @@ int table_setup_objects::rnd_pos(const void *pos)
 
 void table_setup_objects::make_row(PFS_setup_object *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
 

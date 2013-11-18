@@ -661,7 +661,7 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
-#define SEQ_UNINIT -1
+#define SEQ_UNINIT -1LL
 
 /**
   @enum Log_event_type

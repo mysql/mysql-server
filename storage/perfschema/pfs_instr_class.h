@@ -20,6 +20,7 @@
 #include "mysql_com.h"                          /* NAME_LEN */
 #include "lf.h"
 #include "pfs_global.h"
+#include "pfs_atomic.h"
 
 /**
   @file storage/perfschema/pfs_instr_class.h
