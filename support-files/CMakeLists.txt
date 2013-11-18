@@ -105,12 +105,15 @@ IF(UNIX)
 
     INSTALL(FILES rpm/my.cnf DESTINATION ${INSTALL_SYSCONFDIR}
             COMPONENT Common)
-    INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
-            COMPONENT SharedLibraries)
-    INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
-            COMPONENT Client)
-    INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
-            COMPONENT IniFiles)
+
+    IF (INSTALL_SYSCONF2DIR)
+      INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT SharedLibraries)
+      INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT Client)
+      INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT IniFiles)
+    ENDIF()
 
     # This is for SuSE:
     INSTALL(CODE "EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink
