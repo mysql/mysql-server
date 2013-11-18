@@ -36,6 +36,10 @@ JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
+// webkit-devtools-agent allows you to profile the process from a Chrome browser
+try {
+ require('webkit-devtools-agent');
+} catch(e) { };
 
 function usage() {
   var msg = "" +
@@ -72,7 +76,7 @@ function usage() {
 
 //handle command line arguments
 function parse_command_line(options) {
-  var i, val, values, pair;
+  var i, val, values, pair, m, n;
   for(i = 2; i < process.argv.length ; i++) {
     val = process.argv[i];
     switch (val) {
@@ -90,10 +94,14 @@ function parse_command_line(options) {
       options.adapter = "sql";
       break;
     case '-i':
-      options.iterations = parseInt(process.argv[++i]);
-      if (isNaN(options.iterations)) {
-        console.log('iterations value is not allowed:', process.argv[i]);
-        options.exit = true;
+      var iterList = process.argv[++i];
+      options.iterations = iterList.split('\,');
+      for(m = 0 ; m < options.iterations.length; ++m) {
+        n = options.iterations[m]
+        if (isNaN(n)) {
+          console.log('iterations value ',n,' is not allowed');
+          options.exit = true;
+        }
       }
       break;
     case '-r':
@@ -157,7 +165,7 @@ function parse_command_line(options) {
           options.modes = values[1];
           options.modeNames = options.modes.split('\,');
           // validate mode names
-          for (var m = 0; m < options.modeNames.length; ++m) {
+          for (m = 0; m < options.modeNames.length; ++m) {
             switch (options.modeNames[m]) {
             case 'indy':
             case 'each':
@@ -270,7 +278,7 @@ function main() {
     'database': 'jscrund',
     'modes': 'indy,each,bulk',
     'tests': 'persist,find,remove',
-    'iterations': 4000,
+    'iterations': [4000],
     'stats': false,
     'spi': false,
     'log': false,
@@ -338,6 +346,10 @@ function main() {
   /* Finally store the complete properties object in the options */
   options.properties = properties;
 
+  /* Force GC is available if node is run with the --expose-gc option
+  */
+  options.use_gc = ( typeof global.gc === 'function' );
+
   var logFile = new ResultLog(options.log);
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
   new JSCRUND.mynode.TableMapping("b").applyToClass(B);
@@ -401,6 +413,11 @@ function main() {
     }
   };
 
+  // mainTestLoop (-r 10)
+  //   batchSizeLoop (-i 1,10,100)
+  //     ModeLoop      (--modes=indy,each)
+  //       TestsLoop     (--tests=persist,remove)
+
   var runTests = function(options) {
 
     var timer = new JSCRUND.lib.Timer();
@@ -417,17 +434,22 @@ function main() {
 
     var key;
     var object;
-    var iteration = 0;
-    var numberOfIterations = options.iterations;
+
+    var numberOfBatchLoops = options.iterations.length;
+    var batchLoopNumber = 0;
+    var numberOfIterations;
+    var iteration;
+
     var nRun = 0;
     var nRuns = (options.nRuns < 0 ? Infinity : options.nRuns);
+    var nReport = 0;
 
     var operationsDoneCallback;
     var testsDoneCallback;
     var resultStats = [];
 
-    var parameters = generateAllParameters(numberOfIterations);
-    
+    var parameters;
+
     /** Recursively call the operation numberOfIterations times in autocommit mode
      * and then call the operationsDoneCallback
      */
@@ -448,7 +470,7 @@ function main() {
           name: testName + "," + modeName,
           time: timer.interval
         });
-        operationsDoneCallback();
+        setImmediate(operationsDoneCallback);
       }
     };
 
@@ -459,15 +481,16 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = indyTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
-        indyOperationsLoop(null);
+        setImmediate(indyOperationsLoop, null);
       } else {
         // done with all indy tests
         // stop timer and report
-        testsDoneCallback();
+        setImmediate(testsDoneCallback);
       }
     };
 
@@ -483,7 +506,7 @@ function main() {
         name: testName + "," + modeName,
         time: timer.interval
       });
-      operationsDoneCallback();
+      setImmediate(operationsDoneCallback);
     };
 
     /** Call the operation numberOfIterations times within a transaction
@@ -512,12 +535,13 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = eachTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.begin(function(err) {
-          eachOperationsLoop(null);
+          setImmediate(eachOperationsLoop, null);
         });
       } else {
         // done with all each tests
@@ -539,7 +563,7 @@ function main() {
         name: testName + "," + modeName,
         time: timer.interval
       });
-      bulkTestsLoop();
+      setImmediate(bulkTestsLoop);
     };
 
     /** Check the results of a bulk operation. It will be executed
@@ -559,6 +583,7 @@ function main() {
       operation = JSCRUND.implementation[testName];
       operationsDoneCallback = bulkTestsLoop;
       if (testNumber < testNames.length) {
+        if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
@@ -583,37 +608,56 @@ function main() {
       testNumber = 0;
       if (modeNumber < modes.length) {
         modeNumber++;
-        console.log('\njscrund.modeLoop', modeNumber, 'of', modes.length, ':', modeName);
+         console.log('\njscrund.modeLoop ', modeName, "[ size",numberOfIterations,"]");
         mode.apply(runTests);
       } else {
         if (JSCRUND.errors.length !== 0) {
           console.log(JSCRUND.errors);
         }
-
-        // collect result stats
-        var opNames = "rtime[ms]," + options.adapter + '\t';
-        var opTimes = "" + numberOfIterations + '\t';
-        var r;
-        while (r = resultStats.shift()) {
-          opNames += r.name + '\t';
-          opTimes += r.time + '\t';
-        }
-
-        // write result stats to file
-        console.log("\nappending results to file: " + logFile.name);
-        if (nRun == 1)
-            logFile.write(opNames + '\n');
-        logFile.write(opTimes + '\n');
-
-        testLoop();
+        report();
+        batchSizeLoop();
       }
     };
 
+    function report() {
+      var opNames, opTimes, r, adapter;
+
+      adapter = options.adapter + (options.spi ? "(spi)" : "");
+      opNames = "rtime[ms]," + adapter + '\t';
+      opTimes = "" + numberOfIterations + '\t';
+
+      while (r = resultStats.shift()) {
+        opNames += r.name + '\t';
+        opTimes += r.time + '\t';
+      }
+
+      if(! nReport++) {
+        logFile.write(opNames + '\n');
+      }
+
+      logFile.write(opTimes + '\n');
+    }
+
+    /** Iterate over batch sizes
+    */
+    function batchSizeLoop() {
+      if(batchLoopNumber < numberOfBatchLoops) {
+        numberOfIterations = options.iterations[batchLoopNumber];
+        batchLoopNumber++;
+        parameters = generateAllParameters(numberOfIterations);
+        modeNumber = 0;
+        setImmediate(modeLoop);
+      } else {
+        mainTestLoop();
+      }
+    }
+
     /** Run test with all modes.
     */
-    var testLoop = function() {
+    var mainTestLoop = function() {
       if (nRun++ >= nRuns) {
         console.log('\ndone: ' + nRuns + ' runs.');
+        console.log("\nappending results to file: " + logFile.name);
         logFile.close();
         if (options.stats) {
           JSCRUND.stats.peek();
@@ -623,10 +667,10 @@ function main() {
         });
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
-        modeNumber = 0;
-        modeLoop();
+        batchLoopNumber = 0;
+        batchSizeLoop();
       }
-    }
+    };
 
     // runTests starts here
     var modeTable = {
@@ -647,7 +691,7 @@ function main() {
         process.exit(1);
       } else {
         testsDoneCallback = modeLoop;
-        testLoop();
+        mainTestLoop();
       }
     });
   };

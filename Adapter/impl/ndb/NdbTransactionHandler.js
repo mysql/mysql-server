@@ -206,9 +206,12 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
 }
 
 
-function getExecIdForOperationList(self, operationList) {
+function getExecIdForOperationList(self, operationList, pendingOpsSet) {
   var execId = self.execCount++;
-  self.pendingOpsLists[execId] = operationList;
+  self.pendingOpsLists[execId] = {
+    "operationList"       : operationList,
+    "pendingOperationSet" : pendingOpsSet
+  };
   return execId;
 }
 
@@ -220,7 +223,7 @@ function getExecIdForOperationList(self, operationList) {
 
 function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   var op = dbOperationList[0];
-  var execId = getExecIdForOperationList(self, dbOperationList);
+  var execId = getExecIdForOperationList(self, dbOperationList, null);
 
   /* Execute NdbTransaction after reading from scan */
   function executeNdbTransaction() {
@@ -268,16 +271,16 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
   
   /* Execute NoCommit so that you can start reading from scans */
-  function executeScanNoCommit(err, ndbop) {
+  function executeScanNoCommit(err, ndbScanOp) {
     var fatalError;
     udebug.log("executeScan executeScanNoCommit");
-    if(! ndbop) {
+    if(! ndbScanOp) {
       fatalError = self.ndbtx.getNdbError();
       callback(new ndboperation.DBOperationError(fatalError), self);
       return;  /* is that correct? */
     }
 
-    op.ndbop = ndbop;
+    op.ndbScanOp = ndbScanOp;
     run(self, NOCOMMIT, AO_IGNORE, getScanResults);
   }
 
@@ -292,9 +295,10 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
 
 function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
+  var pendingOperationSet;
 
   function executeNdbTransaction() {
-    var execId = getExecIdForOperationList(self, dbOperationList);
+    var execId = getExecIdForOperationList(self, dbOperationList, pendingOperationSet);
 
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
@@ -306,14 +310,12 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   function prepareOperations() {
     udebug.log("executeNonScan prepareOperations", self.moniker);
     var i, op, fatalError;
+    pendingOperationSet = ndboperation.prepareOperations(self.ndbtx, dbOperationList);
+
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
-      fatalError = op.prepare(self.ndbtx);
-      if(! op.ndbop) {
-        fatalError = self.ndbtx.getNdbError();
-      }
-      if(fatalError) {
-        callback(new ndboperation.DBOperationError(fatalError), self);
+      if(op.error) {
+        callback(new ndboperation.DBOperationError(op.error), self);
         return;  /* is that correct? */
       }
     }
@@ -431,7 +433,7 @@ proto.commit = function commit(userCallback) {
   assert(this.autocommit === false);
   stats.incr("commit");
   var self = this;
-  var execId = getExecIdForOperationList(self, []);
+  var execId = getExecIdForOperationList(self, [], null);
 
   function onNdbCommit(err) {
     onExecute(self, COMMIT, err, execId, userCallback);
@@ -459,7 +461,7 @@ proto.rollback = function rollback(callback) {
   assert(this.autocommit === false);
   stats.incr("rollback");
   var self = this;
-  var execId = getExecIdForOperationList(self, []);
+  var execId = getExecIdForOperationList(self, [], null);
 
   ndbsession.closeActiveTransaction(this);
 
