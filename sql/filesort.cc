@@ -342,19 +342,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
       // If the table is empty, allocate space for one row.
       param.max_keys_per_buffer= (uint) min(num_rows > 0 ? num_rows : 1, keys);
-      if (table_sort.sort_buffer_size() > 0)
-      {
-        // If we have already allocated a buffer, it better have same size!
-        if (std::make_pair(param.max_keys_per_buffer, param.rec_length) !=
-            table_sort.sort_buffer_properties())
-        {
-          /*
-            table->sort will still have a pointer to the same buffer,
-            but that will be overwritten by the assignment below.
-          */
-          table_sort.free_sort_buffer();
-        }
-      }
+
       table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
       if (table_sort.sort_buffer_size() > 0)
         break;
