@@ -995,8 +995,24 @@ have_conn:
 					conn_data->crsr_trx);
 			}
 
-			innodb_cb_cursor_lock(
+			err = innodb_cb_cursor_lock(
 				engine, conn_data->read_crsr, lock_mode);
+
+			if (err != DB_SUCCESS) {
+				innodb_cb_cursor_close(
+					conn_data->read_crsr);
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
+				conn_data->crsr_trx = NULL;
+				conn_data->read_crsr = NULL;
+				conn_data->in_use = false;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
+					has_lock, conn_data);
+
+				return(NULL);
+                        }
 
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
@@ -1017,8 +1033,24 @@ have_conn:
 
 			ib_cb_cursor_stmt_begin(conn_data->read_crsr);
 
-			innodb_cb_cursor_lock(
+			err = innodb_cb_cursor_lock(
 				engine, conn_data->read_crsr, lock_mode);
+
+			if (err != DB_SUCCESS) {
+				innodb_cb_cursor_close(
+					conn_data->read_crsr);
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
+				conn_data->crsr_trx = NULL;
+				conn_data->read_crsr = NULL;
+				conn_data->in_use = false;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
+					has_lock, conn_data);
+
+				return(NULL);
+                        }
 
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
