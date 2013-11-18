@@ -7311,7 +7311,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         {
           Prepared_stmt_arena_holder ps_arena_holder(thd);
-          fld= new Item_field(thd, last_checked_context, from_field);
+          fld= new Item_field(thd, context, from_field);
 
           if (!fld)
             goto error;
