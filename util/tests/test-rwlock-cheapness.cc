@@ -100,6 +100,7 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_pthread.h>
 #include <portability/toku_time.h>
 #include <util/frwlock.h>
+#include <util/frwlock.cc>
 #include <util/rwlock.h>
 #include "rwlock_condvar.h"
 

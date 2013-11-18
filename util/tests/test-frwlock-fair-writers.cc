@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <util/frwlock.h>
+#include <util/frwlock.cc>
 
 toku_mutex_t rwlock_mutex;
 toku::frwlock rwlock;

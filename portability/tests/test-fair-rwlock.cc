@@ -127,6 +127,7 @@ PATENT RIGHTS GRANT:
 #include <toku_assert.h>
 #include <util/rwlock.h>
 #include <util/frwlock.h>
+#include <util/frwlock.cc>
 #include <portability/toku_atomic.h>
 #include "toku_fair_rwlock.h"
 
