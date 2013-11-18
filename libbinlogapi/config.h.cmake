@@ -19,14 +19,16 @@
 #cmakedefine HAVE_STDINT_H @HAVE_STDINT_H@
 #cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
 /* Symbols we may use */
-#define IS_BIG_ENDIAN @IS_BIG_ENDIAN@
-#define HAVE_LE64TOH @HAVE_LE64TOH@
-#define HAVE_LE32TOH @HAVE_LE32TOH@
-#define HAVE_LE16TOH @HAVE_LE16TOH@
+#cmakedefine IS_BIG_ENDIAN @IS_BIG_ENDIAN@
+#cmakedefine HAVE_LE64TOH @HAVE_LE64TOH@
+#cmakedefine HAVE_LE32TOH @HAVE_LE32TOH@
+#cmakedefine HAVE_LE16TOH @HAVE_LE16TOH@
 #cmakedefine HAVE_ENDIAN_CONVERSION_MACROS @HAVE_ENDIAN_CONVERSION_MACROS@
-#cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
-#define HAVE_LONG 1
+#cmakedefine SIZEOF_LONG_LONG   @SIZEOF_LONG_LONG@
+#cmakedefine HAVE_LONG_LONG 1
+#cmakedefine SIZEOF_LONG @SIZEOF_LONG@
+#cmakedefine HAVE_LONG 1
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
-#define HAVE_INT 1
+#cmakedefine HAVE_INT 1
 
 #endif
