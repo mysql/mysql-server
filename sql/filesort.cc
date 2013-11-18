@@ -34,6 +34,7 @@
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
 #include "debug_sync.h"
+#include "sql_base.h"
 
 /// How to write record_ref.
 #define WRITE_REF(file,from) \
@@ -337,6 +338,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     int kill_errno= thd->killed_errno();
     DBUG_ASSERT(thd->is_error() || kill_errno);
+
+    /*
+      We replace the table->sort at the end.
+      Hence calling free_io_cache to make sure table->sort.io_cache
+      used for QUICK_INDEX_MERGE_SELECT is free.
+    */
+    free_io_cache(table);
+
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
@@ -363,6 +372,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+
+  /* table->sort.io_cache should be free by this time */
+  DBUG_ASSERT(NULL == table->sort.io_cache);
+
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
   DBUG_PRINT("exit",("num_rows: %ld", (long) num_rows));
   MYSQL_FILESORT_DONE(error, num_rows);
@@ -602,6 +615,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
                        (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
+  DEBUG_SYNC(thd, "after_index_merge_phase1");
   for (;;)
   {
     if (quick_select)
