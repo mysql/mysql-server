@@ -630,7 +630,8 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     op.result.error = new IndirectError(transactionHandler.error);
     return;
   }
-  else if(op_ndb_error === null) {   // NULL means "No Error"
+
+  if(op_ndb_error === null) {   /* null means "No Error" */
     result_code = 0;
   }
   else {
