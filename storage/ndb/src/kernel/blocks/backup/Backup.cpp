@@ -96,10 +96,10 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 1)
   {
     m_monitor_words_written = 0;
-    m_monitor_snapshot_start = NdbTick_CurrentMillisecond();
+    m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_sr;
     m_overflow_disk_write = 0;
-    m_reset_disk_speed_time = NdbTick_CurrentMillisecond();
+    m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
@@ -116,7 +116,7 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 7)
   {
     m_monitor_words_written = 0;
-    m_monitor_snapshot_start = NdbTick_CurrentMillisecond();
+    m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed;
   }
 
@@ -213,8 +213,8 @@ Backup::execCONTINUEB(Signal* signal)
       such that the load will at average be as specified.
     */
     int delay_time = m_reset_delay_used;
-    NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
-    int sig_delay = int(curr_time - m_reset_disk_speed_time);
+    const NDB_TICKS curr_time = NdbTick_getCurrentTicks();
+    int sig_delay = int(NdbTick_Elapsed(m_reset_disk_speed_time,curr_time).milliSec());
 
     /* If we overflowed in the last period, count it in 
      * this new period, potentially overflowing again into
@@ -267,10 +267,12 @@ Backup::execCONTINUEB(Signal* signal)
        * We check every second or so that we are roughly sticking
        * to our diet.
        */
-      if (curr_time >= m_monitor_snapshot_start + 1000)
+      const Uint64 millisPassed = 
+        NdbTick_Elapsed(m_monitor_snapshot_start,curr_time).milliSec();
+
+      if (millisPassed >= 1000)
       {
         jam();
-        const Uint64 millisPassed = curr_time - m_monitor_snapshot_start;
         const Uint64 periodsPassed = (millisPassed / DISK_SPEED_CHECK_DELAY) + 1;
         const Uint64 quotaWordsPerPeriod = m_curr_disk_write_speed;
         const Uint64 maxOverFlowWords = c_defaults.m_maxWriteSize / 4;
@@ -609,7 +611,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     req->senderData = 23;
     req->backupDataLen = 0;
     sendSignal(reference(), GSN_BACKUP_REQ,signal,BackupReq::SignalLength, JBB);
-    startTime = NdbTick_CurrentMillisecond();
+    startTime = NdbTick_getCurrentTicks();
     return;
   }
 
@@ -648,13 +650,15 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       }
     }
 
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint64 resetElapsed = NdbTick_Elapsed(m_reset_disk_speed_time,now).milliSec();
+    const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
+    /* Dump measured disk write speed since last RESET_DISK_SPEED */
     ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period: %u  m_overflow_disk_write: %u",
               m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
-    ndbout_c("m_reset_delay_used: %u  m_reset_disk_speed_time: %llu",
-             m_reset_delay_used, (Uint64)m_reset_disk_speed_time);
+    ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
+             m_reset_delay_used, resetElapsed);
     /* Dump measured rate since last snapshot start */
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
-    Uint64 millisPassed = now - m_monitor_snapshot_start;
     Uint64 byteRate = (4000 * m_monitor_words_written) / (millisPassed + 1);
     ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate : %llu bytes/s : (%u pct of config)",
              m_monitor_words_written, millisPassed, 
@@ -965,7 +969,8 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
   jamEntry();
   BackupCompleteRep* rep = (BackupCompleteRep*)signal->getDataPtr();
  
-  startTime = NdbTick_CurrentMillisecond() - startTime;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 elapsed = NdbTick_Elapsed(startTime,now).milliSec();
   
   ndbout_c("Backup %u has completed", rep->backupId);
   const Uint64 bytes =
@@ -973,21 +978,21 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
   const Uint64 records =
     rep->noOfRecordsLow + (((Uint64)rep->noOfRecordsHigh) << 32);
 
-  Number rps = xps(records, startTime);
-  Number bps = xps(bytes, startTime);
+  Number rps = xps(records, elapsed);
+  Number bps = xps(bytes, elapsed);
 
   ndbout << " Data [ "
 	 << Number(records) << " rows " 
-	 << Number(bytes) << " bytes " << startTime << " ms ] " 
+	 << Number(bytes) << " bytes " << elapsed << " ms ] " 
 	 << " => "
 	 << rps << " row/s & " << bps << "b/s" << endl;
 
-  bps = xps(rep->noOfLogBytes, startTime);
-  rps = xps(rep->noOfLogRecords, startTime);
+  bps = xps(rep->noOfLogBytes, elapsed);
+  rps = xps(rep->noOfLogRecords, elapsed);
 
   ndbout << " Log [ "
 	 << Number(rep->noOfLogRecords) << " log records " 
-	 << Number(rep->noOfLogBytes) << " bytes " << startTime << " ms ] " 
+	 << Number(rep->noOfLogBytes) << " bytes " << elapsed << " ms ] " 
 	 << " => "
 	 << rps << " records/s & " << bps << "b/s" << endl;
 
@@ -2799,8 +2804,7 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 void
 Backup::initReportStatus(Signal *signal, BackupRecordPtr ptr)
 {
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  ptr.p->m_next_report = now + m_backup_report_frequency;
+  ptr.p->m_prev_report = NdbTick_getCurrentTicks();
 }
 
 void
@@ -2809,11 +2813,12 @@ Backup::checkReportStatus(Signal *signal, BackupRecordPtr ptr)
   if (m_backup_report_frequency == 0)
     return;
 
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  if (now > ptr.p->m_next_report)
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 elapsed = NdbTick_Elapsed(ptr.p->m_prev_report, now).seconds();
+  if (elapsed > m_backup_report_frequency)
   {
     reportStatus(signal, ptr);
-    ptr.p->m_next_report = now + m_backup_report_frequency;
+    ptr.p->m_prev_report = now;
   }
 }
 

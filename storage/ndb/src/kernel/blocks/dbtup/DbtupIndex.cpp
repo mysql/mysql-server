@@ -416,7 +416,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
 //#define TIME_MEASUREMENT
 #ifdef TIME_MEASUREMENT
   static Uint32 time_events;
-  NDB_TICKS tot_time_passed;
+  Uint64 tot_time_passed;
   Uint32 number_events;
 #endif
 void
@@ -549,9 +549,9 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   const Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size;
 
 #ifdef TIME_MEASUREMENT
-  MicroSecondTimer start;
-  MicroSecondTimer stop;
-  NDB_TICKS time_passed;
+  NDB_TICKS start;
+  NDB_TICKS stop;
+  Uint64 time_passed;
 #endif
   do {
     // get fragment
@@ -622,7 +622,7 @@ next_tuple:
     OperationrecPtr pageOperPtr;
     pageOperPtr.i= tuple_ptr->m_operation_ptr_i;
 #ifdef TIME_MEASUREMENT
-    NdbTick_getMicroTimer(&start);
+    start = NdbTick_getCurrentTicks();
 #endif
     // add to index
     TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
@@ -743,18 +743,18 @@ next_tuple:
       return;
     }
 #ifdef TIME_MEASUREMENT
-    NdbTick_getMicroTimer(&stop);
-    time_passed= NdbTick_getMicrosPassed(start, stop);
+    stop = NdbTick_getCurrentTicks();
+    time_passed= NdbTick_Elapsed(start, stop).microSec();
     if (time_passed < 1000) {
       time_events++;
       tot_time_passed += time_passed;
       if (time_events == number_events) {
-        NDB_TICKS mean_time_passed= tot_time_passed /
-                                     (NDB_TICKS)number_events;
+        Uint64 mean_time_passed= tot_time_passed /
+                                     (Uint64)number_events;
         ndbout << "Number of events= " << number_events;
         ndbout << " Mean time passed= " << mean_time_passed << endl;
         number_events <<= 1;
-        tot_time_passed= (NDB_TICKS)0;
+        tot_time_passed= 0;
         time_events= 0;
       }
     }
