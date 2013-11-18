@@ -56,6 +56,7 @@ function DBTransactionHandler(dbsession) {
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.serial             = serial++;
   this.moniker            = "(" + this.serial + ")";
+  this.retries            = 0;
   udebug.log("NEW ", this.moniker);
   stats.incr("created");
 }
@@ -128,6 +129,17 @@ function attachErrorToTransaction(dbTxHandler, err) {
   }
 }
 
+function closeNdbTransaction(dbTxHandler, callback) {
+  var apiCall;
+  apiCall = new QueuedAsyncCall(dbTxHandler.dbSession.execQueue, callback);
+  apiCall.ndbTransaction = dbTxHandler.ndbtx;
+  apiCall.description = "close " + dbTxHandler.moniker;
+  apiCall.run = function closeNdbTransaction() {
+    this.ndbTransaction.close(this.callback);
+  };
+  apiCall.enqueue();
+}
+
 /* EXECUTE PATH FOR KEY OPERATIONS
    -------------------------------
    Start NdbTransaction 
@@ -185,14 +197,7 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
     
   if(execMode === COMMIT || execMode === ROLLBACK) {
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
-      apiCall = new QueuedAsyncCall(dbTxHandler.dbSession.execQueue, 
-                                    onNdbTransactionClosed);
-      apiCall.ndbTransaction = dbTxHandler.ndbtx;
-      apiCall.description = "close " + dbTxHandler.moniker;
-      apiCall.run = function closeNdbTransaction() {
-        this.ndbTransaction.close(this.callback);
-      };
-      apiCall.enqueue();
+      closeNdbTransaction(dbTxHandler, onNdbTransactionClosed);
     }
   }
   else {
@@ -230,11 +235,24 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
   /* Fetch is complete. */
   function onFetchComplete(err) {
-    if(execMode == NOCOMMIT) {
-      onExecute(self, execMode, err, execId, callback);
+    if(err) {
+//  -- Timeout code is disabled because it causes the test suite to hang --
+//      if(err.isTimeout && self.retries < 10) {
+//        self.retries++;
+//        closeNdbTransaction(self, function retry() {
+//          self.ndbtx = null;
+//          execute(self, execMode, abortFlag, dbOperationList, callback);
+//        });
+//      } else {
+        onExecute(self, ROLLBACK, err, execId, callback);      
+//      }
     }
-    else {
-      executeNdbTransaction();
+    else { /* No error */
+      if(execMode == NOCOMMIT) {
+        onExecute(self, execMode, err, execId, callback);      
+      } else {
+        executeNdbTransaction();
+      }
     }
   }
   
@@ -265,7 +283,11 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
   /* executeScan() starts here */
   udebug.log("executeScan");
-  op.prepareScan(self.ndbtx, executeScanNoCommit);
+  if(self.retries) {
+    run(self, NOCOMMIT, AO_IGNORE, getScanResults);
+  } else {
+    op.prepareScan(self.ndbtx, executeScanNoCommit);
+  }
 }
 
 
