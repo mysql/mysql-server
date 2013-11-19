@@ -18,8 +18,7 @@ def gen_tests(base_types, null_types):
                     print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
                     print "--error ER_UNSUPPORTED_EXTENSION"
                     print "ALTER TABLE t CHANGE COLUMN a a %sTEXT %s;" % (base_types[to_index], null_types[to_null]);
-                    # if from_null != to_null or from_index > to_index:
-                    if from_null != to_null or from_index != to_index:
+                    if from_null != to_null or from_index > to_index:
                         print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
                         print "--error ER_UNSUPPORTED_EXTENSION"
                     print "ALTER TABLE t CHANGE COLUMN a a %sBLOB %s;" % (base_types[to_index], null_types[to_null]);

@@ -54,6 +54,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -184,7 +185,7 @@ struct cachefile {
     // they are managed whenever we add or remove a pair from
     // the cachetable. As of Riddler, this linked list is only used to
     // make cachetable_flush_cachefile more efficient
-    PAIR cf_head;
+    PAIR cf_head; // doubly linked list that is NOT circular
     uint32_t num_pairs; // count on number of pairs in the cachetable belong to this cachefile
 
     bool for_checkpoint; //True if part of the in-progress checkpoint
@@ -197,12 +198,19 @@ struct cachefile {
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;
+    // the filenum is used as an identifer of the cachefile
+    // for logging and recovery
     FILENUM filenum;
+    // number used to generate hashes for blocks in the cachefile
+    // used in toku_cachetable_hash
+    // this used to be the filenum.fileid, but now it is separate
+    uint32_t hash_id;
     char *fname_in_env; /* Used for logging */
 
     void *userdata;
     void (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
     void (*close_userdata)(CACHEFILE cf, int fd, void *userdata, bool lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
+    void (*free_userdata)(CACHEFILE cf, void *userdata); // when closing the last reference to a cachefile, first call this function. 
     void (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     void (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
     void (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
@@ -373,7 +381,10 @@ public:
     toku_pthread_rwlock_t m_pending_lock_cheap;
     void init();
     void destroy();
-    void evict(PAIR pair);
+    void evict_completely(PAIR pair);
+    void evict_from_cachetable(PAIR pair);
+    void evict_from_cachefile(PAIR pair);
+    void add_to_cachetable_only(PAIR p);
     void put(PAIR pair);
     PAIR find_pair(CACHEFILE file, CACHEKEY key, uint32_t hash);
     void pending_pairs_remove (PAIR p);
@@ -397,10 +408,10 @@ public:
 
 private:
     void pair_remove (PAIR p);
-    void cf_pairs_remove (PAIR p);
+    void remove_from_hash_chain(PAIR p);
     void add_to_cf_list (PAIR p);
     void add_to_clock (PAIR p);
-    PAIR remove_from_hash_chain (PAIR remove_me, PAIR list);
+    void add_to_hash_chain(PAIR p);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -415,10 +426,28 @@ public:
     void read_unlock();
     void write_lock();
     void write_unlock();
+    int cachefile_of_iname_in_env(const char *iname_in_env, CACHEFILE *cf);
+    int cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf);
+    void add_cf_unlocked(CACHEFILE newcf);
+    void add_stale_cf(CACHEFILE newcf);
+    void remove_cf(CACHEFILE cf);
+    void remove_stale_cf_unlocked(CACHEFILE cf);
+    FILENUM reserve_filenum();
+    uint32_t get_new_hash_id_unlocked();
+    CACHEFILE find_cachefile_unlocked(struct fileid* fileid);
+    CACHEFILE find_stale_cachefile_unlocked(struct fileid* fileid);
+    void verify_unused_filenum(FILENUM filenum);
+    bool evict_some_stale_pair(evictor* ev);
+    void free_stale_data(evictor* ev);
     // access to these fields are protected by the lock
-    CACHEFILE m_head;
+    CACHEFILE m_active_head; // head of CACHEFILEs that are active
+    CACHEFILE m_stale_head; // head of CACHEFILEs that are stale
+    CACHEFILE m_stale_tail; // tail of CACHEFILEs that are stale
     FILENUM m_next_filenum_to_use;
+    uint32_t m_next_hash_id_to_use;
     toku_pthread_rwlock_t m_lock; // this field is publoc so we are still POD
+private:    
+    CACHEFILE find_cachefile_in_list_unlocked(CACHEFILE start, struct fileid* fileid);
 };
 
 
@@ -483,14 +512,14 @@ const int EVICTION_PERIOD = 1;
 //
 class evictor {
 public:
-    void init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period);
+    void init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period);
     void destroy();
     void add_pair_attr(PAIR_ATTR attr);
     void remove_pair_attr(PAIR_ATTR attr);    
     void change_pair_attr(PAIR_ATTR old_attr, PAIR_ATTR new_attr);
     void add_to_size_current(long size);
     void remove_from_size_current(long size);
-    uint64_t reserve_memory(double fraction);
+    uint64_t reserve_memory(double fraction, uint64_t upper_bound);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
     void do_partial_eviction(PAIR p, bool pair_mutex_held);
@@ -516,6 +545,7 @@ private:
     int64_t unsafe_read_size_evicting(void) const;
 
     pair_list* m_pl;
+    cachefile_list* m_cf_list;
     int64_t m_size_current;            // the sum of the sizes of the pairs in the cachetable
     // changes to these two values are protected
     // by ev_thread_lock
@@ -558,6 +588,10 @@ private:
     PARTITIONED_COUNTER m_size_leaf;
     PARTITIONED_COUNTER m_size_rollback;
     PARTITIONED_COUNTER m_size_cachepressure;
+    PARTITIONED_COUNTER m_wait_pressure_count;
+    PARTITIONED_COUNTER m_wait_pressure_time;
+    PARTITIONED_COUNTER m_long_wait_pressure_count;
+    PARTITIONED_COUNTER m_long_wait_pressure_time;
     
     KIBBUTZ m_kibbutz;
 

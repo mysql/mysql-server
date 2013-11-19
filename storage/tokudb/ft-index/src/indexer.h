@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -97,6 +98,8 @@ PATENT RIGHTS GRANT:
 void toku_indexer_lock(DB_INDEXER* indexer);
 
 void toku_indexer_unlock(DB_INDEXER* indexer);
+bool toku_indexer_may_insert(DB_INDEXER* indexer, const DBT* key);
+void toku_indexer_update_estimate(DB_INDEXER* indexer);
 
 // The indexer populates multiple destination db's from the contents of one source db.
 // While the indexes are being built by the indexer, the application may continue to 
@@ -146,7 +149,7 @@ int toku_indexer_set_error_callback(DB_INDEXER *indexer,
 // Is the key right of the indexer's leaf entry cursor?
 // Returns true  if right of le_cursor
 // Returns false if left or equal to le_cursor
-bool toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key);
+bool toku_indexer_should_insert_key(DB_INDEXER *indexer, const DBT *key);
 
 // Get the indexer's source db
 DB *toku_indexer_get_src_db(DB_INDEXER *indexer);

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -103,12 +104,16 @@ uint64_t eight_byte_desc = 0x12345678ffffffff;
 static int generate_row_for_put(
     DB *UU(dest_db), 
     DB *UU(src_db), 
-    DBT *dest_key, 
-    DBT *dest_val, 
+    DBT_ARRAY *dest_key_arrays, 
+    DBT_ARRAY *dest_val_arrays, 
     const DBT *src_key, 
     const DBT *src_val
     ) 
 {    
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     dest_key->data = src_key->data;
     dest_key->size = src_key->size;
     dest_key->flags = 0;
@@ -157,20 +162,26 @@ desc_int64_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
     return 0;
 }
 
-static void setup (void) {
-    int r;
-    toku_os_recursive_delete(TOKU_TEST_FILENAME);
-    { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+
+static void open_env(void) {
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
-    r = env->set_default_bt_compare(env, desc_int64_dbt_cmp); CKERR(r);
+    int r = env->set_default_bt_compare(env, desc_int64_dbt_cmp); CKERR(r);
     //r = env->set_cachesize(env, 0, 500000, 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
     { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
+static void setup (void) {
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    open_env();
+}
+
 static void cleanup (void) {
-    { int chk_r = env->close(env, 0); CKERR(chk_r); }
+    int chk_r = env->close(env, 0);
+    CKERR(chk_r);
+    env = NULL;
 }
 
 static void do_inserts_and_queries(DB* db) {
@@ -253,8 +264,8 @@ static void run_test(void) {
             assert_cmp_desc_valid(db);
             r = env->create_loader(env, txn_create, &loader, db, 1, &db, NULL, NULL, 0); 
             CKERR(r);
-	    dbt_init(&key, &k, sizeof k);
-	    dbt_init(&val, &v, sizeof v);
+            dbt_init(&key, &k, sizeof k);
+            dbt_init(&val, &v, sizeof v);
             r = loader->put(loader, &key, &val); 
             CKERR(r);
             r = loader->close(loader);
@@ -282,7 +293,11 @@ static void run_test(void) {
     assert_cmp_desc_valid(db);
     do_inserts_and_queries(db);
     
-    { int chk_r = db->close(db, 0); CKERR(chk_r); }
+    { 
+        int chk_r = db->close(db, 0); CKERR(chk_r); 
+        cleanup();
+        open_env();
+    }
 
     // verify that after close and reopen, cmp_descriptor is now
     // latest descriptor

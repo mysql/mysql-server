@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -725,6 +726,17 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     return 0;
 }
 
+static const char *
+toku_db_get_dname(DB *db) {
+    if (!db_opened(db)) {
+        return nullptr;
+    }
+    if (db->i->dname == nullptr) {
+        return ""; 
+    }
+    return db->i->dname;
+}
+
 static int 
 toku_db_keys_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* keyleft, DBT* keyright, uint64_t* less, uint64_t* left, uint64_t* between, uint64_t *right, uint64_t *greater, bool* middle_3_exact) {
     HANDLE_PANICKED_DB(db);
@@ -884,14 +896,13 @@ toku_db_optimize(DB *db) {
 }
 
 static int
-toku_db_hot_optimize(DB *db,
+toku_db_hot_optimize(DB *db, DBT* left, DBT* right,
                      int (*progress_callback)(void *extra, float progress),
                      void *progress_extra)
 {
     HANDLE_PANICKED_DB(db);
     int r = 0;
-    // If we areunable to get a directory read lock, do nothing.
-    r = toku_ft_hot_optimize(db->i->ft_handle,
+    r = toku_ft_hot_optimize(db->i->ft_handle, left, right,
                               progress_callback,
                               progress_extra);
 
@@ -1037,6 +1048,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(stat64);
     USDB(get_fractal_tree_info64);
     USDB(iterate_fractal_tree_block_map);
+    USDB(get_dname);
     USDB(verify_with_progress);
     USDB(cursor);
     USDB(dbt_pos_infty);

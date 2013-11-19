@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -645,16 +646,6 @@ handle_split_of_child(
     VERIFY_NODE(t, childb);
 }
 
-static int
-UU() verify_in_mempool(OMTVALUE lev, uint32_t UU(idx), void *mpv)
-{
-    LEAFENTRY CAST_FROM_VOIDP(le, lev);
-    struct mempool *CAST_FROM_VOIDP(mp, mpv);
-    int r = toku_mempool_inrange(mp, le, leafentry_memsize(le));
-    lazy_assert(r);
-    return 0;
-}
-
 static void
 verify_all_in_mempool(FTNODE UU() node)
 {
@@ -662,8 +653,7 @@ verify_all_in_mempool(FTNODE UU() node)
     if (node->height==0) {
         for (int i = 0; i < node->n_children; i++) {
             invariant(BP_STATE(node,i) == PT_AVAIL);
-            BASEMENTNODE bn = BLB(node, i);
-            toku_omt_iterate(bn->buffer, verify_in_mempool, &bn->buffer_mempool);
+            BLB_DATA(node, i)->verify_mempool();
         }
     }
 #endif
@@ -677,15 +667,7 @@ ftleaf_disk_size(FTNODE node)
     toku_assert_entire_node_in_memory(node);
     uint64_t retval = 0;
     for (int i = 0; i < node->n_children; i++) {
-        OMT curr_buffer = BLB_BUFFER(node, i);
-        const uint32_t n_leafentries = toku_omt_size(curr_buffer);
-        for (uint32_t j=0; j < n_leafentries; j++) {
-            OMTVALUE v;
-            int r = toku_omt_fetch(curr_buffer, j, &v);
-            assert_zero(r);
-            LEAFENTRY CAST_FROM_VOIDP(curr_le, v);
-            retval += leafentry_disksize(curr_le);
-        }
+        retval += BLB_DATA(node, i)->get_disk_size();
     }
     return retval;
 }
@@ -704,16 +686,16 @@ ftleaf_get_split_loc(
     switch (split_mode) {
     case SPLIT_LEFT_HEAVY: {
         *num_left_bns = node->n_children;
-        *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+        *num_left_les = BLB_DATA(node, *num_left_bns - 1)->omt_size();
         if (*num_left_les == 0) {
             *num_left_bns = node->n_children - 1;
-            *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->omt_size();
         }
         goto exit;
     }
     case SPLIT_RIGHT_HEAVY: {
         *num_left_bns = 1;
-        *num_left_les = toku_omt_size(BLB_BUFFER(node, 0)) ? 1 : 0;
+        *num_left_les = BLB_DATA(node, 0)->omt_size() ? 1 : 0;
         goto exit;
     }
     case SPLIT_EVENLY: {
@@ -722,14 +704,13 @@ ftleaf_get_split_loc(
         uint64_t sumlesizes = ftleaf_disk_size(node);
         uint32_t size_so_far = 0;
         for (int i = 0; i < node->n_children; i++) {
-            OMT curr_buffer = BLB_BUFFER(node, i);
-            uint32_t n_leafentries = toku_omt_size(curr_buffer);
+            BN_DATA bd = BLB_DATA(node, i);
+            uint32_t n_leafentries = bd->omt_size();
             for (uint32_t j=0; j < n_leafentries; j++) {
-                OMTVALUE lev;
-                int r = toku_omt_fetch(curr_buffer, j, &lev);
-                assert_zero(r);
-                LEAFENTRY CAST_FROM_VOIDP(curr_le, lev);
-                size_so_far += leafentry_disksize(curr_le);
+                size_t size_this_le;
+                int rr = bd->fetch_klpair_disksize(j, &size_this_le);
+                invariant_zero(rr);
+                size_so_far += size_this_le;
                 if (size_so_far >= sumlesizes/2) {
                     *num_left_bns = i + 1;
                     *num_left_les = j + 1;
@@ -741,7 +722,7 @@ ftleaf_get_split_loc(
                             (*num_left_les)--;
                         } else if (*num_left_bns > 1) {
                             (*num_left_bns)--;
-                            *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+                            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->omt_size();
                         } else {
                             // we are trying to split a leaf with only one
                             // leafentry in it
@@ -766,39 +747,11 @@ move_leafentries(
     BASEMENTNODE dest_bn,
     BASEMENTNODE src_bn,
     uint32_t lbi, //lower bound inclusive
-    uint32_t ube, //upper bound exclusive
-    uint32_t* num_bytes_moved
+    uint32_t ube //upper bound exclusive
     )
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
-    paranoid_invariant(lbi < ube);
-    OMTVALUE *XMALLOC_N(ube-lbi, newleafpointers);    // create new omt
-
-    size_t mpsize = toku_mempool_get_used_space(&src_bn->buffer_mempool);   // overkill, but safe
-    struct mempool *dest_mp = &dest_bn->buffer_mempool;
-    struct mempool *src_mp  = &src_bn->buffer_mempool;
-    toku_mempool_construct(dest_mp, mpsize);
-
-    uint32_t i = 0;
-    *num_bytes_moved = 0;
-    for (i = lbi; i < ube; i++) {
-        OMTVALUE lev;
-        int r = toku_omt_fetch(src_bn->buffer, i, &lev);
-        assert_zero(r);
-        LEAFENTRY CAST_FROM_VOIDP(curr_le, lev);
-        size_t le_size = leafentry_memsize(curr_le);
-        *num_bytes_moved += leafentry_disksize(curr_le);
-        LEAFENTRY CAST_FROM_VOIDP(new_le, toku_mempool_malloc(dest_mp, le_size, 1));
-        memcpy(new_le, curr_le, le_size);
-        newleafpointers[i-lbi] = new_le;
-        toku_mempool_mfree(src_mp, curr_le, le_size);
-    }
-
-    toku_omt_create_steal_sorted_array(&dest_bn->buffer, &newleafpointers, ube-lbi, ube-lbi);
-    // now remove the elements from src_omt
-    for (i=ube-1; i >= lbi; i--) {
-        toku_omt_delete_at(src_bn->buffer, i);
-    }
+    src_bn->data_buffer.move_leafentries_to(&dest_bn->data_buffer, lbi, ube);
 }
 
 static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_node) {
@@ -895,7 +848,7 @@ ftleaf_split(
     ftleaf_get_split_loc(node, split_mode, &num_left_bns, &num_left_les);
     {
         // did we split right on the boundary between basement nodes?
-        const bool split_on_boundary = (num_left_les == 0) || (num_left_les == (int) toku_omt_size(BLB_BUFFER(node, num_left_bns - 1)));
+        const bool split_on_boundary = (num_left_les == 0) || (num_left_les == (int) BLB_DATA(node, num_left_bns - 1)->omt_size());
         // Now we know where we are going to break it
         // the two nodes will have a total of n_children+1 basement nodes
         // and n_children-1 pivots
@@ -950,18 +903,15 @@ ftleaf_split(
         // handle the move of a subset of data in last_bn_on_left from node to B
         if (!split_on_boundary) {
             BP_STATE(B,curr_dest_bn_index) = PT_AVAIL;
-            uint32_t diff_size = 0;
             destroy_basement_node(BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
             set_BNULL(B, curr_dest_bn_index);
             set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
             move_leafentries(BLB(B, curr_dest_bn_index),
                              BLB(node, curr_src_bn_index),
                              num_left_les,         // first row to be moved to B
-                             toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),    // number of rows in basement to be split
-                             &diff_size);
+                             BLB_DATA(node, curr_src_bn_index)->omt_size()  // number of rows in basement to be split
+                             );
             BLB_MAX_MSN_APPLIED(B, curr_dest_bn_index) = BLB_MAX_MSN_APPLIED(node, curr_src_bn_index);
-            BLB_NBYTESINBUF(node, curr_src_bn_index) -= diff_size;
-            BLB_NBYTESINBUF(B, curr_dest_bn_index) += diff_size;
             curr_dest_bn_index++;
         }
         curr_src_bn_index++;
@@ -1001,13 +951,11 @@ ftleaf_split(
                 toku_destroy_dbt(&node->childkeys[num_left_bns - 1]);
             }
         } else if (splitk) {
-            OMTVALUE lev;
-            OMT buffer = BLB_BUFFER(node, num_left_bns - 1);
-            int r = toku_omt_fetch(buffer, toku_omt_size(buffer) - 1, &lev);
-            assert_zero(r); // that fetch should have worked.
-            LEAFENTRY CAST_FROM_VOIDP(le, lev);
+            BN_DATA bd = BLB_DATA(node, num_left_bns - 1);
             uint32_t keylen;
-            void *key = le_key_and_len(le, &keylen);
+            void *key;
+            int rr = bd->fetch_le_key_and_len(bd->omt_size() - 1, &keylen, &key);
+            invariant_zero(rr);
             toku_memdup_dbt(splitk, key, keylen);
         }
 
@@ -1217,11 +1165,11 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     a->dirty = 1;
     b->dirty = 1;
 
-    OMT a_last_buffer = BLB_BUFFER(a, a->n_children-1);
+    BN_DATA a_last_bd = BLB_DATA(a, a->n_children-1);
     // this bool states if the last basement node in a has any items or not
     // If it does, then it stays in the merge. If it does not, the last basement node
     // of a gets eliminated because we do not have a pivot to store for it (because it has no elements)
-    const bool a_has_tail = toku_omt_size(a_last_buffer) > 0;
+    const bool a_has_tail = a_last_bd->omt_size() > 0;
 
     // move each basement node from b to a
     // move the pivots, adding one of what used to be max(a)
@@ -1232,10 +1180,8 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
         BASEMENTNODE bn = BLB(a, lastchild);
         {
             // verify that last basement in a is empty, then destroy mempool
-            struct mempool * mp = &bn->buffer_mempool;
-            size_t used_space = toku_mempool_get_used_space(mp);
+            size_t used_space = a_last_bd->get_disk_size();
             invariant_zero(used_space);
-            toku_mempool_destroy(mp);
         }
         destroy_basement_node(bn);
         set_BNULL(a, a->n_children-1);
@@ -1248,12 +1194,10 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
 
     // fill in pivot for what used to be max of node 'a', if it is needed
     if (a_has_tail) {
-        OMTVALUE lev;
-        int r = toku_omt_fetch(a_last_buffer, toku_omt_size(a_last_buffer) - 1, &lev);
-        assert_zero(r);
-        LEAFENTRY CAST_FROM_VOIDP(le, lev);
         uint32_t keylen;
-        void *key = le_key_and_len(le, &keylen);
+        void *key;
+        int rr = a_last_bd->fetch_le_key_and_len(a_last_bd->omt_size() - 1, &keylen, &key);
+        invariant_zero(rr);
         toku_memdup_dbt(&a->childkeys[a->n_children-1], key, keylen);
         a->totalchildkeylens += keylen;
     }
@@ -1651,7 +1595,7 @@ static void ft_flush_some_child(
     //VERIFY_NODE(brt, child);
 
     // only do the following work if there is a flush to perform
-    if (toku_bnc_n_entries(BNC(parent, childnum)) > 0) {
+    if (toku_bnc_n_entries(BNC(parent, childnum)) > 0 || parent->height == 1) {
         if (!parent->dirty) {
             dirtied++;
             parent->dirty = 1;

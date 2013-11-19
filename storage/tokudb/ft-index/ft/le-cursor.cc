@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -120,8 +121,8 @@ toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_handle, TOKUTXN 
         if (result == 0) {
             // TODO move the leaf mode to the ft cursor constructor
             toku_ft_cursor_set_leaf_mode(le_cursor->ft_cursor);
-            le_cursor->neg_infinity = true;
-            le_cursor->pos_infinity = false;
+            le_cursor->neg_infinity = false;
+            le_cursor->pos_infinity = true;
             // zero out the fake DB. this is a rare operation so it's not too slow.
             memset(&le_cursor->fake_db, 0, sizeof(le_cursor->fake_db));
         }
@@ -147,21 +148,21 @@ void toku_le_cursor_close(LE_CURSOR le_cursor) {
 int 
 toku_le_cursor_next(LE_CURSOR le_cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v) {
     int result;
-    if (le_cursor->pos_infinity) {
+    if (le_cursor->neg_infinity) {
         result = DB_NOTFOUND;
     } else {
-        le_cursor->neg_infinity = false;
+        le_cursor->pos_infinity = false;
         // TODO replace this with a non deprecated function. Which?
-        result = toku_ft_cursor_get(le_cursor->ft_cursor, NULL, getf, getf_v, DB_NEXT);
+        result = toku_ft_cursor_get(le_cursor->ft_cursor, NULL, getf, getf_v, DB_PREV);
         if (result == DB_NOTFOUND) {
-            le_cursor->pos_infinity = true;
+            le_cursor->neg_infinity = true;
         }
     }
     return result;
 }
 
 bool
-toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key) {
+toku_le_cursor_is_key_greater_or_equal(LE_CURSOR le_cursor, const DBT *key) {
     bool result;
     if (le_cursor->neg_infinity) {
         result = true;      // all keys are greater than -infinity
@@ -175,11 +176,25 @@ toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key) {
         // get the current position from the cursor and compare it to the given key.
         DBT *cursor_key = &le_cursor->ft_cursor->key;
         int r = keycompare(&le_cursor->fake_db, cursor_key, key);
-        if (r < 0) {
+        if (r <= 0) {
             result = true;  // key is right of the cursor key
         } else {
             result = false; // key is at or left of the cursor key
         }
     }
     return result;
+}
+
+void
+toku_le_cursor_update_estimate(LE_CURSOR le_cursor, DBT* estimate) {
+    // don't handle these edge cases, not worth it.
+    // estimate stays same
+    if (le_cursor->pos_infinity || le_cursor->neg_infinity) {
+        return;
+    }
+    DBT *cursor_key = &le_cursor->ft_cursor->key;
+    estimate->data = toku_xrealloc(estimate->data, cursor_key->size);
+    memcpy(estimate->data, cursor_key->data, cursor_key->size);
+    estimate->size = cursor_key->size;
+    estimate->flags = DB_DBT_REALLOC;
 }

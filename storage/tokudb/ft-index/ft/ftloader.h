@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -111,6 +112,7 @@ int toku_ft_loader_open (FTLOADER *bl,
                           LSN load_lsn,
                           TOKUTXN txn,
                           bool reserve_memory,
+                          uint64_t reserve_memory_size,
                           bool compress_intermediates);
 
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);

@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -164,10 +165,10 @@ int toku_cachetable_openf(CACHEFILE *,CACHETABLE, const char *fname_in_env, int 
 
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd(CACHEFILE *,CACHETABLE, int fd, 
-			    const char *fname_relative_to_env);
+                            const char *fname_relative_to_env);
 int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int fd, 
-					 const char *fname_in_env,
-					 FILENUM filenum);
+                                         const char *fname_in_env,
+                                         FILENUM filenum, bool* was_open);
 
 // reserve a unique filenum
 FILENUM toku_cachetable_reserve_filenum(CACHETABLE ct);
@@ -176,7 +177,7 @@ FILENUM toku_cachetable_reserve_filenum(CACHETABLE ct);
 // Returns the amount reserved.
 // To return the memory to the cachetable, call toku_cachetable_release_reserved_memory
 // Requires 0<fraction<1.
-uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction);
+uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction, uint64_t upper_bound);
 void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 
 // cachefile operations
@@ -275,6 +276,7 @@ typedef void (*CACHETABLE_REMOVE_KEY)(CACHEKEY* cachekey, bool for_checkpoint, v
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
     void (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
+    void (*free_userdata)(CACHEFILE, void*),
     void (*checkpoint_userdata)(CACHEFILE, int, void*),
     void (*begin_checkpoint_userdata)(LSN, void*),
     void (*end_checkpoint_userdata)(CACHEFILE, int, void*),
@@ -523,12 +525,6 @@ int toku_cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 // If oplsn_valid is true then use oplsn as the LSN of the close instead of asking the logger.  oplsn_valid being true is only allowed during recovery, and requires that you are removing the last reference (otherwise the lsn wouldn't make it in.)
 void toku_cachefile_close (CACHEFILE*, bool oplsn_valid, LSN oplsn);
 
-// Flush the cachefile.
-// Effect: Flush everything owned by the cachefile from the cachetable. All dirty
-// blocks are written.  All unpinned blocks are evicted from the cachetable.
-// Returns: 0 if success, otherwise returns an error number.
-void toku_cachefile_flush(CACHEFILE);
-
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, toku_off_t offset);
@@ -541,12 +537,6 @@ int toku_cachefile_get_fd (CACHEFILE);
 // Get the iname (within the environment) associated with the cachefile
 // Return the filename
 char * toku_cachefile_fname_in_env (CACHEFILE cf);
-
-// For test programs only.
-// Set the cachefile's fd and fname.
-// Effect: Bind the cachefile to a new fd and fname. The old fd is closed.
-// Returns: 0 if success, otherwise an error number
-int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_relative_to_env);
 
 // Make it so when the cachefile closes, the underlying file is unlinked
 void toku_cachefile_unlink_on_close(CACHEFILE cf);
@@ -609,6 +599,10 @@ typedef enum {
     CT_CLEANER_EXECUTIONS,     // number of times the cleaner thread's loop has executed
     CT_CLEANER_PERIOD,
     CT_CLEANER_ITERATIONS,     // number of times the cleaner thread runs the cleaner per period
+    CT_WAIT_PRESSURE_COUNT,
+    CT_WAIT_PRESSURE_TIME,
+    CT_LONG_WAIT_PRESSURE_COUNT,
+    CT_LONG_WAIT_PRESSURE_TIME,
     CT_STATUS_NUM_ROWS
 } ct_status_entry;
 

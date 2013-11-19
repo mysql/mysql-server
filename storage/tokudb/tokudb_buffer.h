@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -188,19 +189,20 @@ public:
     }
 
     // Return a pointer to the data in the buffer
-    void *data() {
+    void *data() const {
         return m_data;
     }
 
     // Return the size of the data in the buffer
-    size_t size() {
+    size_t size() const {
         return m_size;
     }
 
     // Return the size of the underlying memory in the buffer
-    size_t limit() {
+    size_t limit() const {
         return m_limit;
     }
+
 private:
     // Maybe reallocate the buffer when it becomes full by doubling its size.
     void maybe_realloc(size_t s) {

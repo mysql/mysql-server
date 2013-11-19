@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -113,6 +114,8 @@ struct ule_prov_info {
     // is responsible for cleaning up the leafentry and ule when done.
     LEAFENTRY le;
     ULEHANDLE ule;
+    void* key;
+    uint32_t keylen;
     // provisional txn info for the ule
     uint32_t num_provisional;
     uint32_t num_committed;
@@ -123,8 +126,10 @@ struct ule_prov_info {
 
 struct __toku_indexer_internal {
     DB_ENV *env;
-    DB_TXN *txn;    
+    DB_TXN *txn;
     toku_mutex_t indexer_lock;
+    toku_mutex_t indexer_estimate_lock;
+    DBT position_estimate;
     DB *src_db;
     int N;
     DB **dest_dbs; /* [N] */
@@ -141,10 +146,11 @@ struct __toku_indexer_internal {
 
     // undo state
     struct indexer_commit_keys commit_keys; // set of keys to commit
-    DBT hotkey, hotval;                     // current hot key and value
+    DBT_ARRAY *hot_keys;
+    DBT_ARRAY *hot_vals;
 
     // test functions
-    int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
+    int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, DBT* key, ULEHANDLE ule);
     TOKUTXN_STATE (*test_xid_state)(DB_INDEXER *indexer, TXNID xid);
     void (*test_lock_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
     int (*test_delete_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
@@ -161,6 +167,6 @@ void indexer_undo_do_init(DB_INDEXER *indexer);
 
 void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
-int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info);
+int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals);
 
 #endif

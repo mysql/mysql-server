@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -233,6 +234,7 @@ typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
 typedef struct ctpair *PAIR;
 typedef class checkpointer *CHECKPOINTER;
+typedef class bn_data *BN_DATA;
 
 /* tree command types */
 enum ft_msg_type {
@@ -334,7 +336,7 @@ struct ft_msg {
 // Message sent into brt to implement command (insert, delete, etc.)
 // This structure supports nested transactions, and obsoletes ft_msg.
 typedef struct ft_msg FT_MSG_S;
-typedef const struct ft_msg *FT_MSG;
+typedef struct ft_msg *FT_MSG;
 
 typedef int (*ft_compare_func)(DB *, const DBT *, const DBT *);
 typedef void (*setval_func)(const DBT *, void *);

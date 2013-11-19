@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -112,7 +113,13 @@ DBT dest_vals[MAX_DBS];
 #define CKERR2IFNOT0(r, rexpect) do { if (num_dbs>0) { CKERR2(r, rexpect); } else { CKERR2(r, EINVAL); } } while (0)
 
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+put_multiple_generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys_arrays, DBT_ARRAY *dest_datas, const DBT *src_key, const DBT *src_data) {
+    toku_dbt_array_resize(dest_keys_arrays, 1);
+    toku_dbt_array_resize(dest_datas, 1);
+    DBT *dest_key = &dest_keys_arrays->dbts[0];
+    DBT *dest_data = &dest_datas->dbts[0];
+    dest_key->flags = 0;
+    dest_data->flags = 0;
 
     (void) src_db;
 
@@ -120,15 +127,15 @@ put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, con
     assert(which < MAX_DBS);
 
     assert(src_key->size == 4);
-    assert(src_val->size == 4);
+    assert(src_data->size == 4);
     kbuf[which][0] = *(uint32_t*)src_key->data;
     kbuf[which][1] = which;
     vbuf[which][0] = which;
-    vbuf[which][1] = *(uint32_t*)src_val->data;
+    vbuf[which][1] = *(uint32_t*)src_data->data;
     dest_key->data = kbuf[which];
     dest_key->size = sizeof(kbuf[which]);
-    dest_val->data = vbuf[which];
-    dest_val->size = sizeof(vbuf[which]);
+    dest_data->data = vbuf[which];
+    dest_data->size = sizeof(vbuf[which]);
     return 0;
 }
 
@@ -185,7 +192,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -208,7 +215,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -231,7 +238,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERR2IFNOT0(r, DB_KEYEXIST);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -257,7 +264,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txna, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txna, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -272,7 +279,7 @@ static void run_test (void) {
         CKERR(r);
 
         //Lock should fail
-        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERR2IFNOT0(r, DB_LOCK_NOTGRANTED);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -284,7 +291,7 @@ static void run_test (void) {
         r = txna->commit(txna, 0);
 
         //Should succeed this time.
-        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};

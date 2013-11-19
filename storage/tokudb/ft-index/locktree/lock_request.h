@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -145,9 +146,20 @@ public:
     //          or simply DB_LOCK_NOTGRANTED if the wait time expired.
     int wait(void);
 
+    // return: left end-point of the lock range
     const DBT *get_left_key(void) const;
 
+    // return: right end-point of the lock range
     const DBT *get_right_key(void) const;
+
+    // return: the txnid waiting for a lock
+    TXNID get_txnid(void) const;
+
+    // return: when this lock request started, as milliseconds from epoch
+    uint64_t get_start_time(void) const;
+
+    // return: which txnid is blocking this request (there may be more, though)
+    TXNID get_conflicting_txnid(void) const;
 
     // effect: Retries all of the lock requests for the given locktree.
     //         Any lock requests successfully restarted is completed and woken up.
@@ -168,6 +180,8 @@ private:
     // copies these keys and stores them in m_left_key_copy etc and
     // sets the temporary pointers to null.
     TXNID m_txnid;
+    TXNID m_conflicting_txnid;
+    uint64_t m_start_time;
     const DBT *m_left_key;
     const DBT *m_right_key;
     DBT m_left_key_copy;

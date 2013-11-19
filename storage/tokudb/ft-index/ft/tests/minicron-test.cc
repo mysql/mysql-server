@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -198,9 +199,9 @@ test4 (void *v) {
     int counter = 0;
     ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 2000, run_3sec, &counter); assert(r==0);
-    sleep(9);
+    sleep(10);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
-    assert(counter==2);
+    assert(counter==3);
     return v;
 }
 
@@ -211,9 +212,9 @@ test5 (void *v) {
     ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 10000, run_3sec, &counter); assert(r==0);
     toku_minicron_change_period(&m, 2000);
-    sleep(9);
+    sleep(10);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
-    assert(counter==2);
+    assert(counter==3);
     return v;
 }
 
@@ -228,6 +229,19 @@ test6 (void *v) {
     return v;
 }
 
+// test that we actually run once per period, even if the execution is long
+static void*
+test7 (void *v) {
+    struct minicron m;
+    int counter = 0;
+    ZERO_STRUCT(m);
+    int r = toku_minicron_setup(&m, 5000, run_3sec, &counter); assert(r==0);
+    sleep(17);
+    r = toku_minicron_shutdown(&m);                     assert(r==0);
+    assert(counter==3);
+    return v;
+}
+
 typedef void*(*ptf)(void*);
 int
 test_main (int argc, const char *argv[]) {
@@ -235,23 +249,24 @@ test_main (int argc, const char *argv[]) {
     gettimeofday(&starttime, 0);
 
     ptf testfuns[] = {test1, test2, test3,
-		      test4,
-		      test5,
-		      test6
+                      test4,
+                      test5,
+                      test6,
+                      test7
     };
 #define N (sizeof(testfuns)/sizeof(testfuns[0]))
     toku_pthread_t tests[N];
 
     unsigned int i;
     for (i=0; i<N; i++) {
-	int r=toku_pthread_create(tests+i, 0, testfuns[i], 0);
-	assert(r==0);
+        int r=toku_pthread_create(tests+i, 0, testfuns[i], 0);
+        assert(r==0);
     }
     for (i=0; i<N; i++) {
-	void *v;
-	int r=toku_pthread_join(tests[i], &v);
-	assert(r==0);
-	assert(v==0);
+        void *v;
+        int r=toku_pthread_join(tests[i], &v);
+        assert(r==0);
+        assert(v==0);
     }
     return 0;
 }

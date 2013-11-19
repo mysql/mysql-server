@@ -1,0 +1,45 @@
+# verify that information_schema.tokudb_locks gets populated with locks for 2 clients
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id int primary key);
+set autocommit=0;
+let $default_id=`select connection_id()`;
+
+# should be empty
+select * from information_schema.tokudb_locks;
+
+insert into t values (1);
+insert into t values (3);
+insert into t values (5);
+
+connect (conn_a,localhost,root,,);
+set autocommit=0;
+let $a_id=`select connection_id()`;
+
+insert into t values (2);
+insert into t values (4);
+insert into t values (6);
+
+# should find 3 locks for 2 transactions
+connection default;
+replace_column 1 TRX_ID 2 MYSQL_ID;
+eval select * from information_schema.tokudb_locks order by locks_trx_id;
+
+connection conn_a;
+commit;
+connection default;
+commit;
+
+# should be empty
+select * from information_schema.tokudb_locks;
+commit;
+
+disconnect conn_a;
+
+drop table t;

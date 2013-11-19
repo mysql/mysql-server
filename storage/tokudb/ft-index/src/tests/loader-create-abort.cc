@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -96,7 +97,7 @@ PATENT RIGHTS GRANT:
 static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_key), DBT *UU(dest_val), const DBT *UU(src_key), const DBT *UU(src_val)) {
+static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT_ARRAY *UU(dest_keys), DBT_ARRAY *UU(dest_vals), const DBT *UU(src_key), const DBT *UU(src_val)) {
     return ENOMEM;
 }
 

@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -173,9 +174,6 @@ struct tokulogger {
 
     uint32_t write_block_size;       // How big should the blocks be written to various logs?
 
-    uint64_t input_lock_ctr;             // how many times has input_lock been taken and released
-    uint64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
-    uint64_t swap_ctr;                   // how many times have input/output log buffers been swapped
     uint64_t num_writes_to_disk;         // how many times did we write to disk?
     uint64_t bytes_written_to_disk;        // how many bytes have been written to disk?
     tokutime_t time_spent_writing_to_disk; // how much tokutime did we spend writing to disk?
@@ -284,6 +282,7 @@ struct tokutxn {
     TOKUTXN_STATE state;
     uint32_t num_pin; // number of threads (all hot indexes) that want this
                       // txn to not transition to commit or abort
+    uint64_t client_id;
 };
 
 static inline int

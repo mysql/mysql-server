@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -104,15 +105,23 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *dest_val_arrays, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = NULL;
+    if (dest_val_arrays) {
+        toku_dbt_array_resize(dest_val_arrays, 1);
+        dest_val = &dest_val_arrays->dbts[0];
+    }
+
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
     memcpy(&dbnum, dest_db->descriptor->dbt.data, sizeof dbnum);
-    assert(dbnum < src_data->size / sizeof (int));
+    assert(dbnum < src_val->size / sizeof (int));
 
-    int *pri_data = (int *) src_data->data;
+    int *pri_data = (int *) src_val->data;
 
     switch (dest_key->flags) {
     case 0:
@@ -128,22 +137,22 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
         assert(0);
     }
 
-    if (dest_data) {
-        switch (dest_data->flags) {
+    if (dest_val) {
+        switch (dest_val->flags) {
         case 0:
             if (dbnum == 0) {
-                dest_data->size = src_data->size;
-                dest_data->data = src_data->data;
+                dest_val->size = src_val->size;
+                dest_val->data = src_val->data;
             } else
-                dest_data->size = 0;
+                dest_val->size = 0;
             break;
         case DB_DBT_REALLOC:
             if (dbnum == 0) {
-                dest_data->size = src_data->size;
-                dest_data->data = toku_realloc(dest_data->data, dest_data->size);
-                memcpy(dest_data->data, src_data->data, dest_data->size);
+                dest_val->size = src_val->size;
+                dest_val->data = toku_realloc(dest_val->data, dest_val->size);
+                memcpy(dest_val->data, src_val->data, dest_val->size);
             } else
-                dest_data->size = 0;
+                dest_val->size = 0;
             break;
         default:
             assert(0);
@@ -154,8 +163,8 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
-    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data);
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, const DBT *src_key, const DBT *src_data) {
+    return put_callback(dest_db, src_db, dest_key_arrays, NULL, src_key, src_data);
 }
 
 #if 0
@@ -244,7 +253,7 @@ verify(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         DBT vals[ndbts]; memset(vals, 0, sizeof vals);
         uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
 
-        r = env->update_multiple(env, ndbs > 0 ? db[0] : NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
+        r = env_update_multiple_test_no_array(env, ndbs > 0 ? db[0] : NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
         assert_zero(r);
     }
     r = txn->commit(txn, 0); assert_zero(r);

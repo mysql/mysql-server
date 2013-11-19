@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -163,6 +164,11 @@ status_init(void) {
     STATUS_INIT(CP_WAITERS_MAX,                         nullptr, UINT64,   "waiters max", TOKU_ENGINE_STATUS);
     STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   nullptr, UINT64,   "non-checkpoint client wait on mo lock", TOKU_ENGINE_STATUS);
     STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   nullptr, UINT64,   "non-checkpoint client wait on cs lock", TOKU_ENGINE_STATUS);
+
+    STATUS_INIT(CP_BEGIN_TIME,                          CHECKPOINT_BEGIN_TIME, UINT64,   "checkpoint begin time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_LONG_BEGIN_COUNT,                    CHECKPOINT_LONG_BEGIN_COUNT, UINT64,   "long checkpoint begin count", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_LONG_BEGIN_TIME,                     CHECKPOINT_LONG_BEGIN_TIME, UINT64,   "long checkpoint begin time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+
     cp_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -188,11 +194,10 @@ static toku_pthread_rwlock_t low_priority_multi_operation_lock;
 static bool initialized = false;     // sanity check
 static volatile bool locked_mo = false;       // true when the multi_operation write lock is held (by checkpoint)
 static volatile bool locked_cs = false;       // true when the checkpoint_safe write lock is held (by checkpoint)
-
+static volatile uint64_t toku_checkpoint_long_threshold = 1000000;
 
 // Note following static functions are called from checkpoint internal logic only,
 // and use the "writer" calls for locking and unlocking.
-
 
 static void
 multi_operation_lock_init(void) {
@@ -335,7 +340,9 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     
     SET_CHECKPOINT_FOOTPRINT(30);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
+    uint64_t t_checkpoint_begin_start = toku_current_time_microsec();
     toku_cachetable_begin_checkpoint(cp, logger);
+    uint64_t t_checkpoint_begin_end = toku_current_time_microsec();
 
     toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
@@ -357,6 +364,12 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_END) = time(NULL);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE) = STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN);
     STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
+    uint64_t duration = t_checkpoint_begin_end - t_checkpoint_begin_start;
+    STATUS_VALUE(CP_BEGIN_TIME) += duration;
+    if (duration >= toku_checkpoint_long_threshold) {
+        STATUS_VALUE(CP_LONG_BEGIN_TIME) += duration;
+        STATUS_VALUE(CP_LONG_BEGIN_COUNT) += 1;
+    }
     STATUS_VALUE(CP_FOOTPRINT) = 0;
 
     checkpoint_safe_checkpoint_unlock();

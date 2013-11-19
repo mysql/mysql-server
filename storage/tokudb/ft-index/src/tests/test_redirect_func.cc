@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -110,12 +111,12 @@ static int update_fun(DB *UU(db),
 static int generate_row_for_del(
     DB *UU(dest_db), 
     DB *UU(src_db),
-    DBT *dest_key,
+    DBT_ARRAY *dest_key_arrays,
     const DBT *UU(src_key), 
     const DBT *UU(src_val)
     )
 {
-    dest_key->size=0;
+    toku_dbt_array_resize(dest_key_arrays, 0);
     assert(false);
     return 0;
 }
@@ -123,12 +124,16 @@ static int generate_row_for_del(
 static int generate_row_for_put(
     DB *UU(dest_db), 
     DB *UU(src_db),
-    DBT *dest_key, 
-    DBT *dest_val,
+    DBT_ARRAY *dest_key_arrays,
+    DBT_ARRAY *dest_val_arrays,
     const DBT *src_key, 
     const DBT *src_val
     ) 
 {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     dest_key->size=src_key->size;
     dest_key->data=src_key->data;
     dest_key->flags = 0;

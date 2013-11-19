@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -136,7 +137,7 @@ void checkpointer_test::test_begin_checkpoint() {
     struct cachefile cf;
     cf.next = NULL;
     cf.for_checkpoint = false;
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
     create_dummy_functions(&cf);
 
     m_cp.begin_checkpoint();
@@ -146,7 +147,7 @@ void checkpointer_test::test_begin_checkpoint() {
     // 3. Call checkpoint with MANY cachefiles.
     const uint32_t count = 3;
     struct cachefile cfs[count];
-    m_cp.m_cf_list->m_head = &cfs[0];
+    m_cp.m_cf_list->m_active_head = &cfs[0];
     for (uint32_t i = 0; i < count; ++i) {
         cfs[i].for_checkpoint = false;
         create_dummy_functions(&cfs[i]);
@@ -196,7 +197,7 @@ void checkpointer_test::test_pending_bits() {
     memset(&cf, 0, sizeof(cf));
     cf.next = NULL;
     cf.for_checkpoint = true;
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
     create_dummy_functions(&cf);
 
     CACHEKEY k;
@@ -230,7 +231,7 @@ void checkpointer_test::test_pending_bits() {
 
     m_cp.turn_on_pending_bits();
     assert(p.checkpoint_pending);
-    m_cp.m_list->evict(&p);
+    m_cp.m_list->evict_completely(&p);
 
     //
     // 3. Many hash chain entries.
@@ -251,7 +252,7 @@ void checkpointer_test::test_pending_bits() {
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
         PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_list->evict(pp);
+        m_cp.m_list->evict_completely(pp);
     }
 
     ctbl.list.destroy();
@@ -341,7 +342,7 @@ void checkpointer_test::test_end_checkpoint() {
 
     ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
 
     // 2. Add data before running checkpoint.
     const uint32_t count = 6;
@@ -389,7 +390,7 @@ void checkpointer_test::test_end_checkpoint() {
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
         PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_list->evict(pp);
+        m_cp.m_list->evict_completely(pp);
     }
     m_cp.destroy();
     ctbl.list.destroy();

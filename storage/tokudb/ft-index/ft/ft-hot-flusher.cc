@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -152,6 +153,16 @@ hot_set_highest_key(struct hot_flusher_extra *flusher)
     if (flusher->max_current_key.data != NULL) {
         // Otherwise, let's copy all the contents from one key to the other.
         toku_clone_dbt(&flusher->highest_pivot_key, flusher->max_current_key);
+    }
+}
+
+static void
+hot_set_start_key(struct hot_flusher_extra *flusher, const DBT* start)
+{
+    toku_destroy_dbt(&flusher->highest_pivot_key);
+    if (start != NULL) {
+        // Otherwise, let's copy all the contents from one key to the other.
+        toku_clone_dbt(&flusher->highest_pivot_key, *start);
     }
 }
 
@@ -286,7 +297,7 @@ hot_flusher_destroy(struct hot_flusher_extra *flusher)
 // Entry point for Hot Optimize Table (HOT).  Note, this function is
 // not recursive.  It iterates over root-to-leaf paths.
 int
-toku_ft_hot_optimize(FT_HANDLE brt,
+toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
                       void *progress_extra)
 {
@@ -295,6 +306,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
     struct flusher_advice advice;
 
     hot_flusher_init(&advice, &flusher);
+    hot_set_start_key(&flusher, left);
 
     uint64_t loop_count = 0;
     MSN msn_at_start_of_hot = ZERO_MSN;  // capture msn from root at
@@ -367,6 +379,15 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         // not.
         if (flusher.max_current_key.data == NULL) {
             flusher.rightmost_leaf_seen = 1;
+        }
+        else if (right) {
+            // if we have flushed past the bounds set for us,
+            // set rightmost_leaf_seen so we exit
+            FAKE_DB(db, &brt->ft->cmp_descriptor);
+            int cmp = brt->ft->compare_fun(&db, &flusher.max_current_key, right);
+            if (cmp > 0) {
+                flusher.rightmost_leaf_seen = 1;
+            }
         }
 
         // Update HOT's progress.

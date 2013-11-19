@@ -1,0 +1,63 @@
+# verify that tokudb_locks and tokudb_lock_waits contents for 2 conflicting transactions with a lock timeout
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id int primary key);
+
+# should be empty
+select * from information_schema.tokudb_trx;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
+
+connect (conn_a,localhost,root,,);
+set autocommit=0;
+insert into t values (1);
+
+connect (conn_b,localhost,root,,);
+set autocommit=0;
+send insert into t values (1);
+
+# should find the presence of a lock on 1st transaction
+connection default;
+real_sleep 1; # give some time for conn_b to get blocked
+replace_column 1 TRX_ID 2 MYSQL_ID; 
+select * from information_schema.tokudb_locks;
+
+# should find the presence of a lock_wait on the 2nd transaction
+replace_column 1 REQUEST_TRX_ID 2 BLOCK_TRX_ID 6 LOCK_WAITS_START_TIME;
+select * from information_schema.tokudb_lock_waits;
+
+# should find the presence of two transactions
+replace_column 1 TRX_ID 2 MYSQL_ID;
+select * from information_schema.tokudb_trx;
+
+connection conn_a;
+sleep 5; # sleep longer than the lock timer to force a lock timeout on txn_b
+commit;
+
+# verify that the lock on the 1st transaction is released and replaced by the lock for the 2nd transaction
+replace_column 1 TRX_ID 2 MYSQL_ID;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
+
+connection conn_b;
+--error 1205 # lock timeout
+reap;
+commit;
+
+connection default;
+disconnect conn_a;
+disconnect conn_b;
+
+# should be be empty
+select * from information_schema.tokudb_trx;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
+
+# cleanup
+drop table t;

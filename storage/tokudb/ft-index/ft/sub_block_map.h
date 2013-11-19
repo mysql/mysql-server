@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef _TOKU_SUB_BLOCK_MAP_H
-#define TOKU_SUB_BLOCK_MAP_H
+#define _TOKU_SUB_BLOCK_MAP_H
 
 #ident "$Id$"
 /*
@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 

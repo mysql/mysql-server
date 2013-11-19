@@ -52,6 +52,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -185,7 +186,10 @@ typedef enum {
     CP_WAITERS_MAX,          // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
     CP_CLIENT_WAIT_ON_MO,    // how many times a client thread waited to take the multi_operation lock, not for checkpoint
     CP_CLIENT_WAIT_ON_CS,    // how many times a client thread waited for the checkpoint_safe lock, not for checkpoint
-    CP_STATUS_NUM_ROWS       // number of rows in this status array
+    CP_BEGIN_TIME,
+    CP_LONG_BEGIN_TIME,
+    CP_LONG_BEGIN_COUNT,
+    CP_STATUS_NUM_ROWS       // number of rows in this status array.  must be last.
 } cp_status_entry;
 
 typedef struct {

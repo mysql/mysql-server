@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -103,7 +104,13 @@ struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
 
-static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+static int put_multiple_generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    dest_key->flags = 0;
+    dest_val->flags = 0;
 
     (void) src_db;
 
@@ -208,7 +215,7 @@ static void run_test(void)
 
     // putm (8,9)
     pk = 8; pv = 9;
-    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
+    r = env_put_multiple_test_no_array(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
     CKERR(r);
 
     r = indexer->build(indexer);
@@ -216,7 +223,7 @@ static void run_test(void)
 
     // putm (9, 10)
     pk = 9; pv = 10;
-    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
+    r = env_put_multiple_test_no_array(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
     CKERR(r);
 
     r = indexer->close(indexer);

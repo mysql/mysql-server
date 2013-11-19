@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -397,10 +398,7 @@ void toku_file_fsync(int fd);
 int toku_fsync_directory(const char *fname);
 
 // get the number of fsync calls and the fsync times (total)
-void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
-
-// get the number of fsync calls and the fsync times for use by scheduler (subset of total)
-void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time);
+void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time, uint64_t *long_fsync_threshold, uint64_t *long_fsync_count, uint64_t *long_fsync_time);
 
 void toku_set_func_fsync (int (*fsync_function)(int));
 void toku_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));

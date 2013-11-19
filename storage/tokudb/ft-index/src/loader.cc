@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -329,6 +330,7 @@ toku_loader_create_loader(DB_ENV *env,
                                  load_lsn,
                                  ttxn,
                                  puts_allowed,
+                                 loader->i->env->i->loader_memory_size,
                                  compress_intermediates);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);

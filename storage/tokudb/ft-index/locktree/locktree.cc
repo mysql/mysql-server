@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -139,6 +140,7 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     ZERO_STRUCT(m_lock_request_info.mutex);
     toku_mutex_init(&m_lock_request_info.mutex, nullptr);
     m_lock_request_info.should_retry_lock_requests = false;
+    ZERO_STRUCT(m_lock_request_info.counters);
 
     // Threads read the should retry bit without a lock
     // for performance. It's ok to read the wrong value.
@@ -767,6 +769,10 @@ int locktree::compare(const locktree *lt) {
     } else {
         return 1;
     }
+}
+
+DICTIONARY_ID locktree::get_dict_id() const {
+    return m_dict_id;
 }
 
 } /* namespace toku */

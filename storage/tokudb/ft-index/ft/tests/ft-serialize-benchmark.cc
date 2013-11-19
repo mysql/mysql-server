@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -99,36 +100,22 @@ PATENT RIGHTS GRANT:
 #endif
 const double USECS_PER_SEC = 1000000.0;
 
-static int omt_cmp(OMTVALUE p, void *q)
+static void
+le_add_to_bn(bn_data* bn, uint32_t idx, char *key, int keylen, char *val, int vallen)
 {
-    LEAFENTRY CAST_FROM_VOIDP(a, p);
-    LEAFENTRY CAST_FROM_VOIDP(b, q);
-    void *ak, *bk;
-    uint32_t al, bl;
-    ak = le_key_and_len(a, &al);
-    bk = le_key_and_len(b, &bl);
-    int l = MIN(al, bl);
-    int c = memcmp(ak, bk, l);
-    if (c < 0) { return -1; }
-    if (c > 0) { return +1; }
-    int d = al - bl;
-    if (d < 0) { return -1; }
-    if (d > 0) { return +1; }
-    else       { return  0; }
-}
-
-static LEAFENTRY
-le_fastmalloc(char *key, int keylen, char *val, int vallen)
-{
-    LEAFENTRY CAST_FROM_VOIDP(r, toku_malloc(sizeof(r->type) + sizeof(r->keylen) + sizeof(r->u.clean.vallen) +
-                                             keylen + vallen));
+    LEAFENTRY r = NULL;
+    uint32_t size_needed = LE_CLEAN_MEMSIZE(vallen);
+    bn->get_space_for_insert(
+        idx, 
+        key,
+        keylen,
+        size_needed,
+        &r
+        );
     resource_assert(r);
     r->type = LE_CLEAN;
-    r->keylen = keylen;
     r->u.clean.vallen = vallen;
-    memcpy(&r->u.clean.key_val[0], key, keylen);
-    memcpy(&r->u.clean.key_val[keylen], val, vallen);
-    return r;
+    memcpy(r->u.clean.val, val, vallen);
 }
 
 static int
@@ -167,8 +154,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
         set_BLB(sn, i, toku_create_empty_bn());
     }
     int nperbn = nelts / sn->n_children;
-    LEAFENTRY les[nelts];
-    memset(les, 0, sizeof les);
     for (int ck = 0; ck < sn->n_children; ++ck) {
         long k;
         for (long i = 0; i < nperbn; ++i) {
@@ -181,10 +166,15 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
                 c += sizeof(*p);
             }
             memset(&buf[c], 0, valsize - c);
-            les[k] = le_fastmalloc((char *)&k, sizeof k, buf, sizeof buf);
-            r = toku_omt_insert(BLB_BUFFER(sn, ck), les[k], omt_cmp, les[k], NULL); assert(r==0);
+            le_add_to_bn(
+                BLB_DATA(sn,ck),
+                i,
+                (char *)&k, 
+                sizeof k, 
+                buf, 
+                sizeof buf
+                );
         }
-        BLB_NBYTESINBUF(sn, ck) = nperbn*(KEY_VALUE_OVERHEAD+(sizeof(long)+valsize)) + toku_omt_size(BLB_BUFFER(sn, ck));
         if (ck < 7) {
             toku_memdup_dbt(&sn->childkeys[ck], &k, sizeof k);
             sn->totalchildkeylens += sizeof k;
@@ -249,12 +239,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
            );
 
     toku_ftnode_free(&dn);
-
-    for (int i = 0; i < nelts; ++i) {
-        if (les[i]) {
-            toku_free(les[i]);
-        }
-    }
     toku_ftnode_free(&sn);
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);

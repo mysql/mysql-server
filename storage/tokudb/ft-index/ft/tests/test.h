@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -348,6 +349,14 @@ public:
         return ev->m_num_eviction_thread_runs;
     }
 };
+
+UU()
+static void copy_dbt(DBT *dest, const DBT *src) {
+    assert(dest->flags & DB_DBT_REALLOC);
+    dest->data = toku_realloc(dest->data, src->size);
+    dest->size = src->size;
+    memcpy(dest->data, src->data, src->size);
+}
 
 int verbose=0;
 

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -115,7 +116,16 @@ enum {
     LTM_STO_NUM_ELIGIBLE,
     LTM_STO_END_EARLY_COUNT,
     LTM_STO_END_EARLY_TIME,
-    LTM_STATUS_NUM_ROWS
+    LTM_WAIT_COUNT,
+    LTM_WAIT_TIME,
+    LTM_LONG_WAIT_COUNT,
+    LTM_LONG_WAIT_TIME,
+    LTM_TIMEOUT_COUNT,
+    LTM_WAIT_ESCALATION_COUNT,
+    LTM_WAIT_ESCALATION_TIME,
+    LTM_LONG_WAIT_ESCALATION_COUNT,
+    LTM_LONG_WAIT_ESCALATION_TIME,
+    LTM_STATUS_NUM_ROWS // must be last
 };
 
 typedef struct {
@@ -181,12 +191,21 @@ public:
 
     int compare(const locktree *lt);
 
+    DICTIONARY_ID get_dict_id() const;
+
+    struct lt_counters {
+        uint64_t wait_count, wait_time;
+        uint64_t long_wait_count, long_wait_time;
+        uint64_t timeout_count;
+    };
+
     // The locktree stores some data for lock requests. It doesn't have to know
     // how they work or even what a lock request object looks like.
     struct lt_lock_request_info {
         omt<lock_request *> pending_lock_requests;
         toku_mutex_t mutex;
         bool should_retry_lock_requests;
+        lt_counters counters;
     };
 
     // Private info struct for storing pending lock request state.
@@ -281,6 +300,17 @@ public:
 
         void get_status(LTM_STATUS status);
 
+        // effect: calls the iterate function on each pending lock request
+        // note: holds the manager's mutex
+        typedef int (*lock_request_iterate_callback)(DICTIONARY_ID dict_id,
+                                                     TXNID txnid,
+                                                     const DBT *left_key,
+                                                     const DBT *right_key,
+                                                     TXNID blocking_txnid,
+                                                     uint64_t start_time,
+                                                     void *extra);
+        int iterate_pending_lock_requests(lock_request_iterate_callback cb, void *extra);
+
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
         static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
@@ -290,10 +320,7 @@ public:
         uint64_t m_current_lock_memory;
         memory_tracker m_mem_tracker;
 
-        // statistics about lock escalation.
-        uint64_t m_escalation_count;
-        tokutime_t m_escalation_time;
-        uint64_t m_escalation_latest_result;
+        struct lt_counters m_lt_counters;
 
         // lock wait time for blocking row locks, in ms
         uint64_t m_lock_wait_time_ms;
@@ -330,12 +357,40 @@ public:
         void locktree_map_remove(locktree *lt);
 
         // effect: Runs escalation on all locktrees.
-        // requires: Manager's mutex is held
         void run_escalation(void);
 
         static int find_by_dict_id(locktree *const &lt, const DICTIONARY_ID &dict_id);
 
+        void escalator_init(void);
+
+        void escalator_destroy(void);
+
+        // effect: Add time t to the escalator's wait time statistics
+        void add_escalator_wait_time(uint64_t t);
+
+        // effect: escalate's the locks in each locktree
+        // requires: manager's mutex is held
+        void escalate_all_locktrees(void);
+
+        // statistics about lock escalation.
+        uint64_t m_escalation_count;
+        tokutime_t m_escalation_time;
+        uint64_t m_escalation_latest_result;
+        uint64_t m_wait_escalation_count;
+        uint64_t m_wait_escalation_time;
+        uint64_t m_long_wait_escalation_count;
+        uint64_t m_long_wait_escalation_time;
+
+        toku_mutex_t m_escalator_mutex;
+        toku_cond_t m_escalator_work;    // signal the escalator to run
+        toku_cond_t m_escalator_done;    // signal that escalation is done
+        bool m_escalator_killed;
+        toku_pthread_t m_escalator_id;
+
         friend class manager_unit_test;
+
+    public:
+        void escalator_work(void);
     };
     ENSURE_POD(manager);
 

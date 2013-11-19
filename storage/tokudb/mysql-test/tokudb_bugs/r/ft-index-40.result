@@ -1,0 +1,22 @@
+drop table if exists t;
+create table t (a varchar(50), primary key(a)) engine='tokudb';
+insert into t values ("hello world");
+select * from t;
+a
+hello world
+begin;
+select * from t;
+a
+hello world
+update t set a="HELLO WORLD";
+select * from t;
+a
+hello world
+select * from t;
+a
+HELLO WORLD
+rollback;
+select * from t;
+a
+hello world
+drop table t;

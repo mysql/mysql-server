@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -541,6 +542,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    LSN load_lsn,
                                    TOKUTXN txn,
                                    bool reserve_memory,
+                                   uint64_t reserve_memory_size,
                                    bool compress_intermediates)
 // Effect: Allocate and initialize a FTLOADER, but do not create the extractor thread.
 {
@@ -551,14 +553,16 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     bl->cachetable = cachetable;
     if (reserve_memory && bl->cachetable) {
         bl->did_reserve_memory = true;
-        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
+        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0, reserve_memory_size); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
     }
     else {
         bl->did_reserve_memory = false;
         bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
     }
     bl->compress_intermediates = compress_intermediates;
-    //printf("Reserved memory=%ld\n", bl->reserved_memory);
+    if (0) { // debug
+        fprintf(stderr, "%s Reserved memory=%ld\n", __FUNCTION__, bl->reserved_memory);
+    }
 
     bl->src_db = src_db;
     bl->N = N;
@@ -645,6 +649,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           LSN load_lsn,
                           TOKUTXN txn,
                           bool reserve_memory,
+                          uint64_t reserve_memory_size,
                           bool compress_intermediates)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
@@ -668,6 +673,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                                               load_lsn,
                                               txn,
                                               reserve_memory,
+                                              reserve_memory_size,
                                               compress_intermediates);
         if (r!=0) result = r;
     }
@@ -1236,9 +1242,9 @@ static TXNID leafentry_xid(FTLOADER bl, int which_db) {
 size_t ft_loader_leafentry_size(size_t key_size, size_t val_size, TXNID xid) {
     size_t s = 0;
     if (xid == TXNID_NONE)
-        s = LE_CLEAN_MEMSIZE(key_size, val_size);
+        s = LE_CLEAN_MEMSIZE(val_size) + key_size + sizeof(uint32_t);
     else
-        s = LE_MVCC_COMMITTED_MEMSIZE(key_size, val_size);
+        s = LE_MVCC_COMMITTED_MEMSIZE(val_size) + key_size + sizeof(uint32_t);
     return s;
 }
 
@@ -1250,6 +1256,12 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
     int error_count = 0;
     int *XMALLOC_N(bl->N, error_codes);
 
+    // If we parallelize the first for loop, dest_keys/dest_vals init&cleanup need to move inside
+    DBT_ARRAY dest_keys;
+    DBT_ARRAY dest_vals;
+    toku_dbt_array_init(&dest_keys, 1);
+    toku_dbt_array_init(&dest_vals, 1);
+
     for (int i = 0; i < bl->N; i++) {
         unsigned int klimit,vlimit; // maximum row sizes.
         toku_ft_get_maximum_advised_key_value_lengths(&klimit, &vlimit);
@@ -1259,12 +1271,8 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
         struct merge_fileset *fs = &(bl->fs[i]);
         ft_compare_func compare = bl->bt_compare_funs[i];
 
-        DBT skey = zero_dbt;
-        skey.flags = DB_DBT_REALLOC;
-        DBT sval=skey;
-
         // Don't parallelize this loop, or we have to lock access to add_row() which would be a lot of overehad.
-        // Also this way we can reuse the DB_DBT_REALLOC'd value inside skey and sval without a race.
+        // Also this way we can reuse the DB_DBT_REALLOC'd values inside dest_keys/dest_vals without a race.
         for (size_t prownum=0; prownum<primary_rowset->n_rows; prownum++) {
             if (error_count) break;
 
@@ -1276,23 +1284,32 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
             pval.data = primary_rowset->data + prow->off + prow->klen;
             pval.size = prow->vlen;
 
-            DBT *dest_key = &skey;
-            DBT *dest_val = &sval;
 
-            {
-                int r;
-
-                if (bl->dbs[i] != bl->src_db) {
-                    r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, dest_key, dest_val, &pkey, &pval);
-                    if (r != 0) {
-                        error_codes[i] = r;
-                        inc_error_count();
-                        break;
-                    }
-                } else {
-                    dest_key = &pkey;
-                    dest_val = &pval;
+            DBT_ARRAY key_array;
+            DBT_ARRAY val_array;
+            if (bl->dbs[i] != bl->src_db) {
+                int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &dest_keys, &dest_vals, &pkey, &pval);
+                if (r != 0) {
+                    error_codes[i] = r;
+                    inc_error_count();
+                    break;
                 }
+                paranoid_invariant(dest_keys.size <= dest_keys.capacity);
+                paranoid_invariant(dest_vals.size <= dest_vals.capacity);
+                paranoid_invariant(dest_keys.size == dest_vals.size);
+
+                key_array = dest_keys;
+                val_array = dest_vals;
+            } else {
+                key_array.size = key_array.capacity = 1;
+                key_array.dbts = &pkey;
+
+                val_array.size = val_array.capacity = 1;
+                val_array.dbts = &pval;
+            }
+            for (uint32_t row = 0; row < key_array.size; row++) {
+                DBT *dest_key = &key_array.dbts[row];
+                DBT *dest_val = &val_array.dbts[row];
                 if (dest_key->size > klimit) {
                     error_codes[i] = EINVAL;
                     fprintf(stderr, "Key too big (keysize=%d bytes, limit=%d bytes)\n", dest_key->size, klimit);
@@ -1305,51 +1322,31 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
                     inc_error_count();
                     break;
                 }
-            }
 
-            bl->extracted_datasizes[i] += ft_loader_leafentry_size(dest_key->size, dest_val->size, leafentry_xid(bl, i));
+                bl->extracted_datasizes[i] += ft_loader_leafentry_size(dest_key->size, dest_val->size, leafentry_xid(bl, i));
 
-            if (row_wont_fit(rows, dest_key->size + dest_val->size)) {
-                //printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
-                int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
-                // If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
-                init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
+                if (row_wont_fit(rows, dest_key->size + dest_val->size)) {
+                    //printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
+                    int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
+                    // If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
+                    init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
+                    if (r != 0) {
+                        error_codes[i] = r;
+                        inc_error_count();
+                        break;
+                    }
+                }
+                int r = add_row(rows, dest_key, dest_val);
                 if (r != 0) {
                     error_codes[i] = r;
                     inc_error_count();
                     break;
                 }
             }
-            int r = add_row(rows, dest_key, dest_val);
-            if (r != 0) {
-                error_codes[i] = r;
-                inc_error_count();
-                break;
-            }
-
-            //flags==0 means generate_row_for_put callback changed it
-            //(and freed any memory necessary to do so) so that values are now stored
-            //in temporary memory that does not need to be freed.  We need to continue
-            //using DB_DBT_REALLOC however.
-            if (skey.flags == 0) {
-                toku_init_dbt(&skey);
-                skey.flags = DB_DBT_REALLOC;
-            }
-            if (sval.flags == 0) {
-                toku_init_dbt(&sval);
-                sval.flags = DB_DBT_REALLOC;
-            }
-        }
-
-        if (bl->dbs[i] != bl->src_db) {
-            if (skey.flags) {
-                toku_free(skey.data); skey.data = NULL;
-            }
-            if (sval.flags) {
-                toku_free(sval.data); sval.data = NULL;
-            }
         }
     }
+    toku_dbt_array_destroy(&dest_keys);
+    toku_dbt_array_destroy(&dest_vals);
     
     destroy_rowset(primary_rowset);
     toku_free(primary_rowset);
@@ -2915,7 +2912,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     // #3588 TODO just make a clean ule and append it to the omt
     // #3588 TODO can do the rebalancing here and avoid a lot of work later
     FTNODE leafnode = lbuf->node;
-    uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
+    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
     DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
     DBT theval = { .data = val, .size = (uint32_t) vallen };
     FT_MSG_S cmd = { .type = FT_INSERT,

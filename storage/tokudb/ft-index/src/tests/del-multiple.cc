@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -105,8 +106,10 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) src_key; (void) src_data;
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data) {
+    toku_dbt_array_resize(dest_keys, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    (void) dest_db; (void) src_db; (void) dest_keys; (void) src_key; (void) src_data;
     assert(src_db == NULL);
 
     unsigned int dbnum;
@@ -166,7 +169,7 @@ verify_del_multiple(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         DBT pri_data; dbt_init(&pri_data, &v[0], sizeof v);
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->del_multiple(env, NULL, deltxn, &pri_key, &pri_data, ndbs, db, keys, flags); assert_zero(r);
+        r = env_del_multiple_test_no_array(env, NULL, deltxn, &pri_key, &pri_data, ndbs, db, keys, flags); assert_zero(r);
         for (int dbnum = 0; dbnum < ndbs; dbnum++) 
             verify_locked(env, db[dbnum], get_key(i, dbnum));
     }

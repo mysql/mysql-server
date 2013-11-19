@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -106,7 +107,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
         return ER_ABORTING_CONNECTION;
 
     time_t t_now = time(0);
-    time_t t_limit = get_analyze_time(thd);
+    time_t t_limit = THDVAR(thd, analyze_time);
     time_t t_start = extra->t_start;
     if (t_limit > 0 && t_now - t_start > t_limit)
         return ETIME;
@@ -223,7 +224,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
         hc.ha = this;
         hc.current_table = i;
         hc.num_tables = curr_num_DBs;
-        error = db->hot_optimize(db, hot_poll_fun, &hc);
+        error = db->hot_optimize(db, NULL, NULL, hot_poll_fun, &hc);
         if (error) {
             goto cleanup;
         }

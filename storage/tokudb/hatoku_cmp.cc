@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -1250,7 +1251,8 @@ static inline int compare_toku_field(
     uchar* row_desc,
     uint32_t* a_bytes_read, 
     uint32_t* b_bytes_read,
-    uint32_t* row_desc_bytes_read
+    uint32_t* row_desc_bytes_read,
+    bool* read_string
     )
 {
     int ret_val = 0;
@@ -1333,6 +1335,7 @@ static inline int compare_toku_field(
             a_bytes_read,
             b_bytes_read
             );
+        *read_string = true;
         break;
     default:
         assert(false);
@@ -1570,7 +1573,8 @@ int tokudb_compare_two_keys(
     const uint32_t saved_key_size,
     const void*  row_desc,
     const uint32_t row_desc_size,
-    bool cmp_prefix
+    bool cmp_prefix,
+    bool* read_string
     )
 {
     int ret_val = 0;
@@ -1639,7 +1643,8 @@ int tokudb_compare_two_keys(
             row_desc_ptr,
             &new_key_field_length, 
             &saved_key_field_length,
-            &row_desc_field_length
+            &row_desc_field_length,
+            read_string
             );
         new_key_ptr += new_key_field_length;
         saved_key_ptr += saved_key_field_length;
@@ -1683,17 +1688,25 @@ exit:
     return ret_val;
 }
 
+static int simple_memcmp(const DBT *keya, const DBT *keyb) {
+    int cmp;
+    int num_bytes_cmp = keya->size < keyb->size ? 
+        keya->size : keyb->size;
+    cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
+    if (cmp == 0 && (keya->size != keyb->size)) {
+        cmp = keya->size < keyb->size ? -1 : 1;
+    }
+    return cmp;
+}
+
+// comparison function to be used by the fractal trees.
 int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
     int cmp;
     if (file->cmp_descriptor->dbt.size == 0) {
-        int num_bytes_cmp = keya->size < keyb->size ? 
-            keya->size : keyb->size;
-        cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
-        if (cmp == 0 && (keya->size != keyb->size)) {
-            cmp = keya->size < keyb->size ? -1 : 1;
-        }
+        cmp = simple_memcmp(keya, keyb);
     }
     else {
+        bool read_string = false;
         cmp = tokudb_compare_two_keys(
             keya->data, 
             keya->size, 
@@ -1701,14 +1714,24 @@ int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
             keyb->size,
             (uchar *)file->cmp_descriptor->dbt.data + 4,
             (*(uint32_t *)file->cmp_descriptor->dbt.data) - 4,
-            false
+            false,
+            &read_string
             );
+        // comparison above may be case-insensitive, but fractal tree
+        // needs to distinguish between different data, so we do this
+        // additional check here
+        if (read_string && (cmp == 0)) {
+            cmp = simple_memcmp(keya, keyb);
+        }
     }
     return cmp;
 }
 
 //TODO: QQQ Only do one direction for prefix.
 int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
+    // calls to this function are done by the handlerton, and are
+    // comparing just the keys as MySQL would compare them.
+    bool read_string = false;
     int cmp = tokudb_compare_two_keys(
         keya->data, 
         keya->size, 
@@ -1716,7 +1739,8 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keyb->size,
         (uchar *)file->cmp_descriptor->dbt.data + 4,
         *(uint32_t *)file->cmp_descriptor->dbt.data - 4,
-        true
+        true,
+        &read_string
         );
     return cmp;
 }
@@ -1785,14 +1809,15 @@ static int tokudb_compare_two_key_parts(
             }         
         }
         row_desc_ptr++;
-
+        bool read_string = false;
         ret_val = compare_toku_field(
             new_key_ptr, 
             saved_key_ptr, 
             row_desc_ptr,
             &new_key_field_length, 
             &saved_key_field_length,
-            &row_desc_field_length
+            &row_desc_field_length,
+            &read_string
             );
         new_key_ptr += new_key_field_length;
         saved_key_ptr += saved_key_field_length;

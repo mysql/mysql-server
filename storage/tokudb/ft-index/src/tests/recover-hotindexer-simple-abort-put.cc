@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -90,14 +91,22 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
 
-    dest_key->data = toku_xmemdup(src_data->data, src_data->size);
-    dest_key->size = src_data->size;
-    dest_data->size = 0;
+    if (dest_key->flags == DB_DBT_REALLOC) {
+        toku_free(dest_key->data);
+    }
+    dest_key->flags = DB_DBT_REALLOC;
+    dest_key->data = toku_xmemdup(src_val->data, src_val->size);
+    dest_key->size = src_val->size;
+    dest_val->size = 0;
     
     return 0;
 }

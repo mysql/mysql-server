@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -106,16 +107,23 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = NULL;
+    if (dest_vals) {
+        toku_dbt_array_resize(dest_vals, 1);
+        dest_val = &dest_vals->dbts[0];
+    }
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
     assert(src_db == NULL);
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
     memcpy(&dbnum, dest_db->descriptor->dbt.data, sizeof dbnum);
-    assert(dbnum < src_data->size / sizeof (int));
+    assert(dbnum < src_val->size / sizeof (int));
 
-    int *pri_data = (int *) src_data->data;
+    int *pri_data = (int *) src_val->data;
 
     switch (dest_key->flags) {
     case 0:
@@ -131,14 +139,14 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
         assert(0);
     }
 
-    if (dest_data) {
-        switch (dest_data->flags) {
+    if (dest_val) {
+        switch (dest_val->flags) {
         case 0:
             if (dbnum == 0) {
-                dest_data->size = src_data->size;
-                dest_data->data = src_data->data;
+                dest_val->size = src_val->size;
+                dest_val->data = src_val->data;
             } else {
-                dest_data->size = 0;
+                dest_val->size = 0;
             }
             break;
         case DB_DBT_REALLOC:
@@ -152,8 +160,8 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
-    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data);
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data) {
+    return put_callback(dest_db, src_db, dest_keys, NULL, src_key, src_data);
 }
 
 static void
@@ -193,7 +201,7 @@ run_test(int ndbs, int nrows) {
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         DBT vals[ndbs]; memset(vals, 0, sizeof vals);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->put_multiple(env, NULL, txn, &pri_key, &pri_val, ndbs, db, keys, vals, flags); 
+        r = env_put_multiple_test_no_array(env, NULL, txn, &pri_key, &pri_val, ndbs, db, keys, vals, flags); 
         assert_zero(r);
     }
 
@@ -210,7 +218,7 @@ run_test(int ndbs, int nrows) {
         DBT pri_data; dbt_init(&pri_data, &v[0], sizeof v);
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->del_multiple(env, NULL, txn, &pri_key, &pri_data, ndbs, db, keys, flags);
+        r = env_del_multiple_test_no_array(env, NULL, txn, &pri_key, &pri_data, ndbs, db, keys, flags);
         assert_zero(r);
     }
 

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -109,25 +110,236 @@ enum srv_row_format_enum {
 typedef enum srv_row_format_enum srv_row_format_t;
 
 // thread variables
-uint get_pk_insert_mode(THD* thd);
-bool get_load_save_space(THD* thd);
-bool get_disable_slow_alter(THD* thd);
-bool get_disable_hot_alter(THD* thd);
-bool get_create_index_online(THD* thd);
-bool get_disable_prefetching(THD* thd);
-bool get_prelock_empty(THD* thd);
-bool get_log_client_errors(THD* thd);
-uint get_tokudb_block_size(THD* thd);
-uint get_tokudb_read_block_size(THD* thd);
-uint get_tokudb_read_buf_size(THD* thd);
-srv_row_format_t get_row_format(THD *thd);
+
+static MYSQL_THDVAR_BOOL(commit_sync, 
+    PLUGIN_VAR_THDLOCAL, 
+    "sync on txn commit",
+    /* check */ NULL, 
+    /* update */ NULL,
+    /* default*/ true
+);
+
+static MYSQL_THDVAR_UINT(pk_insert_mode,
+    0,
+    "set the primary key insert mode",
+    NULL, 
+    NULL, 
+    1, // default
+    0, // min?
+    2, // max
+    1 // blocksize
+);
+
+static uint get_pk_insert_mode(THD* thd) {
+    return THDVAR(thd, pk_insert_mode);
+}
+
+static MYSQL_THDVAR_BOOL(load_save_space,
+    0,
+    "compress intermediate bulk loader files to save space",
+    NULL, 
+    NULL, 
+    true
+);
+
+static bool get_load_save_space(THD* thd) {
+    return (THDVAR(thd, load_save_space) != 0);
+}
+
+static MYSQL_THDVAR_BOOL(disable_slow_alter,
+    0,
+    "if on, alter tables that require copy are disabled",
+    NULL, 
+    NULL, 
+    false
+);
+
+static bool get_disable_slow_alter(THD* thd) {
+    return (THDVAR(thd, disable_slow_alter) != 0);
+}
+
+static MYSQL_THDVAR_BOOL(disable_hot_alter,
+    0,
+    "if on, hot alter table is disabled",
+    NULL, 
+    NULL, 
+    false
+);
+
+static bool get_disable_hot_alter(THD* thd) {
+    return THDVAR(thd, disable_hot_alter) != 0;
+}
+
+static MYSQL_THDVAR_BOOL(create_index_online,
+    0,
+    "if on, create index done online",
+    NULL, 
+    NULL, 
+    true
+);
+
+static bool get_create_index_online(THD* thd) {
+    return (THDVAR(thd, create_index_online) != 0);
+}
+
+static MYSQL_THDVAR_BOOL(disable_prefetching,
+    0,
+    "if on, prefetching disabled",
+    NULL, 
+    NULL, 
+   false
+);
+
+static bool get_disable_prefetching(THD* thd) {
+    return (THDVAR(thd, disable_prefetching) != 0);
+}
+
+static MYSQL_THDVAR_BOOL(prelock_empty,
+    0,
+    "Tokudb Prelock Empty Table",
+    NULL, 
+    NULL, 
+    true
+);
+
+static bool get_prelock_empty(THD* thd) {
+    return (THDVAR(thd, prelock_empty) != 0);
+}
+
+static MYSQL_THDVAR_UINT(block_size,
+    0,
+    "fractal tree block size",
+    NULL, 
+    NULL, 
+    4<<20, // default
+    4096,  // min
+    ~0U,   // max
+    1      // blocksize???
+);
+
+static uint get_tokudb_block_size(THD* thd) {
+    return THDVAR(thd, block_size);
+}
+
+static MYSQL_THDVAR_UINT(read_block_size,
+    0,
+    "fractal tree read block size",
+    NULL, 
+    NULL, 
+    64*1024, // default
+    4096,  // min
+    ~0U,   // max
+    1      // blocksize???
+);
+
+static uint get_tokudb_read_block_size(THD* thd) {
+    return THDVAR(thd, read_block_size);
+}
+
+static MYSQL_THDVAR_UINT(read_buf_size,
+    0,
+    "fractal tree read block size", //TODO: Is this a typo?
+    NULL, 
+    NULL, 
+    128*1024, // default
+    0,  // min
+    1*1024*1024,   // max
+    1      // blocksize???
+);
+
+static uint get_tokudb_read_buf_size(THD* thd) {
+    return THDVAR(thd, read_buf_size);
+}
+
 #if TOKU_INCLUDE_UPSERT
-bool get_enable_fast_update(THD *thd);
-bool get_disable_slow_update(THD *thd);
-bool get_enable_fast_upsert(THD *thd);
-bool get_disable_slow_upsert(THD *thd);
+static MYSQL_THDVAR_BOOL(disable_slow_update, 
+    PLUGIN_VAR_THDLOCAL, 
+    "disable slow update",
+    NULL, // check
+    NULL, // update
+    false // default
+);
+
+static MYSQL_THDVAR_BOOL(disable_slow_upsert, 
+    PLUGIN_VAR_THDLOCAL, 
+    "disable slow upsert",
+    NULL, // check
+    NULL, // update
+    false // default
+);
 #endif
-uint get_analyze_time(THD *thd);
+
+static MYSQL_THDVAR_UINT(analyze_time,
+    0,
+    "analyze time",
+    NULL, 
+    NULL, 
+    5, // default
+    0,  // min
+    ~0U,   // max
+    1      // blocksize
+);
+
+static void tokudb_checkpoint_lock(THD * thd);
+static void tokudb_checkpoint_unlock(THD * thd);
+
+static void tokudb_checkpoint_lock_update(
+    THD* thd,
+    struct st_mysql_sys_var* var,
+    void* var_ptr,
+    const void* save) 
+{
+    my_bool* val = (my_bool *) var_ptr;
+    *val= *(my_bool *) save ? true : false;
+    if (*val) {
+        tokudb_checkpoint_lock(thd);
+    }
+    else {
+        tokudb_checkpoint_unlock(thd);
+    }
+}
+  
+static MYSQL_THDVAR_BOOL(checkpoint_lock,
+    0,
+    "Tokudb Checkpoint Lock",
+    NULL, 
+    tokudb_checkpoint_lock_update, 
+    false
+);
+
+static const char *tokudb_row_format_names[] = {
+    "tokudb_uncompressed",
+    "tokudb_zlib",
+    "tokudb_quicklz",
+    "tokudb_lzma",
+    "tokudb_fast",
+    "tokudb_small",
+    "tokudb_default",
+    NullS
+};
+
+static TYPELIB tokudb_row_format_typelib = {
+    array_elements(tokudb_row_format_names) - 1,
+    "tokudb_row_format_typelib",
+    tokudb_row_format_names,
+    NULL
+};
+
+static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
+                         "Specifies the compression method for a table during this session. "
+                         "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_QUICKLZ, "
+                         "TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
+                         NULL, NULL, SRV_ROW_FORMAT_ZLIB, &tokudb_row_format_typelib);
+
+static srv_row_format_t get_row_format(THD *thd) {
+    return (srv_row_format_t) THDVAR(thd, row_format);
+}
+
+static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL /*check*/, NULL /*update*/, 1 /*default*/, 0 /*min*/, ~0U /*max*/, 1);
+
+static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL /*check*/, NULL /*update*/, NULL /*default*/);
+
+static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, false);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

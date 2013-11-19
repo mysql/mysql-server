@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -303,7 +304,7 @@ doit (void) {
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
-    assert(!node->dirty); // nothing was flushed, so node better not be dirty
+    assert(node->dirty); // nothing was flushed, but since we were trying to flush to a leaf, both become dirty
     toku_assert_entire_node_in_memory(node);
     assert(node->n_children == 2);
     // both buffers should be empty now
@@ -332,13 +333,18 @@ doit (void) {
         assert(num_flushes_called == 2);
     
         toku_pin_node_with_min_bfe(&node, node_internal, t);
-        assert(!node->dirty); // nothing was flushed, so node better not be dirty
+        assert(node->dirty);
         toku_unpin_ftnode(t->ft, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[0], t);
-        assert(!node->dirty); // nothing was flushed, so node better not be dirty
+        assert(node->dirty);
         toku_unpin_ftnode(t->ft, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[1], t);
-        assert(!node->dirty); // nothing was flushed, so node better not be dirty
+        if (i == 0) {
+            assert(!node->dirty);
+        }
+        else {
+            assert(node->dirty);
+        }
         toku_unpin_ftnode(t->ft, node);
     }
 

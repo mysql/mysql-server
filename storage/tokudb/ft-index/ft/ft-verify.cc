@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -108,24 +109,6 @@ compare_pairs (FT_HANDLE brt, const DBT *a, const DBT *b) {
 }
 
 static int 
-compare_leafentries (FT_HANDLE brt, LEAFENTRY a, LEAFENTRY b) {
-    DBT x,y;
-    FAKE_DB(db, &brt->ft->cmp_descriptor);
-    int cmp = brt->ft->compare_fun(&db,
-                               toku_fill_dbt(&x, le_key(a), le_keylen(a)),
-                               toku_fill_dbt(&y, le_key(b), le_keylen(b)));
-    return cmp;
-}
-
-static int 
-compare_pair_to_leafentry (FT_HANDLE brt, const DBT *a, LEAFENTRY b) {
-    DBT y;
-    FAKE_DB(db, &brt->ft->cmp_descriptor);
-    int cmp = brt->ft->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
-    return cmp;
-}
-
-static int 
 compare_pair_to_key (FT_HANDLE brt, const DBT *a, bytevec key, ITEMLEN keylen) {
     DBT y;
     FAKE_DB(db, &brt->ft->cmp_descriptor);
@@ -166,12 +149,12 @@ verify_msg_in_child_buffer(FT_HANDLE brt, enum ft_msg_type type, MSN msn, byteve
     return result;
 }
 
-static LEAFENTRY 
-get_ith_leafentry (BASEMENTNODE bn, int i) {
-    OMTVALUE le_v;
-    int r = toku_omt_fetch(bn->buffer, i, &le_v);
-    invariant(r == 0); // this is a bad failure if it happens.
-    return (LEAFENTRY)le_v;
+static DBT
+get_ith_key_dbt (BASEMENTNODE bn, int i) {
+    DBT kdbt;
+    int r = bn->data_buffer.fetch_le_key_and_len(i, &kdbt.size, &kdbt.data);
+    invariant_zero(r); // this is a bad failure if it happens.
+    return kdbt;
 }
 
 #define VERIFY_ASSERTION(predicate, i, string) ({                                                                              \
@@ -441,26 +424,26 @@ toku_verify_ftnode_internal(FT_HANDLE brt,
         }
         else {
             BASEMENTNODE bn = BLB(node, i);
-            for (uint32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
+            for (uint32_t j = 0; j < bn->data_buffer.omt_size(); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= this_msn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
-                LEAFENTRY le = get_ith_leafentry(bn, j);
+                DBT kdbt = get_ith_key_dbt(bn, j);
                 if (curr_less_pivot) {
-                    int compare = compare_pair_to_leafentry(brt, curr_less_pivot, le);
+                    int compare = compare_pairs(brt, curr_less_pivot, &kdbt);
                     VERIFY_ASSERTION(compare < 0, j, "The leafentry is >= the lower-bound pivot");
                 }
                 if (curr_geq_pivot) {
-                    int compare = compare_pair_to_leafentry(brt, curr_geq_pivot, le);
+                    int compare = compare_pairs(brt, curr_geq_pivot, &kdbt);
                     VERIFY_ASSERTION(compare >= 0, j, "The leafentry is < the upper-bound pivot");
                 }
                 if (0 < j) {
-                    LEAFENTRY prev_le = get_ith_leafentry(bn, j-1);
-                    int compare = compare_leafentries(brt, prev_le, le);
+                    DBT prev_key_dbt = get_ith_key_dbt(bn, j-1);
+                    int compare = compare_pairs(brt, &prev_key_dbt, &kdbt);
                     VERIFY_ASSERTION(compare < 0, j, "Adjacent leafentries are out of order");
                 }
             }
         }
-    } 
-    
+    }
+
 done:
     return result;
 }

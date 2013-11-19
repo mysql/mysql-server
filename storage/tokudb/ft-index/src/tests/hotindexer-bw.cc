@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -170,7 +171,7 @@ static void * client(void *arg)
 
         while ( retry++ < 10 ) {
             toku_mutex_lock(&put_lock);
-            rr = env->put_multiple(env,
+            rr = env_put_multiple_test_no_array(env,
                                    cs->dbs[0],
                                    txn,
                                    &key, 

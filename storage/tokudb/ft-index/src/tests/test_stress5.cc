@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -130,6 +131,10 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[1].operation = scan_op;
 
     // make the guy that updates the db
+    struct loader_op_extra loe;
+    loe.soe = soe[0];
+    loe.num_dbs = 3;
+    myargs[2].operation_extra = &loe;
     myargs[2].operation = loader_op;
     myargs[3].operation = keyrange_op;
     myargs[4].operation = get_key_after_bytes_op;

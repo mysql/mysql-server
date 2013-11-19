@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -98,7 +99,13 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 
 
-static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT_ARRAY *dest_key_arrays, DBT_ARRAY *dest_val_arrays, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
+    dest_key->flags = 0;
+    dest_val->flags = 0;
     dbt_init(dest_key, src_key->data, src_key->size);
     dbt_init(dest_val, src_val->data, src_val->size);
     return 0;

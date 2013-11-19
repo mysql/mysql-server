@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -96,12 +97,12 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 
 static int
-put_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), DBT *dest_val __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused))) {
+put_multiple_callback(DB *dest_db UU(), DB *src_db UU(), DBT_ARRAY *dest_keys UU(), DBT_ARRAY *dest_vals UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
     return 0;
 }
 
 static int
-del_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused))) {
+del_multiple_callback(DB *dest_db UU(), DB *src_db UU(), DBT_ARRAY *dest_keys UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
     return 0;
 }
 
@@ -158,7 +159,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = txn->commit(txn,0); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->put_multiple(
+    r = env_put_multiple_test_no_array(
         env, db, txn,
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
@@ -166,7 +167,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = txn->commit(txn,0); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->put_multiple(
+    r = env_put_multiple_test_no_array(
         env, NULL, txn,
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
@@ -176,7 +177,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     flags = DB_DELETE_ANY;
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->del_multiple(
+    r = env_del_multiple_test_no_array(
         env, db, txn,
         &key, &val,
         1, &db, &in_key, &flags);
@@ -184,7 +185,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = txn->commit(txn,0); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->del_multiple(
+    r = env_del_multiple_test_no_array(
         env, NULL, txn,
         &key, &val,
         1, &db, &in_key, &flags);
@@ -194,7 +195,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     flags = 0;
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->update_multiple(
+    r = env_update_multiple_test_no_array(
         env, NULL, txn,
         &key, &val,
         &key, &val,
@@ -205,7 +206,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = txn->commit(txn,0); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->update_multiple(
+    r = env_update_multiple_test_no_array(
         env, db, txn,
         &key, &val,
         &key, &val,
@@ -367,14 +368,14 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
     dbt_init(&key, "a", 2);
     dbt_init(&val, "a", 2);
-    env->put_multiple(
+    env_put_multiple_test_no_array(
         env, NULL, txna,
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
     CKERR(r);
     dbt_init(&key, "b", 2);
     dbt_init(&val, "b", 2);
-    env->put_multiple(
+    env_put_multiple_test_no_array(
         env, NULL, txnb,
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
@@ -388,14 +389,14 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
     dbt_init(&key, "a", 2);
     dbt_init(&val, "a", 2);
-    env->del_multiple(
+    env_del_multiple_test_no_array(
         env, NULL, txna,
         &key, &val,
         1, &db, &in_key, &flags);
     CKERR(r);
     dbt_init(&key, "b", 2);
     dbt_init(&val, "b", 2);
-    env->del_multiple(
+    env_del_multiple_test_no_array(
         env, db, txnb,
         &key, &val,
         1, &db, &in_key, &flags);
@@ -411,7 +412,7 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
     dbt_init(&key, "a", 2);
     dbt_init(&val, "a", 2);
-    env->update_multiple(
+    env_update_multiple_test_no_array(
         env, NULL, txna,
         &key, &val,
         &key, &val,
@@ -421,7 +422,7 @@ int test_main (int argc, char * const argv[]) {
     CKERR(r);
     dbt_init(&key, "b", 2);
     dbt_init(&val, "b", 2);
-    env->update_multiple(
+    env_update_multiple_test_no_array(
         env, db, txnb,
         &key, &val,
         &key, &val,

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -88,6 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
+#include "bndata.h"
 
 
 
@@ -95,66 +97,46 @@ PATENT RIGHTS GRANT:
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #endif
 
-static int omt_int_cmp(OMTVALUE p, void *q)
-{
-    LEAFENTRY CAST_FROM_VOIDP(a, p);
-    LEAFENTRY CAST_FROM_VOIDP(b, q);
-    void *ak, *bk;
-    uint32_t al, bl;
-    ak = le_key_and_len(a, &al);
-    bk = le_key_and_len(b, &bl);
-    assert(al == 4 && bl == 4);
-    int ai = *(int *) ak;
-    int bi = *(int *) bk;
-    int c = ai - bi;
-    if (c < 0) { return -1; }
-    if (c > 0) { return +1; }
-    else       { return  0; }
-}
-
-
-static int omt_cmp(OMTVALUE p, void *q)
-{
-    LEAFENTRY CAST_FROM_VOIDP(a, p);
-    LEAFENTRY CAST_FROM_VOIDP(b, q);
-    void *ak, *bk;
-    uint32_t al, bl;
-    ak = le_key_and_len(a, &al);
-    bk = le_key_and_len(b, &bl);
-    int l = MIN(al, bl);
-    int c = memcmp(ak, bk, l);
-    if (c < 0) { return -1; }
-    if (c > 0) { return +1; }
-    int d = al - bl;
-    if (d < 0) { return -1; }
-    if (d > 0) { return +1; }
-    else       { return  0; }
-}
-
 static size_t
 calc_le_size(int keylen, int vallen) {
-    size_t rval;
-    LEAFENTRY le;
-    rval = sizeof(le->type) + sizeof(le->keylen) + sizeof(le->u.clean.vallen) + keylen + vallen;
-    return rval;
+    return LE_CLEAN_MEMSIZE(vallen) + keylen + sizeof(uint32_t);
 }
 
-static LEAFENTRY
+static void
+le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const char *val, int valsize)
+{
+    LEAFENTRY r = NULL;
+    uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    bn->get_space_for_insert(
+        idx, 
+        key,
+        keysize,
+        size_needed,
+        &r
+        );
+    resource_assert(r);
+    r->type = LE_CLEAN;
+    r->u.clean.vallen = valsize;
+    memcpy(r->u.clean.val, val, valsize);
+}
+
+static KLPAIR
 le_fastmalloc(struct mempool * mp, const char *key, int keylen, const char *val, int vallen)
 {
-    LEAFENTRY le;
+    KLPAIR kl;
     size_t le_size = calc_le_size(keylen, vallen);
-    CAST_FROM_VOIDP(le, toku_mempool_malloc(mp, le_size, 1));
-    resource_assert(le);
+    CAST_FROM_VOIDP(kl, toku_mempool_malloc(mp, le_size, 1));
+    resource_assert(kl);
+    kl->keylen = keylen;
+    memcpy(kl->key_le, key, keylen);
+    LEAFENTRY le = get_le_from_klpair(kl);
     le->type = LE_CLEAN;
-    le->keylen = keylen;
     le->u.clean.vallen = vallen;
-    memcpy(&le->u.clean.key_val[0], key, keylen);
-    memcpy(&le->u.clean.key_val[keylen], val, vallen);
-    return le;
+    memcpy(le->u.clean.val, val, vallen);
+    return kl;
 }
 
-static LEAFENTRY
+static KLPAIR
 le_malloc(struct mempool * mp, const char *key, const char *val)
 {
     int keylen = strlen(key) + 1;
@@ -168,14 +150,6 @@ struct check_leafentries_struct {
     int i;
     int (*cmp)(OMTVALUE, void *);
 };
-
-static int check_leafentries(OMTVALUE v, uint32_t UU(i), void *extra) {
-    struct check_leafentries_struct *CAST_FROM_VOIDP(e, extra);
-    assert(e->i < e->nelts);
-    assert(e->cmp(v, e->elts[e->i]) == 0);
-    e->i++;
-    return 0;
-}
 
 enum ftnode_verify_type {
     read_all=1,
@@ -317,23 +291,10 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
     set_BLB(&sn, 1, toku_create_empty_bn());
-    LEAFENTRY elts[3];
-    {
-	BASEMENTNODE bn = BLB(&sn,0);
-	struct mempool * mp0 = &bn->buffer_mempool;
-	bn = BLB(&sn,1);
-	struct mempool * mp1 = &bn->buffer_mempool;
-	toku_mempool_construct(mp0, 1024);
-	toku_mempool_construct(mp1, 1024);
-	elts[0] = le_malloc(mp0, "a", "aval");
-	elts[1] = le_malloc(mp0, "b", "bval");
-	elts[2] = le_malloc(mp1, "x", "xval");
-	r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[1], omt_cmp, elts[1], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[2], omt_cmp, elts[2], NULL); assert(r==0);
-    }
-    BLB_NBYTESINBUF(&sn, 0) = 2*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
-    BLB_NBYTESINBUF(&sn, 1) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
+    KLPAIR elts[3];
+    le_add_to_bn(BLB_DATA(&sn, 0), 0, "a", 2, "aval", 5);
+    le_add_to_bn(BLB_DATA(&sn, 0), 1, "b", 2, "bval", 5);
+    le_add_to_bn(BLB_DATA(&sn, 1), 0, "x", 2, "xval", 5);
     BLB_MAX_MSN_APPLIED(&sn, 0) = ((MSN) { MIN_MSN.msn + 73 });
     BLB_MAX_MSN_APPLIED(&sn, 1) = POSTSERIALIZE_MSN_ON_DISK;
 
@@ -383,35 +344,40 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     assert(dn->n_children>=1);
     assert(dn->max_msn_applied_to_node_on_disk.msn == POSTSERIALIZE_MSN_ON_DISK.msn);
     {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	toku_mempool_construct(&dummy_mp, 1024);
-	elts[0] = le_malloc(&dummy_mp, "a", "aval");
-	elts[1] = le_malloc(&dummy_mp, "b", "bval");
-	elts[2] = le_malloc(&dummy_mp, "x", "xval");
+        // Man, this is way too ugly.  This entire test suite needs to be refactored.
+        // Create a dummy mempool and put the leaves there.  Ugh.
+        struct mempool dummy_mp;
+        toku_mempool_construct(&dummy_mp, 1024);
+        elts[0] = le_malloc(&dummy_mp, "a", "aval");
+        elts[1] = le_malloc(&dummy_mp, "b", "bval");
+        elts[2] = le_malloc(&dummy_mp, "x", "xval");
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(BLB_MAX_MSN_APPLIED(dn, i).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
+        for (uint32_t bn = 0; bn < npartitions; ++bn) {
+            assert(BLB_MAX_MSN_APPLIED(dn, bn).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
+            assert(dest_ndd[bn].start > 0);
+            assert(dest_ndd[bn].size  > 0);
+            if (bn > 0) {
+                assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            uint32_t keylen;
-            if (i < npartitions-1) {
-                assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+                LEAFENTRY curr_le;
+                uint32_t curr_keylen;
+                void* curr_key;
+                BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(elts[last_i])));
+                assert(memcmp(curr_le, get_le_from_klpair(elts[last_i]), leafentry_memsize(curr_le)) == 0);
+                if (bn < npartitions-1) {
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i]->key_le)) <= 0);
+                }
+                // TODO for later, get a key comparison here as well
+                last_i++;
             }
-            // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
+
         }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == 3);
+        toku_mempool_destroy(&dummy_mp);
+        assert(last_i == 3);
     }
     toku_ftnode_free(&dn);
 
@@ -419,9 +385,6 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
         toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
-        BASEMENTNODE bn = BLB(&sn, i);
-        struct mempool * mp = &bn->buffer_mempool;
-        toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -442,7 +405,8 @@ static void
 test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
-    const int keylens = 256*1024, vallens = 0, nrows = 8;
+    const int keylens = 256*1024, vallens = 0;
+    const uint32_t nrows = 8;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
     int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
@@ -461,25 +425,19 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-	set_BLB(&sn, i, toku_create_empty_bn());
+        set_BLB(&sn, i, toku_create_empty_bn());
     }
-    for (int i = 0; i < nrows; ++i) {  // one basement per row
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	size_t le_size = calc_le_size(keylens, vallens);
-	size_t mpsize = le_size;       // one basement per row implies one row per basement
-	toku_mempool_construct(mp, mpsize);
+    for (uint32_t i = 0; i < nrows; ++i) {  // one basement per row
         char key[keylens], val[vallens];
         key[keylens-1] = '\0';
-	char c = 'a' + i;
-	memset(key, c, keylens-1);
-	LEAFENTRY le = le_fastmalloc(mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
-        r = toku_omt_insert(BLB_BUFFER(&sn, i), le, omt_cmp, le, NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, i) = leafentry_disksize(le);
+        char c = 'a' + i;
+        memset(key, c, keylens-1);
+        le_add_to_bn(BLB_DATA(&sn, i), 0, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
         if (i < nrows-1) {
             uint32_t keylen;
-            char *CAST_FROM_VOIDP(keyp, le_key_and_len(le, &keylen));
-            toku_memdup_dbt(&sn.childkeys[i], keyp, keylen);
+            void* curr_key;
+            BLB_DATA(&sn, i)->fetch_le_key_and_len(0, &keylen, &curr_key);
+            toku_memdup_dbt(&sn.childkeys[i], curr_key, keylen);
         }
     }
 
@@ -524,40 +482,48 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
     {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	size_t le_size = calc_le_size(keylens, vallens);
-	size_t mpsize = nrows * le_size;
-	toku_mempool_construct(&dummy_mp, mpsize);
-	LEAFENTRY les[nrows];
-	{
-	    char key[keylens], val[vallens];
-	    key[keylens-1] = '\0';
-	    for (int i = 0; i < nrows; ++i) {
-		char c = 'a' + i;
-		memset(key, c, keylens-1);
-		les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
-	    }
-	}
+        // Man, this is way too ugly.  This entire test suite needs to be refactored.
+        // Create a dummy mempool and put the leaves there.  Ugh.
+        struct mempool dummy_mp;
+        size_t le_size = calc_le_size(keylens, vallens);
+        size_t mpsize = nrows * le_size;
+        toku_mempool_construct(&dummy_mp, mpsize);
+        KLPAIR les[nrows];
+        {
+            char key[keylens], val[vallens];
+            key[keylens-1] = '\0';
+            for (uint32_t i = 0; i < nrows; ++i) {
+                char c = 'a' + i;
+                memset(key, c, keylens-1);
+                les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
+            }
+        }
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(keylens*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
+        for (uint32_t bn = 0; bn < npartitions; ++bn) {
+            assert(dest_ndd[bn].start > 0);
+            assert(dest_ndd[bn].size  > 0);
+            if (bn > 0) {
+                assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+keylens+vallens) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
+            assert(BLB_DATA(dn, bn)->omt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+                LEAFENTRY curr_le;
+                uint32_t curr_keylen;
+                void* curr_key;
+                BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
+                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                if (bn < npartitions-1) {
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i]->key_le)) <= 0);
+                }
+                // TODO for later, get a key comparison here as well
+                last_i++;
+            }
         }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == nrows);
+        toku_mempool_destroy(&dummy_mp);
+        assert(last_i == nrows);
     }
 
     toku_ftnode_free(&dn);
@@ -566,10 +532,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     }
     toku_free(sn.childkeys);
     for (int i = 0; i < sn.n_children; i++) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-	destroy_basement_node(BLB(&sn, i));
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
 
@@ -588,8 +551,8 @@ static void
 test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
-    const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
-    // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
+    const int keylens = sizeof(int), vallens = sizeof(int);
+    const uint32_t nrows = 196*1024;
     int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
@@ -607,22 +570,12 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-	set_BLB(&sn, i, toku_create_empty_bn()); 
+        set_BLB(&sn, i, toku_create_empty_bn()); 
     }
-    BLB_NBYTESINBUF(&sn, 0) = 0;
-    BASEMENTNODE bn = BLB(&sn,0);
-    struct mempool * mp = &bn->buffer_mempool;
-    {
-	size_t le_size = calc_le_size(keylens, vallens);
-	size_t mpsize = nrows * le_size;  // one basement, so all rows must fit in this one mempool
-	toku_mempool_construct(mp, mpsize);
-    }
-    for (int i = 0; i < nrows; ++i) {
-	int key = i;
-	int val = i;
-	LEAFENTRY le = le_fastmalloc(mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
-        r = toku_omt_insert(BLB_BUFFER(&sn, 0), le, omt_int_cmp, le, NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, 0) += leafentry_disksize(le);
+    for (uint32_t i = 0; i < nrows; ++i) {
+        uint32_t key = i;
+        uint32_t val = i;
+        le_add_to_bn(BLB_DATA(&sn, 0), i, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
     }
 
     FT_HANDLE XMALLOC(brt);
@@ -667,38 +620,50 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
     {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	size_t le_size = calc_le_size(keylens, vallens);
-	size_t mpsize = nrows * le_size;
-	toku_mempool_construct(&dummy_mp, mpsize);
-	LEAFENTRY les[nrows];
-	{
-	    int key = 0, val = 0;
-	    for (int i = 0; i < nrows; ++i, key++, val++) {
-		les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
-	    }
-	}
+        // Man, this is way too ugly.  This entire test suite needs to be refactored.
+        // Create a dummy mempool and put the leaves there.  Ugh.
+        struct mempool dummy_mp;
+        size_t le_size = calc_le_size(keylens, vallens);
+        size_t mpsize = nrows * le_size;
+        toku_mempool_construct(&dummy_mp, mpsize);
+        KLPAIR les[nrows];
+        {
+            int key = 0, val = 0;
+            for (uint32_t i = 0; i < nrows; ++i, key++, val++) {
+                les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
+            }
+        }
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(sizeof(int)*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_int_cmp };
         uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
+        for (uint32_t bn = 0; bn < npartitions; ++bn) {
+            assert(dest_ndd[bn].start > 0);
+            assert(dest_ndd[bn].size  > 0);
+            if (bn > 0) {
+                assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
+            assert(BLB_DATA(dn, bn)->omt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+                LEAFENTRY curr_le;
+                uint32_t curr_keylen;
+                void* curr_key;
+                BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
+                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                if (bn < npartitions-1) {
+                    uint32_t *CAST_FROM_VOIDP(pivot, dn->childkeys[bn].data);
+                    void* tmp = les[last_i]->key_le;
+                    uint32_t *CAST_FROM_VOIDP(item, tmp);
+                    assert(*pivot >= *item);
+                }
+                // TODO for later, get a key comparison here as well
+                last_i++;
+            }
             // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+keylens+vallens) + toku_omt_size(BLB_BUFFER(dn, i)));
-            assert(BLB_NBYTESINBUF(dn, i) < 128*1024);  // BN_MAX_SIZE, apt to change
-            last_i = extra.i;
+            assert(BLB_DATA(dn, bn)->get_disk_size() < 128*1024);  // BN_MAX_SIZE, apt to change
         }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == nrows);
+        toku_mempool_destroy(&dummy_mp);
+        assert(last_i == nrows);
     }
 
     toku_ftnode_free(&dn);
@@ -706,9 +671,6 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
         toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
-	bn = BLB(&sn, i);
-	mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -751,26 +713,16 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     sn.totalchildkeylens = (sn.n_children-1)*8;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-	set_BLB(&sn, i, toku_create_empty_bn());
+        set_BLB(&sn, i, toku_create_empty_bn());
     }
-    BASEMENTNODE bn = BLB(&sn,0);
-    struct mempool * mp = &bn->buffer_mempool;
-    {
-	size_t le_size = calc_le_size(key_size, val_size);
-	size_t mpsize = nrows * le_size;  // one basement, so all rows must fit in this one mempool
-	toku_mempool_construct(mp, mpsize);
-    }
-    BLB_NBYTESINBUF(&sn, 0) = 0;
     for (uint32_t i = 0; i < nrows; ++i) {
         char key[key_size], val[val_size];
         key[key_size-1] = '\0';
         val[val_size-1] = '\0';
-	char c = 'a' + i;
-	memset(key, c, key_size-1);
-	memset(val, c, val_size-1);
-	LEAFENTRY le = le_fastmalloc(mp, key, 8, val, val_size);
-        r = toku_omt_insert(BLB_BUFFER(&sn, 0), le, omt_cmp, le, NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, 0) += leafentry_disksize(le);
+        char c = 'a' + i;
+        memset(key, c, key_size-1);
+        memset(val, c, val_size-1);
+        le_add_to_bn(BLB_DATA(&sn, 0), i,key, 8, val, val_size);
     }
 
     FT_HANDLE XMALLOC(brt);
@@ -815,43 +767,52 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
     {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	size_t le_size = calc_le_size(key_size, val_size);
-	size_t mpsize = nrows * le_size;
-	toku_mempool_construct(&dummy_mp, mpsize);
-	LEAFENTRY les[nrows];
-	{
-	    char key[key_size], val[val_size];
-	    key[key_size-1] = '\0';
-	    val[val_size-1] = '\0';
-	    for (uint32_t i = 0; i < nrows; ++i) {
-		char c = 'a' + i;
-		memset(key, c, key_size-1);
-		memset(val, c, val_size-1);
-		les[i] = le_fastmalloc(&dummy_mp, key, key_size, val, val_size);
-	    }
-	}
+        // Man, this is way too ugly.  This entire test suite needs to be refactored.
+        // Create a dummy mempool and put the leaves there.  Ugh.
+        struct mempool dummy_mp;
+        size_t le_size = calc_le_size(key_size, val_size);
+        size_t mpsize = nrows * le_size;
+        toku_mempool_construct(&dummy_mp, mpsize);
+        KLPAIR les[nrows];
+        {
+            char key[key_size], val[val_size];
+            key[key_size-1] = '\0';
+            val[val_size-1] = '\0';
+            for (uint32_t i = 0; i < nrows; ++i) {
+                char c = 'a' + i;
+                memset(key, c, key_size-1);
+                memset(val, c, val_size-1);
+                les[i] = le_fastmalloc(&dummy_mp, key, key_size, val, val_size);
+            }
+        }
         const uint32_t npartitions = dn->n_children;
         assert(npartitions == nrows);
         assert(dn->totalchildkeylens==(key_size*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
+        for (uint32_t bn = 0; bn < npartitions; ++bn) {
+            assert(dest_ndd[bn].start > 0);
+            assert(dest_ndd[bn].size  > 0);
+            if (bn > 0) {
+                assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
+            assert(BLB_DATA(dn, bn)->omt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+                LEAFENTRY curr_le;
+                uint32_t curr_keylen;
+                void* curr_key;
+                BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
+                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                if (bn < npartitions-1) {
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i]->key_le)) <= 0);
+                }
+                // TODO for later, get a key comparison here as well
+                last_i++;
+            }
             // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+8+val_size) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
         }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == 7);
+        toku_mempool_destroy(&dummy_mp);
+        assert(last_i == 7);
     }
 
     toku_ftnode_free(&dn);
@@ -859,9 +820,6 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
         toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
-	bn = BLB(&sn, i);
-	mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -907,34 +865,13 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-	set_BLB(&sn, i, toku_create_empty_bn());
+        set_BLB(&sn, i, toku_create_empty_bn());
         BLB_SEQINSERT(&sn, i) = 0;
     }
-    LEAFENTRY elts[3];
-    {
-	BASEMENTNODE bn = BLB(&sn,1);
-	struct mempool * mp1 = &bn->buffer_mempool;
-	bn = BLB(&sn,3);
-	struct mempool * mp3 = &bn->buffer_mempool;
-	bn = BLB(&sn,5);
-	struct mempool * mp5 = &bn->buffer_mempool;
-	toku_mempool_construct(mp1, 1024);
-	toku_mempool_construct(mp3, 1024);
-	toku_mempool_construct(mp5, 1024);	
-	elts[0] = le_malloc(mp1, "a", "aval");
-	elts[1] = le_malloc(mp3, "b", "bval");
-	elts[2] = le_malloc(mp5, "x", "xval");
-	r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 3), elts[1], omt_cmp, elts[1], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 5), elts[2], omt_cmp, elts[2], NULL); assert(r==0);
-    }
-    BLB_NBYTESINBUF(&sn, 0) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
-    BLB_NBYTESINBUF(&sn, 1) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
-    BLB_NBYTESINBUF(&sn, 2) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 2));
-    BLB_NBYTESINBUF(&sn, 3) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 3));
-    BLB_NBYTESINBUF(&sn, 4) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 4));
-    BLB_NBYTESINBUF(&sn, 5) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 5));
-    BLB_NBYTESINBUF(&sn, 6) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 6));
+    KLPAIR elts[3];
+    le_add_to_bn(BLB_DATA(&sn, 1), 0, "a", 2, "aval", 5);
+    le_add_to_bn(BLB_DATA(&sn, 3), 0, "b", 2, "bval", 5);
+    le_add_to_bn(BLB_DATA(&sn, 5), 0, "x", 2, "xval", 5);
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
@@ -980,31 +917,39 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     assert(dn->height == 0);
     assert(dn->n_children>0);
     {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	toku_mempool_construct(&dummy_mp, 1024);
-	elts[0] = le_malloc(&dummy_mp, "a", "aval");
-	elts[1] = le_malloc(&dummy_mp, "b", "bval");
-	elts[2] = le_malloc(&dummy_mp, "x", "xval");
+        // Man, this is way too ugly.  This entire test suite needs to be refactored.
+        // Create a dummy mempool and put the leaves there.  Ugh.
+        struct mempool dummy_mp;
+        toku_mempool_construct(&dummy_mp, 1024);
+        elts[0] = le_malloc(&dummy_mp, "a", "aval");
+        elts[1] = le_malloc(&dummy_mp, "b", "bval");
+        elts[2] = le_malloc(&dummy_mp, "x", "xval");
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
+        for (uint32_t bn = 0; bn < npartitions; ++bn) {
+            assert(dest_ndd[bn].start > 0);
+            assert(dest_ndd[bn].size  > 0);
+            if (bn > 0) {
+                assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+                LEAFENTRY curr_le;
+                uint32_t curr_keylen;
+                void* curr_key;
+                BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(elts[last_i])));
+                assert(memcmp(curr_le, get_le_from_klpair(elts[last_i]), leafentry_memsize(curr_le)) == 0);
+                if (bn < npartitions-1) {
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i]->key_le)) <= 0);
+                }
+                // TODO for later, get a key comparison here as well
+                last_i++;
+            }
+
         }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == 3);
+        toku_mempool_destroy(&dummy_mp);
+        assert(last_i == 3);
     }
     toku_ftnode_free(&dn);
 
@@ -1012,9 +957,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
         toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -1056,12 +998,8 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-	set_BLB(&sn, i, toku_create_empty_bn());
+        set_BLB(&sn, i, toku_create_empty_bn());
     }
-    BLB_NBYTESINBUF(&sn, 0) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
-    BLB_NBYTESINBUF(&sn, 1) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
-    BLB_NBYTESINBUF(&sn, 2) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 2));
-    BLB_NBYTESINBUF(&sn, 3) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 3));
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
@@ -1110,21 +1048,14 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     {
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = 0, .elts = NULL, .i = 0, .cmp = omt_cmp };
-        uint32_t last_i = 0;
         for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
                 assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
-            assert(toku_omt_size(BLB_BUFFER(dn, i)) == 0);
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
+            assert(BLB_DATA(dn, i)->omt_size() == 0);
         }
-        assert(extra.i == 0);
     }
     toku_ftnode_free(&dn);
 
@@ -1148,149 +1079,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     r = close(fd); assert(r != -1);
 }
 
-
-static void
-test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
-    //    struct ft_handle source_ft;
-    struct ftnode sn, *dn;
-
-    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
-
-    int r;
-    FTNODE_DISK_DATA src_ndd = NULL;
-    FTNODE_DISK_DATA dest_ndd = NULL;
-
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = FT_LAYOUT_VERSION;
-    sn.layout_version_original = FT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.n_children = 2;
-    sn.dirty = 1;
-    sn.oldest_referenced_xid_known = TXNID_NONE;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
-    sn.totalchildkeylens = 2;
-    BP_STATE(&sn,0) = PT_AVAIL;
-    BP_STATE(&sn,1) = PT_AVAIL;
-    set_BLB(&sn, 0, toku_create_empty_bn());
-    set_BLB(&sn, 1, toku_create_empty_bn());
-    LEAFENTRY elts[3];
-    {
-	BASEMENTNODE bn = BLB(&sn,0);
-	struct mempool * mp0 = &bn->buffer_mempool;
-	bn = BLB(&sn,1);
-	struct mempool * mp1 = &bn->buffer_mempool;
-	toku_mempool_construct(mp0, 1024);
-	toku_mempool_construct(mp1, 1024);
-	elts[0] = le_malloc(mp0, "a", "aval");
-	elts[1] = le_malloc(mp0, "b", "bval");
-	elts[2] = le_malloc(mp1, "x", "xval");
-	r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[1], omt_cmp, elts[1], NULL); assert(r==0);
-	r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[2], omt_cmp, elts[2], NULL); assert(r==0);
-    }
-    BLB_NBYTESINBUF(&sn, 0) = 2*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
-    BLB_NBYTESINBUF(&sn, 1) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
-
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
-                 make_blocknum(0),
-                 ZERO_LSN,
-                 TXNID_NONE,
-                 4*1024*1024,
-                 128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
-    brt->ft = brt_h;
-    
-    toku_blocktable_create_new(&brt_h->blocktable);
-    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
-    //Want to use block #20
-    BLOCKNUM b = make_blocknum(0);
-    while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
-    }
-    assert(b.b == 20);
-
-    {
-        DISKOFF offset;
-        DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
-        assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
-        assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-        assert(size   == 100);
-    }
-
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
-
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
-
-    assert(dn->thisnodename.b==20);
-
-    assert(dn->layout_version ==FT_LAYOUT_VERSION);
-    assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
-    assert(dn->layout_version_read_from_disk ==FT_LAYOUT_VERSION);
-    assert(dn->height == 0);
-    assert(dn->n_children>=1);
-    {
-	// Man, this is way too ugly.  This entire test suite needs to be refactored.
-	// Create a dummy mempool and put the leaves there.  Ugh.
-	struct mempool dummy_mp;
-	toku_mempool_construct(&dummy_mp, 1024);
-	elts[0] = le_malloc(&dummy_mp, "a", "aval");
-	elts[1] = le_malloc(&dummy_mp, "b", "bval");
-	elts[2] = le_malloc(&dummy_mp, "x", "xval");
-        const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(2*(npartitions-1)));
-        struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
-        uint32_t last_i = 0;
-        for (uint32_t i = 0; i < npartitions; ++i) {
-            assert(dest_ndd[i].start > 0);
-            assert(dest_ndd[i].size  > 0);
-            if (i > 0) {
-                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
-            }
-            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            uint32_t keylen;
-            if (i < npartitions-1) {
-                assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
-            }
-            // don't check soft_copy_is_up_to_date or seqinsert
-            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
-            last_i = extra.i;
-        }
-	toku_mempool_destroy(&dummy_mp);
-        assert(extra.i == 3);
-    }
-    toku_ftnode_free(&dn);
-
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
-
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
-    toku_free(src_ndd);
-    toku_free(dest_ndd);
-
-    r = close(fd); assert(r != -1);
-}
 
 static void
 test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
@@ -1418,47 +1206,12 @@ int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     initialize_dummymsn();
 
-    test_serialize_leaf(read_none, false);
-    test_serialize_leaf(read_all, false);
-    test_serialize_leaf(read_compressed, false);
-    test_serialize_leaf(read_none, true);
-    test_serialize_leaf(read_all, true);
-    test_serialize_leaf(read_compressed, true);
-
-    test_serialize_leaf_with_empty_basement_nodes(read_none, false);
-    test_serialize_leaf_with_empty_basement_nodes(read_all, false);
-    test_serialize_leaf_with_empty_basement_nodes(read_compressed, false);
-    test_serialize_leaf_with_empty_basement_nodes(read_none, true);
-    test_serialize_leaf_with_empty_basement_nodes(read_all, true);
-    test_serialize_leaf_with_empty_basement_nodes(read_compressed, true);
-
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, false);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, false);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, false);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, true);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, true);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, true);
-
-    test_serialize_leaf_with_large_rows(read_none, false);
-    test_serialize_leaf_with_large_rows(read_all, false);
-    test_serialize_leaf_with_large_rows(read_compressed, false);
-    test_serialize_leaf_with_large_rows(read_none, true);
-    test_serialize_leaf_with_large_rows(read_all, true);
-    test_serialize_leaf_with_large_rows(read_compressed, true);
-
-    test_serialize_leaf_with_many_rows(read_none, false);
-    test_serialize_leaf_with_many_rows(read_all, false);
-    test_serialize_leaf_with_many_rows(read_compressed, false);
-    test_serialize_leaf_with_many_rows(read_none, true);
-    test_serialize_leaf_with_many_rows(read_all, true);
-    test_serialize_leaf_with_many_rows(read_compressed, true);
-
-    test_serialize_leaf_with_large_pivots(read_none, false);
-    test_serialize_leaf_with_large_pivots(read_all, false);
-    test_serialize_leaf_with_large_pivots(read_compressed, false);
-    test_serialize_leaf_with_large_pivots(read_none, true);
-    test_serialize_leaf_with_large_pivots(read_all, true);
-    test_serialize_leaf_with_large_pivots(read_compressed, true);
+    test_serialize_nonleaf(read_none, false);
+    test_serialize_nonleaf(read_all, false);
+    test_serialize_nonleaf(read_compressed, false);
+    test_serialize_nonleaf(read_none, true);
+    test_serialize_nonleaf(read_all, true);
+    test_serialize_nonleaf(read_compressed, true);
 
     test_serialize_leaf_check_msn(read_none, false);
     test_serialize_leaf_check_msn(read_all, false);
@@ -1467,12 +1220,40 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     test_serialize_leaf_check_msn(read_all, true);
     test_serialize_leaf_check_msn(read_compressed, true);
 
-    test_serialize_nonleaf(read_none, false);
-    test_serialize_nonleaf(read_all, false);
-    test_serialize_nonleaf(read_compressed, false);
-    test_serialize_nonleaf(read_none, true);
-    test_serialize_nonleaf(read_all, true);
-    test_serialize_nonleaf(read_compressed, true);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, true);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, true);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, true);
+
+    test_serialize_leaf_with_empty_basement_nodes(read_none, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_none, true);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, true);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, true);
+
+    test_serialize_leaf_with_large_rows(read_none, false);
+    test_serialize_leaf_with_large_rows(read_all, false);
+    test_serialize_leaf_with_large_rows(read_compressed, false);
+    test_serialize_leaf_with_large_rows(read_none, true);
+    test_serialize_leaf_with_large_rows(read_all, true);
+    test_serialize_leaf_with_large_rows(read_compressed, true);
+
+    test_serialize_leaf_with_large_pivots(read_none, false);
+    test_serialize_leaf_with_large_pivots(read_all, false);
+    test_serialize_leaf_with_large_pivots(read_compressed, false);
+    test_serialize_leaf_with_large_pivots(read_none, true);
+    test_serialize_leaf_with_large_pivots(read_all, true);
+    test_serialize_leaf_with_large_pivots(read_compressed, true);
+
+    test_serialize_leaf_with_many_rows(read_none, false);
+    test_serialize_leaf_with_many_rows(read_all, false);
+    test_serialize_leaf_with_many_rows(read_compressed, false);
+    test_serialize_leaf_with_many_rows(read_none, true);
+    test_serialize_leaf_with_many_rows(read_all, true);
+    test_serialize_leaf_with_many_rows(read_compressed, true);
 
     return 0;
 }

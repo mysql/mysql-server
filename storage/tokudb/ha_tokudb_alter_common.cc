@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -126,7 +127,7 @@ static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print
             retval = false;
             goto cleanup;
         }
-        if (curr_orig_key->option_struct->clustering != curr_altered_key->option_struct->clustering) {
+        if (key_is_clustering(curr_orig_key) != key_is_clustering(curr_altered_key)) {
             if (print_error) {
                 sql_print_error(
                     "keys disagree on if they are clustering, %d, %d",

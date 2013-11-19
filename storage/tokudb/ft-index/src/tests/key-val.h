@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -174,27 +175,19 @@ static uint32_t UU() pkey_for_val(int key, int i) {
 
 // There is no handlerton in this test, so this function is a local replacement
 // for the handlerton's generate_row_for_put().
-static int UU() put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
-
+static int UU() put_multiple_generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
     (void) src_db;
+    (void) src_val;
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
 
-    if ( which == 0 ) {
-        if (dest_key->flags==DB_DBT_REALLOC) {
-            if (dest_key->data) toku_free(dest_key->data);
-            dest_key->flags = 0;
-            dest_key->ulen  = 0;
-        }
-        if (dest_val->flags==DB_DBT_REALLOC) {
-            if (dest_val->data) toku_free(dest_val->data);
-            dest_val->flags = 0;
-            dest_val->ulen  = 0;
-        }
-        dbt_init(dest_key, src_key->data, src_key->size);
-        dbt_init(dest_val, src_val->data, src_val->size);
-    }
-    else {
+    assert(which != 0);
+    assert(dest_db != src_db);
+    {
         assert(dest_key->flags==DB_DBT_REALLOC);
         if (dest_key->ulen < sizeof(uint32_t)) {
             dest_key->data = toku_xrealloc(dest_key->data, sizeof(uint32_t));
@@ -217,6 +210,30 @@ static int UU() put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DB
     }
 
 //    printf("pmg : dest_key.data = %u, dest_val.data = %u \n", *(unsigned int*)dest_key->data, *(unsigned int*)dest_val->data);
+
+    return 0;
+}
+
+UU()
+static int put_multiple_generate_switch(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    dest_key->flags = 0;
+    dest_val->flags = 0;
+
+    (void) src_db;
+
+    uint32_t which = (uint32_t) (intptr_t) dest_db->app_private;
+    assert(which == 0);
+
+    // switch the key and val
+    dbt_init(dest_key, src_val->data, src_val->size);
+    dbt_init(dest_val, src_key->data, src_key->size);
+
+//    printf("dest_key.data = %d\n", *(int*)dest_key->data);
+//    printf("dest_val.data = %d\n", *(int*)dest_val->data);
 
     return 0;
 }

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -118,12 +119,12 @@ print_item (bytevec val, ITEMLEN len) {
     printf("\"");
     ITEMLEN i;
     for (i=0; i<len; i++) {
-	unsigned char ch = ((unsigned char*)val)[i];
-	if (isprint(ch) && ch!='\\' && ch!='"') {
-	    printf("%c", ch);
-	} else {
-	    printf("\\%03o", ch);
-	}
+        unsigned char ch = ((unsigned char*)val)[i];
+        if (isprint(ch) && ch!='\\' && ch!='"') {
+            printf("%c", ch);
+        } else {
+            printf("\\%03o", ch);
+        }
     }
     printf("\"");
 }
@@ -140,30 +141,30 @@ static void
 hex_dump(unsigned char *vp, uint64_t offset, uint64_t size) {
     uint64_t n = size / 32;
     for (uint64_t i = 0; i < n; i++) {
-	printf("%" PRIu64 ": ", offset);
-	for (uint64_t j = 0; j < 32; j++) {
-	    unsigned char c = vp[j];
-	    printf("%2.2X", c);
-	    if (((j+1) % 4) == 0)
-		printf(" ");
-	}
-	for (uint64_t j = 0; j < 32; j++) {
-	    unsigned char c = vp[j];
-	    printf("%c", isprint(c) ? c : ' ');
-	}
-	printf("\n");
-	vp += 32;
-	offset += 32;
+        printf("%" PRIu64 ": ", offset);
+        for (uint64_t j = 0; j < 32; j++) {
+            unsigned char c = vp[j];
+            printf("%2.2X", c);
+            if (((j+1) % 4) == 0)
+                printf(" ");
+        }
+        for (uint64_t j = 0; j < 32; j++) {
+            unsigned char c = vp[j];
+            printf("%c", isprint(c) ? c : ' ');
+        }
+        printf("\n");
+        vp += 32;
+        offset += 32;
     }
     size = size % 32;
     for (uint64_t i=0; i<size; i++) {
-	if ((i % 32) == 0)
-	    printf("%" PRIu64 ": ", offset+i);
-	printf("%2.2X", vp[i]);
-	if (((i+1) % 4) == 0)
-	    printf(" ");
-	if (((i+1) % 32) == 0)
-	    printf("\n");
+        if ((i % 32) == 0)
+            printf("%" PRIu64 ": ", offset+i);
+        printf("%2.2X", vp[i]);
+        if (((i+1) % 4) == 0)
+            printf(" ");
+        if (((i+1) % 32) == 0)
+            printf("\n");
     }
     printf("\n");
 }
@@ -212,12 +213,19 @@ dump_header(FT ft) {
 }
 
 static int
-print_le (OMTVALUE lev, uint32_t UU(idx), void *UU(v)) {
-    LEAFENTRY CAST_FROM_VOIDP(le, lev);
-    print_leafentry(stdout, le);
+print_le(
+    const void* key, 
+    const uint32_t keylen, 
+    const LEAFENTRY &le, 
+    const uint32_t idx UU(), 
+    void *const ai UU()
+    ) 
+{
+    print_klpair(stdout, key, keylen, le);
     printf("\n");
     return 0;
 }
+
 
 static void
 dump_node (int f, BLOCKNUM blocknum, FT h) {
@@ -256,7 +264,8 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
     for (int i=0; i<n->n_children-1; i++) {
         const DBT *piv = &n->childkeys[i];
         printf("  pivot %2d:", i);
-        assert(n->flags == 0);
+        if (n->flags)
+            printf(" flags=%x ", n->flags);
         print_item(piv->data, piv->size);
         printf("\n");
     }
@@ -295,20 +304,22 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
                                  printf(" xid=");
                                  xids_fprintf(stdout, xids);
                                  printf(" ");
-				 print_item(key, keylen);
-				 if (datalen>0) {
-				     printf(" ");
-				     print_item(data, datalen);
-				 }
-				 printf("\n");
-			     }
-			     );
-	    }
-	} else {
-	    printf(" n_bytes_in_buffer=%u", BLB_NBYTESINBUF(n, i));
-	    printf(" items_in_buffer=%u\n", toku_omt_size(BLB_BUFFER(n, i)));
-	    if (dump_data) toku_omt_iterate(BLB_BUFFER(n, i), print_le, 0);
-	}
+                                 print_item(key, keylen);
+                                 if (datalen>0) {
+                                     printf(" ");
+                                     print_item(data, datalen);
+                                 }
+                                 printf("\n");
+                             }
+                             );
+            }
+        } else {
+            printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());
+            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->omt_size());
+            if (dump_data) {
+                BLB_DATA(n, i)->omt_iterate<void, print_le>(NULL);
+            }
+        }
     }
     toku_ftnode_free(&n);
     toku_free(ndd);
@@ -359,7 +370,7 @@ nodesizes_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
             info->leafsizes += size;
             info->leafblocks++;
         }
-	toku_ftnode_free(&n);
+        toku_ftnode_free(&n);
         toku_free(ndd);
     }
     return 0;
@@ -562,24 +573,24 @@ main (int argc, const char *const argv[]) {
     const char *arg0 = argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0], "--nodata") == 0) {
-	    dump_data = 0;
-	} else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
-	    interactive = 1;
-	} else if (strcmp(argv[0], "--fragmentation") == 0) {
-	    fragmentation = 1;
-	} else if (strcmp(argv[0], "--tsv") == 0) {
-	    tsv = 1;
-	} else if (strcmp(argv[0], "--translation-table") == 0) {
-	    translation_table = 1;
-	} else if (strcmp(argv[0], "--rootnode") == 0) {
-	    rootnode = 1;
-	} else if (strcmp(argv[0], "--help") == 0) {
-	    return usage(arg0);
-	} else {
-	    break;
+        if (strcmp(argv[0], "--nodata") == 0) {
+            dump_data = 0;
+        } else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
+            interactive = 1;
+        } else if (strcmp(argv[0], "--fragmentation") == 0) {
+            fragmentation = 1;
+        } else if (strcmp(argv[0], "--tsv") == 0) {
+            tsv = 1;
+        } else if (strcmp(argv[0], "--translation-table") == 0) {
+            translation_table = 1;
+        } else if (strcmp(argv[0], "--rootnode") == 0) {
+            rootnode = 1;
+        } else if (strcmp(argv[0], "--help") == 0) {
+            return usage(arg0);
+        } else {
+            break;
         }
-	argc--; argv++;
+        argc--; argv++;
     }
     if (argc != 1) return usage(arg0);
 
@@ -602,72 +613,72 @@ main (int argc, const char *const argv[]) {
     if (interactive) {
         while (1) {
             printf("ftdump>"); fflush(stdout);
-	    enum { maxline = 64};
-	    char line[maxline+1];
-	    r = readline(line, maxline);
-	    if (r == EOF)
-		break;
-	    const int maxfields = 4;
-	    char *fields[maxfields];
-	    int nfields = split_fields(line, fields, maxfields);
-	    if (nfields == 0) 
-		continue;
-	    if (strcmp(fields[0], "help") == 0) {
-		interactive_help();
-	    } else if (strcmp(fields[0], "header") == 0) {
-		toku_ft_free(ft);
-		open_header(f, &ft, cf);
+            enum { maxline = 64};
+            char line[maxline+1];
+            r = readline(line, maxline);
+            if (r == EOF)
+                break;
+            const int maxfields = 4;
+            char *fields[maxfields];
+            int nfields = split_fields(line, fields, maxfields);
+            if (nfields == 0) 
+                continue;
+            if (strcmp(fields[0], "help") == 0) {
+                interactive_help();
+            } else if (strcmp(fields[0], "header") == 0) {
+                toku_ft_free(ft);
+                open_header(f, &ft, cf);
                 dump_header(ft);
-	    } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
-		BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
-		dump_block(f, blocknum, ft);
-	    } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
-		BLOCKNUM off = make_blocknum(getuint64(fields[1]));
-		dump_node(f, off, ft);
-	    } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
-		dump_data = strtol(fields[1], NULL, 10);
-	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
-		uint64_t offset = 0;
-		if (nfields == 2)
-		    offset = getuint64(fields[1]);
-		dump_block_translation(ft, offset);
-	    } else if (strcmp(fields[0], "fragmentation") == 0) {
-		dump_fragmentation(f, ft, tsv);
-	    } else if (strcmp(fields[0], "nodesizes") == 0) {
-		dump_nodesizes(f, ft);
+            } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
+                BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
+                dump_block(f, blocknum, ft);
+            } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
+                BLOCKNUM off = make_blocknum(getuint64(fields[1]));
+                dump_node(f, off, ft);
+            } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
+                dump_data = strtol(fields[1], NULL, 10);
+            } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
+                uint64_t offset = 0;
+                if (nfields == 2)
+                    offset = getuint64(fields[1]);
+                dump_block_translation(ft, offset);
+            } else if (strcmp(fields[0], "fragmentation") == 0) {
+                dump_fragmentation(f, ft, tsv);
+            } else if (strcmp(fields[0], "nodesizes") == 0) {
+                dump_nodesizes(f, ft);
             } else if (strcmp(fields[0], "garbage") == 0) {
                 dump_garbage_stats(f, ft);
-	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
-		uint64_t offset = getuint64(fields[1]);
-		uint64_t size = getuint64(fields[2]);
-		FILE *outfp = stdout;
-		if (nfields >= 4)
-		    outfp = fopen(fields[3], "w");
-		dump_file(f, offset, size, outfp);
-	    } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
-		uint64_t offset = getuint64(fields[1]);
-		unsigned char newc = getuint64(fields[2]);
-		set_file(f, offset, newc);
-	    } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
-		break;
-	    }
-	}
+            } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
+                uint64_t offset = getuint64(fields[1]);
+                uint64_t size = getuint64(fields[2]);
+                FILE *outfp = stdout;
+                if (nfields >= 4)
+                    outfp = fopen(fields[3], "w");
+                dump_file(f, offset, size, outfp);
+            } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
+                uint64_t offset = getuint64(fields[1]);
+                unsigned char newc = getuint64(fields[2]);
+                set_file(f, offset, newc);
+            } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
+                break;
+            }
+        }
     } else if (rootnode) {
-	dump_node(f, ft->h->root_blocknum, ft);
+        dump_node(f, ft->h->root_blocknum, ft);
     } else if (fragmentation) {
         dump_fragmentation(f, ft, tsv);
     } else if (translation_table) {
         toku_dump_translation_table_pretty(stdout, ft->blocktable);
     } else {
-	printf("Block translation:");
+        printf("Block translation:");
 
-	toku_dump_translation_table(stdout, ft->blocktable);
+        toku_dump_translation_table(stdout, ft->blocktable);
 
-	struct __dump_node_extra info;
-	info.f = f;
-	info.h = ft;
-	toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
-				dump_node_wrapper, &info, true, true);
+        struct __dump_node_extra info;
+        info.f = f;
+        info.h = ft;
+        toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
+                                dump_node_wrapper, &info, true, true);
     }
     toku_cachefile_close(&cf, false, ZERO_LSN);
     toku_cachetable_close(&ct);

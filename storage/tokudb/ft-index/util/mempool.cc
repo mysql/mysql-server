@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -119,25 +120,26 @@ void toku_mempool_zero(struct mempool *mp) {
 void toku_mempool_copy_construct(struct mempool *mp, const void * const data_source, const size_t data_size) {
     // printf("mempool_copy %p %p %lu\n", mp, data_source, data_size);
     if (data_size) {
-	paranoid_invariant(data_source);
-	toku_mempool_construct(mp, data_size);
-	memcpy(mp->base, data_source, data_size);
-	mp->free_offset = data_size;                     // address of first available memory for new data
+        paranoid_invariant(data_source);
+        toku_mempool_construct(mp, data_size);
+        memcpy(mp->base, data_source, data_size);
+        mp->free_offset = data_size;                     // address of first available memory for new data
     }
     else {
-	toku_mempool_zero(mp);
-	//	fprintf(stderr, "Empty mempool created (copy constructor)\n");
+        toku_mempool_zero(mp);
+        //        fprintf(stderr, "Empty mempool created (copy constructor)\n");
     }
 }
 
 // TODO 4050 this is dirty, try to replace all uses of this
-void toku_mempool_init(struct mempool *mp, void *base, size_t size) {
+void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_t size) {
     // printf("mempool_init %p %p %lu\n", mp, base, size);
     paranoid_invariant(base != 0);
     paranoid_invariant(size < (1U<<31)); // used to be assert(size >= 0), but changed to size_t so now let's make sure it's not more than 2GB...
+    paranoid_invariant(free_offset <= size);
     mp->base = base;
     mp->size = size;
-    mp->free_offset = 0;             // address of first available memory
+    mp->free_offset = free_offset;             // address of first available memory
     mp->frag_size = 0;               // byte count of wasted space (formerly used, no longer used or available)
 }
 
@@ -145,15 +147,15 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t size) {
  */
 void toku_mempool_construct(struct mempool *mp, size_t data_size) {
     if (data_size) {
-	size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
-	mp->base = toku_xmalloc(mpsize);               // allocate buffer for mempool
-	mp->size = mpsize;
-	mp->free_offset = 0;                     // address of first available memory for new data
-	mp->frag_size = 0;                       // all allocated space is now in use
+        size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
+        mp->base = toku_xmalloc(mpsize);               // allocate buffer for mempool
+        mp->size = mpsize;
+        mp->free_offset = 0;                     // address of first available memory for new data
+        mp->frag_size = 0;                       // all allocated space is now in use
     }
     else {
-	toku_mempool_zero(mp);
-	//	fprintf(stderr, "Empty mempool created (base constructor)\n");
+        toku_mempool_zero(mp);
+        //        fprintf(stderr, "Empty mempool created (base constructor)\n");
     }
 }
 
@@ -161,7 +163,7 @@ void toku_mempool_construct(struct mempool *mp, size_t data_size) {
 void toku_mempool_destroy(struct mempool *mp) {
     // printf("mempool_destroy %p %p %lu %lu\n", mp, mp->base, mp->size, mp->frag_size);
     if (mp->base)
-	toku_free(mp->base);
+        toku_free(mp->base);
     toku_mempool_zero(mp);
 }
 

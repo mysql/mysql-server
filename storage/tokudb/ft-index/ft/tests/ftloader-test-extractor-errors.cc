@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -101,18 +102,13 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_path.h>
 
 
-static void copy_dbt(DBT *dest, const DBT *src) {
-    assert(dest->flags & DB_DBT_REALLOC);
-    dest->data = toku_realloc(dest->data, src->size);
-    dest->size = src->size;
-    memcpy(dest->data, src->data, src->size);
-}
+static int generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    (void) dest_db; (void) src_db; (void) src_key; (void) src_val;
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
 
-static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
-
-    copy_dbt(dest_key, src_key);
-    copy_dbt(dest_val, src_val);
+    copy_dbt(&dest_keys->dbts[0], src_key);
+    copy_dbt(&dest_vals->dbts[0], src_val);
     
     return 0;
 }
@@ -184,7 +180,7 @@ static void test_extractor(int nrows, int nrowsets, bool expect_fail, const char
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, true, false);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, true, 0, false);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

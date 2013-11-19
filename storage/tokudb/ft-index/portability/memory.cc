@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -192,12 +193,12 @@ my_malloc_usable_size(void *p) {
 static inline void 
 set_max(uint64_t sum_used, uint64_t sum_freed) {
     if (sum_used >= sum_freed) {
-	uint64_t in_use = sum_used - sum_freed;
-	uint64_t old_max;
-	do {
-	    old_max = status.max_in_use;
-	} while (old_max < in_use &&
-		 !toku_sync_bool_compare_and_swap(&status.max_in_use, old_max, in_use));
+        uint64_t in_use = sum_used - sum_freed;
+        uint64_t old_max;
+        do {
+            old_max = status.max_in_use;
+        } while (old_max < in_use &&
+                 !toku_sync_bool_compare_and_swap(&status.max_in_use, old_max, in_use));
     }
 }
 
@@ -206,14 +207,14 @@ toku_memory_footprint(void * p, size_t touched) {
     size_t rval = 0;
     size_t pagesize = toku_os_get_pagesize();
     if (p) {
-	size_t usable = my_malloc_usable_size(p);
-	if (usable >= status.mmap_threshold) {
+        size_t usable = my_malloc_usable_size(p);
+        if (usable >= status.mmap_threshold) {
             int num_pages = (touched + pagesize) / pagesize;
             rval = num_pages * pagesize;
-	}
-	else {
-	    rval = usable;
-	}
+        }
+        else {
+            rval = usable;
+        }
     }
     return rval;
 }
@@ -222,7 +223,7 @@ void *
 toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
-	TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+        TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
             toku_sync_add_and_fetch(&status.malloc_count, 1);
@@ -239,7 +240,7 @@ toku_malloc(size_t size) {
 void *toku_malloc_aligned(size_t alignment, size_t size) {
     void *p = t_malloc_aligned ? t_malloc_aligned(alignment, size) : os_malloc_aligned(alignment, size);
     if (p) {
-	TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+        TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
             toku_sync_add_and_fetch(&status.malloc_count, 1);
@@ -275,7 +276,7 @@ toku_realloc(void *p, size_t size) {
             set_max(status.used, status.freed);
         }
     } else {
-	toku_sync_add_and_fetch(&status.realloc_fail, 1);
+        toku_sync_add_and_fetch(&status.realloc_fail, 1);
     }
     return q;
 }
@@ -293,7 +294,7 @@ void *toku_realloc_aligned(size_t alignment, void *p, size_t size) {
             set_max(status.used, status.freed);
         }
     } else {
-	toku_sync_add_and_fetch(&status.realloc_fail, 1);
+        toku_sync_add_and_fetch(&status.realloc_fail, 1);
     }
     return q;
 }
@@ -319,10 +320,10 @@ toku_free(void *p) {
             toku_sync_add_and_fetch(&status.free_count, 1);
             toku_sync_add_and_fetch(&status.freed, used);
         }
-	if (t_free)
-	    t_free(p);
-	else
-	    os_free(p);
+        if (t_free)
+            t_free(p);
+        else
+            os_free(p);
     }
 }
 
