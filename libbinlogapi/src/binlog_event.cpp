@@ -877,6 +877,18 @@ Begin_load_query_event(const char* buf, unsigned int len,
 {
 }
 
+Xid_event::
+Xid_event(const char* buf,
+          const Format_description_event *description_event)
+  :Binary_log_event(&buf, description_event->binlog_version)
+{
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[XID_EVENT-1];
+  memcpy((char*) &xid, buf, sizeof(xid));
+}
+
+
 void Query_event::print_event_info(std::ostream& info)
 {
   if (strcmp(query.c_str(), "BEGIN") != 0 &&
@@ -1020,13 +1032,13 @@ void Incident_event::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
-void Xid::print_event_info(std::ostream& info)
+void Xid_event::print_event_info(std::ostream& info)
 {
   //TODO: Write process_event function for Xid events
-  info << "Xid ID=" << xid_id;
+  info << "Xid ID=" << xid;
 }
 
-void Xid::print_long_info(std::ostream& info)
+void Xid_event::print_long_info(std::ostream& info)
 {
   info << "Timestamp: " << this->header()->when.tv_sec;
   info << "\t";

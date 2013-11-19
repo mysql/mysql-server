@@ -2453,27 +2453,41 @@ private:
 /**
   @class Xid_log_event
 
-  Logs xid of the transaction-to-be-committed in the 2pc protocol.
-  Has no meaning in replication, slaves ignore it.
+  This is the subclass of Xid_event defined in libbinlogapi,
+  An XID event is generated for a commit of a transaction that modifies one or
+  more tables of an XA-capable storage engine
+  The inheritance structure in the current design for the classes is
+  as follows:
 
-  @section Xid_log_event_binary_format Binary Format  
+                Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+           Xid_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 Xid_log_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
 */
 #ifdef MYSQL_CLIENT
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
-class Xid_log_event: public Log_event
+class Xid_log_event: public Log_event, public Xid_event
 {
  public:
-   my_xid xid;
 
 #ifdef MYSQL_SERVER
   Xid_log_event(THD* thd_arg, my_xid x)
-  : Log_event(thd_arg, 0, 
+  : Log_event(thd_arg, 0,
               Log_event::EVENT_TRANSACTIONAL_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING),
-  xid(x)
-  { }
+              Log_event::EVENT_NORMAL_LOGGING)
+  {
+    xid= x;
+  }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2482,7 +2496,7 @@ class Xid_log_event: public Log_event
 #endif
 
   Xid_log_event(const char* buf,
-                const Format_description_log_event *description_event);
+                const Format_description_event *description_event);
   ~Xid_log_event() {}
   Log_event_type get_type_code() { return XID_EVENT;}
   int get_data_size() { return sizeof(xid); }

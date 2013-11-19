@@ -1680,7 +1680,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Intvar_log_event(buf, description_event);
       break;
     case XID_EVENT:
-      ev = new Xid_log_event(buf, description_event);
+      ev = new Xid_log_event(buf, &des_ev);
       break;
     case RAND_EVENT:
       ev = new Rand_log_event(buf, description_event);
@@ -7288,26 +7288,12 @@ int Xid_log_event::pack_info(Protocol *protocol)
 }
 #endif
 
-/**
-  @note
-  It's ok not to use int8store here,
-  as long as xid_t::set(ulonglong) and
-  xid_t::get_my_xid doesn't do it either.
-  We don't care about actual values of xids as long as
-  identical numbers compare identically
-*/
-
 Xid_log_event::
 Xid_log_event(const char* buf,
-              const Format_description_log_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event)
-{
-
-  /* The Post-Header is empty. The Variable Data part begins immediately. */
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[XID_EVENT-1];
-  memcpy((char*) &xid, buf, sizeof(xid));
-}
+              const Format_description_event *description_event)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(this->header())
+{ }
 
 
 #ifndef MYSQL_CLIENT

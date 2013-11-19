@@ -1458,12 +1458,20 @@ public:
     void print_long_info(std::ostream& info);
 };
 
-class Xid: public Binary_log_event
+/**
+  @class Xid_log_event
+
+  Logs xid of the transaction-to-be-committed in the 2pc protocol.
+  Has no meaning in replication, slaves ignore it.
+
+  @section Xid_log_event_binary_format Binary Format
+*/
+class Xid_event: public virtual Binary_log_event
 {
 public:
-    Xid(Log_event_header *header) : Binary_log_event(header) {}
-    uint64_t xid_id;
-
+    Xid_event() {}
+    Xid_event(const char *buf, const Format_description_event *fde);
+    uint64_t xid;
     Log_event_type get_type_code() { return XID_EVENT; }
     bool is_valid() const { return 1; }
     void print_event_info(std::ostream& info);
