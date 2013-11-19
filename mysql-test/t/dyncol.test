@@ -630,3 +630,9 @@ DROP table t1;
 --echo # end of 5.3 tests
 --echo #
 
+#
+# MySQL Bug#16997513 MY_STRTOLL10 ACCEPTING OVERFLOWED UNSIGNED LONG LONG VALUES AS NORMAL ONES
+# (incorrect overflow check in my_strtoll10())
+#
+select column_get(column_create(1, "18446744073709552001" as char), 1 as int);
+

@@ -1,8 +1,6 @@
 SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
 COUNT(@@GLOBAL.innodb_track_changed_pages)
 1
-SET @@GLOBAL.innodb_track_changed_pages=1;
-ERROR HY000: Variable 'innodb_track_changed_pages' is a read only variable
 SELECT @@GLOBAL.innodb_track_changed_pages = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_track_changed_pages';

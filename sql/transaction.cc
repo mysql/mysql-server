@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -268,6 +268,52 @@ bool trans_rollback(THD *thd)
 
 
 /**
+  Implicitly rollback the current transaction, typically
+  after deadlock was discovered.
+
+  @param thd     Current thread
+
+  @retval False Success
+  @retval True  Failure
+
+  @note ha_rollback_low() which is indirectly called by this
+        function will mark XA transaction for rollback by
+        setting appropriate RM error status if there was
+        transaction rollback request.
+*/
+
+bool trans_rollback_implicit(THD *thd)
+{
+  int res;
+  DBUG_ENTER("trans_rollback_implict");
+
+  /*
+    Always commit/rollback statement transaction before manipulating
+    with the normal one.
+    Don't perform rollback in the middle of sub-statement, wait till
+    its end.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() && !thd->in_sub_stmt);
+
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  res= ha_rollback_trans(thd, true);
+  /*
+    We don't reset OPTION_BEGIN flag below to simulate implicit start
+    of new transacton in @@autocommit=1 mode. This is necessary to
+    preserve backward compatibility.
+  */
+  thd->variables.option_bits&= ~(OPTION_KEEP_LOG);
+  thd->transaction.all.modified_non_trans_table= false;
+
+  /* Rollback should clear transaction_rollback_request flag. */
+  DBUG_ASSERT(! thd->transaction_rollback_request);
+
+  DBUG_RETURN(test(res));
+}
+
+
+/**
   Commit the single statement transaction.
 
   @note Note that if the autocommit is on, then the following call
@@ -339,8 +385,6 @@ bool trans_rollback_stmt(THD *thd)
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
-    if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-      ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }

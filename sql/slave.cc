@@ -708,6 +708,7 @@ int start_slave_thread(
 {
   pthread_t th;
   ulong start_id;
+  int error;
   DBUG_ENTER("start_slave_thread");
 
   DBUG_ASSERT(mi->inited);
@@ -734,9 +735,10 @@ int start_slave_thread(
   }
   start_id= *slave_run_id;
   DBUG_PRINT("info",("Creating new slave thread"));
-  if (mysql_thread_create(thread_key,
-                          &th, &connection_attrib, h_func, (void*)mi))
+  if ((error = mysql_thread_create(thread_key,
+                           &th, &connection_attrib, h_func, (void*)mi)))
   {
+    sql_print_error("Can't create slave thread (errno= %d).", error);
     if (start_lock)
       mysql_mutex_unlock(start_lock);
     DBUG_RETURN(ER_SLAVE_THREAD);

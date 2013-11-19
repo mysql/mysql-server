@@ -5301,7 +5301,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat, "SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 

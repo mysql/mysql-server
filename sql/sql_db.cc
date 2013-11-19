@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -1276,8 +1276,7 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-    my_free(thd->db);
-
+    thd->set_db(NULL, 0);
     thd->reset_db(new_db_name->str, new_db_name->length);
   }
 

@@ -1484,10 +1484,16 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request &&
-        thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
   }
+
+  /*
+    Thanks to possibility of MDL deadlock rollback request can come even if
+    transaction hasn't been started in any transactional storage engine.
+  */
+  if (is_real_trans && thd->transaction_rollback_request &&
+      thd->transaction.xid_state.xa_state != XA_NOTR)
+    thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
+
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();

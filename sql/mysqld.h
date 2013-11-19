@@ -208,7 +208,6 @@ extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
 extern I_List<THD> threads;
 extern char err_shared_dir[];
-extern TYPELIB thread_handling_typelib;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,

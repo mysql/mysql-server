@@ -90,6 +90,9 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+
+enum_tx_isolation thd_get_trx_isolation(const THD* thd);
+
 }
 
 #include "ha_innodb.h"
@@ -394,6 +397,15 @@ uint
 innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
+
+/******************************************************************//**
+Maps a MySQL trx isolation level code to the InnoDB isolation level code
+@return	InnoDB isolation level */
+static inline
+ulint
+innobase_map_isolation_level(
+/*=========================*/
+	enum_tx_isolation	iso);	/*!< in: MySQL isolation level code */
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -1196,7 +1208,8 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_system_charset(
@@ -2745,9 +2758,22 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_start_if_not_started(trx);
 
-	/* Assign a read view if the transaction does not have it yet */
+	/* Assign a read view if the transaction does not have it yet.
+	Do this only if transaction is using REPEATABLE READ isolation
+	level. */
+	trx->isolation_level = innobase_map_isolation_level(
+		thd_get_trx_isolation(thd));
 
-	trx_assign_read_view(trx);
+	if (trx->isolation_level == TRX_ISO_REPEATABLE_READ) {
+		trx_assign_read_view(trx);
+	} else {
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_UNSUPPORTED,
+				    "InnoDB: WITH CONSISTENT SNAPSHOT "
+				    "was ignored because this phrase "
+				    "can only be used with "
+				    "REPEATABLE READ isolation level.");
+	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
@@ -12142,7 +12168,8 @@ test_innobase_convert_name()
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_filename_charset(
