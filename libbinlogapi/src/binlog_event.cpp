@@ -124,6 +124,23 @@ enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len)
          ret == BINLOG_CHECKSUM_ALG_CRC32);
   return ret;
 }
+
+/*
+  This method copies the string pointed to by src (including
+  the terminating null byte ('\0')) to the array pointed to by dest.
+  The strings may not overlap, and the destination string dest must be
+  large enough to receive the copy.
+
+  @param src  the source string
+  @param dest the desctination string
+
+  @return     pointer to the end of the string dest
+*/
+char *bapi_stpcpy(char *dst, const char *src)
+{
+  strcpy(dst, src);
+  return dst + strlen(dst);
+}
 /**
   Log_event_header constructor
 */
@@ -231,8 +248,28 @@ Log_event_header::Log_event_header(const char* buf,
   } //end switch (description_event->binlog_version)
 }
 
+
+/**
+  This ctor will create a new object of Log_event_header, and initialize
+  the variable m_header, which in turn will be used to initialize Log_event's
+  member common_header.
+  It will also advance the buffer after reading the common_header_len
+*/
+Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version)
+{
+  Format_description_event *des= new Format_description_event(binlog_version);
+  m_header= new Log_event_header(*buf, des);
+  // remove the comments when all the events are moved to libbinlogapi
+  // (*buf)+= des->common_header_len;
+  delete des;
+  des= NULL;
+}
 Binary_log_event::~Binary_log_event()
 {
+  //This comment should be removed in the independent version
+  // now the memory is deallocated in Log_event's desctructor
+  //if(m_header)
+    //delete m_header;
 }
 
 Binary_log_event * create_incident_event(unsigned int type,
@@ -274,7 +311,7 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
   case 4: /* MySQL 5.0 and above*/
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
     DBUG_EXECUTE_IF("pretend_version_5_0_34_in_binlog",
-                    my_stpcpy(server_version, "5.0.34"););
+                    bapi_stpcpy(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch malloc() error in is_valid() */
@@ -360,13 +397,13 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
     break;
 
   case 1: /* 3.23 */
-    my_stpcpy(server_version, server_ver ? server_ver : "3.23");
+    bapi_stpcpy(server_version, server_ver ? server_ver : "3.23");
   case 3: /* 4.0.x x>=2 */
     /*
       We build an artificial (i.e. not sent by the master) event, which
       describes what those old master versions send.
     */
-    my_stpcpy(server_version, server_ver ? server_ver : "4.0");
+    bapi_stpcpy(server_version, server_ver ? server_ver : "4.0");
     common_header_len= binlog_ver==1 ? OLD_HEADER_LEN :
       LOG_EVENT_MINIMAL_HEADER_LEN;
     /*
@@ -404,6 +441,11 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
   checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 }
 
+Format_description_event::~Format_description_event()
+{
+  if(post_header_len)
+    free(post_header_len);
+}
 //void Binary_log_event::print_event_info(std::ostream& info) {}
 //void Binary_log_event::print_long_info(std::ostream& info) {}
 
@@ -426,9 +468,9 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
   @param head Header information of the event
 */
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
-                           const Format_description_event *description_event,
-                           Log_event_header *head)
-: Binary_log_event(head), new_log_ident(0), flags(DUP_NAME)
+                           const Format_description_event *description_event)
+: Binary_log_event(&buf, description_event->binlog_version), new_log_ident(0),
+  flags(DUP_NAME)
 {
   // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
   size_t header_size= description_event->common_header_len;
@@ -563,10 +605,9 @@ const char *binary_log::sql_ex_data_info::init(const char *buf,
     constructed event.
 */
 Load_event::Load_event(const char *buf, uint event_len,
-                       const Format_description_event *description_event,
-                       Log_event_header *header)
-  :Binary_log_event(header), num_fields(0), fields(0),
-   field_lens(0),field_block_len(0),
+                       const Format_description_event *description_event)
+  :Binary_log_event(&buf, description_event->binlog_version), num_fields(0),
+   fields(0), field_lens(0),field_block_len(0),
    table_name(0), db(0), fname(0), local_fname(FALSE),
    /**
      Load_log_event which comes from the binary log does not contain
@@ -678,9 +719,8 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
 
 Create_file_event::Create_file_event(const char* buf, unsigned int len,
                                      const Format_description_event*
-                                     description_event,
-                                     Log_event_header* header)
-  :Load_event(buf, 0, description_event, header),
+                                     description_event)
+  :Load_event(buf, 0, description_event),
    fake_base(0), block(0), inited_from_old(0)
 {
   unsigned int block_offset;
@@ -771,9 +811,8 @@ Create_file_event::Create_file_event(unsigned char* block_arg,
 */
 Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
                                      const Format_description_event*
-                                     description_event,
-                                     Log_event_header* header)
-  :Binary_log_event(header),file_id(0)
+                                     description_event)
+  :Binary_log_event(&buf, description_event->binlog_version), file_id(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char delete_file_header_len=
@@ -791,9 +830,8 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
 
 Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
                                        const Format_description_event*
-                                       description_event,
-                                       Log_event_header *header)
-  :Binary_log_event(header), file_id(0)
+                                       description_event)
+  :Binary_log_event(&buf, description_event->binlog_version), file_id(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char exec_load_header_len= description_event->
@@ -813,9 +851,8 @@ Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
 
 Append_block_event::Append_block_event(const char* buf, unsigned int len,
                                        const Format_description_event*
-                                       description_event,
-                                       Log_event_header *header)
-  :Binary_log_event(header), block(0)
+                                       description_event)
+  :Binary_log_event(&buf, description_event->binlog_version), block(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char append_block_header_len=
@@ -835,9 +872,8 @@ Append_block_event::Append_block_event(const char* buf, unsigned int len,
 
 Begin_load_query_event::
 Begin_load_query_event(const char* buf, unsigned int len,
-                       const Format_description_event* desc_event,
-                       Log_event_header *header)
-  :Append_block_event(buf, len, desc_event, header)
+                       const Format_description_event* desc_event)
+  :Append_block_event(buf, len, desc_event)
 {
 }
 

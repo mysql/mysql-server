@@ -374,15 +374,14 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
       Format_description_log_event fd_ev(BINLOG_VERSION);
       fd_ev.checksum_alg= m_event_checksum_alg;
       const Format_description_event *des_ev;
-      des_ev= new Format_description_event(fd_ev.binlog_version, server_version);
-      Log_event_header *header= new Log_event_header((const char *)event_ptr, des_ev);
+      des_ev= new Format_description_event(fd_ev.binlog_version, fd_ev.server_version);
       Gtid_log_event gtid_ev((const char *)event_ptr, event_checksum_on() ?
                              event_len - BINLOG_CHECKSUM_LEN : event_len,
-                             &fd_ev, header);
+                             &fd_ev);
       Gtid gtid;
       gtid.sidno= gtid_ev.get_sidno(m_exclude_gtid->get_sid_map());
       gtid.gno= gtid_ev.get_gno();
-
+      delete des_ev;
       DBUG_RETURN(m_exclude_gtid->contains_gtid(gtid));
     }
   case ROTATE_EVENT:

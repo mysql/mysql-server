@@ -1317,9 +1317,9 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
-                   const Format_description_log_event *description_event,
-                   Log_event_header *header)
-  : Log_event(header),
+                   const Format_description_log_event *description_event)
+  : Binary_log_event(&buf, description_event->binlog_version),
+    Log_event(buf, description_event),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -2573,10 +2573,9 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
 #ifdef HAVE_REPLICATION
 Write_rows_log_event_old::
 Write_rows_log_event_old(const char *buf, uint event_len,
-                         const Format_description_log_event *description_event,
-                         Log_event_header *header)
-: Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT,
-                     description_event, header)
+                         const Format_description_log_event *description_event)
+: Binary_log_event(&buf, description_event->binlog_version),
+  Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT, description_event)
 {
 }
 #endif
@@ -2706,10 +2705,10 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
 #ifdef HAVE_REPLICATION
 Delete_rows_log_event_old::
 Delete_rows_log_event_old(const char *buf, uint event_len,
-                          const Format_description_log_event *description_event,
-                          Log_event_header *header)
-  : Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
-                       description_event, header),
+                          const Format_description_log_event *description_event)
+  : Binary_log_event(&buf, description_event->binlog_version),
+    Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
+                       description_event),
     m_after_image(NULL), m_memory(NULL)
 {
 }
@@ -2812,9 +2811,9 @@ Update_rows_log_event_old::Update_rows_log_event_old(THD *thd_arg,
 Update_rows_log_event_old::
 Update_rows_log_event_old(const char *buf, uint event_len,
                           const Format_description_log_event
-                          *description_event, Log_event_header *header)
+                          *description_event)
   : Old_rows_log_event(buf, event_len, PRE_GA_UPDATE_ROWS_EVENT,
-                       description_event, header),
+                       description_event),
     m_after_image(NULL), m_memory(NULL)
 {
 }

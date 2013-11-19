@@ -71,7 +71,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 extern char server_version[SERVER_VERSION_LENGTH];
 
-
 /**
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
   TERMINATED etc).
@@ -402,6 +401,8 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
   return (uint32_t)crc32(crc, pos, length);
 }
 
+char *bapi_stpcpy(char *dst, const char *src);
+
 enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len);
 bool event_checksum_test(unsigned char* buf, unsigned long event_len,
                          enum_binlog_checksum_alg alg);
@@ -527,7 +528,6 @@ public:
   ~Log_event_header() {}
 };
 
-
 /**
  * TODO Base class for events. Implementation is in body()
  */
@@ -575,7 +575,7 @@ public:
     ROWS_HEADER_LEN_V2= 10
   }; // end enum_post_header_length
 
-  Binary_log_event()
+  Binary_log_event(): m_header(NULL)
   {
       /*
         An event length of 0 indicates that the header isn't initialized
@@ -583,11 +583,8 @@ public:
       //m_header.event_length= 0;
       //m_header.type_code=    0;
   }
-
-  Binary_log_event(Log_event_header *header)
-  {
-      m_header= *header;
-  }
+  Binary_log_event(Log_event_header *header): m_header(header) {}
+  Binary_log_event(const char **buf, uint16_t binlog_version);
 
   // TODO: Uncomment when the dependency of log_event on this class in removed
   /**
@@ -613,17 +610,17 @@ public:
    */
   enum Log_event_type get_event_type() const
   {
-    return (enum Log_event_type) m_header.type_code;
+    return (enum Log_event_type) m_header->type_code;
   }
     virtual Log_event_type get_type_code()= 0;
     virtual bool is_valid() const= 0;
   /**
    * Return a pointer to the header of the log event
    */
-  Log_event_header *header() { return &m_header; }
+  Log_event_header *header() { return m_header; }
 
 private:
-  Log_event_header m_header;
+  Log_event_header *m_header;
 };
 
 class Unknown_event: public Binary_log_event
@@ -732,8 +729,7 @@ public:
 
   Rotate_event() {}
   Rotate_event(const char* buf, unsigned int event_len,
-               const Format_description_event *description_event,
-               Log_event_header *head);
+               const Format_description_event *description_event);
 
   Log_event_type get_type_code() { return ROTATE_EVENT; }
   //TODO: is_valid() is to be handled as a separate patch
@@ -747,40 +743,6 @@ public:
     if (flags & DUP_NAME)
       bapi_free((void*) new_log_ident);
   }
-};
-
-/**
-  @class Stop_event
-
-  A stop event is written to the log files under these circumstances:
-  - A master writes the event to the binary log when it shuts down.
-  - A slave writes the event to the relay log when it shuts down or
-    when a RESET SLAVE statement is executed.
-
-  @section Stop_log_event_binary_format Binary Format
-
-  The Post-Header and Body for this event type are empty; it only has
-  the Common-Header.
-*/
-
-class Stop_event: public virtual Binary_log_event
-{
-public:
-  Stop_event() : Binary_log_event()
-  {
-  }
-  Stop_event(const char* buf,
-             const Format_description_event *description_event,
-             Log_event_header *header)
-  : Binary_log_event(header)
-  {
-  }
-
-  Log_event_type get_type_code() { return STOP_EVENT; }
-  bool is_valid() const { return 1; }
-
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info);
 };
 
 class Format_description_event: public Binary_log_event
@@ -805,9 +767,42 @@ public:
     bool is_valid() const { return 1; }
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);
-
+    ~Format_description_event();
 
 };
+/**
+  @class Stop_event
+
+  A stop event is written to the log files under these circumstances:
+  - A master writes the event to the binary log when it shuts down.
+  - A slave writes the event to the relay log when it shuts down or
+    when a RESET SLAVE statement is executed.
+
+  @section Stop_log_event_binary_format Binary Format
+
+  The Post-Header and Body for this event type are empty; it only has
+  the Common-Header.
+*/
+
+class Stop_event: public virtual Binary_log_event
+{
+public:
+  Stop_event() : Binary_log_event()
+  {
+  }
+  Stop_event(const char* buf,
+             const Format_description_event *description_event)
+  : Binary_log_event(&buf, description_event->binlog_version)
+  {
+  }
+
+  Log_event_type get_type_code() { return STOP_EVENT; }
+  bool is_valid() const { return 1; }
+
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info);
+};
+
 
 
 /**
@@ -1076,8 +1071,7 @@ public:
     for the common_header_len (post_header_len is not changed).
   */
   Load_event(const char* buf, unsigned int event_len,
-             const Format_description_event* description_event,
-             Log_event_header *header);
+             const Format_description_event* description_event);
   ~Load_event()
   {}
 
@@ -1136,8 +1130,7 @@ public:
   bool inited_from_old;
 
   Create_file_event(const char* buf, unsigned int event_len,
-                    const Format_description_event* description_event,
-                    Log_event_header *header);
+                    const Format_description_event* description_event);
 
   Create_file_event(unsigned char* block_arg,
                     unsigned int  block_len_arg, unsigned int file_id_arg);
@@ -1187,8 +1180,7 @@ public:
   const char* db; /* see comment in Append_block_event */
 
   Delete_file_event(const char* buf, uint event_len,
-                    const Format_description_event* description_event,
-                    Log_event_header *header);
+                    const Format_description_event* description_event);
   ~Delete_file_event() {}
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
   bool is_valid() const { return file_id != 0; }
@@ -1221,8 +1213,7 @@ public:
   const char* db; /* see comment in Append_block_event */
 
   Execute_load_event(const char* buf, uint event_len,
-                     const Format_description_event *description_event,
-                     Log_event_header *header);
+                     const Format_description_event *description_event);
 
   ~Execute_load_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
@@ -1282,8 +1273,7 @@ public:
   const char* db;
 
   Append_block_event(const char* buf, unsigned int event_len,
-                     const Format_description_event *description_event,
-                     Log_event_header *header);
+                     const Format_description_event *description_event);
   ~Append_block_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   virtual bool is_valid() const { return block != 0; }
@@ -1305,8 +1295,7 @@ protected:
   Begin_load_query_event(): Append_block_event() {}
 public:
   Begin_load_query_event(const char* buf, unsigned int event_len,
-                         const Format_description_event *description_event,
-                         Log_event_header *header);
+                         const Format_description_event *description_event);
   ~Begin_load_query_event() {}
   Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
 };

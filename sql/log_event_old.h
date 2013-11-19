@@ -161,8 +161,7 @@ protected:
 #endif
   Old_rows_log_event(const char *row_data, uint event_len,
                      Log_event_type event_type,
-                     const Format_description_log_event *description_event,
-                     Log_event_header *header);
+                     const Format_description_log_event *description_event);
 
 #ifdef MYSQL_CLIENT
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
@@ -366,8 +365,7 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event_old(const char *buf, uint event_len,
-                           const Format_description_log_event *description_event,
-                           Log_event_header *header);
+                           const Format_description_log_event *description_event);
 #endif
 #if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -441,8 +439,7 @@ public:
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event_old(const char *buf, uint event_len,
-                            const Format_description_log_event *description_event,
-                            Log_event_header *header);
+                            const Format_description_log_event *description_event);
 #endif
 
 #if !defined(MYSQL_CLIENT) 
@@ -516,8 +513,7 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event_old(const char *buf, uint event_len,
-                            const Format_description_log_event *description_event,
-                            Log_event_header *header);
+                            const Format_description_log_event *description_event);
 #endif
 #if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,

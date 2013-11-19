@@ -6431,10 +6431,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_SET("");
     }
   );
-
+  Format_description_event *des_ev= NULL;
   binary_log_debug::debug_checksum_test=
                DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-  Log_event_header *header;
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
     error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
@@ -6443,9 +6442,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   mysql_mutex_lock(&mi->data_lock);
-  const Format_description_event *des_ev;
-  des_ev= new Format_description_event(mi->get_mi_description_event()->binlog_version);
-  header= new Log_event_header(buf, des_ev);
   if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
   {
@@ -6453,7 +6449,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     mysql_mutex_unlock(&mi->data_lock);
     DBUG_RETURN(ret);
   }
-
+  des_ev= new Format_description_event(mi->get_mi_description_event()->binlog_version,
+                                       mi->get_mi_description_event()->server_version);
   switch (event_type) {
   case STOP_EVENT:
     /*
@@ -6482,7 +6479,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                           *   - des_ev, header);
                           *  Hence, change it to the implementation above
                           */
-                         des_ev, header);
+                         des_ev);
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
@@ -6603,7 +6600,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            mi->rli->relay_log.relay_log_checksum_alg
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->get_mi_description_event(), header);
+                           mi->get_mi_description_event());
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -6729,7 +6726,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     global_sid_lock->rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->get_mi_description_event(), header);
+                           mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock->unlock();
     if (gtid.sidno < 0)
@@ -6841,9 +6838,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       buf= save_buf;
   }
   mysql_mutex_unlock(log_lock);
-
+  if (des_ev)
+  {
+    delete des_ev;
+    des_ev= NULL;
+  }
 skip_relay_logging:
-  
+
 err:
   if (unlock_data_lock)
     mysql_mutex_unlock(&mi->data_lock);
@@ -6853,6 +6854,11 @@ err:
                (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
                "could not queue event from master" :
                error_msg.ptr());
+  if (des_ev)
+  {
+    delete des_ev;
+    des_ev= NULL;
+  }
   DBUG_RETURN(error);
 }
 
