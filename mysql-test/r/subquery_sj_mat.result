@@ -3617,7 +3617,7 @@ explain format=json select * from (select a from t0) x where a in (select a from
 EXPLAIN
 {
   "query_block": {
-    "select_id": 3,
+    "select_id": 1,
     "cost_info": {
       "query_cost": "26.98"
     },
@@ -9085,7 +9085,7 @@ EXPLAIN
         "dependent": true,
         "cacheable": false,
         "query_block": {
-          "select_id": 3,
+          "select_id": 2,
           "cost_info": {
             "query_cost": "10.00"
           },
