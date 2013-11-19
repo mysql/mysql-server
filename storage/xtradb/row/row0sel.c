@@ -219,7 +219,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 		len = clust_len;
 
-		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -1226,7 +1227,7 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(btr_search_get_latch(index), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
 	row_sel_open_pcur(plan, TRUE, mtr);
@@ -1397,10 +1398,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(btr_search_get_latch(index->id)) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(btr_search_get_latch(index))
+			   == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1409,8 +1411,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(btr_search_get_latch(index->id));
-			rw_lock_s_lock(btr_search_get_latch(index->id));
+			rw_lock_s_unlock(btr_search_get_latch(index));
+			rw_lock_s_lock(btr_search_get_latch(index));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
@@ -1433,7 +1435,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(btr_search_get_latch(index->id));
+		rw_lock_s_unlock(btr_search_get_latch(index));
 
 		search_latch_locked = FALSE;
 	}
@@ -2009,7 +2011,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(btr_search_get_latch(index->id));
+		rw_lock_s_unlock(btr_search_get_latch(index));
 	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -3361,6 +3363,8 @@ row_sel_try_search_shortcut_for_mysql(
 	ut_ad(!prebuilt->templ_contains_blob);
 
 #ifndef UNIV_SEARCH_DEBUG
+	ut_ad(trx->has_search_latch);
+
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 				   BTR_SEARCH_LEAF, pcur,
 				   RW_S_LATCH,
@@ -3538,8 +3542,6 @@ row_search_for_mysql(
 	/* if the returned record was locked and we did a semi-consistent
 	read (fetch the newest committed version), then this is set to
 	TRUE */
-	ulint		i;
-	ulint		should_release;
 #ifdef UNIV_SEARCH_DEBUG
 	ulint		cnt				= 0;
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3556,6 +3558,12 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
+	ut_ad(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Error:\n"
@@ -3571,24 +3579,15 @@ row_search_for_mysql(
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
 		return(DB_ERROR);
 	}
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
 	}
 
 	if (dict_index_is_corrupted(index)) {
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
 		return(DB_CORRUPTION);
 	}
 
@@ -3639,38 +3638,6 @@ row_search_for_mysql(
 	fprintf(stderr, "N tables locked %lu\n",
 		(ulong) trx->mysql_n_tables_locked);
 #endif
-	/*-------------------------------------------------------------*/
-	/* PHASE 0: Release a possible s-latch we are holding on the
-	adaptive hash index latch if there is someone waiting behind */
-
-	should_release = 0;
-	for (i = 0; i < btr_search_index_num; i++) {
-		/* we should check all latches (fix Bug#791030) */
-		if (UNIV_UNLIKELY(rw_lock_get_writer(btr_search_latch_part[i])
-				  != RW_LOCK_NOT_LOCKED)) {
-			should_release |= ((ulint)1 << i);
-		}
-	}
-
-	if (UNIV_UNLIKELY(should_release)) {
-
-		/* There is an x-latch request on the adaptive hash index:
-		release the s-latch to reduce starvation and wait for
-		BTR_SEA_TIMEOUT rounds before trying to keep it again over
-		calls from MySQL */
-
-		for (i = 0; i < btr_search_index_num; i++) {
-			/* we should release all s-latches (fix Bug#791030) */
-			if (trx->has_search_latch & ((ulint)1 << i)) {
-				rw_lock_s_unlock(btr_search_latch_part[i]);
-				trx->has_search_latch &= (~((ulint)1 << i));
-			}
-		}
-
-		if (!trx->has_search_latch) {
-		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-		}
-	}
 
 	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
 	is set or session is using a READ COMMITED isolation level. Then
@@ -3820,29 +3787,9 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!(trx->has_search_latch
-			      & ((ulint)1 << (index->id % btr_search_index_num)))) {
-				if (trx->has_search_latch
-				    < ((ulint)1 << (index->id % btr_search_index_num))) {
-					rw_lock_s_lock(btr_search_get_latch(index->id));
-					trx->has_search_latch |=
-						((ulint)1 << (index->id % btr_search_index_num));
-				} else {
-					/* should re-lock to obay latch-order */
-					for (i = 0; i < btr_search_index_num; i++) {
-						if (trx->has_search_latch & ((ulint)1 << i)) {
-							rw_lock_s_unlock(btr_search_latch_part[i]);
-						}
-					}
-					trx->has_search_latch |=
-						((ulint)1 << (index->id % btr_search_index_num));
-					for (i = 0; i < btr_search_index_num; i++) {
-						if (trx->has_search_latch & ((ulint)1 << i)) {
-							rw_lock_s_lock(btr_search_latch_part[i]);
-						}
-					}
-				}
-			}
+			ut_ad(!trx->has_search_latch);
+			rw_lock_s_lock(btr_search_get_latch(index));
+			trx->has_search_latch = TRUE;
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -3901,7 +3848,7 @@ row_search_for_mysql(
 				srv_n_rows_read++;
 
 				err = DB_SUCCESS;
-				goto release_search_latch_if_needed;
+				goto release_search_latch;
 
 			case SEL_EXHAUSTED:
 			shortcut_mismatch:
@@ -3911,19 +3858,10 @@ row_search_for_mysql(
 				fputs(" record not found 2\n", stderr); */
 
 				err = DB_RECORD_NOT_FOUND;
-release_search_latch_if_needed:
-				if (trx->search_latch_timeout > 0
-				    && trx->has_search_latch) {
-
-					trx->search_latch_timeout--;
-
-					for (i = 0; i < btr_search_index_num; i++) {
-						if (trx->has_search_latch & ((ulint)1 << i)) {
-							rw_lock_s_unlock(btr_search_latch_part[i]);
-						}
-					}
-					trx->has_search_latch = FALSE;
-				}
+release_search_latch:
+				rw_lock_s_unlock(
+					btr_search_get_latch(index));
+				trx->has_search_latch = FALSE;
 
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -3938,22 +3876,19 @@ release_search_latch_if_needed:
 
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+
+			rw_lock_s_unlock(btr_search_get_latch(index));
+			trx->has_search_latch = FALSE;
 		}
 	}
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
-	if (trx->has_search_latch) {
-
-		for (i = 0; i < btr_search_index_num; i++) {
-			if (trx->has_search_latch & ((ulint)1 << i)) {
-				rw_lock_s_unlock(btr_search_latch_part[i]);
-			}
-		}
-		trx->has_search_latch = FALSE;
-	}
-
+	ut_ad(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+#endif
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_ACTIVE);
 	ut_ad(trx->state == TRX_NOT_STARTED
 	      || trx->state == TRX_ACTIVE);
@@ -5047,7 +4982,9 @@ func_exit:
 		}
 	}
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 	return(err);

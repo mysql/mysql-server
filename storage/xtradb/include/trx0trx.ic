@@ -23,6 +23,19 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+/********************************************************************//**
+In XtraDB it is impossible for a transaction to own a search latch outside of
+InnoDB code, so there is nothing to release on demand.  We keep this function to
+simplify maintenance.*/
+UNIV_INLINE
+void
+trx_search_latch_release_if_reserved(
+/*=================================*/
+	trx_t*	   trx __attribute__((unused))) /*!< in: transaction */
+{
+	ut_ad(!trx->has_search_latch);
+}
+
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INLINE

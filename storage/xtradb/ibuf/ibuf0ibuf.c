@@ -48,6 +48,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0sea.h"
 #include "row0upd.h"
 #include "sync0sync.h"
 #include "dict0boot.h"
@@ -631,6 +632,7 @@ ibuf_init_at_db_start(void)
 	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
 
 	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
+	btr_search_index_init(index);
 
 	error = dict_index_add_to_cache(table, index,
 					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
@@ -4421,7 +4423,6 @@ ibuf_delete_rec(
 			      BTR_MODIFY_TREE, pcur, mtr)) {
 
 		mutex_exit(&ibuf_mutex);
-		ut_ad(!ibuf_inside(mtr));
 		ut_ad(mtr->state == MTR_COMMITTED);
 		goto func_exit;
 	}
@@ -4442,7 +4443,6 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	ut_ad(!ibuf_inside(mtr));
 	ut_ad(mtr->state == MTR_COMMITTED);
 	btr_pcur_close(pcur);
 
@@ -4779,7 +4779,6 @@ loop:
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
-					ut_ad(!ibuf_inside(&mtr));
 					ut_ad(mtr.state == MTR_COMMITTED);
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
