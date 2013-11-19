@@ -322,6 +322,14 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
+    /*
+      Cannot go above level zero. This might be possible in 5.6 because the
+      nest_level of the query blocks of a view are not adjusted when the view
+      is attached to the outer query. However, 5.7 adjusts nest_level
+      correctly, so this code is only necessary in 5.6.
+    */
+    if (sl->nest_level == 0)
+      break;
   }
 
   if (aggr_level >= 0)
