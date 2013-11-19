@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 namespace binary_log_debug
 {
   extern bool debug_checksum_test;
+  extern bool debug_query_mts_corrupt_db_names;
   //TODO:Add variables here as we move methods into libbinlogapi from the server
 }
 #endif
