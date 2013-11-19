@@ -889,25 +889,489 @@ Xid_event(const char* buf,
 }
 
 
+
+/******************************************************************************
+                     Query_event methods
+******************************************************************************/
+/**
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.
+*/
+Query_event::Query_event()
+  :Binary_log_event(),
+   m_user(""), m_host("")
+{
+}
+
+/**
+  The constructor used by MySQL master to create a query event, to be
+  written to the binary log.
+*/
+Query_event::Query_event(const char* query_arg, const char* catalog_arg,
+                         const char* db_arg, uint32_t query_length,
+                         unsigned long thread_id_arg,
+                         unsigned long long sql_mode_arg,
+                         unsigned long auto_increment_increment_arg,
+                         unsigned long auto_increment_offset_arg,
+                         unsigned int number,
+                         unsigned long long table_map_for_update_arg,
+                         int errcode)
+: m_user(""), m_host(""), m_catalog(catalog_arg),
+  m_db(db_arg), m_query(query_arg),
+  thread_id(thread_id_arg), error_code(errcode), q_len(query_length),
+  flags2_inited(1), sql_mode_inited(1), charset_inited(1),
+  sql_mode(sql_mode_arg),
+  auto_increment_increment(auto_increment_increment_arg),
+  auto_increment_offset(auto_increment_offset_arg),
+  time_zone_len(0),
+  lc_time_names_number(number),
+  charset_database_number(0),
+  table_map_for_update(table_map_for_update_arg),
+  master_data_written(0), mts_accessed_dbs(0)
+{
+}
+
+/**
+  Utility function for the Query_event constructor.
+  The function copies n bytes from the source string and moves the
+  destination pointer by the number of bytes copied.
+
+  @param dst Pointer to the buffer into which the string is to be copied
+  @param src Source string
+  @param len The number of bytes to be copied
+*/
+
+static void copy_str_and_move(Log_event_header::Byte **dst,
+                              const std::string &src,
+                              unsigned int len)
+{
+  memcpy(*dst, src.c_str(), len);
+  (*dst)+= len;
+  *(*dst)++= 0;
+}
+
+/**
+  utility function to return the string representation of the status variable
+  used in the Query_event.
+
+  @param Integer value representing the status variable code
+
+  @return String representation of the code
+*/
+char const *
+Query_event::code_name(int code)
+{
+  static char buf[255];
+  switch (code) {
+  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
+  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
+  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
+  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
+  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
+  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
+  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
+  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
+  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
+  case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
+  case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
+  case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
+  case Q_MICROSECONDS: return "Q_MICROSECONDS";
+  case Q_COMMIT_TS: return "Q_COMMIT_TS";
+  }
+  sprintf(buf, "CODE#%d", code);
+  return buf;
+}
+
+/**
+   Macro to check that there is enough space to read from memory.
+
+   @param PTR Pointer to memory
+   @param END End of memory
+   @param CNT Number of bytes that should be read.
+*/
+#define CHECK_SPACE(PTR,END,CNT)                      \
+  do {                                                \
+    assert((PTR) + (CNT) <= (END));              \
+    if ((PTR) + (CNT) > (END)) {                      \
+      m_query= "";                                       \
+      return;                               \
+    }                                                 \
+  } while (0)
+
+
+/**
+  The constructor which receives a packet from the MySQL master or the binary
+  log and decodes it to create a Query event.
+
+  @param buf Containing the event header and data
+  @param even_len The length upto ehich buf contains Query event data
+  @param description_event FDE specific to the binlog version
+  @param event_type Required to determine whether the event type is QUERY_EVENT
+                    or EXECUTE_LOAD_QUERY_EVENT
+*/
+Query_event::Query_event(const char* buf, unsigned int event_len,
+                         const Format_description_event *description_event,
+                         Log_event_type event_type)
+: Binary_log_event(&buf, description_event->binlog_version),
+  m_user(""), m_host(""),m_db(""), m_query(""),
+  db_len(0), status_vars_len(0), q_len(0),
+  flags2_inited(0), sql_mode_inited(0), charset_inited(0),
+  auto_increment_increment(1), auto_increment_offset(1),
+  time_zone_len(0), catalog_len(0), lc_time_names_number(0),
+  charset_database_number(0), table_map_for_update(0), master_data_written(0),
+  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), commit_seq_no(SEQ_UNINIT)
+{
+  uint32_t tmp;
+  uint8_t common_header_len, post_header_len;
+  Log_event_header::Byte *start;
+  const Log_event_header::Byte *end;
+
+  query_data_written= 0;
+
+  common_header_len= description_event->common_header_len;
+  post_header_len= description_event->post_header_len[event_type-1];
+
+  /*
+    We test if the event's length is sensible, and if so we compute data_len.
+    We cannot rely on QUERY_HEADER_LEN here as it would not be format-tolerant.
+    We use QUERY_HEADER_MINIMAL_LEN which is the same for 3.23, 4.0 & 5.0.
+  */
+  if (event_len < (unsigned int)(common_header_len + post_header_len))
+    return;
+  data_len= event_len - (common_header_len + post_header_len);
+  buf+= common_header_len;
+
+  memcpy(&thread_id, buf + Q_THREAD_ID_OFFSET, sizeof(thread_id));
+  thread_id= le32toh(thread_id);
+  memcpy(&query_exec_time, buf + Q_EXEC_TIME_OFFSET, sizeof(query_exec_time));
+  query_exec_time= le32toh(query_exec_time);
+
+  db_len= (unsigned int)buf[Q_DB_LEN_OFFSET];
+   // TODO: add a check of all *_len vars
+  memcpy(&error_code, buf + Q_ERR_CODE_OFFSET, sizeof(error_code));
+  error_code= le16toh(error_code);
+
+  /*
+    5.0 format starts here.
+    Depending on the format, we may or not have affected/warnings etc
+    The remnent post-header to be parsed has length:
+  */
+  tmp= post_header_len - QUERY_HEADER_MINIMAL_LEN;
+  if (tmp)
+  {
+    memcpy(&status_vars_len, buf + Q_STATUS_VARS_LEN_OFFSET,
+           sizeof(status_vars_len));
+    status_vars_len= le16toh(status_vars_len);
+    /*
+      Check if status variable length is corrupt and will lead to very
+      wrong data. We could be even more strict and require data_len to
+      be even bigger, but this will suffice to catch most corruption
+      errors that can lead to a crash.
+    */
+    if (status_vars_len >
+        std::min<unsigned long>(data_len, MAX_SIZE_LOG_EVENT_STATUS))
+    {
+      m_query= "";
+      return;
+    }
+    data_len-= status_vars_len;
+    tmp-= 2;
+  }
+  else
+  {
+    /*
+      server version < 5.0 / binlog_version < 4 master's event is
+      relay-logged with storing the original size of the event in
+      Q_MASTER_DATA_WRITTEN_CODE status variable.
+      The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
+      event from the relay log.
+    */
+    assert(description_event->binlog_version < 4);
+    master_data_written= this->header()->data_written;
+  }
+  /*
+    We have parsed everything we know in the post header for QUERY_EVENT,
+    the rest of post header is either comes from older version MySQL or
+    dedicated to derived events (e.g. Execute_load_query...)
+  */
+
+  /* variable-part: the status vars; only in MySQL 5.0  */
+  start= (Log_event_header::Byte*) (buf + post_header_len);
+  end= (const Log_event_header::Byte*) (start + status_vars_len);
+  for (const Log_event_header::Byte* pos= start; pos < end;)
+  {
+    switch (*pos++) {
+    case Q_FLAGS2_CODE:
+      CHECK_SPACE(pos, end, 4);
+      flags2_inited= 1;
+      memcpy(&flags2, pos, sizeof(flags2));
+      flags2= le32toh(flags2);
+      pos+= 4;
+      break;
+    case Q_SQL_MODE_CODE:
+    {
+      CHECK_SPACE(pos, end, 8);
+      sql_mode_inited= 1;
+      memcpy(&sql_mode, pos, sizeof(sql_mode));
+      sql_mode= le64toh(sql_mode);
+      pos+= 8;
+      break;
+    }
+    case Q_CATALOG_NZ_CODE:
+      if ((catalog_len= *pos))
+        m_catalog= std::string((const char*) (pos + 1), catalog_len);
+      CHECK_SPACE(pos, end, catalog_len + 1);
+      pos+= catalog_len + 1;
+      break;
+    case Q_AUTO_INCREMENT:
+      CHECK_SPACE(pos, end, 4);
+      memcpy(&auto_increment_increment, pos, sizeof(auto_increment_increment));
+      auto_increment_increment= le16toh(auto_increment_increment);
+      memcpy(&auto_increment_offset, pos + 2, sizeof(auto_increment_offset));
+      auto_increment_offset= le16toh(auto_increment_offset);
+      pos+= 4;
+      break;
+    case Q_CHARSET_CODE:
+    {
+      CHECK_SPACE(pos, end, 6);
+      charset_inited= 1;
+      memcpy(charset, pos, 6);
+      pos+= 6;
+      break;
+    }
+    case Q_TIME_ZONE_CODE:
+    {
+      if ((time_zone_len= *pos))
+        m_time_zone_str= std::string((const char*) (pos + 1), time_zone_len);
+      pos+= time_zone_len + 1;
+      break;
+    }
+    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      CHECK_SPACE(pos, end, 1);
+      if ((catalog_len= *pos))
+        m_catalog= std::string((const char*) (pos+1), catalog_len);
+      CHECK_SPACE(pos, end, catalog_len + 2);
+      pos+= catalog_len + 2; // leap over end 0
+      break;
+    case Q_LC_TIME_NAMES_CODE:
+      CHECK_SPACE(pos, end, 2);
+      memcpy(&lc_time_names_number, pos, sizeof(lc_time_names_number));
+      lc_time_names_number= le16toh(lc_time_names_number);
+      pos+= 2;
+      break;
+    case Q_CHARSET_DATABASE_CODE:
+      CHECK_SPACE(pos, end, 2);
+      memcpy(&charset_database_number, pos, sizeof(lc_time_names_number));
+      charset_database_number= le16toh(charset_database_number);
+      pos+= 2;
+      break;
+    case Q_TABLE_MAP_FOR_UPDATE_CODE:
+      CHECK_SPACE(pos, end, 8);
+      memcpy(&table_map_for_update, pos, sizeof(table_map_for_update));
+      table_map_for_update= le64toh(table_map_for_update);
+      pos+= 8;
+      break;
+    case Q_MASTER_DATA_WRITTEN_CODE:
+      CHECK_SPACE(pos, end, 4);
+      memcpy(&master_data_written, pos, sizeof(master_data_written));
+      master_data_written= le32toh(master_data_written);
+      this->header()->data_written= master_data_written;
+      pos+= 4;
+      break;
+    case Q_MICROSECONDS:
+      CHECK_SPACE(pos, end, 3);
+      this->header()->when.tv_usec= uint3korr(pos);
+      pos+= 3;
+      break;
+    //}
+    case Q_INVOKER:
+    {
+      CHECK_SPACE(pos, end, 1);
+      size_t user_len= *pos++;
+      CHECK_SPACE(pos, end, user_len);
+      m_user= std::string((const char *)pos, user_len);
+      pos+= user_len;
+
+      CHECK_SPACE(pos, end, 1);
+      size_t host_len= *pos++;
+      CHECK_SPACE(pos, end, host_len);
+      m_host= std::string((const char *)pos, host_len);
+      pos+= host_len;
+      break;
+    }
+    case Q_UPDATED_DB_NAMES:
+    {
+      uchar i= 0;
+      CHECK_SPACE(pos, end, 1);
+      mts_accessed_dbs= *pos++;
+      /*
+         Notice, the following check is positive also in case of
+         the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event
+         contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
+      */
+      if (mts_accessed_dbs > MAX_DBS_IN_EVENT_MTS)
+      {
+        mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+        break;
+      }
+
+      assert(mts_accessed_dbs != 0);
+
+      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
+      {
+        #ifndef DBUG_OFF
+        /*
+          This is specific to mysql test run on the server
+          for the keyword "query_log_event_mts_corrupt_db_names"
+        */
+        if (binary_log_debug::debug_query_mts_corrupt_db_names)
+        {
+          if (mts_accessed_dbs == 2)
+          {
+            assert(pos[sizeof("d?") - 1] == 0);
+            ((char*) pos)[sizeof("d?") - 1]= 'a';
+           }
+        }
+        #endif
+        strncpy(mts_accessed_db_names[i], (char*) pos,
+                std::min<ulong>(NAME_LEN, start + status_vars_len - pos));
+        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
+        pos+= 1 + strlen((const char*) pos);
+      }
+      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+        return;
+      break;
+    }
+    case Q_COMMIT_TS:
+      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
+      commit_seq_no= (int64)uint8korr(pos);
+      pos+= COMMIT_SEQ_LEN;
+      break;
+
+    default:
+      /* That's why you must write status vars in growing order of code */
+      pos= (const unsigned char*) end;         // Break loop
+    }
+  }
+  if (catalog_len)                             // If catalog is given
+    query_data_written+= catalog_len + 1;
+  if (time_zone_len)
+    query_data_written+= time_zone_len + 1;
+  if (m_user.length() > 0)
+    query_data_written+= m_user.length() + 1;
+  if (m_host.length() > 0)
+    query_data_written+= m_host.length() + 1;
+
+  /*
+    if time_zone_len or catalog_len are 0, then time_zone and catalog
+    are uninitialized at this point.  shouldn't they point to the
+    zero-length null-terminated strings we allocated space for in the
+    my_alloc call above? /sven
+  */
+
+  /* A 2nd variable part; this is common to all versions */
+  query_data_written+= data_len + 1;
+  m_db= std::string((const char *)end, db_len);
+  q_len= data_len - db_len -1;
+  m_query= std::string((const char *)(end + db_len + 1), q_len);
+  return;
+}
+
+/**
+  Layout for the data buffer is as follows
+  +--------+-----------+------+------+---------+----+-------+----+
+  | catlog | time_zone | user | host | db name | \0 | Query | \0 |
+  +--------+-----------+------+------+---------+----+-------+----+
+*/
+int Query_event::fill_data_buf(Log_event_header::Byte* buf)
+{
+  if (!buf)
+    return 0;
+  unsigned char* start= buf;
+  /*
+    Note: catalog_len is one less than "catalog.length()"
+    if Q_CATALOG flag is set
+   */
+  if (catalog_len)                                  // If catalog is given
+    /*
+      This covers both the cases, where the catalog_nz flag is set of unset.
+      The end 0 will be a part of the string catalog in the second case,
+      hence using catalog.length() instead of catalog_len makes the flags
+      catalog_nz redundant.
+     */
+    copy_str_and_move(&start, m_catalog, catalog_len);
+  if (m_time_zone_str.length() > 0)
+    copy_str_and_move(&start, m_time_zone_str, m_time_zone_str.length());
+  if (m_user.length() > 0)
+    copy_str_and_move(&start, m_user, m_user.length());
+  if (m_host.length() > 0)
+    copy_str_and_move(&start, m_host, m_host.length());
+  if (data_len)
+  {
+    copy_str_and_move(&start, m_db, m_db.length());
+    copy_str_and_move(&start, m_query, m_query.length());
+  }
+  return 1;
+}
+
+
 void Query_event::print_event_info(std::ostream& info)
 {
-  if (strcmp(query.c_str(), "BEGIN") != 0 &&
-      strcmp(query.c_str(), "COMMIT") != 0)
+  if (strcmp(m_query.c_str(), "BEGIN") != 0 &&
+      strcmp(m_query.c_str(), "COMMIT") != 0)
   {
-    info << "use `" << db_name << "`; ";
+    info << "use `" << m_db << "`; ";
   }
-  info << query;
+  info << m_query;
 }
 
 void Query_event::print_long_info(std::ostream& info)
 {
   info << "Timestamp: " << this->header()->when.tv_sec;
   info << "\tThread id: " << (int)thread_id;
-  info << "\tExec time: " << (int)exec_time;
-  info << "\nDatabase: " << db_name;
+  info << "\tExec time: " << (int)query_exec_time;
+  info << "\nDatabase: " << m_db;
   info << "\tQuery: ";
   this->print_event_info(info);
 }
+
+/**
+  The constructor used inorder to decode EXECUTE_LOAD_QUERY_EVENT from a
+  packet. It is used on the MySQL server acting as a slave.
+
+  @param buf buffer containing event header and data
+  @param event_len Length upto which the buffer is to read
+  @param descriptio_event FDE specific to the binlog version, used to extract
+                          the post header length
+*/
+Execute_load_query_event::
+Execute_load_query_event(const char* buf,
+                         unsigned int event_len,
+                         const Format_description_event *description_event)
+: Query_event(buf, event_len, description_event,
+              EXECUTE_LOAD_QUERY_EVENT),
+  file_id(0), fn_pos_start(0), fn_pos_end(0)
+{
+  if (!Query_event::is_valid())
+    return;
+
+  buf+= description_event->common_header_len;
+
+  memcpy(&fn_pos_start, buf + ELQ_FN_POS_START_OFFSET, sizeof(fn_pos_start));
+  fn_pos_start= le32toh(fn_pos_start);
+  memcpy(&fn_pos_end, buf + ELQ_FN_POS_END_OFFSET, sizeof(fn_pos_end));
+  fn_pos_end= le32toh(fn_pos_end);
+  dup_handling= (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
+
+  if (fn_pos_start > q_len || fn_pos_end > q_len ||
+      dup_handling > LOAD_DUP_REPLACE)
+    return;
+
+  memcpy(&file_id, buf + ELQ_FILE_ID_OFFSET, sizeof(file_id));
+  file_id= le32toh(file_id);
+}
+
 
 void Rotate_event::print_event_info(std::ostream& info)
 {

@@ -1647,7 +1647,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
     switch(event_type) {
     case QUERY_EVENT:
-      ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
+      binary_log_debug::debug_query_mts_corrupt_db_names=
+         DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
+      ev  = new Query_log_event(buf, event_len, &des_ev, QUERY_EVENT);
       break;
     case LOAD_EVENT:
       ev = new Load_log_event(buf, event_len, &des_ev);
@@ -1718,7 +1720,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Begin_load_query_log_event(buf, event_len, &des_ev);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
-      ev= new Execute_load_query_log_event(buf, event_len, description_event);
+      ev= new Execute_load_query_log_event(buf, event_len, &des_ev);
       break;
     case INCIDENT_EVENT:
       ev = new Incident_log_event(buf, event_len, description_event);
@@ -3569,14 +3571,12 @@ bool Query_log_event::write(IO_CACHE* file)
   }
   if (lc_time_names_number)
   {
-    DBUG_ASSERT(lc_time_names_number <= 0xFFFF);
     *start++= Q_LC_TIME_NAMES_CODE;
     int2store(start, lc_time_names_number);
     start+= 2;
   }
   if (charset_database_number)
   {
-    DBUG_ASSERT(charset_database_number <= 0xFFFF);
     *start++= Q_CHARSET_DATABASE_CODE;
     int2store(start, charset_database_number);
     start+= 2;
@@ -3748,13 +3748,12 @@ bool Query_log_event::write(IO_CACHE* file)
 /**
   The simplest constructor that could possibly work.  This is used for
   creating static objects that have a special meaning and are invisible
-  to the log.  
+  to the log.
 */
 Query_log_event::Query_log_event()
-  :Log_event(), data_buf(0)
+  :Query_event(), Log_event(),
+   user(0), host(0)
 {
-  memset(&user, 0, sizeof(user));
-  memset(&host, 0, sizeof(host));
 }
 
 
@@ -3785,24 +3784,26 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                           Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
-   data_buf(0), query(query_arg), catalog(thd_arg->catalog),
-   db(thd_arg->db), q_len((uint32) query_length),
-   thread_id(thd_arg->thread_id),
-   /* save the original thread id; we already know the server id */
-   slave_proxy_id(thd_arg->variables.pseudo_thread_id),
-   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
-   sql_mode(thd_arg->variables.sql_mode),
-   auto_increment_increment(thd_arg->variables.auto_increment_increment),
-   auto_increment_offset(thd_arg->variables.auto_increment_offset),
-   lc_time_names_number(thd_arg->variables.lc_time_names->number),
-   charset_database_number(0),
-   table_map_for_update((ulonglong)thd_arg->table_map_for_update),
-   master_data_written(0), mts_accessed_dbs(0)
+   user(0), host(0), data_buf(0), query(query_arg), catalog(thd_arg->catalog),
+   db(thd_arg->db)
 {
-  time_t end_time;
+  q_len= (uint32) query_length;
+  thread_id= thd_arg->thread_id;
+  /* save the original thread id; we already know the server id */
+  slave_proxy_id= thd_arg->variables.pseudo_thread_id;
+  flags2_inited= 1;
+  sql_mode_inited= 1;
+  charset_inited= 1;
+  sql_mode= thd_arg->variables.sql_mode;
+  auto_increment_increment= thd_arg->variables.auto_increment_increment;
+  auto_increment_offset= thd_arg->variables.auto_increment_offset;
+  lc_time_names_number= thd_arg->variables.lc_time_names->number;
+  charset_database_number= 0;
+  table_map_for_update= (ulonglong)thd_arg->table_map_for_update;
+  master_data_written= 0;
+  mts_accessed_dbs= 0;
 
-  memset(&user, 0, sizeof(user));
-  memset(&host, 0, sizeof(host));
+  time_t end_time;
 
   error_code= errcode;
 
@@ -3817,7 +3818,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   db_len = (db) ? (uint32) strlen(db) : 0;
   if (thd_arg->variables.collation_database != thd_arg->db_charset)
     charset_database_number= thd_arg->variables.collation_database->number;
-  
+
   /*
     We only replicate over the bits of flags2 that we need: the rest
     are masked out by "& OPTIONS_WRITTEN_TO_BINLOG".
@@ -4008,360 +4009,93 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 }
 #endif /* MYSQL_CLIENT */
 
-/* 2 utility functions for the next method */
-
-/**
-   Read a string with length from memory.
-
-   This function reads the string-with-length stored at
-   <code>src</code> and extract the length into <code>*len</code> and
-   a pointer to the start of the string into <code>*dst</code>. The
-   string can then be copied using <code>memcpy()</code> with the
-   number of bytes given in <code>*len</code>.
-
-   @param src Pointer to variable holding a pointer to the memory to
-              read the string from.
-   @param dst Pointer to variable holding a pointer where the actual
-              string starts. Starting from this position, the string
-              can be copied using @c memcpy().
-   @param len Pointer to variable where the length will be stored.
-   @param end One-past-the-end of the memory where the string is
-              stored.
-
-   @return    Zero if the entire string can be copied successfully,
-              @c UINT_MAX if the length could not be read from memory
-              (that is, if <code>*src >= end</code>), otherwise the
-              number of bytes that are missing to read the full
-              string, which happends <code>*dst + *len >= end</code>.
-*/
-static int
-get_str_len_and_pointer(const Log_event_header::Byte **src,
-                        const char **dst,
-                        uint *len,
-                        const Log_event_header::Byte *end)
-{
-  if (*src >= end)
-    return -1;       // Will be UINT_MAX in two-complement arithmetics
-  uint length= **src;
-  if (length > 0)
-  {
-    if (*src + length >= end)
-      return *src + length - end + 1;       // Number of bytes missing
-    *dst= (char *)*src + 1;                    // Will be copied later
-  }
-  *len= length;
-  *src+= length + 1;
-  return 0;
-}
-
-static void copy_str_and_move(const char **src,
-                              Log_event_header::Byte **dst,
-                              uint len)
-{
-  memcpy(*dst, *src, len);
-  *src= (const char *)*dst;
-  (*dst)+= len;
-  *(*dst)++= 0;
-}
-
-
-#ifndef DBUG_OFF
-static char const *
-code_name(int code)
-{
-  static char buf[255];
-  switch (code) {
-  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
-  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
-  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
-  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
-  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
-  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
-  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
-  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
-  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
-  case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
-  case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
-  case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
-  case Q_MICROSECONDS: return "Q_MICROSECONDS";
-  case Q_COMMIT_TS: return "Q_COMMIT_TS";
-  }
-  sprintf(buf, "CODE#%d", code);
-  return buf;
-}
-#endif
-/**
-   Macro to check that there is enough space to read from memory.
-
-   @param PTR Pointer to memory
-   @param END End of memory
-   @param CNT Number of bytes that should be read.
- */
-#define CHECK_SPACE(PTR,END,CNT)                      \
-  do {                                                \
-    DBUG_PRINT("info", ("Read %s", code_name(pos[-1]))); \
-    DBUG_ASSERT((PTR) + (CNT) <= (END));              \
-    if ((PTR) + (CNT) > (END)) {                      \
-      DBUG_PRINT("info", ("query= 0"));               \
-      query= 0;                                       \
-      DBUG_VOID_RETURN;                               \
-    }                                                 \
-  } while (0)
-
 
 /**
   This is used by the SQL slave thread to prepare the event before execution.
 */
 Query_log_event::Query_log_event(const char* buf, uint event_len,
-                                 const Format_description_log_event
+                                 const Format_description_event
                                  *description_event,
                                  Log_event_type event_type)
   :Binary_log_event(&buf, description_event->binlog_version),
-   Log_event(buf, description_event), data_buf(0), query(NullS),
-   db(NullS), catalog_len(0), status_vars_len(0),
-   flags2_inited(0), sql_mode_inited(0), charset_inited(0),
-   auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
-   table_map_for_update(0), master_data_written(0),
-   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
+   Query_event(buf, event_len, description_event, event_type),
+   Log_event(this->header(), true), user(0), host(0), catalog(0), db(0),
+   time_zone_str(0)
 {
-  ulong data_len;
-  uint32 tmp;
-  uint8 common_header_len, post_header_len;
-  Log_event_header::Byte *start;
-  const Log_event_header::Byte *end;
-  bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
-  memset(&user, 0, sizeof(user));
-  memset(&host, 0, sizeof(host));
-  commit_seq_no= SEQ_UNINIT;
-  common_header_len= description_event->common_header_len;
-  post_header_len= description_event->post_header_len[event_type-1];
-  DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
-                     event_len, common_header_len, post_header_len));
-  
-  /*
-    We test if the event's length is sensible, and if so we compute data_len.
-    We cannot rely on QUERY_HEADER_LEN here as it would not be format-tolerant.
-    We use QUERY_HEADER_MINIMAL_LEN which is the same for 3.23, 4.0 & 5.0.
-  */
-  if (event_len < (uint)(common_header_len + post_header_len))
-    DBUG_VOID_RETURN;				
-  data_len = event_len - (common_header_len + post_header_len);
-  buf+= common_header_len;
-  
-  slave_proxy_id= thread_id = uint4korr(buf + Q_THREAD_ID_OFFSET);
-  exec_time = uint4korr(buf + Q_EXEC_TIME_OFFSET);
-  db_len = (uint)buf[Q_DB_LEN_OFFSET]; // TODO: add a check of all *_len vars
-  error_code = uint2korr(buf + Q_ERR_CODE_OFFSET);
+  slave_proxy_id= thread_id;
+  exec_time= query_exec_time;
 
-  /*
-    5.0 format starts here.
-    Depending on the format, we may or not have affected/warnings etc
-    The remnent post-header to be parsed has length:
-  */
-  tmp= post_header_len - Binary_log_event::QUERY_HEADER_MINIMAL_LEN;
-  if (tmp)
-  {
-    status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
-    /*
-      Check if status variable length is corrupt and will lead to very
-      wrong data. We could be even more strict and require data_len to
-      be even bigger, but this will suffice to catch most corruption
-      errors that can lead to a crash.
-    */
-    if (status_vars_len > min<ulong>(data_len, MAX_SIZE_LOG_EVENT_STATUS))
-    {
-      DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
-                          status_vars_len, data_len));
-      query= 0;
-      DBUG_VOID_RETURN;
-    }
-    data_len-= status_vars_len;
-    DBUG_PRINT("info", ("Query_log_event has status_vars_len: %u",
-                        (uint) status_vars_len));
-    tmp-= 2;
-  } 
-  else
-  {
-    /*
-      server version < 5.0 / binlog_version < 4 master's event is 
-      relay-logged with storing the original size of the event in
-      Q_MASTER_DATA_WRITTEN_CODE status variable.
-      The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
-      event from the relay log.
-    */
-    DBUG_ASSERT(description_event->binlog_version < 4);
-    master_data_written= common_header->data_written;
-  }
-  /*
-    We have parsed everything we know in the post header for QUERY_EVENT,
-    the rest of post header is either comes from older version MySQL or
-    dedicated to derived events (e.g. Execute_load_query...)
-  */
-
-  /* variable-part: the status vars; only in MySQL 5.0  */
-
-  start= (Log_event_header::Byte*) (buf+post_header_len);
-  end= (const Log_event_header::Byte*) (start+status_vars_len);
-  for (const Log_event_header::Byte* pos= start; pos < end;)
-  {
-    switch (*pos++) {
-    case Q_FLAGS2_CODE:
-      CHECK_SPACE(pos, end, 4);
-      flags2_inited= 1;
-      flags2= uint4korr(pos);
-      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", (ulong) flags2));
-      pos+= 4;
-      break;
-    case Q_SQL_MODE_CODE:
-    {
-#ifndef DBUG_OFF
-      char buff[22];
+#if !defined(MYSQL_CLIENT)
+  if(!(data_buf= (Log_event_header::Byte*) my_malloc(key_memory_log_event,
+                                                      catalog_len + 1
+                                                   +  time_zone_len + 1
+                                                   +  get_user().length() + 1
+                                                   +  get_host().length() + 1
+                                                   +  data_len + 1
+                                                   +  sizeof(size_t)//for db_len
+                                                   +  db_len + 1
+                                                   +  QUERY_CACHE_FLAGS_SIZE,
+                                                      MYF(MY_WME))))
+#else
+  if (!(data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
+                                                      catalog_len + 1
+                                                   +  time_zone_len + 1
+                                                   +  get_user().length() + 1
+                                                   +  get_host().length() + 1
+                                                   +  data_len + 1,
+                                                      MYF(MY_WME))))
 #endif
-      CHECK_SPACE(pos, end, 8);
-      sql_mode_inited= 1;
-      sql_mode= uint8korr(pos);
-      DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
-                         llstr(sql_mode, buff)));
-      pos+= 8;
-      break;
-    }
-    case Q_CATALOG_NZ_CODE:
-      DBUG_PRINT("info", ("case Q_CATALOG_NZ_CODE; pos: 0x%lx; end: 0x%lx",
-                          (ulong) pos, (ulong) end));
-      if (get_str_len_and_pointer(&pos, &catalog, &catalog_len, end))
-      {
-        DBUG_PRINT("info", ("query= 0"));
-        query= 0;
-        DBUG_VOID_RETURN;
-      }
-      break;
-    case Q_AUTO_INCREMENT:
-      CHECK_SPACE(pos, end, 4);
-      auto_increment_increment= uint2korr(pos);
-      auto_increment_offset=    uint2korr(pos+2);
-      pos+= 4;
-      break;
-    case Q_CHARSET_CODE:
-    {
-      CHECK_SPACE(pos, end, 6);
-      charset_inited= 1;
-      memcpy(charset, pos, 6);
-      pos+= 6;
-      break;
-    }
-    case Q_TIME_ZONE_CODE:
-    {
-      if (get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len, end))
-      {
-        DBUG_PRINT("info", ("Q_TIME_ZONE_CODE: query= 0"));
-        query= 0;
-        DBUG_VOID_RETURN;
-      }
-      break;
-    }
-    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
-      CHECK_SPACE(pos, end, 1);
-      if ((catalog_len= *pos))
-        catalog= (char*) pos+1;                           // Will be copied later
-      CHECK_SPACE(pos, end, catalog_len + 2);
-      pos+= catalog_len+2; // leap over end 0
-      catalog_nz= 0; // catalog has end 0 in event
-      break;
-    case Q_LC_TIME_NAMES_CODE:
-      CHECK_SPACE(pos, end, 2);
-      lc_time_names_number= uint2korr(pos);
-      pos+= 2;
-      break;
-    case Q_CHARSET_DATABASE_CODE:
-      CHECK_SPACE(pos, end, 2);
-      charset_database_number= uint2korr(pos);
-      pos+= 2;
-      break;
-    case Q_TABLE_MAP_FOR_UPDATE_CODE:
-      CHECK_SPACE(pos, end, 8);
-      table_map_for_update= uint8korr(pos);
-      pos+= 8;
-      break;
-    case Q_MASTER_DATA_WRITTEN_CODE:
-      CHECK_SPACE(pos, end, 4);
-      common_header->data_written= master_data_written= uint4korr(pos);
-      pos+= 4;
-      break;
-    case Q_MICROSECONDS:
-    {
-      CHECK_SPACE(pos, end, 3);
-      common_header->when.tv_usec= uint3korr(pos);
-      pos+= 3;
-      break;
-    }
-    case Q_INVOKER:
-    {
-      CHECK_SPACE(pos, end, 1);
-      user.length= *pos++;
-      CHECK_SPACE(pos, end, user.length);
-      user.str= (char *)pos;
-      pos+= user.length;
+    DBUG_VOID_RETURN;
+  if (!(fill_data_buf(data_buf)))
+    DBUG_VOID_RETURN;
 
-      CHECK_SPACE(pos, end, 1);
-      host.length= *pos++;
-      CHECK_SPACE(pos, end, host.length);
-      host.str= (char *)pos;
-      pos+= host.length;
-      break;
-    }
-    case Q_UPDATED_DB_NAMES:
-    {
-      uchar i= 0;
-      CHECK_SPACE(pos, end, 1);
-      mts_accessed_dbs= *pos++;
-      /* 
-         Notice, the following check is positive also in case of
-         the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event 
-         contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
-      */
-      if (mts_accessed_dbs > MAX_DBS_IN_EVENT_MTS)
-      {
-        mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
-        break;
-      }
+  /*
+    The data buffer is used by the slave SQL thread while applying
+    the event. The catalog, time_zone)str, user, host, db, query
+    are pointers to this data_buf. Below, we initialize these
+    const pointers to the data buffer.
 
-      DBUG_ASSERT(mts_accessed_dbs != 0);
+    Please Note: Any changes to this data_buf will not be reflected
+    to the string variables in binlogapi library which was used to
+    populate the data buffer. This is not a requirement right now.
+  */
+  //TODO: define a separate func for this?
+  unsigned long tmp_catalog_len, tmp_time_zone_len,
+                tmp_user_length, tmp_host_length, tmp_data_len;
+  tmp_catalog_len= (catalog_len) ? (catalog_len+1) : 0;
+  tmp_time_zone_len= (time_zone_len) ? (time_zone_len + 1) : 0;
+  tmp_user_length= (get_user().length()) ? (get_user().length() + 1) : 0;
+  tmp_host_length= (get_host().length()) ? (get_host().length() + 1) : 0;
+  tmp_data_len= (data_len) ? (data_len + 1) : 0;
 
-      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
-      {
-        DBUG_EXECUTE_IF("query_log_event_mts_corrupt_db_names",
-                        {
-                          if (mts_accessed_dbs == 2)
-                          {
-                            ((char*) pos)[sizeof("d?") - 1]= 'a';
-                          }});
-        strncpy(mts_accessed_db_names[i], (char*) pos,
-                min<ulong>(NAME_LEN, start + status_vars_len - pos));
-        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
-        pos+= 1 + strlen((const char*) pos);
-      }
-      if (i != mts_accessed_dbs || pos > start + status_vars_len)
-        DBUG_VOID_RETURN;
-      break;
-    }
-    case Q_COMMIT_TS:
-      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
-      commit_seq_no= (int64)uint8korr(pos);
-      pos+= COMMIT_SEQ_LEN;
-      break;
-    default:
-      /* That's why you must write status vars in growing order of code */
-      DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
- code: %u), skipping the rest of them", (uint) *(pos-1)));
-      pos= (const uchar*) end;                         // Break loop
-    }
+  if (tmp_catalog_len > 1)
+    catalog= (const char*)data_buf + 0;
+  if (tmp_time_zone_len > 1)
+    time_zone_str= (const char*)(data_buf + tmp_catalog_len);
+  if (tmp_user_length > 1)
+    user= (const char*)(data_buf + tmp_time_zone_len
+                                 + tmp_catalog_len);
+  if (tmp_host_length > 1)
+    host= (const char*)(data_buf + tmp_user_length
+                                 + tmp_time_zone_len
+                                 + tmp_catalog_len);
+  if (tmp_data_len > 1)
+  {
+    db= (const char*)(data_buf + tmp_host_length
+                               + tmp_user_length
+                               + tmp_time_zone_len
+                               + tmp_catalog_len);
+    query= (const char*)(data_buf + tmp_host_length
+                                  + tmp_user_length
+                                  + tmp_time_zone_len
+                                  + tmp_catalog_len
+                                  + db_len + 1);
   }
 
   /**
-    Layout for the data buffer is as follows
+    The buffer contains the following:
     +--------+-----------+------+------+---------+----+-------+
     | catlog | time_zone | user | host | db name | \0 | Query |
     +--------+-----------+------+------+---------+----+-------+
@@ -4374,73 +4108,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     The area of buffer starting from Query field all the way to the end belongs
     to the Query buffer and its structure is described in alloc_query() in
     sql_parse.cc
-    */
 
-#if !defined(MYSQL_CLIENT)
-  if (!(start= data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
-                                                       catalog_len + 1
-                                                    +  time_zone_len + 1
-                                                    +  user.length + 1
-                                                    +  host.length + 1
-                                                    +  data_len + 1
-                                                    +  sizeof(size_t)//for db_len
-                                                    +  db_len + 1
-                                                    +  QUERY_CACHE_FLAGS_SIZE,
-                                                       MYF(MY_WME))))
-#else
-  if (!(start= data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
-                                                       catalog_len + 1
-                                                    +  time_zone_len + 1
-                                                    +  user.length + 1
-                                                    +  host.length + 1
-                                                    +  data_len + 1,
-                                                       MYF(MY_WME))))
-#endif
-      DBUG_VOID_RETURN;
-  if (catalog_len)                                  // If catalog is given
-  {
-    /**
-      @todo we should clean up and do only copy_str_and_move; it
-      works for both cases.  Then we can remove the catalog_nz
-      flag. /sven
-    */
-    if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
-      copy_str_and_move(&catalog, &start, catalog_len);
-    else
-    {
-      memcpy(start, catalog, catalog_len+1); // copy end 0
-      catalog= (const char *)start;
-      start+= catalog_len+1;
-    }
-  }
-  if (time_zone_len)
-    copy_str_and_move(&time_zone_str, &start, time_zone_len);
-
-  if (user.length > 0)
-    copy_str_and_move((const char **)&(user.str), &start, user.length);
-  if (host.length > 0)
-    copy_str_and_move((const char **)&(host.str), &start, host.length);
-
-  /**
-    if time_zone_len or catalog_len are 0, then time_zone and catalog
-    are uninitialized at this point.  shouldn't they point to the
-    zero-length null-terminated strings we allocated space for in the
-    my_alloc call above? /sven
-  */
-
-  /* A 2nd variable part; this is common to all versions */ 
-  memcpy((char*) start, end, data_len);          // Copy db and query
-  start[data_len]= '\0';              // End query with \0 (For safetly)
-  db= (char *)start;
-  query= (char *)(start + db_len + 1);
-  q_len= data_len - db_len -1;
-  /**
-    Append the db length at the end of the buffer. This will be used by
+    We append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
    */
 #if !defined(MYSQL_CLIENT)
   size_t db_length= (size_t)db_len;
-  memcpy(start + data_len + 1, &db_length, sizeof(size_t));
+  memcpy(data_buf + query_data_written, &db_length, sizeof(db_length));
 #endif
   DBUG_VOID_RETURN;
 }
@@ -4578,7 +4252,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset)
   {
-    my_b_printf(file,"SET @@session.auto_increment_increment=%lu, @@session.auto_increment_offset=%lu%s\n",
+    my_b_printf(file,"SET @@session.auto_increment_increment=%hu, @@session.auto_increment_offset=%hu%s\n",
                 auto_increment_increment,auto_increment_offset,
                 print_event_info->delimiter);
     print_event_info->auto_increment_increment= auto_increment_increment;
@@ -4934,9 +4608,24 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       else
         thd->variables.collation_database= thd->db_charset;
-      
+
       thd->table_map_for_update= (table_map)table_map_for_update;
-      thd->set_invoker(&user, &host);
+
+      LEX_STRING user_lex;
+      LEX_STRING host_lex;
+      memset(&user_lex, 0, sizeof(user_lex));
+      memset(&host_lex, 0, sizeof(host_lex));
+      if (user)
+      {
+        user_lex.str= (char*)user;
+        user_lex.length= strlen(user);
+      }
+      if (host)
+      {
+        host_lex.str= (char*)host;
+        host_lex.length= strlen(host);
+      }
+      thd->set_invoker(&user_lex, &host_lex);
       /*
         Flag if we need to rollback the statement transaction on
         slave if it by chance succeeds.
@@ -8890,37 +8579,32 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
                              bool using_trans, bool immediate, bool suppress_use,
-                             int errcode):
-  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
-                  suppress_use, errcode),
-  file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
-  fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
+                             int errcode)
+: Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
+                  suppress_use, errcode)
 {
+  file_id= thd_arg->file_id;
+  fn_pos_start= fn_pos_start_arg;
+  fn_pos_end= fn_pos_end_arg;
+  dup_handling= dup_handling_arg;
+
 }
 #endif /* !MYSQL_CLIENT */
 
 
 Execute_load_query_log_event::
 Execute_load_query_log_event(const char* buf, uint event_len,
-                             const Format_description_log_event* desc_event):
+                             const Format_description_event* desc_event):
   Binary_log_event(&buf, desc_event->binlog_version),
+  Query_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
   Query_log_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
-  file_id(0), fn_pos_start(0), fn_pos_end(0)
+  Execute_load_query_event(buf, event_len, desc_event)
 {
-  if (!Query_log_event::is_valid())
-    return;
-
-  buf+= desc_event->common_header_len;
-
-  fn_pos_start= uint4korr(buf + ELQ_FN_POS_START_OFFSET);
-  fn_pos_end= uint4korr(buf + ELQ_FN_POS_END_OFFSET);
-  dup_handling= (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
-
-  if (fn_pos_start > q_len || fn_pos_end > q_len ||
-      dup_handling > LOAD_DUP_REPLACE)
-    return;
-
-  file_id= uint4korr(buf + ELQ_FILE_ID_OFFSET);
+  if (!Query_event::is_valid())
+  {
+    //clear all the variables set in execute_load_query_event
+    file_id= 0; fn_pos_start= 0; fn_pos_end= 0; dup_handling= LOAD_DUP_ERROR;
+  }
 }
 
 

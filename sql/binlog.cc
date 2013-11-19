@@ -5755,7 +5755,8 @@ inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
                        cache->commit_seq_no));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
   DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
-  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
+  DBUG_ASSERT((*pc_ptr == binary_log::Query_event::Q_COMMIT_TS ||
+               *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
   DBUG_EXECUTE_IF("set_commit_parent_100",
                   { cache->commit_seq_no=100; });
