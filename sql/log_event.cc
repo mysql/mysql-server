@@ -5316,7 +5316,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Start_log_event_v3::Start_log_event_v3(const char* buf,
                                        const Format_description_log_event
                                        *description_event)
-  :Log_event(buf, description_event)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(buf, description_event)
 {
   buf+= description_event->common_header_len;
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
