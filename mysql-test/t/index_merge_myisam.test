@@ -176,5 +176,70 @@ AND (population_rate = 25 OR area_rate BETWEEN 2 AND 25 OR code BETWEEN 'MA' AND
 
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-5069: Server crashes in SEL_ARG::increment_use_count with index_merge+index_merge_sort_union, FORCE INDEX
+--echo #
+
+CREATE TABLE t1 (
+ c1 varchar(64),
+ i int,
+ pk integer auto_increment,
+ c2 varchar(64),
+ index (c1),
+ index (i),
+ primary key (pk),
+ key (c2)) ENGINE=myisam;
+
+ALTER TABLE t1 DISABLE KEYS;
+
+INSERT INTO t1 VALUES 
+('West Virginia', 6121, NULL, 'California'),('Georgia', 60177, NULL, 'Arkansas'),
+('Delaware', 90, NULL, 'Oregon'),('Wyoming', 7, NULL, 'Missouri'),(
+'Delaware', 2, NULL, 'Utah'),('Wisconsin', 0, NULL, 'Iowa'),
+('Kansas', 0, NULL, 'Florida'),('Ohio', 34358, NULL, 'Colorado'),
+('Maine', 118, NULL, 'Texas'),('Mississippi', 0, NULL, 'Georgia'),
+('Tennessee', 4, NULL, 'N/A'),('Georgia', 0, NULL, 'New Hampshire'),
+('Wyoming', 2, NULL, 'N/A'),('Florida', 0, NULL, 'Arizona'),
+('Rhode Island', -24002, NULL, 'Michigan'),('Alabama', 142, NULL, 'Indiana'),
+('Colorado', 0, NULL, 'Louisiana'),('Michigan', 21194, NULL, 'Louisiana'),
+('Oklahoma', 31475, NULL, 'Alabama'),('Pennsylvania', 0, NULL, 'Oklahoma'),
+('Texas', 0, NULL, 'Texas'),('West Virginia', 5, NULL, 'Utah'),
+('Florida', 49653, NULL, 'Kentucky'),('Tennessee', 19075, NULL, 'Oregon'),
+('Maine', 3, NULL, 'Kansas, Kentucky, Iowa'),('Iowa', 1, NULL, 'South Dakota'),
+('Kansas', -4037, NULL, 'Virginia'),('Delaware', 22550, NULL, 'Utah'),
+('Illinois', 14634, NULL, 'South Carolina, Colorado'),
+('Kansas', 6, NULL, 'South Dakota'),('Delaware', 9, NULL, ''),
+('', 0, NULL, 'Utah, Delaware, Florida, Georgia, Nevada'),
+('Colorado', 8, NULL, 'Montana'),('Maryland', 2689, NULL, 'Hawaii'),
+('Florida', -12306, NULL, 'Delaware'),
+('Indiana', 38567, NULL, 'Iowa, Minnesota, Maine'),
+('Oklahoma', 9, NULL, 'Delaware, Kansas, Oregon, Nebraska, Maryland, Minnesota'),
+('Tennessee', 12460, NULL, NULL),('Kentucky', 0, NULL, 'Ohio'),
+('Nevada', 7, NULL, 'Vermont, Oregon, Oklahoma, Montana'),
+('Nebraska', 61966, NULL, 'Nevada'),('Alaska', 131, NULL, 'Louisiana, Maine'),
+('Wisconsin', 4, NULL, 'Nevada'),('South Carolina', 0, NULL, 'Washington'),
+('West Virginia', 51314, NULL, 'Ohio'),('Louisiana', 0, NULL, ''),
+('Pennsylvania', 0, NULL, 'Iowa, Idaho'),('Arkansas', 14010, NULL, 'Indiana'),
+('Wyoming', -15514, NULL, 'Maine'),('Georgia', 0, NULL, 'N/A'),
+('Kentucky', 1, NULL, 'Idaho'),('Wyoming', 60249, NULL, 'Indiana, Iowa'),
+('Pennsylvania', 69, NULL, 'W'),
+('New Mexico', 11480, NULL, 'Florida, Georgia, Hawaii'),
+('South Carolina', 9, NULL, 'Iowa'),('Virginia', 0, NULL, 'Connecticut'),
+('Mississippi', 19749, NULL, 'Rhode Island'),('Illinois', 5, NULL, 'Virginia'),
+('Texas', -1749, NULL, 'Tennessee'),('Arizona', 28, NULL, 'California'),
+('Florida', 62151, NULL, 'Kansas'),('California', 172, NULL, 'SC'),
+('New Jersey', 0, NULL, 'North Carolina'),('Wyoming', 4, NULL, 'I'),
+('Kansas', 10683, NULL, 'California'),('Arkansas', -14275, NULL, 'K'),
+('Arizona', 5, NULL, 'California, Delaware, Rhode Island, Maryland'),
+('Florida', 0, NULL, 'T'),('Alaska', 241, NULL, 'Virginia');
+
+ALTER TABLE t1 ENABLE KEYS;
+
+EXPLAIN
+SELECT  * FROM t1 FORCE KEY (PRIMARY , i , c1 , c2) 
+WHERE pk = 255 OR i = 22 OR (pk  IN (1 , 136) AND c2  IN ('c' , 'w') AND (c1 NOT BETWEEN 'e' AND 'i' OR  c2 > 'g'))  OR pk != 1  ;
+
+DROP TABLE t1;
+
 set optimizer_switch= @optimizer_switch_save;
 

@@ -4925,8 +4925,10 @@ TABLE_READ_PLAN *merge_same_index_scans(PARAM *param, SEL_IMERGE *imerge,
       bzero((*changed_tree)->keys,
             sizeof((*changed_tree)->keys[0])*param->keys);
       (*changed_tree)->keys_map.clear_all();
-      key->incr_refs();
-      (*tree)->keys[key_idx]->incr_refs();
+      if (key) 
+        key->incr_refs(); 
+      if ((*tree)->keys[key_idx]) 
+        (*tree)->keys[key_idx]->incr_refs(); 
       if (((*changed_tree)->keys[key_idx]=
              key_or(param, key, (*tree)->keys[key_idx])))
         (*changed_tree)->keys_map.set_bit(key_idx);
