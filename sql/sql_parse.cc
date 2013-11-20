@@ -6637,6 +6637,37 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
   This is a wrapper of MYSQLparse(). All the code should call parse_sql()
   instead of MYSQLparse().
 
+  As a by product of parsing, the parser can also generate a query digest.
+  To compute a digest, invoke this function as follows.
+
+  @verbatim
+    THD *thd = ...;
+    const char *query_text = ...;
+    uint query_length = ...;
+    Object_creation_ctx *ctx = ...;
+    bool rc;
+
+    Parser_state parser_state;
+    if (parser_state.init(thd, query_text, query_length)
+    {
+      ... handle error
+    }
+
+    parser_state.m_input.m_compute_digest= true;
+    
+    rc= parse_sql(the, &parser_state, ctx);
+    if (! rc)
+    {
+      unsigned char md5[MD5_HASH_SIZE];
+      char digest_text[1024];
+      bool truncated;
+      const sql_digest_storage *digest= & thd->m_digest->m_digest_storage;
+
+      compute_md5_digest(digest, & md5[0]);
+      compute_digest_text(digest, & digest_text[0], sizeof(digest_text), & truncated);
+    }
+  @endverbatim
+
   @param thd Thread context.
   @param parser_state Parser state.
   @param creation_ctx Object creation context.
