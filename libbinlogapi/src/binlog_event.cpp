@@ -1035,7 +1035,7 @@ User_var_event(const char* buf, unsigned int event_len,
   unsigned int bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-#endif
+
     assert((bytes_read == header()->data_written -
                  (old_pre_checksum_fd ||
                   (description_event->checksum_alg ==
@@ -1048,6 +1048,7 @@ User_var_event(const char* buf, unsigned int event_len,
                   (description_event->checksum_alg ==
                    BINLOG_CHECKSUM_ALG_OFF)) ?
                  0 : BINLOG_CHECKSUM_LEN));
+#endif
     if ((header()->data_written - bytes_read) > 0)
     {
       flags= (unsigned int) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
