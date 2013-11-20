@@ -430,7 +430,7 @@ public:
         masterData.gsn = 0;
       }
     
-    /* next time to report backup status */
+    /* prev time backup status was reported */
     NDB_TICKS m_prev_report;
 
     Uint32 m_gsn;
