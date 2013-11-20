@@ -219,17 +219,6 @@ struct sql_ex_info
 #define I_TYPE_OFFSET        0
 #define I_VAL_OFFSET         1
 
-/* Rand event data */
-#define RAND_SEED1_OFFSET 0
-#define RAND_SEED2_OFFSET 8
-
-/* User_var event data */
-#define UV_VAL_LEN_SIZE        4
-#define UV_VAL_IS_NULL         1
-#define UV_VAL_TYPE_SIZE       1
-#define UV_NAME_LEN_SIZE       4
-#define UV_CHARSET_NUMBER_SIZE 4
-
 /* TM = "Table Map" */
 #define TM_MAPID_OFFSET    0
 #define TM_FLAGS_OFFSET    6
@@ -1831,47 +1820,34 @@ private:
 
   The state of the random number generation consists of 128 bits,
   which are stored internally as two 64-bit numbers.
+  The inheritance structure in the current design for the classes is
+  as follows:
+              Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+           Rand_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 Rand_log_event
 
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
   @section Rand_log_event_binary_format Binary Format  
 
-  The Post-Header for this event type is empty.  The Body has two
-  components:
-
-  <table>
-  <caption>Body for Rand_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>seed1</td>
-    <td>8 byte unsigned integer</td>
-    <td>64 bit random seed1.</td>
-  </tr>
-
-  <tr>
-    <td>seed2</td>
-    <td>8 byte unsigned integer</td>
-    <td>64 bit random seed2.</td>
-  </tr>
-  </table>
 */
 
-class Rand_log_event: public Log_event
+class Rand_log_event: public Log_event, public Rand_event
 {
  public:
-  ulonglong seed1;
-  ulonglong seed2;
 
 #ifdef MYSQL_SERVER
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
                  enum_event_cache_type cache_type_arg,
                  enum_event_logging_type logging_type_arg)
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
-    seed1(seed1_arg), seed2(seed2_arg) { }
+     Rand_event(seed1_arg, seed2_arg) { }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1880,7 +1856,7 @@ class Rand_log_event: public Log_event
 #endif
 
   Rand_log_event(const char* buf,
-                 const Format_description_log_event *description_event);
+                 const Format_description_event *description_event);
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
   int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
@@ -1966,25 +1942,26 @@ private:
 
   Every time a query uses the value of a user variable, a User_var_log_event is
   written before the Query_log_event, to set the user variable.
+  The inheritance structure in the current design for the classes is
+  as follows:
+                Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+           User_var_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 User_var_log_event
 
-  @section User_var_log_event_binary_format Binary Format  
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+  @section User_var_log_event_binary_format Binary Format
 */
 
-class User_var_log_event: public Log_event
+class User_var_log_event: public Log_event, public User_var_event
 {
 public:
-  enum {
-    UNDEF_F= 0,
-    UNSIGNED_F= 1
-  };
-  const char *name;
-  uint name_len;
-  char *val;
-  ulong val_len;
-  Item_result type;
-  uint charset_number;
-  bool is_null;
-  uchar flags;
 #ifdef MYSQL_SERVER
   bool deferred;
   query_id_t query_id;
@@ -1993,19 +1970,18 @@ public:
 		     uint charset_number_arg, uchar flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg), name(name_arg),
-     name_len(name_len_arg), val(val_arg), val_len(val_len_arg), type(type_arg),
-     charset_number(charset_number_arg), flags(flags_arg), deferred(false)
-    { 
-      is_null= !val;
-    }
+    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
+     User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
+                    (Value_type)type_arg, charset_number_arg, flags_arg),
+     deferred(false)
+    { }
   int pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   User_var_log_event(const char* buf, uint event_len,
-                     const Format_description_log_event *description_event);
+                     const Format_description_event *description_event);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER

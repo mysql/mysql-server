@@ -113,23 +113,6 @@ TYPELIB binlog_checksum_typelib=
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
-/*
-  Explicit instantiation to unsigned int of template available_buffer
-  function.
-*/
-template unsigned int available_buffer<unsigned int>(const char*,
-                                                     const char*,
-                                                     unsigned int);
-
-/*
-  Explicit instantiation to unsigned int of template valid_buffer_range
-  function.
-*/
-template bool valid_buffer_range<unsigned int>(unsigned int,
-                                               const char*,
-                                               const char*,
-                                               unsigned int);
-
 #if defined(MYSQL_CLIENT)
 
 /*
@@ -1685,10 +1668,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Xid_log_event(buf, &des_ev);
       break;
     case RAND_EVENT:
-      ev = new Rand_log_event(buf, description_event);
+      ev = new Rand_log_event(buf, &des_ev);
       break;
     case USER_VAR_EVENT:
-      ev = new User_var_log_event(buf, event_len, description_event);
+      ev = new User_var_log_event(buf, event_len, &des_ev);
       break;
     case FORMAT_DESCRIPTION_EVENT:
       ev = new Format_description_log_event(buf, event_len, description_event);
@@ -6837,15 +6820,10 @@ int Rand_log_event::pack_info(Protocol *protocol)
 
 
 Rand_log_event::Rand_log_event(const char* buf,
-                               const Format_description_log_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event)
+                               const Format_description_event* description_event)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(this->header()), Rand_event(buf, description_event)
 {
-
-  /* The Post-Header is empty. The Variable Data part begins immediately. */
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[RAND_EVENT-1];
-  seed1= uint8korr(buf+RAND_SEED1_OFFSET);
-  seed2= uint8korr(buf+RAND_SEED2_OFFSET);
 }
 
 
@@ -6964,7 +6942,7 @@ Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   :Binary_log_event(&buf, description_event->binlog_version),
-   Log_event(this->header())
+   Log_event(this->header()), Xid_event(buf, description_event)
 { }
 
 
@@ -7266,104 +7244,13 @@ int User_var_log_event::pack_info(Protocol* protocol)
 
 User_var_log_event::
 	User_var_log_event(const char* buf, uint event_len,
-			   const Format_description_log_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event)
+			   const Format_description_event* description_event)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(this->header()), User_var_event(buf, event_len, description_event)
 #ifndef MYSQL_CLIENT
   , deferred(false), query_id(0)
 #endif
 {
-
-  bool error= false;
-  const char* buf_start= buf;
-  /* The Post-Header is empty. The Variable Data part begins immediately. */
-  const char *start= buf;
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[USER_VAR_EVENT-1];
-  name_len= uint4korr(buf);
-  name= (char *) buf + UV_NAME_LEN_SIZE;
-
-  /*
-    We don't know yet is_null value, so we must assume that name_len
-    may have the bigger value possible, is_null= True and there is no
-    payload for val, or even that name_len is 0.
-  */
-  if (!valid_buffer_range<uint>(name_len, buf_start, name,
-                                event_len - UV_VAL_IS_NULL))
-  {
-    error= true;
-    goto err;
-  }
-
-  buf+= UV_NAME_LEN_SIZE + name_len;
-  is_null= (bool) *buf;
-  flags= User_var_log_event::UNDEF_F;    // defaults to UNDEF_F
-  if (is_null)
-  {
-    type= STRING_RESULT;
-    charset_number= my_charset_bin.number;
-    val_len= 0;
-    val= 0;  
-  }
-  else
-  {
-    if (!valid_buffer_range<uint>(UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE
-                                  + UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE,
-                                  buf_start, buf, event_len))
-    {
-      error= true;
-      goto err;
-    }
-
-    type= (Item_result) buf[UV_VAL_IS_NULL];
-    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
-    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-                       UV_CHARSET_NUMBER_SIZE);
-    val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-                   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
-
-    if (!valid_buffer_range<uint>(val_len, buf_start, val, event_len))
-    {
-      error= true;
-      goto err;
-    }
-
-    /**
-      We need to check if this is from an old server
-      that did not pack information for flags.
-      We do this by checking if there are extra bytes
-      after the packed value. If there are we take the
-      extra byte and it's value is assumed to contain
-      the flags value.
-
-      Old events will not have this extra byte, thence,
-      we keep the flags set to UNDEF_F.
-    */
-    uint bytes_read= ((val + val_len) - start);
-#ifndef DBUG_OFF
-    bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-#endif
-    DBUG_ASSERT((bytes_read == common_header->data_written -
-                 (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN)
-                ||
-                (bytes_read == common_header->data_written -1 -
-                 (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN));
-    if ((common_header->data_written - bytes_read) > 0)
-    {
-      flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE +
-                    val_len);
-    }
-  }
-
-err:
-  if (error)
-    name= 0;
 }
 
 
@@ -7635,8 +7522,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e->update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
-                 (flags & User_var_log_event::UNSIGNED_F));
+  e->update_hash(val, val_len, (Item_result)type, charset, DERIVATION_IMPLICIT,
+                 (flags & User_var_event::UNSIGNED_F));
   if (!is_deferred())
     free_root(thd->mem_root, 0);
   else
