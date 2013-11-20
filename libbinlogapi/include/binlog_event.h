@@ -2126,12 +2126,50 @@ public:
     void print_long_info(std::ostream& info);
 };
 
-class Int_var_event: public Binary_log_event
+/**
+  @class Int_var_event
+
+  An Intvar_log_event will be created just before a Query_event,
+  if the query uses one of the variables LAST_INSERT_ID or INSERT_ID.
+  Each Int_var_event holds the value of one of these variables.
+
+  @section Int_var_event_binary_format Binary Format
+
+  The Post-Header for this event type is empty. The Body has two
+  components:
+
+  <table>
+  <caption>Body for Intvar_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>type</td>
+    <td>1 byte enumeration</td>
+    <td>One byte identifying the type of variable stored.  Currently,
+    two identifiers are supported: LAST_INSERT_ID_EVENT == 1 and
+    INSERT_ID_EVENT == 2.
+    </td>
+  </tr>
+
+  <tr>
+    <td>val</td>
+    <td>8 byte unsigned integer</td>
+    <td>The value of the variable.</td>
+  </tr>
+
+  </table>
+*/
+class Int_var_event: public virtual Binary_log_event
 {
 public:
-    Int_var_event(Log_event_header *header) : Binary_log_event(header) {}
-    uint8_t  type;
-    uint64_t value;
+    unsigned char  type;
+    uint64_t  val;
+
     enum Int_event_type
     {
       INVALID_INT_EVENT,
@@ -2139,7 +2177,23 @@ public:
       INSERT_ID_EVENT
     };
 
-    static std::string get_type_string(enum Int_event_type type)
+    /**
+      moving from pre processor symbols from global scope in log_event.h
+      to an enum inside the class, since these are used only by
+       members of this class itself.
+    */
+    enum Intvar_event_offset
+    {
+      I_TYPE_OFFSET= 0,
+      I_VAL_OFFSET= 1
+    };
+
+    /**
+      This method returns the string representing the type of the variable
+      used in the event. Changed the definition to be similar to that
+      previously defined in log_event.cc.
+    */
+    std::string get_var_type_string()
     {
       switch(type)
       {
@@ -2154,11 +2208,26 @@ public:
       }
     }
 
+    Int_var_event(const char* buf,
+                  const Format_description_event *description_event);
+    Int_var_event(unsigned char type_arg, uint64_t val_arg)
+                 :type(type_arg), val(val_arg) {}
+    ~Int_var_event() {}
+
     Log_event_type get_type_code() { return INTVAR_EVENT; }
+
+    /*
+      is_valid() is event specific sanity checks to determine that the
+      object is correctly initialized. This is redundant here, because
+      no new allocation is done in the constructor of the event.
+      Else, they contain the value indicating whether the event was
+      correctly initialized.
+    */
     bool is_valid() const { return 1; }
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);
 };
+
 
 class Incident_event: public Binary_log_event
 {

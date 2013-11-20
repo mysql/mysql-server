@@ -518,6 +518,39 @@ void Stop_event::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
+/******************************************************************
+            Int_var_event methods
+*******************************************************************/
+/**
+  Constructor which receives a packet from the MySQL master or the binary
+  log and decodes it to create an Int_var_event.
+
+  @param buf Buffer containing header and event data.
+  @param description_event FDE corresponding to the binlog version of the
+                               log file being read currently.
+
+  The post header for the event is empty. Buffer layout for the variable
+  data part is as follows:
+    +--------------------------------+
+    | type (4 bytes) | val (8 bytes) |
+    +--------------------------------+
+*/
+Int_var_event::Int_var_event(const char* buf,
+                             const Format_description_event* description_event)
+: Binary_log_event(&buf, description_event->binlog_version)
+{
+  /*
+    TODO: Move the addition by common header len to the constrcutor in
+          Binary_log_event when all events are refactored.
+  */
+  buf+= description_event->common_header_len;
+  /* The Post-Header is empty. The Varible Data part begins immediately. */
+  buf+= description_event->post_header_len[INTVAR_EVENT - 1];
+  type= buf[I_TYPE_OFFSET];
+  memcpy(&val, buf + I_VAL_OFFSET, sizeof(val));
+  val= le64toh(val);
+}
+
 void Unknown_event::print_event_info(std::ostream& info)
 {
   info << "Unhandled event";
@@ -1475,8 +1508,8 @@ void Row_event::print_long_info(std::ostream& info)
 
 void Int_var_event::print_event_info(std::ostream& info)
 {
-  info << get_type_string(static_cast<Int_event_type>(type));
-  info << "\tValue: " << value;
+  info << get_var_type_string();
+  info << "\tValue: " << val;
 }
 
 void Int_var_event::print_long_info(std::ostream& info)
