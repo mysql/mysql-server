@@ -4004,8 +4004,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
-  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
-                     (ulong) flags2, sql_mode));
+  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
+                     (ulong) flags2, (ulong) sql_mode));
 }
 #endif /* MYSQL_CLIENT */
 
