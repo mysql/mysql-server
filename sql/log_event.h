@@ -1779,53 +1779,22 @@ protected:
 /**
   @class Intvar_log_event
 
-  An Intvar_log_event will be created just before a Query_log_event,
-  if the query uses one of the variables LAST_INSERT_ID or INSERT_ID.
-  Each Intvar_log_event holds the value of one of these variables.
-
-  @section Intvar_log_event_binary_format Binary Format
-
-  The Post-Header for this event type is empty.  The Body has two
-  components:
-
-  <table>
-  <caption>Body for Intvar_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>type</td>
-    <td>1 byte enumeration</td>
-    <td>One byte identifying the type of variable stored.  Currently,
-    two identifiers are supported:  LAST_INSERT_ID_EVENT==1 and
-    INSERT_ID_EVENT==2.
-    </td>
-  </tr>
-
-  <tr>
-    <td>value</td>
-    <td>8 byte unsigned integer</td>
-    <td>The value of the variable.</td>
-  </tr>
-
-  </table>
+  The class derives from the class Int_var_event in Binlog API,
+  defined in the header binlog_event.h. An Intvar_log_event is
+  created just before a Query_log_event, if the query uses one
+  of the variables LAST_INSERT_ID or INSERT_ID. This class is used
+  by the lave for applying the event.
 */
-class Intvar_log_event: public Log_event
+class Intvar_log_event: public Log_event, public Int_var_event
 {
 public:
-  ulonglong val;
-  uchar type;
 
 #ifdef MYSQL_SERVER
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
                    enum_event_cache_type cache_type_arg,
                    enum_event_logging_type logging_type_arg)
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
-    val(val_arg), type(type_arg) { }
+     Int_var_event(type_arg, val_arg) { }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1834,10 +1803,9 @@ public:
 #endif
 
   Intvar_log_event(const char* buf,
-                   const Format_description_log_event *description_event);
+                   const Format_description_event *description_event);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
-  const char* get_var_type_name();
   int get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);

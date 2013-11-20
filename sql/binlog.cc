@@ -3475,17 +3475,26 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   {
     (s.common_header)->flags|=  LOG_EVENT_BINLOG_IN_USE_F;
   }
-  s.checksum_alg= is_relay_log ?
+
+  if (is_relay_log)
+  {
     /* relay-log */
-    /* inherit master's A descriptor if one has been received */
-    (relay_log_checksum_alg=
-     (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-     relay_log_checksum_alg :
-     /* otherwise use slave's local preference of RL events verification */
-     (opt_slave_sql_verify_checksum == 0) ?
-      BINLOG_CHECKSUM_ALG_OFF : (enum_binlog_checksum_alg)binlog_checksum_options):
+    if (relay_log_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
+    {
+      /* inherit master's A descriptor if one has been received */
+      if (opt_slave_sql_verify_checksum == 0)
+        /* otherwise use slave's local preference of RL events verification */
+        relay_log_checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+      else
+        relay_log_checksum_alg=
+                           (enum_binlog_checksum_alg)binlog_checksum_options;
+    }
+    s.checksum_alg= relay_log_checksum_alg;
+  }
+  else
     /* binlog */
-    (enum_binlog_checksum_alg)binlog_checksum_options;
+    s.checksum_alg= (enum_binlog_checksum_alg)binlog_checksum_options;
+
   DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
     goto err;

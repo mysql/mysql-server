@@ -1679,7 +1679,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Stop_log_event(buf, &des_ev);
       break;
     case INTVAR_EVENT:
-      ev = new Intvar_log_event(buf, description_event);
+      ev = new Intvar_log_event(buf, &des_ev);
       break;
     case XID_EVENT:
       ev = new Xid_log_event(buf, &des_ev);
@@ -6512,7 +6512,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(this->header()),
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(this->header()),
    Rotate_event(buf, event_len, description_event)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
@@ -6690,7 +6691,7 @@ Rotate_log_event::do_shall_skip(Relay_log_info *rli)
 int Intvar_log_event::pack_info(Protocol *protocol)
 {
   char buf[256], *pos;
-  pos= strmake(buf, get_var_type_name(), sizeof(buf)-23);
+  pos= strmake(buf, (get_var_type_string()).c_str(), sizeof(buf)-23);
   *pos++= '=';
   pos= longlong10_to_str(val, pos, -10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
@@ -6702,32 +6703,14 @@ int Intvar_log_event::pack_info(Protocol *protocol)
 /*
   Intvar_log_event::Intvar_log_event()
 */
-
 Intvar_log_event::Intvar_log_event(const char* buf,
-                                   const Format_description_log_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event)
+                                   const Format_description_event*
+                                   description_event)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   Log_event(this->header()),
+   Int_var_event(buf, description_event)
 {
-  /* The Post-Header is empty. The Varible Data part begins immediately. */
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[INTVAR_EVENT-1];
-  type= buf[I_TYPE_OFFSET];
-  val= uint8korr(buf+I_VAL_OFFSET);
 }
-
-
-/*
-  Intvar_log_event::get_var_type_name()
-*/
-
-const char* Intvar_log_event::get_var_type_name()
-{
-  switch(type) {
-  case LAST_INSERT_ID_EVENT: return "LAST_INSERT_ID";
-  case INSERT_ID_EVENT: return "INSERT_ID";
-  default: /* impossible */ return "UNKNOWN";
-  }
-}
-
 
 /*
   Intvar_log_event::write()
