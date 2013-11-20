@@ -20,6 +20,12 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
  CMAKE_POLICY(VERSION 2.8)
 endif()
 
+# explicitly set the policy to OLD
+# (cannot use NEW, not everyone is on cmake-2.8.12 yet)
+IF(POLICY CMP0022)
+  CMAKE_POLICY(SET CMP0022 OLD)
+ENDIF()
+
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
