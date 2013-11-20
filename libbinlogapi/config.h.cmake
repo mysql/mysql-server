@@ -31,4 +31,5 @@
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
 #cmakedefine HAVE_INT 1
 
+#cmakedefine HAVE_MYSYS @HAVE_MYSYS@
 #endif
