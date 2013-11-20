@@ -1,0 +1,15 @@
+# test that optimize temporary tokudb table works
+
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create temporary table t (x int) engine=tokudb;
+
+# this crashes mysql_admin since temporary tables apparently are not locked
+optimize table t;
+
+# cleanup
+drop table t;
