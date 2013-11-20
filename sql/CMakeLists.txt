@@ -29,15 +29,19 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+)
+
+SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+SET_SOURCE_FILES_PROPERTIES(${GEN_DIGEST_SOURCES} PROPERTIES GENERATED 1)
 
 # Gen_lex_token
 ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
 # gen_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
-ADD_DEPENDENCIES(gen_lex_token sql_yacc.h)
+ADD_DEPENDENCIES(gen_lex_token ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -198,6 +202,7 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
+  ${GEN_DIGEST_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
   ../sql-common/client.c
@@ -242,6 +247,7 @@ RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
+ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex   
@@ -432,6 +438,14 @@ ADD_CUSTOM_TARGET(
         GenServerSource
         DEPENDS ${GEN_SOURCES}
 )
+
+ADD_CUSTOM_TARGET( 
+        GenDigestServerSource
+        DEPENDS ${GEN_DIGEST_SOURCES}
+)
+
+# Make sure sql_yacc.h is generated before compiling gen_lex_token
+ADD_DEPENDENCIES(GenDigestServerSource GenServerSource)
 
 #Need this only for embedded
 SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)

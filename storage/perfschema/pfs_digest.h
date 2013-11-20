@@ -21,27 +21,23 @@
   Statement Digest data structures (declarations).
 */
 
+#include "my_md5.h"
 #include "pfs_column_types.h"
 #include "lf.h"
 #include "pfs_stat.h"
 #include "sql_digest.h"
-
-#define PFS_SIZE_OF_A_TOKEN 2
 
 extern bool flag_statements_digest;
 extern ulong digest_max;
 extern ulong digest_lost;
 struct PFS_thread;
 
-/* Fixed, per MD5 hash. */
-#define PFS_MD5_SIZE 16
-
 /**
   Structure to store a MD5 hash value (digest) for a statement.
 */
 struct PFS_digest_key
 {
-  unsigned char m_md5[PFS_MD5_SIZE];
+  unsigned char m_md5[MD5_HASH_SIZE];
   char m_schema_name[NAME_LEN];
   uint m_schema_name_length;
 };
@@ -77,8 +73,6 @@ PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
                                           const sql_digest_storage *digest_storage,
                                           const char *schema_name,
                                           uint schema_name_length);
-
-void get_digest_text(char *digest_text, const sql_digest_storage *digest_storage);
 
 void reset_esms_by_digest();
 

@@ -65,5 +65,23 @@ struct sql_digest_storage
 };
 typedef struct sql_digest_storage sql_digest_storage;
 
+/**
+  Compute a digest hash.
+  @param digest_storage The digest
+  @param [out] md5 The computed digest hash. This parameter is a buffer of size @c MD5_HASH_SIZE.
+*/
+void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5);
+
+/**
+  Compute a digest text
+  @param digest_storage The digest
+  @param [out] digest_text
+  @param digest_text_length Size of @c digest_text.
+  @param [out] truncated true if the text representation was truncated
+*/
+void compute_digest_text(const sql_digest_storage *digest_storage,
+                         char *digest_text, size_t digest_text_length,
+                         bool *truncated);
+
 #endif
 
