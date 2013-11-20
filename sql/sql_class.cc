@@ -781,10 +781,10 @@ THD::THD()
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
    user_time(0), in_sub_stmt(0),
+   fill_status_recursion_level(0),
 #ifndef MCP_WL5353
    binlog_row_event_extra_data(NULL),
 #endif
-   fill_status_recursion_level(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    table_map_for_update(0),
