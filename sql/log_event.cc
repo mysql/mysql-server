@@ -60,7 +60,11 @@ using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 using binary_log::Binary_log_event;
-using namespace binary_log;
+
+PSI_memory_key key_memory_log_event;
+PSI_memory_key key_memory_Incident_log_event_message;
+PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+
 #if defined(MYSQL_CLIENT)
 
 /*

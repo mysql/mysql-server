@@ -29,11 +29,6 @@ const unsigned long checksum_version_product=
   (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
   checksum_version_split[2];
 
-#ifdef _my_sys_h
-PSI_memory_key key_memory_log_event;
-PSI_memory_key key_memory_Incident_log_event_message;
-PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-#endif
 
 namespace binary_log_debug
 {
@@ -786,9 +781,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                 description_event->post_header_len[LOAD_EVENT-1];
   unsigned char create_file_header_len=
                 description_event->post_header_len[CREATE_FILE_EVENT-1];
-#ifdef _my_sys_h
-  if (!(event_buf= (char*)my_memdup(key_memory_log_event,
-                                     buf, len, MYF(MY_WME))) ||
+  if (!(event_buf= bapi_memdup(buf, len)) ||
       copy_load_event(event_buf,len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
@@ -797,21 +790,6 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                                    create_file_header_len)),
                      description_event))
     return;
-#else
-  event_buf= (const char*)malloc(len);
-  if(!event_buf)
-    return;
-  memcpy(&event_buf, &buf, len);
-  if (copy_load_event(event_buf,len,
-                     ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                      load_header_len + header_len :
-                      (fake_base ? (header_len+load_header_len) :
-                                   (header_len+load_header_len) +
-                                   create_file_header_len)),
-                     description_event,
-                     header))
-    return;
-#endif
   if (description_event->binlog_version != 1)
   {
     /**

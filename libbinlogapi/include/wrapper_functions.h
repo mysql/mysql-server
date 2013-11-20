@@ -26,14 +26,16 @@
 #define WRAPPER_FUNCTIONS_H
 
 #include "config.h"
-#include "my_sys.h"
 
-#ifdef _my_sys_h
+#if HAVE_MYSYS
+#include "my_sys.h"
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_log_event;
 #else
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <cstdlib>
 #include <cstring>
 #endif
@@ -53,13 +55,38 @@ extern PSI_memory_key key_memory_log_event;
 */
 inline const char* bapi_strndup(const char *destination, size_t n)
 {
-#ifdef _my_sys_h
+#if HAVE_MYSYS
 /* Call the function in mysys library, required for memory instrumentation */
   return my_strndup(key_memory_log_event, destination, n, MYF(MY_WME));
 #else
   return strndup(destination, n);
 #endif
 }
+
+/**
+  This is a wrapper function, and returns a pointer to a new memory with the
+  contents copied from the input memory pointer, upto a given length
+
+  @param source Pointer to the buffer from which data is to be copied
+  @param len Length upto which the source should be copied
+
+  @return dest pointer to a new memory if allocation was successful
+          NULL otherwise
+*/
+inline const char* bapi_memdup(const char* source, size_t len)
+{
+  const char* dest;
+#if HAVE_MYSYS
+  /* Call the function in mysys library, required for memory instrumentation */
+  dest= (const char*)my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
+#else
+  dest= (const char*)malloc(len);
+  if (dest)
+    memcpy(&event_buf, &source, len);
+#endif
+  return dest;
+}
+
 
 /**
   This is a wrapper function inorder to free the memory allocated from the heap
@@ -73,7 +100,7 @@ inline const char* bapi_strndup(const char *destination, size_t n)
 */
 inline void bapi_free(void* ptr)
 {
-#ifdef _my_sys_h
+#if HAVE_MYSYS
   return my_free(ptr);
 #else
   return free(ptr);

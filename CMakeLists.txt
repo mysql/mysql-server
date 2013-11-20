@@ -36,6 +36,13 @@ SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
+#mysys is to be used by libbinlogapi only when it is compiled with the MySQL
+#server code.
+OPTION(WITH_MYSYS "Use mysys library and headers" ON)
+IF (WITH_MYSYS)
+  SET(HAVE_MYSYS 1)
+ENDIF()
+
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
 # set that will be compiled in; it's merely provided as a hint to
