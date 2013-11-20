@@ -9858,6 +9858,10 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
 
   const NDB_TICKS now = c_current_time = NdbTick_getCurrentTicks();
 
+  /**
+   * An invalid micro-GCP 'start_time' is used to force
+   * a micro GCP to be started immediately.
+   */
   if (NdbTick_IsValid(m_micro_gcp.m_master.m_start_time))
   {
     const Uint32 delayMicro = m_micro_gcp.m_enabled ? 
@@ -9896,12 +9900,12 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   
   const Uint32 delaySave = m_gcp_save.m_master.m_time_between_gcp;
   const NDB_TICKS start  = m_gcp_save.m_master.m_start_time;
-  const bool need_gcp = 
+  const bool need_gcp_save = 
     !NdbTick_IsValid(start) ||                           //First or forced GCP
     NdbTick_Elapsed(start, now).milliSec() >= delaySave; //Reached time limit
 
   if ((m_micro_gcp.m_enabled == false) ||
-      (need_gcp &&
+      (need_gcp_save &&
        m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
   {
     jam();

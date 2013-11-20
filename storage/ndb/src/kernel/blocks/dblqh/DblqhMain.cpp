@@ -24637,7 +24637,7 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
 }
 
 void Dblqh::initReportStatus(Signal* signal){
-  m_prev_report_time = NdbTick_getCurrentTicks();
+  m_last_report_time = NdbTick_getCurrentTicks();
 }
 
 void Dblqh::checkReportStatus(Signal* signal){
@@ -24645,11 +24645,11 @@ void Dblqh::checkReportStatus(Signal* signal){
     return;
 
   const NDB_TICKS now = NdbTick_getCurrentTicks();
-  const Uint64 elapsed = NdbTick_Elapsed(m_prev_report_time, now).seconds();
+  const Uint64 elapsed = NdbTick_Elapsed(m_last_report_time, now).seconds();
   if (elapsed > m_startup_report_frequency)
   {
     reportStatus(signal);
-    m_prev_report_time = now;
+    m_last_report_time = now;
   }
 }
 
