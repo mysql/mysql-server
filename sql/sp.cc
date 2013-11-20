@@ -2367,7 +2367,7 @@ sp_head *sp_start_parsing(THD *thd,
 
   // 3. finish initialization.
 
-  sp->m_root_parsing_ctx= new (thd->mem_root) sp_pcontext();
+  sp->m_root_parsing_ctx= new (thd->mem_root) sp_pcontext(thd);
 
   if (!sp->m_root_parsing_ctx)
     return NULL;

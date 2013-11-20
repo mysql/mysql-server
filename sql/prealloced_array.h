@@ -221,6 +221,46 @@ public:
   }
 
   /**
+    Resizes the container so that it contains n elements.
+
+    If n is smaller than the current container size, the content is
+    reduced to its first n elements, removing those beyond (and
+    destroying them).
+
+    If n is greater than the current container size, the content is
+    expanded by inserting at the end as many elements as needed to
+    reach a size of n. If val is specified, the new elements are
+    initialized as copies of val, otherwise, they are
+    value-initialized.
+
+    If n is also greater than the current container capacity, an automatic
+    reallocation of the allocated storage space takes place.
+
+    Notice that this function changes the actual content of the
+    container by inserting or erasing elements from it.
+   */
+  void resize(size_t n, Element_type val= Element_type())
+  {
+    if (n == m_size)
+      return;
+    if (n > m_size)
+    {
+      if (!reserve(n))
+      {
+        while (n != m_size)
+          push_back(val);
+      }
+      return;
+    }
+    if (!Has_trivial_destructor)
+    {
+      while (n != m_size)
+        pop_back();
+    }
+    m_size= n;
+  }
+
+  /**
     Removes (and destroys) all elements.
     Does not change capacity.
    */
