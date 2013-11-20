@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -192,9 +193,6 @@ int toku_logger_create (TOKULOGGER *resultp) {
     ml_init(&result->input_lock);
     toku_mutex_init(&result->output_condition_lock, NULL);
     toku_cond_init(&result->output_condition,       NULL);
-    result->input_lock_ctr = 0;
-    result->output_condition_lock_ctr = 0;
-    result->swap_ctr = 0;
     result->rollback_cachefile = NULL;
     result->output_is_available = true;
     toku_txn_manager_init(&result->txn_manager);
@@ -350,7 +348,6 @@ int toku_logger_close(TOKULOGGER *loggerp) {
         goto is_closed;
     }
     ml_lock(&logger->input_lock);
-    logger->input_lock_ctr++;
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
     logger_write_buffer(logger, &fsynced_lsn);
@@ -437,13 +434,11 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
 // Exit:  Hold permission to modify output (but none of the locks).
 {
     toku_mutex_lock(&logger->output_condition_lock);
-    logger->output_condition_lock_ctr++;
     wait_till_output_available(logger);
     logger->output_is_available = false;
     if (fsynced_lsn) {
         *fsynced_lsn = logger->fsynced_lsn;
     }
-    logger->output_condition_lock_ctr++;
     toku_mutex_unlock(&logger->output_condition_lock);
 }
 
@@ -458,7 +453,6 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 {
     bool result;
     toku_mutex_lock(&logger->output_condition_lock);
-    logger->output_condition_lock_ctr++;
     while (1) {
         if (logger->fsynced_lsn.lsn >= lsn.lsn) { // we can look at the fsynced lsn since we have the lock.
             result = true;
@@ -473,7 +467,6 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
         toku_cond_wait(&logger->output_condition, &logger->output_condition_lock);
     }
     *fsynced_lsn = logger->fsynced_lsn;
-    logger->output_condition_lock_ctr++;
     toku_mutex_unlock(&logger->output_condition_lock);
     return result;
 }
@@ -485,13 +478,11 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
 // Exit: Holds neither locks nor output permission.
 {
     toku_mutex_lock(&logger->output_condition_lock);
-    logger->output_condition_lock_ctr++;
     logger->output_is_available = true;
     if (logger->fsynced_lsn.lsn < fsynced_lsn.lsn) {
         logger->fsynced_lsn = fsynced_lsn;
     }
     toku_cond_broadcast(&logger->output_condition);
-    logger->output_condition_lock_ctr++;
     toku_mutex_unlock(&logger->output_condition_lock);
 }
     
@@ -504,7 +495,6 @@ swap_inbuf_outbuf (TOKULOGGER logger)
     logger->inbuf = logger->outbuf;
     logger->outbuf = tmp;
     assert(logger->inbuf.n_in_buf == 0);
-    logger->swap_ctr++;
 }
 
 static void
@@ -549,13 +539,11 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
     if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) {
         return;
     }
-    logger->input_lock_ctr++;
     ml_unlock(&logger->input_lock);
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
 
     ml_lock(&logger->input_lock);
-    logger->input_lock_ctr++;
     // Some other thread may have written the log out while we didn't have the lock.  If we have space now, then be happy.
     if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) {
         release_output(logger, fsynced_lsn);
@@ -823,7 +811,6 @@ void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync, bool hold
 // The input lock may be released and then reacquired.  Thus this function does not run atomically with respect to other threads.
 {
     if (holds_input_lock) {
-        logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock);
     }
     if (do_fsync) {
@@ -837,11 +824,9 @@ void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync, bool hold
         // otherwise we now own the output permission, and our lsn isn't outputed.
 
         ml_lock(&logger->input_lock);
-        logger->input_lock_ctr++;
 
         swap_inbuf_outbuf(logger);
 
-        logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock); // release the input lock now, so other threads can fill the inbuf.  (Thus enabling group commit.)
 
         write_outbuf_to_logfile(logger, &fsynced_lsn);
@@ -867,7 +852,6 @@ logger_write_buffer(TOKULOGGER logger, LSN *fsynced_lsn)
 // Note: Only called during single-threaded activity from toku_logger_restart, so locks aren't really needed.
 {
     swap_inbuf_outbuf(logger);
-    logger->input_lock_ctr++;
     ml_unlock(&logger->input_lock);
     write_outbuf_to_logfile(logger, fsynced_lsn);
     if (logger->write_log_files) {
@@ -885,7 +869,6 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
     ml_lock(&logger->input_lock);
-    logger->input_lock_ctr++;
     logger_write_buffer(logger, &fsynced_lsn);
 
     // close the log file
@@ -1112,7 +1095,7 @@ int toku_logprint_TXNID_PAIR (FILE *outf, FILE *inf, const char *fieldname, stru
     TXNID_PAIR v;
     int r = toku_fread_TXNID_PAIR(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%" PRIu64 "%" PRIu64, fieldname, v.parent_id64, v.child_id64);
+    fprintf(outf, " %s=%" PRIu64 ",%" PRIu64, fieldname, v.parent_id64, v.child_id64);
     return 0;
 }
 
@@ -1410,9 +1393,6 @@ status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
     STATUS_INIT(LOGGER_NEXT_LSN,     nullptr, UINT64,  "next LSN", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LOGGER_ILOCK_CTR,    nullptr, UINT64,  "ilock count", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LOGGER_OLOCK_CTR,    nullptr, UINT64,  "olock count", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LOGGER_SWAP_CTR,     nullptr, UINT64,  "swap count", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOGGER_NUM_WRITES,                  LOGGER_WRITES, UINT64,  "writes", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LOGGER_BYTES_WRITTEN,               LOGGER_WRITES_BYTES, UINT64,  "writes (bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LOGGER_UNCOMPRESSED_BYTES_WRITTEN,  LOGGER_WRITES_UNCOMPRESSED_BYTES, UINT64,  "writes (uncompressed bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
@@ -1429,9 +1409,6 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
         status_init();
     if (logger) {
         STATUS_VALUE(LOGGER_NEXT_LSN)    = logger->lsn.lsn;
-        STATUS_VALUE(LOGGER_ILOCK_CTR)   = logger->input_lock_ctr;
-        STATUS_VALUE(LOGGER_OLOCK_CTR)   = logger->output_condition_lock_ctr;
-        STATUS_VALUE(LOGGER_SWAP_CTR)    = logger->swap_ctr;
         STATUS_VALUE(LOGGER_NUM_WRITES)  = logger->num_writes_to_disk;
         STATUS_VALUE(LOGGER_BYTES_WRITTEN)  = logger->bytes_written_to_disk;
         // No compression on logfiles so the uncompressed size is just number of bytes written

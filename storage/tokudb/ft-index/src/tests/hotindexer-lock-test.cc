@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -89,6 +90,7 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 #include "toku_pthread.h"
+#include "key-val.h"
 #include <db.h>
 #include <sys/stat.h>
 
@@ -102,30 +104,6 @@ struct kv_pair {
 struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
-
-static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
-
-    (void) src_db;
-
-    uint32_t which = (uint32_t) (intptr_t) dest_db->app_private;
-    assert(which == 0);
-
-    // switch the key and val
-    dbt_init(dest_key, src_val->data, src_val->size);
-    dbt_init(dest_val, src_key->data, src_key->size);
-
-//    printf("dest_key.data = %d\n", *(int*)dest_key->data);
-//    printf("dest_val.data = %d\n", *(int*)dest_val->data);
-
-    return 0;
-}
-
-static int poll_print(void *extra, float progress) {
-    (void) progress;
-    (void) extra;
-    if ( verbose ) printf("poll_print %f\n", progress);
-    return 0;
-}
 
 static void run_indexer(DB *src, DB **dbs)
 {
@@ -177,7 +155,7 @@ static void run_test(void)
     r = db_env_create(&env, 0);                                                  CKERR(r);
     r = env->set_lg_dir(env, "log");                                             CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);                         CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);      CKERR(r);
+    r = env->set_generate_row_callback_for_put(env, put_multiple_generate_switch);      CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
     r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     db_env_enable_engine_status(0);  // disable engine status on crash

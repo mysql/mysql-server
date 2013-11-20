@@ -73,7 +73,7 @@ class Field_varchar(Field):
     def __init__(self, name, size, is_binary, is_nullible):
         Field.__init__(self, name, is_nullible)
         assert 0 <= size and size < 64*1024
-        self.size= size
+        self.size = size
         self.is_binary = is_binary
     def get_type(self):
         t = "%s(%d)" % (Field_varchar.types[self.is_binary], self.size)
@@ -96,15 +96,25 @@ class Field_varchar(Field):
         return Field_varchar(self.name, new_size, self.is_binary, self.is_nullible)
 
 class Field_blob(Field):
-    def __init__(self, name, size, is_nullible):
+    types = [ "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB" ]
+    def __init__(self, name, size, is_nullible, idx):
         Field.__init__(self, name, is_nullible)
         self.size = size
+        self.idx = idx
     def get_type(self):
-        return "BLOB(%d)" % (self.size)
+        t = "%s" % (Field_blob.types[self.idx])
+        if not self.is_nullible:
+            t += " NOT NULL"
+        return t
     def get_value(self):
         l = random.randint(1, self.size)
         s = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(l))    
         return "'%s'" % (s)
+    def next_field(self):
+        self.size += 1
+        if self.idx < 3:
+            self.idx += 1
+        return Field_blob(self.name, self.size, self.is_nullible, self.idx)
 
 def main():
     experiments = 1000
@@ -131,7 +141,7 @@ def main():
         print "INSERT INTO ti SELECT * FROM t;"
 
         # transform table schema and contents
-        for f in [ 0, 2, 3, 5 ]:
+        for f in [ 0, 2, 3, 5, 6, 7 ]:
             fields[f] = fields[f].next_field()
             print "ALTER TABLE t CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
             print "ALTER TABLE ti CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
@@ -157,8 +167,8 @@ def create_fields():
     fields.append(create_varchar('d'))
     fields.append(create_varchar('e'))
     fields.append(create_varchar('f'))
-    fields.append(Field_blob('g', 100, 0))
-    fields.append(Field_blob('h', 100, 0))
+    fields.append(create_blob('g'))
+    fields.append(create_blob('h'))
     fields.append(Field_int_auto_inc('id', 8, 0, 0))
     return fields
 
@@ -171,6 +181,9 @@ def create_char(name):
 
 def create_varchar(name):
     return Field_varchar(name, random.randint(1, 100), random.randint(0,1), random.randint(0,1))
+
+def create_blob(name):
+    return Field_blob(name, random.randint(1,2), random.randint(0,1), random.randint(0,3))
 
 def create_table(fields):
     t = "CREATE TABLE t ("
@@ -191,7 +204,7 @@ def insert_row(fields):
     return t
 
 def header():
-    print "# generated from change_all.py"
+    print "# generated from change_column_all.py"
     print "# test random column change on wide tables"
     print "--disable_warnings"
     print "DROP TABLE IF EXISTS t, ti;"

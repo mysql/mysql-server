@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -317,6 +318,11 @@ static void ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_val
         ft_end_checkpoint(cachefile, fd, header_v);
         assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
     }
+}
+
+// maps to cf->free_userdata
+static void ft_free(CACHEFILE cachefile UU(), void *header_v) {
+    FT ft = (FT) header_v;
     toku_ft_free(ft);
 }
 
@@ -392,6 +398,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
                                 ft,
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
+                                ft_free,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
                                 ft_end_checkpoint,
@@ -458,7 +465,7 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
 }
 
 // TODO: (Zardosht) get rid of brt parameter
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, bool* was_open)
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
@@ -467,13 +474,11 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         FT h;
         if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
-            *was_open = true;
             assert(brt->options.update_fun == h->update_fun);
             assert(brt->options.compare_fun == h->compare_fun);
             return 0;
         }
     }
-    *was_open = false;
     FT h = nullptr;
     int r;
     {
@@ -494,6 +499,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
                                 (void*)h,
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
+                                ft_free,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
                                 ft_end_checkpoint,
@@ -1028,11 +1034,12 @@ struct garbage_helper_extra {
 };
 
 static int
-garbage_leafentry_helper(OMTVALUE v, uint32_t UU(idx), void *extra) {
-    struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
-    LEAFENTRY CAST_FROM_VOIDP(le, v);
-    info->total_space += leafentry_disksize(le);
-    info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
+garbage_leafentry_helper(const void* key UU(), const uint32_t keylen, const LEAFENTRY & le, uint32_t UU(idx), struct garbage_helper_extra * const info) {
+    //TODO #warning need to reanalyze for split
+    info->total_space += leafentry_disksize(le) + keylen + sizeof(keylen);
+    if (!le_latest_is_del(le)) {
+        info->used_space += LE_CLEAN_MEMSIZE(le_latest_vallen(le)) + keylen + sizeof(keylen);
+    }
     return 0;
 }
 
@@ -1052,8 +1059,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
         goto exit;
     }
     for (int i = 0; i < node->n_children; ++i) {
-        BASEMENTNODE bn = BLB(node, i);
-        r = toku_omt_iterate(bn->buffer, garbage_leafentry_helper, info);
+        BN_DATA bd = BLB_DATA(node, i);
+        r = bd->omt_iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
         if (r != 0) {
             goto exit;
         }

@@ -1427,3 +1427,9 @@ DROP table t1;
 #
 # end of 5.3 tests
 #
+select column_get(column_create(1, "18446744073709552001" as char), 1 as int);
+column_get(column_create(1, "18446744073709552001" as char), 1 as int)
+-1
+Warnings:
+Warning	1918	Encountered illegal value '18446744073709552001' when converting to INT
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement

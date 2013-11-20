@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2033,7 +2034,12 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
         */
         thd->query_cache_is_applicable= 0;      // Query can't be cached
       }
-      /* End the statement transaction potentially started by engine. */
+      /*
+        End the statement transaction potentially started by engine.
+        Currently our engines do not request rollback from callbacks.
+        If this is going to change code needs to be reworked.
+      */
+      DBUG_ASSERT(! thd->transaction_rollback_request);
       trans_rollback_stmt(thd);
       goto err_unlock;				// Parse query
     }

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -107,6 +108,65 @@ toku_init_dbt_flags(DBT *ybt, uint32_t flags) {
     ybt->flags = flags;
     return ybt;
 }
+
+DBT_ARRAY *
+toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size) {
+    uint32_t capacity = 1;
+    while (capacity < size) { capacity *= 2; }
+
+    XMALLOC_N(capacity, dbts->dbts);
+    for (uint32_t i = 0; i < capacity; i++) {
+        toku_init_dbt_flags(&dbts->dbts[i], DB_DBT_REALLOC);
+    }
+    dbts->size = size;
+    dbts->capacity = capacity;
+    return dbts;
+}
+
+void
+toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size) {
+    if (size != dbts->size) {
+        if (size > dbts->capacity) {
+            const uint32_t old_capacity = dbts->capacity;
+            uint32_t new_capacity = dbts->capacity;
+            while (new_capacity < size) {
+                new_capacity *= 2;
+            }
+            dbts->capacity = new_capacity;
+            XREALLOC_N(new_capacity, dbts->dbts);
+            for (uint32_t i = old_capacity; i < new_capacity; i++) {
+                toku_init_dbt_flags(&dbts->dbts[i], DB_DBT_REALLOC);
+            }
+        } else if (size < dbts->size) {
+            if (dbts->capacity >= 8 && size < dbts->capacity / 4) {
+                const int old_capacity = dbts->capacity;
+                const int new_capacity = dbts->capacity / 2;
+                for (int i = new_capacity; i < old_capacity; i++) {
+                    toku_destroy_dbt(&dbts->dbts[i]);
+                }
+                XREALLOC_N(new_capacity, dbts->dbts);
+                dbts->capacity = new_capacity;
+            }
+        }
+        dbts->size = size;
+    }
+}
+
+void
+toku_dbt_array_destroy_shallow(DBT_ARRAY *dbts) {
+    toku_free(dbts->dbts);
+    ZERO_STRUCT(*dbts);
+}
+
+void
+toku_dbt_array_destroy(DBT_ARRAY *dbts) {
+    for (uint32_t i = 0; i < dbts->capacity; i++) {
+        toku_destroy_dbt(&dbts->dbts[i]);
+    }
+    toku_dbt_array_destroy_shallow(dbts);
+}
+
+
 
 void
 toku_destroy_dbt(DBT *dbt) {

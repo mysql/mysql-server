@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -279,7 +280,7 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &upda
 
 check_error:
     if (error != 0) {
-        if (get_disable_slow_update(thd))
+        if (THDVAR(thd, disable_slow_update) != 0)
             error = HA_ERR_UNSUPPORTED;
         if (error != ENOTSUP)
             print_error(error, MYF(0));
@@ -538,7 +539,7 @@ static bool check_point_update(Item *conds, TABLE *table) {
 // Precompute this when the table is opened.
 static bool clustering_keys_exist(TABLE *table) {
     for (uint keynr = 0; keynr < table->s->keys; keynr++) {
-        if (keynr != table->s->primary_key && (table->s->key_info[keynr].option_struct->clustering))
+        if (keynr != table->s->primary_key && key_is_clustering(&table->s->key_info[keynr]))
             return true;
     }
     return false;
@@ -882,7 +883,7 @@ int ha_tokudb::upsert(THD *thd, List<Item> &update_fields, List<Item> &update_va
 
 check_error:
     if (error != 0) {
-        if (get_disable_slow_upsert(thd))
+        if (THDVAR(thd, disable_slow_upsert) != 0)
             error = HA_ERR_UNSUPPORTED;
         if (error != ENOTSUP)
             print_error(error, MYF(0));

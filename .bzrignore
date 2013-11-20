@@ -1432,3 +1432,4 @@ storage/tokudb/ft-index/util/tests/threadpool-testrunf
 storage/tokudb/ft-index/utils/tokudb_dump
 storage/tokudb/ft-index/utils/tokudb_gen
 storage/tokudb/ft-index/utils/tokudb_load
+libmysql/libmysql.version

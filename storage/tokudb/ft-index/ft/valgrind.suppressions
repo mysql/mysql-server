@@ -253,3 +253,31 @@
    obj:/usr/lib/system/libsystem_c.dylib
    fun:loadlocale
 }
+{
+   <ld_is_not_valgrind_clean_in_ubuntu_13.04_1>
+   Memcheck:Cond
+   fun:index
+   fun:expand_dynamic_string_token
+   fun:_dl_map_object
+   fun:map_doit
+   fun:_dl_catch_error
+   fun:do_preload
+   fun:dl_main
+   fun:_dl_sysdep_start
+   fun:_dl_start
+   obj:/lib/x86_64-linux-gnu/ld-2.17.so
+}
+{
+   <ld_is_not_valgrind_clean_in_ubuntu_13.04_2>
+   Memcheck:Cond
+   fun:index
+   fun:expand_dynamic_string_token
+   fun:_dl_map_object
+   fun:map_doit
+   fun:_dl_catch_error
+   fun:do_preload
+   fun:dl_main
+   fun:_dl_sysdep_start
+   fun:_dl_start
+   obj:/lib/x86_64-linux-gnu/ld-2.17.so
+}

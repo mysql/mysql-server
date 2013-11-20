@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -239,9 +240,6 @@ void toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync, bool hol
 
 typedef enum {
     LOGGER_NEXT_LSN = 0,
-    LOGGER_ILOCK_CTR,
-    LOGGER_OLOCK_CTR,
-    LOGGER_SWAP_CTR,
     LOGGER_NUM_WRITES,
     LOGGER_BYTES_WRITTEN,
     LOGGER_UNCOMPRESSED_BYTES_WRITTEN,

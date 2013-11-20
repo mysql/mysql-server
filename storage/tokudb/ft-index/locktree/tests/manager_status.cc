@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -49,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -85,79 +87,88 @@ PATENT RIGHTS GRANT:
 */
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
-#include "test.h"
-#include <db.h>
-#include <sys/stat.h>
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "checkpoint_test.h"
+#include "manager_unit_test.h"
+#include "locktree_unit_test.h"
+#include "lock_request_unit_test.h"
 
+namespace toku {
 
-// Purpose of test is to verify that callbacks are called correctly
-// without breaking a simple checkpoint (copied from tests/checkpoint_1.c).
-
-static const char * string_1 = "extra1";
-static const char * string_2 = "extra2";
-static int callback_1_count = 0;
-static int callback_2_count = 0;
-
-static void checkpoint_callback_1(void * extra) {
-    if (verbose) printf("checkpoint callback 1 called with extra = %s\n", *((char**) extra));
-    assert(extra == &string_1);
-    callback_1_count++;
-}
-
-static void checkpoint_callback_2(void * extra) {
-    if (verbose) printf("checkpoint callback 2 called with extra = %s\n", *((char**) extra));
-    assert(extra == &string_2);
-    callback_2_count++;
-}
-
-static void
-checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
-    if (verbose>1) { 
-        printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
-               __FILE__, __FUNCTION__, __LINE__, 
-               n, snap_all, flags); 
-        fflush(stdout); 
+static void assert_status(LTM_STATUS ltm_status, const char *keyname, uint64_t v) {
+    TOKU_ENGINE_STATUS_ROW key_status = NULL;
+    // lookup keyname in status
+    for (int i = 0; ; i++) {
+        TOKU_ENGINE_STATUS_ROW status = &ltm_status->status[i];
+        if (status->keyname == NULL)
+            break;
+        if (strcmp(status->keyname, keyname) == 0) {
+            key_status = status;
+            break;
+        }
     }
-    dir_create(TOKU_TEST_FILENAME);
-    env_startup(TOKU_TEST_FILENAME, 0, false);
-    int run;
+    assert(key_status);
+    assert(key_status->value.num == v);
+}
+
+void manager_unit_test::test_status(void) {
+
+    locktree::manager mgr;
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
+
+    LTM_STATUS_S status;
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 0);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 0);
+
+    DESCRIPTOR desc = nullptr;
+    DICTIONARY_ID dict_id = { 1 };
+    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
     int r;
-    DICTIONARY_S db_control;
-    init_dictionary(&db_control, flags, "control");
-    DICTIONARY_S db_test;
-    init_dictionary(&db_test, flags, "test");
+    TXNID txnid_a = 1001;
+    TXNID txnid_b = 2001;
+    const DBT *one = get_dbt(1);
 
-    db_startup(&db_test, NULL);
-    db_startup(&db_control, NULL);
-    const int num_runs = 4;
-    for (run = 0; run < num_runs; run++) {
-        uint32_t i;
-        for (i=0; i < n/2/num_runs; i++)
-            insert_random(db_test.db, db_control.db, NULL);
-        snapshot(&db_test, snap_all);
-	assert(callback_1_count == run+1);
-	assert(callback_2_count == run+1);
-        for (i=0; i < n/2/num_runs; i++)
-            insert_random(db_test.db, NULL, NULL);
-        db_replace(TOKU_TEST_FILENAME, &db_test, NULL);
-        r = compare_dbs(db_test.db, db_control.db);
-	assert(r==0);
-    }
-    db_shutdown(&db_test);
-    db_shutdown(&db_control);
-    env_shutdown();
+    // txn a write locks one
+    r = lt->acquire_write_lock(txnid_a, one, one, nullptr);
+    assert(r == 0);
+
+    // txn b tries to write lock one, conflicts, waits, and fails to lock one
+    lock_request request_b;
+    request_b.create(1000);
+    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE);
+    r = request_b.start();
+    assert(r == DB_LOCK_NOTGRANTED);
+    r = request_b.wait();
+    assert(r == DB_LOCK_NOTGRANTED);
+    request_b.destroy();
+
+    range_buffer buffer;
+    buffer.create();
+    buffer.append(one, one);
+    lt->release_locks(txnid_a, &buffer);
+    buffer.destroy();
+
+    assert(lt->m_rangetree->is_empty() && lt->m_sto_buffer.is_empty());
+
+    // assert that wait counters incremented
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 1);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 1);
+
+    // assert that wait counters are persistent after the lock tree is destroyed
+    mgr.release_lt(lt);
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 1);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 1);
+
+    mgr.destroy();
 }
 
-int
-test_main (int argc, char * const argv[]) {
-    parse_args(argc, argv);
+} /* namespace toku */
 
-    db_env_set_checkpoint_callback(checkpoint_callback_1, &string_1);
-    db_env_set_checkpoint_callback2(checkpoint_callback_2, &string_2);
-
-    checkpoint_test_1(0,4096,1);
+int main(void) {
+    toku::manager_unit_test test;
+    test.test_status();
     return 0;
 }

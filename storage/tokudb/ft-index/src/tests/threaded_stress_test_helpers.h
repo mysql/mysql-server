@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -137,8 +138,8 @@ typedef int (*operation_t)(DB_TXN *txn, ARG arg, void *operation_extra, void *st
 
 // TODO: Properly define these in db.h so we don't have to copy them here
 typedef int (*test_update_callback_f)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
-typedef int (*test_generate_row_for_put_callback)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data);
-typedef int (*test_generate_row_for_del_callback)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data);
+typedef int (*test_generate_row_for_put_callback)(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_data);
+typedef int (*test_generate_row_for_del_callback)(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data);
 
 enum stress_lock_type {
     STRESS_LOCK_NONE = 0,
@@ -697,20 +698,82 @@ static int scan_op_and_maybe_check_sum(
 }
 
 static int generate_row_for_put(
-    DB *UU(dest_db), 
-    DB *UU(src_db), 
-    DBT *dest_key, 
-    DBT *dest_val, 
-    const DBT *src_key, 
+    DB *dest_db,
+    DB *src_db,
+    DBT_ARRAY *dest_keys,
+    DBT_ARRAY *dest_vals,
+    const DBT *src_key,
     const DBT *src_val
-    ) 
-{    
-    dest_key->data = src_key->data;
-    dest_key->size = src_key->size;
-    dest_key->flags = 0;
-    dest_val->data = src_val->data;
-    dest_val->size = src_val->size;
-    dest_val->flags = 0;
+    )
+{
+    invariant(!src_db || src_db != dest_db);
+    invariant(src_key->size >= sizeof(unsigned int));
+
+    // Consistent pseudo random source.  Use checksum of key and val, and which db as seed
+    
+/*
+    struct x1764 l;
+    x1764_init(&l);
+    x1764_add(&l, src_key->data, src_key->size);
+    x1764_add(&l, src_val->data, src_val->size);
+    x1764_add(&l, &dest_db, sizeof(dest_db)); //make it depend on which db
+    unsigned int seed = x1764_finish(&l);
+    */
+    unsigned int seed = *(unsigned int*)src_key->data;
+
+    struct random_data random_data;
+    ZERO_STRUCT(random_data);
+    char random_buf[8];
+    {
+        int r = myinitstate_r(seed, random_buf, 8, &random_data);
+        assert_zero(r);
+    }
+
+    uint8_t num_outputs = 0;
+    while (myrandom_r(&random_data) % 2) {
+        num_outputs++;
+        if (num_outputs > 8) {
+            break;
+        }
+    }
+
+    toku_dbt_array_resize(dest_keys, num_outputs);
+    toku_dbt_array_resize(dest_vals, num_outputs);
+    int sum = 0;
+    for (uint8_t i = 0; i < num_outputs; i++) {
+        DBT *dest_key = &dest_keys->dbts[i];
+        DBT *dest_val = &dest_vals->dbts[i];
+
+        invariant(dest_key->flags == DB_DBT_REALLOC);
+        invariant(dest_val->flags == DB_DBT_REALLOC);
+
+        if (dest_key->ulen < src_key->size) {
+            dest_key->data = toku_xrealloc(dest_key->data, src_key->size);
+            dest_key->ulen = src_key->size;
+        }
+        dest_key->size = src_key->size;
+        if (dest_val->ulen < src_val->size) {
+            dest_val->data = toku_xrealloc(dest_val->data, src_val->size);
+            dest_val->ulen = src_val->size;
+        }
+        dest_val->size = src_val->size;
+        memcpy(dest_key->data, src_key->data, src_key->size);
+        ((uint8_t*)dest_key->data)[src_key->size-1] = i;  //Have different keys for each entry.
+
+        memcpy(dest_val->data, src_val->data, src_val->size);
+        invariant(dest_val->size >= sizeof(int));
+        int number;
+        if (i == num_outputs - 1) {
+            // Make sum add to 0
+            number = -sum;
+        } else {
+            // Keep track of sum
+            number = myrandom_r(&random_data);
+        }
+        sum += number;
+        *(int *) dest_val->data = number;
+    }
+    invariant(sum == 0);
     return 0;
 }
 
@@ -920,21 +983,34 @@ cleanup:
     return r;
 }
 
-static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
+struct loader_op_extra {
+    struct scan_op_extra soe;
+    int num_dbs;
+};
+
+static int UU() loader_op(DB_TXN* txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
+    struct loader_op_extra* CAST_FROM_VOIDP(extra, operation_extra);
+    invariant(extra->num_dbs >= 1);
     DB_ENV* env = arg->env;
     int r;
     for (int num = 0; num < 2; num++) {
-        DB *db_load;
-        uint32_t db_flags = 0;
-        uint32_t dbt_flags = 0;
-        r = db_create(&db_load, env, 0);
-        assert(r == 0);
-        // TODO: Need to call before_db_open_hook() and after_db_open_hook()
-        r = db_load->open(db_load, txn, "loader-db", nullptr, DB_BTREE, DB_CREATE, 0666);
-        assert(r == 0);
+        DB *dbs_load[extra->num_dbs];
+        uint32_t db_flags[extra->num_dbs];
+        uint32_t dbt_flags[extra->num_dbs];
+        for (int i = 0; i < extra->num_dbs; ++i) {
+            db_flags[i] = 0;
+            dbt_flags[i] = 0;
+            r = db_create(&dbs_load[i], env, 0);
+            assert(r == 0);
+            char fname[100];
+            sprintf(fname, "loader-db-%d", i);
+            // TODO: Need to call before_db_open_hook() and after_db_open_hook()
+            r = dbs_load[i]->open(dbs_load[i], txn, fname, nullptr, DB_BTREE, DB_CREATE, 0666);
+            assert(r == 0);
+        }
         DB_LOADER *loader;
         uint32_t loader_flags = (num == 0) ? 0 : LOADER_COMPRESS_INTERMEDIATES;
-        r = env->create_loader(env, txn, &loader, db_load, 1, &db_load, &db_flags, &dbt_flags, loader_flags);
+        r = env->create_loader(env, txn, &loader, dbs_load[0], extra->num_dbs, dbs_load, db_flags, dbt_flags, loader_flags);
         CKERR(r);
 
         DBT key, val;
@@ -943,15 +1019,32 @@ static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), v
         dbt_init(&key, keybuf, sizeof keybuf);
         dbt_init(&val, valbuf, sizeof valbuf);
 
-        for (int i = 0; i < 1000; i++) {
+        int sum = 0;
+        const int num_elements = 1000;
+        for (int i = 0; i < num_elements; i++) {
             fill_key_buf(i, keybuf, arg->cli);
             fill_val_buf_random(arg->random_data, valbuf, arg->cli);
+
+            assert(val.size >= sizeof(int));
+            if (i == num_elements - 1) {
+                // Make sum add to 0
+                *(int *) val.data = -sum;
+            } else {
+                // Keep track of sum
+                sum += *(int *) val.data;
+            }
             r = loader->put(loader, &key, &val); CKERR(r);
         }
 
         r = loader->close(loader); CKERR(r);
-        r = db_load->close(db_load, 0); CKERR(r);
-        r = env->dbremove(env, txn, "loader-db", nullptr, 0); CKERR(r);
+
+        for (int i = 0; i < extra->num_dbs; ++i) {
+            r = scan_op_and_maybe_check_sum(dbs_load[i], txn, &extra->soe, true); CKERR(r);
+            r = dbs_load[i]->close(dbs_load[i], 0); CKERR(r);
+            char fname[100];
+            sprintf(fname, "loader-db-%d", i);
+            r = env->dbremove(env, txn, fname, nullptr, 0); CKERR(r);
+        }
     }
     return 0;
 }
@@ -1017,7 +1110,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
     return r;
 }
 
-static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
+static int UU() scan_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     struct scan_op_extra* CAST_FROM_VOIDP(extra, operation_extra);
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, true);
@@ -1528,7 +1621,7 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), 
     int r;
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
-        r = db->hot_optimize(db, hot_progress_callback, nullptr);
+        r = db->hot_optimize(db, NULL, NULL, hot_progress_callback, nullptr);
         if (run_test) {
             CKERR(r);
         }
@@ -1542,27 +1635,6 @@ get_ith_table_name(char *buf, size_t len, int i) {
 }
 
 DB_TXN * const null_txn = 0;
-
-static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
-    int r;
-    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
-    DB* db = arg->dbp[db_index];
-    r = (db)->close(db, 0); CKERR(r);
-
-    char name[30];
-    ZERO_ARRAY(name);
-    get_ith_table_name(name, sizeof(name), db_index);
-
-    r = arg->env->dbremove(arg->env, null_txn, name, nullptr, 0);
-    CKERR(r);
-
-    r = db_create(&(arg->dbp[db_index]), arg->env, 0);
-    assert(r == 0);
-    // TODO: Need to call before_db_open_hook() and after_db_open_hook()
-    r = arg->dbp[db_index]->open(arg->dbp[db_index], null_txn, name, nullptr, DB_BTREE, DB_CREATE, 0666);
-    assert(r == 0);
-    return 0;
-}
 
 // For each line of engine status output, look for lines that contain substrings
 // that match any of the strings in the pattern string. The pattern string contains

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -168,17 +169,9 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     if (need_space_total > fifo->memory_size) {
         // Out of memory at the end.
         int next_2 = next_power_of_two(need_space_total);
-        if ((2*next_2 > fifo->memory_size)
-            || (8*next_2 < fifo->memory_size)) {
-            // resize the fifo
-            char *XMALLOC_N(next_2, newmem);
-            char *oldmem = fifo->memory;
-            if (newmem==0) return ENOMEM;
-            memcpy(newmem, oldmem, fifo->memory_used);
-            fifo->memory_size = next_2;
-            fifo->memory = newmem;
-            toku_free(oldmem);
-        }
+        // resize the fifo
+        XREALLOC_N(next_2, fifo->memory);
+        fifo->memory_size = next_2;
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_used);
     fifo_entry_set_msg_type(entry, type);

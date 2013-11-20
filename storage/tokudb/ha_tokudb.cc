@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -91,15 +92,18 @@ PATENT RIGHTS GRANT:
 #pragma implementation          // gcc: Class implementation
 #endif
 
-#define MYSQL_SERVER 1
-#include "hatoku_defines.h"
-#include "hatoku_cmp.h"
 extern "C" {
 #include "stdint.h"
+#define __STDC_FORMAT_MACROS
+#include "inttypes.h"
 #if defined(_WIN32)
 #include "misc.h"
 #endif
 }
+
+#define MYSQL_SERVER 1
+#include "hatoku_defines.h"
+#include "hatoku_cmp.h"
 
 static inline void *thd_data_get(THD *thd, int slot) {
     return thd->ha_data[slot].ha_ptr;
@@ -194,9 +198,9 @@ exit:
         for (uint i = 0; MAX_KEY + 1; i++) {
             bitmap_free(&kc_info->key_filters[i]);
         }
-        my_free(kc_info->field_lengths, MYF(MY_ALLOW_ZERO_PTR));
-        my_free(kc_info->length_bytes, MYF(MY_ALLOW_ZERO_PTR));
-        my_free(kc_info->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(kc_info->field_lengths);
+        my_free(kc_info->length_bytes);
+        my_free(kc_info->blob_fields);
     }
     return error;
 }
@@ -254,7 +258,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
 exit:
     if (error) {
         pthread_mutex_destroy(&share->mutex);
-        my_free((uchar *) share, MYF(0));
+        my_free((uchar *) share);
         share = NULL;
     }
     return share;
@@ -267,13 +271,13 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     }
     
     for (uint i = 0; i < MAX_KEY+1; i++) {
-        my_free(kc_info->cp_info[i], MYF(MY_ALLOW_ZERO_PTR));
+        my_free(kc_info->cp_info[i]);
         kc_info->cp_info[i] = NULL; // 3144
     }
     
-    my_free(kc_info->field_lengths, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(kc_info->length_bytes, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(kc_info->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(kc_info->field_lengths);
+    my_free(kc_info->length_bytes);
+    my_free(kc_info->blob_fields);
 }
 
 //
@@ -295,10 +299,10 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         // It is imperative that we reset a DB to NULL once we are done with it.
         //
         for (uint i = 0; i < sizeof(share->key_file)/sizeof(share->key_file[0]); i++) {
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-                TOKUDB_TRACE("dbclose:%p\n", share->key_file[i]);
-            }
             if (share->key_file[i]) { 
+                if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+                    TOKUDB_TRACE("dbclose:%p\n", share->key_file[i]);
+                }
                 error = share->key_file[i]->close(share->key_file[i], 0);
                 assert(error == 0);
                 if (error) {
@@ -318,7 +322,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         pthread_mutex_destroy(&share->mutex);
         rwlock_destroy(&share->num_DBs_lock);
 
-        my_free((uchar *) share, MYF(0));
+        my_free((uchar *) share);
     }
 
     return result;
@@ -405,8 +409,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     flags |= HA_DO_INDEX_COND_PUSHDOWN;
 #endif
-    if (table_share->key_info[idx].option_struct &&
-        table_share->key_info[idx].option_struct->clustering) {
+    if (key_is_clustering(&table_share->key_info[idx])) {
         flags |= HA_CLUSTERED_INDEX;
     }
     DBUG_RETURN(flags);
@@ -980,7 +983,7 @@ static uchar* pack_toku_field_blob(
     }
 
     if (length > 0) {
-        memcpy_fixed((uchar *)(&data_ptr), from_mysql + len_bytes, sizeof(uchar*));
+        memcpy((uchar *)(&data_ptr), from_mysql + len_bytes, sizeof(uchar*));
         memcpy(to_tokudb + len_bytes, data_ptr, length);
     }
     return (to_tokudb + len_bytes + length);
@@ -1080,7 +1083,7 @@ static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* tx
     error = 0;
 
 cleanup:
-    my_free(val.data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(val.data);
 
     return error;
 }
@@ -1264,11 +1267,12 @@ cleanup:
 static int generate_row_for_del(
     DB *dest_db, 
     DB *src_db,
-    DBT *dest_key,
+    DBT_ARRAY *dest_key_arrays,
     const DBT *src_key, 
     const DBT *src_val
     )
 {
+    DBT* dest_key = &dest_key_arrays->dbts[0];
     return tokudb_generate_row(
         dest_db,
         src_db,
@@ -1283,12 +1287,14 @@ static int generate_row_for_del(
 static int generate_row_for_put(
     DB *dest_db, 
     DB *src_db,
-    DBT *dest_key, 
-    DBT *dest_val,
+    DBT_ARRAY *dest_key_arrays,
+    DBT_ARRAY *dest_val_arrays,
     const DBT *src_key, 
     const DBT *src_val
     ) 
 {
+    DBT* dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = (dest_val_arrays == NULL) ? NULL : &dest_val_arrays->dbts[0];
     return tokudb_generate_row(
         dest_db,
         src_db,
@@ -1328,8 +1334,14 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_blob_bytes = 0;
     delay_updating_ai_metadata = false;
     ai_metadata_update_required = false;
-    memset(mult_key_dbt, 0, sizeof(mult_key_dbt));
-    memset(mult_rec_dbt, 0, sizeof(mult_rec_dbt));
+    memset(mult_key_dbt_array, 0, sizeof(mult_key_dbt_array));
+    memset(mult_rec_dbt_array, 0, sizeof(mult_rec_dbt_array));
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
+        toku_dbt_array_init(&mult_key_dbt_array[i], 1);
+    }
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt_array)/sizeof(mult_rec_dbt_array[0]); i++) {
+        toku_dbt_array_init(&mult_rec_dbt_array[i], 1);
+    }
     loader = NULL;
     abort_loader = false;
     memset(&lc, 0, sizeof(lc));
@@ -1397,7 +1409,7 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
 
     error = tokudb::open_status(db_env, ptr, newname, txn);
 cleanup:
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1447,7 +1459,7 @@ exit:
             share->key_file[primary_key] = NULL;
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1493,7 +1505,7 @@ cleanup:
             *ptr = NULL;
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1555,7 +1567,7 @@ exit:
 // reset the kc_info state at keynr
 static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
     bitmap_clear_all(&kc_info->key_filters[keynr]);
-    my_free(kc_info->cp_info[keynr], MYF(MY_ALLOW_ZERO_PTR));
+    my_free(kc_info->cp_info[keynr]);
     kc_info->cp_info[keynr] = NULL;
     kc_info->mcp_info[keynr] = (MULTI_COL_PACK_INFO) { 0, 0 };
 }
@@ -1647,7 +1659,7 @@ static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, K
                 }
             }
         }
-        if (i == primary_key || table_share->key_info[i].option_struct->clustering) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             error = initialize_col_pack_info(kc_info,table_share,i);
             if (error) {
                 goto exit;
@@ -1706,7 +1718,7 @@ int ha_tokudb::initialize_share(
     }
     else {
         do_commit = true;
-        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, thd);
         if (error) { goto exit; }
     }
 
@@ -1799,6 +1811,7 @@ int ha_tokudb::initialize_share(
         primary_key
         );
         
+    share->pk_has_string = false;
     if (!hidden_primary_key) {
         //
         // We need to set the ref_length to start at 5, to account for
@@ -1809,6 +1822,14 @@ int ha_tokudb::initialize_share(
         KEY_PART_INFO *end = key_part + get_key_parts(&table->key_info[primary_key]);
         for (; key_part != end; key_part++) {
             ref_length += key_part->field->max_packed_col_length(key_part->length);
+            TOKU_TYPE toku_type = mysql_to_toku_type(key_part->field);
+            if (toku_type == toku_type_fixstring ||
+                toku_type == toku_type_varstring ||
+                toku_type == toku_type_blob
+                )
+            {
+                share->pk_has_string = true;
+            }
         }
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
@@ -1832,7 +1853,7 @@ int ha_tokudb::initialize_share(
         init_auto_increment();
     }
 
-    if (may_table_be_empty(NULL)) {
+    if (may_table_be_empty(txn)) {
         share->try_table_lock = true;
     }
     else {
@@ -1863,12 +1884,11 @@ exit:
 //      1 on error
 //
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s", this, name);
+    TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s %o %u", this, name, mode, test_if_locked);
     THD* thd = ha_thd();
 
     int error = 0;
     int ret_val = 0;
-    uint curr_num_DBs = 0;
 
     transaction = NULL;
     cursor = NULL;
@@ -1886,7 +1906,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     else {
         key_used_on_scan = primary_key;
     }
-    curr_num_DBs = table_share->keys + test(hidden_primary_key);
 
     /* Need some extra memory in case of packed keys */
     // the "+ 1" is for the first byte that states +/- infinity
@@ -1927,14 +1946,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     if (rec_update_buff == NULL) {
         ret_val = 1;
         goto exit;
-    }
-
-    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-        mult_key_dbt[i].flags = DB_DBT_REALLOC;
-    }
-
-    for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        mult_rec_dbt[i].flags = DB_DBT_REALLOC;
     }
 
     /* Init shared structure */
@@ -1978,13 +1989,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
 exit:
     if (ret_val) {
-        my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(range_query_buff);
         range_query_buff = NULL;
-        my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(alloc_ptr);
         alloc_ptr = NULL;
-        my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(rec_buff);
         rec_buff = NULL;
-        my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(rec_update_buff);
         rec_update_buff = NULL;
         
         if (error) {
@@ -2011,7 +2022,7 @@ int ha_tokudb::estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn) {
     DB_TXN* txn_to_use = NULL;
 
     if (txn == NULL) {
-        error = db_env->txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED);
+        error = txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED, ha_thd());
         if (error) goto cleanup;
         do_commit = true;
     }
@@ -2059,7 +2070,7 @@ int ha_tokudb::remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* tr
     // transaction to be used for putting metadata into status.tokudb
     //
     if (transaction == NULL) {
-        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, ha_thd());
         if (error) { 
             goto cleanup;
         }
@@ -2103,7 +2114,7 @@ int ha_tokudb::write_metadata(DB* db, void* key_data, uint key_size, void* val_d
     // transaction to be used for putting metadata into status.tokudb
     //
     if (transaction == NULL) {
-        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, ha_thd());
         if (error) { 
             goto cleanup;
         }
@@ -2152,7 +2163,7 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
 
     error = 0;
 cleanup:
-    my_free(frm_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(frm_data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2216,8 +2227,8 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
 
     error = 0;
 cleanup:
-    my_free(mysql_frm_data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(stored_frm.data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql_frm_data);
+    my_free(stored_frm.data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2262,22 +2273,16 @@ int ha_tokudb::__close() {
     TOKUDB_DBUG_ENTER("ha_tokudb::__close %p", this);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         TOKUDB_TRACE("close:%p\n", this);
-    my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
-    for (uint32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
-        if (mult_rec_dbt[i].flags == DB_DBT_REALLOC &&
-                mult_rec_dbt[i].data != NULL) {
-            free(mult_rec_dbt[i].data);
-        }
+    my_free(rec_buff);
+    my_free(rec_update_buff);
+    my_free(blob_buff);
+    my_free(alloc_ptr);
+    my_free(range_query_buff);
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_key_dbt_array[i]);
     }
-    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-        if (mult_key_dbt[i].flags == DB_DBT_REALLOC &&
-                mult_key_dbt[i].data != NULL) {
-            free(mult_key_dbt[i].data);
-        }
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt_array)/sizeof(mult_rec_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_rec_dbt_array[i]);
     }
     rec_buff = NULL;
     rec_update_buff = NULL;
@@ -2830,7 +2835,7 @@ DBT* ha_tokudb::create_dbt_key_from_key(
     if (!dont_pack_pk) {
         tmp_buff = buff + size;
         if (hidden_primary_key) {
-            memcpy_fixed(tmp_buff, current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+            memcpy(tmp_buff, current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
             size += TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
         }
         else {
@@ -2897,7 +2902,14 @@ DBT* ha_tokudb::create_dbt_key_for_lookup(
     )
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::create_dbt_key_from_lookup");
-    DBUG_RETURN(create_dbt_key_from_key(key, key_info, buff, record, has_null, true, key_length));    
+    DBT* ret = create_dbt_key_from_key(key, key_info, buff, record, has_null, true, key_length);
+    // override the infinity byte, needed in case the pk is a string
+    // to make sure that the cursor that uses this key properly positions
+    // it at the right location. If the table stores "D", but we look up for "d",
+    // and the infinity byte is 0, then we will skip the "D", because 
+    // in bytes, "d" > "D".
+    buff[0] = COL_NEG_INF;
+    DBUG_RETURN(ret);    
 }
 
 //
@@ -3088,7 +3100,7 @@ void ha_tokudb::init_hidden_prim_key_info() {
         }
         else {
             do_commit = true;
-            error = db_env->txn_begin(db_env, 0, &txn, 0);
+            error = txn_begin(db_env, 0, &txn, 0, thd);
             assert(error == 0);
         }
         
@@ -3251,6 +3263,7 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 //
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
     int ret_val = 0;
+    bool read_string = false;
     ret_val = tokudb_compare_two_keys(
         ref1 + sizeof(uint32_t),
         *(uint32_t *)ref1,
@@ -3258,7 +3271,8 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         *(uint32_t *)ref2,
         (uchar *)share->file->descriptor->dbt.data + 4,
         *(uint32_t *)share->file->descriptor->dbt.data - 4,
-        false
+        false,
+        &read_string
         );
     return ret_val;
 }
@@ -3305,7 +3319,7 @@ bool ha_tokudb::may_table_be_empty(DB_TXN *txn) {
     DB_TXN* tmp_txn = NULL;
 
     if (txn == NULL) {
-        error = db_env->txn_begin(db_env, 0, &tmp_txn, 0);
+        error = txn_begin(db_env, 0, &tmp_txn, 0, ha_thd());
         if (error) {
             goto cleanup;
         }
@@ -3338,7 +3352,7 @@ cleanup:
 }
 
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert");
+    TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert %p txn %p", this, transaction);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     delay_updating_ai_metadata = true;
@@ -3434,7 +3448,7 @@ int ha_tokudb::end_bulk_insert(bool abort) {
             for (uint i = 0; i < table_share->keys; i++) {
                 if (table_share->key_info[i].flags & HA_NOSAME) {
                     bool is_unique;
-                    if (i == primary_key) {
+                    if (i == primary_key && !share->pk_has_string) {
                         continue;
                     }
                     error = is_index_unique(
@@ -3488,6 +3502,8 @@ cleanup:
 int ha_tokudb::end_bulk_insert() {
     return end_bulk_insert( false );
 }
+
+volatile int ha_tokudb_is_index_unique_wait = 0; // debug
 
 int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info) {
     int error;
@@ -3633,6 +3649,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     error = 0;
 
 cleanup:
+    while (ha_tokudb_is_index_unique_wait) sleep(1); // debug
     if (tmp_cursor1) {
         tmp_cursor1->c_close(tmp_cursor1);
         tmp_cursor1 = NULL;
@@ -3720,12 +3737,12 @@ int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
     //
     if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-            bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
+            bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
             bool is_unique = false;
             //
-            // don't need to do check for primary key
+            // don't need to do check for primary key that don't have strings
             //
-            if (keynr == primary_key) {
+            if (keynr == primary_key && !share->pk_has_string) {
                 continue;
             }
             if (!is_unique_key) {
@@ -3812,7 +3829,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         //
         // test key packing of clustering keys
         //
-        if (table->key_info[keynr].option_struct->clustering) {
+        if (key_is_clustering(&table->key_info[keynr])) {
             error = pack_row(&row, (const uchar *) record, keynr);
             assert(error == 0);
             uchar* tmp_buff = NULL;
@@ -3832,7 +3849,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             assert(tmp_num_bytes == row.size);
             cmp = memcmp(tmp_buff,rec_buff,tmp_num_bytes);
             assert(cmp == 0);
-            my_free(tmp_buff,MYF(MY_ALLOW_ZERO_PTR));
+            my_free(tmp_buff);
         }
     }
 
@@ -3844,8 +3861,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     cmp = memcmp(pk_val->data, tmp_pk_val_data, pk_val->size);    
     assert( cmp == 0);
 
-    my_free(tmp_pk_key_data,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(tmp_pk_val_data,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_pk_key_data);
+    my_free(tmp_pk_val_data);
 }
 
 //
@@ -3949,13 +3966,13 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
                 // env->put_multiple(), except that
                 // we will just do a put() right away.
                 error = tokudb_generate_row(db, src_db,
-                        &mult_key_dbt[i], &mult_rec_dbt[i], 
+                        &mult_key_dbt_array[i].dbts[0], &mult_rec_dbt_array[i].dbts[0], 
                         pk_key, pk_val);
                 if (error != 0) {
                     goto out;
                 }
-                error = db->put(db, txn, &mult_key_dbt[i], 
-                        &mult_rec_dbt[i], flags);
+                error = db->put(db, txn, &mult_key_dbt_array[i].dbts[0], 
+                        &mult_rec_dbt_array[i].dbts[0], flags);
             }
             if (error != 0) {
                 goto out;
@@ -3971,8 +3988,8 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
             pk_val,
             curr_num_DBs, 
             share->key_file, 
-            mult_key_dbt,
-            mult_rec_dbt,
+            mult_key_dbt_array,
+            mult_rec_dbt_array,
             mult_put_flags
             );
     }
@@ -4087,7 +4104,7 @@ int ha_tokudb::write_row(uchar * record) {
 
     create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)));
     if (create_sub_trans) {
-        error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
         }
@@ -4107,39 +4124,38 @@ int ha_tokudb::write_row(uchar * record) {
         }
     }
     else {
+        error = do_uniqueness_checks(record, txn, thd);
+        if (error) {
+            // for #4633
+            // if we have a duplicate key error, let's check the primary key to see
+            // if there is a duplicate there. If so, set last_dup_key to the pk
+            if (error == DB_KEYEXIST && !test(hidden_primary_key) && last_dup_key != primary_key) {
+                int r = share->file->getf_set(
+                    share->file, 
+                    txn, 
+                    0, 
+                    &prim_key, 
+                    smart_dbt_do_nothing, 
+                    NULL
+                    );
+                if (r == 0) {
+                    // if we get no error, that means the row
+                    // was found and this is a duplicate key,
+                    // so we set last_dup_key
+                    last_dup_key = primary_key;
+                }
+                else if (r != DB_NOTFOUND) {
+                    // if some other error is returned, return that to the user.
+                    error = r;
+                }
+            }
+            goto cleanup; 
+        }
         if (curr_num_DBs == 1) {
             error = insert_row_to_main_dictionary(record,&prim_key, &row, txn);
             if (error) { goto cleanup; }
         }
         else {
-            error = do_uniqueness_checks(record, txn, thd);
-            if (error) {
-                // for #4633
-                // if we have a duplicate key error, let's check the primary key to see
-                // if there is a duplicate there. If so, set last_dup_key to the pk
-                if (error == DB_KEYEXIST && !test(hidden_primary_key)) {
-                    int r = share->file->getf_set(
-                        share->file, 
-                        txn, 
-                        0, 
-                        &prim_key, 
-                        smart_dbt_do_nothing, 
-                        NULL
-                        );
-                    if (r == 0) {
-                        // if we get no error, that means the row
-                        // was found and this is a duplicate key,
-                        // so we set last_dup_key
-                        last_dup_key = primary_key;
-                    }
-                    else if (r != DB_NOTFOUND) {
-                        // if some other error is returned, return that to the user.
-                        error = r;
-                    }
-                }
-                goto cleanup; 
-            }
-
             error = insert_rows_to_dictionaries_mult(&prim_key, &row, txn, thd);
             if (error) { goto cleanup; }
         }
@@ -4251,7 +4267,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     curr_num_DBs = share->num_DBs;
 
     if (using_ignore) {
-        error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
         }
@@ -4275,8 +4291,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     //
     if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-            bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
-            if (keynr == primary_key) {
+            bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
+            if (keynr == primary_key && !share->pk_has_string) {
                 continue;
             }
             if (is_unique_key) {
@@ -4326,9 +4342,9 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         share->key_file,
         mult_put_flags,
         2*curr_num_DBs, 
-        mult_key_dbt,
+        mult_key_dbt_array,
         curr_num_DBs, 
-        mult_rec_dbt
+        mult_rec_dbt_array
         );
     
     if (error == DB_KEYEXIST) {
@@ -4403,7 +4419,7 @@ int ha_tokudb::delete_row(const uchar * record) {
         &row,
         curr_num_DBs, 
         share->key_file, 
-        mult_key_dbt,
+        mult_key_dbt_array,
         mult_del_flags
         );
 
@@ -4440,7 +4456,7 @@ void ha_tokudb::set_query_columns(uint keynr) {
         key_index = primary_key;
     }
     else {
-        key_index = (table->key_info[keynr].option_struct->clustering ? keynr : primary_key);
+        key_index = (key_is_clustering(&table->key_info[keynr]) ? keynr : primary_key);
     }
     for (uint i = 0; i < table_share->fields; i++) {
         if (bitmap_is_set(table->read_set,i) || 
@@ -4717,13 +4733,13 @@ void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *found_key) {
     //
     if (hidden_primary_key) {
         if (keynr == primary_key) {
-            memcpy_fixed(current_ident, (char *) found_key->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+            memcpy(current_ident, (char *) found_key->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         }
         //
         // if secondary key, hidden primary key is at end of found_key
         //
         else {
-            memcpy_fixed(
+            memcpy(
                 current_ident, 
                 (char *) found_key->data + found_key->size - TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
                 TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
@@ -4778,7 +4794,7 @@ int ha_tokudb::read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT con
     //
     // case where we read from secondary table that is not clustered
     //
-    if (keynr != primary_key && !(table->key_info[keynr].option_struct->clustering)) {
+    if (keynr != primary_key && !key_is_clustering(&table->key_info[keynr])) {
         bool has_null;
         //
         // create a DBT that has the same data as row, this is inefficient
@@ -4992,7 +5008,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     }
     error = handle_cursor_error(error,HA_ERR_KEY_NOT_FOUND,tokudb_active_index);
-    if (!error && !key_read && tokudb_active_index != primary_key && !(table->key_info[tokudb_active_index].option_struct->clustering)) {
+    if (!error && !key_read && tokudb_active_index != primary_key && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     
@@ -5397,7 +5413,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // key
     need_val = (this->key_read == 0) && 
                 (tokudb_active_index == primary_key || 
-                 table->key_info[tokudb_active_index].option_struct->clustering
+                 key_is_clustering(&table->key_info[tokudb_active_index])
                        );
 
     if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
@@ -5477,7 +5493,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // main table.
     //
     
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].option_struct->clustering) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5558,7 +5574,7 @@ int ha_tokudb::index_first(uchar * buf) {
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].option_struct->clustering) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5600,7 +5616,7 @@ int ha_tokudb::index_last(uchar * buf) {
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].option_struct->clustering) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
 
@@ -5911,7 +5927,7 @@ void ha_tokudb::position(const uchar * record) {
     DBT key;
     if (hidden_primary_key) {
         DBUG_ASSERT(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t)));
-        memcpy_fixed(ref + sizeof(uint32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+        memcpy(ref + sizeof(uint32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         *(uint32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
     } 
     else {
@@ -5957,7 +5973,7 @@ int ha_tokudb::info(uint flag) {
             TOKU_DB_FRAGMENTATION_S frag_info;
             memset(&frag_info, 0, sizeof frag_info);
 
-            error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
+            error = txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED, ha_thd());
             if (error) { goto cleanup; }
 
             // we should always have a primary key
@@ -6171,12 +6187,12 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
         // DBUG_PRINT("trans", ("starting transaction all "));
-        if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
+        if ((error = txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level), thd))) {
             trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
         }
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("just created master:%p\n", trx->all);
+            TOKUDB_TRACE("just created master %p\n", trx->all);
         }
         trx->sp_level = trx->all;
         trans_register_ha(thd, true, tokudb_hton);
@@ -6207,14 +6223,14 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     else {
         txn_begin_flags = DB_INHERIT_ISOLATION;
     }
-    if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
+    if ((error = txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags, thd))) {
         /* We leave the possible master transaction open */
         trx->tokudb_lock_count--;  // We didn't get the lock
         goto cleanup;
     }
     trx->sub_sp_level = trx->stmt;
     if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_TRACE("just created stmt:%p:%p\n", trx->sp_level, trx->stmt);
+        TOKUDB_TRACE("just created stmt %p %p\n", trx->sp_level, trx->stmt);
     }
     reset_stmt_progress(&trx->stmt_progress);
     trans_register_ha(thd, false, tokudb_hton);
@@ -6477,9 +6493,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     DBUG_RETURN(to);
 }
 
-static inline srv_row_format_t
-compression_method_to_row_type(enum toku_compression_method method)
-{
+static inline srv_row_format_t compression_method_to_row_type(enum toku_compression_method method) {
     switch (method) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case TOKU_NO_COMPRESSION:
@@ -6503,18 +6517,14 @@ compression_method_to_row_type(enum toku_compression_method method)
     }
 }
 
-static srv_row_format_t
-get_row_type_for_key(DB *file)
-{
+static srv_row_format_t get_row_type_for_key(DB *file) {
     enum toku_compression_method method;
     int r = file->get_compression_method(file, &method);
     assert(r == 0);
     return compression_method_to_row_type(method);
 }
 
-static inline enum toku_compression_method
-row_type_to_compression_method(srv_row_format_t type)
-{
+static inline enum toku_compression_method row_type_to_compression_method(srv_row_format_t type) {
     switch (type) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case SRV_ROW_FORMAT_UNCOMPRESSED:
@@ -6531,9 +6541,9 @@ row_type_to_compression_method(srv_row_format_t type)
         return TOKU_FAST_COMPRESSION_METHOD;
 #endif
     default:
-        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_FAST by default instead"));
+        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_ZLIB by default instead"));
     case SRV_ROW_FORMAT_DEFAULT:
-        return TOKU_DEFAULT_COMPRESSION_METHOD;
+        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
     }
 }
 
@@ -6743,7 +6753,7 @@ static uint32_t create_secondary_key_descriptor(
         form->s,
         kc_info,
         keynr,
-        key_info->option_struct->clustering
+        key_is_clustering(key_info)
         );
     return ptr - buf;
 }
@@ -6808,16 +6818,13 @@ int ha_tokudb::create_secondary_dictionary(
         );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
-    block_size = key_info->block_size << 10;
-    if (block_size == 0) {
-        block_size = get_tokudb_block_size(thd);
-    }
+    block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
 
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
 cleanup:    
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
+    my_free(row_desc_buff);
     return error;
 }
 
@@ -6901,19 +6908,14 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
         );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
-    block_size = 0;
-    if (prim_key)
-        block_size = prim_key->block_size << 10;
-    if (block_size == 0) {
-        block_size = get_tokudb_block_size(thd);
-    }
+    block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
 
     /* Create the main table that will hold the real rows */
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), false);
 cleanup:    
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
+    my_free(row_desc_buff);
     return error;
 }
 
@@ -6928,7 +6930,7 @@ cleanup:
 //      error otherwise
 //
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::create");
+    TOKUDB_DBUG_ENTER("ha_tokudb::create %p %s", this, name);
     int error;
     DB *status_block = NULL;
     uint version;
@@ -6975,12 +6977,12 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
-    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+    if (trx && trx->sub_sp_level && thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
         txn = trx->sub_sp_level;
     }
     else {
         do_commit = true;
-        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, thd);
         if (error) { goto cleanup; }        
     }
     
@@ -7068,7 +7070,7 @@ cleanup:
             commit_txn(txn,0);
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -7145,8 +7147,8 @@ int ha_tokudb::delete_or_rename_dictionary( const char* from_name, const char* t
     if (error) { goto cleanup; }
 
 cleanup:
-    my_free(new_from_name, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(new_to_name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(new_from_name);
+    my_free(new_to_name);
     return error;
 }
 
@@ -7156,6 +7158,7 @@ cleanup:
 // if is_delete is false, then to_name must be non-NULL, as we are renaming the table.
 //
 int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete) {
+    THD *thd = ha_thd();
     int error;
     DB* status_db = NULL;
     DBC* status_cursor = NULL;
@@ -7166,7 +7169,14 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     memset(&curr_val, 0, sizeof(curr_val));
     pthread_mutex_lock(&tokudb_meta_mutex);
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    DB_TXN *parent_txn = NULL;
+    tokudb_trx_data *trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (thd_sql_command(ha_thd()) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+        parent_txn = trx->sub_sp_level;
+    }
+
+    error = txn_begin(db_env, parent_txn, &txn, 0, thd);
     if (error) { goto cleanup; }
 
     //
@@ -7312,7 +7322,7 @@ double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::keyread_time");
     double ret_val;
-    if ((table->key_info[index].option_struct->clustering) || (index == primary_key)) {
+    if (index == primary_key || key_is_clustering(&table->key_info[index])) {
         ret_val = read_time(index, ranges, rows);
         DBUG_RETURN(ret_val);
     }
@@ -7362,7 +7372,7 @@ double ha_tokudb::read_time(
         goto cleanup;
     }
     
-    is_clustering = (table->key_info[index].option_struct->clustering);
+    is_clustering = key_is_clustering(&table->key_info[index]);
 
 
     //
@@ -7511,7 +7521,7 @@ void ha_tokudb::init_auto_increment() {
     value.flags = DB_DBT_USERMEM;
     DB_TXN* txn = NULL;
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) {
         share->last_auto_increment = 0;    
     }
@@ -7733,7 +7743,7 @@ int ha_tokudb::tokudb_add_index(
     curr_index = curr_num_DBs;
     *modified_DBs = true;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
-        if (key_info[i].option_struct->clustering) {
+        if (key_is_clustering(&key_info[i])) {
             set_key_filter(
                 &share->kc_info.key_filters[curr_index],
                 &key_info[i],
@@ -7812,6 +7822,7 @@ int ha_tokudb::tokudb_add_index(
         indexer = NULL;
     }
     else {
+        DBUG_ASSERT(table->mdl_ticket->get_type() >= MDL_SHARED_NO_WRITE);
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
         prelocked_right_range_size = 0;
@@ -8137,16 +8148,6 @@ void ha_tokudb::print_error(int error, myf errflag) {
         error = HA_ERR_UNSUPPORTED;
     }
 #endif
-    // TODO: should rename debug code to something better
-    // just reusing this so that tests don' start complaining
-#if MYSQL_VERSION_ID < 50500
-    if ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) {
-        THD* thd = ha_thd();
-        if (get_log_client_errors(thd)) {
-            sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
-        }
-    }
-#endif
     handler::print_error(error, errflag);
 }
 
@@ -8247,7 +8248,7 @@ int ha_tokudb::delete_all_rows_internal() {
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) { goto cleanup; }
 
     curr_num_DBs = table->s->keys + test(hidden_primary_key);

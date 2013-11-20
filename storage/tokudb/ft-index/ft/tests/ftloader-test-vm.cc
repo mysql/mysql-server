@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -99,11 +100,11 @@ static void test_cachetable_reservation (long size) {
         toku_cachetable_create(&ct, size, ZERO_LSN, NULL);
     }
     {
-        uint64_t r0 = toku_cachetable_reserve_memory(ct, 0.5);
+        uint64_t r0 = toku_cachetable_reserve_memory(ct, 0.5, 0);
         uint64_t r0_bound = size/2 + size/16;
-        uint64_t r1 = toku_cachetable_reserve_memory(ct, 0.5);
+        uint64_t r1 = toku_cachetable_reserve_memory(ct, 0.5, 0);
         uint64_t r1_bound = r0_bound/2;
-        uint64_t r2 = toku_cachetable_reserve_memory(ct, 0.5);
+        uint64_t r2 = toku_cachetable_reserve_memory(ct, 0.5, 0);
         uint64_t r2_bound = r1_bound/2;
         if (verbose) printf("%10ld: r0=%10" PRIu64 " r1=%10" PRIu64 " r2=%10" PRIu64 "\n", size, r0, r1, r2);
         assert(r0 <= r0_bound);

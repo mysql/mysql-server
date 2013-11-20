@@ -26,6 +26,7 @@ set(FT_SOURCES
   background_job_manager
   block_allocator
   block_table
+  bndata
   cachetable
   checkpoint
   compress

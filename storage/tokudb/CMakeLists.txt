@@ -13,8 +13,9 @@ ENDIF()
 IF(NOT TOKUDB_OK)
   RETURN()
 ENDIF()
-SET(ENV{TOKUDB_VERSION} "7.0.4")
 
+############################################
+SET(ENV{TOKUDB_VERSION} "7.0.4")
 SET(TOKUDB_DEB_FILES "usr/lib/mysql/plugin/ha_tokudb.so\netc/mysql/conf.d/tokudb.cnf\nusr/bin/tokuftdump\nusr/share/doc/mariadb-server-5.5/README-TOKUDB\nusr/share/doc/mariadb-server-5.5/README.md" PARENT_SCOPE)
 SET(USE_BDB OFF CACHE BOOL "")
 SET(USE_VALGRIND OFF CACHE BOOL "")
@@ -58,6 +59,7 @@ SET(TOKUDB_SOURCES ha_tokudb.cc)
 MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
     LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
 SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")
+SET(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO} -flto -fuse-linker-plugin")
 
 SET(CPACK_RPM_server_PACKAGE_OBSOLETES
   "${CPACK_RPM_server_PACKAGE_OBSOLETES} MariaDB-tokudb-engine < 5.5.34" PARENT_SCOPE)

@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -110,8 +111,12 @@ char random_buf[NUM_DBS][8];
 
 static int put_multiple_generate(DB *dest_db,
 				 DB *src_db __attribute__((__unused__)),
-				 DBT *dest_key, DBT *dest_val,
+				 DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals,
 				 const DBT *src_key, const DBT *src_val __attribute__((__unused__))) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
     assert(src_key->size==4);
@@ -244,7 +249,7 @@ static void test_loader_maxsize(DB **dbs, DB **check_dbs)
             v = i;
             dbt_init(&key, &k, sizeof(unsigned int));
             dbt_init(&val, &v, sizeof(unsigned int));
-            r = env->put_multiple(env, nullptr, txn, &key, &val, NUM_DBS, check_dbs, keys, vals, flags);
+            r = env_put_multiple_test_no_array(env, nullptr, txn, &key, &val, NUM_DBS, check_dbs, keys, vals, flags);
             CKERR(r);
         }
         r = txn->commit(txn, 0);

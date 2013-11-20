@@ -1,0 +1,55 @@
+# verify that information_schema.tokudb_locks gets populated with locks for 2 clients
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id int primary key);
+set autocommit=0;
+let $default_id=`select connection_id()`;
+
+# should be empty
+select * from information_schema.tokudb_locks;
+
+
+connect (conn_a,localhost,root,,);
+set autocommit=0;
+let $a_id=`select connection_id()`;
+
+insert into t values (1);
+
+connect (conn_b,localhost,root,,);
+set autocommit=0;
+let $b_id=`select connection_id()`;
+
+send insert into t values (1);
+
+
+# should find the presence of a lock on 2nd transaction
+connection default;
+real_sleep 1; # give some time for conn_b to get blocked
+replace_column 1 TRX_ID 2 MYSQL_ID;
+eval select * from information_schema.tokudb_locks; 
+
+connection conn_a;
+commit;
+# verify that the lock on the 1st transaction is released and replaced by the lock for the 2nd transaction
+replace_column 1 TRX_ID 2 MYSQL_ID;
+select * from information_schema.tokudb_locks;
+
+connection conn_b;
+--error 1062
+reap;
+commit;
+
+disconnect conn_b;
+
+connection default;
+# verify that the lockwait on the 2nd transaction has been released
+# should be be empty
+select * from information_schema.tokudb_locks;
+
+drop table t;

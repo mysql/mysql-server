@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -95,12 +96,10 @@ PATENT RIGHTS GRANT:
 #include "ule.h"
 #include "ule-internal.h"
 
-static void init_empty_ule(ULE ule, DBT *key) {
+static void init_empty_ule(ULE ule) {
     ule->num_cuxrs = 0;
     ule->num_puxrs = 0;
     ule->uxrs = ule->uxrs_static;
-    ule->keylen   = key->size;
-    ule->keyp     = key->data;
 }
 
 static void add_committed_entry(ULE ule, DBT *val, TXNID xid) {
@@ -155,7 +154,7 @@ run_test(void) {
     r = xids_create_child(msg_xids_1, &msg_xids_2, child_id);
     assert(r==0);
 
-    init_empty_ule(&ule_initial, &key);
+    init_empty_ule(&ule_initial);
     add_committed_entry(&ule_initial, &val, 0);
     val.data = &val_data_two;
     // make the TXNID match the child id of xids

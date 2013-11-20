@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -164,6 +165,10 @@ public:
     // index of auto increment column in table->field, if auto_inc exists
     //
     uint ai_field_index;
+    //
+    // whether the primary key has a string
+    //
+    bool pk_has_string;
 
     KEY_AND_COL_INFO kc_info;
     
@@ -281,8 +286,8 @@ private:
     //
     // individual DBTs for each index
     //
-    DBT mult_key_dbt[2*(MAX_KEY + 1)];
-    DBT mult_rec_dbt[MAX_KEY + 1];
+    DBT_ARRAY mult_key_dbt_array[2*(MAX_KEY + 1)];
+    DBT_ARRAY mult_rec_dbt_array[MAX_KEY + 1];
     uint32_t mult_put_flags[MAX_KEY + 1];
     uint32_t mult_del_flags[MAX_KEY + 1];
     uint32_t mult_dbt_flags[MAX_KEY + 1];
@@ -665,6 +670,7 @@ public:
     int alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num);
+    int alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *kc_info);
     int new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor);
@@ -675,10 +681,6 @@ public:
 public:
     // Returns true of the 5.6 inplace alter table interface is used.
     bool try_hot_alter_table();
-
-    // We need a txn in the mysql_alter_table function to write new frm data, so this function
-    // gets called to sometimes create one.
-    void prepare_for_alter();
 
     // Used by the partition storage engine to provide new frm data for the table.
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
@@ -776,17 +778,9 @@ private:
 #endif
 };
 
-#if MYSQL_VERSION_ID >= 50506
-
-static inline void my_free(void *p, int arg) {
-    my_free(p);
+static inline bool key_is_clustering(const KEY *key) {
+    return key->option_struct && key->option_struct->clustering;
 }
-
-static inline void *memcpy_fixed(void *a, const void *b, size_t n) {
-    return memcpy(a, b, n);
-}
-
-#endif
 
 #endif
 

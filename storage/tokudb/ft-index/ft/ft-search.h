@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -103,7 +104,7 @@ struct ft_search;
    the compare function should be a step function from 0 to 1 for a left to right search
    and 1 to 0 for a right to left search */
 
-typedef int (*ft_search_compare_func_t)(struct ft_search */*so*/, DBT *);
+typedef int (*ft_search_compare_func_t)(const struct ft_search &, const DBT *);
 
 /* the search object contains the compare function, search direction, and the kv pair that
    is used in the compare function.  the context is the user's private data */

@@ -52,6 +52,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -118,7 +119,7 @@ PATENT RIGHTS GRANT:
 
 #define ULE_DEBUG 0
 
-static uint32_t ule_get_innermost_numbytes(ULE ule);
+static uint32_t ule_get_innermost_numbytes(ULE ule, uint32_t keylen);
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -197,9 +198,9 @@ const UXR_S committed_delete = {
 
 // Local functions:
 
-static void msg_init_empty_ule(ULE ule, FT_MSG msg);
+static void msg_init_empty_ule(ULE ule);
 static void msg_modify_ule(ULE ule, FT_MSG msg);
-static void ule_init_empty_ule(ULE ule, uint32_t keylen, void * keyp);
+static void ule_init_empty_ule(ULE ule);
 static void ule_do_implicit_promotions(ULE ule, XIDS xids);
 static void ule_try_promote_provisional_outermost(ULE ule, TXNID oldest_possible_live_xid);
 static void ule_promote_provisional_innermost_to_index(ULE ule, uint32_t index);
@@ -233,17 +234,31 @@ static inline size_t uxr_unpack_type_and_length(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_length_and_bit(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 
-static void *
-le_malloc(OMT *omtp, struct mempool *mp, size_t size, void **maybe_free)
+static void get_space_for_le(
+    bn_data* data_buffer, 
+    uint32_t idx,
+    void* keyp,
+    uint32_t keylen,
+    uint32_t old_le_size,
+    size_t size, 
+    LEAFENTRY* new_le_space
+    ) 
 {
-    void * rval;
-    if (omtp)
-        rval = mempool_malloc_from_omt(omtp, mp, size, maybe_free);
-    else
-        rval = toku_xmalloc(size);
-    resource_assert(rval);
-    return rval;
+    if (data_buffer == NULL) {
+        CAST_FROM_VOIDP(*new_le_space, toku_xmalloc(size));
+    }
+    else {
+        // this means we are overwriting something
+        if (old_le_size > 0) {
+            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space);
+        }
+        // this means we are inserting something new
+        else {
+            data_buffer->get_space_for_insert(idx, keyp, keylen, size, new_le_space);
+        }
+    }
 }
+
 
 /////////////////////////////////////////////////////////////////////
 // Garbage collection related functions
@@ -432,46 +447,68 @@ done:;
 //
 // NOTE: This is the only function (at least in this body of code) that modifies
 //       a leafentry.
+// NOTE: It is the responsibility of the caller to make sure that the key is set
+//       in the FT_MSG, as it will be used to store the data in the data_buffer
 //
 // Return 0 on success.  
 //   If the leafentry is destroyed it sets *new_leafentry_p to NULL.
 //   Otehrwise the new_leafentry_p points at the new leaf entry.
 // As of October 2011, this function always returns 0.
 void
-toku_le_apply_msg(FT_MSG   msg,		// message to apply to leafentry
+toku_le_apply_msg(FT_MSG   msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
+                  bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
+                  uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
                   TXNID oldest_referenced_xid,
                   GC_INFO gc_info,
-                  size_t *new_leafentry_memorysize,
                   LEAFENTRY *new_leafentry_p,
-                  OMT *omtp,
-                  struct mempool *mp,
-                  void **maybe_free,
                   int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
+    uint64_t oldmemsize = 0;
+    uint32_t keylen = ft_msg_get_keylen(msg);
+    LEAFENTRY copied_old_le = NULL;
+    bool old_le_malloced = false;
+    if (old_leafentry) {
+        size_t old_le_size = leafentry_memsize(old_leafentry);
+        if (old_le_size > 100*1024) { // completely arbitrary limit
+            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
+            old_le_malloced = true;
+        }
+        else {
+            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
+        }
+        memcpy(copied_old_le, old_leafentry, old_le_size);
+    }
 
     if (old_leafentry == NULL) {
-        msg_init_empty_ule(&ule, msg);
+        msg_init_empty_ule(&ule);
     } else {
-        le_unpack(&ule, old_leafentry); // otherwise unpack leafentry
-        oldnumbytes = ule_get_innermost_numbytes(&ule);
+        oldmemsize = leafentry_memsize(old_leafentry);
+        le_unpack(&ule, copied_old_le); // otherwise unpack leafentry
+        oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
     ule_simple_garbage_collection(&ule, oldest_referenced_xid, gc_info);
-    int rval = le_pack(&ule,                // create packed leafentry
-                       new_leafentry_memorysize,
-                       new_leafentry_p,
-                       omtp,
-                       mp,
-                       maybe_free);
+    int rval = le_pack(
+        &ule, // create packed leafentry
+        data_buffer,
+        idx,
+        ft_msg_get_key(msg), // contract of this function is caller has this set, always
+        keylen, // contract of this function is caller has this set, always
+        oldmemsize,
+        new_leafentry_p
+        );
     invariant_zero(rval);
     if (new_leafentry_p) {
-        newnumbytes = ule_get_innermost_numbytes(&ule);
+        newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
+    if (old_le_malloced) {
+        toku_free(copied_old_le);
+    }
 }
 
 bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known) {
@@ -513,11 +550,11 @@ bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referen
 // entry with only one committed value.
 void
 toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
+                        bn_data* data_buffer,
+                        uint32_t idx,
+                        void* keyp,
+                        uint32_t keylen,
                         LEAFENTRY *new_leaf_entry,
-                        size_t *new_leaf_entry_memory_size,
-                        OMT *omtp,
-                        struct mempool *mp,
-                        void **maybe_free,
                         const xid_omt_t &snapshot_xids,
                         const rx_omt_t &referenced_xids,
                         const xid_omt_t &live_root_txns,
@@ -526,9 +563,24 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
-    le_unpack(&ule, old_leaf_entry);
+    LEAFENTRY copied_old_le = NULL;
+    bool old_le_malloced = false;
+    if (old_leaf_entry) {
+        size_t old_le_size = leafentry_memsize(old_leaf_entry);
+        if (old_le_size > 100*1024) { // completely arbitrary limit
+            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
+            old_le_malloced = true;
+        }
+        else {
+            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
+        }
+        memcpy(copied_old_le, old_leaf_entry, old_le_size);
+    }
 
-    oldnumbytes = ule_get_innermost_numbytes(&ule);
+    le_unpack(&ule, copied_old_le);
+
+    oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
+    uint32_t old_mem_size = leafentry_memsize(old_leaf_entry);
 
     // Before running garbage collection, try to promote the outermost provisional
     // entries to committed if its xid is older than the oldest possible live xid.
@@ -540,18 +592,24 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
     ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
     
-    int r = le_pack(&ule,
-                    new_leaf_entry_memory_size,
-                    new_leaf_entry,
-                    omtp,
-                    mp,
-                    maybe_free);
+    int r = le_pack(
+        &ule,
+        data_buffer,
+        idx,
+        keyp,
+        keylen,
+        old_mem_size,
+        new_leaf_entry
+        );
     assert(r == 0);
     if (new_leaf_entry) {
-        newnumbytes = ule_get_innermost_numbytes(&ule);
+        newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
+    if (old_le_malloced) {
+        toku_free(copied_old_le);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -562,16 +620,8 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
 // Purpose is to init the ule with given key and no transaction records
 // 
 static void 
-msg_init_empty_ule(ULE ule, FT_MSG msg) {   
-    uint32_t keylen = ft_msg_get_keylen(msg);
-    void     *keyp   = ft_msg_get_key(msg);
-    ule_init_empty_ule(ule, keylen, keyp);
-}
-
-static void
-update_ule_key(ULE ule, FT_MSG msg) {
-    ule->keylen = ft_msg_get_keylen(msg);
-    ule->keyp = ft_msg_get_key(msg);
+msg_init_empty_ule(ULE ule) {
+    ule_init_empty_ule(ule);
 }
 
 // Purpose is to modify the unpacked leafentry in our private workspace.
@@ -593,11 +643,6 @@ msg_modify_ule(ULE ule, FT_MSG msg) {
         //fall through to FT_INSERT on purpose.
     }
     case FT_INSERT: {
-        // even though the keys of the ule and the msg should techinically
-        // be the same as far as comparison goes, tickets #4618 and #4631
-        // show why this is necessary. We need to update the key with the exact
-        // bytes of the message
-        update_ule_key(ule, msg);
         uint32_t vallen = ft_msg_get_vallen(msg);
         invariant(IS_VALID_LEN(vallen));
         void * valp      = ft_msg_get_val(msg);
@@ -675,8 +720,6 @@ ule_cleanup(ULE ule) {
 // thus, the memory referenced by 'le' must live as long as the ULE.
 void
 le_unpack(ULE ule, LEAFENTRY le) {
-    //Read the keylen
-    ule->keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
     uint8_t *p;
     uint32_t i;
@@ -685,14 +728,13 @@ le_unpack(ULE ule, LEAFENTRY le) {
             ule->uxrs = ule->uxrs_static; //Static version is always enough.
             ule->num_cuxrs = 1;
             ule->num_puxrs = 0;
-            ule->keyp   = le->u.clean.key_val;
             UXR uxr     = ule->uxrs;
             uxr->type   = XR_INSERT;
             uxr->vallen = toku_dtoh32(le->u.clean.vallen);
-            uxr->valp   = le->u.clean.key_val + ule->keylen;
+            uxr->valp   = le->u.clean.val;
             uxr->xid    = TXNID_NONE;
             //Set p to immediately after leafentry
-            p = le->u.clean.key_val + ule->keylen + uxr->vallen;
+            p = le->u.clean.val + uxr->vallen;
             break;
         }
         case LE_MVCC:
@@ -706,8 +748,7 @@ le_unpack(ULE ule, LEAFENTRY le) {
             else {
                 XMALLOC_N(ule->num_cuxrs + 1 + MAX_TRANSACTION_RECORDS, ule->uxrs);
             }
-            ule->keyp = le->u.mvcc.key_xrs;
-            p = le->u.mvcc.key_xrs + ule->keylen;
+            p = le->u.mvcc.xrs;
 
             //unpack interesting TXNIDs inner to outer.
             if (ule->num_puxrs!=0) {
@@ -869,12 +910,14 @@ update_le_status(ULE ule, size_t memsize) {
 // with some information extracted out of the transaction records into the header.
 // Transaction records in ule are stored outer to inner (uxr[0] is outermost).
 int
-le_pack(ULE ule,                            // data to be packed into new leafentry
-        size_t *new_leafentry_memorysize, 
-        LEAFENTRY * const new_leafentry_p,  // this is what this function creates
-        OMT* omtp, 
-        struct mempool *mp, 
-        void **maybe_free)
+le_pack(ULE ule, // data to be packed into new leafentry
+        bn_data* data_buffer,
+        uint32_t idx,
+        void* keyp,
+        uint32_t keylen,
+        uint32_t old_le_size,
+        LEAFENTRY * const new_leafentry_p // this is what this function creates
+        )
 {
     invariant(ule->num_cuxrs > 0);
     invariant(ule->uxrs[0].xid == TXNID_NONE);
@@ -892,6 +935,9 @@ le_pack(ULE ule,                            // data to be packed into new leafen
                 goto found_insert;
             }
         }
+        if (data_buffer && old_le_size > 0) {
+            data_buffer->delete_leafentry(idx, keylen, old_le_size);
+        }
         *new_leafentry_p = NULL;
         rval = 0;
         goto cleanup;
@@ -899,10 +945,7 @@ le_pack(ULE ule,                            // data to be packed into new leafen
 found_insert:;
     memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry;
-    CAST_FROM_VOIDP(new_leafentry, le_malloc(omtp, mp, memsize, maybe_free));
-
-    //Universal data
-    new_leafentry->keylen  = toku_htod32(ule->keylen);
+    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry);
 
     //p always points to first unused byte after leafentry we are packing
     uint8_t *p;
@@ -916,14 +959,11 @@ found_insert:;
         //Store vallen
         new_leafentry->u.clean.vallen  = toku_htod32(vallen);
 
-        //Store actual key
-        memcpy(new_leafentry->u.clean.key_val, ule->keyp, ule->keylen);
-
-        //Store actual val immediately after actual key
-        memcpy(new_leafentry->u.clean.key_val + ule->keylen, ule->uxrs[0].valp, vallen);
+        //Store actual val
+        memcpy(new_leafentry->u.clean.val, ule->uxrs[0].valp, vallen);
 
         //Set p to after leafentry
-        p = new_leafentry->u.clean.key_val + ule->keylen + vallen;
+        p = new_leafentry->u.clean.val + vallen;
     }
     else {
         uint32_t i;
@@ -937,10 +977,7 @@ found_insert:;
         invariant(ule->num_puxrs < MAX_TRANSACTION_RECORDS);
         new_leafentry->u.mvcc.num_pxrs = (uint8_t)ule->num_puxrs;
 
-        //Store actual key.
-        memcpy(new_leafentry->u.mvcc.key_xrs, ule->keyp, ule->keylen);
-
-        p = new_leafentry->u.mvcc.key_xrs + ule->keylen;
+        p = new_leafentry->u.mvcc.xrs;
 
         //pack interesting TXNIDs inner to outer.
         if (ule->num_puxrs!=0) {
@@ -1026,7 +1063,6 @@ found_insert:;
 #endif
 
     *new_leafentry_p = (LEAFENTRY)new_leafentry;
-    *new_leafentry_memorysize = memsize;
     rval = 0;
 cleanup:
     update_le_status(ule, memsize);
@@ -1046,17 +1082,13 @@ le_memsize_from_ule (ULE ule) {
         UXR committed = ule->uxrs;
         invariant(uxr_is_insert(committed));
         rval = 1                    //type
-              +4                    //keylen
               +4                    //vallen
-              +ule->keylen          //actual key
               +committed->vallen;   //actual val
     }
     else {
         rval = 1                    //type
               +4                    //num_cuxrs
               +1                    //num_puxrs
-              +4                    //keylen
-              +ule->keylen          //actual key
               +4*(ule->num_cuxrs)   //types+lengths for committed
               +8*(ule->num_cuxrs + ule->num_puxrs - 1);  //txnids (excluding superroot)
         uint32_t i;
@@ -1086,70 +1118,76 @@ le_memsize_from_ule (ULE ule) {
     return rval;
 }
 
+// TODO: rename
+size_t
+leafentry_rest_memsize(uint32_t num_puxrs, uint32_t num_cuxrs, uint8_t* start) {
+    UXR_S uxr;
+    size_t   lengths = 0;
+    uint8_t* p = start;
+
+    //Skip TXNIDs
+    if (num_puxrs!=0) {
+        p += sizeof(TXNID);
+    }
+    p += (num_cuxrs-1)*sizeof(TXNID);
+
+    //Retrieve interesting lengths inner to outer.
+    if (num_puxrs!=0) {
+        p += uxr_unpack_length_and_bit(&uxr, p);
+        if (uxr_is_insert(&uxr)) {
+            lengths += uxr.vallen;
+        }
+    }
+    uint32_t i;
+    for (i = 0; i < num_cuxrs; i++) {
+        p += uxr_unpack_length_and_bit(&uxr, p);
+        if (uxr_is_insert(&uxr)) {
+            lengths += uxr.vallen;
+        }
+    }
+    //Skip all interesting 'data'
+    p += lengths;
+
+    //unpack provisional xrs outer to inner
+    if (num_puxrs > 1) {
+        {
+            p += uxr_unpack_type_and_length(&uxr, p);
+            p += uxr_unpack_data(&uxr, p);
+        }
+        //unpack txnid, length, bit, data for non-outermost, non-innermost
+        for (i = 0; i < num_puxrs - 2; i++) {
+            p += uxr_unpack_txnid(&uxr, p);
+            p += uxr_unpack_type_and_length(&uxr, p);
+            p += uxr_unpack_data(&uxr, p);
+        }
+        {
+            //Just unpack txnid for innermost
+            p += uxr_unpack_txnid(&uxr, p);
+        }
+    }
+    size_t rval = (size_t)p - (size_t)start;
+    return rval;
+}
+
 size_t
 leafentry_memsize (LEAFENTRY le) {
     size_t rval = 0;
 
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
 
-    uint8_t *p;
+    uint8_t *p = NULL;
     switch (type) {
         case LE_CLEAN: {
             uint32_t vallen = toku_dtoh32(le->u.clean.vallen);
-            rval = LE_CLEAN_MEMSIZE(keylen, vallen);
+            rval = LE_CLEAN_MEMSIZE(vallen);
             break;
         }
         case LE_MVCC: {
-            UXR_S uxr;
+            p = le->u.mvcc.xrs;
             uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
             invariant(num_cuxrs);
             uint32_t num_puxrs = le->u.mvcc.num_pxrs;
-            size_t   lengths = 0;
-
-            //Position p after the key.
-            p = le->u.mvcc.key_xrs + keylen;
-
-            //Skip TXNIDs
-            if (num_puxrs!=0) {
-                p += sizeof(TXNID);
-            }
-            p += (num_cuxrs-1)*sizeof(TXNID);
-
-            //Retrieve interesting lengths inner to outer.
-            if (num_puxrs!=0) {
-                p += uxr_unpack_length_and_bit(&uxr, p);
-                if (uxr_is_insert(&uxr)) {
-                    lengths += uxr.vallen;
-                }
-            }
-            uint32_t i;
-            for (i = 0; i < num_cuxrs; i++) {
-                p += uxr_unpack_length_and_bit(&uxr, p);
-                if (uxr_is_insert(&uxr)) {
-                    lengths += uxr.vallen;
-                }
-            }
-            //Skip all interesting 'data'
-            p += lengths;
-
-            //unpack provisional xrs outer to inner
-            if (num_puxrs > 1) {
-                {
-                    p += uxr_unpack_type_and_length(&uxr, p);
-                    p += uxr_unpack_data(&uxr, p);
-                }
-                //unpack txnid, length, bit, data for non-outermost, non-innermost
-                for (i = 0; i < num_puxrs - 2; i++) {
-                    p += uxr_unpack_txnid(&uxr, p);
-                    p += uxr_unpack_type_and_length(&uxr, p);
-                    p += uxr_unpack_data(&uxr, p);
-                }
-                {
-                    //Just unpack txnid for innermost
-                    p += uxr_unpack_txnid(&uxr, p);
-                }
-            }
+            p += leafentry_rest_memsize(num_puxrs, num_cuxrs, p);
             rval = (size_t)p - (size_t)le;
             break;
         }
@@ -1161,7 +1199,7 @@ leafentry_memsize (LEAFENTRY le) {
     le_unpack(&ule, le);
     size_t slow_rval = le_memsize_from_ule(&ule);
     if (slow_rval!=rval) {
-        int r = print_leafentry(stderr, le);
+        int r = print_klpair(stderr, le, NULL, 0);
         fprintf(stderr, "\nSlow: [%" PRIu64 "] Fast: [%" PRIu64 "]\n", slow_rval, rval);
         invariant(r==0);
     }
@@ -1195,7 +1233,6 @@ le_is_clean(LEAFENTRY le) {
 
 int le_latest_is_del(LEAFENTRY le) {
     int rval;
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
     uint8_t *p;
     switch (type) {
@@ -1209,8 +1246,8 @@ int le_latest_is_del(LEAFENTRY le) {
             invariant(num_cuxrs);
             uint32_t num_puxrs = le->u.mvcc.num_pxrs;
 
-            //Position p after the key.
-            p = le->u.mvcc.key_xrs + keylen;
+            //Position p.
+            p = le->u.mvcc.xrs;
 
             //Skip TXNIDs
             if (num_puxrs!=0) {
@@ -1255,30 +1292,8 @@ le_has_xids(LEAFENTRY le, XIDS xids) {
     return rval;
 }
 
-uint32_t
-le_latest_keylen (LEAFENTRY le) {
-    uint32_t rval;
-    rval = le_latest_is_del(le) ? 0 : le_keylen(le);
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    UXR uxr = ule_get_innermost_uxr(&ule);
-    uint32_t slow_rval;
-    if (uxr_is_insert(uxr)) {
-        slow_rval = ule.keylen;
-    }
-    else {
-        slow_rval = 0;
-    }
-    ule_cleanup(&ule);
-    invariant(slow_rval == rval);
-#endif
-    return rval;
-}
-
 void*
 le_latest_val_and_len (LEAFENTRY le, uint32_t *len) {
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
     void *valp;
 
@@ -1286,7 +1301,7 @@ le_latest_val_and_len (LEAFENTRY le, uint32_t *len) {
     switch (type) {
         case LE_CLEAN:
             *len = toku_dtoh32(le->u.clean.vallen);
-            valp = le->u.clean.key_val + keylen;
+            valp = le->u.clean.val;
             break;
         case LE_MVCC:;
             UXR_S uxr;
@@ -1296,8 +1311,8 @@ le_latest_val_and_len (LEAFENTRY le, uint32_t *len) {
             uint32_t num_puxrs;
             num_puxrs = le->u.mvcc.num_pxrs;
 
-            //Position p after the key.
-            p = le->u.mvcc.key_xrs + keylen;
+            //Position p.
+            p = le->u.mvcc.xrs;
 
             //Skip TXNIDs
             if (num_puxrs!=0) {
@@ -1360,7 +1375,6 @@ le_latest_val (LEAFENTRY le) {
 uint32_t
 le_latest_vallen (LEAFENTRY le) {
     uint32_t rval;
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
     uint8_t *p;
     switch (type) {
@@ -1375,8 +1389,8 @@ le_latest_vallen (LEAFENTRY le) {
             uint32_t num_puxrs;
             num_puxrs = le->u.mvcc.num_pxrs;
 
-            //Position p after the key.
-            p = le->u.mvcc.key_xrs + keylen;
+            //Position p.
+            p = le->u.mvcc.xrs;
 
             //Skip TXNIDs
             if (num_puxrs!=0) {
@@ -1410,85 +1424,9 @@ le_latest_vallen (LEAFENTRY le) {
     return rval;
 }
 
-//Return key and keylen unconditionally
-void*
-le_key_and_len (LEAFENTRY le, uint32_t *len) {
-    *len = toku_dtoh32(le->keylen);
-    uint8_t  type = le->type;
-
-    void *keyp;
-    switch (type) {
-        case LE_CLEAN:
-            keyp = le->u.clean.key_val;
-            break;
-        case LE_MVCC:
-            keyp = le->u.mvcc.key_xrs;
-            break;
-        default:
-            invariant(false);
-    }
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    void     *slow_keyp;
-    uint32_t slow_len;
-    slow_keyp = ule.keyp;
-    slow_len  = ule.keylen; 
-    assert(slow_keyp == le_key(le));
-    assert(slow_len == le_keylen(le));
-    assert(keyp==slow_keyp);
-    assert(*len==slow_len);
-    ule_cleanup(&ule);
-#endif
-    return keyp;
-}
-
-
-//WILL BE DELETED can be slow
-void*
-le_key (LEAFENTRY le) {
-    uint8_t  type = le->type;
-
-    void *rval;
-    switch (type) {
-        case LE_CLEAN:
-            rval = le->u.clean.key_val;
-            break;
-        case LE_MVCC:
-            rval = le->u.mvcc.key_xrs;
-            break;
-        default:
-            invariant(false);
-    }
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    void *slow_rval = ule.keyp;
-    invariant(slow_rval == rval);
-    ule_cleanup(&ule);
-#endif
-    return rval;
-}
-
-uint32_t
-le_keylen (LEAFENTRY le) {
-    uint32_t rval = toku_dtoh32(le->keylen);
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    uint32_t slow_rval = ule.keylen;
-    assert(rval==slow_rval);
-    ule_cleanup(&ule);
-#endif
-    return rval;
-}
-
-
 uint64_t 
 le_outermost_uncommitted_xid (LEAFENTRY le) {
     uint64_t rval = TXNID_NONE;
-
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;
 
     uint8_t *p;
@@ -1500,7 +1438,7 @@ le_outermost_uncommitted_xid (LEAFENTRY le) {
             uint32_t num_puxrs = le->u.mvcc.num_pxrs;
 
             if (num_puxrs) {
-                p = le->u.mvcc.key_xrs + keylen;
+                p = le->u.mvcc.xrs;
                 uxr_unpack_txnid(&uxr, p);
                 rval = uxr.xid;
             }
@@ -1522,15 +1460,17 @@ le_outermost_uncommitted_xid (LEAFENTRY le) {
 //Optimization not required.  This is a debug only function.
 //Print a leafentry out in human-readable format
 int
-print_leafentry (FILE *outf, LEAFENTRY le) {
+print_klpair (FILE *outf, const void* keyp, uint32_t keylen, LEAFENTRY le) {
     ULE_S ule;
     le_unpack(&ule, le);
     uint32_t i;
     invariant(ule.num_cuxrs > 0);
     UXR uxr;
     if (!le) { printf("NULL"); return 0; }
-    fprintf(outf, "{key=");
-    toku_print_BYTESTRING(outf, ule.keylen, (char *) ule.keyp);
+    if (keyp) {
+        fprintf(outf, "{key=");
+        toku_print_BYTESTRING(outf, keylen, (char *) keyp);
+    }
     for (i = 0; i < ule.num_cuxrs+ule.num_puxrs; i++) {
         // fprintf(outf, "\n%*s", i+1, " "); //Nested indenting
         uxr = &ule.uxrs[i];
@@ -1559,11 +1499,9 @@ print_leafentry (FILE *outf, LEAFENTRY le) {
 // ule constructor
 // Note that transaction 0 is explicit in the ule
 static void 
-ule_init_empty_ule(ULE ule, uint32_t keylen, void * keyp) {
+ule_init_empty_ule(ULE ule) {
     ule->num_cuxrs = 1;
     ule->num_puxrs = 0;
-    ule->keylen    = keylen;
-    ule->keyp      = keyp;
     ule->uxrs      = ule->uxrs_static;
     ule->uxrs[0]   = committed_delete;
 }
@@ -1961,27 +1899,15 @@ ule_is_provisional(ULE ule, uint64_t ith) {
     return ith >= ule->num_cuxrs;
 }
 
-void *
-ule_get_key(ULE ule) {
-    return ule->keyp;
-}
-
-uint32_t 
-ule_get_keylen(ULE ule) {
-    return ule->keylen;
-}
-
-
-// return size of data for innermost uxr, size of key plus size of val
+// return size of data for innermost uxr, the size of val
 uint32_t
-ule_get_innermost_numbytes(ULE ule) {
+ule_get_innermost_numbytes(ULE ule, uint32_t keylen) {
     uint32_t rval;
     UXR uxr = ule_get_innermost_uxr(ule);
     if (uxr_is_delete(uxr))
         rval = 0;
     else {
-        rval = uxr_get_vallen(uxr);
-        rval += ule_get_keylen(ule);
+        rval = uxr_get_vallen(uxr) + keylen;
     }
     return rval;
 }
@@ -2094,7 +2020,6 @@ le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, bool *is_delp, TOKUTXN co
     le_unpack(&ule, le);
 #endif
 
-    //Read the keylen
     uint8_t type = le->type;
     int r;
     bool is_del = false;
@@ -2109,14 +2034,12 @@ le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, bool *is_delp, TOKUTXN co
             break;
         }
         case LE_MVCC:;
-            uint32_t keylen;
-            keylen = toku_dtoh32(le->keylen);
             uint32_t num_cuxrs;
             num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
             uint32_t num_puxrs;
             num_puxrs = le->u.mvcc.num_pxrs;
             uint8_t *p;
-            p = le->u.mvcc.key_xrs + keylen;
+            p = le->u.mvcc.xrs;
 
             uint32_t index;
             uint32_t num_interesting;
@@ -2180,8 +2103,6 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *vall
     le_unpack(&ule, le);
 #endif
 
-    //Read the keylen
-    uint32_t keylen = toku_dtoh32(le->keylen);
     uint8_t type = le->type;
     int r;
     uint32_t vallen = 0;
@@ -2189,7 +2110,7 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *vall
     switch (type) {
         case LE_CLEAN: {
             vallen = toku_dtoh32(le->u.clean.vallen);
-            valp   = le->u.clean.key_val + keylen;
+            valp   = le->u.clean.val;
             r = 0;
 #if ULE_DEBUG
             invariant(ule.num_cuxrs == 1);
@@ -2206,7 +2127,7 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *vall
             uint32_t num_puxrs;
             num_puxrs = le->u.mvcc.num_pxrs;
             uint8_t *p;
-            p = le->u.mvcc.key_xrs + keylen;
+            p = le->u.mvcc.xrs;
 
             uint32_t index;
             uint32_t num_interesting;
@@ -2317,7 +2238,7 @@ static_assert(9 == __builtin_offsetof(leafentry_13, u), "wrong offset");
 //Requires:
 //  Leafentry that ule represents should not be destroyed (is not just all deletes)
 static size_t
-le_memsize_from_ule_13 (ULE ule) {
+le_memsize_from_ule_13 (ULE ule, LEAFENTRY_13 le) {
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     assert(num_uxrs);
     size_t rval;
@@ -2326,13 +2247,13 @@ le_memsize_from_ule_13 (ULE ule) {
         rval = 1                    //num_uxrs
               +4                    //keylen
               +4                    //vallen
-              +ule->keylen          //actual key
+              +le->keylen          //actual key
               +ule->uxrs[0].vallen; //actual val
     }
     else {
         rval = 1                    //num_uxrs
               +4                    //keylen
-              +ule->keylen          //actual key
+              +le->keylen          //actual key
               +1*num_uxrs      //types
               +8*(num_uxrs-1); //txnids
         uint8_t i;
@@ -2365,7 +2286,7 @@ le_unpack_13(ULE ule, LEAFENTRY_13 le) {
     ule->num_puxrs = num_xrs - 1;
 
     //Read the keylen
-    ule->keylen = toku_dtoh32(le->keylen);
+    uint32_t keylen = toku_dtoh32(le->keylen);
 
     //Read the vallen of innermost insert
     uint32_t vallen_of_innermost_insert = toku_dtoh32(le->innermost_inserted_vallen);
@@ -2373,14 +2294,13 @@ le_unpack_13(ULE ule, LEAFENTRY_13 le) {
     uint8_t *p;
     if (num_xrs == 1) {
         //Unpack a 'committed leafentry' (No uncommitted transactions exist)
-        ule->keyp           = le->u.comm.key_val;
         ule->uxrs[0].type   = XR_INSERT; //Must be or the leafentry would not exist
         ule->uxrs[0].vallen = vallen_of_innermost_insert;
-        ule->uxrs[0].valp   = &le->u.comm.key_val[ule->keylen];
+        ule->uxrs[0].valp   = &le->u.comm.key_val[keylen];
         ule->uxrs[0].xid    = 0;          //Required.
 
         //Set p to immediately after leafentry
-        p = &le->u.comm.key_val[ule->keylen + vallen_of_innermost_insert];
+        p = &le->u.comm.key_val[keylen + vallen_of_innermost_insert];
     }
     else {
         //Unpack a 'provisional leafentry' (Uncommitted transactions exist)
@@ -2392,14 +2312,11 @@ le_unpack_13(ULE ule, LEAFENTRY_13 le) {
         //Read in xid
         TXNID xid_outermost_uncommitted = toku_dtoh64(le->u.prov.xid_outermost_uncommitted);
 
-        //Read pointer to key
-        ule->keyp = le->u.prov.key_val_xrs;
-
         //Read pointer to innermost inserted val (immediately after key)
-        uint8_t *valp_of_innermost_insert = &le->u.prov.key_val_xrs[ule->keylen];
+        uint8_t *valp_of_innermost_insert = &le->u.prov.key_val_xrs[keylen];
 
         //Point p to immediately after 'header'
-        p = &le->u.prov.key_val_xrs[ule->keylen + vallen_of_innermost_insert];
+        p = &le->u.prov.key_val_xrs[keylen + vallen_of_innermost_insert];
 
         bool found_innermost_insert = false;
         int i; //Index in ULE.uxrs[]
@@ -2463,29 +2380,42 @@ size_t
 leafentry_disksize_13(LEAFENTRY_13 le) {
     ULE_S ule;
     le_unpack_13(&ule, le);
-    size_t memsize = le_memsize_from_ule_13(&ule);
+    size_t memsize = le_memsize_from_ule_13(&ule, le);
     ule_cleanup(&ule);
     return memsize;
 }
 
 int 
 toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
+                     void** keyp,
+                     uint32_t* keylen,
                      size_t *new_leafentry_memorysize, 
-                     LEAFENTRY *new_leafentry_p,
-                     OMT* omtp,
-                     struct mempool *mp) {
+                     LEAFENTRY *new_leafentry_p
+                     ) {
     ULE_S ule;
     int rval;
     invariant(old_leafentry);
     le_unpack_13(&ule, old_leafentry);
+    // get the key
+    *keylen = old_leafentry->keylen;
+    if (old_leafentry->num_xrs == 1) {
+        *keyp = old_leafentry->u.comm.key_val;
+    }
+    else {
+        *keyp = old_leafentry->u.prov.key_val_xrs;
+    }
     // We used to pass NULL for omt and mempool, so that we would use
     // malloc instead of a mempool.  However after supporting upgrade,
     // we need to use mempools and the OMT.
-    rval = le_pack(&ule,                // create packed leafentry
-                   new_leafentry_memorysize, 
-                   new_leafentry_p,
-                   omtp, mp, NULL);  
+    rval = le_pack(&ule, // create packed leafentry
+                   NULL,
+                   0, //only matters if we are passing in a bn_data
+                   NULL, //only matters if we are passing in a bn_data
+                   0, //only matters if we are passing in a bn_data
+                   0, //only matters if we are passing in a bn_data
+                   new_leafentry_p);  
     ule_cleanup(&ule);
+    *new_leafentry_memorysize = leafentry_memsize(*new_leafentry_p);
     return rval;
 }
 

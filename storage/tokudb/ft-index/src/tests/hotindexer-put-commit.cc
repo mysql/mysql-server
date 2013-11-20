@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -96,8 +97,12 @@ PATENT RIGHTS GRANT:
 // to run.  the hot indexer erroneously append to the rollback log that is in the process of being committed.
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
 
@@ -106,10 +111,10 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
         memcpy(dest_key->data, src_key->data, src_key->size);
         dest_key->size = src_key->size;
     }
-    if (dest_data->flags == DB_DBT_REALLOC) {
-        dest_data->data = toku_realloc(dest_data->data, src_data->size);
-        memcpy(dest_data->data, src_data->data, src_data->size);
-        dest_data->size = src_data->size;
+    if (dest_val->flags == DB_DBT_REALLOC) {
+        dest_val->data = toku_realloc(dest_val->data, src_val->size);
+        memcpy(dest_val->data, src_val->data, src_val->size);
+        dest_val->size = src_val->size;
     }
     
     return 0;

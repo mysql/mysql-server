@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -187,6 +188,8 @@ struct recover_env {
     ft_update_func update_function;
     generate_row_for_put_func generate_row_for_put;
     generate_row_for_del_func generate_row_for_del;
+    DBT_ARRAY dest_keys;
+    DBT_ARRAY dest_vals;
     struct scan_state ss;
     struct file_map fmap;
     bool goforward;
@@ -306,6 +309,8 @@ static int recover_env_init (RECOVER_ENV renv,
     file_map_init(&renv->fmap);
     renv->goforward = false;
     renv->cp = toku_cachetable_get_checkpointer(renv->ct);
+    toku_dbt_array_init(&renv->dest_keys, 1);
+    toku_dbt_array_init(&renv->dest_vals, 1);
     if (tokudb_recovery_trace)
         fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
     return r;
@@ -330,6 +335,8 @@ static void recover_env_cleanup (RECOVER_ENV renv) {
     } else {
         toku_cachetable_close(&renv->ct);
     }
+    toku_dbt_array_destroy(&renv->dest_keys);
+    toku_dbt_array_destroy(&renv->dest_vals);
 
     if (tokudb_recovery_trace)
         fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -1033,11 +1040,10 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
     }
     
     if (do_inserts) {
-        DBT src_key, src_val, dest_key, dest_val;
+        DBT src_key, src_val;
+
         toku_fill_dbt(&src_key, l->src_key.data, l->src_key.len);
         toku_fill_dbt(&src_val, l->src_val.data, l->src_val.len);
-        toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
-        toku_init_dbt_flags(&dest_val, DB_DBT_REALLOC);
 
         for (uint32_t file = 0; file < l->dest_filenums.num; file++) {
             struct file_map_tuple *tuple = NULL;
@@ -1045,23 +1051,29 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
             if (r==0) {
                 // We found the cachefile.  (maybe) Do the insert.
                 DB *db = &tuple->fake_db;
-                r = renv->generate_row_for_put(db, src_db, &dest_key, &dest_val, &src_key, &src_val);
-                assert(r==0);
-                toku_ft_maybe_insert(tuple->ft_handle, &dest_key, &dest_val, txn, true, l->lsn, false, FT_INSERT);
 
-                //flags==0 means generate_row_for_put callback changed it
-                //(and freed any memory necessary to do so) so that values are now stored
-                //in temporary memory that does not need to be freed.  We need to continue
-                //using DB_DBT_REALLOC however.
-                if (dest_key.flags == 0) 
-                    toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
-                if (dest_val.flags == 0)
-                    toku_init_dbt_flags(&dest_val, DB_DBT_REALLOC);
+                DBT_ARRAY key_array;
+                DBT_ARRAY val_array;
+                if (db != src_db) {
+                    r = renv->generate_row_for_put(db, src_db, &renv->dest_keys, &renv->dest_vals, &src_key, &src_val);
+                    assert(r==0);
+                    invariant(renv->dest_keys.size <= renv->dest_keys.capacity);
+                    invariant(renv->dest_vals.size <= renv->dest_vals.capacity);
+                    invariant(renv->dest_keys.size == renv->dest_vals.size);
+                    key_array = renv->dest_keys;
+                    val_array = renv->dest_vals;
+                } else {
+                    key_array.size = key_array.capacity = 1;
+                    key_array.dbts = &src_key;
+
+                    val_array.size = val_array.capacity = 1;
+                    val_array.dbts = &src_val;
+                }
+                for (uint32_t i = 0; i < key_array.size; i++) {
+                    toku_ft_maybe_insert(tuple->ft_handle, &key_array.dbts[i], &val_array.dbts[i], txn, true, l->lsn, false, FT_INSERT);
+                }
             }
         }
-
-        if (dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
-        if (dest_val.data) toku_free(dest_val.data); //TODO: #2321 May need windows hack
     }
 
     return 0;
@@ -1085,18 +1097,18 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
         if (l->src_filenum.fileid == FILENUM_NONE.fileid)
             assert(r==DB_NOTFOUND);
         else {
-            if (r == 0)
+            if (r == 0) {
                 src_db = &tuple->fake_db;
-            else
+            } else {
                 do_deletes = false; // src file was probably deleted, #3129
+            }
         }
     }
 
     if (do_deletes) {
-        DBT src_key, src_val, dest_key;
+        DBT src_key, src_val;
         toku_fill_dbt(&src_key, l->src_key.data, l->src_key.len);
         toku_fill_dbt(&src_val, l->src_val.data, l->src_val.len);
-        toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
 
         for (uint32_t file = 0; file < l->dest_filenums.num; file++) {
             struct file_map_tuple *tuple = NULL;
@@ -1104,18 +1116,22 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
             if (r==0) {
                 // We found the cachefile.  (maybe) Do the delete.
                 DB *db = &tuple->fake_db;
-                r = renv->generate_row_for_del(db, src_db, &dest_key, &src_key, &src_val);
-                assert(r==0);
-                toku_ft_maybe_delete(tuple->ft_handle, &dest_key, txn, true, l->lsn, false);
 
-                //flags==0 indicates the return values are stored in temporary memory that does
-                //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
-                if (dest_key.flags == 0)
-                    toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
+                DBT_ARRAY key_array;
+                if (db != src_db) {
+                    r = renv->generate_row_for_del(db, src_db, &renv->dest_keys, &src_key, &src_val);
+                    assert(r==0);
+                    invariant(renv->dest_keys.size <= renv->dest_keys.capacity);
+                    key_array = renv->dest_keys;
+                } else {
+                    key_array.size = key_array.capacity = 1;
+                    key_array.dbts = &src_key;
+                }
+                for (uint32_t i = 0; i < key_array.size; i++) {
+                    toku_ft_maybe_delete(tuple->ft_handle, &key_array.dbts[i], txn, true, l->lsn, false);
+                }
             }
         }
-        
-        if (dest_key.flags & DB_DBT_REALLOC && dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
     }
 
     return 0;

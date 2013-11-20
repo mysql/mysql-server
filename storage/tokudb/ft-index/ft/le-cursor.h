@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -121,6 +122,10 @@ int toku_le_cursor_next(LE_CURSOR le_cursor, FT_GET_CALLBACK_FUNCTION getf, void
 // The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns true.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
 // returns false.
-bool toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key);
+bool toku_le_cursor_is_key_greater_or_equal(LE_CURSOR le_cursor, const DBT *key);
+
+// extracts position of le_cursor into estimate. Responsibility of caller to handle
+// thread safety. Caller (the indexer), does so by ensuring indexer lock is held
+void toku_le_cursor_update_estimate(LE_CURSOR le_cursor, DBT* estimate);
 
 #endif

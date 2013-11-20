@@ -34,6 +34,14 @@ Online database log parsing for changed page tracking
 #include "trx0sys.h"
 #include "ut0rbt.h"
 
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
+
 enum { FOLLOW_SCAN_SIZE = 4 * (UNIV_PAGE_SIZE_MAX) };
 
 #ifdef UNIV_PFS_MUTEX
@@ -1255,6 +1263,24 @@ log_online_follow_redo_log(void)
 }
 
 /*********************************************************************//**
+Diagnose a bitmap file range setup failure and free the partially-initialized
+bitmap file range.  */
+static
+void
+log_online_diagnose_inconsistent_dir(
+/*=================================*/
+	log_online_bitmap_file_range_t	*bitmap_files)	/*!<in/out: bitmap file
+							range */
+{
+	fprintf(stderr,
+		"InnoDB: Warning: inconsistent bitmap file "
+		"directory for a "
+		"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
+		"\n");
+	free(bitmap_files->files);
+}
+
+/*********************************************************************//**
 List the bitmap files in srv_data_home and setup their range that contains the
 specified LSN interval.  This range, if non-empty, will start with a file that
 has the greatest LSN equal to or less than the start LSN and will include all
@@ -1355,6 +1381,8 @@ log_online_setup_bitmap_file_range(
 
 	bitmap_files->count = last_file_seq_num - first_file_seq_num + 1;
 
+	DEBUG_SYNC_C("setup_bitmap_range_middle");
+
 	/* 2nd pass: get the file names in the file_seq_num order */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
@@ -1390,12 +1418,7 @@ log_online_setup_bitmap_file_range(
 		array_pos = file_seq_num - first_file_seq_num;
 		if (UNIV_UNLIKELY(array_pos >= bitmap_files->count)) {
 
-			fprintf(stderr,
-				"InnoDB: Error: inconsistent bitmap file "
-				"directory for a "
-				"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
-				"\n");
-			free(bitmap_files->files);
+			log_online_diagnose_inconsistent_dir(bitmap_files);
 			return FALSE;
 		}
 
@@ -1422,8 +1445,12 @@ log_online_setup_bitmap_file_range(
 	}
 
 #ifdef UNIV_DEBUG
+	if (!bitmap_files->files[0].seq_num) {
+
+		log_online_diagnose_inconsistent_dir(bitmap_files);
+		return FALSE;
+	}
 	ut_ad(bitmap_files->files[0].seq_num == first_file_seq_num);
-	ut_ad(bitmap_files->files[0].start_lsn == first_file_start_lsn);
 	{
 		size_t i;
 		for (i = 1; i < bitmap_files->count; i++) {

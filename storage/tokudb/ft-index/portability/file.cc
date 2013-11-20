@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -439,23 +440,22 @@ void toku_os_recursive_delete(const char *path) {
     assert_zero(r);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // fsync logic:
 
 // t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
-
-static uint64_t sched_fsync_count;
-static uint64_t sched_fsync_time;
+static uint64_t toku_long_fsync_threshold = 1000000;
+static uint64_t toku_long_fsync_count;
+static uint64_t toku_long_fsync_time;
 
 void toku_set_func_fsync(int (*fsync_function)(int)) {
     t_fsync = fsync_function;
 }
 
 // keep trying if fsync fails because of EINTR
-static void file_fsync_internal (int fd, uint64_t *duration_p) {
+static void file_fsync_internal (int fd) {
     uint64_t tstart = toku_current_time_microsec();
     int r = -1;
     while (r != 0) {
@@ -471,13 +471,14 @@ static void file_fsync_internal (int fd, uint64_t *duration_p) {
     toku_sync_fetch_and_add(&toku_fsync_count, 1);
     uint64_t duration = toku_current_time_microsec() - tstart;
     toku_sync_fetch_and_add(&toku_fsync_time, duration);
-    if (duration_p) {
-        *duration_p = duration;
+    if (duration >= toku_long_fsync_threshold) {
+        toku_sync_fetch_and_add(&toku_long_fsync_count, 1);
+        toku_sync_fetch_and_add(&toku_long_fsync_time, duration);
     }
 }
 
 void toku_file_fsync_without_accounting(int fd) {
-    file_fsync_internal(fd, NULL);
+    file_fsync_internal(fd);
 }
 
 void toku_fsync_dirfd_without_accounting(DIR *dir) {
@@ -502,22 +503,16 @@ int toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
 
 // include fsync in scheduling accounting
 void toku_file_fsync(int fd) {
-    uint64_t duration;
-    file_fsync_internal (fd, &duration);
-    toku_sync_fetch_and_add(&sched_fsync_count, 1);
-    toku_sync_fetch_and_add(&sched_fsync_time, duration);
+    file_fsync_internal (fd);
 }
 
 // for real accounting
-void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
+void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time, uint64_t *long_fsync_threshold, uint64_t *long_fsync_count, uint64_t *long_fsync_time) {
     *fsync_count = toku_fsync_count;
     *fsync_time = toku_fsync_time;
-}
-
-// for scheduling algorithm only
-void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
-    *fsync_count = sched_fsync_count;
-    *fsync_time  = sched_fsync_time;
+    *long_fsync_threshold = toku_long_fsync_threshold;
+    *long_fsync_count = toku_long_fsync_count;
+    *long_fsync_time = toku_long_fsync_time;
 }
 
 int toku_fsync_directory(const char *fname) {

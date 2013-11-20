@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -117,7 +118,11 @@ my_compare(DB *this_db UU(), const DBT *a UU(), const DBT *b UU()) {
 }
 
 static int 
-my_generate_row(DB *dest_db UU(), DB *src_db UU(), DBT *dest_key UU(), DBT *dest_val UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
+my_generate_row(DB *dest_db UU(), DB *src_db UU(), DBT_ARRAY *dest_key_arrays UU(), DBT_ARRAY *dest_val_arrays UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     assert(dest_key->flags == DB_DBT_REALLOC);
     dest_key->data = toku_realloc(dest_key->data, src_key->size);
     memcpy(dest_key->data, src_key->data, src_key->size);

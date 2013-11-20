@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -246,7 +247,7 @@ hot_test(DB* db, unsigned int size)
 
     // Flatten the tree.
     verbose ? printf("Calling hot optimize...\n") : 0;
-    r = db->hot_optimize(db, NULL, NULL);
+    r = db->hot_optimize(db, NULL, NULL, NULL, NULL);
     assert(r == 0);
     verbose ? printf("HOT Finished!\n") : 0;
     for (unsigned int i = 0; i < size; ++i) {

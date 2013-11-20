@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -114,6 +115,7 @@ PATENT RIGHTS GRANT:
 #include "compress.h"
 #include <util/mempool.h>
 #include <util/omt.h>
+#include "bndata.h"
 
 #ifndef FT_FANOUT
 #define FT_FANOUT 16
@@ -244,10 +246,7 @@ uint32_t get_leaf_num_entries(FTNODE node);
 
 // data of an available partition of a leaf ftnode
 struct ftnode_leaf_basement_node {
-    OMT buffer;                     // pointers to individual leaf entries
-    struct mempool buffer_mempool;  // storage for all leaf entries
-    unsigned int n_bytes_in_buffer; // How many bytes to represent the OMT (including the per-key overheads, ...
-                                    // ... but not including the overheads for the node. 
+    bn_data data_buffer;
     unsigned int seqinsert;         // number of sequential inserts to this leaf 
     MSN max_msn_applied;            // max message sequence number applied
     bool stale_ancestor_messages_applied;
@@ -450,9 +449,8 @@ static inline void set_BSB(FTNODE node, int i, SUB_BLOCK sb) {
 // ftnode leaf basementnode macros, 
 #define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
 #define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
-#define BLB_BUFFER(node,i) (BLB(node,i)->buffer)
-#define BLB_BUFFER_MEMPOOL(node,i) (BLB(node,i)->buffer_mempool)
-#define BLB_NBYTESINBUF(node,i) (BLB(node,i)->n_bytes_in_buffer)
+#define BLB_DATA(node,i) (&(BLB(node,i)->data_buffer))
+#define BLB_NBYTESINDATA(node,i) (BLB_DATA(node,i)->get_disk_size())
 #define BLB_SEQINSERT(node,i) (BLB(node,i)->seqinsert)
 
 /* pivot flags  (must fit in 8 bits) */
@@ -742,6 +740,7 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
+BASEMENTNODE toku_detach_bn(FTNODE node, int childnum);
 
 // Given pinned node and pinned child, split child into two
 // and update node with information about its new child.
@@ -773,17 +772,6 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
 
 static const FTNODE null_ftnode=0;
 
-// Values to be used to update ftcursor if a search is successful.
-struct ft_cursor_leaf_info_to_be {
-    uint32_t index;
-    OMT       omt;
-};
-
-// Values to be used to pin a leaf for shortcut searches
-struct ft_cursor_leaf_info {
-    struct ft_cursor_leaf_info_to_be  to_be;
-};
-
 /* a brt cursor is represented as a kv pair in a tree */
 struct ft_cursor {
     struct toku_list cursors_link;
@@ -799,7 +787,6 @@ struct ft_cursor {
     int out_of_range_error;
     int direction;
     TOKUTXN ttxn;
-    struct ft_cursor_leaf_info  leaf_info;
 };
 
 //
@@ -1041,23 +1028,9 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM, const char *key, int
 int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
-// These two go together to do lookups in a ftnode using the keys in a command.
-struct cmd_leafval_heaviside_extra {
-    ft_compare_func compare_fun;
-    DESCRIPTOR desc;
-    DBT const * const key;
-};
-int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
-    __attribute__((__warn_unused_result__));
-
 // toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
 void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, TXNID oldest_referenced_xid, GC_INFO gc_info);
 
-void *mempool_malloc_from_omt(OMT *omtp, struct mempool *mp, size_t size, void **maybe_free);
-// Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
-//  from the OMT (which items refer to items in the old mempool) into the new mempool.
-//  If MAYBE_FREE is NULL then free the old mempool's space.
-//  Otherwise, store the old mempool's space in maybe_free.
 void
 toku_get_node_for_verify(
     BLOCKNUM blocknum,

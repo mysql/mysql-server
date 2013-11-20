@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -250,9 +251,15 @@ int toku_db_start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT
     TXNID txn_anc_id = txn_anc->id64(txn_anc);
     request->set(db->i->lt, txn_anc_id, left_key, right_key, lock_type);
 
-    int r = request->start();
+    const int r = request->start();
     if (r == 0) {
         db_txn_note_row_lock(db, txn_anc, left_key, right_key);
+    } else if (r == DB_LOCK_DEADLOCK) {
+        lock_timeout_callback callback = txn->mgrp->i->lock_wait_timeout_callback;
+        if (callback != nullptr) {
+            callback(db, txn_anc_id, left_key, right_key,
+                     request->get_conflicting_txnid());
+        }
     }
     return r;
 }
@@ -260,12 +267,19 @@ int toku_db_start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT
 // Complete a lock request by waiting until the request is ready
 // and then storing the acquired lock if successful.
 int toku_db_wait_range_lock(DB *db, DB_TXN *txn, toku::lock_request *request) {
-    int r = request->wait();
+    DB_TXN *txn_anc = txn_oldest_ancester(txn);
+    const DBT *left_key = request->get_left_key();
+    const DBT *right_key = request->get_right_key();
+
+    const int r = request->wait();
     if (r == 0) {
-        DB_TXN *txn_anc = txn_oldest_ancester(txn);
-        const DBT *left_key = request->get_left_key();
-        const DBT *right_key = request->get_right_key();
         db_txn_note_row_lock(db, txn_anc, left_key, right_key);
+    } else if (r == DB_LOCK_NOTGRANTED) {
+        lock_timeout_callback callback = txn->mgrp->i->lock_wait_timeout_callback;
+        if (callback != nullptr) {
+            callback(db, txn_anc->id64(txn_anc), left_key, right_key,
+                     request->get_conflicting_txnid());
+        }
     }
     return r;
 }

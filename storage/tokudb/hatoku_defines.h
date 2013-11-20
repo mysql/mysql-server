@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -128,7 +129,16 @@ PATENT RIGHTS GRANT:
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
 
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#elif 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
+#define TOKU_INCLUDE_XA 1
+#define TOKU_PARTITION_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_UPSERT 1
+#define TOKU_INCLUDE_EXTENDED_KEYS 0
+
+#elif 50610 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50610
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
 #define TOKU_INCLUDE_XA 1
@@ -150,6 +160,7 @@ PATENT RIGHTS GRANT:
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_INCLUDE_OTHER_DB_TYPE 0    /* MariaDB 5.5 */
+#define TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL 0 /* MariaDB 5.5 */
 #else
 
 #error
@@ -205,7 +216,6 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_TXN 32
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
 #define TOKUDB_DEBUG_LOCK 256
-#define TOKUDB_DEBUG_LOCKRETRY 512
 #define TOKUDB_DEBUG_CHECK_KEY 1024
 #define TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS 2048
 #define TOKUDB_DEBUG_ALTER_TABLE_INFO 4096
@@ -214,14 +224,12 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ANALYZE (1<<15)
 
 #define TOKUDB_TRACE(f, ...) \
-    printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
+    fprintf(stderr, "%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
 
 
 static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
 }
-
-
 
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
@@ -246,9 +254,9 @@ static inline unsigned int my_tid() {
     TOKUDB_TRACE("%s:%s", __FUNCTION__, s); \
     uint i;                                                             \
     for (i=0; i<len; i++) {                                             \
-        printf("%2.2x", ((uchar*)p)[i]);                                \
+        fprintf(stderr, "%2.2x", ((uchar*)p)[i]);                       \
     }                                                                   \
-    printf("\n");                                                       \
+    fprintf(stderr, "\n");                                              \
 }
 
 
@@ -329,9 +337,22 @@ static inline void make_name(char *newname, const char *tablename, const char *d
     nn += sprintf(nn, "-%s", dictname);
 }
 
+static inline int txn_begin(DB_ENV *env, DB_TXN *parent, DB_TXN **txn, uint32_t flags, THD *thd) {
+    *txn = NULL;
+    int r = env->txn_begin(env, parent, txn, flags);
+    if (r == 0 && thd) {
+        DB_TXN *this_txn = *txn;
+        this_txn->set_client_id(this_txn, thd_get_thread_id(thd));
+    }
+    if ((tokudb_debug & TOKUDB_DEBUG_TXN)) {
+        TOKUDB_TRACE("begin txn %p %p %u r=%d\n", parent, *txn, flags, r);
+    }
+    return r;
+}
+
 static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
     if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("commit_txn %p\n", txn);
+        TOKUDB_TRACE("commit txn %p\n", txn);
     int r = txn->commit(txn, flags);
     if (r != 0) {
         sql_print_error("tried committing transaction %p and got error code %d", txn, r);
@@ -341,7 +362,7 @@ static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
 
 static inline void abort_txn(DB_TXN* txn) {
     if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("abort_txn %p\n", txn);
+        TOKUDB_TRACE("abort txn %p\n", txn);
     int r = txn->abort(txn);
     if (r != 0) {
         sql_print_error("tried aborting transaction %p and got error code %d", txn, r);

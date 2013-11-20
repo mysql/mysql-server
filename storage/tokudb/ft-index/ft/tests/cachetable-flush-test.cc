@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -142,16 +143,13 @@ test_cachetable_def_flush (int n) {
     }
 
     // def_flush 
-    toku_cachefile_flush(f1);
-    toku_cachefile_verify(f1);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
+    toku_cachefile_verify(f2);
 
-    // verify keys do not exist in f1 but do exist in f2
+    // verify keys exist in f2
     for (i=0; i<n; i++) {
         uint32_t hi;
         void *v;
-        hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
-        assert(r != 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
         r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r == 0);
@@ -159,7 +157,6 @@ test_cachetable_def_flush (int n) {
         assert(r == 0);
     }
 
-    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachefile_close(&f2, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }

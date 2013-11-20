@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -116,13 +117,6 @@ struct my_callback_context {
 };
 
 #if TOKUDB
-static void copy_dbt(DBT *dest, DBT const *src) {
-    assert(dest->flags == DB_DBT_REALLOC);
-    dest->size = src->size;
-    dest->data = toku_xrealloc(dest->data, dest->size);
-    memcpy(dest->data, src->data, dest->size);
-}
-
 static int blocking_last_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     DBT const *found_key = a;
     DBT const *found_val = b;

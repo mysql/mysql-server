@@ -1,0 +1,111 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+# first test pk as a varchar
+create table foo (a varchar (100), primary key (a));
+# test loader
+--error ER_DUP_ENTRY
+insert into foo values ("a"),("B"),("c"),("D"),("e"),("F"),("A");
+insert into foo values ("a"),("B"),("c"),("D"),("e"),("F");
+--error ER_DUP_ENTRY
+insert into foo values ("C");
+--error ER_DUP_ENTRY
+insert into foo values ("d");
+begin;
+# test an update works
+update foo set a="C" where a="c";
+select * from foo;
+# test a rollback works
+rollback;
+select * from foo;
+
+# now test some queries
+select * from foo where a="c";
+select * from foo where a="C";
+select * from foo where a > "c";
+select * from foo where a > "C";
+select * from foo where a >= "c";
+select * from foo where a >= "C";
+select * from foo where a < "c";
+select * from foo where a < "C";
+select * from foo where a <= "c";
+select * from foo where a <= "C";
+
+--error ER_DUP_ENTRY
+update foo set a = "d" where a="a";
+--error ER_DUP_ENTRY
+update foo set a = "C" where a="a";
+
+drop table foo;
+
+#Now repeat all that when we have a second column and key
+# first test pk as a varchar
+create table foo (a varchar (100), b int, primary key (a), key(b));
+# test loader
+--error ER_DUP_ENTRY
+insert into foo values ("a",1000),("B",1),("c",10000),("D",10),("e",109),("F",1),("A",1);
+insert into foo values ("a",3),("B",1),("c",4),("D",2),("e",11),("F",8);
+--error ER_DUP_ENTRY
+insert into foo values ("C",1);
+--error ER_DUP_ENTRY
+insert into foo values ("d",1);
+begin;
+# test an update works
+update foo set a="C" where a="c";
+select * from foo;
+# test a rollback works
+rollback;
+select * from foo;
+
+--error ER_DUP_ENTRY
+update foo set a = "d" where a="a";
+--error ER_DUP_ENTRY
+update foo set a = "C" where a="a";
+drop table foo;
+
+#Now repeat all that when we have a second column and key
+# first test pk as a varchar
+create table foo (a varchar (100), b int, unique key (a), primary key(b));
+# test loader
+--error ER_DUP_ENTRY
+insert into foo values ("a",1000),("B",1),("c",10000),("D",10),("e",109),("F",1),("A",22);
+insert into foo values ("a",3),("B",1),("c",4),("D",2),("e",11),("F",8);
+--error ER_DUP_ENTRY
+insert into foo values ("C",100);
+--error ER_DUP_ENTRY
+insert into foo values ("d",100);
+begin;
+# test an update works
+update foo set a="C" where a="c";
+select * from foo;
+# test a rollback works
+rollback;
+select * from foo;
+
+--error ER_DUP_ENTRY
+update foo set a = "d" where a="a";
+--error ER_DUP_ENTRY
+update foo set a = "C" where a="a";
+
+# now test some queries
+select * from foo where a="c";
+select * from foo where a="C";
+select * from foo where a > "c";
+select * from foo where a > "C";
+select * from foo where a >= "c";
+select * from foo where a >= "C";
+select * from foo where a < "c";
+select * from foo where a < "C";
+select * from foo where a <= "c";
+select * from foo where a <= "C";
+
+drop table foo;
+

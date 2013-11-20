@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -216,21 +217,22 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
     const int num_dbs = arg->cli->num_DBs;
     DB **dbs = arg->dbp;
     DB_ENV *env = arg->env;
-    DBT mult_key_dbt[num_dbs];
-    DBT mult_val_dbt[num_dbs];
+    DBT_ARRAY mult_key_dbt[num_dbs];
+    DBT_ARRAY mult_val_dbt[num_dbs];
     uint32_t mult_put_flags[num_dbs];
-    memset(mult_key_dbt, 0, sizeof(mult_key_dbt));
-    memset(mult_val_dbt, 0, sizeof(mult_val_dbt));
 
     // The first index is unique with serial autoincrement keys.
     // The rest are have keys generated with this thread's random data.
     mult_put_flags[0] = get_put_flags(arg->cli) |
         // If the table was already created, don't check for uniqueness.
         (arg->cli->num_elements > 0 ? 0 : DB_NOOVERWRITE);
-    for (int i = 1; i < num_dbs; i++) {
-        mult_key_dbt[i].flags = DB_DBT_REALLOC;
+    for (int i = 0; i < num_dbs; i++) {
+        toku_dbt_array_init(&mult_key_dbt[i], 1);
+        toku_dbt_array_init(&mult_val_dbt[i], 1);
         mult_put_flags[i] = get_put_flags(arg->cli);
     }
+    mult_key_dbt[0].dbts[0].flags = 0;
+    mult_val_dbt[0].dbts[0].flags = 0;
 
     int r = 0;
 
@@ -247,15 +249,15 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
         int64_t valbuf[3];
         iibench_fill_key_buf(pk, keybuf);
         iibench_fill_val_buf(pk, valbuf);
-        dbt_init(&mult_key_dbt[0], keybuf, sizeof keybuf);
-        dbt_init(&mult_val_dbt[0], valbuf, sizeof valbuf);
+        dbt_init(&mult_key_dbt[0].dbts[0], keybuf, sizeof keybuf);
+        dbt_init(&mult_val_dbt[0].dbts[0], valbuf, sizeof valbuf);
 
         r = env->put_multiple(
             env, 
             dbs[0], // source db.
             txn, 
-            &mult_key_dbt[0], // source db key
-            &mult_val_dbt[0], // source db value
+            &mult_key_dbt[0].dbts[0], // source db key
+            &mult_val_dbt[0].dbts[0], // source db value
             num_dbs, // total number of dbs
             dbs, // array of dbs
             mult_key_dbt, // array of keys
@@ -273,13 +275,19 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
     }
 
 cleanup:
-    for (int i = 1; i < num_dbs; i++) {
-        toku_free(mult_key_dbt[i].data);
+    for (int i = 0; i < num_dbs; i++) {
+        toku_dbt_array_destroy(&mult_key_dbt[i]);
+        toku_dbt_array_destroy(&mult_val_dbt[i]);
     }
     return r;
 }
 
-static int iibench_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *UU(src_key), const DBT *src_val) {
+static int iibench_generate_row_for_put(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *UU(src_key), const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+
     invariant(src_db != dest_db);
     // 8 byte primary key, REALLOC secondary key
     invariant_notnull(src_key->data);

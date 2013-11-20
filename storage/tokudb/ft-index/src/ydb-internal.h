@@ -52,6 +52,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -152,12 +153,14 @@ struct __toku_db_env_internal {
     CACHETABLE cachetable;
     TOKULOGGER logger;
     toku::locktree::manager ltm;
+    lock_timeout_callback lock_wait_timeout_callback;   // Called when a lock request times out waiting for a lock.
 
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
     // TODO: toku::omt<DB *>
-    OMT open_dbs;                                       // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
-    toku_mutex_t open_dbs_lock;                         // lock that protects the OMT of open dbs.
+    OMT open_dbs_by_dname;                              // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    OMT open_dbs_by_dict_id;                            // Stores open db handles, sorted by dictionary id and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    toku_pthread_rwlock_t open_dbs_rwlock;              // rwlock that protects the OMT of open dbs.
 
     char *real_data_dir;                                // data dir used when the env is opened (relative to cwd, or absolute with leading /)
     char *real_log_dir;                                 // log dir used when the env is opened  (relative to cwd, or absolute with leading /)
@@ -179,6 +182,7 @@ struct __toku_db_env_internal {
     int datadir_lockfd;
     int logdir_lockfd;
     int tmpdir_lockfd;
+    uint64_t loader_memory_size;
 };
 
 // test-only environment function for running lock escalation

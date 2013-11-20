@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -171,25 +172,15 @@ static ULE
 ule_init(ULE ule) {
     ule->num_puxrs = 0;
     ule->num_cuxrs = 0;
-    ule->keyp = NULL;
-    ule->keylen = 0;
     ule->uxrs = ule->uxrs_static;
     return ule;
 }
 
 static void
-ule_set_key(ULE ule, void *key, uint32_t keylen) {
-    ule->keyp = toku_realloc(ule->keyp, keylen);
-    memcpy(ule->keyp, key, keylen);
-    ule->keylen = keylen;
-}
-
-static void
 ule_destroy(ULE ule) {
-    for (unsigned int i = 0; i < ule->num_cuxrs + ule->num_puxrs; i++) 
+    for (unsigned int i = 0; i < ule->num_cuxrs + ule->num_puxrs; i++) {
         uxr_destroy(&ule->uxrs[i]);
-    toku_free(ule->keyp);
-    ule->keyp = NULL;
+    }
 }
 
 static void
@@ -242,34 +233,38 @@ print_dbt(DBT *dbt) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
 
     switch (dest_key->flags) {
     case 0:
-        dest_key->data = src_data->data;
-        dest_key->size = src_data->size;
+        dest_key->data = src_val->data;
+        dest_key->size = src_val->size;
         break;
     case DB_DBT_REALLOC:
-        dest_key->data = toku_realloc(dest_key->data, src_data->size);
-        memcpy(dest_key->data, src_data->data, src_data->size);
-        dest_key->size = src_data->size;
+        dest_key->data = toku_realloc(dest_key->data, src_val->size);
+        memcpy(dest_key->data, src_val->data, src_val->size);
+        dest_key->size = src_val->size;
         break;
     default:
         lazy_assert(0);
     }
 
-    if (dest_data)
-        switch (dest_data->flags) {
+    if (dest_val)
+        switch (dest_val->flags) {
         case 0:
             lazy_assert(0);
             break;
         case DB_DBT_REALLOC:
-            dest_data->data = toku_realloc(dest_data->data, src_key->size);
-            memcpy(dest_data->data, src_key->data, src_key->size);
-            dest_data->size = src_key->size;
+            dest_val->data = toku_realloc(dest_val->data, src_key->size);
+            memcpy(dest_val->data, src_key->data, src_key->size);
+            dest_val->size = src_key->size;
             break;
         default:
             lazy_assert(0);
@@ -279,7 +274,9 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data) {
+    toku_dbt_array_resize(dest_keys, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
     (void) dest_db; (void) src_db; (void) dest_key; (void) src_key; (void) src_data;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
@@ -421,8 +418,27 @@ read_line(char **line_ptr, size_t *len_ptr, FILE *f) {
     return len == 0 ? -1 : 0;
 }
 
+struct saved_lines_t {
+    char** savedlines;
+    uint32_t capacity;
+    uint32_t used;
+};
+
+static void
+save_line(char** line, saved_lines_t* saved) {
+    if (saved->capacity == saved->used) {
+        if (saved->capacity == 0) {
+            saved->capacity = 1;
+        }
+        saved->capacity *= 2;
+        XREALLOC_N(saved->capacity, saved->savedlines);
+    }
+    saved->savedlines[saved->used++] = *line;
+    *line = nullptr;
+}
+
 static int
-read_test(char *testname, ULE ule) {
+read_test(char *testname, ULE ule, DBT* key, saved_lines_t* saved) {
     int r = 0;
     FILE *f = fopen(testname, "r");
     if (f) {
@@ -463,11 +479,13 @@ read_test(char *testname, ULE ule) {
             }
             // key KEY
             if (strcmp(fields[0], "key") == 0 && nfields == 2) {
-                ule_set_key(ule, fields[1], strlen(fields[1]));
+                save_line(&line, saved);
+                dbt_init(key, fields[1], strlen(fields[1]));
                 continue;
             }
             // insert committed|provisional XID DATA
             if (strcmp(fields[0], "insert") == 0 && nfields == 4) {
+                save_line(&line, saved);
                 UXR_S uxr_s; 
                 uxr_init(&uxr_s, XR_INSERT, fields[3], strlen(fields[3]), atoll(fields[2]));
                 if (fields[1][0] == 'p')
@@ -560,14 +578,24 @@ run_test(char *envdir, char *testname) {
     ULE ule = ule_create(); 
     ule_init(ule);
 
+    saved_lines_t saved;
+    ZERO_STRUCT(saved);
     // read the test
-    r = read_test(testname, ule);
+    DBT key;
+    ZERO_STRUCT(key);
+    r = read_test(testname, ule, &key, &saved);
     if (r != 0)
         return r;
 
-    r = indexer->i->undo_do(indexer, dest_db, ule); assert_zero(r);
+    r = indexer->i->undo_do(indexer, dest_db, &key, ule); assert_zero(r);
 
     ule_free(ule);
+    key.data = NULL;
+
+    for (uint32_t i = 0; i < saved.used; i++) {
+        toku_free(saved.savedlines[i]);
+    }
+    toku_free(saved.savedlines);
 
     r = indexer->close(indexer); assert_zero(r);
 

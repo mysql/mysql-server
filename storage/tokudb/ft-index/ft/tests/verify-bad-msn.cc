@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -121,7 +122,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     DBT theval; toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
-    uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
+    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
 
     MSN msn = next_dummymsn();
 

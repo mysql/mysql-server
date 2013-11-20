@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -205,7 +206,7 @@ delete_n (uint32_t ah)
 static void
 optimize(void) {
     if (verbose) printf("Filesize: begin optimize dictionary\n");
-    int r = db->hot_optimize(db, NULL, NULL);
+    int r = db->hot_optimize(db, NULL, NULL, NULL, NULL);
     CKERR(r);
     if (verbose) printf("Filesize: end optimize dictionary\n");
 }

@@ -7373,6 +7373,7 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
 		DBUG_RETURN(1);
 	}
 
@@ -7436,6 +7437,7 @@ i_s_innodb_changed_pages_fill(
 		if (schema_table_store_record(thd, table))
 		{
 			log_online_bitmap_iterator_release(&i);
+			my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
 			DBUG_RETURN(1);
 		}
 

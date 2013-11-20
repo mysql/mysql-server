@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -411,7 +412,7 @@ static void test (const char *directory, bool is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               TXNID_NONE, true, false);
+                                               TXNID_NONE, true, 0, false);
 	assert(r==0);
     }
 

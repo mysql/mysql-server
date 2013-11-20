@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -105,8 +106,8 @@ static int update_fun(DB *UU(db),
 static int generate_row_for_put(
     DB *UU(dest_db), 
     DB *UU(src_db), 
-    DBT *UU(dest_key), 
-    DBT *UU(dest_val), 
+    DBT_ARRAY *UU(dest_key_arrays), 
+    DBT_ARRAY *UU(dest_val_arrays), 
     const DBT *UU(src_key), 
     const DBT *UU(src_val)
     ) 
@@ -118,7 +119,7 @@ static int generate_row_for_put(
 static int generate_row_for_del(
     DB *UU(dest_db), 
     DB *UU(src_db),
-    DBT *UU(dest_key),
+    DBT_ARRAY *UU(dest_key_arrays),
     const DBT *UU(src_key), 
     const DBT *UU(src_val)
     ) 
@@ -202,12 +203,12 @@ static void test_invalid_ops(uint32_t iso_flags) {
     r = db->update_broadcast(db, txn, &val, 0);
     CKERR2(r, EINVAL);
     
-    r = env->put_multiple(env, NULL, txn, &key, &val, 1, &db, &key, &val, 0);
+    r = env_put_multiple_test_no_array(env, NULL, txn, &key, &val, 1, &db, &key, &val, 0);
     CKERR2(r, EINVAL);
-    r = env->del_multiple(env, NULL, txn, &key, &val, 1, &db, &key, 0);
+    r = env_del_multiple_test_no_array(env, NULL, txn, &key, &val, 1, &db, &key, 0);
     CKERR2(r, EINVAL);
     uint32_t flags;
-    r = env->update_multiple(
+    r = env_update_multiple_test_no_array(
         env, NULL, txn, 
         &key, &val, 
         &key, &val, 

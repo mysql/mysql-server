@@ -520,7 +520,8 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif
-	if (rw_lock_get_writer(btr_search_get_latch(cursor->index->id)) == RW_LOCK_NOT_LOCKED
+	if (rw_lock_get_writer(btr_search_get_latch(cursor->index)) ==
+	    RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF
 	    && info->last_hash_succ
 	    && !estimate
@@ -556,7 +557,7 @@ btr_cur_search_to_nth_level(
 
 	if (has_search_latch) {
 		/* Release possible search latch to obey latching order */
-		rw_lock_s_unlock(btr_search_get_latch(cursor->index->id));
+		rw_lock_s_unlock(btr_search_get_latch(cursor->index));
 	}
 
 	/* Store the position of the tree latch we push to mtr so that we
@@ -871,7 +872,7 @@ func_exit:
 
 	if (has_search_latch) {
 
-		rw_lock_s_lock(btr_search_get_latch(cursor->index->id));
+		rw_lock_s_lock(btr_search_get_latch(cursor->index));
 	}
 }
 
@@ -1189,7 +1190,7 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1427,7 +1428,7 @@ fail_err:
 		goto fail_err;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		*big_rec = big_rec_vec;
 		return(err); /* == DB_SUCCESS */
@@ -1641,7 +1642,7 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (n_extents > 0) {
 			fil_space_release_free_extents(index->space,
@@ -1707,7 +1708,7 @@ btr_cur_upd_lock_and_undo(
 
 	ut_ad(cursor && update && thr && roll_ptr);
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1914,7 +1915,7 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (trx && trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx && trx->fake_changes)) {
 	    /* Don't call page_zip_compress_write_log_no_data as that has
 	    assert which would fail. Assume there won't be a compression
 	    failure. */
@@ -2021,7 +2022,7 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
@@ -2056,13 +2057,13 @@ btr_cur_update_in_place(
 			btr_search_update_hash_on_delete(cursor);
 		}
 
-		rw_lock_x_lock(btr_search_get_latch(cursor->index->id));
+		rw_lock_x_lock(btr_search_get_latch(cursor->index));
 	}
 
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (is_hashed) {
-		rw_lock_x_unlock(btr_search_get_latch(cursor->index->id));
+		rw_lock_x_unlock(btr_search_get_latch(cursor->index));
 	}
 
 	if (page_zip && !dict_index_is_clust(index)
@@ -2256,7 +2257,7 @@ any_extern:
 		goto err_exit;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		goto err_exit; /* == DB_SUCCESS */
 	}
@@ -2494,7 +2495,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && UNIV_LIKELY(!trx->fake_changes)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2552,7 +2553,7 @@ make_external:
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		err = DB_SUCCESS;
 		goto return_after_reservations;
@@ -2888,7 +2889,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}
@@ -3027,7 +3028,7 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	ulint		err;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}
@@ -4789,6 +4790,10 @@ next_zip_page:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;);
 	}
 
 func_exit:
@@ -4821,9 +4826,11 @@ func_exit:
 
 		field_ref = btr_rec_get_field_ref(rec, offsets, i);
 
-		/* The pointer must not be zero. */
+		/* The pointer must not be zero if the operation
+		succeeded. */
 		ut_a(0 != memcmp(field_ref, field_ref_zero,
-				 BTR_EXTERN_FIELD_REF_SIZE));
+				 BTR_EXTERN_FIELD_REF_SIZE)
+		     || error != DB_SUCCESS);
 		/* The column must not be disowned by this record. */
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 	}
@@ -4919,10 +4926,10 @@ btr_free_externally_stored_field(
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
-		/* In the rollback of uncommitted transactions, we may
-		encounter a clustered index record whose BLOBs have
-		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
+		/* In the rollback, we may encounter a clustered index
+		record with some unwritten off-page columns. There is
+		nothing to free then. */
+		ut_a(rb_ctx != RB_NONE);
 		return;
 	}
 

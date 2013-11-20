@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -431,18 +432,18 @@ static void print_db_env_struct (void) {
                              "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                               const DBT *src_key, const DBT *src_val,\n"
-                             "                                               uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) /* insert into multiple DBs */",
+                             "                                               uint32_t num_dbs, DB **db_array, DBT_ARRAY *keys, DBT_ARRAY *vals, uint32_t *flags_array) /* insert into multiple DBs */",
                              "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
                              "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                               const DBT *src_key, const DBT *src_val,\n"
-                             "                                               uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) /* delete from multiple DBs */",
+                             "                                               uint32_t num_dbs, DB **db_array, DBT_ARRAY *keys, uint32_t *flags_array) /* delete from multiple DBs */",
                              "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
                              "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                               DBT *old_src_key, DBT *old_src_data,\n"
                              "                                               DBT *new_src_key, DBT *new_src_data,\n"
                              "                                               uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
-                             "                                               uint32_t num_keys, DBT *keys,\n"
-                             "                                               uint32_t num_vals, DBT *vals) /* update multiple DBs */",
+                             "                                               uint32_t num_keys, DBT_ARRAY *keys,\n"
+                             "                                               uint32_t num_vals, DBT_ARRAY *vals) /* update multiple DBs */",
                              "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
                              "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
@@ -450,14 +451,19 @@ static void print_db_env_struct (void) {
                              "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
                              "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
-			     "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, uint32_t flags)",
-			     "int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **)",
-			     "int (*get_cursor_for_directory)            (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
-			     "int (*get_cursor_for_persistent_environment) (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
-                 "void (*change_fsync_log_period)(DB_ENV*, uint32_t)",
+                             "int (*set_lock_timeout_callback)            (DB_ENV *env, lock_timeout_callback callback)",
+                             "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, uint32_t flags)",
+                             "int (*get_txn_from_xid)                     (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **)",
+                             "int (*get_cursor_for_directory)             (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
+                             "int (*get_cursor_for_persistent_environment)(DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
+                             "void (*change_fsync_log_period)             (DB_ENV*, uint32_t)",
+                             "int (*iterate_live_transactions)            (DB_ENV *env, iterate_transactions_callback callback, void *extra)",
+                             "int (*iterate_pending_lock_requests)        (DB_ENV *env, iterate_requests_callback callback, void *extra)",
+                             "void (*set_loader_memory_size)(DB_ENV *env, uint64_t loader_memory_size)",
+                             "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
                              NULL};
 
-	sort_and_dump_fields("db_env", true, extra);
+        sort_and_dump_fields("db_env", true, extra);
 }
 
 static void print_db_key_range_struct (void) {
@@ -523,7 +529,7 @@ static void print_db_struct (void) {
 			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, uint32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
 			 "int (*getf_set)(DB*, DB_TXN*, uint32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			 "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
-			 "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
+			 "int (*hot_optimize)(DB*, DBT*, DBT*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
 			 "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			 "int (*change_pagesize)(DB*,uint32_t)",
 			 "int (*change_readpagesize)(DB*,uint32_t)",
@@ -539,6 +545,7 @@ static void print_db_struct (void) {
 			 "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, uint32_t flags)",
 			 "int (*get_fractal_tree_info64)(DB*,uint64_t*,uint64_t*,uint64_t*,uint64_t*)",
 			 "int (*iterate_fractal_tree_block_map)(DB*,int(*)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*),void*)",
+                         "const char *(*get_dname)(DB *db)",
 			 NULL};
     sort_and_dump_fields("db", true, extra);
 }
@@ -565,7 +572,9 @@ static void print_db_txn_struct (void) {
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
-    "uint64_t (*id64) (DB_TXN*)",
+        "uint64_t (*id64) (DB_TXN*)",
+        "void (*set_client_id)(DB_TXN *, uint64_t client_id)",
+        "uint64_t (*get_client_id)(DB_TXN *)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
@@ -747,9 +756,22 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     print_dbtype();
     print_defines();
 
-    printf("typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
-    printf("typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_val);\n");
+    printf("typedef struct {\n");
+    printf("    uint32_t capacity;\n");
+    printf("    uint32_t size;\n");
+    printf("    DBT *dbts;\n");
+    printf("} DBT_ARRAY;\n\n");
+    printf("typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT_ARRAY * dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val);\n");
+    printf("typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT_ARRAY * dest_keys, const DBT *src_key, const DBT *src_val);\n");
+    printf("DBT_ARRAY * toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size) %s;\n", VISIBLE);
+    printf("void toku_dbt_array_destroy(DBT_ARRAY *dbts) %s;\n", VISIBLE);
+    printf("void toku_dbt_array_destroy_shallow(DBT_ARRAY *dbts) %s;\n", VISIBLE);
+    printf("void toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size) %s;\n", VISIBLE);
 
+    printf("typedef void (*lock_timeout_callback)(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid);\n");
+    printf("typedef int (*iterate_row_locks_callback)(DB **db, DBT *left_key, DBT *right_key, void *extra);\n");
+    printf("typedef int (*iterate_transactions_callback)(uint64_t txnid, uint64_t client_id, iterate_row_locks_callback cb, void *locks_extra, void *extra);\n");
+    printf("typedef int (*iterate_requests_callback)(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid, uint64_t start_time, void *extra);\n");
     print_db_env_struct();
     print_db_key_range_struct();
     print_db_lsn_struct();

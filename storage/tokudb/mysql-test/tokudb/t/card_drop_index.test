@@ -1,6 +1,7 @@
 # test that add index keeps cardinality for older indexes
 
 source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 
 disable_warnings;
 drop table if exists tt;

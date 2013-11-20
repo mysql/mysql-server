@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -95,6 +96,7 @@ PATENT RIGHTS GRANT:
 //
 static void dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p)) { }
 static void dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), bool UU(b), LSN UU(lsn))  { }
+static void dummy_free_usr(CACHEFILE UU(cf), void* UU(p))  { }
 static void dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p)) { }
 static void dummy_begin(LSN UU(lsn), void* UU(p)) { }
 static void dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) { }
@@ -112,6 +114,7 @@ create_dummy_functions(CACHEFILE cf)
                                ud,
                                &dummy_log_fassociate,
                                &dummy_close_usr,
+                               &dummy_free_usr,
                                &dummy_chckpnt_usr,
                                &dummy_begin,
                                &dummy_end,

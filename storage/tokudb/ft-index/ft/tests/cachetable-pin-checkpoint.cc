@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -422,6 +423,7 @@ cachetable_test (void) {
         NULL,
         &dummy_log_fassociate,
         &dummy_close_usr,
+        &dummy_free_usr,
         &dummy_chckpnt_usr,
         &test_begin_checkpoint,
         &dummy_end,

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -330,14 +331,11 @@ static void verify(int inkey[], int nkeys, const char *testdir) {
     free_temp_files(tempfiles);
 }
 
-static void copy_dbt(DBT *dest, const DBT *src) {
-    assert(dest->flags & DB_DBT_REALLOC);
-    dest->data = toku_realloc(dest->data, src->size);
-    dest->size = src->size;
-    memcpy(dest->data, src->data, src->size);
-}
-
-static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+static int generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
     assert(dest_db == NULL); assert(src_db == NULL);
 
     copy_dbt(dest_key, src_key);
@@ -404,7 +402,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE, true, false);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE, true, 0, false);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

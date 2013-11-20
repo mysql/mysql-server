@@ -99,6 +99,9 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+
+enum_tx_isolation thd_get_trx_isolation(const THD* thd);
+
 }
 
 #include "ha_innodb.h"
@@ -467,6 +470,15 @@ innobase_is_fake_change(
 				  whom the transaction is being committed */
 
 
+/******************************************************************//**
+Maps a MySQL trx isolation level code to the InnoDB isolation level code
+@return	InnoDB isolation level */
+static inline
+ulint
+innobase_map_isolation_level(
+/*=========================*/
+	enum_tx_isolation	iso);	/*!< in: MySQL isolation level code */
+
 static const char innobase_hton_name[]= "InnoDB";
 
 /*************************************************************//**
@@ -700,32 +712,32 @@ innobase_commit_low(
 static SHOW_VAR innodb_status_variables[]= {
   {"adaptive_hash_cells",
   (char*) &export_vars.innodb_adaptive_hash_cells,	  SHOW_LONG},
-  {"adaptive_hash_heap_buffers",
-  (char*) &export_vars.innodb_adaptive_hash_heap_buffers, SHOW_LONG},
   {"adaptive_hash_hash_searches",
   (char*) &export_vars.innodb_adaptive_hash_hash_searches, SHOW_LONG},
+  {"adaptive_hash_heap_buffers",
+  (char*) &export_vars.innodb_adaptive_hash_heap_buffers, SHOW_LONG},
   {"adaptive_hash_non_hash_searches",
   (char*) &export_vars.innodb_adaptive_hash_non_hash_searches, SHOW_LONG},
   {"background_log_sync",
   (char*) &export_vars.innodb_background_log_sync,	  SHOW_LONG},
-  {"buffer_pool_pages_data",
-  (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_bytes_data",
   (char*) &export_vars.innodb_buffer_pool_bytes_data,	  SHOW_LONG},
-  {"buffer_pool_pages_dirty",
-  (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
   {"buffer_pool_bytes_dirty",
   (char*) &export_vars.innodb_buffer_pool_bytes_dirty,	  SHOW_LONG},
+  {"buffer_pool_pages_data",
+  (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
+  {"buffer_pool_pages_dirty",
+  (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
   {"buffer_pool_pages_flushed",
   (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
-  {"buffer_pool_pages_LRU_flushed",
-  (char*) &export_vars.innodb_buffer_pool_pages_LRU_flushed,  SHOW_LONG},
   {"buffer_pool_pages_free",
   (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
 #ifdef UNIV_DEBUG
   {"buffer_pool_pages_latched",
   (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
 #endif /* UNIV_DEBUG */
+  {"buffer_pool_pages_LRU_flushed",
+  (char*) &export_vars.innodb_buffer_pool_pages_LRU_flushed,  SHOW_LONG},
   {"buffer_pool_pages_made_not_young",
   (char*) &export_vars.innodb_buffer_pool_pages_made_not_young, SHOW_LONG},
   {"buffer_pool_pages_made_young",
@@ -736,12 +748,12 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_old,	  SHOW_LONG},
   {"buffer_pool_pages_total",
   (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
-  {"buffer_pool_read_ahead_rnd",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
   {"buffer_pool_read_ahead",
   (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
   {"buffer_pool_read_ahead_evicted",
   (char*) &export_vars.innodb_buffer_pool_read_ahead_evicted, SHOW_LONG},
+  {"buffer_pool_read_ahead_rnd",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
   {"buffer_pool_read_requests",
   (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG},
   {"buffer_pool_reads",
@@ -756,6 +768,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_checkpoint_max_age,	  SHOW_LONG},
   {"checkpoint_target_age",
   (char*) &export_vars.innodb_checkpoint_target_age,	  SHOW_LONG},
+  {"current_row_locks",
+  (char*) &export_vars.innodb_current_row_locks,		  SHOW_LONG},
   {"data_fsyncs",
   (char*) &export_vars.innodb_data_fsyncs,		  SHOW_LONG},
   {"data_pending_fsyncs",
@@ -778,6 +792,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
   {"deadlocks",
   (char*) &export_vars.innodb_deadlocks,		  SHOW_LONG},
+  {"descriptors_memory",
+  (char*) &export_vars.innodb_descriptors_memory,	  SHOW_LONG},
   {"dict_tables",
   (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
   {"have_atomic_builtins",
@@ -860,12 +876,20 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_written,		  SHOW_LONG},
   {"purge_trx_id",
   (char*) &export_vars.innodb_purge_trx_id,		  SHOW_LONGLONG},
+#ifdef UNIV_DEBUG
+  {"purge_trx_id_age",
+  (char*) &export_vars.innodb_purge_trx_id_age,		  SHOW_LONG},
+#endif /* UNIV_DEBUG */
   {"purge_undo_no",
   (char*) &export_vars.innodb_purge_undo_no,		  SHOW_LONGLONG},
+#ifdef UNIV_DEBUG
+  {"purge_view_trx_id_age",
+  (char*) &export_vars.innodb_purge_view_trx_id_age,	  SHOW_LONG},
+#endif /* UNIV_DEBUG */
+  {"read_views_memory",
+  (char*) &export_vars.innodb_read_views_memory,	  SHOW_LONG},
   {"row_lock_current_waits",
   (char*) &export_vars.innodb_row_lock_current_waits,	  SHOW_LONG},
-  {"current_row_locks",
-  (char*) &export_vars.innodb_current_row_locks,		  SHOW_LONG},
   {"row_lock_time",
   (char*) &export_vars.innodb_row_lock_time,		  SHOW_LONGLONG},
   {"row_lock_time_avg",
@@ -882,10 +906,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
-  {"read_views_memory",
-  (char*) &export_vars.innodb_read_views_memory,	  SHOW_LONG},
-  {"descriptors_memory",
-  (char*) &export_vars.innodb_descriptors_memory,	  SHOW_LONG},
   {"s_lock_os_waits",
   (char*) &export_vars.innodb_s_lock_os_waits,		  SHOW_LONGLONG},
   {"s_lock_spin_rounds",
@@ -900,12 +920,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_x_lock_spin_rounds,	  SHOW_LONGLONG},
   {"x_lock_spin_waits",
   (char*) &export_vars.innodb_x_lock_spin_waits,	  SHOW_LONGLONG},
-#ifdef UNIV_DEBUG
-  {"purge_trx_id_age",
-  (char*) &export_vars.innodb_purge_trx_id_age,		  SHOW_LONG},
-  {"purge_view_trx_id_age",
-  (char*) &export_vars.innodb_purge_view_trx_id_age,	  SHOW_LONG},
-#endif /* UNIV_DEBUG */
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1090,7 +1104,7 @@ my_bool
 ha_innobase::is_fake_change_enabled(THD* thd)
 {
 	trx_t*	trx	= thd_to_trx(thd);
-	return(trx && trx->fake_changes);
+	return(trx && UNIV_UNLIKELY(trx->fake_changes));
 }
 
 /********************************************************************//**
@@ -1117,6 +1131,8 @@ innobase_release_temporary_latches(
 	trx = thd_to_trx(thd);
 
 	if (trx != NULL) {
+
+		/* No-op in XtraDB */
 		trx_search_latch_release_if_reserved(trx);
 	}
 
@@ -1433,7 +1449,8 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_system_charset(
@@ -3354,7 +3371,7 @@ innobase_is_fake_change(
 				whom the transaction is being committed */
 {
 	trx_t*	trx = check_trx_exists(thd);
-	return trx->fake_changes;
+	return UNIV_UNLIKELY(trx->fake_changes);
 }
 
 
@@ -3438,9 +3455,22 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_start_if_not_started(trx);
 
-	/* Assign a read view if the transaction does not have it yet */
+	/* Assign a read view if the transaction does not have it yet.
+	Do this only if transaction is using REPEATABLE READ isolation
+	level. */
+	trx->isolation_level = innobase_map_isolation_level(
+		thd_get_trx_isolation(thd));
 
-	trx_assign_read_view(trx);
+	if (trx->isolation_level == TRX_ISO_REPEATABLE_READ) {
+		trx_assign_read_view(trx);
+	} else {
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_UNSUPPORTED,
+				    "InnoDB: WITH CONSISTENT SNAPSHOT "
+				    "was ignored because this phrase "
+				    "can only be used with "
+				    "REPEATABLE READ isolation level.");
+	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
@@ -3576,11 +3606,13 @@ innobase_commit(
 	/* Since we will reserve the kernel mutex, we have to release
 	the search system latch first to obey the latching order. */
 
-	if (trx->has_search_latch && !trx_is_active_commit_ordered(trx)) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op in XtraDB */
+	trx_search_latch_release_if_reserved(trx);
 
-	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+	if (UNIV_UNLIKELY(trx->fake_changes
+			  && (all || (!thd_test_options(thd,
+				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))) {
+
 		innobase_rollback(hton, thd, all); /* rollback implicitly */
 		thd->stmt_da->reset_diagnostics_area(); /* because debug assertion code complains, if something left */
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -8353,7 +8385,7 @@ ha_innobase::create(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -8580,7 +8612,7 @@ ha_innobase::truncate(void)
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
-	if (prebuilt->trx->fake_changes) {
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
@@ -8645,7 +8677,7 @@ ha_innobase::delete_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -8737,13 +8769,13 @@ innobase_drop_database(
 	trx->mysql_thd = NULL;
 #else
 	trx = innobase_trx_allocate(thd);
-	if (trx->fake_changes) {
+#endif
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		my_free(namebuf);
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		return; /* ignore */
 	}
-#endif
 	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
@@ -8858,7 +8890,7 @@ ha_innobase::rename_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -12767,6 +12799,63 @@ innobase_thd_get_thread_id(
 	return(thd_get_thread_id((const THD*) thd));
 }
 
+#ifdef UNIV_DEBUG
+static my_bool	innodb_log_checkpoint_now = TRUE;
+
+/****************************************************************//**
+Force innodb to checkpoint. */
+static
+void
+checkpoint_now_set(
+/*===============*/
+	THD*				thd	/*!< in: thread handle */
+	__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+	__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+	__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			fil_flush_file_spaces(FIL_LOG);
+		}
+		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
+		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+static my_bool	innodb_track_redo_log_now = TRUE;
+
+/****************************************************************//**
+Force log tracker to track the log synchronously.  */
+static
+void
+track_redo_log_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+	__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+	__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+	__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save && srv_track_changed_pages) {
+
+		log_online_follow_redo_log();
+	}
+}
+
+
+#endif /* UNIV_DEBUG */
 
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
@@ -13032,6 +13121,8 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   "Disable with --skip-innodb-adaptive-hash-index.",
   NULL, innodb_adaptive_hash_index_update, TRUE);
 
+/* btr_search_index_num is constrained to machine word size for historical
+reasons. This limitation can be easily removed later. */
 static MYSQL_SYSVAR_ULINT(adaptive_hash_index_partitions, btr_search_index_num,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of InnoDB adaptive hash index partitions (default 1: disable partitioning)",
@@ -13237,10 +13328,17 @@ static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
   "NULLS_UNEQUAL and NULLS_IGNORED",
    NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
 
+#ifdef UNIV_DEBUG
+/* Make this variable dynamic for debug builds to
+provide a testcase sync facility */
+#define track_changed_pages_flags PLUGIN_VAR_NOCMDARG
+#else
+#define track_changed_pages_flags PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY
+#endif
 static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
-    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-    "Track the redo log for changed pages and output a changed page bitmap",
-    NULL, NULL, FALSE);
+  track_changed_pages_flags,
+  "Track the redo log for changed pages and output a changed page bitmap",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     PLUGIN_VAR_RQCMDARG,
@@ -13460,6 +13558,21 @@ static MYSQL_SYSVAR_ULINT(lazy_drop_table, srv_lazy_drop_table,
   "[Deprecated option] no effect",
   NULL, NULL, 0, 0, 1, 0);
 
+#ifdef UNIV_DEBUG
+
+static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force checkpoint now",
+  NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(track_redo_log_now,
+  innodb_track_redo_log_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force log tracker to catch up with checkpoint now",
+  NULL, track_redo_log_now_set, FALSE);
+
+#endif /* UNIV_DEBUG */
+
 static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,
   PLUGIN_VAR_NOCMDARG,
   "###EXPERIMENTAL### if enabled, transactions will get S row locks instead "
@@ -13598,6 +13711,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(use_stacktrace),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(track_redo_log_now),
+#endif /* UNIV_DEBUG */
   NULL
 };
 
@@ -13786,7 +13903,8 @@ test_innobase_convert_name()
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_filename_charset(

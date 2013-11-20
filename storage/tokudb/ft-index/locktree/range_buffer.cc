@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -272,13 +273,19 @@ void range_buffer::append_point(const DBT *key) {
 }
 
 void range_buffer::maybe_grow(size_t size) {
+    static const size_t initial_size = 4096;
     static const size_t aggressive_growth_threshold = 128 * 1024;
-    if (m_buf_current + size > m_buf_size) {
+    const size_t needed = m_buf_current + size;
+    if (m_buf_size < needed) {
+        if (m_buf_size == 0) {
+            m_buf_size = initial_size;
+        }
         // aggressively grow the range buffer to the threshold,
         // but only additivately increase the size after that.
-        if (m_buf_size < aggressive_growth_threshold) {
-            m_buf_size = m_buf_size ? m_buf_size * 2 : get_initial_size(size);
-        } else {
+        while (m_buf_size < needed && m_buf_size < aggressive_growth_threshold) {
+            m_buf_size <<= 1;
+        }
+        while (m_buf_size < needed) {
             m_buf_size += aggressive_growth_threshold;
         }
         XREALLOC(m_buf, m_buf_size);

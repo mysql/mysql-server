@@ -1,0 +1,5 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (x int, y int, primary key (x));
+alter table t drop primary key, add primary key(x);
+drop table t;

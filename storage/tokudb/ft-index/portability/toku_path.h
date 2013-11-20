@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -93,6 +94,7 @@ PATENT RIGHTS GRANT:
 
 #include <stdarg.h>
 #include <limits.h>
+#include <sys/types.h>
 
 __attribute__((nonnull))
 const char *toku_test_filename(const char *default_filename);
@@ -100,6 +102,18 @@ const char *toku_test_filename(const char *default_filename);
 #define TOKU_TEST_FILENAME toku_test_filename(__FILE__)
 
 #define TOKU_PATH_MAX PATH_MAX
+
+// Guarantees NUL termination (unless siz == 0)
+// siz is full size of dst (including NUL terminator)
+// Appends src to end of dst, (truncating if necessary) to use no more than siz bytes (including NUL terminator)
+// Returns strnlen(dst, siz)
+size_t toku_strlcat(char *dst, const char *src, size_t siz);
+
+// Guarantees NUL termination (unless siz == 0)
+// siz is full size of dst (including NUL terminator)
+// Appends src to end of dst, (truncating if necessary) to use no more than siz bytes (including NUL terminator)
+// Returns strnlen(dst, siz)
+size_t toku_strlcpy(char *dst, const char *src, size_t siz);
 
 char *toku_path_join(char *dest, int n, const char *base, ...);
 // Effect:

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -102,8 +103,6 @@ static void
 verify_ule_equal(ULE a, ULE b) {
     assert(a->num_cuxrs > 0);
     assert(a->num_puxrs < MAX_TRANSACTION_RECORDS);
-    assert(a->keylen   == b->keylen);
-    assert(memcmp(a->keyp, b->keyp, a->keylen) == 0);
     assert(a->num_cuxrs == b->num_cuxrs);
     assert(a->num_puxrs == b->num_puxrs);
     uint32_t i;
@@ -160,15 +159,13 @@ test_le_offset_is(LEAFENTRY le, void *field, size_t expected_offset) {
 //Fixed offsets in a packed leafentry.
 enum {
     LE_OFFSET_NUM      = 0,
-    LE_OFFSET_KEYLEN   = 1+LE_OFFSET_NUM,
-    LE_OFFSET_VARIABLE = 4+LE_OFFSET_KEYLEN
+    LE_OFFSET_VARIABLE = 1+LE_OFFSET_NUM
 };
 
 static void
 test_le_fixed_offsets (void) {
     LEAFENTRY XMALLOC(le);
     test_le_offset_is(le, &le->type,                       LE_OFFSET_NUM);
-    test_le_offset_is(le, &le->keylen,                     LE_OFFSET_KEYLEN);
     toku_free(le);
 }
 
@@ -176,14 +173,14 @@ test_le_fixed_offsets (void) {
 //(Note, there is no type required.) 
 enum {
     LE_COMMITTED_OFFSET_VALLEN = LE_OFFSET_VARIABLE,
-    LE_COMMITTED_OFFSET_KEY    = 4 + LE_COMMITTED_OFFSET_VALLEN
+    LE_COMMITTED_OFFSET_VAL    = 4 + LE_COMMITTED_OFFSET_VALLEN
 };
 
 static void
 test_le_committed_offsets (void) {
     LEAFENTRY XMALLOC(le);
     test_le_offset_is(le, &le->u.clean.vallen, LE_COMMITTED_OFFSET_VALLEN);
-    test_le_offset_is(le, &le->u.clean.key_val, LE_COMMITTED_OFFSET_KEY);
+    test_le_offset_is(le, &le->u.clean.val, LE_COMMITTED_OFFSET_VAL);
     toku_free(le);
 }
 
@@ -191,7 +188,7 @@ test_le_committed_offsets (void) {
 enum {
     LE_MVCC_OFFSET_NUM_CUXRS   =  LE_OFFSET_VARIABLE, //Type of innermost record
     LE_MVCC_OFFSET_NUM_PUXRS    = 4+LE_MVCC_OFFSET_NUM_CUXRS, //XID of outermost noncommitted record
-    LE_MVCC_OFFSET_KEY    = 1+LE_MVCC_OFFSET_NUM_PUXRS
+    LE_MVCC_OFFSET_XRS    = 1+LE_MVCC_OFFSET_NUM_PUXRS
 };
 
 static void
@@ -199,7 +196,7 @@ test_le_provisional_offsets (void) {
     LEAFENTRY XMALLOC(le);
     test_le_offset_is(le, &le->u.mvcc.num_cxrs,            LE_MVCC_OFFSET_NUM_CUXRS);
     test_le_offset_is(le, &le->u.mvcc.num_pxrs, LE_MVCC_OFFSET_NUM_PUXRS);
-    test_le_offset_is(le, &le->u.mvcc.key_xrs,               LE_MVCC_OFFSET_KEY);
+    test_le_offset_is(le, &le->u.mvcc.xrs,               LE_MVCC_OFFSET_XRS);
     toku_free(le);
 }
 
@@ -215,9 +212,8 @@ test_le_offsets (void) {
 
 static void
 test_ule_packs_to_nothing (ULE ule) {
-    size_t memsize;
     LEAFENTRY le;
-    int r = le_pack(ule, &memsize, &le, NULL, NULL, NULL);
+    int r = le_pack(ule, NULL, 0, NULL, 0, 0, &le);
     assert(r==0);
     assert(le==NULL);
 }
@@ -230,10 +226,7 @@ test_le_empty_packs_to_nothing (void) {
     ULE_S ule;
     ule.uxrs = ule.uxrs_static;
 
-    int key = random(); //Arbitrary number
     //Set up defaults.
-    ule.keylen       = sizeof(key);
-    ule.keyp         = &key;
     int committed;
     for (committed = 1; committed < MAX_TRANSACTION_RECORDS; committed++) {
         int32_t num_xrs;
@@ -269,8 +262,6 @@ le_verify_accessors(LEAFENTRY le, ULE ule, size_t pre_calculated_memsize) {
     size_t memsize  = le_memsize_from_ule(ule);
     size_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
 
-    void *key               = ule->keyp;
-    uint32_t keylen        = ule->keylen;
     void *latest_val        = ule->uxrs[num_uxrs -1].type == XR_DELETE ? NULL : ule->uxrs[num_uxrs -1].valp;
     uint32_t latest_vallen = ule->uxrs[num_uxrs -1].type == XR_DELETE ? 0    : ule->uxrs[num_uxrs -1].vallen;
     {
@@ -290,15 +281,6 @@ found_insert:;
     //Verify all accessors
     assert(memsize  == pre_calculated_memsize);
     assert(memsize  == leafentry_memsize(le));
-    {
-        uint32_t test_keylen;
-        void*     test_keyp = le_key_and_len(le, &test_keylen);
-        if (key != NULL) assert(test_keyp != key);
-        assert(test_keylen == keylen);
-        assert(memcmp(test_keyp, key, test_keylen) == 0);
-        assert(le_key(le)    == test_keyp);
-        assert(le_keylen(le) == test_keylen);
-    }
     {
         uint32_t test_vallen;
         void*     test_valp = le_latest_val_and_len(le, &test_vallen);
@@ -323,44 +305,40 @@ test_le_pack_committed (void) {
     ULE_S ule;
     ule.uxrs = ule.uxrs_static;
 
-    uint8_t key[MAX_SIZE];
     uint8_t val[MAX_SIZE];
-    uint32_t keysize;
     uint32_t valsize;
-    for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
-        for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
-            fillrandom(key, keysize);
-            fillrandom(val, valsize);
+    for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
+        fillrandom(val, valsize);
 
-            ule.num_cuxrs       = 1;
-            ule.num_puxrs       = 0;
-            ule.keylen         = keysize;
-            ule.keyp           = key;
-            ule.uxrs[0].type   = XR_INSERT;
-            ule.uxrs[0].xid    = 0;
-            ule.uxrs[0].valp   = val;
-            ule.uxrs[0].vallen = valsize;
+        ule.num_cuxrs       = 1;
+        ule.num_puxrs       = 0;
+        ule.uxrs[0].type   = XR_INSERT;
+        ule.uxrs[0].xid    = 0;
+        ule.uxrs[0].valp   = val;
+        ule.uxrs[0].vallen = valsize;
 
-            size_t memsize;
-            LEAFENTRY le;
-            int r = le_pack(&ule, &memsize, &le, NULL, NULL, NULL);
-            assert(r==0);
-            assert(le!=NULL);
-            le_verify_accessors(le, &ule, memsize);
-            ULE_S tmp_ule;
-            le_unpack(&tmp_ule, le);
-            verify_ule_equal(&ule, &tmp_ule);
-            LEAFENTRY tmp_le;
-            size_t    tmp_memsize;
-            r = le_pack(&tmp_ule, &tmp_memsize, &tmp_le, NULL, NULL, NULL);
-            assert(r==0);
-            assert(tmp_memsize == memsize);
-            assert(memcmp(le, tmp_le, memsize) == 0);
+        size_t memsize;
+        LEAFENTRY le;
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        assert(r==0);
+        assert(le!=NULL);
+        memsize = le_memsize_from_ule(&ule);
+        le_verify_accessors(le, &ule, memsize);
+        ULE_S tmp_ule;
+        le_unpack(&tmp_ule, le);
+        verify_ule_equal(&ule, &tmp_ule);
+        LEAFENTRY tmp_le;
+        size_t    tmp_memsize;
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        tmp_memsize = le_memsize_from_ule(&tmp_ule);
+        assert(r==0);
+        assert(tmp_memsize == memsize);
+        assert(memcmp(le, tmp_le, memsize) == 0);
+        le_verify_accessors(tmp_le, &tmp_ule, tmp_memsize);
 
-            toku_free(tmp_le);
-            toku_free(le);
-            ule_cleanup(&tmp_ule);
-        }
+        toku_free(tmp_le);
+        toku_free(le);
+        ule_cleanup(&tmp_ule);
     }
 }
 
@@ -370,59 +348,55 @@ test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_pla
     ule.uxrs = ule.uxrs_static;
     assert(num_placeholders >= 0);
 
-    uint8_t key[MAX_SIZE];
     uint8_t cval[MAX_SIZE];
     uint8_t pval[MAX_SIZE];
-    uint32_t keysize;
     uint32_t cvalsize;
     uint32_t pvalsize;
-    for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
-        for (cvalsize = 0; cvalsize < MAX_SIZE; cvalsize += (random() % MAX_SIZE) + 1) {
-            pvalsize = (cvalsize + random()) % MAX_SIZE;
-            fillrandom(key, keysize);
-            if (committed_type == XR_INSERT)
-                fillrandom(cval, cvalsize);
-            if (prov_type == XR_INSERT)
-                fillrandom(pval, pvalsize);
-            ule.uxrs[0].type   = committed_type;
-            ule.uxrs[0].xid    = TXNID_NONE;
-            ule.uxrs[0].vallen = cvalsize;
-            ule.uxrs[0].valp   = cval;
-            ule.keylen         = keysize;
-            ule.keyp           = key;
-            ule.num_cuxrs       = 1;
-            ule.num_puxrs       = 1 + num_placeholders;
+    for (cvalsize = 0; cvalsize < MAX_SIZE; cvalsize += (random() % MAX_SIZE) + 1) {
+        pvalsize = (cvalsize + random()) % MAX_SIZE;
+        if (committed_type == XR_INSERT)
+            fillrandom(cval, cvalsize);
+        if (prov_type == XR_INSERT)
+            fillrandom(pval, pvalsize);
+        ule.uxrs[0].type   = committed_type;
+        ule.uxrs[0].xid    = TXNID_NONE;
+        ule.uxrs[0].vallen = cvalsize;
+        ule.uxrs[0].valp   = cval;
+        ule.num_cuxrs       = 1;
+        ule.num_puxrs       = 1 + num_placeholders;
 
-            uint32_t idx;
-            for (idx = 1; idx <= (uint32_t)num_placeholders; idx++) {
-                ule.uxrs[idx].type = XR_PLACEHOLDER;
-                ule.uxrs[idx].xid  = ule.uxrs[idx-1].xid + (random() % 32 + 1); //Abitrary number, xids must be strictly increasing
-            }
+        uint32_t idx;
+        for (idx = 1; idx <= (uint32_t)num_placeholders; idx++) {
+            ule.uxrs[idx].type = XR_PLACEHOLDER;
             ule.uxrs[idx].xid  = ule.uxrs[idx-1].xid + (random() % 32 + 1); //Abitrary number, xids must be strictly increasing
-            ule.uxrs[idx].type   = prov_type;
-            ule.uxrs[idx].vallen = pvalsize;
-            ule.uxrs[idx].valp   = pval;
-
-            size_t memsize;
-            LEAFENTRY le;
-            int r = le_pack(&ule, &memsize, &le, NULL, NULL, NULL);
-            assert(r==0);
-            assert(le!=NULL);
-            le_verify_accessors(le, &ule, memsize);
-            ULE_S tmp_ule;
-            le_unpack(&tmp_ule, le);
-            verify_ule_equal(&ule, &tmp_ule);
-            LEAFENTRY tmp_le;
-            size_t    tmp_memsize;
-            r = le_pack(&tmp_ule, &tmp_memsize, &tmp_le, NULL, NULL, NULL);
-            assert(r==0);
-            assert(tmp_memsize == memsize);
-            assert(memcmp(le, tmp_le, memsize) == 0);
-
-            toku_free(tmp_le);
-            toku_free(le);
-            ule_cleanup(&tmp_ule);
         }
+        ule.uxrs[idx].xid  = ule.uxrs[idx-1].xid + (random() % 32 + 1); //Abitrary number, xids must be strictly increasing
+        ule.uxrs[idx].type   = prov_type;
+        ule.uxrs[idx].vallen = pvalsize;
+        ule.uxrs[idx].valp   = pval;
+
+        size_t memsize;
+        LEAFENTRY le;
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        assert(r==0);
+        assert(le!=NULL);
+        memsize = le_memsize_from_ule(&ule);
+        le_verify_accessors(le, &ule, memsize);
+        ULE_S tmp_ule;
+        le_unpack(&tmp_ule, le);
+        verify_ule_equal(&ule, &tmp_ule);
+        LEAFENTRY tmp_le;
+        size_t    tmp_memsize;
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        tmp_memsize = le_memsize_from_ule(&tmp_ule);
+        assert(r==0);
+        assert(tmp_memsize == memsize);
+        assert(memcmp(le, tmp_le, memsize) == 0);
+        le_verify_accessors(tmp_le, &tmp_ule, tmp_memsize);
+
+        toku_free(tmp_le);
+        toku_free(le);
+        ule_cleanup(&tmp_ule);
     }
 }
 
@@ -474,27 +448,30 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     LEAFENTRY le_expected;
     LEAFENTRY le_result;
 
-    size_t initial_memsize;
-    r = le_pack(ule_initial, &initial_memsize, &le_initial, NULL, NULL, NULL);
+    r = le_pack(ule_initial, nullptr, 0, nullptr, 0, 0, &le_initial);
     CKERR(r);
 
-    size_t result_memsize;
+    size_t result_memsize = 0;
     int64_t ignoreme;
     toku_le_apply_msg(msg,
                       le_initial,
+                      nullptr,
+                      0,
                       TXNID_NONE,
                       make_gc_info(true),
-                      &result_memsize,
                       &le_result,
-                      NULL, 
-                      NULL, NULL, &ignoreme);
-
-    if (le_result)
+                      &ignoreme);
+    if (le_result) {
+        result_memsize = leafentry_memsize(le_result);
         le_verify_accessors(le_result, ule_expected, result_memsize);
+    }
 
-    size_t expected_memsize;
-    r = le_pack(ule_expected, &expected_memsize, &le_expected, NULL, NULL, NULL);
+    size_t expected_memsize = 0;
+    r = le_pack(ule_expected, nullptr, 0, nullptr, 0, 0, &le_expected);
     CKERR(r);
+    if (le_expected) {
+        expected_memsize = leafentry_memsize(le_expected);
+    }
 
 
     verify_le_equal(le_result, le_expected);
@@ -509,8 +486,6 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
 static const ULE_S ule_committed_delete = {
     .num_puxrs = 0,
     .num_cuxrs = 1,
-    .keylen   = 0,
-    .keyp     = NULL,
     .uxrs_static = {{
         .type   = XR_DELETE,
         .vallen = 0,
@@ -544,12 +519,10 @@ next_nesting_level(uint32_t current) {
 }
 
 static void
-generate_committed_for(ULE ule, DBT *key, DBT *val) {
+generate_committed_for(ULE ule, DBT *val) {
     ule->num_cuxrs = 1;
     ule->num_puxrs = 0;
     ule->uxrs = ule->uxrs_static;
-    ule->keylen   = key->size;
-    ule->keyp     = key->data;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = val->size;
     ule->uxrs[0].valp   = val->data;
@@ -565,8 +538,6 @@ generate_provpair_for(ULE ule, FT_MSG msg) {
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
-    ule->keylen   = msg->u.id.key->size;
-    ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_DELETE;
     ule->uxrs[0].vallen = 0;
     ule->uxrs[0].valp   = NULL;
@@ -655,8 +626,6 @@ generate_provdel_for(ULE ule, FT_MSG msg) {
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
-    ule->keylen   = msg->u.id.key->size;
-    ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = msg->u.id.val->size;
     ule->uxrs[0].valp   = msg->u.id.val->data;
@@ -681,8 +650,6 @@ generate_both_for(ULE ule, DBT *oldval, FT_MSG msg) {
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
-    ule->keylen   = msg->u.id.key->size;
-    ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = oldval->size;
     ule->uxrs[0].valp   = oldval->data;
@@ -709,72 +676,66 @@ test_le_committed_apply(void) {
 
     DBT key;
     DBT val;
-    uint8_t keybuf[MAX_SIZE];
     uint8_t valbuf[MAX_SIZE];
-    uint32_t keysize;
     uint32_t valsize;
     uint32_t  nesting_level;
-    for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
-        for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
-            for (nesting_level = 0;
-                 nesting_level < MAX_TRANSACTION_RECORDS;
-                 nesting_level = next_nesting_level(nesting_level)) {
-                XIDS msg_xids = nested_xids[nesting_level];
-                fillrandom(keybuf, keysize);
-                fillrandom(valbuf, valsize);
-                toku_fill_dbt(&key, keybuf, keysize);
-                toku_fill_dbt(&val, valbuf, valsize);
+    for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
+        for (nesting_level = 0;
+             nesting_level < MAX_TRANSACTION_RECORDS;
+             nesting_level = next_nesting_level(nesting_level)) {
+            XIDS msg_xids = nested_xids[nesting_level];
+            fillrandom(valbuf, valsize);
+            toku_fill_dbt(&val, valbuf, valsize);
 
-                //Generate initial ule
-                generate_committed_for(&ule_initial, &key, &val);
+            //Generate initial ule
+            generate_committed_for(&ule_initial, &val);
 
 
-                //COMMIT/ABORT is illegal with TXNID 0
-                if (nesting_level > 0) {
-                    //Commit/abort will not change a committed le
-                    ULE_S ule_expected = ule_initial;
-                    msg = msg_init(FT_COMMIT_ANY, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg = msg_init(FT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
+            //COMMIT/ABORT is illegal with TXNID 0
+            if (nesting_level > 0) {
+                //Commit/abort will not change a committed le
+                ULE_S ule_expected = ule_initial;
+                msg = msg_init(FT_COMMIT_ANY, msg_xids,  &key, &val);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
+                msg = msg_init(FT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
 
-                    msg = msg_init(FT_ABORT_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg = msg_init(FT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                }
+                msg = msg_init(FT_ABORT_ANY, msg_xids, &key, &val);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
+                msg = msg_init(FT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
+            }
 
-                {
-                    msg = msg_init(FT_DELETE_ANY, msg_xids, &key, &val);
-                    ULE_S ule_expected;
-                    ule_expected.uxrs = ule_expected.uxrs_static;
-                    generate_provdel_for(&ule_expected, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                }
+            {
+                msg = msg_init(FT_DELETE_ANY, msg_xids, &key, &val);
+                ULE_S ule_expected;
+                ule_expected.uxrs = ule_expected.uxrs_static;
+                generate_provdel_for(&ule_expected, &msg);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
+            }
 
-                {
-                    uint8_t valbuf2[MAX_SIZE];
-                    uint32_t valsize2 = random() % MAX_SIZE;
-                    fillrandom(valbuf2, valsize2);
-                    DBT val2;
-                    toku_fill_dbt(&val2, valbuf2, valsize2);
-                    msg = msg_init(FT_INSERT, msg_xids, &key, &val2);
-                    ULE_S ule_expected;
-                    ule_expected.uxrs = ule_expected.uxrs_static;
-                    generate_both_for(&ule_expected, &val, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                }
-                {
-                    //INSERT_NO_OVERWRITE will not change a committed insert
-                    ULE_S ule_expected = ule_initial;
-                    uint8_t valbuf2[MAX_SIZE];
-                    uint32_t valsize2 = random() % MAX_SIZE;
-                    fillrandom(valbuf2, valsize2);
-                    DBT val2;
-                    toku_fill_dbt(&val2, valbuf2, valsize2);
-                    msg = msg_init(FT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                }
+            {
+                uint8_t valbuf2[MAX_SIZE];
+                uint32_t valsize2 = random() % MAX_SIZE;
+                fillrandom(valbuf2, valsize2);
+                DBT val2;
+                toku_fill_dbt(&val2, valbuf2, valsize2);
+                msg = msg_init(FT_INSERT, msg_xids, &key, &val2);
+                ULE_S ule_expected;
+                ule_expected.uxrs = ule_expected.uxrs_static;
+                generate_both_for(&ule_expected, &val, &msg);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
+            }
+            {
+                //INSERT_NO_OVERWRITE will not change a committed insert
+                ULE_S ule_expected = ule_initial;
+                uint8_t valbuf2[MAX_SIZE];
+                uint32_t valsize2 = random() % MAX_SIZE;
+                fillrandom(valbuf2, valsize2);
+                DBT val2;
+                toku_fill_dbt(&val2, valbuf2, valsize2);
+                msg = msg_init(FT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
+                test_le_apply(&ule_initial, &msg, &ule_expected);
             }
         }
     }
@@ -788,8 +749,7 @@ test_le_apply_messages(void) {
 
 static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_referenced_xid_known) {
     LEAFENTRY le;
-    size_t initial_memsize;
-    int r = le_pack(ule, &initial_memsize, &le, nullptr, nullptr, nullptr); CKERR(r);
+    int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, &le); CKERR(r);
     invariant_notnull(le);
     bool worth_running = toku_le_worth_running_garbage_collection(le, oldest_referenced_xid_known);
     toku_free(le);
@@ -924,8 +884,6 @@ static void test_le_optimize(void) {
     //
     ule_initial.num_cuxrs = 1;
     ule_initial.num_puxrs = 0;
-    ule_initial.keylen = keysize;
-    ule_initial.keyp = keybuf;
     ule_initial.uxrs[0].type = XR_INSERT;
     ule_initial.uxrs[0].xid = TXNID_NONE;
     ule_initial.uxrs[0].vallen = valsize;
@@ -933,8 +891,6 @@ static void test_le_optimize(void) {
     
     ule_expected.num_cuxrs = 1;
     ule_expected.num_puxrs = 0;
-    ule_expected.keylen = keysize;
-    ule_expected.keyp = keybuf;
     ule_expected.uxrs[0].type = XR_INSERT;
     ule_expected.uxrs[0].xid = TXNID_NONE;
     ule_expected.uxrs[0].vallen = valsize;
@@ -1033,13 +989,10 @@ static void test_le_optimize(void) {
 //            - Check memsize function is correct
 //             - Assert == disksize (almost useless, but go ahead)
 //            - Check standard accessors
-//             - le_latest_keylen
 //             - le_latest_val_and_len
 //             - le_latest_val 
 //             - le_latest_vallen
 //             - le_key_and_len
-//             - le_key 
-//             - le_keylen
 //             - le_innermost_inserted_val_and_len
 //             - le_innermost_inserted_val 
 //             - le_innermost_inserted_vallen

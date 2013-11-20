@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -107,27 +108,33 @@ uint8_t hi_gid[DB_GID_SIZE];
 
 
 static int
-hi_put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
+hi_put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *dest_val_arrays, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     lazy_assert(src_db != NULL && dest_db != NULL);
 
     if (dest_key->data) {
         toku_free(dest_key->data);
         dest_key->data = NULL;
     }
-    if (dest_data->data) {
-        toku_free(dest_data->data);
-        dest_data->data = NULL;
+    if (dest_val->data) {
+        toku_free(dest_val->data);
+        dest_val->data = NULL;
     }
     dest_key->data = toku_xmemdup(src_key->data, src_key->size);
     dest_key->size = src_key->size;
-    dest_data->data = toku_xmemdup(src_data->data, src_data->size);
-    dest_data->size = src_data->size;
+    dest_val->data = toku_xmemdup(src_val->data, src_val->size);
+    dest_val->size = src_val->size;
     
     return 0;
 }
 
 static int
-hi_del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT* UU(src_data)) {
+hi_del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, const DBT *src_key, const DBT* UU(src_data)) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
     lazy_assert(src_db != NULL && dest_db != NULL);
     if (dest_key->data) {
         toku_free(dest_key->data);
@@ -149,10 +156,12 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
     uint32_t flags[2];
     flags[0] = 0;
     flags[1] = 0;
-    DBT dest_keys[2];
-    DBT dest_vals[2];
-    memset(dest_keys, 0, sizeof(dest_keys));
-    memset(dest_vals, 0, sizeof(dest_vals));
+    DBT_ARRAY dest_keys[2];
+    DBT_ARRAY dest_vals[2];
+    for (int j = 0; j < 2; j++) {
+        toku_dbt_array_init(&dest_keys[j], 1);
+        toku_dbt_array_init(&dest_vals[j], 1);
+    }
 
     DBT key, val;
     uint8_t keybuf[arg->cli->key_size];
@@ -194,17 +203,9 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
         }
     }
 cleanup:
-    if (dest_keys[0].data) {
-        toku_free(dest_keys[0].data);
-    }
-    if (dest_keys[1].data) {
-        toku_free(dest_keys[1].data);
-    }
-    if (dest_vals[0].data) {
-        toku_free(dest_vals[0].data);
-    }
-    if (dest_vals[1].data) {
-        toku_free(dest_vals[1].data);
+    for (int j = 0; j < 2; j++) {
+        toku_dbt_array_destroy(&dest_keys[j]);
+        toku_dbt_array_destroy(&dest_vals[j]);
     }
     increment_counter(stats_extra, PUTS, i);
     gid_count++;

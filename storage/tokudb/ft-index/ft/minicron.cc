@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -144,9 +145,14 @@ minicron_do (void *pv)
             wakeup_at.tv_nsec += (p->period_in_ms % 1000) * 1000000;
             toku_timespec_t now;
             toku_gettime(&now);
-            int r = toku_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
-            if (r!=0 && r!=ETIMEDOUT) fprintf(stderr, "%s:%d r=%d (%s)", __FILE__, __LINE__, r, strerror(r));
-            assert(r==0 || r==ETIMEDOUT);
+            int compare = timespec_compare(&wakeup_at, &now);
+            // if the time to wakeup has yet to come, then we sleep
+            // otherwise, we continue
+            if (compare > 0) {
+                int r = toku_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
+                if (r!=0 && r!=ETIMEDOUT) fprintf(stderr, "%s:%d r=%d (%s)", __FILE__, __LINE__, r, strerror(r));
+                assert(r==0 || r==ETIMEDOUT);
+            }
         }
         // Now we woke up, and we should figure out what to do
         if (p->do_shutdown) {
@@ -160,13 +166,12 @@ minicron_do (void *pv)
             time_to_call.tv_sec += p->period_in_ms/1000;
             time_to_call.tv_nsec += (p->period_in_ms % 1000) * 1000000;
             int compare = timespec_compare(&time_to_call, &now);
-            //printf("compare(%.6f, %.6f)=%d\n", time_to_call.tv_sec + time_to_call.tv_nsec*1e-9, now.tv_sec+now.tv_nsec*1e-9, compare);
             if (compare <= 0) {
+                toku_gettime(&p->time_of_last_call_to_f); // the measured period includes the time to make the call.
                 toku_mutex_unlock(&p->mutex);
                 int r = p->f(p->arg);
                 assert(r==0);
                 toku_mutex_lock(&p->mutex);
-                toku_gettime(&p->time_of_last_call_to_f); // the period is measured between calls to f.
                 
             }
         }

@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -123,7 +124,7 @@ void toku_mempool_copy_construct(struct mempool *mp, const void * const data_sou
 
 /* initialize the memory pool with the base address and size of a
    contiguous chunk of memory */
-void toku_mempool_init(struct mempool *mp, void *base, size_t size);
+void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_t size);
 
 /* allocate memory and construct mempool
  */

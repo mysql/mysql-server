@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -126,37 +127,37 @@ int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, uint32_t flags);
 int autotxn_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, uint32_t flags);
 int autotxn_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, uint32_t flags);
 int env_put_multiple(
-    DB_ENV *env, 
-    DB *src_db, 
-    DB_TXN *txn, 
-    const DBT *src_key, const DBT *src_val, 
-    uint32_t num_dbs, 
-    DB **db_array, 
-    DBT *keys, DBT *vals, 
+    DB_ENV *env,
+    DB *src_db,
+    DB_TXN *txn,
+    const DBT *src_key, const DBT *src_val,
+    uint32_t num_dbs,
+    DB **db_array,
+    DBT_ARRAY *keys, DBT_ARRAY *vals,
     uint32_t *flags_array
     );
 int env_del_multiple(
-    DB_ENV *env, 
-    DB *src_db, 
-    DB_TXN *txn, 
-    const DBT *src_key, 
-    const DBT *src_val, 
-    uint32_t num_dbs, 
-    DB **db_array, 
-    DBT *keys, 
+    DB_ENV *env,
+    DB *src_db,
+    DB_TXN *txn,
+    const DBT *src_key,
+    const DBT *src_val,
+    uint32_t num_dbs,
+    DB **db_array,
+    DBT_ARRAY *keys,
     uint32_t *flags_array
-    ); 
+    );
 int env_update_multiple(
-    DB_ENV *env, 
-    DB *src_db, 
-    DB_TXN *txn,                                
+    DB_ENV *env,
+    DB *src_db,
+    DB_TXN *txn,
     DBT *old_src_key, DBT *old_src_data,
     DBT *new_src_key, DBT *new_src_data,
-    uint32_t num_dbs, 
-    DB **db_array, 
-    uint32_t* flags_array, 
-    uint32_t num_keys, DBT keys[], 
-    uint32_t num_vals, DBT vals[]
+    uint32_t num_dbs,
+    DB **db_array,
+    uint32_t* flags_array,
+    uint32_t num_keys, DBT_ARRAY keys[],
+    uint32_t num_vals, DBT_ARRAY vals[]
     );
 
 

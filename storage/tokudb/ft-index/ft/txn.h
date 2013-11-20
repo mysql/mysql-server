@@ -53,6 +53,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -217,5 +218,8 @@ void toku_txn_pin_live_txn_unlocked(TOKUTXN txn);
 void toku_txn_unpin_live_txn(TOKUTXN txn);
 
 bool toku_txn_has_spilled_rollback(TOKUTXN txn);
+
+uint64_t toku_txn_get_client_id(TOKUTXN txn);
+void toku_txn_set_client_id(TOKUTXN txn, uint64_t client_id);
 
 #endif //TOKUTXN_H

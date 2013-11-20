@@ -2266,6 +2266,11 @@ fil_op_log_parse_or_replay(
 	if (!space_id) {
 
 		return(ptr);
+	} else {
+		/* Only replay file ops during recovery.  This is a
+		release-build assert to minimize any data loss risk by a
+		misapplied file operation.  */
+		ut_a(recv_recovery_is_on());
 	}
 
 	/* Let us try to perform the file operation, if sensible. Note that

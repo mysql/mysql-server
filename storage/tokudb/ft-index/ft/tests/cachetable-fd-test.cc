@@ -50,6 +50,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -89,6 +90,7 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "test.h"
+#include "toku_os.h"
 
 
 static void
@@ -110,15 +112,19 @@ cachetable_fd_test (void) {
     // test set to good fd succeeds
     char fname2[TOKU_PATH_MAX+1];
     unlink(toku_path_join(fname2, 2, TOKU_TEST_FILENAME, "test2.dat"));
-    int fd2 = open(fname2, O_RDWR | O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd2 >= 0 && fd1 != fd2);
-    r = toku_cachefile_set_fd(cf, fd2, fname2); assert(r == 0);
-    assert(toku_cachefile_get_fd(cf) == fd2);
+    int fd2 = open(fname2, O_RDWR | O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
+    assert(fd2 >= 0 && fd1 != fd2);
+    struct fileid id;
+    r = toku_os_get_unique_file_id(fd2, &id);
+    assert(r == 0);
+    close(fd2);
 
     // test set to bogus fd fails
     int fd3 = open(DEV_NULL_FILE, O_RDWR); assert(fd3 >= 0);
-    r = close(fd3); assert(r == 0);
-    r = toku_cachefile_set_fd(cf, fd3, DEV_NULL_FILE); assert(r != 0);
-    assert(toku_cachefile_get_fd(cf) == fd2);
+    r = close(fd3);
+    assert(r == 0);
+    r = toku_os_get_unique_file_id(fd3, &id);
+    assert(r < 0);
 
     // test the filenum functions
     FILENUM fn = toku_cachefile_filenum(cf);

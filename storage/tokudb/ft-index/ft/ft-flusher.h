@@ -52,6 +52,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -222,10 +223,14 @@ void toku_ft_hot_status_init(void) __attribute__((__constructor__));
 void toku_ft_hot_get_status(FT_HOT_STATUS);
 
 /**
- * Takes given FT and pushes all pending messages to the leaf nodes.
+ * Takes given FT and pushes all pending messages between left and right to the leaf nodes.
+ * All messages between left and right (inclusive) will be pushed, as will some others
+ * that happen to share buffers with messages near the boundary.
+ * If left is NULL, messages from beginning of FT are pushed. If right is NULL, that means
+ * we go until the end of the FT.
  */
 int
-toku_ft_hot_optimize(FT_HANDLE brt,
+toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
                       void *progress_extra);
 

@@ -79,14 +79,14 @@ btr_search_info_create(
 	mem_heap_t*	heap);	/*!< in: heap where created */
 /*****************************************************************//**
 Returns the value of ref_count. The value is protected by
-btr_search_latch.
+the latch of the AHI partition corresponding to this index.
 @return	ref_count value. */
 UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
 	btr_search_t*   info,	/*!< in: search info. */
-	index_id_t	key);
+	dict_index_t*	index); /*!< in: index */
 /*********************************************************************//**
 Updates the search info. */
 UNIV_INLINE
@@ -204,15 +204,35 @@ btr_search_validate(void);
 New functions to control split btr_search_index */
 UNIV_INLINE
 hash_table_t*
-btr_search_get_hash_index(
+btr_search_get_hash_table(
 /*======================*/
-	index_id_t	key);
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull,pure,warn_unused_result));
 
 UNIV_INLINE
 rw_lock_t*
 btr_search_get_latch(
 /*=================*/
-	index_id_t	key);
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull,pure,warn_unused_result));
+
+/*********************************************************************//**
+Returns the AHI partition number corresponding to a given index ID. */
+UNIV_INLINE
+ulint
+btr_search_get_key(
+/*===============*/
+	index_id_t	index_id)	/*!< in: index ID */
+	__attribute__((pure,warn_unused_result));
+
+/*********************************************************************//**
+Initializes AHI-related fields in a newly created index. */
+UNIV_INLINE
+void
+btr_search_index_init(
+/*===============*/
+	dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull));
 
 UNIV_INLINE
 void
@@ -224,15 +244,16 @@ void
 btr_search_x_unlock_all(void);
 /*==========================*/
 
+#ifdef UNIV_SYNC_DEBUG
+/********************************************************************//**
+Checks if the thread owns any adaptive hash latches in either S or X mode.
+@return	TRUE if the thread owns at least one latch in any mode. */
 UNIV_INLINE
-void
-btr_search_s_lock_all(void);
-/*========================*/
-
-UNIV_INLINE
-void
-btr_search_s_unlock_all(void);
-/*==========================*/
+ibool
+btr_search_own_any(void)
+/*=====================*/
+	 __attribute__((warn_unused_result));
+#endif
 
 /** The search info struct in an index */
 struct btr_search_struct{
@@ -294,8 +315,8 @@ typedef struct btr_search_sys_struct	btr_search_sys_t;
 
 /** The hash index system */
 struct btr_search_sys_struct{
-	hash_table_t**	hash_index;	/*!< the adaptive hash index,
-					mapping dtuple_fold values
+	hash_table_t**	hash_tables;	/*!< the array of adaptive hash index,
+					tables mapping dtuple_fold values
 					to rec_t pointers on index pages */
 };
 
