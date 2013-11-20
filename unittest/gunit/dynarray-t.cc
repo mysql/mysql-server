@@ -240,6 +240,7 @@ protected:
 
     m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
+    destroy_counter= 0;
   }
 
   virtual void TearDown()
@@ -290,6 +291,8 @@ protected:
   MEM_ROOT *m_mem_root_p;
   Key_use_array m_array_mysys;
   Key_use_array m_array_std;
+public:
+  static size_t  destroy_counter;
 private:
   static Key_use test_data[num_elements];
   static TABLE   table_list[num_elements];
@@ -297,6 +300,7 @@ private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
 };
 
+size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
 TABLE   MemRootTest::table_list[num_elements];
 
@@ -370,8 +374,9 @@ TEST_F(MemRootTest, CopyMemRoot)
 class DestroyCounter
 {
 public:
+  DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {};
   DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
-  DestroyCounter(size_t *p) : p_counter(p) {}
+  explicit DestroyCounter(size_t *p) : p_counter(p) {}
   ~DestroyCounter() { (*p_counter)+= 1; }
 private:
   size_t *p_counter;
@@ -416,6 +421,48 @@ TEST_F(MemRootTest, ReserveDestroy)
   counter= 0;
   array.clear();
   EXPECT_EQ(nn, counter);
+}
+
+TEST_F(MemRootTest, ResizeSame)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  for (int ix= 0; ix < 10; ++ix)
+    array.push_back(foo);
+  EXPECT_EQ(10U, array.size());
+  array.resize(10U);
+  EXPECT_EQ(10U, array.size());
+  array.clear();
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, ResizeGrow)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  array.resize(10, foo);
+  // resize() takes element by value, which will also be destroyed.
+  EXPECT_EQ(1U, counter);
+  array.clear();
+  EXPECT_EQ(0U, MemRootTest::destroy_counter);
+  EXPECT_EQ(11U, counter);
+}
+
+TEST_F(MemRootTest, ResizeShrink)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  array.resize(10, foo);
+  // resize() takes element by value, which will also be destroyed.
+  EXPECT_EQ(1U, counter);
+  array.resize(5);
+  EXPECT_EQ(6U, counter);
 }
 
 
