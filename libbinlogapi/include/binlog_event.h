@@ -71,6 +71,41 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 extern char server_version[SERVER_VERSION_LENGTH];
 
+/*
+  Check how many bytes are available on buffer.
+
+  @param buf_start    Pointer to buffer start.
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return             Number of bytes available on event buffer.
+*/
+template <class T> T available_buffer(const char* buf_start,
+                                      const char* buf_current,
+                                      T buf_len)
+{
+  return buf_len - (buf_current - buf_start);
+}
+
+/*
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return      True   If jump value is within buffer limits.
+               False  Otherwise.
+*/
+template <class T> bool valid_buffer_range(T jump,
+                                           const char* buf_start,
+                                           const char* buf_current,
+                                           T buf_len)
+{
+  return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
+
 /**
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
   TERMINATED etc).
@@ -431,7 +466,6 @@ enum enum_binlog_checksum_alg {
  * Convenience function to get the string representation of a binlog event.
  */
 const char* get_event_type_str(Log_event_type type);
-
 /*
   Calculate a long checksum for a memoryblock.
 
@@ -446,7 +480,17 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
 {
   return (uint32_t)crc32(crc, pos, length);
 }
+/*
+  This method copies the string pointed to by src (including
+  the terminating null byte ('\0')) to the array pointed to by dest.
+  The strings may not overlap, and the destination string dest must be
+  large enough to receive the copy.
 
+  @param src  the source string
+  @param dest the desctination string
+
+  @return     pointer to the end of the string dest
+*/
 char *bapi_stpcpy(char *dst, const char *src);
 
 enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len);
@@ -1472,7 +1516,7 @@ public:
     uint8_t log_header_len;
     uint8_t common_header_len;
     char server_version[ST_SERVER_VER_LEN]; // This will be moved from here to Start_event_v3
-
+    unsigned char server_version_split[3];
     /* making post_header_len a uint8_t *, because it is done in that way
      *  in server, can be changed later if required.
     */
@@ -1480,6 +1524,8 @@ public:
     uint8_t number_of_event_types;
     const uint8_t *event_type_permutation;
     Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT; }
+    unsigned long get_version_product() const;
+    bool is_version_before_checksum() const;
     bool is_valid() const { return 1; }
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);
@@ -2017,43 +2063,71 @@ public:
 };
 
 
-
-class User_var_event: public Binary_log_event
+//TODO: Add comments for this class
+class User_var_event: public virtual Binary_log_event
 {
 public:
-    enum Value_type {
-      STRING_TYPE,
-      REAL_TYPE,
-      INT_TYPE,
-      ROW_TYPE,
-      DECIMAL_TYPE,
-      VALUE_TYPE_COUNT
+  enum Value_type {
+    STRING_TYPE,
+    REAL_TYPE,
+    INT_TYPE,
+    ROW_TYPE,
+    DECIMAL_TYPE,
+    VALUE_TYPE_COUNT
     };
+  enum {
+    UNDEF_F,
+    UNSIGNED_F
+  };
+  enum User_var_event_data
+  {
+    UV_VAL_LEN_SIZE= 4,
+    UV_VAL_IS_NULL= 1,
+    UV_VAL_TYPE_SIZE= 1,
+    UV_NAME_LEN_SIZE= 4,
+    UV_CHARSET_NUMBER_SIZE= 4
+  };
+  User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
+                 unsigned long val_len_arg, Value_type type_arg,
+                 unsigned int charset_number_arg, unsigned char flags_arg)
+  {
+    name= name_arg;
+    name_len= name_len_arg;
+    val= val_arg;
+    val_len= val_len_arg;
+    type=(Value_type) type_arg;
+    charset_number= charset_number_arg;
+    flags= flags_arg;
+    is_null= !val;
+  }
 
-    User_var_event(Log_event_header *header) : Binary_log_event(header) {}
-    std::string name;
-    uint8_t is_null;
-    uint8_t type;
-    uint32_t charset; /* charset of the string */
-    std::string value; /* encoded in binary speak, depends on .type */
-
-    Log_event_type get_type_code() {return USER_VAR_EVENT; }
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
-    std::string static get_value_type_string(enum Value_type type)
+  User_var_event(const char* buf, unsigned int event_len,
+                 const Format_description_event *description_event);
+  const char *name;
+  unsigned int name_len;
+  char *val;
+  unsigned long val_len;
+  Value_type type;
+  unsigned int charset_number;
+  bool is_null;
+  unsigned char flags;
+  Log_event_type get_type_code() {return USER_VAR_EVENT; }
+  bool is_valid() const { return 1; }
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+  std::string static get_value_type_string(enum Value_type type)
+  {
+    switch(type)
     {
-      switch(type)
-      {
-        case STRING_TYPE:return "String";
-        case REAL_TYPE:return "Real";
-        case INT_TYPE:return "Integer";
-        case ROW_TYPE:return "Row";
-        case DECIMAL_TYPE:return "Decimal";
-        case VALUE_TYPE_COUNT:return "Value type count";
-        default:return "Unknown";
-      }
+      case STRING_TYPE:return "String";
+      case REAL_TYPE:return "Real";
+      case INT_TYPE:return "Integer";
+      case ROW_TYPE:return "Row";
+      case DECIMAL_TYPE:return "Decimal";
+      case VALUE_TYPE_COUNT:return "Value type count";
+      default:return "Unknown";
     }
+  }
 };
 
 class Table_map_event: public Binary_log_event
@@ -2262,7 +2336,65 @@ public:
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);
 };
+/**
+  @class Rand_event
 
+  Logs random seed used by the next RAND(), and by PASSWORD() in 4.1.0.
+  4.1.1 does not need it (it's repeatable again) so this event needn't be
+  written in 4.1.1 for PASSWORD() (but the fact that it is written is just a
+  waste, it does not cause bugs).
+
+  The state of the random number generation consists of 128 bits,
+  which are stored internally as two 64-bit numbers.
+
+  @section Rand_event_binary_format Binary Format
+
+  The Post-Header for this event type is empty.  The Body has two
+  components:
+
+  <table>
+  <caption>Body for Rand_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>seed1</td>
+    <td>8 byte unsigned integer</td>
+    <td>64 bit random seed1.</td>
+  </tr>
+
+  <tr>
+    <td>seed2</td>
+    <td>8 byte unsigned integer</td>
+    <td>64 bit random seed2.</td>
+  </tr>
+  </table>
+*/
+class Rand_event: public virtual Binary_log_event
+{
+  public:
+  unsigned long long seed1;
+  unsigned long long seed2;
+  enum Rand_event_data
+  {
+    RAND_SEED1_OFFSET= 0,
+    RAND_SEED2_OFFSET= 8
+  };
+  Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
+  {
+    seed1= seed1_arg;
+    seed2= seed2_arg;
+  }
+  Rand_event(const char* buf,
+             const Format_description_event *description_event);
+  Log_event_type get_type_code() { return RAND_EVENT ; }
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+};
 Binary_log_event *create_incident_event(unsigned int type,
                                         const char *message,
                                         unsigned long pos= 0);

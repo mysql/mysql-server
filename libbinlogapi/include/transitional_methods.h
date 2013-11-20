@@ -33,7 +33,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /**
   Copies the first length character from source to destination
 */
-extern unsigned char *net_store_data(unsigned char *destination, const unsigned char *source, size_t length);
+extern unsigned char *net_store_data(unsigned char *destination,
+                                     const unsigned char *source, size_t length);
 
 /**
    Splits server 'version' string into three numeric pieces stored

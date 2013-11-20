@@ -40,6 +40,22 @@ namespace binary_log_debug
   bool debug_query_mts_corrupt_db_names= false;
 }
 
+/*
+  Explicit instantiation to unsigned int of template available_buffer
+  function.
+*/
+template unsigned int available_buffer<unsigned int>(const char*,
+                                                     const char*,
+                                                     unsigned int);
+
+/*
+  Explicit instantiation to unsigned int of template valid_buffer_range
+  function.
+*/
+template bool valid_buffer_range<unsigned int>(unsigned int,
+                                               const char*,
+                                               const char*,
+                                               unsigned int);
 namespace binary_log
 {
 const char *get_event_type_str(Log_event_type type)
@@ -85,6 +101,7 @@ const char *get_event_type_str(Log_event_type type)
   return "No Error";
 }
 
+
 /*this method was previously defined in log_event.cc */
 /**
    The method returns the checksum algorithm used to checksum the binary log.
@@ -125,17 +142,6 @@ enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len)
   return ret;
 }
 
-/*
-  This method copies the string pointed to by src (including
-  the terminating null byte ('\0')) to the array pointed to by dest.
-  The strings may not overlap, and the destination string dest must be
-  large enough to receive the copy.
-
-  @param src  the source string
-  @param dest the desctination string
-
-  @return     pointer to the end of the string dest
-*/
 char *bapi_stpcpy(char *dst, const char *src)
 {
   strcpy(dst, src);
@@ -440,6 +446,24 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
   //calc_server_version_split();
   checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 }
+/**
+   @return integer representing the version of server that originated
+   the current FD instance.
+*/
+unsigned long Format_description_event::get_version_product() const
+{
+  return version_product(server_version_split);
+}
+
+/**
+   @return TRUE is the event's version is earlier than one that introduced
+   the replication event checksum. FALSE otherwise.
+*/
+bool Format_description_event::is_version_before_checksum() const
+{
+  return get_version_product() < checksum_version_product;
+}
+
 
 Format_description_event::~Format_description_event()
 {
@@ -921,8 +945,120 @@ Xid_event(const char* buf,
   memcpy((char*) &xid, buf, sizeof(xid));
 }
 
+Rand_event::Rand_event(const char* buf,
+                       const Format_description_event* description_event)
+  :Binary_log_event(&buf, description_event->binlog_version)
+{
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[RAND_EVENT-1];
+  seed1= uint8korr(buf+RAND_SEED1_OFFSET);
+  seed2= uint8korr(buf+RAND_SEED2_OFFSET);
+}
 
+User_var_event::
+User_var_event(const char* buf, unsigned int event_len,
+               const Format_description_event* description_event)
+  :Binary_log_event(&buf, description_event->binlog_version)
+{
+  bool error= false;
+  const char* buf_start= buf;
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  const char *start= buf;
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[USER_VAR_EVENT-1];
+  name_len= uint4korr(buf);
+  name= (char *) buf + UV_NAME_LEN_SIZE;
 
+  /*
+    We don't know yet is_null value, so we must assume that name_len
+    may have the bigger value possible, is_null= True and there is no
+    payload for val, or even that name_len is 0.
+  */
+  if (!valid_buffer_range<unsigned int>(name_len, buf_start, name,
+                                        event_len - UV_VAL_IS_NULL))
+  {
+    error= true;
+    goto err;
+  }
+
+  buf+= UV_NAME_LEN_SIZE + name_len;
+  is_null= (bool) *buf;
+  flags= User_var_event::UNDEF_F;    // defaults to UNDEF_F
+  if (is_null)
+  {
+    type= STRING_TYPE;
+    /*
+    *my_charset_bin.number= 63, and my_charset_bin is defined in server
+    *so replacing it with its value.
+    */
+    charset_number= 63;
+    val_len= 0;
+    val= 0;
+  }
+
+  else
+  {
+    if (!valid_buffer_range<unsigned int>(UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE
+                                          + UV_CHARSET_NUMBER_SIZE +
+                                          UV_VAL_LEN_SIZE, buf_start, buf,
+                                          event_len))
+    {
+      error= true;
+      goto err;
+    }
+
+    type= (Value_type) buf[UV_VAL_IS_NULL];
+    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
+    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                       UV_CHARSET_NUMBER_SIZE);
+    val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
+
+    if (!valid_buffer_range<unsigned int>(val_len, buf_start, val, event_len))
+    {
+      error= true;
+      goto err;
+    }
+
+    /**
+      We need to check if this is from an old server
+      that did not pack information for flags.
+      We do this by checking if there are extra bytes
+      after the packed value. If there are we take the
+      extra byte and it's value is assumed to contain
+      the flags value.
+
+      Old events will not have this extra byte, thence,
+      we keep the flags set to UNDEF_F.
+    */
+  unsigned int bytes_read= ((val + val_len) - start);
+#ifndef DBUG_OFF
+    bool old_pre_checksum_fd= description_event->is_version_before_checksum();
+#endif
+    assert((bytes_read == header()->data_written -
+                 (old_pre_checksum_fd ||
+                  (description_event->checksum_alg ==
+                   BINLOG_CHECKSUM_ALG_OFF)) ?
+
+ 0 : BINLOG_CHECKSUM_LEN)
+                ||
+                (bytes_read == header()->data_written -1 -
+                 (old_pre_checksum_fd ||
+                  (description_event->checksum_alg ==
+                   BINLOG_CHECKSUM_ALG_OFF)) ?
+                 0 : BINLOG_CHECKSUM_LEN));
+    if ((header()->data_written - bytes_read) > 0)
+    {
+      flags= (unsigned int) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                              UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE +
+                              val_len);
+    }
+  }
+err:
+  if (error)
+    name= 0;
+}
 /******************************************************************************
                      Query_event methods
 ******************************************************************************/
@@ -1437,7 +1573,7 @@ void User_var_event::print_event_info(std::ostream& info)
 {
   info << "@`" << name << "`=";
   if(type == STRING_TYPE)
-    info  << value;
+    info  << val;
   else
     info << "<Binary encoded value>";
   //TODO: value is binary encoded, requires decoding
@@ -1542,4 +1678,15 @@ void Xid_event::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
+void Rand_event::print_event_info(std::ostream& info)
+{
+  info << " SEED1 is " << seed1;
+  info << " SEED2 is " << seed2;
+}
+void Rand_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "\t";
+  this->print_event_info(info);
+}
 } // end namespace binary_log
