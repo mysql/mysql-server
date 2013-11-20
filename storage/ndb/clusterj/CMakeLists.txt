@@ -15,11 +15,6 @@
 
 MESSAGE(STATUS "including ClusterJ")
 
-IF("${WITH_CLASSPATH}" MATCHES "junit-(.+).jar")
-  MESSAGE ( STATUS "Found junit jar" )
-  SET(HAVE_JUNIT TRUE)
-ENDIF()
-
 IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
   MESSAGE ( STATUS "Found openjpa jar" )
   SET(HAVE_OPENJPA TRUE)
@@ -30,12 +25,11 @@ SET(BASE_NAMES api core tie)
 IF(HAVE_OPENJPA)
   LIST(APPEND BASE_NAMES openjpa)
 ENDIF(HAVE_OPENJPA)
-IF(HAVE_JUNIT)
+  
   ADD_SUBDIRECTORY(clusterj-test)
   IF(HAVE_OPENJPA)
     ADD_SUBDIRECTORY(clusterj-jpatest)
   ENDIF(HAVE_OPENJPA)
-ENDIF(HAVE_JUNIT)
 
 FOREACH(BASE_NAME ${BASE_NAMES})
 
