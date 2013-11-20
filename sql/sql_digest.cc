@@ -27,7 +27,6 @@
 #include "sql_string.h"
 #include "sql_digest.h"
 #include "sql_digest_stream.h"
-#include "sql_digest_read.h"
 
 /* Generated code */
 #include "sql_yacc.h"
@@ -40,12 +39,7 @@
 
 #define LEX_YYSTYPE YYSTYPE*
 
-#define COL_DIGEST_TEXT_SIZE 1024
-
 #define SIZE_OF_A_TOKEN 2
-
-/* Fixed, per MD5 hash. */
-#define PFS_MD5_SIZE 16
 
 /**
   Read a single token from token array.
@@ -144,10 +138,20 @@ inline void store_token_identifier(sql_digest_storage* digest_storage,
   }
 }
 
+void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5)
+{
+  compute_md5_hash((char *) md5,
+                   (const char *) digest_storage->m_token_array,
+                   digest_storage->m_byte_count);
+}
+
 /*
   Iterate token array and updates digest_text.
 */
-void get_digest_text(char* digest_text, const sql_digest_storage* digest_storage)
+void compute_digest_text(const sql_digest_storage* digest_storage,
+                         char* digest_text,
+                         size_t digest_text_length,
+                         bool *truncated_ptr)
 {
   DBUG_ASSERT(digest_storage != NULL);
   bool truncated= false;
@@ -157,12 +161,14 @@ void get_digest_text(char* digest_text, const sql_digest_storage* digest_storage
   uint tok= 0;
   int current_byte= 0;
   lex_token_string *tok_data;
+
   /* -4 is to make sure extra space for '...' and a '\0' at the end. */
-  int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
+  int bytes_available= digest_text_length - 4;
 
   if (byte_count <= 0 || byte_count > MAX_DIGEST_STORAGE_SIZE)
   {
     *digest_text= '\0';
+    *truncated_ptr= false;
     return;
   }
 
@@ -177,6 +183,7 @@ void get_digest_text(char* digest_text, const sql_digest_storage* digest_storage
       which can be written to in another thread.
     */
     *digest_text= '\0';
+    *truncated_ptr= false;
     return;
   }
 
@@ -201,6 +208,7 @@ void get_digest_text(char* digest_text, const sql_digest_storage* digest_storage
     if (tok <= 0 || tok >= array_elements(lex_token_array))
     {
       *digest_text='\0';
+      *truncated_ptr= false;
       return;
     }
 
@@ -297,6 +305,7 @@ void get_digest_text(char* digest_text, const sql_digest_storage* digest_storage
     digest_output+= 3;
   }
 
+  *truncated_ptr= truncated;
   *digest_output= '\0';
 }
 

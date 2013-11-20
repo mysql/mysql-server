@@ -28,7 +28,6 @@
 #include "pfs_digest.h"
 #include "pfs_global.h"
 #include "table_helper.h"
-#include "my_md5.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"
@@ -187,9 +186,7 @@ find_or_create_digest(PFS_thread *thread,
   PFS_digest_key hash_key;
   memset(& hash_key, 0, sizeof(hash_key));
   /* Compute MD5 Hash of the tokens received. */
-  compute_md5_hash((char *) hash_key.m_md5,
-                   (char *) digest_storage->m_token_array,
-                   digest_storage->m_byte_count);
+  compute_digest_md5(digest_storage, hash_key.m_md5);
   /* Add the current schema to the key */
   hash_key.m_schema_name_length= schema_name_length;
   if (schema_name_length > 0)

@@ -402,10 +402,9 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
   if (safe_byte_count > 0 &&
       safe_byte_count <= MAX_DIGEST_STORAGE_SIZE)
   {
+    bool truncated;
     PFS_digest_key md5;
-    compute_md5_hash((char *) md5.m_md5,
-                     (char *) digest->m_token_array,
-                     safe_byte_count);
+    compute_digest_md5(digest, md5.m_md5);
 
     /* Generate the DIGEST string from the MD5 digest  */
     MD5_HASH_TO_STRING(md5.m_md5,
@@ -413,7 +412,10 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
     m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
-    get_digest_text(m_row.m_digest.m_digest_text, digest);
+    compute_digest_text(digest,
+                        m_row.m_digest.m_digest_text,
+                        sizeof(m_row.m_digest.m_digest_text),
+                        & truncated);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
 
     if (m_row.m_digest.m_digest_text_length == 0)
