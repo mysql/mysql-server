@@ -72,8 +72,40 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 extern char server_version[SERVER_VERSION_LENGTH];
 
 /*
-  Check how many bytes are available on buffer.
+   binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
+   Compared to version 3, version 4 has:
+   - a different Start_log_event, which includes info about the binary log
+   (sizes of headers); this info is included for better compatibility if the
+   master's MySQL version is different from the slave's.
+   - all events have a unique ID (the triplet (server_id, timestamp at server
+   start, other) to be sure an event is not executed more than once in a
+   multimaster setup, example:
+                M1
+              /   \
+             v     v
+             M2    M3
+             \     /
+              v   v
+                S
+   if a query is run on M1, it will arrive twice on S, so we need that S
+   remembers the last unique ID it has processed, to compare and know if the
+   event should be skipped or not. Example of ID: we already have the server id
+   (4 bytes), plus:
+   timestamp_when_the_master_started (4 bytes), a counter (a sequence number
+   which increments every time we write an event to the binlog) (3 bytes).
+   Q: how do we handle when the counter is overflowed and restarts from 0 ?
 
+   - Query and Load (Create or Execute) events may have a more precise
+     timestamp (with microseconds), number of matched/affected/warnings rows
+   and fields of session variables: SQL_MODE,
+   FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
+   charsets, the PASSWORD() version (old/new/...).
+*/
+#define BINLOG_VERSION    4
+/*
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
   @param buf_start    Pointer to buffer start.
   @param buf_current  Pointer to the current position on buffer.
   @param buf_len      Buffer length.
@@ -293,8 +325,8 @@ static inline int read_str_at_most_255_bytes(const char **buf,
 
 namespace binary_log
 {
-/*
-   This flag only makes sense for Format_description_log_event. It is set
+/**
+   This flag only makes sense for Format_description_event. It is set
    when the event is written, and *reset* when a binlog file is
    closed (yes, it's the only case when MySQL modifies an already written
    part of the binlog).  Thus it is a reliable indicator that the binlog was
@@ -307,7 +339,7 @@ namespace binary_log
    rollback automatically, while binlog does not.  To solve this we use this
    flag and automatically append ROLLBACK to every non-closed binlog (append
    virtually, on reading, file itself is not changed). If this flag is found,
-  mysqlbinlog simply prints "ROLLBACK" Replication master does not abort on
+   mysqlbinlog simply prints "ROLLBACK". Replication master does not abort on
    binlog corruption, but takes it as EOF, and replication slave forces a
    rollback in this case.
 
@@ -324,9 +356,9 @@ namespace binary_log
 */
 enum Log_event_type
 {
-  /*
+  /**
     Every time you update this enum (when you add a type), you have to
-    fix Format_description_log_event::Format_description_log_event().
+    fix Format_description_event::Format_description_event().
   */
   UNKNOWN_EVENT= 0,
   START_EVENT_V3= 1,
@@ -340,7 +372,7 @@ enum Log_event_type
   APPEND_BLOCK_EVENT= 9,
   EXEC_LOAD_EVENT= 10,
   DELETE_FILE_EVENT= 11,
-  /*
+  /**
     NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
     sql_ex, allowing multibyte TERMINATED BY etc; both types share the
     same class (Load_event)
@@ -415,7 +447,7 @@ enum Log_event_type
  We could have used SERVER_VERSION_LENGTH, but this introduces an
  obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
  this would break the replication protocol
-+*/
+*/
 #define ST_SERVER_VER_LEN 50
 /*
    Event header offsets;
@@ -632,11 +664,14 @@ public:
   */
   static const int LOG_EVENT_TYPES= (ENUM_END_EVENT - 2);
 
-  /* event-specific post-header sizes */
+  /**
+    The lengths for the fixed data part of each event.
+    This is an enum that provides post-header lengths for all events.
+  */
   enum enum_post_header_length{
     // where 3.23, 4.x and 5.0 agree
     QUERY_HEADER_MINIMAL_LEN= (4 + 4 + 1 + 2),
-    // where 5.0 differs: 2 for len of N-bytes vars.
+    // where 5.0 differs: 2 for length of N-bytes vars.
     QUERY_HEADER_LEN=(QUERY_HEADER_MINIMAL_LEN + 2),
     STOP_HEADER_LEN= 0,
     LOAD_HEADER_LEN= (4 + 4 + 4 + 1 +1 + 4),
@@ -651,7 +686,7 @@ public:
     NEW_LOAD_HEADER_LEN= LOAD_HEADER_LEN,
     RAND_HEADER_LEN= 0,
     USER_VAR_HEADER_LEN= 0,
-    FORMAT_DESCRIPTION_HEADER_LEN= (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES),
+    FORMAT_DESCRIPTION_HEADER_LEN= (START_V3_HEADER_LEN + 1 + LOG_EVENT_TYPES),
     XID_HEADER_LEN= 0,
     BEGIN_LOAD_QUERY_HEADER_LEN= APPEND_BLOCK_HEADER_LEN,
     ROWS_HEADER_LEN_V1= 8,
@@ -1505,27 +1540,113 @@ public:
   }
 };
 
-class Format_description_event: public Binary_log_event
+/**
+  @class Start_log_event_v3
+
+  Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
+  4.x).
+
+  Format_description_log_event derives from Start_log_event_v3; it is
+  the Start_log_event of binlog format 4 (MySQL 5.0), that is, the
+  event that describes the other events' Common-Header/Post-Header
+  lengths. This event is sent by MySQL 5.0 whenever it starts sending
+  a new binlog if the requested position is >4 (otherwise if ==4 the
+  event will be sent naturally).
+
+  @section Start_log_event_v3_binary_format Binary Format
+*/
+
+class Start_event_v3: public  virtual Binary_log_event
+ {
+ public:
+/*
+    If this event is at the start of the first binary log since server
+    startup 'created' should be the timestamp when the event (and the
+    binary log) was created.  In the other case (i.e. this event is at
+    the start of a binary log created by FLUSH LOGS or automatic
+    rotation), 'created' should be 0.  This "trick" is used by MySQL
+    >=4.0.14 slaves to know whether they must drop stale temporary
+    tables and whether they should abort unfinished transaction.
+
+    Note that when 'created'!=0, it is always equal to the event's
+    timestamp; indeed Start_log_event is written only in log.cc where
+    the first constructor below is called, in which 'created' is set
+    to 'when'.  So in fact 'created' is a useless variable. When it is
+    0 we can read the actual value from timestamp ('when') and when it
+    is non-zero we can read the same value from timestamp
+    ('when'). Conclusion:
+     - we use timestamp to print when the binlog was created.
+     - we use 'created' only to know if this is a first binlog or not.
+     In 3.23.57 we did not pay attention to this identity, so mysqlbinlog in
+     3.23.57 does not print 'created the_date' if created was zero. This is now
+     fixed.
+  */
+  time_t created;
+  uint16_t binlog_version;
+  char server_version[ST_SERVER_VER_LEN];
+   /*
+    We set this to 1 if we don't want to have the created time in the log,
+    which is the case when we rollover to a new log.
+  */
+  bool dont_set_created;
+  Log_event_type get_type_code() { return START_EVENT_V3;}
+  protected:
+  /**
+     The constructor below will be  used only by Format_description_event
+     constructor
+  */
+  Start_event_v3();
+  public:
+  Start_event_v3(const char* buf,
+                 const Format_description_event* description_event);
+  //TODO: Add definition for them
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+};
+
+/**
+  @class Format_description_event
+
+  For binlog version 4.
+  This event is saved by threads which read it, as they need it for future
+  use (to decode the ordinary events).
+
+  @section Format_description_event_binary_format Binary Format
+*/
+class Format_description_event: public virtual Start_event_v3
 {
 public:
-    Format_description_event(Log_event_header *header) : Binary_log_event(header) {}
-    Format_description_event(uint16_t binlog_ver, const char* server_ver=0);
-    uint16_t binlog_version;
-    std::string master_version;
     uint32_t created_ts;
     uint8_t log_header_len;
-    uint8_t common_header_len;
-    char server_version[ST_SERVER_VER_LEN]; // This will be moved from here to Start_event_v3
-    unsigned char server_version_split[3];
-    /* making post_header_len a uint8_t *, because it is done in that way
-     *  in server, can be changed later if required.
+    /**
+     The size of the fixed header which _all_ events have
+     (for binlogs written by this version, this is equal to
+     LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
+     (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
     */
+    uint8_t common_header_len;
+    /*
+     The list of post-headers' lengths followed
+     by the checksum alg decription byte
+  */
     uint8_t *post_header_len;
-    uint8_t number_of_event_types;
+    unsigned char server_version_split[3];
+    /**
+     In some previous version > 5.1 GA event types are assigned
+     different event id numbers than in the present version, so we
+     must map those id's to the our current event id's. This
+     mapping is done using event_type_permutation
+    */
     const uint8_t *event_type_permutation;
+    Format_description_event(uint8_t binlog_ver, const char* server_ver=0);
+    Format_description_event(const char* buf, unsigned int event_len,
+                             const Format_description_event *description_event);
+
+    uint8_t number_of_event_types;
     Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT; }
     unsigned long get_version_product() const;
     bool is_version_before_checksum() const;
+    void calc_server_version_split();
     bool is_valid() const { return 1; }
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);

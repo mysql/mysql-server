@@ -73,21 +73,40 @@ inline const char* bapi_strndup(const char *destination, size_t n)
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise
 */
-inline const char* bapi_memdup(const char* source, size_t len)
+inline const void* bapi_memdup(const void* source, size_t len)
 {
-  const char* dest;
+  const void* dest;
 #if HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
-  dest= (const char*)my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
+  dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
 #else
-  dest= (const char*)malloc(len);
+  dest= malloc(len);
   if (dest)
-    memcpy(&event_buf, &source, len);
+    memcpy(dest, source, len);
 #endif
   return dest;
 }
+/**
+  This is a wrapper function inorder to  allocate memory from the heap
+  in the binlogapi library.
 
+  If compiled with the MySQL server, and memory is allocated using memory
+  allocating methods from the mysys library, my_malloc is called. Otherwise,
+  the standard malloc() is called from the function.
 
+  @param  Size of the memory to be allocated.
+  @return Void pointer to the allocated chunk of memory
+*/
+inline void * bapi_malloc(size_t size)
+{
+  void * dest= NULL;
+  #if HAVE_MYSYS
+    dest= my_malloc(key_memory_log_event,size, MYF(0));
+  #else
+    dest=  malloc(size);
+  #endif
+  return dest;
+}
 /**
   This is a wrapper function inorder to free the memory allocated from the heap
   in the binlogapi library.

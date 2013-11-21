@@ -144,6 +144,12 @@ char *bapi_stpcpy(char *dst, const char *src)
 }
 /**
   Log_event_header constructor
+
+  @param buf                  the buffer containing the complete information including
+                              the event and the header data
+
+  @param description_event    first ctor of Format_description_event, used to extract the
+                              binlog_version
 */
 Log_event_header::Log_event_header(const char* buf,
                                    const Format_description_event *description_event)
@@ -285,6 +291,18 @@ Binary_log_event * create_incident_event(unsigned int type,
   return incident;
 }
 
+/**
+   Empty ctor of Start_event_v3 called when we call the
+   ctor of FDE which takes binlog_version as the parameter
+   It will initialize the server_version by global variable
+   server_version
+*/
+Start_event_v3::Start_event_v3()
+  :created(0), binlog_version(BINLOG_VERSION),
+   dont_set_created(0)
+{
+  memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+}
 /*
  *TODO FDE constructor is not tested in this patch, but it will
  *tested in future patches
@@ -305,95 +323,57 @@ Binary_log_event * create_incident_event(unsigned int type,
                                 5.0.
   @param server_ver             a string containing the server version.
 */
-Format_description_event::Format_description_event(uint16_t binlog_ver, const char* server_ver)
+Format_description_event::Format_description_event(uint8_t binlog_ver,
+                                                   const char* server_ver)
+  :Start_event_v3(), event_type_permutation(0)
 {
   binlog_version= binlog_ver;
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 and above*/
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
-    DBUG_EXECUTE_IF("pretend_version_5_0_34_in_binlog",
+    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
                     bapi_stpcpy(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
-    /* we'll catch malloc() error in is_valid() */
-    post_header_len=(uint8_t*) malloc(number_of_event_types * sizeof(uint8_t)
-                                       + BINLOG_CHECKSUM_ALG_DESC_LEN);
-    /*
-      This long list of assignments is not beautiful, but I see no way to
-      make it nicer, as the right members are enum, not array members, so
-      it's impossible to write a loop.
+    /**
+      This will be used to initialze the post_header_len,
+      for binlog version 4.
     */
+    static uint8_t server_event_header_length[]=
+    {
+      START_V3_HEADER_LEN, QUERY_HEADER_LEN, STOP_HEADER_LEN,
+      ROTATE_HEADER_LEN, INTVAR_HEADER_LEN, LOAD_HEADER_LEN, 0,
+      CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN, EXEC_LOAD_HEADER_LEN,
+      DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN, RAND_HEADER_LEN,
+      USER_VAR_HEADER_LEN, FORMAT_DESCRIPTION_HEADER_LEN, XID_HEADER_LEN,
+      BEGIN_LOAD_QUERY_HEADER_LEN, EXECUTE_LOAD_QUERY_HEADER_LEN,
+      /*
+       The PRE_GA events are never be written to any binlog, but
+       their lengths are included in Format_description_log_event.
+       Hence, we need to be assign some value here, to avoid reading
+       uninitialized memory when the array is written to disk.
+      */
+      TABLE_MAP_HEADER_LEN, ROWS_HEADER_LEN_V1, ROWS_HEADER_LEN_V1,
+      ROWS_HEADER_LEN_V1, 0, 0, 0, INCIDENT_HEADER_LEN, 0, IGNORABLE_HEADER_LEN,
+      IGNORABLE_HEADER_LEN, ROWS_HEADER_LEN_V2, ROWS_HEADER_LEN_V2,
+      ROWS_HEADER_LEN_V2,
+      //TODO  25 will be replaced byGtid_log_event::POST_HEADER_LENGTH;
+       25, 25, IGNORABLE_HEADER_LEN
+    };
+    post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
+                                           + BINLOG_CHECKSUM_ALG_DESC_LEN);
+
     if (post_header_len)
     {
-#ifndef DBUG_OFF
-      // Allows us to sanity-check that all events initialized their
-      // events (see the end of this 'if' block).
+      /**
+         Allows us to sanity-check that all events initialized their
+         events (see the end of this 'if' block).
+      */
       memset(post_header_len, 255, number_of_event_types * sizeof(uint8_t));
-#endif
-
-      /* Note: all event types must explicitly fill in their lengths here. */
-      post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
-      post_header_len[QUERY_EVENT-1]= QUERY_HEADER_LEN;
-      post_header_len[STOP_EVENT-1]= STOP_HEADER_LEN;
-      post_header_len[ROTATE_EVENT-1]= ROTATE_HEADER_LEN;
-      post_header_len[INTVAR_EVENT-1]= INTVAR_HEADER_LEN;
-      post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;   /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
-      post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
-      post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
-      post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
-      post_header_len[DELETE_FILE_EVENT-1]= DELETE_FILE_HEADER_LEN;
-      post_header_len[NEW_LOAD_EVENT-1]= NEW_LOAD_HEADER_LEN;
-      post_header_len[RAND_EVENT-1]= RAND_HEADER_LEN;
-      post_header_len[USER_VAR_EVENT-1]= USER_VAR_HEADER_LEN;
-      post_header_len[FORMAT_DESCRIPTION_EVENT-1]= FORMAT_DESCRIPTION_HEADER_LEN;
-      post_header_len[XID_EVENT-1]= XID_HEADER_LEN;
-      post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= BEGIN_LOAD_QUERY_HEADER_LEN;
-      post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
-      /*
-        The PRE_GA events are never written to any binlog, but
-        their lengths are included in the Format_description_log_event.
-        Hence, we need to assign some value here, to avoid reading
-        uninitialized memory when the array is written to disk.
-      */
-      post_header_len[PRE_GA_WRITE_ROWS_EVENT-1] = 0;
-      post_header_len[PRE_GA_UPDATE_ROWS_EVENT-1] = 0;
-      post_header_len[PRE_GA_DELETE_ROWS_EVENT-1] = 0;
-
-      post_header_len[TABLE_MAP_EVENT-1]=       TABLE_MAP_HEADER_LEN;
-      post_header_len[WRITE_ROWS_EVENT_V1-1]=   ROWS_HEADER_LEN_V1;
-      post_header_len[UPDATE_ROWS_EVENT_V1-1]=  ROWS_HEADER_LEN_V1;
-      post_header_len[DELETE_ROWS_EVENT_V1-1]=  ROWS_HEADER_LEN_V1;
-      /*
-        We here have the possibility to simulate a master before we changed
-        the table map id to be stored in 6 bytes: when it was stored in 4
-        bytes (=> post_header_len was 6). This is used to test backward
-        compatibility.
-        This code can be removed after a few months (today is Dec 21st 2005),
-        when we know that the 4-byte masters are not deployed anymore (check
-        with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
-        too.
-      */
-      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                      post_header_len[TABLE_MAP_EVENT-1]=
-                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
-                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
-                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
-      post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
-      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
-      post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-      post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-      post_header_len[WRITE_ROWS_EVENT-1]=  ROWS_HEADER_LEN_V2;
-      post_header_len[UPDATE_ROWS_EVENT-1]= ROWS_HEADER_LEN_V2;
-      post_header_len[DELETE_ROWS_EVENT-1]= ROWS_HEADER_LEN_V2;
-       post_header_len[GTID_LOG_EVENT-1]=
-        post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]= 25;
-      //TODO  25 will be replaced by Gtid_log_event::POST_HEADER_LENGTH;
-      post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      memcpy(post_header_len, server_event_header_length, number_of_event_types);
       // Sanity-check that all post header lengths are initialized.
-      int i;
-      for (i= 0; i < number_of_event_types; i++)
-        DBUG_ASSERT(post_header_len[i] != 255);
+      for (int i= 0; i < number_of_event_types; i++)
+        assert(post_header_len[i] != 255);
     }
     break;
 
@@ -415,35 +395,48 @@ Format_description_event::Format_description_event(uint16_t binlog_ver, const ch
       make the slave detect less corruptions).
     */
     number_of_event_types= FORMAT_DESCRIPTION_EVENT - 1;
-    post_header_len= (uint8_t*) malloc(number_of_event_types * sizeof(uint8_t));
+     /**
+      This will be used to initialze the post_header_len, for binlog version
+      1 and 3
+     */
+    static uint8_t server_event_header_length_ver_1_3[]=
+    {
+      START_V3_HEADER_LEN, QUERY_HEADER_MINIMAL_LEN, STOP_HEADER_LEN,
+      binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN, INTVAR_HEADER_LEN, LOAD_HEADER_LEN, 0,
+      CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN, EXEC_LOAD_HEADER_LEN,
+      DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN, RAND_HEADER_LEN,
+      USER_VAR_HEADER_LEN
+    };
+    post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
+                                           + BINLOG_CHECKSUM_ALG_DESC_LEN);
     if (post_header_len)
     {
-      post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
-      post_header_len[QUERY_EVENT-1]= QUERY_HEADER_MINIMAL_LEN;
-      post_header_len[STOP_EVENT-1]= 0;
-      post_header_len[ROTATE_EVENT-1]= (binlog_ver==1) ? 0 : ROTATE_HEADER_LEN;
-      post_header_len[INTVAR_EVENT-1]= 0;
-      post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;  /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
-      post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
-      post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
-      post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
-      post_header_len[DELETE_FILE_EVENT-1]= DELETE_FILE_HEADER_LEN;
-      post_header_len[NEW_LOAD_EVENT-1]= post_header_len[LOAD_EVENT-1];
-      post_header_len[RAND_EVENT-1]= 0;
-      post_header_len[USER_VAR_EVENT-1]= 0;
+      memcpy(post_header_len, server_event_header_length_ver_1_3, number_of_event_types);
     }
     break;
   default: /* Includes binlog version 2 i.e. 4.0.x x<=1 */
+    //TODO: modify the comment regarding is_valid() below
     post_header_len= 0; /* will make is_valid() fail */
     break;
   }
-  //calc_server_version_split();
+  calc_server_version_split();
   checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 }
+
 /**
-   @return integer representing the version of server that originated
+   This method populates the array server_version_split which is then
+   used for lookups to find if the server which
+   created this event has some known bug.
+*/
+void Format_description_event::calc_server_version_split()
+{
+  do_server_version_split(server_version, server_version_split);
+}
+
+/**
+   This method is used to find out the version of server that originated
    the current FD instance.
+   @return the version of server
 */
 unsigned long Format_description_event::get_version_product() const
 {
@@ -451,7 +444,8 @@ unsigned long Format_description_event::get_version_product() const
 }
 
 /**
-   @return TRUE is the event's version is earlier than one that introduced
+   This method 
+   @return TRUE if the event's version is earlier than one that introduced
    the replication event checksum. FALSE otherwise.
 */
 bool Format_description_event::is_version_before_checksum() const
@@ -459,11 +453,180 @@ bool Format_description_event::is_version_before_checksum() const
   return get_version_product() < checksum_version_product;
 }
 
+Start_event_v3::Start_event_v3(const char* buf,
+                               const Format_description_event *description_event)
+  :Binary_log_event(&buf, description_event->binlog_version)
+{
+  buf+= description_event->common_header_len;
+  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
+  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
+        ST_SERVER_VER_LEN);
+  // prevent overrun if log is corrupted on disk
+  server_version[ST_SERVER_VER_LEN-1]= 0;
+  created= uint4korr(buf+ST_CREATED_OFFSET);
+  dont_set_created= 1;
+}
+
+/**
+  The problem with this constructor is that the fixed header may have a
+  length different from this version, but we don't know this length as we
+  have not read the Format_description_log_event which says it, yet. This
+  length is in the post-header of the event, but we don't know where the
+  post-header starts.
+
+  So this type of event HAS to:
+  - either have the header's length at the beginning (in the header, at a
+  fixed position which will never be changed), not in the post-header. That
+  would make the header be "shifted" compared to other events.
+  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
+  versions, so that we know for sure.
+
+  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
+  it is sent before Format_description_log_event).
+*/
+Format_description_event::
+Format_description_event(const char* buf, unsigned int event_len,
+                         const Format_description_event* description_event)
+  :Start_event_v3(buf, description_event), event_type_permutation(0)
+{
+  unsigned long ver_calc;
+  buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
+  if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
+    return; /* sanity check */
+  number_of_event_types=
+    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
+   post_header_len= (uint8_t*) bapi_memdup((unsigned char*)buf +
+                                           ST_COMMON_HEADER_LEN_OFFSET + 1,
+                                           number_of_event_types *
+                                           sizeof(*post_header_len));
+  calc_server_version_split();
+  if ((ver_calc= get_version_product()) >= checksum_version_product)
+{
+    /* the last bytes are the checksum alg desc and value (or value's room) */
+    number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+    /*
+      FD from the checksum-home version server (ver_calc ==
+      checksum_version_product) must have
+      number_of_event_types == LOG_EVENT_TYPES.
+    */
+    DBUG_ASSERT(ver_calc != checksum_version_product ||
+                number_of_event_types == LOG_EVENT_TYPES);
+    checksum_alg= (enum_binlog_checksum_alg) post_header_len[number_of_event_types];
+  }
+  else
+  {
+    checksum_alg=  BINLOG_CHECKSUM_ALG_UNDEF;
+  }
+
+  /*
+    In some previous versions, the events were given other event type
+    id numbers than in the present version. When replicating from such
+    a version, we therefore set up an array that maps those id numbers
+    to the id numbers of the present server.
+
+    If post_header_len is null, it means malloc failed, and subclass method
+    is_valid will fail, so there is no need to do anything.
+
+    The trees in which events have wrong id's are:
+
+    mysql-5.1-wl1012.old mysql-5.1-wl2325-5.0-drop6p13-alpha
+    mysql-5.1-wl2325-5.0-drop6 mysql-5.1-wl2325-5.0
+    mysql-5.1-wl2325-no-dd
+
+    (this was found by grepping for two lines in sequence where the
+    first matches "FORMAT_DESCRIPTION_EVENT," and the second matches
+    "TABLE_MAP_EVENT," in log_event.h in all trees)
+
+    In these trees, the following server_versions existed since
+    TABLE_MAP_EVENT was introduced:
+     5.1.1-a_drop5p3   5.1.1-a_drop5p4        5.1.1-alpha
+    5.1.2-a_drop5p10  5.1.2-a_drop5p11       5.1.2-a_drop5p12
+    5.1.2-a_drop5p13  5.1.2-a_drop5p14       5.1.2-a_drop5p15
+    5.1.2-a_drop5p16  5.1.2-a_drop5p16b      5.1.2-a_drop5p16c
+    5.1.2-a_drop5p17  5.1.2-a_drop5p4        5.1.2-a_drop5p5
+    5.1.2-a_drop5p6   5.1.2-a_drop5p7        5.1.2-a_drop5p8
+    5.1.2-a_drop5p9   5.1.3-a_drop5p17       5.1.3-a_drop5p17b
+5.1.3-a_drop5p17c 5.1.4-a_drop5p18       5.1.4-a_drop5p19
+    5.1.4-a_drop5p20  5.1.4-a_drop6p0        5.1.4-a_drop6p1
+    5.1.4-a_drop6p2   5.1.5-a_drop5p20       5.2.0-a_drop6p3
+    5.2.0-a_drop6p4   5.2.0-a_drop6p5        5.2.0-a_drop6p6
+    5.2.1-a_drop6p10  5.2.1-a_drop6p11       5.2.1-a_drop6p12
+    5.2.1-a_drop6p6   5.2.1-a_drop6p7        5.2.1-a_drop6p8
+    5.2.2-a_drop6p13  5.2.2-a_drop6p13-alpha 5.2.2-a_drop6p13b
+    5.2.2-a_drop6p13c
+
+    (this was found by grepping for "mysql," in all historical
+    versions of configure.in in the trees listed above).
+
+    There are 5.1.1-alpha versions that use the new event id's, so we
+    do not test that version string.  So replication from 5.1.1-alpha
+    with the other event id's to a new version does not work.
+    Moreover, we can safely ignore the part after drop[56].  This
+    allows us to simplify the big list above to the following regexes:
+
+    5\.1\.[1-5]-a_drop5.*
+    5\.1\.4-a_drop6.*
+    5\.2\.[0-2]-a_drop6.*
+
+    This is what we test for in the 'if' below.
+  */
+  if (post_header_len &&
+      server_version[0] == '5' && server_version[1] == '.' &&
+      server_version[3] == '.' &&
+      strncmp(server_version + 5, "-a_drop", 7) == 0 &&
+      ((server_version[2] == '1' &&
+        server_version[4] >= '1' && server_version[4] <= '5' &&
+        server_version[12] == '5') ||
+       (server_version[2] == '1' &&
+        server_version[4] == '4' &&
+        server_version[12] == '6') ||
+       (server_version[2] == '2' &&
+        server_version[4] >= '0' && server_version[4] <= '2' &&
+        server_version[12] == '6')))
+  {
+    if (number_of_event_types != 22)
+    {
+      //TODO: modify the below comment
+      /* this makes is_valid() return false. */
+      bapi_free(post_header_len);
+      post_header_len= NULL;
+      return;
+    }
+    static const uint8_t perm[23]=
+      {
+        UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
+        INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
+        APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
+        NEW_LOAD_EVENT,
+        RAND_EVENT, USER_VAR_EVENT,
+        FORMAT_DESCRIPTION_EVENT,
+        TABLE_MAP_EVENT,
+        PRE_GA_WRITE_ROWS_EVENT,
+        PRE_GA_UPDATE_ROWS_EVENT,
+        PRE_GA_DELETE_ROWS_EVENT,
+        XID_EVENT,
+        BEGIN_LOAD_QUERY_EVENT,
+        EXECUTE_LOAD_QUERY_EVENT,
+      };
+    event_type_permutation= perm;
+    /*
+      Since we use (permuted) event id's to index the post_header_len
+      array, we need to permute the post_header_len array too.
+    */
+    uint8_t post_header_len_temp[23];
+    for (int i= 1; i < 23; i++)
+      post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
+    for (int i= 0; i < 22; i++)
+      post_header_len[i] = post_header_len_temp[i];
+  }
+    return;
+}
+
 
 Format_description_event::~Format_description_event()
 {
   if(post_header_len)
-    free(post_header_len);
+    bapi_free((void*)post_header_len);
 }
 //void Binary_log_event::print_event_info(std::ostream& info) {}
 //void Binary_log_event::print_long_info(std::ostream& info) {}
@@ -781,7 +944,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                 description_event->post_header_len[LOAD_EVENT-1];
   unsigned char create_file_header_len=
                 description_event->post_header_len[CREATE_FILE_EVENT-1];
-  if (!(event_buf= bapi_memdup(buf, len)) ||
+  if (!(event_buf= (char *)bapi_memdup(buf, len)) ||
       copy_load_event(event_buf,len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
@@ -1536,15 +1699,15 @@ void Rotate_event::print_long_info(std::ostream& info)
 
 void Format_description_event::print_event_info(std::ostream& info)
 {
-  info << "Server ver: " << master_version;
+  info << "Server ver: " << server_version;
   info << ", Binlog ver: " << binlog_version;
 }
 
 void Format_description_event::print_long_info(std::ostream& info)
 {
   this->print_event_info(info);
-  info << "\nCreated timestamp: " << created_ts;
-  info << "\tCommon Header Length: " << (int)log_header_len;
+  info << "\nCreated timestamp: " << created;
+  info << "\tCommon Header Length: " << common_header_len;
   info << "\nPost header length for events: \n";
 }
 
