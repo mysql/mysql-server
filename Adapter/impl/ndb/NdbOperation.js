@@ -598,7 +598,6 @@ function getScanResults(scanop, userCallback) {
          (fixme: do something more efficient) */
       for(i = 0 ; i < nSkip ; i++) results.shift();
 
-      /* TODO: NdbScanOperation::close() ??? */
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;

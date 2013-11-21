@@ -241,29 +241,38 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
             && self.retries++ < 10);
   }
 
-  function retryAfterClose() {
-    op.ndbScanOp = null;
-    udebug.log(self.moniker, "retrying scan:", self.retries);
-    executeScan(self, execMode, abortFlag, dbOperationList, callback);
-  }
 
   /* Fetch is complete. */
   function onFetchComplete(err) {
-    if(err) {
-      if(canRetry(err)) {
-        op.ndbScanOp.close(false, false, retryAfterClose);
-      } else {
-        op.result.success = false;
-        op.result.error = err;
-        onExecute(self, ROLLBACK, err, execId, callback);
-      }
-    } else { /* No error */
+    var closeScanopCallback;
+
+    function retryAfterClose() {
+      op.ndbScanOp = null;
+      udebug.log(self.moniker, "retrying scan:", self.retries);
+      executeScan(self, execMode, abortFlag, dbOperationList, callback);
+    }
+    
+    function closeWithError() {
+      op.result.success = false;
+      op.result.error = err;
+      onExecute(self, ROLLBACK, err, execId, callback);
+    }
+
+    function closeSuccess() {
       if(execMode == NOCOMMIT) {
         onExecute(self, execMode, err, execId, callback);      
       } else {
         executeNdbTransaction();
-      }
+      }    
     }
+
+    if(err) {
+      closeScanopCallback = canRetry(err) ? retryAfterClose : closeWithError;
+    } else {
+      closeScanopCallback = closeSuccess;
+    }
+
+    op.ndbScanOp.close(false, false, closeScanopCallback);
   }
   
   /* Fetch results */
