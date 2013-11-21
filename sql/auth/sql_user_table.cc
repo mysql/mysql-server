@@ -634,6 +634,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 {
   int error = -1;
   bool old_row_exists=0;
+  bool builtin_plugin= true;
+  bool update_password;
   char *password= empty_c_string;
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
@@ -658,6 +660,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
                                              system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
+
+  update_password= combo->uses_identified_by_clause ||
+                   combo->uses_identified_by_password_clause;
 
   if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                          HA_WHOLE_KEY,
@@ -715,9 +720,10 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
       see also test_if_create_new_users()
     */
-    if (!password_len &&
-        auth_plugin_is_built_in(combo->plugin.str) && 
-        no_auto_create)
+
+    builtin_plugin= auth_plugin_is_built_in(combo->plugin.str);
+
+    if (!password_len && builtin_plugin && no_auto_create)
     {
       my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
       goto end;
@@ -749,10 +755,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       /* Use the authentication_string field */
       combo->auth.str= password;
       combo->auth.length= password_len;
-      if (password_len > 0)
-        table->
-          field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-            store(password, password_len, &my_charset_utf8_bin);
+      table->
+        field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
+          store(password, password_len, &my_charset_utf8_bin);
       /* Assert that the proper plugin is set */
       table->
         field[MYSQL_USER_FIELD_PLUGIN]->
@@ -822,15 +827,15 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     optimize_plugin_compare_by_pointer(&old_plugin);
 
+    builtin_plugin= auth_plugin_is_built_in(old_plugin.str);
+
     /*
       Disable plugin change for existing rows with anything but
       the built in plugins.
       The idea is that all built in plugins support
       IDENTIFIED BY ... and none of the external ones currently do.
     */
-    if ((combo->uses_identified_by_clause ||
-	 combo->uses_identified_by_password_clause) &&
-	!auth_plugin_is_built_in(old_plugin.str))
+    if (update_password && !builtin_plugin)
     {
       push_warning(thd, Sql_condition::SL_WARNING, 
                    ER_SET_PASSWORD_AUTH_PLUGIN,
@@ -862,7 +867,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     password= combo->password.str;
     password_len= combo->password.length;
 
-    if (password_len > 0)
+    if (update_password && builtin_plugin)
     {
 #if defined(HAVE_OPENSSL)
       if (combo->plugin.str == sha256_password_plugin_name.str)
@@ -1013,9 +1018,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     /* if we have a password supplied we update the expiration field */
     if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
-        password_len > 0)
+        update_password && auth_plugin_supports_expiration(combo->plugin.str))
+    {
       table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
                                                              system_charset_info);
+    }
   }
 
   if (old_row_exists)

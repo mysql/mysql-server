@@ -426,7 +426,6 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->release_resources();
   Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
