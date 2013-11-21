@@ -2923,12 +2923,6 @@ set max_heap_table_size = @tmp_max_heap_table_size;
 #
 # MDEV-5161: Wrong result (missing rows) with semijoin, LEFT JOIN, ORDER BY, constant table
 #
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=off,engine_condition_pushdown=off,index_condition_pushdown=on,derived_merge=on,derived_with_keys=on,firstmatch=on,loosescan=on,materialization=off,in_to_exists=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr=on,mrr_cost_based=off,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on,optimize_join_buffer_size=off,table_elimination=on,extended_keys=off
-select @@join_cache_level;
-@@join_cache_level
-1
 CREATE TABLE t1 (pk INT PRIMARY KEY, c1 VARCHAR(1)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,'v'),(2,'v'),(3,'c'),(4,NULL),(5,'x');
 CREATE TABLE t2 (c2 VARCHAR(1)) ENGINE=MyISAM;
@@ -2953,4 +2947,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1` AS `c1`,'x' AS `c2` from `test`.`t1` semi join (`test`.`t1` left join `test`.`t3` on((`test`.`t1`.`c1` = `test`.`t3`.`c3`))) where (`test`.`t1`.`pk` = `test`.`t1`.`pk`) order by 'x',`test`.`t1`.`c1`
 DROP TABLE t1,t2,t3;
+# 
+# MDEV-5059: Wrong result (missing row) wih semijoin, join_cache_level > 2, LEFT JOIN, ORDER BY
+# 
+SET @tmp_mdev5059=@@join_cache_level;
+SET join_cache_level = 3;
+set @tmp_os_mdev5059= @@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (pk1 INT PRIMARY KEY, i1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,4),(2,5);
+CREATE TABLE t2 (i2 INT, c2 CHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'v'),(7,'s');
+CREATE TABLE t3 (pk3 INT PRIMARY KEY, i3 INT, c3 CHAR(1), INDEX(i3), INDEX(c3,i3)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1,7,'g'),(2,4,'p'),(3,1,'q');
+CREATE TABLE t4 (i4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (1);
+SELECT * FROM t1, t2 LEFT JOIN t3 ON (c3 = c2) 
+WHERE ( i2, pk1 )  IN ( SELECT i3, 1 FROM t3, t4 ) ORDER BY i1, c2;
+pk1	i1	i2	c2	pk3	i3	c3
+1	4	7	s	NULL	NULL	NULL
+1	4	1	v	NULL	NULL	NULL
+SET join_cache_level=@tmp_mdev5059;
+set optimizer_switch=@tmp_os_mdev5059;
+DROP TABLE t1,t2,t3,t4;
 set optimizer_switch=@subselect_sj_tmp;

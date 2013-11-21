@@ -2625,8 +2625,6 @@ set max_heap_table_size = @tmp_max_heap_table_size;
 --echo #
 --echo # MDEV-5161: Wrong result (missing rows) with semijoin, LEFT JOIN, ORDER BY, constant table
 --echo #
-select @@optimizer_switch;
-select @@join_cache_level;
 CREATE TABLE t1 (pk INT PRIMARY KEY, c1 VARCHAR(1)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,'v'),(2,'v'),(3,'c'),(4,NULL),(5,'x');
 
@@ -2643,5 +2641,34 @@ EXPLAIN EXTENDED
 SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
 
 DROP TABLE t1,t2,t3;
+
+--echo # 
+--echo # MDEV-5059: Wrong result (missing row) wih semijoin, join_cache_level > 2, LEFT JOIN, ORDER BY
+--echo # 
+
+SET @tmp_mdev5059=@@join_cache_level;
+# Any value > 2 will do
+SET join_cache_level = 3;
+set @tmp_os_mdev5059= @@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (pk1 INT PRIMARY KEY, i1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,4),(2,5);
+
+CREATE TABLE t2 (i2 INT, c2 CHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'v'),(7,'s');
+
+CREATE TABLE t3 (pk3 INT PRIMARY KEY, i3 INT, c3 CHAR(1), INDEX(i3), INDEX(c3,i3)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1,7,'g'),(2,4,'p'),(3,1,'q');
+
+CREATE TABLE t4 (i4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (1);
+
+SELECT * FROM t1, t2 LEFT JOIN t3 ON (c3 = c2) 
+WHERE ( i2, pk1 )  IN ( SELECT i3, 1 FROM t3, t4 ) ORDER BY i1, c2;
+
+SET join_cache_level=@tmp_mdev5059;
+set optimizer_switch=@tmp_os_mdev5059;
+DROP TABLE t1,t2,t3,t4;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
