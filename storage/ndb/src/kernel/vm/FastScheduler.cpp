@@ -117,9 +117,7 @@ FastScheduler::doJob()
         globalData.JobLap = tJobLap + 1;
 	
 #ifdef VM_TRACE_TIME
-	Uint32 us1, us2;
-	Uint64 ms1, ms2;
-	NdbTick_CurrentMicrosecond(&ms1, &us1);
+	const NDB_TICKS t1 = NdbTick_getCurrentTicks();
 	b->m_currentGsn = reg_gsn;
 #endif
 	
@@ -138,12 +136,8 @@ FastScheduler::doJob()
 #endif
         b->executeFunction(reg_gsn, signal);
 #ifdef VM_TRACE_TIME
-	NdbTick_CurrentMicrosecond(&ms2, &us2);
-	Uint64 diff = ms2;
-	diff -= ms1;
-	diff *= 1000000;
-	diff += us2;
-	diff -= us1;
+	const NDB_TICKS t2 = NdbTick_getCurrentTicks();
+        const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
 	b->addTime(reg_gsn, diff);
 #endif
         tHighPrio = globalData.highestAvailablePrio;
