@@ -5136,7 +5136,7 @@ SELECT * FROM t1 WHERE (1=2 OR t1.pk=2) AND t1.a <> 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select 2 AS `pk`,0 AS `a` from `test`.`t1` where ((0 <> 0))
+Note	1003	select 2 AS `pk`,0 AS `a` from `test`.`t1` where (0 <> 0)
 DROP TABLE t1;
 SELECT * FROM mysql.time_zone 
 WHERE ( NOT (Use_leap_seconds <= Use_leap_seconds AND Time_zone_id != 1) 

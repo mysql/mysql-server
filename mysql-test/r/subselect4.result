@@ -2326,5 +2326,27 @@ x	NULL	NULL	NULL
 d	NULL	NULL	NULL
 drop table t1,t2;
 set @@optimizer_switch = @optimizer_switch_MDEV4056;
+#
+# MDEV-5103: server crashed on singular Item_equal
+#
+CREATE TABLE t1 (
+a enum('p','r') NOT NULL DEFAULT 'r',
+b int NOT NULL DEFAULT '0',
+c char(32) NOT NULL,
+d varchar(255) NOT NULL,
+PRIMARY KEY (a, b), UNIQUE KEY idx(a, c)
+);
+INSERT INTO t1 VALUES ('r', 1, 'ad18832202b199728921807033a8a515', '001_cbr643');
+CREATE TABLE t2 (
+a enum('p','r') NOT NULL DEFAULT 'r',
+b int NOT NULL DEFAULT '0',
+e datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+PRIMARY KEY (a, b, e)
+);
+INSERT INTO t2 VALUES ('r', 1, '2013-10-05 14:25:30');
+SELECT * FROM t1 AS t 
+WHERE a='r' AND (c,b) NOT IN (SELECT c,b FROM t2 WHERE (c,b)=(t.c,t.b));
+a	b	c	d
+DROP TABLE t1, t2;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;
