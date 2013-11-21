@@ -19,6 +19,7 @@
  */
 
 "use strict";
+var BitMask            = require("./BitMask.js");
 var udebug             = unified_debug.getLogger("IndexBounds.js");
 
 
@@ -76,7 +77,6 @@ function blah() {
   console.trace();
   process.exit();
 }
-
 
 //////// EncodedValue             /////////////////
 
@@ -158,7 +158,8 @@ IndexValue.prototype.copy = function() {
 
 IndexValue.prototype.compare = function(that) {
   var n, len, cmp, v1, v2;
-  
+
+if(! that.isIndexValue) blah(this, that);
   assert(that.isIndexValue);
   len = this.size < that.size ? this.size : that.size;
   
@@ -181,7 +182,7 @@ IndexValue.prototype.isFinite = function() {
 };
 
 IndexValue.prototype.inspect = function() {
-  var i, result = "";
+  var i, result = "Index:";
   for(i = 0 ; i < this.size ; i++) {
     if(i) result += ",";
     result += this.parts[i];
@@ -254,8 +255,9 @@ Endpoint.prototype.compare = function(that) {
    e.g. the complement of [4,10] is [-Inf, 4) and (10, Inf]
 */
 Endpoint.prototype.complement = function() {
-  if(this.isFinite) 
+  if(this.isFinite) {
     this.inclusive = ! this.inclusive;
+  }
 };
 
 /* push() is used only for endpoints that contain IndexValues
@@ -411,7 +413,7 @@ function createSegmentBetween(a, b) {
 
 /* Create a segment for a comparison expression */
 function createSegmentForComparator(operator, value) {
-  var pt, segment;
+  var segment;
   switch(operator) {   // operation codes are from api/Query.js
     case 0:   // LE
       return new Segment(negInf, new Endpoint(value, true));
@@ -422,13 +424,9 @@ function createSegmentForComparator(operator, value) {
     case 3:   // GT
       return new Segment(new Endpoint(value, false), posInf);
     case 4:   // EQ
-      pt = new Endpoint(value);
-      segment = new Segment(pt, pt);
-      return segment;      
+      return new Segment(new Endpoint(value), new Endpoint(value));
     case 5:   // NE 
-      pt = new Endpoint(value);
-      segment = new Segment(pt, pt);
-      return segment.complement();
+      return new Segment(new Endpoint(value), new Endpoint(value)).complement();
     default:
       return null;
   }
@@ -529,14 +527,14 @@ NumberLine.prototype.getIterator = function() {
 /* Complement of a number line (Negation of an expression)
 */
 NumberLine.prototype.complement = function() {
-  if(this.lowerBound().value == -Infinity) {
+  if(! this.lowerBound().isFinite) {
     this.transitions.shift();
   }
   else {
     this.transitions.unshift(negInf);
   }
   
-  if(this.upperBound().value == Infinity) {
+  if(! this.upperBound().isFinite) {
     this.transitions.pop();
   }
   else {
@@ -691,74 +689,6 @@ function unionForColumn(predicates, columnNumber) {
 var queryNaryFunctions = [ null , intersectionForColumn , unionForColumn ] ;
 
 
-/* Returns an array containing the column numbers of used columns
-*/
-function maskToArray(mask) {
-  var i, columns;
-  i = 0;
-  columns = [];
-  
-  while(mask != 0) {
-    if(mask & Math.pow(2,i)) {
-      mask ^= Math.pow(2,i);
-      columns.push(i);
-    }
-    i++;
-  }
-  return columns;
-}
-
-/* Create a mask from a list of column numbers
-*/
-function arrayToMask(list) {
-  var c, mask;
-  mask = 0;
-  while(list.length) {  
-    c = list.pop();
-    mask |= Math.pow(2, c);    
-  }
-  return mask;
-}
-
-/****************************************** QueryMarkerVisitor ************
- * Mark the query with a column mask indicating the columns used
- * for every node.
- * Note: JavaScript numbers get weird above about 2^51.  So the columnMask 
- * code does not support the case where a table has more than about 50 columns,
- * and high-numbered columns are used in the query.
- */
-function QueryMarkerVisitor() {
-}
-
-function markComparator(node) {
-  node.columnMask = Math.pow(2, node.queryField.field.columnNumber);
-}
-
-QueryMarkerVisitor.prototype.visitQueryComparator = markComparator;
-QueryMarkerVisitor.prototype.visitQueryUnaryOperator = markComparator;
-QueryMarkerVisitor.prototype.visitQueryBetweenOperator = markComparator;
-
-QueryMarkerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
-  node.predicates[0].visit(this);
-  node.columnMask = node.predicates[0].columnMask;
-};
-
-QueryMarkerVisitor.prototype.visitQueryNaryPredicate = function(node) {
-  var i;
-  node.columnMask = 0;
-  for(i = 0 ; i < node.predicates.length ; i++) {
-    node.predicates[i].visit(this);
-    node.columnMask |= node.predicates[i].columnMask;
-  }
-};
-
-var theMarkerVisitor = new QueryMarkerVisitor();   // singleton
-
-function markQuery(queryHandler) {     // public exported function
-  queryHandler.predicate.visit(theMarkerVisitor);
-}
-
-
 /****************************************** ColumnBoundVisitor ************
  *
  * Given a set of actual parameter values, visit the query tree and store
@@ -789,7 +719,7 @@ ColumnBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
     node.predicates[i].visit(this);
   }
   node.columnBound = {};
-  doColumns = maskToArray(node.columnMask);
+  doColumns = node.usedColumnMask.toArray();
   while(doColumns.length) {
     c = doColumns.pop();
     node.columnBound[c] = unionOrIntersection(node.predicates, c);
@@ -800,7 +730,7 @@ ColumnBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
 ColumnBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   var c, doColumns;
   node.predicates[0].visit(this);
-  doColumns = maskToArray(node.columnMask);
+  doColumns = node.usedColumnMask.toArray();
   node.columnBound = {};
   while(doColumns.length) {
     c = doColumns.pop();
@@ -846,13 +776,13 @@ ColumnBoundVisitor.prototype.visitQueryUnaryOperator = function(node) {
  * Visit a tree that has already been marked by a ColumnBoundVisitor.
  * Construct a set of IndexBounds for a particular index.
  */
-function IndexBoundVisitor(dbIndex) {
+function IndexBoundVisitor(queryHandler, dbIndex) {
   this.index = dbIndex;
   this.ncol = this.index.columnNumbers.length;
-  this.mask = 0;
+  this.mask = new BitMask(queryHandler.dbTableHandler.dbTable.columns.length);
   if(this.ncol > 1) {
-    this.mask |= Math.pow(2, this.index.columnNumbers[0]);
-    this.mask |= Math.pow(2, this.index.columnNumbers[1]);
+    this.mask.set(this.index.columnNumbers[0]);
+    this.mask.set(this.index.columnNumbers[1]);
   }
 }
 
@@ -880,7 +810,10 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
   }
 
   Consolidator.prototype.consolidate = function(partialBounds, doLow, doHigh) {
-    var boundsIterator, segment, idxBounds;
+    var boundsIterator, segment, idxBounds, doNextLow, doNextHigh;
+
+    doNextLow = doLow;
+    doNextHigh = doHigh;
 
     boundsIterator = this.columnBounds.getIterator();
     segment = boundsIterator.next();
@@ -889,15 +822,15 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
 
       if(doLow) {
         idxBounds.low.push(segment.low);
-        doLow = segment.low.inclusive && segment.low.isFinite;
+        doNextLow = segment.low.inclusive && segment.low.isFinite;
       }
       if(doHigh) {
         idxBounds.high.push(segment.high);
-        doHigh = segment.high.inclusive && segment.high.isFinite;
+        doNextHigh = segment.high.inclusive && segment.high.isFinite;
       }
 
-      if(this.nextColumnConsolidator && (doLow || doHigh)) {
-        this.nextColumnConsolidator.consolidate(idxBounds, doLow, doHigh);
+      if(this.nextColumnConsolidator && (doNextLow || doNextHigh)) {
+        this.nextColumnConsolidator.consolidate(idxBounds, doNextLow, doNextHigh);
       }
       else {
         allBounds.insertSegment(idxBounds);
@@ -913,11 +846,14 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
 
     for(i = this.ncol - 1; i >= 0 ; i--) {
       columnBounds = evaluateNodeForColumn(node, this.index.columnNumbers[i]);
+      udebug.log("consolidate predicate:", node);
+      udebug.log("consolidate in:", i, columnBounds);
       thisColumn = new Consolidator(columnBounds, nextColumn);
       nextColumn = thisColumn;
     }
     /* nextColumn is now the first column */
     nextColumn.consolidate(initialIndexBounds, true, true);
+    udebug.log("consolidate out:", allBounds);
     node.indexRange = allBounds;
   }
 };
@@ -931,7 +867,7 @@ IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
 // the rest of them, and construct the union or intersection of the 
 // consolidated bounds.  This is definitely the case for an OR node.
   var i;
-  if(node.columnMask & this.mask) {
+  if(node.usedColumnMask.and(this.mask).isEqualTo(this.mask)) {
     for(i = 0 ; i < node.predicates.length ; i++) {
       node.predicates[i].visit(this);
     }
@@ -941,9 +877,11 @@ IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
 
 /** Handle node QueryNot */
 IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
-  if(node.columnMask & this.mask) {
-    node.predicates[0].visit(this);  
-    node.indexRange = node.predicates[0].indexRange.complement();
+  if(node.usedColumnMask.and(this.mask).isEqualTo(this.mask)) {
+    node.predicates[0].visit(this);
+    if(node.predicates[0].indexRange) {
+      node.indexRange = node.predicates[0].indexRange.complement();
+    }
   }
 };
 
@@ -976,7 +914,7 @@ function getIndexBounds(queryHandler, dbIndex, params) {
   queryHandler.predicate.visit(new ColumnBoundVisitor(params));
 
   /* Then analyze it for this particular index */
-  indexVisitor = new IndexBoundVisitor(dbIndex);
+  indexVisitor = new IndexBoundVisitor(queryHandler, dbIndex);
   queryHandler.predicate.visit(indexVisitor);
 
   /* Build a consolidated index bound for the top-level predicate */
@@ -992,6 +930,5 @@ function getIndexBounds(queryHandler, dbIndex, params) {
   return bounds;  
 }
 
-exports.markQuery = markQuery;
 exports.getIndexBounds = getIndexBounds;
 
