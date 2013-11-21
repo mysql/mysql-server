@@ -222,16 +222,6 @@ void thd_release_resources(THD *thd)
 }
 
 /**
-  Reset the context associated from THD with the thread.
-
-  @param    THD   pointer to THD object.
-*/
-void restore_globals(THD *thd)
-{
-  thd->restore_globals();
-}
-
-/**
   Delete the THD object.
 
   @param    THD   pointer to THD object.
@@ -1650,6 +1640,8 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+  if (current_thd == this)
+    restore_globals();
   DBUG_VOID_RETURN;
 }
 
