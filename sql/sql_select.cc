@@ -241,7 +241,8 @@ static ORDER *create_distinct_group(THD *thd, Item **ref_pointer_array,
                                     List<Item> &all_fields,
 				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
-static TABLE *get_sort_by_table(ORDER *a,ORDER *b,List<TABLE_LIST> &tables);
+static TABLE *get_sort_by_table(ORDER *a,ORDER *b,List<TABLE_LIST> &tables, 
+                                table_map const_tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
 static bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
@@ -1211,7 +1212,8 @@ JOIN::optimize()
     goto setup_subq_exit;
   }
   error= -1;					// Error is sent to client
-  sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
+  /* get_sort_by_table() call used to be here: */
+  MEM_UNDEFINED(&sort_by_table, sizeof(sort_by_table));
 
   /* Calculate how to do the join */
   thd_proc_info(thd, "statistics");
@@ -3583,6 +3585,9 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     }
   } while (join->const_table_map & found_ref && ref_changed);
  
+  join->sort_by_table= get_sort_by_table(join->order, join->group_list,
+                                         join->select_lex->leaf_tables,
+                                         join->const_table_map);
   /* 
     Update info on indexes that can be used for search lookups as
     reading const tables may has added new sargable predicates. 
@@ -20730,7 +20735,8 @@ test_if_subpart(ORDER *a,ORDER *b)
 */
 
 static TABLE *
-get_sort_by_table(ORDER *a,ORDER *b, List<TABLE_LIST> &tables)
+get_sort_by_table(ORDER *a,ORDER *b, List<TABLE_LIST> &tables, 
+                  table_map const_tables)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> ti(tables);
@@ -20744,6 +20750,23 @@ get_sort_by_table(ORDER *a,ORDER *b, List<TABLE_LIST> &tables)
 
   for (; a && b; a=a->next,b=b->next)
   {
+    /* Skip elements of a that are constant */
+    while (!((*a->item)->used_tables() & ~const_tables))
+    {
+      if (!(a= a->next))
+        break;
+    }
+
+    /* Skip elements of b that are constant */
+    while (!((*b->item)->used_tables() & ~const_tables))
+    {
+      if (!(b= b->next))
+        break;
+    }
+
+    if (!a || !b)
+      break;
+
     if (!(*a->item)->eq(*b->item,1))
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
