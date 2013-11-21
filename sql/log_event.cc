@@ -60,7 +60,6 @@ using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 using binary_log::Binary_log_event;
-
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
@@ -1577,8 +1576,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   );
 
   binary_log_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-  binary_log::Format_description_event des_ev(description_event->binlog_version,
-                                              description_event->server_version);
+  binary_log::Format_description_event des_ev(description_event->binlog_version);
   if (crc_check &&
       event_checksum_test((uchar *) buf, event_len, alg))
   {
@@ -1660,7 +1658,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Execute_load_log_event(buf, event_len, &des_ev);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, description_event);
+      ev = new Start_log_event_v3(buf, &des_ev);
       break;
     case STOP_EVENT:
       ev = new Stop_log_event(buf, &des_ev);
@@ -1678,7 +1676,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new User_var_log_event(buf, event_len, &des_ev);
       break;
     case FORMAT_DESCRIPTION_EVENT:
-      ev = new Format_description_log_event(buf, event_len, description_event);
+      ev = new Format_description_log_event(buf, event_len, &des_ev);
       break;
 #if defined(HAVE_REPLICATION) 
     case PRE_GA_WRITE_ROWS_EVENT:
@@ -4909,10 +4907,8 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 
 #ifndef MYSQL_CLIENT
 Start_log_event_v3::Start_log_event_v3()
-  :Log_event(), created(0), binlog_version(BINLOG_VERSION),
-   dont_set_created(0)
+  :Start_event_v3()
 {
-  memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
 }
 #endif
 
@@ -4990,19 +4986,11 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 
 Start_log_event_v3::Start_log_event_v3(const char* buf,
-                                       const Format_description_log_event
+                                       const Format_description_event
                                        *description_event)
   :Binary_log_event(&buf, description_event->binlog_version),
-   Log_event(buf, description_event)
+   Start_event_v3(buf, description_event), Log_event(this->header())
 {
-  buf+= description_event->common_header_len;
-  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
-  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
-	 ST_SERVER_VER_LEN);
-  // prevent overrun if log is corrupted on disk
-  server_version[ST_SERVER_VER_LEN-1]= 0;
-  created= uint4korr(buf+ST_CREATED_OFFSET);
-  dont_set_created= 1;
 }
 
 
@@ -5128,149 +5116,9 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 */
 
 Format_description_log_event::
-Format_description_log_event(uint16 binlog_ver, const char* server_ver)
-  :Start_log_event_v3(), event_type_permutation(0)
+Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
+  :Format_description_event(binlog_ver, server_ver)
 {
-  binlog_version= binlog_ver;
-  switch (binlog_ver) {
-  case 4: /* MySQL 5.0 */
-    memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
-    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
-                    my_stpcpy(server_version, "5.0.34"););
-    common_header_len= LOG_EVENT_HEADER_LEN;
-    number_of_event_types= Binary_log_event::LOG_EVENT_TYPES;
-    /* we'll catch my_malloc() error in is_valid() */
-    post_header_len=(uint8*) my_malloc(key_memory_log_event,
-                                       number_of_event_types*sizeof(uint8)
-                                       + BINLOG_CHECKSUM_ALG_DESC_LEN,
-                                       MYF(0));
-    /*
-      This long list of assignments is not beautiful, but I see no way to
-      make it nicer, as the right members are #defines, not array members, so
-      it's impossible to write a loop.
-    */
-    if (post_header_len)
-    {
-#ifndef DBUG_OFF
-      // Allows us to sanity-check that all events initialized their
-      // events (see the end of this 'if' block).
-      memset(post_header_len, 255, number_of_event_types*sizeof(uint8));
-#endif
-
-      /* Note: all event types must explicitly fill in their lengths here. */
-      post_header_len[START_EVENT_V3-1]=  Binary_log_event::START_V3_HEADER_LEN;
-      post_header_len[QUERY_EVENT-1]=  Binary_log_event::QUERY_HEADER_LEN;
-      post_header_len[STOP_EVENT-1]=  Binary_log_event::STOP_HEADER_LEN;
-      post_header_len[ROTATE_EVENT-1]=  Binary_log_event::ROTATE_HEADER_LEN;
-      post_header_len[INTVAR_EVENT-1]=  Binary_log_event::INTVAR_HEADER_LEN;
-      post_header_len[LOAD_EVENT-1]=  Binary_log_event::LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;   /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
-      post_header_len[CREATE_FILE_EVENT-1]=  Binary_log_event::CREATE_FILE_HEADER_LEN;
-      post_header_len[APPEND_BLOCK_EVENT-1]=  Binary_log_event::APPEND_BLOCK_HEADER_LEN;
-      post_header_len[EXEC_LOAD_EVENT-1]=  Binary_log_event::EXEC_LOAD_HEADER_LEN;
-      post_header_len[DELETE_FILE_EVENT-1]=  Binary_log_event::DELETE_FILE_HEADER_LEN;
-      post_header_len[NEW_LOAD_EVENT-1]=  Binary_log_event::NEW_LOAD_HEADER_LEN;
-      post_header_len[RAND_EVENT-1]=  Binary_log_event::RAND_HEADER_LEN;
-      post_header_len[USER_VAR_EVENT-1]=  Binary_log_event::USER_VAR_HEADER_LEN;
-      post_header_len[FORMAT_DESCRIPTION_EVENT-1]=  Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
-      post_header_len[XID_EVENT-1]=  Binary_log_event::XID_HEADER_LEN;
-      post_header_len[BEGIN_LOAD_QUERY_EVENT-1]=  Binary_log_event::BEGIN_LOAD_QUERY_HEADER_LEN;
-      post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]=  Binary_log_event::EXECUTE_LOAD_QUERY_HEADER_LEN;
-      /*
-        The PRE_GA events are never be written to any binlog, but
-        their lengths are included in Format_description_log_event.
-        Hence, we need to be assign some value here, to avoid reading
-        uninitialized memory when the array is written to disk.
-      */
-      post_header_len[PRE_GA_WRITE_ROWS_EVENT-1] = 0;
-      post_header_len[PRE_GA_UPDATE_ROWS_EVENT-1] = 0;
-      post_header_len[PRE_GA_DELETE_ROWS_EVENT-1] = 0;
-
-      post_header_len[TABLE_MAP_EVENT-1]=        Binary_log_event::TABLE_MAP_HEADER_LEN;
-      post_header_len[WRITE_ROWS_EVENT_V1-1]=    Binary_log_event::ROWS_HEADER_LEN_V1;
-      post_header_len[UPDATE_ROWS_EVENT_V1-1]=   Binary_log_event::ROWS_HEADER_LEN_V1;
-      post_header_len[DELETE_ROWS_EVENT_V1-1]=   Binary_log_event::ROWS_HEADER_LEN_V1;
-      /*
-        We here have the possibility to simulate a master of before we changed
-        the table map id to be stored in 6 bytes: when it was stored in 4
-        bytes (=> post_header_len was 6). This is used to test backward
-        compatibility.
-        This code can be removed after a few months (today is Dec 21st 2005),
-        when we know that the 4-byte masters are not deployed anymore (check
-        with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
-        too.
-      */
-      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                      post_header_len[TABLE_MAP_EVENT-1]=
-                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
-                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
-                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
-      post_header_len[INCIDENT_EVENT-1]= Binary_log_event::INCIDENT_HEADER_LEN;
-      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
-      post_header_len[IGNORABLE_LOG_EVENT-1]=  Binary_log_event::IGNORABLE_HEADER_LEN;
-      post_header_len[ROWS_QUERY_LOG_EVENT-1]=  Binary_log_event::IGNORABLE_HEADER_LEN;
-      post_header_len[WRITE_ROWS_EVENT-1]=   Binary_log_event::ROWS_HEADER_LEN_V2;
-      post_header_len[UPDATE_ROWS_EVENT-1]=  Binary_log_event::ROWS_HEADER_LEN_V2;
-      post_header_len[DELETE_ROWS_EVENT-1]=  Binary_log_event::ROWS_HEADER_LEN_V2;
-      post_header_len[GTID_LOG_EVENT-1]=
-        post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
-        Gtid_log_event::POST_HEADER_LENGTH;
-      post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]=  Binary_log_event::IGNORABLE_HEADER_LEN;
-
-      // Sanity-check that all post header lengths are initialized.
-      int i;
-      for (i=0; i<number_of_event_types; i++)
-        DBUG_ASSERT(post_header_len[i] != 255);
-    }
-    break;
-
-  case 1: /* 3.23 */
-  case 3: /* 4.0.x x>=2 */
-    /*
-      We build an artificial (i.e. not sent by the master) event, which
-      describes what those old master versions send.
-    */
-    if (binlog_ver==1)
-      my_stpcpy(server_version, server_ver ? server_ver : "3.23");
-    else
-      my_stpcpy(server_version, server_ver ? server_ver : "4.0");
-    common_header_len= binlog_ver==1 ? OLD_HEADER_LEN :
-      LOG_EVENT_MINIMAL_HEADER_LEN;
-    /*
-      The first new event in binlog version 4 is Format_desc. So any event type
-      after that does not exist in older versions. We use the events known by
-      version 3, even if version 1 had only a subset of them (this is not a
-      problem: it uses a few bytes for nothing but unifies code; it does not
-      make the slave detect less corruptions).
-    */
-    number_of_event_types= FORMAT_DESCRIPTION_EVENT - 1;
-    post_header_len=(uint8*) my_malloc(key_memory_log_event,
-                                       number_of_event_types*sizeof(uint8),
-                                       MYF(0));
-    if (post_header_len)
-    {
-      post_header_len[START_EVENT_V3-1]=  Binary_log_event::START_V3_HEADER_LEN;
-      post_header_len[QUERY_EVENT-1]=  Binary_log_event::QUERY_HEADER_MINIMAL_LEN;
-      post_header_len[STOP_EVENT-1]= 0;
-      post_header_len[ROTATE_EVENT-1]= (binlog_ver==1) ? 0 :  Binary_log_event::ROTATE_HEADER_LEN;
-      post_header_len[INTVAR_EVENT-1]= 0;
-      post_header_len[LOAD_EVENT-1]= Binary_log_event::LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;  /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
-      post_header_len[CREATE_FILE_EVENT-1]=  Binary_log_event::CREATE_FILE_HEADER_LEN;
-      post_header_len[APPEND_BLOCK_EVENT-1]=  Binary_log_event::APPEND_BLOCK_HEADER_LEN;
-      post_header_len[EXEC_LOAD_EVENT-1]=  Binary_log_event::EXEC_LOAD_HEADER_LEN;
-      post_header_len[DELETE_FILE_EVENT-1]=  Binary_log_event::DELETE_FILE_HEADER_LEN;
-      post_header_len[NEW_LOAD_EVENT-1]= post_header_len[LOAD_EVENT-1];
-      post_header_len[RAND_EVENT-1]= 0;
-      post_header_len[USER_VAR_EVENT-1]= 0;
-    }
-    break;
-  default: /* Includes binlog version 2 i.e. 4.0.x x<=1 */
-    post_header_len= 0; /* will make is_valid() fail */
-    break;
-  }
-  calc_server_version_split();
-  checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
 }
 
 
@@ -5294,149 +5142,14 @@ Format_description_log_event(uint16 binlog_ver, const char* server_ver)
 
 Format_description_log_event::
 Format_description_log_event(const char* buf, uint event_len,
-                             const Format_description_log_event
+                             const Format_description_event
                              *description_event)
   :Binary_log_event(&buf, description_event->binlog_version),
-   Start_log_event_v3(buf, description_event), event_type_permutation(0)
+   Start_event_v3(buf, description_event),
+   Format_description_event(buf, event_len, description_event),
+   Start_log_event_v3(buf, description_event)
 {
-  ulong ver_calc;
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
-  buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
-  if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
-    DBUG_VOID_RETURN; /* sanity check */
-  number_of_event_types=
-    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
-  DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",
-                      common_header_len, number_of_event_types));
-  /* If alloc fails, we'll detect it in is_valid() */
-
-  post_header_len= (uint8*) my_memdup(key_memory_log_event,
-                                      (uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
-                                      number_of_event_types*
-                                      sizeof(*post_header_len),
-                                      MYF(0));
-  calc_server_version_split();
-  if ((ver_calc= get_version_product()) >= checksum_version_product)
-  {
-    /* the last bytes are the checksum alg desc and value (or value's room) */
-    number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
-    /*
-      FD from the checksum-home version server (ver_calc ==
-      checksum_version_product) must have 
-      number_of_event_types == LOG_EVENT_TYPES.
-    */
-    DBUG_ASSERT(ver_calc != checksum_version_product ||
-                number_of_event_types == Binary_log_event::LOG_EVENT_TYPES);
-    checksum_alg= (enum_binlog_checksum_alg)post_header_len[number_of_event_types];
-  }
-  else
-  {
-    checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
-  }
-
-  /*
-    In some previous versions, the events were given other event type
-    id numbers than in the present version. When replicating from such
-    a version, we therefore set up an array that maps those id numbers
-    to the id numbers of the present server.
-
-    If post_header_len is null, it means malloc failed, and is_valid
-    will fail, so there is no need to do anything.
-
-    The trees in which events have wrong id's are:
-
-    mysql-5.1-wl1012.old mysql-5.1-wl2325-5.0-drop6p13-alpha
-    mysql-5.1-wl2325-5.0-drop6 mysql-5.1-wl2325-5.0
-    mysql-5.1-wl2325-no-dd
-
-    (this was found by grepping for two lines in sequence where the
-    first matches "FORMAT_DESCRIPTION_EVENT," and the second matches
-    "TABLE_MAP_EVENT," in log_event.h in all trees)
-
-    In these trees, the following server_versions existed since
-    TABLE_MAP_EVENT was introduced:
-
-    5.1.1-a_drop5p3   5.1.1-a_drop5p4        5.1.1-alpha
-    5.1.2-a_drop5p10  5.1.2-a_drop5p11       5.1.2-a_drop5p12
-    5.1.2-a_drop5p13  5.1.2-a_drop5p14       5.1.2-a_drop5p15
-    5.1.2-a_drop5p16  5.1.2-a_drop5p16b      5.1.2-a_drop5p16c
-    5.1.2-a_drop5p17  5.1.2-a_drop5p4        5.1.2-a_drop5p5
-    5.1.2-a_drop5p6   5.1.2-a_drop5p7        5.1.2-a_drop5p8
-    5.1.2-a_drop5p9   5.1.3-a_drop5p17       5.1.3-a_drop5p17b
-    5.1.3-a_drop5p17c 5.1.4-a_drop5p18       5.1.4-a_drop5p19
-    5.1.4-a_drop5p20  5.1.4-a_drop6p0        5.1.4-a_drop6p1
-    5.1.4-a_drop6p2   5.1.5-a_drop5p20       5.2.0-a_drop6p3
-    5.2.0-a_drop6p4   5.2.0-a_drop6p5        5.2.0-a_drop6p6
-    5.2.1-a_drop6p10  5.2.1-a_drop6p11       5.2.1-a_drop6p12
-    5.2.1-a_drop6p6   5.2.1-a_drop6p7        5.2.1-a_drop6p8
-    5.2.2-a_drop6p13  5.2.2-a_drop6p13-alpha 5.2.2-a_drop6p13b
-    5.2.2-a_drop6p13c
-
-    (this was found by grepping for "mysql," in all historical
-    versions of configure.in in the trees listed above).
-
-    There are 5.1.1-alpha versions that use the new event id's, so we
-    do not test that version string.  So replication from 5.1.1-alpha
-    with the other event id's to a new version does not work.
-    Moreover, we can safely ignore the part after drop[56].  This
-    allows us to simplify the big list above to the following regexes:
-
-    5\.1\.[1-5]-a_drop5.*
-    5\.1\.4-a_drop6.*
-    5\.2\.[0-2]-a_drop6.*
-
-    This is what we test for in the 'if' below.
-  */
-  if (post_header_len &&
-      server_version[0] == '5' && server_version[1] == '.' &&
-      server_version[3] == '.' &&
-      strncmp(server_version + 5, "-a_drop", 7) == 0 &&
-      ((server_version[2] == '1' &&
-        server_version[4] >= '1' && server_version[4] <= '5' &&
-        server_version[12] == '5') ||
-       (server_version[2] == '1' &&
-        server_version[4] == '4' &&
-        server_version[12] == '6') ||
-       (server_version[2] == '2' &&
-        server_version[4] >= '0' && server_version[4] <= '2' &&
-        server_version[12] == '6')))
-  {
-    if (number_of_event_types != 22)
-    {
-      DBUG_PRINT("info", (" number_of_event_types=%d",
-                          number_of_event_types));
-      /* this makes is_valid() return false. */
-      my_free(post_header_len);
-      post_header_len= NULL;
-      DBUG_VOID_RETURN;
-    }
-    static const uint8 perm[23]=
-      {
-        UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
-        INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
-        APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
-        NEW_LOAD_EVENT,
-        RAND_EVENT, USER_VAR_EVENT,
-        FORMAT_DESCRIPTION_EVENT,
-        TABLE_MAP_EVENT,
-        PRE_GA_WRITE_ROWS_EVENT,
-        PRE_GA_UPDATE_ROWS_EVENT,
-        PRE_GA_DELETE_ROWS_EVENT,
-        XID_EVENT,
-        BEGIN_LOAD_QUERY_EVENT,
-        EXECUTE_LOAD_QUERY_EVENT,
-      };
-    event_type_permutation= perm;
-    /*
-      Since we use (permuted) event id's to index the post_header_len
-      array, we need to permute the post_header_len array too.
-    */
-    uint8 post_header_len_temp[23];
-    for (int i= 1; i < 23; i++)
-      post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
-    for (int i= 0; i < 22; i++)
-      post_header_len[i] = post_header_len_temp[i];
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -5589,38 +5302,6 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 #endif
 
-
-/**
-   'server_version_split' is used for lookups to find if the server which
-   created this event has some known bug.
-*/
-void Format_description_log_event::calc_server_version_split()
-{
-  do_server_version_split(server_version, server_version_split);
-
-  DBUG_PRINT("info",("Format_description_log_event::server_version_split:"
-                     " '%s' %d %d %d", server_version,
-                     server_version_split[0],
-                     server_version_split[1], server_version_split[2]));
-}
-
-/**
-   @return integer representing the version of server that originated
-   the current FD instance.
-*/
-ulong Format_description_log_event::get_version_product() const
-{ 
-  return version_product(server_version_split);
-}
-
-/**
-   @return TRUE is the event's version is earlier than one that introduced
-   the replication event checksum. FALSE otherwise.
-*/
-bool Format_description_log_event::is_version_before_checksum() const
-{
-  return get_version_product() < checksum_version_product;
-}
 
 
   /**************************************************************************

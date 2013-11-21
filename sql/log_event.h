@@ -105,38 +105,6 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 
 #define LOG_EVENT_OFFSET 4
 
-/*
-   3 is MySQL 4.x; 4 is MySQL 5.0.0.
-   Compared to version 3, version 4 has:
-   - a different Start_log_event, which includes info about the binary log
-   (sizes of headers); this info is included for better compatibility if the
-   master's MySQL version is different from the slave's.
-   - all events have a unique ID (the triplet (server_id, timestamp at server
-   start, other) to be sure an event is not executed more than once in a
-   multimaster setup, example:
-                M1
-              /   \
-             v     v
-             M2    M3
-             \     /
-              v   v
-                S
-   if a query is run on M1, it will arrive twice on S, so we need that S
-   remembers the last unique ID it has processed, to compare and know if the
-   event should be skipped or not. Example of ID: we already have the server id
-   (4 bytes), plus:
-   timestamp_when_the_master_started (4 bytes), a counter (a sequence number
-   which increments every time we write an event to the binlog) (3 bytes).
-   Q: how do we handle when the counter is overflowed and restarts from 0 ?
-
-   - Query and Load (Create or Execute) events may have a more precise
-     timestamp (with microseconds), number of matched/affected/warnings rows
-   and fields of session variables: SQL_MODE,
-   FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
-   charsets, the PASSWORD() version (old/new/...).
-*/
-#define BINLOG_VERSION    4
-
 #define NUM_LOAD_DELIM_STRS 5
 
 /*****************************************************************************
@@ -1598,49 +1566,24 @@ public:        /* !!! Public in this patch to allow old usage */
   Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
   4.x).
 
-  Format_description_log_event derives from Start_log_event_v3; it is
-  the Start_log_event of binlog format 4 (MySQL 5.0), that is, the
-  event that describes the other events' Common-Header/Post-Header
-  lengths. This event is sent by MySQL 5.0 whenever it starts sending
-  a new binlog if the requested position is >4 (otherwise if ==4 the
-  event will be sent naturally).
-
+  The inheritance structure in the current design for the classes is
+  as follows:
+                  Binary_log_event
+                           /   \
+              <<virtual>> /     \ <<virtual>>
+                         /       \
+              Start_event_v3   Log_event
+                         \       /
+                          \     /
+                           \   /
+                       Start_log_event_v3
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
   @section Start_log_event_v3_binary_format Binary Format
 */
-class Start_log_event_v3: public Log_event
+class Start_log_event_v3: public virtual Start_event_v3, public Log_event
 {
 public:
-  /*
-    If this event is at the start of the first binary log since server
-    startup 'created' should be the timestamp when the event (and the
-    binary log) was created.  In the other case (i.e. this event is at
-    the start of a binary log created by FLUSH LOGS or automatic
-    rotation), 'created' should be 0.  This "trick" is used by MySQL
-    >=4.0.14 slaves to know whether they must drop stale temporary
-    tables and whether they should abort unfinished transaction.
-
-    Note that when 'created'!=0, it is always equal to the event's
-    timestamp; indeed Start_log_event is written only in log.cc where
-    the first constructor below is called, in which 'created' is set
-    to 'when'.  So in fact 'created' is a useless variable. When it is
-    0 we can read the actual value from timestamp ('when') and when it
-    is non-zero we can read the same value from timestamp
-    ('when'). Conclusion:
-     - we use timestamp to print when the binlog was created.
-     - we use 'created' only to know if this is a first binlog or not.
-     In 3.23.57 we did not pay attention to this identity, so mysqlbinlog in
-     3.23.57 does not print 'created the_date' if created was zero. This is now
-     fixed.
-  */
-  time_t created;
-  uint16 binlog_version;
-  char server_version[ST_SERVER_VER_LEN];
-  /*
-    We set this to 1 if we don't want to have the created time in the log,
-    which is the case when we rollover to a new log.
-  */
-  bool dont_set_created;
-
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
@@ -1652,7 +1595,7 @@ public:
 #endif
 
   Start_log_event_v3(const char* buf,
-                     const Format_description_log_event* description_event);
+                     const Format_description_event* description_event);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
 #ifdef MYSQL_SERVER
@@ -1688,37 +1631,42 @@ protected:
   For binlog version 4.
   This event is saved by threads which read it, as they need it for future
   use (to decode the ordinary events).
-
+  This is the subclass of Format_description_event
+  The inheritance structure in the current design for the classes is
+  as follows:
+                  Binary_log_event
+                        /  \
+                       /    \
+               <<vir>>/      \ <<vir>>
+                     /        \
+               Log_event   Start_event_v3
+                   \             /\
+                    \           /  \
+                     \  <<vir>>/    \ <<vir>>
+                      \       /      \
+                       \     /        \
+                        \   /          \
+                Start_log_event_v3   Format_description_event
+                         \             /
+                          \           /
+                           \         /
+                            \       /
+                             \     /
+                              \   /
+                   Format_description_log_event
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
   @section Format_description_log_event_binary_format Binary Format
 */
 
-class Format_description_log_event: public Start_log_event_v3
+class Format_description_log_event: public Format_description_event,
+                                    public Start_log_event_v3
 {
 public:
-  /*
-     The size of the fixed header which _all_ events have
-     (for binlogs written by this version, this is equal to
-     LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
-     (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
-  */
-  uint8 common_header_len;
-  uint8 number_of_event_types;
-  /* 
-     The list of post-headers' lengths followed 
-     by the checksum alg decription byte
-  */
-  uint8 *post_header_len;
-  uchar server_version_split[3];
-  const uint8 *event_type_permutation;
-
-  Format_description_log_event(uint16 binlog_ver, const char* server_ver=0);
+  Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
-                               const Format_description_log_event
+                               const Format_description_event
                                *description_event);
-  ~Format_description_log_event()
-  {
-    my_free(post_header_len);
-  }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -1753,9 +1701,6 @@ public:
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
 
-  void calc_server_version_split();
-  ulong get_version_product() const;
-  bool is_version_before_checksum() const;
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
