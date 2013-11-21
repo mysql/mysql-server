@@ -24,24 +24,25 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/sql
 )
 
+SET(CONF_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
+)
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
-
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
 )
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
-SET_SOURCE_FILES_PROPERTIES(${GEN_DIGEST_SOURCES} PROPERTIES GENERATED 1)
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${GEN_DIGEST_SOURCES}
+                            ${CONF_SOURCES}
+                            PROPERTIES GENERATED 1)
 
 # Gen_lex_token
 ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
-# gen_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
-ADD_DEPENDENCIES(gen_lex_token ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -67,7 +68,6 @@ SET(SQL_SHARED_SOURCES
   datadict.cc
   debug_sync.cc
   derror.cc
-  des_key_file.cc
   discover.cc
   field.cc
   field_conv.cc 
@@ -97,7 +97,6 @@ SET(SQL_SHARED_SOURCES
   lock.cc
   log.cc
   mdl.cc
-  mf_iocache.cc
   my_decimal.cc
   net_serv.cc
   opt_explain.cc
@@ -203,6 +202,7 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
+  ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
   ../sql-common/client.c
@@ -215,12 +215,14 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
   event_queue.cc
   event_scheduler.cc
   events.cc
+  mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
