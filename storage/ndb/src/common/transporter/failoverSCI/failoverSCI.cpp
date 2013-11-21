@@ -656,15 +656,15 @@ unsigned int ShmemServerNode(void)
     //printf("\nData transfer done!\n");
     //PrintClientData()
     PrintServerData(localMapAddr);
-    /*Uint32 micros;
-    Uint32 micros2;
-    NDB_TICKS secs;
-    NdbTick_CurrentMicrosecond(&secs, &micros);
-    error = SendInterrupt(sdOne,localAdapterNo,localNodeId1,remoteNodeId1, DATA_TRANSFER_READY);
-    NdbTick_CurrentMicrosecond(&secs, &micros2);
-    printf("TIME ELAPSED %d \n", micros2-micros);
+    if (false)
+    {
+      const NDB_TICKS t1 = NdbTick_getCurrentTicks();
+      error = SendInterrupt(sdOne,localAdapterNo,localNodeId1,remoteNodeId1, DATA_TRANSFER_READY);
+      const NDB_TICKS t2 = NdbTick_getCurrentTicks();
+      const Uint64 elapsed = NdbTick_Elapsed(t1,t2).microSec();
+      printf("TIME ELAPSED %d \n", elapsed);
 //    NdbSleep_MilliSleep(100);
-    */
+    }
     goto again;
 
     /* Unmap local segment */
