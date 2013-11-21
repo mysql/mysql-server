@@ -2622,5 +2622,26 @@ DROP TABLE t1, t2, t3;
 set join_buffer_size = @tmp_join_buffer_size;
 set max_heap_table_size = @tmp_max_heap_table_size;
 
+--echo #
+--echo # MDEV-5161: Wrong result (missing rows) with semijoin, LEFT JOIN, ORDER BY, constant table
+--echo #
+select @@optimizer_switch;
+select @@join_cache_level;
+CREATE TABLE t1 (pk INT PRIMARY KEY, c1 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'v'),(2,'v'),(3,'c'),(4,NULL),(5,'x');
+
+CREATE TABLE t2 (c2 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('x');
+
+CREATE TABLE t3 (c3 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('x'),('d');
+
+SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
+
+--echo # This should show that "t1 left join t3" is still in the semi-join nest:
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
+
+DROP TABLE t1,t2,t3;
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

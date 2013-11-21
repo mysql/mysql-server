@@ -3635,6 +3635,26 @@ set join_buffer_size=default;
 set optimizer_switch=@tmp_optimizer_switch;
 
 DROP table t1,t2,t3;
+set join_buffer_size= default;
+set @@optimizer_switch=@save_optimizer_switch;
+
+
+--echo #
+--echo # MDEV-5293: outer join, join buffering, and order by - invalid query plan
+--echo #
+create table t0 (a int primary key) engine=myisam;
+insert into t0 values (1);
+
+create table t1(a int) engine=myisam;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+alter table t1 add b int;
+
+create table t2 like t1;
+insert into t2 select * from t1;
+--echo #The following must use "Using temporary; Using filesort" and not just "Using filesort":
+explain select * from t0,t1 left join t2 on t1.b=t2.b order by t0.a, t1.a;
+
+drop table t0,t1,t2;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

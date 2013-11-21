@@ -1921,10 +1921,24 @@ int pull_out_semijoin_tables(JOIN *join)
       }
     }
     
-    
     table_map pulled_tables= 0;
+    table_map dep_tables= 0;
     if (have_join_nest_children)
       goto skip;
+
+    /*
+      Calculate set of tables within this semi-join nest that have
+      other dependent tables
+    */
+    child_li.rewind();
+    while ((tbl= child_li++))
+    {
+      TABLE *const table= tbl->table;
+      if (table &&
+         (table->reginfo.join_tab->dependent &
+          sj_nest->nested_join->used_tables))
+        dep_tables|= table->reginfo.join_tab->dependent;
+    }
 
     /* Action #1: Mark the constant tables to be pulled out */
     child_li.rewind();
@@ -1976,7 +1990,8 @@ int pull_out_semijoin_tables(JOIN *join)
       child_li.rewind();
       while ((tbl= child_li++))
       {
-        if (tbl->table && !(pulled_tables & tbl->table->map))
+        if (tbl->table && !(pulled_tables & tbl->table->map) &&
+            !(dep_tables & tbl->table->map))
         {
           if (find_eq_ref_candidate(tbl->table, 
                                     sj_nest->nested_join->used_tables & 
