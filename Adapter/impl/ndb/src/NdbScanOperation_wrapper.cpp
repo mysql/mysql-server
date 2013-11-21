@@ -34,6 +34,8 @@ typedef Handle<Value> __Method__(const Arguments &);
 extern __Method__ scanNextResult;
 extern __Method__ scanFetchResults;
 
+/* Implemented here */
+__Method__ NdbScanOperation_close;
 
 
 /******** NdbScanOperation ******************************/
@@ -65,7 +67,8 @@ public:
                        getNdbError<NdbScanOperation>);
     DEFINE_JS_FUNCTION(Envelope::stencil, "fetchResults", scanFetchResults);
     DEFINE_JS_FUNCTION(Envelope::stencil, "nextResult", scanNextResult);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "lockCurrentTuple", lockCurrentTuple);  
+    DEFINE_JS_FUNCTION(Envelope::stencil, "lockCurrentTuple", lockCurrentTuple);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "close", NdbScanOperation_close);  
   }
 };
 
@@ -81,5 +84,14 @@ Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *op) {
   Local<Object> jsobj = NdbScanOperationEnvelope.newWrapper();
   wrapPointerInObject(op, NdbScanOperationEnvelope, jsobj);
   return scope.Close(jsobj);
+}
+
+
+Handle<Value> NdbScanOperation_close(const Arguments & args) {
+  REQUIRE_ARGS_LENGTH(3);
+  typedef NativeVoidMethodCall_2_<NdbScanOperation, bool, bool> NCALL;
+  NCALL * ncallptr = new NCALL(& NdbScanOperation::close, args);
+  ncallptr->runAsync();
+  return Undefined();
 }
 

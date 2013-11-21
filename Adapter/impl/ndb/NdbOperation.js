@@ -573,13 +573,6 @@ function getScanResults(scanop, userCallback) {
 
     if(status < 0) { // error
       udebug.log("scan gather() error", status, error);
-      if(error && error.ndb_error && 
-         error.ndb_error.classification == 'TimeoutExpired') {
-        error.isTimeout = true;
-      } else {
-        scanop.result.success = false;
-        scanop.result.error = error;
-      }
       postScanCallback.arg0 = error;
       return postScanCallback;
     }
@@ -816,9 +809,6 @@ function newScanOperation(tx, QueryTree, properties) {
                            queryHandler.dbIndexHandler, 
                            queryHandler.dbTableHandler);
   prepareFilterSpec(queryHandler);
-  if(queryHandler.dbIndexHandler) {
-    markQuery(queryHandler);
-  }
   op.query = queryHandler;
   op.params = properties;
   return op;
