@@ -592,14 +592,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
-#ifndef isfinite
-#ifdef HAVE_FINITE
-#define isfinite(x) finite(x)
-#else
-#define finite(x) (1.0 / fabs(x) > 0.0)
-#endif /* HAVE_FINITE */
-#endif /* isfinite */
-
 #include <math.h>
 C_MODE_START
 extern double my_double_isnan(double x);

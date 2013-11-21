@@ -34,6 +34,7 @@
 #include "debug_sync.h"
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
+#include "sql_base.h"
 
 #include <algorithm>
 #include <utility>
@@ -341,19 +342,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
       // If the table is empty, allocate space for one row.
       param.max_keys_per_buffer= (uint) min(num_rows > 0 ? num_rows : 1, keys);
-      if (table_sort.sort_buffer_size() > 0)
-      {
-        // If we have already allocated a buffer, it better have same size!
-        if (std::make_pair(param.max_keys_per_buffer, param.rec_length) !=
-            table_sort.sort_buffer_properties())
-        {
-          /*
-            table->sort will still have a pointer to the same buffer,
-            but that will be overwritten by the assignment below.
-          */
-          table_sort.free_sort_buffer();
-        }
-      }
+
       table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
       if (table_sort.sort_buffer_size() > 0)
         break;
@@ -494,6 +483,13 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
     DBUG_ASSERT(thd->is_error() || kill_errno);
 
     /*
+      We replace the table->sort at the end.
+      Hence calling free_io_cache to make sure table->sort.io_cache
+      used for QUICK_INDEX_MERGE_SELECT is free.
+    */
+    free_io_cache(table);
+
+    /*
       Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
       to client!
     */
@@ -523,6 +519,9 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   else
     thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
+
+  /* table->sort.io_cache should be free by this time */
+  DBUG_ASSERT(NULL == table->sort.io_cache);
 
   // Assign the copy back!
   table->sort= table_sort;
@@ -826,6 +825,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
+  DEBUG_SYNC(thd, "after_index_merge_phase1");
   for (;;)
   {
     if (quick_select)

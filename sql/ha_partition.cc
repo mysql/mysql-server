@@ -6044,7 +6044,7 @@ void ha_partition::return_top_record(uchar *buf)
 int ha_partition::handle_ordered_index_scan_key_not_found()
 {
   int error;
-  uint i;
+  uint i, old_elements= m_queue.elements;
   uchar *part_buf= m_ordered_rec_buffer;
   uchar *curr_rec_buf= NULL;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan_key_not_found");
@@ -6096,9 +6096,12 @@ int ha_partition::handle_ordered_index_scan_key_not_found()
   bitmap_clear_all(&m_key_not_found_partitions);
   m_key_not_found= false;
 
-  /* Update m_top_entry, which may have changed. */
-  uchar *key_buffer= queue_top(&m_queue);
-  m_top_entry= uint2korr(key_buffer);
+  if (m_queue.elements > old_elements)
+  {
+    /* Update m_top_entry, which may have changed. */
+    uchar *key_buffer= queue_top(&m_queue);
+    m_top_entry= uint2korr(key_buffer);
+  }
   DBUG_RETURN(0);
 }
 
