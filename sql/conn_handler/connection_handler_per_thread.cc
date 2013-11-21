@@ -301,7 +301,6 @@ pthread_handler_t handle_connection(void *arg)
 
     thd_manager->remove_thd(thd);
     delete thd;
-    my_pthread_set_THR_THD(0);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*

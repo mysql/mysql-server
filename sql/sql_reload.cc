@@ -97,8 +97,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     if (tmp_thd)
     {
       delete tmp_thd;
-      /* Remember that we don't have a THD */
-      my_pthread_set_THR_THD(0);
       thd= 0;
     }
     reset_mqh((LEX_USER *)NULL, TRUE);
