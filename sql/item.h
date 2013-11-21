@@ -847,7 +847,9 @@ public:
   my_decimal *val_decimal_from_date(my_decimal *decimal_value);
   my_decimal *val_decimal_from_time(my_decimal *decimal_value);
   longlong val_int_from_decimal();
+  longlong val_int_from_date();
   double val_real_from_decimal();
+  double val_real_from_date();
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
@@ -3830,6 +3832,10 @@ public:
   }
 
   String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
+  longlong val_int();
+  longlong val_temporal_packed();
+  double val_real();
   bool cache_value();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   int save_in_field(Field *field, bool no_conversions);

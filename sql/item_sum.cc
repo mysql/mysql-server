@@ -687,7 +687,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
 void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
-  if (!(value= Item_cache::get_cache(item)))
+  if (!(value= Item_cache::get_cache(item, item->cmp_type())))
     return;
   value->setup(item);
   value->store(value_arg);

@@ -448,8 +448,8 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   String *val_str(String *str);
-  longlong val_int();
-  double val_real();
+  longlong val_int() { return val_int_from_date(); }
+  double val_real() { return val_real_from_date(); }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date) { DBUG_ASSERT(0); return 1; }
   my_decimal *val_decimal(my_decimal *decimal_value)
   { return  val_decimal_from_date(decimal_value); }

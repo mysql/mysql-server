@@ -1362,27 +1362,6 @@ String *Item_temporal_func::val_str(String *str)
 }
 
 
-longlong Item_temporal_func::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_date(&ltime, 0))
-    return 0;
-  longlong v= TIME_to_ulonglong(&ltime);
-  return ltime.neg ? -v : v;
-}
-
-
-double Item_temporal_func::val_real()
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_date(&ltime, 0))
-    return 0;
-  return TIME_to_double(&ltime);
-}
-
-
 bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong value=args[0]->val_int();
