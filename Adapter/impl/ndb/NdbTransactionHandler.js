@@ -227,7 +227,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
   /* Execute NdbTransaction after reading from scan */
   function executeNdbTransaction() {
-    udebug.log("executeScan executeNdbTransaction");
+    udebug.log(self.moniker, "executeScan executeNdbTransaction");
 
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
@@ -236,21 +236,28 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
     run(self, execMode, abortFlag, onCompleteExec);
   }
 
+  function canRetry(err) {
+    return (err.ndb_error && err.ndb_error.classification == 'TimeoutExpired'
+            && self.retries++ < 10);
+  }
+
+  function retryAfterClose() {
+    op.ndbScanOp = null;
+    udebug.log(self.moniker, "retrying scan:", self.retries);
+    executeScan(self, execMode, abortFlag, dbOperationList, callback);
+  }
+
   /* Fetch is complete. */
   function onFetchComplete(err) {
     if(err) {
-//  -- Timeout code is disabled because it causes the test suite to hang --
-//      if(err.isTimeout && self.retries < 10) {
-//        self.retries++;
-//        closeNdbTransaction(self, function retry() {
-//          self.ndbtx = null;
-//          execute(self, execMode, abortFlag, dbOperationList, callback);
-//        });
-//      } else {
-        onExecute(self, ROLLBACK, err, execId, callback);      
-//      }
-    }
-    else { /* No error */
+      if(canRetry(err)) {
+        op.ndbScanOp.close(false, false, retryAfterClose);
+      } else {
+        op.result.success = false;
+        op.result.error = err;
+        onExecute(self, ROLLBACK, err, execId, callback);
+      }
+    } else { /* No error */
       if(execMode == NOCOMMIT) {
         onExecute(self, execMode, err, execId, callback);      
       } else {
@@ -261,7 +268,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   
   /* Fetch results */
   function getScanResults(err) {
-    udebug.log("executeScan getScanResults");
+    udebug.log(self.moniker, "executeScan getScanResults");
     if(err) {
       onFetchComplete(err);
     }
@@ -273,7 +280,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   /* Execute NoCommit so that you can start reading from scans */
   function executeScanNoCommit(err, ndbScanOp) {
     var fatalError;
-    udebug.log("executeScan executeScanNoCommit");
+    udebug.log(self.moniker, "executeScan executeScanNoCommit");
     if(! ndbScanOp) {
       fatalError = self.ndbtx.getNdbError();
       callback(new ndboperation.DBOperationError(fatalError), self);
@@ -285,12 +292,8 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   /* executeScan() starts here */
-  udebug.log("executeScan");
-  if(self.retries) {
-    run(self, NOCOMMIT, AO_IGNORE, getScanResults);
-  } else {
-    op.prepareScan(self.ndbtx, executeScanNoCommit);
-  }
+  udebug.log(self.moniker, "executeScan");
+  op.prepareScan(self.ndbtx, executeScanNoCommit);
 }
 
 
