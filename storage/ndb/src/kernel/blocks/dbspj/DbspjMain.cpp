@@ -829,7 +829,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_sum_rows = 0;
   requestP->m_sum_running = 0;
   requestP->m_sum_waiting = 0;
-  requestP->m_save_time = spj_now();
+  requestP->m_save_time = NdbTick_getCurrentTicks();
 #endif
   const Uint32 reqInfo = req->requestInfo;
   Uint32 tmp = req->clientConnectPtr;
@@ -1139,7 +1139,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_sum_rows = 0;
   requestP->m_sum_running = 0;
   requestP->m_sum_waiting = 0;
-  requestP->m_save_time = spj_now();
+  requestP->m_save_time = NdbTick_getCurrentTicks();
 #endif
 }
 
@@ -1928,11 +1928,12 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, requestPtr.p->m_rows);
 
 #ifdef SPJ_TRACE_TIME
-      Uint64 now = spj_now();
-      Uint64 then = requestPtr.p->m_save_time;
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const NDB_TICKS then = requestPtr.p->m_save_time;
+      const Uint64 diff = NdbTick_Elapsed(then,now).microSec();
 
       requestPtr.p->m_sum_rows += requestPtr.p->m_rows;
-      requestPtr.p->m_sum_running += Uint32(now - then);
+      requestPtr.p->m_sum_running += Uint32(diff);
       requestPtr.p->m_cnt_batches++;
       requestPtr.p->m_save_time = now;
 
@@ -2702,9 +2703,10 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   DEBUG("execSCAN_NEXTREQ, request: " << requestPtr.i);
 
 #ifdef SPJ_TRACE_TIME
-  Uint64 now = spj_now();
-  Uint64 then = requestPtr.p->m_save_time;
-  requestPtr.p->m_sum_waiting += Uint32(now - then);
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const NDB_TICKS then = requestPtr.p->m_save_time;
+  const Uint64 diff = NdbTick_Elapsed(then,now).microSec();
+  requestPtr.p->m_sum_waiting += Uint32(diff);
   requestPtr.p->m_save_time = now;
 #endif
 
