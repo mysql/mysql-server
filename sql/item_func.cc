@@ -826,6 +826,8 @@ void Item_num_op::find_num_type(void)
     cached_result_type= DECIMAL_RESULT;
     result_precision();
     fix_decimals();
+    if ((r0 == TIME_RESULT || r1 == TIME_RESULT) && decimals == 0)
+      cached_result_type= INT_RESULT;
   }
   else
   {

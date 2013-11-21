@@ -888,10 +888,13 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   enum_field_types f_type= item->cmp_type() == TIME_RESULT ?
                            item->field_type() : warn_item->field_type();
 
-  if (item->result_type() == INT_RESULT && item->cmp_type() == TIME_RESULT)
+  if (item->result_type() == INT_RESULT &&
+      item->cmp_type() == TIME_RESULT &&
+      item->type() == Item::CACHE_ITEM)
   {
     /* it's our Item_cache_temporal, as created below */
-    value= item->val_int();
+    DBUG_ASSERT(is_temporal_type(((Item_cache *) item)->field_type()));
+    value= ((Item_cache_temporal*) item)->val_temporal_packed();
   }
   else
   {

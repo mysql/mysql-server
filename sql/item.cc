@@ -396,6 +396,27 @@ my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
 }
 
 
+longlong Item::val_int_from_date()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_date(&ltime, 0))
+    return 0;
+  longlong v= TIME_to_ulonglong(&ltime);
+  return ltime.neg ? -v : v;
+}
+
+
+double Item::val_real_from_date()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_date(&ltime, 0))
+    return 0;
+  return TIME_to_double(&ltime);
+}
+
+
 double Item::val_real_from_decimal()
 {
   /* Note that fix_fields may not be called for Item_avg_field items */
@@ -8831,6 +8852,18 @@ Item_cache_temporal::Item_cache_temporal(enum_field_types field_type_arg):
 }
 
 
+longlong Item_cache_temporal::val_temporal_packed()
+{
+  DBUG_ASSERT(fixed == 1);
+  if ((!value_cached && !cache_value()) || null_value)
+  {
+    null_value= TRUE;
+    return 0;
+  }
+  return value;
+}
+
+
 String *Item_cache_temporal::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -8840,6 +8873,42 @@ String *Item_cache_temporal::val_str(String *str)
     return NULL;
   }
   return val_string_from_date(str);
+}
+
+
+my_decimal *Item_cache_temporal::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed == 1);
+  if ((!value_cached && !cache_value()) || null_value)
+  {
+    null_value= true;
+    return NULL;
+  }
+  return val_decimal_from_date(decimal_value);
+}
+
+
+longlong Item_cache_temporal::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  if ((!value_cached && !cache_value()) || null_value)
+  {
+    null_value= true;
+    return 0;
+  }
+  return val_int_from_date();
+}
+
+
+double Item_cache_temporal::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  if ((!value_cached && !cache_value()) || null_value)
+  {
+    null_value= true;
+    return 0;
+  }
+  return val_real_from_date();
 }
 
 
