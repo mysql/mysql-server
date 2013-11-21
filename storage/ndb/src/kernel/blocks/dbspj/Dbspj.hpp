@@ -38,18 +38,6 @@ struct QueryNodeParameters;
 
 //#define SPJ_TRACE_TIME
 
-#ifdef SPJ_TRACE_TIME
-static
-inline
-Uint64 spj_now()
-{
-  NDB_TICKS sec;
-  Uint32 micro;
-  NdbTick_CurrentMicrosecond(&sec, &micro);
-  return Uint64(sec * 1000000 + micro);
-}
-#endif
-
 class Dbspj: public SimulatedBlock {
 public:
   Dbspj(Block_context& ctx, Uint32 instanceNumber = 0);
@@ -1125,7 +1113,7 @@ public:
     Uint32 m_sum_rows;
     Uint32 m_sum_running;
     Uint32 m_sum_waiting;
-    Uint64 m_save_time;
+    NDB_TICKS m_save_time;
 #endif
 
     bool isScan() const { return (m_bits & RT_SCAN) != 0;}
