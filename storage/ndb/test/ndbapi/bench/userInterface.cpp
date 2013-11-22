@@ -74,9 +74,9 @@ extern int localDbPrepare(UserHandle *uh);
 /*                                   */
 /* Returns a double value in seconds */
 /*-----------------------------------*/
+static NDB_TICKS initTicks;
 double userGetTimeSync(void)
 {
-  static NDB_TICKS initTicks;
   double timeValue = 0;
 
   if ( !NdbTick_IsValid(initTicks)) {
