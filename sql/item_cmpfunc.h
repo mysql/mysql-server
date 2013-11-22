@@ -1688,6 +1688,12 @@ class Item_equal: public Item_bool_func
     the equal_items should be ignored.
   */
   bool cond_false;
+  /*
+    This initially is set to FALSE. It becomes TRUE when this item is evaluated
+    as being always true. If the flag is TRUE the contents of the list 
+    the equal_items should be ignored.
+  */
+  bool cond_true;
   /* 
     compare_as_dates=TRUE <-> constants equal to fields from equal_items
     must be compared as datetimes and not as strings.
@@ -1718,7 +1724,6 @@ public:
   Item_equal(Item_equal *item_equal);
   /* Currently the const item is always the first in the list of equal items */
   inline Item* get_const() { return with_const ? equal_items.head() : NULL; }
-  inline bool is_cond_true() { return equal_items.elements == 1; }
   void add_const(Item *c, Item *f = NULL);
   /** Add a non-constant item to the multiple equality */
   void add(Item *f) { equal_items.push_back(f); }
