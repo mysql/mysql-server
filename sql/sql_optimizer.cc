@@ -2744,12 +2744,12 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
           Note:
-          RAND_TABLE_BIT mask should not be counted as it
-          prevents update of inner table dependences.
-          For example it might happen if RAND() function
+          PSEUDO_TABLE_BITS mask should not be counted as it
+          prevents update of inner table dependencies.
+          For example it might happen if RAND()/COUNT(*) function
           is used in JOIN ON clause.
 	*/  
-        if (!((prev_table->join_cond()->used_tables() & ~RAND_TABLE_BIT) &
+        if (!((prev_table->join_cond()->used_tables() & ~PSEUDO_TABLE_BITS) &
               ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
