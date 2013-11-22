@@ -38,7 +38,9 @@
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-
+#ifndef DBUG_OFF
+#include <NdbSleep.h>
+#endif
 #include <EventLogger.hpp>
 
 /******************************************************************************
@@ -76,6 +78,15 @@ Ndb::init(int aMaxNoOfTransactions)
   theEventBuffer->m_mutex = theFacade->theMutexPtr;
 
   const Uint32 tRef = theImpl->open(theFacade);
+
+#ifndef DBUG_OFF
+  if(DBUG_EVALUATE_IF("sleep_in_ndbinit", true, false))
+  {
+    fprintf(stderr, "Ndb::init() (%p) taking a break\n", this);
+    NdbSleep_MilliSleep(20000);
+    fprintf(stderr, "Ndb::init() resuming\n");
+  }
+#endif
 
   if (tRef == 0)
   {
@@ -141,6 +152,10 @@ Ndb::init(int aMaxNoOfTransactions)
   }
   for (i = 0; i < 16; i++)
     releaseSignal(tSignal[i]);
+
+  /* Force visibility of Ndb object initialisation work before marking it initialised */
+  theFacade->lock_mutex();
+  theFacade->unlock_mutex();
   theInitState = Initialised; 
 
   DBUG_RETURN(0);
@@ -303,6 +318,10 @@ void
 Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 			  const LinearSectionPtr ptr[3])
 {
+  /* Check that Ndb object is properly setup to handle the signal */
+  if (theInitState != Initialised)
+    return;
+
   NdbOperation* tOp;
   NdbIndexOperation* tIndexOp;
   NdbTransaction* tCon;
