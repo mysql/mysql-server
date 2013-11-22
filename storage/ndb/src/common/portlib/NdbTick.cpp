@@ -30,38 +30,99 @@ Uint64 NdbDuration::tick_frequency = 0;
 
 
 #ifdef HAVE_CLOCK_GETTIME
-#ifdef CLOCK_MONOTONIC
-static clockid_t NdbTick_clk_id = CLOCK_MONOTONIC;
-#else
-static clockid_t NdbTick_clk_id = CLOCK_REALTIME;
+static clockid_t NdbTick_clk_id;
 #endif
 
-void NdbTick_Init(int need_monotonic)
+void NdbTick_Init()
 {
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tick_time;
 
   NdbDuration::tick_frequency = NANOSEC_PER_SEC;
-  if (!need_monotonic)
-    NdbTick_clk_id = CLOCK_REALTIME;
-
+  /**
+   * Always try to use a MONOTONIC clock.
+   * On older Solaris (< S10) CLOCK_MONOTONIC
+   * is not available, CLOCK_HIGHRES is a good replacement.
+   * If failed, or not available, warn about it.
+   */
+#if defined(CLOCK_MONOTONIC)
+  NdbTick_clk_id = CLOCK_MONOTONIC;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
-#ifdef CLOCK_MONOTONIC
-  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_gettime,"
-          " errno= %u\n", errno);
-  fflush(stderr);
-  NdbTick_clk_id = CLOCK_REALTIME;
+#elif defined(CLOCK_HIGHRES)
+  NdbTick_clk_id = CLOCK_HIGHRES;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #endif
+
+  /**
+   * Fall through:
+   * Warn that monotonic timer is not available,
+   * fallback to use CLOCK_REALTIME.
+   */
+  fprintf(stderr, "Failed to use clock_gettime(CLOCK_MONOTONIC..)"
+                  ", errno= %u, fallback to CLOCK_REALTIME\n",
+                   errno);
+  fprintf(stderr, "BEWARE: Adjusting system time may result in "
+                  "unexpected behaviour, stop any NTP services!\n");
+  fflush(stderr);
+
+  NdbTick_clk_id = CLOCK_REALTIME;
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+
   fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_gettime,"
           " errno=%u.  Aborting\n", errno);
   fflush(stderr);
   abort();
+
+#elif defined(_WIN32)
+  /**
+   * QueryPerformance API is available since Windows 2000 Server.
+   * This is a sensible min. requirement, so we refuse to start
+   * if Performance-counters are not supported.
+   */
+  LARGE_INTEGER perf_frequency;
+  BOOL res = QueryPerformanceFrequency(&perf_frequency);
+  if (!res)
+  {
+    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
+                    "this platform. ('QueryPerformanceFrequency()' failed)."
+                    "This is not a suitable platform for this SW.\n");
+    fflush(stderr);
+    abort();
+  }
+  LARGE_INTEGER unused;
+  res = QueryPerformanceCounter(&unused);
+  if (!res)
+  {
+    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
+                    "this platform. ('QueryPerformanceCounter()' failed)."
+                    "This is not a suitable platform for this SW.\n");
+    fflush(stderr);
+    abort();
+  }
+  NdbDuration::tick_frequency = (Uint64)(perf_frequency.QuadPart);
+
+#else
+  /* Considder to deprecate platforms not supporting monotonic counters */
+  //#error "A monotonic counter was not available on this platform"
+
+  // gettimeofday() resolution is usec
+  NdbDuration::tick_frequency = MICROSEC_PER_SEC;
+
+  /* gettimeofday() is not guaranteed to be monotonic */
+  fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
+	           "this platform. (Using 'gettimeofday()').");
+  fprintf(stderr, "BEWARE: Adjusting system time may result in "
+                  "unexpected behaviour, stop any NTP services!\n");
+  fflush(stderr);
+#endif
 }
 
 const NDB_TICKS NdbTick_getCurrentTicks(void)
 {
+#if defined(HAVE_CLOCK_GETTIME)
   struct timespec tick_time;
   const int res = clock_gettime(NdbTick_clk_id, &tick_time);
   /**
@@ -74,37 +135,21 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
    */
   assert(res==0);
   (void)res;
-  {
-    const NDB_TICKS ticks
-    (((Uint64)tick_time.tv_sec)  * ((Uint64)NANOSEC_PER_SEC) +
-      (Uint64)tick_time.tv_nsec);
 
-    return ticks;
-  }
-}
+  const Uint64 val =
+    ((Uint64)tick_time.tv_sec)  * ((Uint64)NANOSEC_PER_SEC) +
+    ((Uint64)tick_time.tv_nsec);
 
-#else
-void NdbTick_Init(int need_monotonic)
-{
-#ifdef _WIN32
-  // GetSystemTimeAsFileTime() return ticks as 100ns's
-  NdbDuration::tick_frequency = NANOSEC_PER_SEC/100;
+#elif defined(_WIN32)
+  LARGE_INTEGER t_cnt;
+  const BOOL res = QueryPerformanceCounter(&t_cnt);
+  /**
+   * We tested support of QPC in NdbTick_Init().
+   * Thus, it should not fail later.
+   */
+  assert(res!=0);
+  const Uint64 val = (Uint64)(t_cnt.QuadPart);
 
-#else
-  // gettimeofday() resolution is usec
-  NdbDuration::tick_frequency = MICROSEC_PER_SEC;
-#endif
-}
-
-
-const NDB_TICKS NdbTick_getCurrentTicks(void)
-{
-  Uint64 val;
-
-#ifdef _WIN32
-  ulonglong time;
-  GetSystemTimeAsFileTime((FILETIME*)&time);
-  val = (Uint64)time;  // 'time' is in 100ns
 #else
   struct timeval tick_time;
   const int res = gettimeofday(&tick_time, 0);
@@ -117,7 +162,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
   require(res==0);
   (void)res;
 
-  val =  
+  const Uint64 val =
     ((Uint64)tick_time.tv_sec) * ((Uint64)MICROSEC_PER_SEC) +
     ((Uint64)tick_time.tv_usec);
 #endif
@@ -127,7 +172,6 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
     return ticks;
   }
 }
-#endif
 
 
 const NDB_TICKS NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms)
