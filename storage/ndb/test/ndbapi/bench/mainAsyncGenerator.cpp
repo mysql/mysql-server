@@ -702,10 +702,11 @@ asyncDbDisconnect(Ndb* pNDB)
   delete pNDB;
 }
 
+static NDB_TICKS initTicks;
+
 double
 userGetTime(void)
 {
-  static NDB_TICKS initTicks;
   double timeValue = 0;
 
   if ( !NdbTick_IsValid(initTicks)) {
