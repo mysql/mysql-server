@@ -478,14 +478,12 @@ Start_event_v3::Start_event_v3(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version)
 {
   buf+= description_event->common_header_len;
-  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, sizeof(binlog_version));
-  binlog_version= le16toh(binlog_version);
+  binlog_version= uint2korr(buf + ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
         ST_SERVER_VER_LEN);
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN - 1]= 0;
-  memcpy(&created, buf + ST_CREATED_OFFSET, sizeof(created));
-  created= le32toh(created);
+  created= uint4korr(buf+ST_CREATED_OFFSET);;
   dont_set_created= 1;
 }
 
@@ -1130,10 +1128,9 @@ Rand_event::Rand_event(const char* buf,
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
     description_event->post_header_len[RAND_EVENT-1];
-  memcpy(&seed1, buf+RAND_SEED1_OFFSET, sizeof(seed1));
-  seed1= le64toh(seed1);
-  memcpy(&seed2, buf+RAND_SEED2_OFFSET, sizeof(seed2));
-  seed2= le64toh(seed2);
+
+  seed1= uint8korr(buf+RAND_SEED1_OFFSET);
+  seed2= uint8korr(buf+RAND_SEED2_OFFSET);
 }
 
 User_var_event::
@@ -1147,8 +1144,8 @@ User_var_event(const char* buf, unsigned int event_len,
   const char *start= buf;
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
-  memcpy(&name_len, buf, sizeof(name_len));
-  name_len= le32toh(name_len);
+
+  name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
 
   /*
@@ -1190,12 +1187,9 @@ User_var_event(const char* buf, unsigned int event_len,
     }
 
     type= (Value_type) buf[UV_VAL_IS_NULL];
-    memcpy(&charset_number, buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE,
-           sizeof(charset_number));
-    charset_number= le32toh(charset_number);
-    memcpy(&val_len, (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-           UV_CHARSET_NUMBER_SIZE), sizeof(charset_number));
-    val_len= le32toh(val_len);
+    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
+    val_len= uint4korr((buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                     UV_CHARSET_NUMBER_SIZE));
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
 
