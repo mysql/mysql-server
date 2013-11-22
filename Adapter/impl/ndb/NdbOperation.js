@@ -249,23 +249,19 @@ function BoundHelperSpec() {
   this[BoundHelper.range_no]       = 0;
 }
 
-function countFiniteKeyParts(key) {
-  var i, n;
-  n = 0;
-  for(i = 0; i < key.length ; i++) {
-    if((key[0] == Infinity) || (key[0] == -Infinity)) {
-      return n;
-    }
-    n += 1;
-  }
-  return n;
-}
-
 /* Create part of of a bound spec 
 */
 BoundHelperSpec.prototype.buildPartialSpec = function(isLow, bound, 
                                                       dbIndexHandler, buffer) {
-  var base, nparts;
+  var base, nparts, i;
+
+  function countFiniteKeyParts(key) {
+    for(i = 0; i < key.length ; i++) {
+      if((key[i] == Infinity) || (key[i] == -Infinity)) { break; }
+    }
+    return i;
+  }
+
   base = isLow ? BoundHelper.low_key : BoundHelper.high_key;
   nparts = countFiniteKeyParts(bound.key);
   if(nparts) {

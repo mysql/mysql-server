@@ -625,6 +625,8 @@ NumberLine.prototype.unionWithSegment = function(segment) {
   this.setEqualTo(line);
 };
 
+/* Mutable: changes this into Union (this, that)
+*/
 NumberLine.prototype.union = function(that) {
   var it, s;
   it = that.getIterator();
@@ -863,15 +865,35 @@ IndexBoundVisitor.prototype.consolidate = function(node) {
     OperationCode = 1 for AND, 2 for OR
 */
 IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
-// FIXME:  If any child node is consolidated, then we need to consolidate
-// the rest of them, and construct the union or intersection of the 
-// consolidated bounds.  This is definitely the case for an OR node.
-  var i;
+  var i, indexRange;
+  var buildChildNodeIndexBounds = false;
+
   if(node.usedColumnMask.and(this.mask).isEqualTo(this.mask)) {
     for(i = 0 ; i < node.predicates.length ; i++) {
       node.predicates[i].visit(this);
+      if(node.predicates[i].indexRange) { buildChildNodeIndexBounds = true; }
     }
-    this.consolidate(node);    
+    if(buildChildNodeIndexBounds) {
+      // If any child node is consolidated, consolidate all of them, 
+      // then construct the union or intersection over the consolidated bounds.
+      indexRange = new NumberLine();
+      for(i = 0 ; i < node.predicates.length ; i++) {
+        this.consolidate(node.predicates[i]);
+        switch(node.operationCode) {
+          case 1:
+            indexRange.intersection(node.predicates[i].indexRange);
+            udebug.log("Intersection: ", indexRange);
+            break;
+          case 2:
+            indexRange.union(node.predicates[i].indexRange);
+            udebug.log("Union: ", indexRange);
+            break;
+        }
+      }
+      node.indexRange = indexRange;
+    } else {
+      this.consolidate(node);
+    }
   }
 };
 
@@ -908,7 +930,7 @@ function IndexBound(segment) {
    Returns an array of IndexBounds   
 */
 function getIndexBounds(queryHandler, dbIndex, params) {
-  var indexVisitor, it, segment, bounds;
+  var indexVisitor, queryIndexRange, it, segment, bounds;
 
   /* Evaluate the query tree using the actual parameters */
   queryHandler.predicate.visit(new ColumnBoundVisitor(params));
@@ -919,10 +941,12 @@ function getIndexBounds(queryHandler, dbIndex, params) {
 
   /* Build a consolidated index bound for the top-level predicate */
   indexVisitor.consolidate(queryHandler.predicate);
+  queryIndexRange = queryHandler.predicate.indexRange;
+  udebug.log("Index range for query:", queryIndexRange);
 
   /* Transform NumberLine to array of IndexBound */
   bounds = [];
-  it = queryHandler.predicate.indexRange.getIterator();
+  it = queryIndexRange.getIterator();
   while((segment = it.next()) !== null) {
     bounds.push(new IndexBound(segment));
   }

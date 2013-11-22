@@ -22,15 +22,6 @@
 var udebug = unified_debug.getLogger("multipartkeys/QueryScanTest.js");
 var QueryTest = require('../lib/QueryTest.js');
 
-var q1 = { 
-  name: 'q1',
-  queryType: 3,  /* table scan */
-  expected: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21],
-  predicate: function(q) {
-    return /* ?what? */;
-  }
-};
-
 var q2 = {
   name: 'q2',
   queryType: 2,  /* index scan */
@@ -104,7 +95,24 @@ var q8 = {
   }
 };
 
-var queryTests = [ q3,q4,q5,q8 ];
+var q9 = {
+  name: 'q9',
+  queryType: 2,
+  expected: [ 10, 11, 17, 18 ],
+  p1: 2, p2: 1, p3: 4, p4: 3,
+  predicate: function(q) {
+    return (q.k1.eq(q.param("p1")).and(q.k2.gt(q.param("p2")))).
+         or(q.k1.eq(q.param("p3")).and(q.k2.lt(q.param("p4"))));
+  }
+};
+
+// TODO: q7 and q9 fail.  q2 enters endless loop & fails with stack depth exceeded.
+// still to test:
+// isNotNull() as first part of key
+// isNull() and isNotNull() as second part of key
+
+var queryTests = [ q3,q4,q5,q6,q7,q8,q9 ];
+
 
 /** Set up domain type */
 function mpk1() {};
