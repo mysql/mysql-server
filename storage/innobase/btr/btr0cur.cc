@@ -522,17 +522,16 @@ btr_cur_will_modify_tree(
 
 	if (lock_intention >= BTR_INTENTION_BOTH) {
 		/* check insert will cause. BTR_INTENTION_BOTH
-		or BTR_INTENTION_INSERT)*/
-		if (page_get_max_insert_size_after_reorganize(page, 1)
-		    < BTR_CUR_PAGE_REORGANIZE_LIMIT) {
-			return(true);
-		}
+		or BTR_INTENTION_INSERT*/
 		/* needs 2 records' space for the case the single split and
 		insert cannot fit.
 		page_get_max_insert_size_after_reorganize() includes space
 		for page directory already */
-		if (page_get_max_insert_size_after_reorganize(page, 2)
-			< rec_size * 2) {
+		ulint	max_size
+			= page_get_max_insert_size_after_reorganize(page, 2);
+
+		if (max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT + rec_size
+		    || max_size < rec_size * 2) {
 			return(true);
 		}
 		/* TODO: optimize this condition for compressed page.
