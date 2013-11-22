@@ -1,4 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -32,36 +33,49 @@ static int clock_id = CLOCK_REALTIME;
 #endif
 
 void
-NdbCondition_initialize(int need_monotonic)
+NdbCondition_initialize()
 {
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
-    defined CLOCK_MONOTONIC
+  (defined CLOCK_MONOTONIC || defined CLOCK_HIGHRES)
   
   int res, condattr_init = 0;
   pthread_cond_t tmp;
   pthread_condattr_t attr;
+  struct timespec tick_time;
 
   init = 1;
 
-  if (!need_monotonic)
-    return;
+  /**
+   * Always try to use a MONOTONIC clock.
+   * On older Solaris (< S10) CLOCK_MONOTONIC
+   * is not available, CLOCK_HIGHRES is a good replacement.
+   */
+#if defined(CLOCK_MONOTONIC)
+  clock_id = CLOCK_MONOTONIC;
+#else
+  clock_id = CLOCK_HIGHRES;
+#endif
 
-  if ((res = pthread_condattr_init(&attr)) != 0)
+  if (clock_gettime(clock_id, &tick_time) != 0)
+  {
+    assert(FALSE);
     goto nogo;
-
+  }
+  if ((res = pthread_condattr_init(&attr)) != 0)
+  {
+    assert(FALSE);
+    goto nogo;
+  }
   condattr_init = 1;
   
-  if ((res = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) != 0)
+  if ((res = pthread_condattr_setclock(&attr, clock_id)) != 0)
     goto nogo;
 
   if ((res = pthread_cond_init(&tmp, &attr)) != 0)
     goto nogo;
 
   pthread_condattr_destroy(&attr);
-  pthread_cond_destroy(&tmp);
-
-  clock_id = CLOCK_MONOTONIC;
-  
+  pthread_cond_destroy(&tmp);  
   return;
   
 nogo:
