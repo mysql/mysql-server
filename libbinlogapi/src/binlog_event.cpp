@@ -330,6 +330,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
   binlog_version= binlog_ver;
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 and above*/
+  {
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
     DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
                     bapi_stpcpy(server_version, "5.0.34"););
@@ -391,7 +392,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
         assert(post_header_len[i] != 255);
     }
     break;
-
+  }
   case 1: /* 3.23 */
   case 3: /* 4.0.x x >= 2 */
   {
