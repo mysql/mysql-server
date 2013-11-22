@@ -29,7 +29,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "wrapper_functions.h"
 #include "cassert"
 #include <zlib.h> //for checksum calculations
-#include "m_string.h"//for strmov used in Format_description_event's constructor
 #include <stdint.h>
 #ifdef min //definition of min() and max() in std and libmysqlclient
            //can be/are different
@@ -443,10 +442,13 @@ enum Log_event_type
   ENUM_END_EVENT /* end marker */
 };
 
-/*
+/**
  We could have used SERVER_VERSION_LENGTH, but this introduces an
  obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
  this would break the replication protocol
+ both of these are used to initialize the array server_version
+ SERVER_VERSION_LENGTH is used for global array server_version
+ and ST_SERVER_VER_LEN for the Start_event_v3 member server_version
 */
 #define ST_SERVER_VER_LEN 50
 /*
@@ -1552,7 +1554,41 @@ public:
   lengths. This event is sent by MySQL 5.0 whenever it starts sending
   a new binlog if the requested position is >4 (otherwise if ==4 the
   event will be sent naturally).
+  The Post-Header has four components:
 
+  <table>
+  <caption>Post-Header for Start_event_v3</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>created</td>
+    <td>4 byte unsigned integer</td>
+    <td>The creation timestamp, if non-zero,
+        is the time in seconds when this event was created</td>
+  </tr>
+  <tr>
+    <td>binlog_version</td>
+    <td>2 byte unsigned integer</td>
+    <td>This is 1 in MySQL 3.23 and 3 in MySQL 4.0 and 4.1
+        (In MySQL 5.0 and up, FORMAT_DESCRIPTION_EVENT is
+        used instead of START_EVENT_V3 and for them its 4).</td>
+  </tr>
+  <tr>
+    <td>server_version</td>
+    <td>char array of 50 bytes</td>
+    <td>The MySQL server's version (example: 4.0.14-debug-log),
+        padded with 0x00 bytes on the right</td>
+  </tr>
+  <tr>
+    <td>dont_set_created</td>
+    <td>type bool</td>
+    <td>Set to 1 when you dont want to have created time in the log</td>
+  </table>
   @section Start_log_event_v3_binary_format Binary Format
 */
 
@@ -1605,19 +1641,65 @@ class Start_event_v3: public  virtual Binary_log_event
 };
 
 /**
-  @class Format_description_event
-
+  @class Format_description_evenit
   For binlog version 4.
   This event is saved by threads which read it, as they need it for future
   use (to decode the ordinary events).
 
+  The Post-Header has six components:
+
+  <table>
+  <caption>Post-Header for Format_description_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>created_ts</td>
+    <td>4 byte unsigned integer</td>
+    <td>The creation timestamp, if non-zero,
+        is the time in seconds when this event was created</td>
+  </tr>
+
+  <tr>
+    <td>common_header_len</td>
+    <td>1 byte unsigned integer</td>
+    <td>The length of the event header. This value includes the extra_headers
+        field, so this header length - 19 yields the size
+        of the extra_headers field.</td>
+  </tr>
+  <tr>
+    <td>post_header_len</td>
+    <td>array of type 1 byte unsigned integer</td>
+    <td>The lengths for the fixed data part of each event</td>
+  </tr>
+  <tr>
+    <td>server_version_split</td>
+    <td>unsigned char array</td>
+    <td>Stores the server version of the server
+        and splits them in three parts</td>
+  </tr>
+  <tr>
+    <td>event_type_permutation</td>
+    <td>const array of type 1 byte unsigned integer</td>
+    <td>Provides mapping between the event types of
+        some previous versions > 5.1 GA to current event_types</td>
+  </tr>
+    <tr>
+    <td>number_of_event_types</td>
+    <td>1 byte unsigned integer</td>
+    <td>number of event types present in the server</td>
+  </tr>
+  </table>
   @section Format_description_event_binary_format Binary Format
 */
 class Format_description_event: public virtual Start_event_v3
 {
 public:
     uint32_t created_ts;
-    uint8_t log_header_len;
     /**
      The size of the fixed header which _all_ events have
      (for binlogs written by this version, this is equal to
