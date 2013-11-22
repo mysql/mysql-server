@@ -1527,7 +1527,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 #ifdef EMBEDDED_LIBRARY
   new_thd->pop_internal_handler();
   if (error_handler.safely_trapped_errors())
-    goto end;
+    DBUG_VOID_RETURN;
 #endif /* EMBEDDED_LIBRARY */
 
   if (result)
@@ -1535,11 +1535,11 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please "
                     "run mysql_upgrade to create it.");
-    goto end;
+    DBUG_VOID_RETURN;
   }
   table= tables.table;
   if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
-    goto end;
+    DBUG_VOID_RETURN;
   table->use_all_columns();
   /*
     there're no other threads running yet, so we don't need a mutex.
@@ -1569,9 +1569,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
   close_mysql_tables(new_thd);
-end:
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 

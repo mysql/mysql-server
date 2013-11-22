@@ -93,7 +93,6 @@ void Server_initializer::SetUp()
 void Server_initializer::TearDown()
 {
   m_thd->cleanup_after_query();
-  my_pthread_setspecific_ptr(THR_THD, NULL);
   delete m_thd;
 }
 

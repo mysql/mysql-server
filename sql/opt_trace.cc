@@ -221,7 +221,7 @@ private:
   Opt_trace_struct *current_struct;             ///< current open structure
 
   /// Same logic as Opt_trace_context::stack_of_current_stmts.
-  Dynamic_array<Opt_trace_struct *> stack_of_current_structs;
+  Prealloced_array<Opt_trace_struct *, 16> stack_of_current_structs;
 
   Buffer trace_buffer;                    ///< Where the trace is accumulated
   Buffer query_buffer;                    ///< Where the original query is put
@@ -447,7 +447,9 @@ const char *Opt_trace_struct::check_key(const char *key)
 
 Opt_trace_stmt::Opt_trace_stmt(Opt_trace_context *ctx_arg) :
   ended(false), I_S_disabled(0), missing_priv(false), ctx(ctx_arg),
-  current_struct(NULL), unknown_key_count(0)
+  current_struct(NULL),
+  stack_of_current_structs(PSI_INSTRUMENT_ME),
+  unknown_key_count(0)
 {
   // Trace is always in UTF8. This is the only charset which JSON accepts.
   trace_buffer.set_charset(system_charset_info);
@@ -457,7 +459,7 @@ Opt_trace_stmt::Opt_trace_stmt(Opt_trace_context *ctx_arg) :
 
 void Opt_trace_stmt::end()
 {
-  DBUG_ASSERT(stack_of_current_structs.elements() == 0);
+  DBUG_ASSERT(stack_of_current_structs.size() == 0);
   DBUG_ASSERT(I_S_disabled >= 0);
   ended= true;
   /*
@@ -558,7 +560,7 @@ bool Opt_trace_stmt::open_struct(const char *key, Opt_trace_struct *ots,
   {
     DBUG_EXECUTE_IF("opt_trace_oom_in_open_struct",
                     DBUG_SET("+d,simulate_out_of_memory"););
-    const bool rc= stack_of_current_structs.append(current_struct);
+    const bool rc= stack_of_current_structs.push_back(current_struct);
     /*
       If the append() above didn't trigger reallocation, we need to turn the
       symbol off by ourselves, or it could make an unrelated allocation
@@ -582,8 +584,8 @@ void Opt_trace_stmt::close_struct(const char *saved_key,
     This was constructed with current_stmt_in_gen=NULL which was pushed in
     'open_struct()'. So this NULL is in the array, back() is safe.
   */
-  current_struct= *(stack_of_current_structs.back());
-  stack_of_current_structs.pop();
+  current_struct= stack_of_current_structs.back();
+  stack_of_current_structs.pop_back();
   if (support_I_S())
   {
     next_line();
@@ -628,7 +630,7 @@ void Opt_trace_stmt::next_line()
     return;
   trace_buffer.append('\n');
 
-  uint to_be_printed= 2 * stack_of_current_structs.elements();
+  size_t to_be_printed= 2 * stack_of_current_structs.size();
   const size_t spaces_len= sizeof(my_spaces) - 1;
   while (to_be_printed > spaces_len)
   {
