@@ -118,8 +118,6 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-extern int g_ndb_init_need_monotonic;
-
 /**
  * C++ Standard 3.6.1/3:
  *  The function main shall not be used (3.2) within a program.
@@ -129,7 +127,6 @@ extern int g_ndb_init_need_monotonic;
 int
 real_main(int argc, char** argv)
 {
-  g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
 
   // Print to stdout/console
