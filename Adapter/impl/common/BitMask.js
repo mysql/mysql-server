@@ -24,6 +24,7 @@
    Each array element holds 24 bits.
    Inside V8, array elements are SMIs.
 */
+var radix = 24;
 
 function BitMask(size) {
   this._mask = [];
@@ -31,7 +32,7 @@ function BitMask(size) {
     this._grow(size);
   }
   else {
-    this._grow(24);
+    this._grow(radix);
   }
 }
 
@@ -39,13 +40,19 @@ function greater(x, y) {
   return x > y ? x : y;
 }
 
+BitMask.prototype.inspect = function() {
+  var str = "";
+  this._mask.forEach(function(value) { str += value.toString(2); });
+  return str;
+};
+
 BitMask.prototype._grow = function(size) {
-  this.size = this._mask.length * 24;  // round up
+  this.size = this._mask.length * radix;  // round up
   size -= this.size;
   while(size > 0) { 
     this._mask.push(0);
-    this.size += 24;
-    size -= 24;  
+    this.size += radix;
+    size -= radix;  
   }
 };
 
@@ -53,24 +60,18 @@ BitMask.prototype.set = function(bit) {
   if(bit >= this.size) {
     this._grow(bit);
   }
-  var loc = 0;
-  while(bit > 24) {
-    loc += 1;
-    bit -= 24;
-  }
-  this._mask[loc] |= Math.pow(2, bit);
+  var offset = bit % radix;
+  var loc = (bit - offset) / radix;
+  this._mask[loc] |= Math.pow(2, offset);
 };
 
 BitMask.prototype.bitIsSet = function(bit) {
   if(bit >= this.size) {
     this._grow(bit);
   }
-  var loc = 0;
-  while(bit > 24) {
-    loc += 1;
-    bit -= 24;
-  }
-  return this._mask[loc] & Math.pow(2, bit) ? true : false;
+  var offset = bit % radix;
+  var loc = (bit - offset) / radix;
+  return this._mask[loc] & Math.pow(2, offset) ? true : false;
 };
 
 BitMask.prototype._getPart = function(n) {
@@ -145,10 +146,12 @@ BitMask.prototype.toArray = function() {
   offset = 0;
 
   function maskToIntArray(mask) {
-    var i = 0;    
+    var v, i;
+    i = 0;
     while(mask != 0) {
-      if(mask & Math.pow(2,i)) {
-        mask ^= Math.pow(2,i);
+      v = Math.pow(2,i);
+      if(mask & v) {
+        mask ^= v;
         array.push(i + offset);
       }
       i++;
@@ -157,7 +160,7 @@ BitMask.prototype.toArray = function() {
 
   for(n = 0 ; n < this._mask.length ; n++) {
     maskToIntArray(this._mask[n]);
-    offset += 24;
+    offset += radix;
   }
 
   return array;
