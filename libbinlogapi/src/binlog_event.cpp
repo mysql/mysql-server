@@ -175,8 +175,8 @@ Log_event_header::Log_event_header(const char* buf,
       | data_written    EVENT_LEN_OFFSET(9)  : 4   |
       +============================================+
    */
-  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
-  log_pos= uint4korr(buf + LOG_POS_OFFSET);
+  data_written= uint4korr(buf+ EVENT_LEN_OFFSET);
+  log_pos= uint4korr(buf+ LOG_POS_OFFSET);
 
   switch (description_event->binlog_version)
   {
@@ -229,7 +229,7 @@ Log_event_header::Log_event_header(const char* buf,
 
   default:
     if (description_event->binlog_version != 3)
-      log_pos= uint4korr(buf + LOG_POS_OFFSET);
+      log_pos= uint4korr(buf+ LOG_POS_OFFSET);
 
     flags= uint2korr(buf + FLAGS_OFFSET);
 
@@ -371,6 +371,21 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       */
       memset(post_header_len, 255, number_of_event_types * sizeof(uint8_t));
       memcpy(post_header_len, server_event_header_length, number_of_event_types);
+       /*
+        We here have the possibility to simulate a master before we changed
+        the table map id to be stored in 6 bytes: when it was stored in 4
+        bytes (=> post_header_len was 6). This is used to test backward
+        compatibility.
+        This code can be removed after a few months (today is Dec 21st 2005),
+        when we know that the 4-byte masters are not deployed anymore (check
+        with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
+        too.
+      */
+      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+                      post_header_len[TABLE_MAP_EVENT-1]=
+                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
+                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
+                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
       // Sanity-check that all post header lengths are initialized.
       for (int i= 0; i < number_of_event_types; i++)
         assert(post_header_len[i] != 255);
@@ -378,14 +393,17 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     break;
 
   case 1: /* 3.23 */
-    bapi_stpcpy(server_version, server_ver ? server_ver : "3.23");
-  case 3: /* 4.0.x x>=2 */
+  case 3: /* 4.0.x x >= 2 */
+  {
     /*
       We build an artificial (i.e. not sent by the master) event, which
       describes what those old master versions send.
     */
-    bapi_stpcpy(server_version, server_ver ? server_ver : "4.0");
-    common_header_len= binlog_ver==1 ? OLD_HEADER_LEN :
+    if (binlog_version == 1)
+      bapi_stpcpy(server_version, server_ver ? server_ver : "3.23");
+    else
+      bapi_stpcpy(server_version, server_ver ? server_ver : "4.0");
+    common_header_len= binlog_ver == 1 ? OLD_HEADER_LEN :
       LOG_EVENT_MINIMAL_HEADER_LEN;
     /*
       The first new event in binlog version 4 is Format_desc. So any event type
@@ -414,6 +432,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       memcpy(post_header_len, server_event_header_length_ver_1_3, number_of_event_types);
     }
     break;
+  }
   default: /* Includes binlog version 2 i.e. 4.0.x x<=1 */
     //TODO: modify the comment regarding is_valid() below
     post_header_len= 0; /* will make is_valid() fail */
@@ -444,7 +463,7 @@ unsigned long Format_description_event::get_version_product() const
 }
 
 /**
-   This method 
+   This method
    @return TRUE if the event's version is earlier than one that introduced
    the replication event checksum. FALSE otherwise.
 */
@@ -458,12 +477,14 @@ Start_event_v3::Start_event_v3(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version)
 {
   buf+= description_event->common_header_len;
-  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
-  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
+  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, sizeof(binlog_version));
+  binlog_version= le16toh(binlog_version);
+  memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
         ST_SERVER_VER_LEN);
   // prevent overrun if log is corrupted on disk
-  server_version[ST_SERVER_VER_LEN-1]= 0;
-  created= uint4korr(buf+ST_CREATED_OFFSET);
+  server_version[ST_SERVER_VER_LEN - 1]= 0;
+  memcpy(&created, buf + ST_CREATED_OFFSET, sizeof(created));
+  created= le32toh(created);
   dont_set_created= 1;
 }
 
@@ -483,6 +504,21 @@ Start_event_v3::Start_event_v3(const char* buf,
 
   I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
   it is sent before Format_description_log_event).
+
+  The layout of the event data part  in  Format_description_event
+        +=====================================+
+        | event  | binlog_version   19 : 2    | = 4
+        | data   +----------------------------+
+        |        | server_version   21 : 50   |
+        |        +----------------------------+
+        |        | create_timestamp 71 : 4    |
+        |        +----------------------------+
+        |        | header_length    75 : 1    |
+        |        +----------------------------+
+        |        | post-header      76 : n    | = array of n bytes, one byte per
+        |        | lengths for all            |   event type that the server knows
+        |        | event types                |   about
+        +=====================================+
 */
 Format_description_event::
 Format_description_event(const char* buf, unsigned int event_len,
@@ -491,7 +527,7 @@ Format_description_event(const char* buf, unsigned int event_len,
 {
   unsigned long ver_calc;
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
-  if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
+  if ((common_header_len= buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
     return; /* sanity check */
   number_of_event_types=
     event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
@@ -523,7 +559,7 @@ Format_description_event(const char* buf, unsigned int event_len,
     id numbers than in the present version. When replicating from such
     a version, we therefore set up an array that maps those id numbers
     to the id numbers of the present server.
-
+    //TODO: Modify the comment
     If post_header_len is null, it means malloc failed, and subclass method
     is_valid will fail, so there is no need to do anything.
 
@@ -1093,8 +1129,10 @@ Rand_event::Rand_event(const char* buf,
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
     description_event->post_header_len[RAND_EVENT-1];
-  seed1= uint8korr(buf+RAND_SEED1_OFFSET);
-  seed2= uint8korr(buf+RAND_SEED2_OFFSET);
+  memcpy(&seed1, buf+RAND_SEED1_OFFSET, sizeof(seed1));
+  seed1= le64toh(seed1);
+  memcpy(&seed2, buf+RAND_SEED2_OFFSET, sizeof(seed2));
+  seed2= le64toh(seed2);
 }
 
 User_var_event::
@@ -1108,7 +1146,8 @@ User_var_event(const char* buf, unsigned int event_len,
   const char *start= buf;
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
-  name_len= uint4korr(buf);
+  memcpy(&name_len, buf, sizeof(name_len));
+  name_len= le32toh(name_len);
   name= (char *) buf + UV_NAME_LEN_SIZE;
 
   /*
@@ -1150,9 +1189,12 @@ User_var_event(const char* buf, unsigned int event_len,
     }
 
     type= (Value_type) buf[UV_VAL_IS_NULL];
-    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
-    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-                       UV_CHARSET_NUMBER_SIZE);
+    memcpy(&charset_number, buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE,
+           sizeof(charset_number));
+    charset_number= le32toh(charset_number);
+    memcpy(&val_len, (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+           UV_CHARSET_NUMBER_SIZE), sizeof(charset_number));
+    val_len= le32toh(val_len);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
 
