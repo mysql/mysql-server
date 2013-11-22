@@ -5488,7 +5488,8 @@ Item *Item_bool_rowready_func2::negated_item()
 */
 
 Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
-  : Item_bool_func(), eval_item(0), cond_false(0), context_field(NULL)
+  : Item_bool_func(), eval_item(0), cond_false(0), cond_true(0), 
+    context_field(NULL)
 {
   const_item_cache= 0;
   with_const= with_const_item;
@@ -5513,7 +5514,8 @@ Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
 */
 
 Item_equal::Item_equal(Item_equal *item_equal)
-  : Item_bool_func(), eval_item(0), cond_false(0), context_field(NULL)
+  : Item_bool_func(), eval_item(0), cond_false(0), cond_true(0),
+     context_field(NULL)
 {
   const_item_cache= 0;
   List_iterator_fast<Item> li(item_equal->equal_items);
@@ -5572,12 +5574,6 @@ void Item_equal::add_const(Item *c, Item *f)
     func->quick_fix_field();
     cond_false= !func->val_int();
   }
-  /*
-    TODO: also support the case where Item_equal becomes singular with
-    this->is_cond_true()=1.  When I attempted to mark the item as constant,
-    the optimizer attempted to remove it, however it is still referenced from
-    COND_EQUAL and I got a crash.
-  */
   if (cond_false)
     const_item_cache= 1;
 }
@@ -5782,8 +5778,7 @@ void Item_equal::merge_into_list(List<Item_equal> *list,
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  if (equal_items.elements > 1)
-    bubble_sort<Item>(&equal_items, compare, arg);
+  bubble_sort<Item>(&equal_items, compare, arg);
 }
 
 
@@ -5819,6 +5814,9 @@ void Item_equal::update_const()
       {
         it.remove();
         add_const(item);
+        if (equal_items.elements == 1)
+          cond_true= TRUE;
+        update_used_tables();
       }
     } 
   }
@@ -5883,13 +5881,7 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
 void Item_equal::update_used_tables()
 {
   not_null_tables_cache= used_tables_cache= 0;
-  /*
-    TODO: also support the case where Item_equal becomes singular with
-    this->is_cond_true()=1.  When I attempted to mark the item as constant,
-    the optimizer attempted to remove it, however it is still referenced from
-    COND_EQUAL and I got a crash.
-  */
-  if ((const_item_cache= cond_false))
+  if ((const_item_cache= cond_false || cond_true))
     return;
   Item_equal_fields_iterator it(*this);
   Item *item;
@@ -5937,7 +5929,7 @@ longlong Item_equal::val_int()
 {
   if (cond_false)
     return 0;
-  if (is_cond_true())
+  if (cond_true)
     return 1;
   Item *item= get_const();
   Item_equal_fields_iterator it(*this);
@@ -5963,11 +5955,6 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NO_PARTICULAR_TAB, NULL);
-  if (!item)
-  {
-    DBUG_ASSERT(is_cond_true()); // it should be the only constant
-    item= equal_items.head();
-  }
   eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }

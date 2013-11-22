@@ -13394,16 +13394,44 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
-    List<Item_equal> new_equalities;
     bool and_level= ((Item_cond*) cond)->functype()
       == Item_func::COND_AND_FUNC;
     List<Item> *cond_arg_list= ((Item_cond*) cond)->argument_list();
-    List_iterator<Item> li(*cond_arg_list);
-    Item::cond_result tmp_cond_value;
-    bool should_fix_fields=0;
 
-    *cond_value=Item::COND_UNDEF;
+    if (and_level)
+    {
+      /* 
+        Remove multiple equalities that became always true (e.g. after
+        constant row substitution).
+        They would be removed later in the function anyway, but the list of
+        them cond_equal.current_level also  must be adjusted correspondingly.
+        So it's easier  to do it at one pass through the list of the equalities.
+      */ 
+       List<Item_equal> *cond_equalities=
+        &((Item_cond_and *) cond)->cond_equal.current_level;
+       cond_arg_list->disjoin((List<Item> *) cond_equalities);
+       List_iterator<Item_equal> it(*cond_equalities);
+       Item_equal *eq_item;
+       while ((eq_item= it++))
+       {
+         if (eq_item->const_item() && eq_item->val_int())
+           it.remove();
+       }  
+       cond_arg_list->concat((List<Item> *) cond_equalities);       
+    }
+
+    List<Item_equal> new_equalities;
+    List_iterator<Item> li(*cond_arg_list);
+    bool should_fix_fields= 0;
+    Item::cond_result tmp_cond_value;
     Item *item;
+
+    /* 
+      If the list cond_arg_list became empty then it consisted only
+      of always true multiple equalities.
+    */ 
+    *cond_value= cond_arg_list->elements ? Item::COND_UNDEF : Item::COND_TRUE;
+
     while ((item=li++))
     {
       Item *new_item=remove_eq_conds(thd, item, &tmp_cond_value);
