@@ -22,7 +22,7 @@
 #include <ndb_types.h>
 
 
-extern "C" void NdbTick_Init(int need_monotonic);
+void NdbTick_Init();
 
 
 /**
@@ -124,7 +124,7 @@ private:
   friend const NDB_TICKS
     NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms);
 
-  friend void NdbTick_Init(int need_monotonic);
+  friend void NdbTick_Init();
 
 }; //class NdbDuration
 
