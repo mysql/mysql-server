@@ -51,9 +51,8 @@ if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     system=${BASH_REMATCH[3]}
     arch=${BASH_REMATCH[4]}
 else
-    echo $muysqlbuild is not a tokudb build
+    echo $mysqlbuild is not a tokudb build
 fi
-mysqltarball=$mysqlbuild.tar.gz
 
 if [ ! -d downloads ] ; then mkdir downloads; fi
 
@@ -61,6 +60,16 @@ pushd downloads
 if [ $? != 0 ] ; then exit 1; fi
 
 basedir=$PWD
+
+mysqltarball=$mysqlbuild.tar.gz
+
+if [ -f $mysqlbuild.tar.gz ] ; then
+    compression=-z
+    mysqltarball=$mysqlbuild.tar.gz
+elif [ -f $mysqlbuild.tar.bz2 ] ; then
+    compression=-j
+    mysqltarball=$mysqlbuild.tar.bz2
+fi
 
 # get the release
 if [ ! -f $mysqltarball ] ; then
@@ -116,7 +125,7 @@ if [ ! -d $mysqlbuild ] || [ $install -ne 0 ] ; then
     rm mysql
     if [ -d $mysqlbuild ] ; then sudo rm -rf $mysqlbuild; fi
 
-    tar xzf $basedir/$mysqltarball
+    tar -x $compression -f $basedir/$mysqltarball
     if [ $? -ne 0 ] ; then exit 1; fi
     ln -s $mysqldir /usr/local/mysql
     if [ $? -ne 0 ] ; then exit 1; fi
