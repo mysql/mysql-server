@@ -5692,7 +5692,9 @@ void Item_equal::add_const(Item *c, Item *f)
     func->quick_fix_field();
     cond_false= !func->val_int();
   }
-  if (cond_false)
+  if (with_const && equal_items.elements == 1)
+    cond_true= TRUE;
+  if (cond_false || cond_true)
     const_item_cache= 1;
 }
 
@@ -5946,9 +5948,6 @@ void Item_equal::update_const()
       {
         it.remove();
         add_const(item);
-        if (equal_items.elements == 1)
-          cond_true= TRUE;
-        update_used_tables();
       }
     } 
   }
