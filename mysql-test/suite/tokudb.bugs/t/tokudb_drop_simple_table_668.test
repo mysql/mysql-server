@@ -34,7 +34,7 @@ EOF
 create table tc (id int, x int, primary key(id), key(x));
 
 # check that the tokudb meta data gets dropped when the table is dropped
-select * from information_schema.tokudb_file_map;
+select dictionary_name from information_schema.tokudb_file_map;
 drop table ta;
 select dictionary_name from information_schema.tokudb_file_map;
 drop table tb;
