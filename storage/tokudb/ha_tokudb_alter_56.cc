@@ -106,6 +106,7 @@ PATENT RIGHTS GRANT:
 
 #include "ha_tokudb_alter_common.cc"
 #include <sql_array.h>
+#include <sql_base.h>
 
 // The tokudb alter context contains the alter state that is set in the check if supported method and used
 // later when the alter operation is executed.
@@ -677,6 +678,28 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
     
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     bool result = false; // success
+    THD *thd = ha_thd();
+    MDL_ticket *ticket = table->mdl_ticket;
+    if (ticket->get_type() != MDL_EXCLUSIVE) {
+        // get exclusive lock no matter what
+#if defined(MARIADB_BASE_VERSION)
+        killed_state saved_killed_state = thd->killed;
+        thd->killed = NOT_KILLED;
+        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
+            thd->killed = NOT_KILLED;
+        assert(ticket->get_type() == MDL_EXCLUSIVE);
+        if (thd->killed == NOT_KILLED)
+            thd->killed = saved_killed_state;
+#else
+        THD::killed_state saved_killed_state = thd->killed;
+        thd->killed = THD::NOT_KILLED;
+        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
+            thd->killed = THD::NOT_KILLED;
+        assert(ticket->get_type() == MDL_EXCLUSIVE);
+        if (thd->killed == THD::NOT_KILLED)
+            thd->killed = saved_killed_state;
+#endif
+    }
 
     if (commit) {
 #if (50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
@@ -699,7 +722,6 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 
     if (!commit) {
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
-        THD *thd = ha_thd();
         tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
         assert(ctx->alter_txn == trx->stmt);
         assert(trx->tokudb_lock_count > 0);
