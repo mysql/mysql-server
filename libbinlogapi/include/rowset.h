@@ -27,7 +27,7 @@ using namespace binary_log;
 
 namespace binary_log {
 
-class Row_event;
+class Rows_event;
 class Table_map_event;
 
 class Row_event_set
@@ -36,7 +36,7 @@ public:
     typedef Row_event_iterator<Row_of_fields > iterator;
     typedef Row_event_iterator<Row_of_fields const > const_iterator;
 
-    Row_event_set(Row_event *arg1, Table_map_event *arg2)
+    Row_event_set(Rows_event *arg1, Table_map_event *arg2)
     {
       source(arg1, arg2);
     }
@@ -59,12 +59,12 @@ public:
     }
 
 private:
-    void source(Row_event *arg1, Table_map_event *arg2)
+    void source(Rows_event *arg1, Table_map_event *arg2)
     {
       m_row_event= arg1;
       m_table_map_event= arg2;
     }
-    Row_event *m_row_event;
+    Rows_event *m_row_event;
     Table_map_event *m_table_map_event;
 };
 

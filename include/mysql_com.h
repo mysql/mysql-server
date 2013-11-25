@@ -24,7 +24,9 @@
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define NAME_CHAR_LEN	64              /* Field/table name length */
 #define USERNAME_CHAR_LENGTH 16
+#ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
+#endif
 #define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
 
 #define MYSQL_AUTODETECT_CHARSET_NAME "auto"

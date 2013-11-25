@@ -74,14 +74,4 @@ enum ExtraRowInfoFormat {
   ERIF_MULTI        =  255
 };
 
-/*
-   1 byte length, 1 byte format
-   Length is total length in bytes, including 2 byte header
-   Length values 0 and 1 are currently invalid and reserved.
-*/
-#define EXTRA_ROW_INFO_LEN_OFFSET 0
-#define EXTRA_ROW_INFO_FORMAT_OFFSET 1
-#define EXTRA_ROW_INFO_HDR_BYTES 2
-#define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
-
 #endif /* RPL_CONSTANTS_H */

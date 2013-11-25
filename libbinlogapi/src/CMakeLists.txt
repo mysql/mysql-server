@@ -1,7 +1,7 @@
 # This configuration file builds both the static and shared version of
 # the library.
 set(replication_sources
-  field_iterator.cpp row_of_fields.cpp
+  field_iterator.cpp row_of_fields.cpp rows_event.cpp
   binary_log.cpp protocol.cpp value.cpp binlog_event.cpp
   bapi_utility.cpp utilities.cpp)
 

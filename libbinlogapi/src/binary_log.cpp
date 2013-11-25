@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <list>
 
 using namespace binary_log;
-using namespace binary_log::system;
+
 namespace binary_log
 {
 /**
