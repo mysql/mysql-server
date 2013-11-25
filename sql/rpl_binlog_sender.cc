@@ -631,8 +631,8 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
   DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u", 
                       event_len, packet->alloced_length()));
   DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
-  ulong cur_buffer_size= packet->alloced_length();
-  ulong needed_buffer_size=cur_buffer_size;
+  uint32 cur_buffer_size= packet->alloced_length();
+  uint32 needed_buffer_size=cur_buffer_size;
   
   packet->length(0);  // size of the string
   packet->qs_append('\0');
