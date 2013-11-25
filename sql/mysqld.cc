@@ -3458,9 +3458,8 @@ static int generate_server_uuid()
   func_uuid= new (thd->mem_root) Item_func_uuid();
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
+
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
 
   strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
   server_uuid[UUID_LENGTH]= '\0';
@@ -4669,9 +4668,6 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 */
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
-
-  /* In case some Connection_handler created THDs in this thread */
-  my_pthread_set_THR_THD(0);
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);

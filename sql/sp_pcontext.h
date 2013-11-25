@@ -20,7 +20,7 @@
 #include "sql_string.h"                         // LEX_STRING
 #include "mysql_com.h"                          // enum_field_types
 #include "field.h"                              // Create_field
-#include "sql_array.h"                          // Dynamic_array
+#include "mem_root_array.h"                     // Mem_root_array
 
 
 /// This class represents a stored program variable or a parameter
@@ -287,7 +287,7 @@ public:
   };
 
 public:
-  sp_pcontext();
+  sp_pcontext(THD *thd);
   ~sp_pcontext();
 
 
@@ -345,11 +345,11 @@ public:
   /// @return the current number of variables used in the parent contexts
   /// (from the root), including this context.
   uint current_var_count() const
-  { return m_var_offset + m_vars.elements(); }
+  { return m_var_offset + m_vars.size(); }
 
   /// @return the number of variables in this context alone.
   uint context_var_count() const
-  { return m_vars.elements(); }
+  { return m_vars.size(); }
 
   /// @return map index in this parsing context to runtime offset.
   uint var_context2runtime(uint i) const
@@ -414,17 +414,17 @@ public:
 
   int push_case_expr_id()
   {
-    if (m_case_expr_ids.append(m_num_case_exprs))
+    if (m_case_expr_ids.push_back(m_num_case_exprs))
       return -1;
 
     return m_num_case_exprs++;
   }
 
   void pop_case_expr_id()
-  { m_case_expr_ids.pop(); }
+  { m_case_expr_ids.pop_back(); }
 
   int get_current_case_expr_id() const
-  { return *m_case_expr_ids.back(); }
+  { return m_case_expr_ids.back(); }
 
   /////////////////////////////////////////////////////////////////////////
   // Labels.
@@ -505,16 +505,17 @@ public:
   const LEX_STRING *find_cursor(uint offset) const;
 
   uint max_cursor_index() const
-  { return m_max_cursor_index + m_cursors.elements(); }
+  { return m_max_cursor_index + m_cursors.size(); }
 
   uint current_cursor_count() const
-  { return m_cursor_offset + m_cursors.elements(); }
+  { return m_cursor_offset + m_cursors.size(); }
 
 private:
   /// Constructor for a tree node.
+  /// @param thd  thread context
   /// @param prev the parent parsing context
   /// @param scope scope of this parsing context
-  sp_pcontext(sp_pcontext *prev, enum_scope scope);
+  sp_pcontext(THD *thd, sp_pcontext *prev, enum_scope scope);
 
   void init(uint var_offset, uint cursor_offset, int num_case_expressions);
 
@@ -529,7 +530,7 @@ private:
   /// m_max_var_index -- number of variables (including all types of arguments)
   /// in this context including all children contexts.
   ///
-  /// m_max_var_index >= m_vars.elements().
+  /// m_max_var_index >= m_vars.size().
   ///
   /// m_max_var_index of the root parsing context contains number of all
   /// variables (including arguments) in all enclosed contexts.
@@ -561,25 +562,25 @@ private:
   int m_num_case_exprs;
 
   /// SP parameters/variables.
-  Dynamic_array<sp_variable *> m_vars;
+  Mem_root_array<sp_variable *, true> m_vars;
 
   /// Stack of CASE expression ids.
-  Dynamic_array<int> m_case_expr_ids;
+  Mem_root_array<int, true> m_case_expr_ids;
 
   /// Stack of SQL-conditions.
-  Dynamic_array<sp_condition *> m_conditions;
+  Mem_root_array<sp_condition *, true> m_conditions;
 
   /// Stack of cursors.
-  Dynamic_array<LEX_STRING> m_cursors;
+  Mem_root_array<LEX_STRING, true> m_cursors;
 
   /// Stack of SQL-handlers.
-  Dynamic_array<sp_handler *> m_handlers;
+  Mem_root_array<sp_handler *, true> m_handlers;
 
   /// List of labels.
   List<sp_label> m_labels;
 
   /// Children contexts, used for destruction.
-  Dynamic_array<sp_pcontext *> m_children;
+  Mem_root_array<sp_pcontext *, true> m_children;
 
   /// Scope of this parsing context.
   enum_scope m_scope;

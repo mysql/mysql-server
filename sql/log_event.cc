@@ -44,8 +44,6 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
 #include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
@@ -3857,15 +3855,23 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    table_map_for_update((ulonglong)thd_arg->table_map_for_update),
    master_data_written(0), mts_accessed_dbs(0)
 {
-  time_t end_time;
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
 
   error_code= errcode;
 
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -6256,9 +6262,18 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    db(db_arg), fname(ex->file_name), local_fname(FALSE),
    is_concurrent(is_concurrent_arg)
 {
-  time_t end_time;
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -13557,7 +13572,6 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
     global_sid_lock->rdlock();
     sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
     global_sid_lock->unlock();
-    MYSQL_SET_TRANSACTION_GTID(thd_arg->m_transaction_psi, &sid, &spec);
   }
   else
     sid.clear();
