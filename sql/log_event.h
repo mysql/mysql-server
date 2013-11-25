@@ -63,7 +63,10 @@ using  binary_log::Binary_log_event;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-
+#ifndef SERVER_VERSION_LENGTH
+#define SERVER_VERSION_LENGTH 60
+#endif
+extern char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
@@ -1970,7 +1973,8 @@ public:
 
   Stop_log_event(const char* buf,
                  const Format_description_event *description_event):
-  Binary_log_event(&buf, description_event->binlog_version), Log_event(this->header())
+  Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version), Log_event(this->header())
   {}
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}

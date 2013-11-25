@@ -1318,7 +1318,8 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_log_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version),
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
     Log_event(buf, description_event),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
@@ -2574,7 +2575,8 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
 Write_rows_log_event_old::
 Write_rows_log_event_old(const char *buf, uint event_len,
                          const Format_description_log_event *description_event)
-: Binary_log_event(&buf, description_event->binlog_version),
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version),
   Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT, description_event)
 {
 }
@@ -2706,7 +2708,8 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
 Delete_rows_log_event_old::
 Delete_rows_log_event_old(const char *buf, uint event_len,
                           const Format_description_log_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version),
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
     Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)

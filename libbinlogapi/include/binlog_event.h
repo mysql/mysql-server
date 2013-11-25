@@ -55,9 +55,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   TODO: Collect all the variables here and create a common header file,
   placing it in libbinlogapi/include.
 */
-#ifndef SERVER_VERSION_LENGTH
-#define SERVER_VERSION_LENGTH 60
-#endif
 #ifndef SYSTEM_CHARSET_MBMAXLEN
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #endif
@@ -68,7 +65,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define NAME_LEN (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
 
-extern char server_version[SERVER_VERSION_LENGTH];
 
 /*
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
@@ -711,7 +707,8 @@ public:
       //m_header.type_code=    0;
   }
   Binary_log_event(Log_event_header *header): m_header(header) {}
-  Binary_log_event(const char **buf, uint16_t binlog_version);
+  Binary_log_event(const char **buf, uint16_t binlog_version,
+                   const char *server_version);
 
   // TODO: Uncomment when the dependency of log_event on this class in removed
   /**
@@ -1720,7 +1717,7 @@ public:
      mapping is done using event_type_permutation
     */
     const uint8_t *event_type_permutation;
-    Format_description_event(uint8_t binlog_ver, const char* server_ver=0);
+    Format_description_event(uint8_t binlog_ver, const char* server_ver);
     Format_description_event(const char* buf, unsigned int event_len,
                              const Format_description_event *description_event);
 
@@ -1757,7 +1754,8 @@ public:
   }
   Stop_event(const char* buf,
              const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version)
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version)
   {
   }
 

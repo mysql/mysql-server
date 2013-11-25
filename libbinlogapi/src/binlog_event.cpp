@@ -262,9 +262,11 @@ Log_event_header::Log_event_header(const char* buf,
   member common_header.
   It will also advance the buffer after reading the common_header_len
 */
-Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version)
+Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
+                                   const char *server_version)
 {
-  Format_description_event *des= new Format_description_event(binlog_version);
+  Format_description_event *des= new Format_description_event(binlog_version,
+                                                              server_version);
   m_header= new Log_event_header(*buf, des);
   // remove the comments when all the events are moved to libbinlogapi
   // (*buf)+= des->common_header_len;
@@ -301,7 +303,6 @@ Start_event_v3::Start_event_v3()
   :created(0), binlog_version(BINLOG_VERSION),
    dont_set_created(0)
 {
-  memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
 }
 /*
  *TODO FDE constructor is not tested in this patch, but it will
@@ -331,7 +332,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 and above*/
   {
-    memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+    memcpy(server_version, server_ver, ST_SERVER_VER_LEN);
     DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
                     bapi_stpcpy(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
@@ -400,6 +401,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       We build an artificial (i.e. not sent by the master) event, which
       describes what those old master versions send.
     */
+    if (server_ver[0] == '\000')
+      server_ver= 0;
     if (binlog_version == 1)
       bapi_stpcpy(server_version, server_ver ? server_ver : "3.23");
     else
@@ -475,7 +478,8 @@ bool Format_description_event::is_version_before_checksum() const
 
 Start_event_v3::Start_event_v3(const char* buf,
                                const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version)
+  :Binary_log_event(&buf, description_event->binlog_version,
+   description_event->server_version)
 {
   buf+= description_event->common_header_len;
   binlog_version= uint2korr(buf + ST_BINLOG_VER_OFFSET);
@@ -686,7 +690,8 @@ Format_description_event::~Format_description_event()
 */
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event)
-: Binary_log_event(&buf, description_event->binlog_version), new_log_ident(0),
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version), new_log_ident(0),
   flags(DUP_NAME)
 {
   // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
@@ -754,7 +759,8 @@ void Stop_event::print_long_info(std::ostream& info)
 */
 Int_var_event::Int_var_event(const char* buf,
                              const Format_description_event* description_event)
-: Binary_log_event(&buf, description_event->binlog_version)
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version)
 {
   /*
     TODO: Move the addition by common header len to the constrcutor in
@@ -856,7 +862,8 @@ const char *binary_log::sql_ex_data_info::init(const char *buf,
 */
 Load_event::Load_event(const char *buf, uint event_len,
                        const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), num_fields(0),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version), num_fields(0),
    fields(0), field_lens(0),field_block_len(0),
    table_name(0), db(0), fname(0), local_fname(FALSE),
    /**
@@ -1045,7 +1052,8 @@ Create_file_event::Create_file_event(unsigned char* block_arg,
 Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
                                      const Format_description_event*
                                      description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), file_id(0)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version), file_id(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char delete_file_header_len=
@@ -1064,7 +1072,8 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
 Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
                                        const Format_description_event*
                                        description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), file_id(0)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version), file_id(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char exec_load_header_len= description_event->
@@ -1085,7 +1094,8 @@ Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
 Append_block_event::Append_block_event(const char* buf, unsigned int len,
                                        const Format_description_event*
                                        description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), block(0)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version), block(0)
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char append_block_header_len=
@@ -1113,7 +1123,8 @@ Begin_load_query_event(const char* buf, unsigned int len,
 Xid_event::
 Xid_event(const char* buf,
           const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version)
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
@@ -1123,7 +1134,8 @@ Xid_event(const char* buf,
 
 Rand_event::Rand_event(const char* buf,
                        const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version)
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
@@ -1136,7 +1148,8 @@ Rand_event::Rand_event(const char* buf,
 User_var_event::
 User_var_event(const char* buf, unsigned int event_len,
                const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version)
 {
   bool error= false;
   const char* buf_start= buf;
@@ -1361,7 +1374,8 @@ Query_event::code_name(int code)
 Query_event::Query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event,
                          Log_event_type event_type)
-: Binary_log_event(&buf, description_event->binlog_version),
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version),
   m_user(""), m_host(""),m_db(""), m_query(""),
   db_len(0), status_vars_len(0), q_len(0),
   flags2_inited(0), sql_mode_inited(0), charset_inited(0),
