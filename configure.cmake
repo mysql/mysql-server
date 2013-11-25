@@ -45,6 +45,7 @@ ENDIF()
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
   ## We will be using gcc to generate .so files
   ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
+  ## See cmake --help-policy CMP0018
   SET(CMAKE_SHARED_LIBRARY_C_FLAGS
     "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${CMAKE_C_FLAGS}")
 ENDIF()
@@ -90,13 +91,96 @@ MACRO(DIRNAME IN OUT)
   GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
 ENDMACRO()
 
+MACRO(FIND_REAL_LIBRARY SOFTLINK_NAME REALNAME)
+  # We re-distribute libstlport.so/libstdc++.so which are both symlinks.
+  # There is no 'readlink' on solaris, so we use perl to follow links:
+  SET(PERLSCRIPT
+    "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
+  EXECUTE_PROCESS(
+    COMMAND perl -e "${PERLSCRIPT}" ${SOFTLINK_NAME}
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE real_library
+    )
+  SET(REALNAME ${real_library})
+ENDMACRO()
+
+MACRO(EXTEND_CXX_LINK_FLAGS LIBRARY_PATH)
+  # Using the $ORIGIN token with the -R option to locate the libraries
+  # on a path relative to the executable:
+  # We need an extra backslash to pass $ORIGIN to the mysql_config script...
+  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+    "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+  SET(CMAKE_CXX_LINK_FLAGS
+    "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+  MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
+ENDMACRO()
+
+MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
+  SET(QUOTED_CMAKE_C_LINK_FLAGS
+    "${CMAKE_C_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+  SET(CMAKE_C_LINK_FLAGS
+    "${CMAKE_C_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+  MESSAGE(STATUS "CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}")
+  SET(CMAKE_SHARED_LIBRARY_C_FLAGS
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+ENDMACRO()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
+  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  SET(LIB_SUFFIX "lib")
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+    SET(LIB_SUFFIX "lib/sparcv9")
+  ENDIF()
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    SET(LIB_SUFFIX "lib/amd64")
+  ENDIF()
+  FIND_LIBRARY(GPP_LIBRARY_NAME
+    NAMES "stdc++"
+    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
+    NO_DEFAULT_PATH
+  )
+  MESSAGE(STATUS "GPP_LIBRARY_NAME ${GPP_LIBRARY_NAME}")
+  IF(GPP_LIBRARY_NAME)
+    DIRNAME(${GPP_LIBRARY_NAME} GPP_LIBRARY_PATH)
+    FIND_REAL_LIBRARY(${GPP_LIBRARY_NAME} real_library)
+    MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_NAME} ${real_library}")
+    INSTALL(FILES ${GPP_LIBRARY_NAME} ${real_library}
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_CXX_LINK_FLAGS(${GPP_LIBRARY_PATH})
+    EXECUTE_PROCESS(
+      COMMAND sh -c "elfdump ${real_library} | grep SONAME"
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE sonameline
+    )
+    IF(NOT result)
+      STRING(REGEX MATCH "libstdc.*[^\n]" soname ${sonameline})
+      MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_PATH}/${soname}")
+      INSTALL(FILES "${GPP_LIBRARY_PATH}/${soname}"
+              DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    ENDIF()
+  ENDIF()
+  FIND_LIBRARY(GCC_LIBRARY_NAME
+    NAMES "gcc_s"
+    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
+    NO_DEFAULT_PATH
+  )
+  IF(GCC_LIBRARY_NAME)
+    DIRNAME(${GCC_LIBRARY_NAME} GCC_LIBRARY_PATH)
+    FIND_REAL_LIBRARY(${GCC_LIBRARY_NAME} real_library)
+    MESSAGE(STATUS "INSTALL ${GCC_LIBRARY_NAME} ${real_library}")
+    INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_C_LINK_FLAGS(${GCC_LIBRARY_PATH})
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   SET(STLPORT_SUFFIX "lib/stlport4")
-  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
     SET(STLPORT_SUFFIX "lib/stlport4/v9")
   ENDIF()
-  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
     SET(STLPORT_SUFFIX "lib/stlport4/amd64")
   ENDIF()
 
@@ -107,26 +191,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
   IF(STL_LIBRARY_NAME)
     DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
-    # We re-distribute libstlport.so which is a symlink to libstlport.so.1
-    # There is no 'readlink' on solaris, so we use perl to follow links:
-    SET(PERLSCRIPT
-      "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
-    EXECUTE_PROCESS(
-      COMMAND perl -e "${PERLSCRIPT}" ${STL_LIBRARY_NAME}
-      RESULT_VARIABLE result
-      OUTPUT_VARIABLE real_library
-    )
+    FIND_REAL_LIBRARY(${STL_LIBRARY_NAME} real_library)
     MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
-    # Using the $ORIGIN token with the -R option to locate the libraries
-    # on a path relative to the executable:
-    # We need an extra backslash to pass $ORIGIN to the mysql_config script...
-    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-      "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${STLPORT_PATH}")
-    SET(CMAKE_CXX_LINK_FLAGS
-      "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
-    MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
   ENDIF()
 ENDIF()
 
