@@ -217,6 +217,7 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
+void thd_mark_transaction_to_rollback(void* thd, int all);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_binlog_pos(const void* thd,
