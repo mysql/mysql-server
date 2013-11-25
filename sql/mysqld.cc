@@ -1851,7 +1851,9 @@ void clean_up(bool print_message)
   delete binlog_filter;
   delete rpl_filter;
   end_ssl();
+#ifndef EMBEDDED_LIBRARY
   vio_end();
+#endif /*!EMBEDDED_LIBRARY*/
   my_regex_end();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */

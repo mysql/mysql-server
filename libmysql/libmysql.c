@@ -204,11 +204,11 @@ void STDCALL mysql_server_end()
 
   mysql_client_plugin_deinit();
 
+  finish_client_errs();
+  vio_end();
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
-  finish_client_errs();
-  vio_end();
 
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
