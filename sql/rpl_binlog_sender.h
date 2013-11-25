@@ -341,8 +341,8 @@ private:
     m_last_file= m_last_file_buf;
   }
 
-  inline void grow_packet(ulong cur_buffer_size, 
-                          ulong needed_buffer_size,
+  inline void grow_packet(uint32 cur_buffer_size, 
+                          uint32 needed_buffer_size,
                           String *packet)
   {
     /*
@@ -350,24 +350,24 @@ private:
     */
     if (needed_buffer_size > cur_buffer_size)
     {
-      ulong tentative_next_buffer_size= 
-        static_cast<ulong>(cur_buffer_size * PACKET_GROW_FACTOR);
-      
-      ulong new_buffer_size= min(
-              ALIGN_SIZE(max(tentative_next_buffer_size, needed_buffer_size)),
-              m_thd->variables.max_allowed_packet);
+      uint32 grown_buffer_size= cur_buffer_size * PACKET_GROW_FACTOR;
+      uint32 max_grown_buffer_size= ALIGN_SIZE(
+        std::max(grown_buffer_size, needed_buffer_size));
+      uint32 new_buffer_size= 
+        std::min(max_grown_buffer_size, 
+                 static_cast<uint32>(m_thd->variables.max_allowed_packet));
       packet->realloc(new_buffer_size);
     }
   }
 
   inline void shrink_packet(String *packet)
   {
-    ulong cur_buffer_size= packet->alloced_length();
-    ulong buffer_used= packet->length();
-    uint32 new_buffer_size= ALIGN_SIZE(
-            static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR));
+    uint32 cur_buffer_size= packet->alloced_length();
+    uint32 buffer_used= packet->length();
+    uint32 new_buffer_size= 
+      ALIGN_SIZE(static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR));
 
-    if (buffer_used < static_cast<ulong>(new_buffer_size))
+    if (buffer_used < new_buffer_size)
       m_half_buffer_size_req_counter ++;
     else
       m_half_buffer_size_req_counter= 0;
