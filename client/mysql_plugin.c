@@ -892,7 +892,7 @@ static int process_options(int argc, char *argv[], char *operation)
       strncat(buff, FN_DIRSEP, sizeof(buff) - strlen(buff) - 1);
 #endif
       buff[sizeof(buff) - 1]= 0;
-      my_delete(opt_basedir, MYF(0));
+      my_free(opt_basedir);
       opt_basedir= my_strdup(buff, MYF(MY_FAE));
     }
   }
