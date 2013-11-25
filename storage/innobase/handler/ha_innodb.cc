@@ -1376,7 +1376,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, true);
+			thd_mark_transaction_to_rollback(thd, 1);
 		}
 
 		return(HA_ERR_LOCK_DEADLOCK);
@@ -1388,7 +1388,7 @@ convert_error_code_to_mysql(
 
 		if (thd) {
 			thd_mark_transaction_to_rollback(
-				thd, (bool) row_rollback_on_timeout);
+				thd, (int) row_rollback_on_timeout);
 		}
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
@@ -1463,7 +1463,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, true);
+			thd_mark_transaction_to_rollback(thd, 1);
 		}
 
 		return(HA_ERR_LOCK_TABLE_FULL);
@@ -10236,7 +10236,7 @@ ha_innobase::records()
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
-		thd_mark_transaction_to_rollback(user_thd, true);
+		thd_mark_transaction_to_rollback(user_thd, 1);
 		DBUG_RETURN(HA_POS_ERROR);
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
