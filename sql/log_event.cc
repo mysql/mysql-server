@@ -1747,7 +1747,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Incident_log_event(buf, event_len, description_event);
       break;
     case ROWS_QUERY_LOG_EVENT:
-      ev= new Rows_query_log_event(buf, event_len, description_event);
+      ev= new Rows_query_log_event(buf, event_len, &des_ev);
       break;
     case GTID_LOG_EVENT:
     case ANONYMOUS_GTID_LOG_EVENT:
@@ -1774,7 +1774,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       */
       if (uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F)
       {
-        ev= new Ignorable_log_event(buf, description_event);
+        ev= new Ignorable_log_event(buf, &des_ev);
       }
       else
       {
@@ -12245,9 +12245,10 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 
 
 Ignorable_log_event::Ignorable_log_event(const char *buf,
-                                         const Format_description_log_event *descr_event)
+                                         const Format_description_event *descr_event)
   :Binary_log_event(&buf, descr_event->binlog_version,
-                    descr_event->server_version), Log_event(buf, descr_event)
+                    descr_event->server_version),
+   Ignorable_event(buf, descr_event), Log_event(this->header())
 {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
 
@@ -12288,38 +12289,12 @@ Ignorable_log_event::print(FILE *file,
 
 
 Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
-                                           const Format_description_log_event
+                                           const Format_description_event
                                            *descr_event)
   : Binary_log_event(&buf, descr_event->binlog_version,
                      descr_event->server_version),
     Ignorable_log_event(buf, descr_event)
 {
-  DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-  uint8 const common_header_len=
-    descr_event->common_header_len;
-  uint8 const post_header_len=
-    descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
-
-  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
-                     event_len, common_header_len, post_header_len));
-
-  /*
-   m_rows_query length is stored using only one byte, but that length is
-   ignored and the complete query is read.
-  */
-  int offset= common_header_len + post_header_len + 1;
-  int len= event_len - offset;
-  if (!(m_rows_query= (char*) my_malloc(key_memory_log_event,
-                                        len+1, MYF(MY_WME))))
-    return;
-  strmake(m_rows_query, buf + offset, len);
-  DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
-  DBUG_VOID_RETURN;
-}
-
-Rows_query_log_event::~Rows_query_log_event()
-{
-  my_free(m_rows_query);
 }
 
 #ifndef MYSQL_CLIENT

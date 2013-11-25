@@ -2334,6 +2334,79 @@ public:
   }
 };
 
+/**
+  @class Ignorable_event
+
+  Base class for ignorable log events. Events deriving from
+  this class can be safely ignored by slaves that cannot
+  recognize them. Newer slaves, will be able to read and
+  handle them. This has been designed to be an open-ended
+  architecture, so adding new derived events shall not harm
+  the old slaves that support ignorable log event mechanism
+  (they will just ignore unrecognized ignorable events).
+
+  @note The only thing that makes an event ignorable is that it has
+  the LOG_EVENT_IGNORABLE_F flag set.  It is not strictly necessary
+  that ignorable event types derive from Ignorable_event; they may
+  just as well derive from Binary_log_event and Log_event and pass
+  LOG_EVENT_IGNORABLE_F as argument to the Log_event constructor.
+*/
+
+class Ignorable_event: public virtual Binary_log_event
+{
+public:
+  Ignorable_event(const char *buf, const Format_description_event *descr_event)
+  :Binary_log_event(&buf, descr_event->binlog_version,
+                    descr_event->server_version)
+  { }
+  Ignorable_event() { }; // For the thd ctor of Ignorable_log_event
+  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+};
+
+/**
+  @class Rows_query_event
+
+  Rows query event type, which is a subclass
+  of the ignorable_event, to record the original query for the rows
+  events in RBR. This event can be used to display the original query as
+  comments by SHOW BINLOG EVENTS query, or mysqlbinlog client when the
+  --verbose option is given twice
+  @section Int_var_event_binary_format Binary Format
+
+  The Post-Header for this event type is empty. The Body has one
+  components:
+
+  <table>
+  <caption>Body for Intvar_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>m_rows_query</td>
+    <td>char array</td>
+    <td>Records the original quesry executed in RBR </td>
+  </tr>
+  </table>
+
+*/
+class Rows_query_event: public virtual Ignorable_event
+{
+public:
+  Rows_query_event(const char *buf, unsigned int event_len,
+                   const Format_description_event *descr_event);
+  Rows_query_event()
+  {
+  }
+  ~Rows_query_event();
+protected:
+  char *m_rows_query;
+};
 
 /**
   @class Int_var_event
@@ -2342,7 +2415,6 @@ public:
   if the query uses one of the variables LAST_INSERT_ID or INSERT_ID.
   Each Int_var_event holds the value of one of these variables.
 
-  @section Int_var_event_binary_format Binary Format
 
   The Post-Header for this event type is empty. The Body has two
   components:
@@ -2372,6 +2444,7 @@ public:
   </tr>
 
   </table>
+  @section Int_var_event_binary_format Binary Format
 */
 class Int_var_event: public virtual Binary_log_event
 {
