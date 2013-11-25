@@ -4435,6 +4435,7 @@ fil_load_single_table_tablespace(
 		if (!remote.success) {
 			os_file_close(remote.file);
 			ut_free(remote.filepath);
+			remote.filepath = NULL;
 		}
 	}
 
