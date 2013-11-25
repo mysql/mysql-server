@@ -848,10 +848,9 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
  * which are still not moved in libbinlogapi
 */
 Log_event::Log_event(const char* buf, const Format_description_log_event* des_ev)
-  :Binary_log_event(&buf, des_ev->binlog_version),temp_buf(0), exec_time(0),
-  event_cache_type(EVENT_INVALID_CACHE),
-  event_logging_type(EVENT_INVALID_LOGGING),
-  crc(0), common_header(0)
+  :Binary_log_event(&buf, des_ev->binlog_version, des_ev->server_version),
+   temp_buf(0), exec_time(0), event_cache_type(EVENT_INVALID_CACHE),
+   event_logging_type(EVENT_INVALID_LOGGING), crc(0), common_header(0)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -1576,7 +1575,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   );
 
   binary_log_debug::debug_checksum_test= DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-  binary_log::Format_description_event des_ev(description_event->binlog_version);
+  binary_log::Format_description_event des_ev(description_event->binlog_version,
+                                              description_event->server_version);
   if (crc_check &&
       event_checksum_test((uchar *) buf, event_len, alg))
   {
@@ -4002,7 +4002,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_event
                                  *description_event,
                                  Log_event_type event_type)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Query_event(buf, event_len, description_event, event_type),
    Log_event(this->header(), true), user(0), host(0), catalog(0), db(0),
    time_zone_str(0)
@@ -4988,7 +4989,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Start_log_event_v3::Start_log_event_v3(const char* buf,
                                        const Format_description_event
                                        *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Start_event_v3(buf, description_event), Log_event(this->header())
 {
 }
@@ -5117,7 +5119,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 
 Format_description_log_event::
 Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
-  :Format_description_event(binlog_ver, server_ver)
+  :Format_description_event(binlog_ver, ::server_version)
 {
 }
 
@@ -5144,13 +5146,12 @@ Format_description_log_event::
 Format_description_log_event(const char* buf, uint event_len,
                              const Format_description_event
                              *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Start_event_v3(buf, description_event),
    Format_description_event(buf, event_len, description_event),
    Start_log_event_v3(buf, description_event)
 {
-  DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
-  DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_CLIENT
@@ -5611,7 +5612,8 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 */
 Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Load_event(buf, event_len, description_event),
    Log_event(this->header(), true)
 {
@@ -6180,7 +6182,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header()),
    Rotate_event(buf, event_len, description_event)
 {
@@ -6374,7 +6377,8 @@ int Intvar_log_event::pack_info(Protocol *protocol)
 Intvar_log_event::Intvar_log_event(const char* buf,
                                    const Format_description_event*
                                    description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header()),
    Int_var_event(buf, description_event)
 {
@@ -6506,7 +6510,8 @@ int Rand_log_event::pack_info(Protocol *protocol)
 
 Rand_log_event::Rand_log_event(const char* buf,
                                const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header()), Rand_event(buf, description_event)
 {
 }
@@ -6626,7 +6631,8 @@ int Xid_log_event::pack_info(Protocol *protocol)
 Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header()), Xid_event(buf, description_event)
 { }
 
@@ -6930,7 +6936,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
 User_var_log_event::
 	User_var_log_event(const char* buf, uint event_len,
 			   const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header()), User_var_event(buf, event_len, description_event)
 #ifndef MYSQL_CLIENT
   , deferred(false), query_id(0)
@@ -7403,7 +7410,8 @@ bool Create_file_log_event::write_base(IO_CACHE* file)
 Create_file_log_event::
 Create_file_log_event(const char* buf, uint len,
                       const Format_description_event* description_event)
- :Binary_log_event(&buf, description_event->binlog_version),
+ :Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version),
   Load_event(buf, 0, description_event),
   Load_log_event(buf,0,description_event),
   Create_file_event(buf,len, description_event)
@@ -7633,7 +7641,8 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 Append_block_log_event::Append_block_log_event(const char* buf, uint len,
                                                const Format_description_event*
                                                description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Append_block_event(buf, len, description_event),
    Log_event(this->header(), true)
 {
@@ -7805,7 +7814,8 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
                                              const Format_description_event*
                                              description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header(), true),
    Delete_file_event(buf, len, description_event)
 {
@@ -7908,7 +7918,8 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
 Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
                                                const Format_description_event*
                                                description_event)
-  :Binary_log_event(&buf, description_event->binlog_version),
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
    Log_event(this->header(), true),
    Execute_load_event(buf, len, description_event)
 {
@@ -8093,7 +8104,8 @@ Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
 Begin_load_query_log_event::
 Begin_load_query_log_event(const char* buf, uint len,
                            const Format_description_event* desc_event)
-  :Binary_log_event(&buf, desc_event->binlog_version),
+  :Binary_log_event(&buf, desc_event->binlog_version,
+                    desc_event->server_version),
    Append_block_event(buf, len, desc_event),
    Append_block_log_event(buf, len, desc_event),
    Begin_load_query_event(buf, len, desc_event)
@@ -8150,7 +8162,7 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
 Execute_load_query_log_event::
 Execute_load_query_log_event(const char* buf, uint event_len,
                              const Format_description_event* desc_event):
-  Binary_log_event(&buf, desc_event->binlog_version),
+  Binary_log_event(&buf, desc_event->binlog_version, desc_event->server_version),
   Query_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
   Query_log_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
   Execute_load_query_event(buf, event_len, desc_event)
@@ -8513,8 +8525,9 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
 Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                const Format_description_log_event
                                *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event),
-    m_row_count(0),
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Log_event(buf, description_event), m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
 #endif
@@ -11043,7 +11056,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                                          const Format_description_log_event
                                          *description_event)
 
-  : Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event),
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Log_event(buf, description_event),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
 #endif
@@ -11513,7 +11528,9 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 Write_rows_log_event::Write_rows_log_event(const char *buf, uint event_len,
                                            const Format_description_log_event
                                            *description_event)
-: Binary_log_event(&buf, description_event->binlog_version), Rows_log_event(buf, event_len, description_event)
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version),
+  Rows_log_event(buf, event_len, description_event)
 {
 }
 #endif
@@ -12002,7 +12019,9 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
                                              const Format_description_log_event
                                              *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version), Rows_log_event(buf, event_len, description_event)
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Rows_log_event(buf, event_len, description_event)
 {
 }
 #endif
@@ -12110,7 +12129,9 @@ Update_rows_log_event::~Update_rows_log_event()
 Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
                                              const Format_description_log_event
                                              *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version), Rows_log_event(buf, event_len, description_event)
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Rows_log_event(buf, event_len, description_event)
 {
 }
 #endif
@@ -12205,7 +12226,8 @@ void Update_rows_log_event::print(FILE *file,
 
 Incident_log_event::Incident_log_event(const char *buf, uint event_len,
                                        const Format_description_log_event *descr_event)
-  : Binary_log_event(&buf, descr_event->binlog_version), Log_event(buf, descr_event)
+  : Binary_log_event(&buf, descr_event->binlog_version,
+                     descr_event->server_version), Log_event(buf, descr_event)
 {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
 
@@ -12354,7 +12376,8 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 
 Ignorable_log_event::Ignorable_log_event(const char *buf,
                                          const Format_description_log_event *descr_event)
-  :Binary_log_event(&buf, descr_event->binlog_version), Log_event(buf, descr_event)
+  :Binary_log_event(&buf, descr_event->binlog_version,
+                    descr_event->server_version), Log_event(buf, descr_event)
 {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
 
@@ -12397,7 +12420,9 @@ Ignorable_log_event::print(FILE *file,
 Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
                                            const Format_description_log_event
                                            *descr_event)
-  : Binary_log_event(&buf, descr_event->binlog_version), Ignorable_log_event(buf, descr_event)
+  : Binary_log_event(&buf, descr_event->binlog_version,
+                     descr_event->server_version),
+    Ignorable_log_event(buf, descr_event)
 {
   DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
   uint8 const common_header_len=
@@ -12508,7 +12533,8 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
-  : Binary_log_event(&buffer, descr_event->binlog_version), Log_event(buffer, descr_event)
+  : Binary_log_event(&buffer, descr_event->binlog_version,
+                     descr_event->server_version), Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
 
@@ -12719,7 +12745,8 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 Previous_gtids_log_event::Previous_gtids_log_event(
   const char *buffer, uint event_len,
   const Format_description_log_event *descr_event)
-  : Binary_log_event(&buffer, descr_event->binlog_version), Log_event(buffer, descr_event)
+  : Binary_log_event(&buffer, descr_event->binlog_version,
+                     descr_event->server_version), Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
 
@@ -12887,7 +12914,9 @@ st_print_event_info::st_print_event_info()
 Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
                                          const Format_description_log_event*
                                          description_event)
-  :Binary_log_event(&buf, description_event->binlog_version), Log_event(buf, description_event)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version),
+   Log_event(buf, description_event)
 {
 
   uint8 header_size= description_event->common_header_len;
