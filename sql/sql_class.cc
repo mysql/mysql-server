@@ -4000,10 +4000,17 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
     return BINLOG_FORMAT_UNSPEC;
 }
 
-extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
+extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
   DBUG_ASSERT(thd);
-  thd->mark_transaction_to_rollback(all);
+  /*
+    The parameter "all" has type int since the function is defined
+    in plugin.h. The corresponding parameter in the call below has
+    type bool. The comment in plugin.h states that "all != 0"
+    means to rollback the main transaction. Thus, check this
+    specifically.
+  */
+  thd->mark_transaction_to_rollback((all != 0));
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
