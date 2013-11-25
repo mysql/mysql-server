@@ -2817,13 +2817,53 @@ char *str_to_hex(char *to, const char *from, uint len);
 class Table_map_log_event : public Log_event, public Table_map_event
 {
 public:
+  /* Constants */
+  enum
+  {
+    TYPE_CODE = TABLE_MAP_EVENT
+  };
+
+  /**
+     Enumeration of the errors that can be returned.
+   */
+  enum enum_error
+  {
+    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
+    ERR_OK = 0,                                 /**< No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
+    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
+    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
+  };
+
+
+  enum enum_flag
+  {
+    /*
+       Nothing here right now, but the flags support is there in
+       preparation for changes that are coming.  Need to add a
+       constant to make it compile under HP-UX: aCC does not like
+       empty enumerations.
+    */
+    ENUM_FLAG_COUNT
+  };
+
+  /* Special constants representing sets of flags */
+  enum
+  {
+    TM_NO_FLAGS = 0U,
+    TM_BIT_LEN_EXACT_F = (1U << 0),
+    TM_REFERRED_FK_DB_F = (1U << 1)
+  };
+
+  flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
-  Table_map_log_event(const char *buf, uint event_len, 
+  Table_map_log_event(const char *buf, uint event_len,
                       const Format_description_event *description_event);
 #endif
 
@@ -2908,12 +2948,25 @@ private:
 
    Encode the common parts of all events containing rows, which are:
    - Write data header and data body to an IO_CACHE.
-   - Provide an interface for adding an individual row to the event.
+
+  The inheritance structure in the current design for the classes is
+  as follows:
+
+                Binary_log_event
+                     /   \
+        <<virtual>> /     \ <<virtual>>
+                   /       \
+             Rows_event  Log_event
+                   \       /
+                    \     /
+                     \   /
+                 Rows_log_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
 
   @section Rows_log_event_binary_format Binary Format
 */
-
-
 class Rows_log_event : public Log_event, public virtual Rows_event
 {
 public:
@@ -2942,7 +2995,7 @@ public:
 
 
   /* Special constants representing sets of flags */
-  enum 
+  enum
   {
       RLE_NO_FLAGS = 0U
   };
@@ -2974,7 +3027,7 @@ public:
 #ifdef MYSQL_SERVER
   int add_row_data(uchar *data, size_t length)
   {
-    return do_add_row_data(data,length); 
+    return do_add_row_data(data,length);
   }
 #endif
 
@@ -2989,7 +3042,7 @@ public:
 #if defined(MYSQL_SERVER)
   /*
     This member function compares the table's read/write_set
-    with this event's m_cols and m_cols_ai. Comparison takes 
+    with this event's m_cols and m_cols_ai. Comparison takes
     into account what type of rows event is this: Delete, Write or
     Update, therefore it uses the correct m_cols[_ai] according
     to the event type code.
@@ -3000,10 +3053,10 @@ public:
     - Write_rows_log_event
     - Update_rows_log_event
 
-    @param[IN] table The table to compare this events bitmaps 
+    @param[IN] table The table to compare this events bitmaps
                      against.
 
-    @return TRUE if sets match, FALSE otherwise. (following 
+    @return TRUE if sets match, FALSE otherwise. (following
                  bitmap_cmp return logic).
 
    */
@@ -3024,7 +3077,7 @@ public:
         res= bitmap_cmp(get_cols(), table->write_set);
         break;
       default:
-        /* 
+        /*
           We should just compare bitmaps for Delete, Write
           or Update rows events.
         */
@@ -3055,7 +3108,7 @@ public:
   const uchar* get_extra_row_data() const   { return m_extra_row_data; }
 
 protected:
-  /* 
+  /*
      The constructors are protected since you're supposed to inherit
      this class, not create instances of this class.
   */
@@ -3065,7 +3118,7 @@ protected:
                  Log_event_type event_type,
                  const uchar* extra_row_info);
 #endif
-  Rows_log_event(const char *row_data, uint event_len, 
+  Rows_log_event(const char *row_data, uint event_len,
 		 const Format_description_event *description_event);
 
 #ifdef MYSQL_CLIENT
@@ -3091,7 +3144,7 @@ protected:
      The algorithm to use while searching for rows using the before
      image.
   */
-  uint            m_rows_lookup_algorithm;  
+  uint            m_rows_lookup_algorithm;
 #endif
   /*
     Bitmap for columns available in the after image, if present. These
@@ -3127,7 +3180,7 @@ protected:
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
                          MY_BITMAP const *cols)
-  { 
+  {
     DBUG_ASSERT(m_table);
 
     ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
@@ -3185,23 +3238,23 @@ private:
       The member function will return 0 if all went OK, or a non-zero
       error code otherwise.
   */
-  virtual 
+  virtual
   int do_before_row_operations(const Slave_reporting_capability *const log) = 0;
 
   /*
     Primitive to clean up after a sequence of row executions.
 
     DESCRIPTION
-    
+
       After doing a sequence of do_prepare_row() and do_exec_row(),
       this member function should be called to clean up and release
       any allocated buffers.
-      
+
       The error argument, if non-zero, indicates an error which happened during
-      row processing before this function was called. In this case, even if 
+      row processing before this function was called. In this case, even if
       function is successful, it should return the error code given in the argument.
   */
-  virtual 
+  virtual
   int do_after_row_operations(const Slave_reporting_capability *const log,
                               int error) = 0;
 
@@ -3210,13 +3263,13 @@ private:
 
     DESCRIPTION
       The member function will do the actual execution needed to handle a row.
-      The row is located at m_curr_row. When the function returns, 
+      The row is located at m_curr_row. When the function returns,
       m_curr_row_end should point at the next row (one byte after the end
-      of the current row).    
+      of the current row).
 
     RETURN VALUE
       0 if execution succeeded, 1 if execution failed.
-      
+
   */
   virtual int do_exec_row(const Relay_log_info *const rli) = 0;
 
@@ -3251,7 +3304,7 @@ private:
      found it updates it.
    */
   int do_index_scan_and_update(Relay_log_info const *rli);
-  
+
   /**
      Implementation of the hash_scan and update algorithm. It collects
      rows positions in a hashtable until the last row is
@@ -3341,12 +3394,39 @@ private:
   insert/update rows for a table. Note that each event contains only
   rows for one table.
 
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+              B_l:Rows_event  Log_event
+                     /  \        /
+               <<v>>/    \<<v>> /
+                   /      \    /
+                  /        \  /
+              B_l:W_R_E  Rows_log_event
+                  \        /
+                   \      /
+                    \    /
+                     \  /
+              Write_rows_log_event
+
+  B_l: Namespace Binary_log
+  W_R_E: class Write_rows_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
+
+
   @section Write_rows_log_event_binary_format Binary Format
 */
 class Write_rows_log_event : public Rows_log_event, public Write_rows_event
 {
 public:
-  enum 
+  enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = WRITE_ROWS_EVENT
@@ -3358,10 +3438,10 @@ public:
                        const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
-  Write_rows_log_event(const char *buf, uint event_len, 
+  Write_rows_log_event(const char *buf, uint event_len,
                        const Format_description_event *description_event);
 #endif
-#if defined(MYSQL_SERVER) 
+#if defined(MYSQL_SERVER)
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           const uchar *before_record
@@ -3404,12 +3484,37 @@ private:
   Also note that the row data consists of pairs of row data: one row
   for the old data and one row for the new data.
 
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+              B_l:Rows_event  Log_event
+                     /  \        /
+               <<v>>/    \<<v>> /
+                   /      \    /
+                  /        \  /
+              B_l:U_R_E  Rows_log_event
+                  \        /
+                   \      /
+                    \    /
+                     \  /
+              Update_rows_log_event
+
+  B_l: Namespace Binary_log
+  U_R_E: class Update_rows_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Update_rows_log_event_binary_format Binary Format
 */
 class Update_rows_log_event : public Rows_log_event, public Update_rows_event
 {
 public:
-  enum 
+  enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = UPDATE_ROWS_EVENT
@@ -3432,7 +3537,7 @@ public:
   virtual ~Update_rows_log_event();
 
 #ifdef HAVE_REPLICATION
-  Update_rows_log_event(const char *buf, uint event_len, 
+  Update_rows_log_event(const char *buf, uint event_len,
 			const Format_description_event *description_event);
 #endif
 
@@ -3487,12 +3592,37 @@ protected:
     Row_reader
       Extract the rows from the event.
 
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                   <<v>>/       \<<v>>
+                       /         \
+              B_l:Rows_event  Log_event
+                     /  \        /
+               <<v>>/    \<<v>> /
+                   /      \    /
+                  /        \  /
+              B_l:D_R_E  Rows_log_event
+                  \        /
+                   \      /
+                    \    /
+                     \  /
+              Delete_rows_log_event
+
+  B_l: Namespace Binary_log
+  D_R_E: class Delete_rows_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
   @section Delete_rows_log_event_binary_format Binary Format
 */
 class Delete_rows_log_event : public Rows_log_event, public Delete_rows_event
 {
 public:
-  enum 
+  enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = DELETE_ROWS_EVENT
@@ -3503,7 +3633,7 @@ public:
 			bool is_transactional, const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
-  Delete_rows_log_event(const char *buf, uint event_len, 
+  Delete_rows_log_event(const char *buf, uint event_len,
 			const Format_description_event *description_event);
 #endif
 #ifdef MYSQL_SERVER
@@ -3517,7 +3647,7 @@ public:
                                   before_record, NULL);
   }
 #endif
-  
+
 protected:
   virtual Log_event_type get_general_type_code()
   {

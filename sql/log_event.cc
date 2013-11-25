@@ -8495,11 +8495,10 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
                                MY_BITMAP const *cols, bool using_trans,
                                Log_event_type event_type,
                                const uchar* extra_row_info)
-  : Rows_event(),
-    Log_event(thd_arg, 0,
-             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                           Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING)
+ :  Log_event(thd_arg, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING)
 #ifdef HAVE_REPLICATION
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL), last_hashed_key(NULL)
 #endif
@@ -8580,12 +8579,23 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   DBUG_ASSERT(this->header()->type_code == m_type);
 
-  memset(&m_cols, 0, sizeof(m_cols));
 
   if (m_extra_row_data)
     DBUG_EXECUTE_IF("extra_row_data_check",
                     /* Check extra data has expected value */
                     check_extra_data(m_extra_row_data););
+
+
+  /*
+     m_cols and m_cols_ai are of the type MY_BITMAP, which are members of
+     class Rows_log_event, and are used while applying the row events on
+     the slave.
+     The bitmap integer is initialized by copying the contents of the
+     vector column_before_image for m_cols.bitamp, and vector
+     column_after_image for m_cols_ai.bitmap. m_cols_ai is only initialized
+     for UPDATE_ROWS_EVENTS, else it is equal to the before image.
+  */
+  memset(&m_cols, 0, sizeof(m_cols));
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
@@ -8594,9 +8604,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   {
     if (!columns_before_image.empty())
     {
-    memcpy(m_cols.bitmap, &columns_before_image[0], (m_width + 7) / 8);
-    create_last_word_mask(&m_cols);
-    DBUG_DUMP("m_cols", (uchar*) m_cols.bitmap, no_bytes_in_map(&m_cols));
+      memcpy(m_cols.bitmap, &columns_before_image[0], (m_width + 7) / 8);
+      create_last_word_mask(&m_cols);
+      DBUG_DUMP("m_cols", (uchar*) m_cols.bitmap, no_bytes_in_map(&m_cols));
     } //end if columns_before_image.empty()
     else
     m_cols.bitmap= NULL;
@@ -8614,19 +8624,20 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   {
     /* if bitmap_init fails, caught in is_valid() */
     if (likely(!bitmap_init(&m_cols_ai,
-                            m_width <= sizeof(m_bitbuf_ai)*8 ? m_bitbuf_ai : NULL,
+                            m_width <= sizeof(m_bitbuf_ai) * 8 ?
+                                        m_bitbuf_ai : NULL,
                             m_width,
                             false)))
     {
-    if (!columns_after_image.empty())
-    {
-      memcpy(m_cols_ai.bitmap, &columns_after_image[0], (m_width + 7) / 8);
-      create_last_word_mask(&m_cols_ai);
-     DBUG_DUMP("m_cols_ai", (uchar*) m_cols_ai.bitmap,
-                no_bytes_in_map(&m_cols_ai));
-    }
-    else
-    m_cols_ai.bitmap= NULL;
+      if (!columns_after_image.empty())
+      {
+        memcpy(m_cols_ai.bitmap, &columns_after_image[0], (m_width + 7) / 8);
+        create_last_word_mask(&m_cols_ai);
+       DBUG_DUMP("m_cols_ai", (uchar*) m_cols_ai.bitmap,
+                  no_bytes_in_map(&m_cols_ai));
+      }
+      else
+        m_cols_ai.bitmap= NULL;
     }
     else
     {
@@ -8636,6 +8647,17 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
     }
   }
 
+
+  /*
+    m_rows_buf, m_cur_row and m_rows_end are pointers to the vector rows.
+    m_rows_buf is the pointer to the first byte of first row in the event.
+    m_curr_row points to current row being applied on the slave. Initially,
+    this points to the same element as m_rows_buf in the vector.
+    m_rows_end points to the last byte in the last row in the event.
+
+    These pointers are used while applying the events on to the slave, and
+    are not required for decoding.
+  */
   if (likely(!row.empty()))
   {
     m_rows_buf= &row[0];
@@ -8739,17 +8761,12 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
     // Allocate one extra byte, in case we have to do uint3korr!
-    uchar* const new_buf=
-      (uchar*)my_realloc(key_memory_log_event,
-                         (uchar*)m_rows_buf, (uint) new_alloc + 1,
-                         MYF(MY_ALLOW_ZERO_PTR|MY_WME));
-    if (unlikely(!new_buf))
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    row.resize((uint)new_alloc + 1);
 
     /* If the memory moved, we need to move the pointers */
-    if (new_buf != m_rows_buf)
+    if (&row[0] != m_rows_buf)
     {
-      m_rows_buf= new_buf;
+      m_rows_buf= &row[0];
       m_rows_cur= m_rows_buf + cur_size;
     }
 
@@ -10936,7 +10953,9 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
   m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
+  /* m_coltype is a vector, whose size is determined by m_colcnt */
   m_coltype.reserve(m_colcnt);
+  // Adding values to the vector
   for (std::vector<uint8_t>::size_type i= 0; i < m_table->s->fields; ++i)
     m_coltype[i]= m_table->field[i]->binlog_type();
 
@@ -10949,9 +10968,17 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   */
   uint num_null_bytes= (m_table->s->fields + 7) / 8;
   m_data_size+= num_null_bytes;
+  /*
+    m_null_bits is a pointer indicating which columns can have a null value
+    in a particular table.
+  */
   m_null_bits= (uchar *)my_malloc(key_memory_log_event,
                                   num_null_bytes, MYF(MY_WME));
 
+  /*
+     Field metadata is a vector. We allocate memory to the vector here and
+     initialize it with 0.
+  */
   m_field_metadata.reserve(m_colcnt * 2);
   for (uint i= 0; i < m_field_metadata.size(); i++)
     m_field_metadata[i]= 0;
@@ -11367,8 +11394,7 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                            const Table_id& tid_arg,
                                            bool is_transactional,
                                            const uchar* extra_row_info)
-  : Rows_event(),
-    Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
+:Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
                    log_bin_use_v1_row_events?
                    WRITE_ROWS_EVENT_V1:
                    WRITE_ROWS_EVENT,
@@ -11863,12 +11889,11 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-  : Rows_event(),
-    Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
-                   log_bin_use_v1_row_events?
-                   DELETE_ROWS_EVENT_V1:
-                   DELETE_ROWS_EVENT,
-                   extra_row_info),
+: Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
+                 log_bin_use_v1_row_events?
+                 DELETE_ROWS_EVENT_V1:
+                 DELETE_ROWS_EVENT,
+                 extra_row_info),
     Delete_rows_event()
 {
   common_header->type_code= m_type;
