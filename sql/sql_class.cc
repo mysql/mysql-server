@@ -222,16 +222,6 @@ void thd_release_resources(THD *thd)
 }
 
 /**
-  Reset the context associated from THD with the thread.
-
-  @param    THD   pointer to THD object.
-*/
-void restore_globals(THD *thd)
-{
-  thd->restore_globals();
-}
-
-/**
   Delete the THD object.
 
   @param    THD   pointer to THD object.
@@ -350,6 +340,16 @@ void thd_close_connection(THD *thd)
 THD *thd_get_current_thd()
 {
   return current_thd;
+}
+
+/**
+  Set pthread key THR_THD
+
+  @param thd     THD object
+*/
+void set_pthread_THR_THD(THD* thd)
+{
+  my_pthread_set_THR_THD(thd);
 }
 
 extern "C"
@@ -1380,6 +1380,7 @@ void THD::init(void)
 
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
+  owned_sid.clear();
 }
 
 
@@ -1639,6 +1640,8 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+  if (current_thd == this)
+    restore_globals();
   DBUG_VOID_RETURN;
 }
 

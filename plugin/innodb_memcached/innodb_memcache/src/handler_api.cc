@@ -372,9 +372,6 @@ handler_close_thd(
 
 	thd->release_resources();
 	delete (thd);
-
-	/* Don't have a THD anymore */
-	my_pthread_setspecific_ptr(THR_THD,  0);
 }
 
 /**********************************************************************//**

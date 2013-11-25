@@ -14,7 +14,6 @@ source include/have_binlog_format_row.inc;
 #dump threads. BUG#12765441
 --let $rpl_skip_start_slave= 1
 source include/master-slave.inc;
-source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/not_gtid_enabled.inc;
