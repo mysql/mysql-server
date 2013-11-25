@@ -3543,6 +3543,21 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       conds=new Item_int((longlong) 0,1);
     }
     join->conds= conds;      
+    join->cond_equal= NULL;
+    if (conds) 
+    { 
+      if (conds->type() == Item::COND_ITEM && 
+	  ((Item_cond*) conds)->functype() == Item_func::COND_AND_FUNC)
+        join->cond_equal= (&((Item_cond_and *) conds)->cond_equal);
+      else if (conds->type() == Item::FUNC_ITEM &&
+	       ((Item_func*) conds)->functype() == Item_func::MULT_EQUAL_FUNC)
+      {
+        if (!join->cond_equal)
+          join->cond_equal= new COND_EQUAL;
+        join->cond_equal->current_level.empty();
+        join->cond_equal->current_level.push_back((Item_equal*) conds);
+      }
+    }     
   }
 
   /* Calc how many (possible) matched records in each table */
@@ -3656,6 +3671,19 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   if (join->const_tables != join->table_count)
     optimize_keyuse(join, keyuse_array);
    
+  DBUG_ASSERT(!join->conds || !join->cond_equal ||
+              !join->cond_equal->current_level.elements ||
+              (join->conds->type() == Item::COND_ITEM &&
+	       ((Item_cond*) (join->conds))->functype() ==
+               Item_func::COND_AND_FUNC && 
+               join->cond_equal ==
+	       &((Item_cond_and *) (join->conds))->cond_equal) ||
+              (join->conds->type() == Item::FUNC_ITEM &&
+	       ((Item_func*) (join->conds))->functype() ==
+               Item_func::MULT_EQUAL_FUNC &&
+	       join->cond_equal->current_level.elements == 1 &&
+               join->cond_equal->current_level.head() == join->conds));
+
   if (optimize_semijoin_nests(join, all_table_map))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
