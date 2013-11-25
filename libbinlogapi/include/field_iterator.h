@@ -93,7 +93,7 @@ uint32_t Row_event_iterator<Iterator_value_type>::
   for (unsigned col_no= 0; col_no < m_table_map->m_coltype.size(); ++col_no)
   {
     ++row_field_col_index;
-    unsigned int type= m_table_map->m_coltype[col_no]&0xFF;
+    unsigned int type= m_table_map->m_coltype[col_no] & 0xFF;
     uint32_t metadata= extract_metadata(m_table_map, col_no);
     binary_log::Value val((enum_field_types)type,
                      metadata,

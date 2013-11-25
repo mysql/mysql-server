@@ -42,7 +42,7 @@ static uint32_t uint_max(int bits) {
    @param metadata The metadata from the master for the field.
    @return Maximum length of the field in bytes.
  */
-uint32
+uint32_t
 max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
 {
   assert(metadata >> 16 == 0);
@@ -146,7 +146,7 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
     return uint_max(4 * 8);
 
   default:
-    return ~(uint32) 0;
+    return UINT_MAX;
   }
 }
 
@@ -162,6 +162,16 @@ int decimal_binary_size(int precision, int scale)
           frac0 * sizeof(uint32_t) + dig2bytes[frac0x];
  }
 
+
+/**                                                                             
+ This helper function calculates the size in bytes of a particular field in a   
+ row type event as defined by the field_ptr and metadata_ptr arguments.         
+ @param col Field type code                                             
+ @param master_data The field data                                                
+ @param metadata The field metadata                                         
+                                                                                
+ @return The size in bytes of a particular field                                
+*/                                                                              
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata)
 {
@@ -333,7 +343,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     break;
   }
   default:
-    length= ~(uint32) 0;
+    length= UINT_MAX;
   }
   return length;
 }

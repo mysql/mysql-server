@@ -64,12 +64,9 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
                                  description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
+    m_table_id(ULONGLONG_MAX), m_flags(0), m_data_size(0),
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
-    m_colcnt(0),
-    m_table_id(ULONGLONG_MAX), m_flags(0),
-    m_data_size(0),
-    m_field_metadata_size(0),
-    m_null_bits(0)
+    m_colcnt(0), m_field_metadata_size(0), m_null_bits(0)
 {
   unsigned int bytes_read= 0;
   uint8_t common_header_len= description_event->common_header_len;
@@ -137,12 +134,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
       return;
     unsigned int num_null_bytes= (m_colcnt + 7) / 8;
 
-#ifdef HAVE_MYSYS
-    m_null_bits= (unsigned char*)my_malloc(key_memory_log_event,
-                                   num_null_bytes, MYF(MY_WME));
-#else
-    m_null_bits= (unsigned char*)malloc(num_null_bytes);
-#endif
+    m_null_bits= (unsigned char*)bapi_malloc(num_null_bytes);
     m_field_metadata.reserve(m_field_metadata_size);
     ch= ptr_after_colcnt;
     for(unsigned long i= 0; i < m_field_metadata_size; i++)
@@ -159,11 +151,7 @@ Table_map_event::~Table_map_event()
 {
   if (m_null_bits)
   {
-#ifdef HAVE_MYSYS
-    my_free(m_null_bits);
-#else
-    free(m_null_bits);
-#endif
+    bapi_free(m_null_bits);
     m_null_bits= NULL;
   }
 }
@@ -263,13 +251,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
         /* Just store/use the first tag of this type, skip others */
         if (likely(!m_extra_row_data))
         {
-#ifdef HAVE_MYSYS
-          m_extra_row_data= (unsigned char*) my_malloc(key_memory_log_event,
-                                               infoLen,
-                                               MYF(MY_WME));
-#else
-          m_extra_row_data= (unsigned char*) malloc(infoLen);
-#endif
+          m_extra_row_data= (unsigned char*) bapi_malloc(infoLen);
           if (likely(m_extra_row_data != NULL))
           {
             memcpy(m_extra_row_data, pos, infoLen);
