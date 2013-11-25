@@ -32,6 +32,12 @@
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_log_event;
+enum PSI_memory_key_to_int
+{
+  MEMORY_LOG_EVENT,
+  ROWS_QUERY_LOG_EVENT_ROWS_QUERY,
+  INCIDENT_LOG_EVENT_MESSAGE
+};
 #else
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -97,10 +103,16 @@ inline const void* bapi_memdup(const void* source, size_t len)
   @param  Size of the memory to be allocated.
   @return Void pointer to the allocated chunk of memory
 */
-inline void * bapi_malloc(size_t size)
+inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
+                                            MEMORY_LOG_EVENT)
 {
   void * dest= NULL;
   #if HAVE_MYSYS
+  if (key_to_int == 1)
+    dest= my_malloc(key_memory_Rows_query_log_event_rows_query,size, MYF(0));
+  else if (key_to_int == 2)
+    dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(0));
+  else
     dest= my_malloc(key_memory_log_event,size, MYF(0));
   #else
     dest=  malloc(size);

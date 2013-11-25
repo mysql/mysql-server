@@ -3651,21 +3651,33 @@ private:
 /**
   @class Ignorable_log_event
 
-  Base class for ignorable log events. Events deriving from
-  this class can be safely ignored by slaves that cannot
-  recognize them. Newer slaves, will be able to read and
-  handle them. This has been designed to be an open-ended
-  architecture, so adding new derived events shall not harm
-  the old slaves that support ignorable log event mechanism
-  (they will just ignore unrecognized ignorable events).
+  Base class for ignorable log events is Ignorable_event.
+  Events deriving from this class can be safely ignored
+  by slaves that cannot recognize them.
 
-  @note The only thing that makes an event ignorable is that it has
-  the LOG_EVENT_IGNORABLE_F flag set.  It is not strictly necessary
-  that ignorable event types derive from Ignorable_log_event; they may
-  just as well derive from Log_event and pass LOG_EVENT_IGNORABLE_F as
-  argument to the Log_event constructor.
+  Its the derived class of Ignorable_event
+
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                 <<vir>>/       \<<vir>>
+                       /         \
+         B_l:Ignorable_event     Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                   Ignorable_log_event
+
+  B_l: Namespace Binary_log
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
 **/
-class Ignorable_log_event : public Log_event {
+class Ignorable_log_event : public virtual Ignorable_event, public Log_event {
 public:
 #ifndef MYSQL_CLIENT
   Ignorable_log_event(THD *thd_arg)
@@ -3679,7 +3691,7 @@ public:
 #endif
 
   Ignorable_log_event(const char *buf,
-                      const Format_description_log_event *descr_event);
+                      const Format_description_event *descr_event);
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
@@ -3697,16 +3709,47 @@ public:
   virtual int get_data_size() { return Binary_log_event::IGNORABLE_HEADER_LEN; }
 };
 
+/**
+  @class Rows_query_log_event
+  It is used to record the original query for the rows
+  events in RBR.
+  It is the subclass of Ignorable_log_event and Rows_query_event
 
-class Rows_query_log_event : public Ignorable_log_event {
+  The inheritance structure in the current design for the classes is
+  as follows:
+                  Binary_log_event
+                        /  \
+                       /    \
+               <<vir>>/      \ <<vir>>
+                     /        \
+               Log_event   Ignorable_event
+                   \             /\
+                    \           /  \
+                     \  <<vir>>/    \ <<vir>>
+                      \       /      \
+                       \     /        \
+                        \   /          \
+                Ignorable_log_event   Rows_query_event
+                         \             /
+                          \           /
+                           \         /
+                            \       /
+                             \     /
+                              \   /
+                      Rows_query_log_event
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+  @section Rows_query_log_event_binary_format Binary Format
+*/
+class Rows_query_log_event : public Ignorable_log_event, public Rows_query_event{
 public:
 #ifndef MYSQL_CLIENT
   Rows_query_log_event(THD *thd_arg, const char * query, ulong query_len)
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-    if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
-                                          query_len + 1, MYF(MY_WME))))
+    if (!(m_rows_query= (char*) bapi_malloc(query_len + 1, ROWS_QUERY_LOG_EVENT_ROWS_QUERY)))
       return;
     my_snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
@@ -3719,9 +3762,8 @@ public:
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
-                       const Format_description_log_event *descr_event);
+                       const Format_description_event *descr_event);
 
-  virtual ~Rows_query_log_event();
 
 #ifdef MYSQL_CLIENT
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -3737,10 +3779,6 @@ public:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
-
-private:
-
-  char * m_rows_query;
 };
 
 
