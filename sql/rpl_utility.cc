@@ -42,134 +42,6 @@ static int compare(size_t a, size_t b)
 }
 
 
-/**
-   Max value for an unsigned integer of 'bits' bits.
-
-   The somewhat contorted expression is to avoid overflow.
- */
-static uint32 uint_max(int bits) {
-  return (((1UL << (bits - 1)) - 1) << 1) | 1;
-}
-
-
-/**
-   Compute the maximum display length of a field.
-
-   @param sql_type Type of the field
-   @param metadata The metadata from the master for the field.
-   @return Maximum length of the field in bytes.
- */
-static uint32
-max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
-{
-  DBUG_PRINT("debug", ("sql_type: %d, metadata: 0x%x", sql_type, metadata));
-  DBUG_ASSERT(metadata >> 16 == 0);
-
-  switch (sql_type) {
-  case MYSQL_TYPE_NEWDECIMAL:
-    return metadata >> 8;
-
-  case MYSQL_TYPE_FLOAT:
-    return 12;
-
-  case MYSQL_TYPE_DOUBLE:
-    return 22;
-
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_ENUM:
-      return metadata & 0x00ff;
-
-  case MYSQL_TYPE_STRING:
-  {
-    uchar type= metadata >> 8;
-    if (type == MYSQL_TYPE_SET || type == MYSQL_TYPE_ENUM)
-      return metadata & 0xff;
-    else
-      /* This is taken from Field_string::unpack. */
-      return (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
-  }
-
-  case MYSQL_TYPE_YEAR:
-  case MYSQL_TYPE_TINY:
-    return 4;
-
-  case MYSQL_TYPE_SHORT:
-    return 6;
-
-  case MYSQL_TYPE_INT24:
-    return 9;
-
-  case MYSQL_TYPE_LONG:
-    return 11;
-
-#ifdef HAVE_LONG_LONG
-  case MYSQL_TYPE_LONGLONG:
-    return 20;
-
-#endif
-  case MYSQL_TYPE_NULL:
-    return 0;
-
-  case MYSQL_TYPE_NEWDATE:
-    return 3;
-
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIME:
-  case MYSQL_TYPE_TIME2:
-    return 3;
-
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_TIMESTAMP2:
-    return 4;
-
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_DATETIME2:
-    return 8;
-
-  case MYSQL_TYPE_BIT:
-    /*
-      Decode the size of the bit field from the master.
-    */
-    DBUG_ASSERT((metadata & 0xff) <= 7);
-    return 8 * (metadata >> 8U) + (metadata & 0x00ff);
-
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_VARCHAR:
-    return metadata;
-
-    /*
-      The actual length for these types does not really matter since
-      they are used to calc_pack_length, which ignores the given
-      length for these types.
-
-      Since we want this to be accurate for other uses, we return the
-      maximum size in bytes of these BLOBs.
-    */
-
-  case MYSQL_TYPE_TINY_BLOB:
-    return uint_max(1 * 8);
-
-  case MYSQL_TYPE_MEDIUM_BLOB:
-    return uint_max(3 * 8);
-
-  case MYSQL_TYPE_BLOB:
-    /*
-      For the blob type, Field::real_type() lies and say that all
-      blobs are of type MYSQL_TYPE_BLOB. In that case, we have to look
-      at the length instead to decide what the max display size is.
-     */
-    return uint_max(metadata * 8);
-
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
-    return uint_max(4 * 8);
-
-  default:
-    return ~(uint32) 0;
-  }
-}
-
-
 /*
   Compare the pack lengths of a source field (on the master) and a
   target field (on the slave).
@@ -208,155 +80,20 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 */
 uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
-  uint32 length;
+  uint32 length= binary_log::calc_field_size(type(col), master_data,
+                                             m_field_metadata[col]);
 
-  switch (type(col)) {
-  case MYSQL_TYPE_NEWDECIMAL:
-    length= my_decimal_get_binary_size(m_field_metadata[col] >> 8, 
-                                       m_field_metadata[col] & 0xff);
-    break;
-  case MYSQL_TYPE_DECIMAL:
-  case MYSQL_TYPE_FLOAT:
-  case MYSQL_TYPE_DOUBLE:
-    length= m_field_metadata[col];
-    break;
-  /*
-    The cases for SET and ENUM are include for completeness, however
-    both are mapped to type MYSQL_TYPE_STRING and their real types
-    are encoded in the field metadata.
-  */
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_ENUM:
-  case MYSQL_TYPE_STRING:
+  if (col == MYSQL_TYPE_GEOMETRY)
   {
-    uchar type= m_field_metadata[col] >> 8U;
-    if ((type == MYSQL_TYPE_SET) || (type == MYSQL_TYPE_ENUM))
-      length= m_field_metadata[col] & 0x00ff;
-    else
-    {
-      /*
-        We are reading the actual size from the master_data record
-        because this field has the actual lengh stored in the first
-        one or two bytes.
-      */
-      length= max_display_length_for_field(MYSQL_TYPE_STRING, m_field_metadata[col]) > 255 ? 2 : 1;
-
-      /* As in Field_string::unpack */
-      length+= ((length == 1) ? *master_data : uint2korr(master_data));
-    }
-    break;
-  }
-  case MYSQL_TYPE_YEAR:
-  case MYSQL_TYPE_TINY:
-    length= 1;
-    break;
-  case MYSQL_TYPE_SHORT:
-    length= 2;
-    break;
-  case MYSQL_TYPE_INT24:
-    length= 3;
-    break;
-  case MYSQL_TYPE_LONG:
-    length= 4;
-    break;
-#ifdef HAVE_LONG_LONG
-  case MYSQL_TYPE_LONGLONG:
-    length= 8;
-    break;
-#endif
-  case MYSQL_TYPE_NULL:
-    length= 0;
-    break;
-  case MYSQL_TYPE_NEWDATE:
-    length= 3;
-    break;
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIME:
-    length= 3;
-    break;
-  case MYSQL_TYPE_TIME2:
-    length= my_time_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_TIMESTAMP:
-    length= 4;
-    break;
-  case MYSQL_TYPE_TIMESTAMP2:
-    length= my_timestamp_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_DATETIME:
-    length= 8;
-    break;
-  case MYSQL_TYPE_DATETIME2:
-    length= my_datetime_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_BIT:
-  {
-    /*
-      Decode the size of the bit field from the master.
-        from_len is the length in bytes from the master
-        from_bit_len is the number of extra bits stored in the master record
-      If from_bit_len is not 0, add 1 to the length to account for accurate
-      number of bytes needed.
-    */
-    uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
-    uint from_bit_len= m_field_metadata[col] & 0x00ff;
-    DBUG_ASSERT(from_bit_len <= 7);
-    length= from_len + ((from_bit_len > 0) ? 1 : 0);
-    break;
-  }
-  case MYSQL_TYPE_VARCHAR:
-  {
-    length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
-    length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
-    break;
-  }
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
-  {
-#if 1
     /*
       BUG#29549: 
       This is currently broken for NDB, which is using big-endian
       order when packing length of BLOB. Once they have decided how to
-      fix the issue, we can enable the code below to make sure to
+      fix the issue, we can disable this code below to make sure to
       always read the length in little-endian order.
     */
     Field_blob fb(m_field_metadata[col]);
     length= fb.get_packed_size(master_data, TRUE);
-#else
-    /*
-      Compute the length of the data. We cannot use get_length() here
-      since it is dependent on the specific table (and also checks the
-      packlength using the internal 'table' pointer) and replication
-      is using a fixed format for storing data in the binlog.
-    */
-    switch (m_field_metadata[col]) {
-    case 1:
-      length= *master_data;
-      break;
-    case 2:
-      length= uint2korr(master_data);
-      break;
-    case 3:
-      length= uint3korr(master_data);
-      break;
-    case 4:
-      length= uint4korr(master_data);
-      break;
-    default:
-      DBUG_ASSERT(0);		// Should not come here
-      break;
-    }
-
-    length+= m_field_metadata[col];
-#endif
-    break;
-  }
-  default:
-    length= ~(uint32) 0;
   }
   return length;
 }
@@ -953,7 +690,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     TYPELIB* interval= NULL;
     uint pack_length= 0;
     uint32 max_length=
-      max_display_length_for_field(type(col), field_metadata(col));
+      binary_log::max_display_length_for_field(type(col), field_metadata(col));
 
     switch(type(col))
     {

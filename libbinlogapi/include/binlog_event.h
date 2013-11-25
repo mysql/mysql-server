@@ -96,6 +96,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
    charsets, the PASSWORD() version (old/new/...).
 */
+
+
 #define BINLOG_VERSION    4
 /*
   Check if jump value is within buffer limits.
@@ -132,6 +134,7 @@ template <class T> bool valid_buffer_range(T jump,
 {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
 }
+
 
 /**
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
@@ -2331,75 +2334,6 @@ public:
   }
 };
 
-class Table_map_event: public Binary_log_event
-{
-public:
-    Table_map_event(Log_event_header *header) : Binary_log_event(header) {}
-    uint64_t table_id;
-    uint16_t flags;
-    std::string db_name;
-    std::string table_name;
-    std::vector<uint8_t> columns;
-    std::vector<uint8_t> metadata;
-    std::vector<uint8_t> null_bits;
-
-    Log_event_type get_type_code() { return TABLE_MAP_EVENT;}
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
-};
-
-class Row_event: public Binary_log_event
-{
-public:
-    //TODO: Use the enum defined in log_event.h instead
-    enum enum_flag
-    {
-      /* Last event of a statement */
-      STMT_END_F = (1U << 0),
-      /* Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
-      NO_FOREIGN_KEY_CHECKS_F = (1U << 1),
-      /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
-      RELAXED_UNIQUE_CHECKS_F = (1U << 2),
-      /**
-        Indicates that rows in this event are complete, that is contain
-        values for all columns of the table.
-      */
-      COMPLETE_ROWS_F = (1U << 3)
-    };
-
-    Row_event(Log_event_header *header) : Binary_log_event(header) {}
-    uint64_t table_id;
-    uint16_t flags;
-    uint64_t columns_len;
-    uint32_t null_bits_len;
-    uint16_t var_header_len;
-    Log_event_type  m_type;     /* Actual event type */
-    std::vector<uint8_t> extra_header_data;
-    std::vector<uint8_t> columns_before_image;
-    std::vector<uint8_t> used_columns;
-    std::vector<uint8_t> row;
-    static std::string get_flag_string(enum_flag flag)
-    {
-      std::string str= "";
-      if (flag & STMT_END_F)
-        str.append(" Last event of the statement");
-      if (flag & NO_FOREIGN_KEY_CHECKS_F)
-        str.append(" No foreign Key checks");
-      if (flag & RELAXED_UNIQUE_CHECKS_F)
-        str.append(" No unique key checks");
-      if (flag & COMPLETE_ROWS_F)
-        str.append(" Complete Rows");
-      if (flag & ~(STMT_END_F | NO_FOREIGN_KEY_CHECKS_F |
-                   RELAXED_UNIQUE_CHECKS_F | COMPLETE_ROWS_F))
-        str.append("Unknown Flag");
-      return str;
-    }
-    Log_event_type get_type_code() { return m_type; }
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
-};
 
 /**
   @class Int_var_event

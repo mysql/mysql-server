@@ -40,22 +40,22 @@ uint32_t extract_metadata(const Table_map_event *map, int col_no)
 
   for (int i= 0; i < col_no; ++i)
   {
-    unsigned int type= (unsigned int)map->columns[i] & 0xFF;
+    unsigned int type= (unsigned int)map->m_coltype[i] & 0xFF;
     offset += lookup_metadata_field_size((enum_field_types)type);
   }
 
   uint32_t metadata= 0;
-  unsigned int type= (unsigned int)map->columns[col_no] & 0xFF;
+  unsigned int type= (unsigned int)map->m_coltype[col_no] & 0xFF;
   switch (lookup_metadata_field_size((enum_field_types)type))
   {
   case 1:
-    metadata= map->metadata[offset];
+    metadata= map->m_field_metadata[offset];
   break;
   case 2:
     {
-      unsigned int tmp= ((unsigned int)map->metadata[offset]) & 0xFF;
+      unsigned int tmp= ((unsigned int)map->m_field_metadata[offset]) & 0xFF;
       metadata=  static_cast<uint32_t >(tmp);
-      tmp= (((unsigned int)map->metadata[offset+1]) & 0xFF) << 8;
+      tmp= (((unsigned int)map->m_field_metadata[offset+1]) & 0xFF) << 8;
       metadata+= static_cast<uint32_t >(tmp);
     }
   break;
@@ -86,6 +86,7 @@ int lookup_metadata_field_size(enum_field_types field_type)
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_DATE:

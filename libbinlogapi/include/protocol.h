@@ -320,14 +320,8 @@ std::istream &operator>>(std::istream &is, Protocol_chunk_string &str);
   Allocates a new event and copy the header. The caller must be responsible for
   releasing the allocated memory.
 */
-Query_event *proto_query_event(std::istream &is, Log_event_header *header);
-Rotate_event *proto_rotate_event(std::istream &is, Log_event_header *header);
 Incident_event *proto_incident_event(std::istream &is,
                                      Log_event_header *header);
-Row_event *proto_rows_event(std::istream &is, Log_event_header *header);
-Table_map_event *proto_table_map_event(std::istream &is,
-                                       Log_event_header *header);
-Int_var_event *proto_intvar_event(std::istream &is, Log_event_header *header);
 User_var_event *proto_uservar_event(std::istream &is, Log_event_header *header);
 
 } // end namespace system

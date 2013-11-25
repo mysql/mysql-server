@@ -190,16 +190,6 @@ struct sql_ex_info
 #define I_TYPE_OFFSET        0
 #define I_VAL_OFFSET         1
 
-/* TM = "Table Map" */
-#define TM_MAPID_OFFSET    0
-#define TM_FLAGS_OFFSET    6
-
-/* RW = "RoWs" */
-#define RW_MAPID_OFFSET    0
-#define RW_FLAGS_OFFSET    6
-#define RW_VHLEN_OFFSET    8
-#define RW_V_TAG_LEN       1
-#define RW_V_EXTRAINFO_TAG 0
 
 /* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
@@ -2824,50 +2814,9 @@ char *str_to_hex(char *to, const char *from, uint len);
 
   </table>
 */
-class Table_map_log_event : public Log_event
+class Table_map_log_event : public Log_event, public Table_map_event
 {
 public:
-  /* Constants */
-  enum
-  {
-    TYPE_CODE = TABLE_MAP_EVENT
-  };
-
-  /**
-     Enumeration of the errors that can be returned.
-   */
-  enum enum_error
-  {
-    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
-    ERR_OK = 0,                                 /**< No error */
-    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
-    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
-    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
-    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
-  };
-
-  enum enum_flag
-  {
-    /* 
-       Nothing here right now, but the flags support is there in
-       preparation for changes that are coming.  Need to add a
-       constant to make it compile under HP-UX: aCC does not like
-       empty enumerations.
-    */
-    ENUM_FLAG_COUNT
-  };
-
-  typedef uint16 flag_set;
-
-  /* Special constants representing sets of flags */
-  enum 
-  {
-    TM_NO_FLAGS = 0U,
-    TM_BIT_LEN_EXACT_F = (1U << 0),
-    TM_REFERRED_FK_DB_F = (1U << 1)
-  };
-
-  flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
@@ -2875,26 +2824,26 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
-                      const Format_description_log_event *description_event);
+                      const Format_description_event *description_event);
 #endif
 
-  ~Table_map_log_event();
+  virtual ~Table_map_log_event();
 
 #ifdef MYSQL_CLIENT
   table_def *create_table_def()
   {
-    return new table_def(m_coltype, m_colcnt, m_field_metadata,
+    return new table_def(&m_coltype[0], m_colcnt, &m_field_metadata[0],
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
   const Table_id& get_table_id() const { return m_table_id; }
-  const char *get_table_name() const { return m_tblnam; }
-  const char *get_db_name() const    { return m_dbnam; }
+  const char *get_table_name() const { return m_tblnam.c_str(); }
+  const char *get_db_name() const    { return m_dbnam.c_str(); }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const
   {
-    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+    return (m_null_bits != NULL);
   }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
@@ -2902,7 +2851,7 @@ public:
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
-  virtual const char *get_db() { return m_dbnam; }
+  virtual const char *get_db() { return m_dbnam.c_str(); }
   virtual uint8 mts_number_dbs()
   { 
     return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
@@ -2947,26 +2896,6 @@ private:
 #ifdef MYSQL_SERVER
   TABLE         *m_table;
 #endif
-  char const    *m_dbnam;
-  size_t         m_dblen;
-  char const    *m_tblnam;
-  size_t         m_tbllen;
-  ulong          m_colcnt;
-  uchar         *m_coltype;
-
-  uchar         *m_memory;
-  Table_id       m_table_id;
-  flag_set       m_flags;
-
-  size_t         m_data_size;
-
-  uchar          *m_field_metadata;        // buffer for field metadata
-  /*
-    The size of field metadata buffer set by calling save_field_metadata()
-  */
-  ulong          m_field_metadata_size;   
-  uchar         *m_null_bits;
-  uchar         *m_meta_memory;
 };
 
 
@@ -2985,9 +2914,11 @@ private:
 */
 
 
-class Rows_log_event : public Log_event
+class Rows_log_event : public Log_event, public virtual Rows_event
 {
 public:
+  typedef uint16 flag_set;
+
   enum row_lookup_mode {
        ROW_LOOKUP_UNDEFINED= 0,
        ROW_LOOKUP_NOT_NEEDED= 1,
@@ -3009,32 +2940,6 @@ public:
     ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
   };
 
-  /*
-    These definitions allow you to combine the flags into an
-    appropriate flag set using the normal bitwise operators.  The
-    implicit conversion from an enum-constant to an integer is
-    accepted by the compiler, which is then used to set the real set
-    of flags.
-  */
-  enum enum_flag
-  {
-    /* Last event of a statement */
-    STMT_END_F = (1U << 0),
-
-    /* Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
-    NO_FOREIGN_KEY_CHECKS_F = (1U << 1),
-
-    /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
-    RELAXED_UNIQUE_CHECKS_F = (1U << 2),
-
-    /** 
-      Indicates that rows in this event are complete, that is contain
-      values for all columns of the table.
-     */
-    COMPLETE_ROWS_F = (1U << 3)
-  };
-
-  typedef uint16 flag_set;
 
   /* Special constants representing sets of flags */
   enum 
@@ -3161,7 +3066,7 @@ protected:
                  const uchar* extra_row_info);
 #endif
   Rows_log_event(const char *row_data, uint event_len, 
-		 const Format_description_log_event *description_event);
+		 const Format_description_event *description_event);
 
 #ifdef MYSQL_CLIENT
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
@@ -3174,9 +3079,7 @@ protected:
 #ifdef MYSQL_SERVER
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
-  ulong       m_width;          /* The width of the columns bitmap */
 #ifndef MYSQL_CLIENT
   /**
      Hash table that will hold the entries for while using HASH_SCAN
@@ -3209,12 +3112,6 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  flag_set m_flags;		/* Flags for row-level events */
-
-  Log_event_type m_type;        /* Actual event type */
-
-  uchar    *m_extra_row_data;   /* Pointer to extra row data if any */
-                                /* If non null, first byte is length */
 
   /* helper functions */
 
@@ -3446,7 +3343,7 @@ private:
 
   @section Write_rows_log_event_binary_format Binary Format
 */
-class Write_rows_log_event : public Rows_log_event
+class Write_rows_log_event : public Rows_log_event, public Write_rows_event
 {
 public:
   enum 
@@ -3462,7 +3359,7 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
-                       const Format_description_log_event *description_event);
+                       const Format_description_event *description_event);
 #endif
 #if defined(MYSQL_SERVER) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -3480,7 +3377,10 @@ protected:
   int write_row(const Relay_log_info *const, const bool);
 
 private:
-  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code()
+  {
+    return (Log_event_type)TYPE_CODE;
+  }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -3506,7 +3406,7 @@ private:
 
   @section Update_rows_log_event_binary_format Binary Format
 */
-class Update_rows_log_event : public Rows_log_event
+class Update_rows_log_event : public Rows_log_event, public Update_rows_event
 {
 public:
   enum 
@@ -3533,7 +3433,7 @@ public:
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_event *description_event);
 #endif
 
 #ifdef MYSQL_SERVER
@@ -3553,7 +3453,10 @@ public:
   }
 
 protected:
-  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code()
+  {
+    return (Log_event_type)TYPE_CODE;
+  }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -3586,7 +3489,7 @@ protected:
 
   @section Delete_rows_log_event_binary_format Binary Format
 */
-class Delete_rows_log_event : public Rows_log_event
+class Delete_rows_log_event : public Rows_log_event, public Delete_rows_event
 {
 public:
   enum 
@@ -3601,7 +3504,7 @@ public:
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_event *description_event);
 #endif
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -3616,7 +3519,10 @@ public:
 #endif
   
 protected:
-  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code()
+  {
+    return (Log_event_type)TYPE_CODE;
+  }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);

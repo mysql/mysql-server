@@ -1,4 +1,4 @@
-/*
+/**
 Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights
 reserved.
 
@@ -158,6 +158,8 @@ Log_event_header::Log_event_header(const char* buf,
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
+  type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
+  assert (type_code < ENUM_END_EVENT);
   //TODO:Modify server_id in Log_event based on unmasked_server_id defined here
   unmasked_server_id= uint4korr(buf + SERVER_ID_OFFSET);
 
@@ -355,8 +357,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Hence, we need to be assign some value here, to avoid reading
        uninitialized memory when the array is written to disk.
       */
-      TABLE_MAP_HEADER_LEN, ROWS_HEADER_LEN_V1, ROWS_HEADER_LEN_V1,
-      ROWS_HEADER_LEN_V1, 0, 0, 0, INCIDENT_HEADER_LEN, 0, IGNORABLE_HEADER_LEN,
+      TABLE_MAP_HEADER_LEN, 0, 0, 0, ROWS_HEADER_LEN_V1, ROWS_HEADER_LEN_V1,
+      ROWS_HEADER_LEN_V1, INCIDENT_HEADER_LEN, 0, IGNORABLE_HEADER_LEN,
       IGNORABLE_HEADER_LEN, ROWS_HEADER_LEN_V2, ROWS_HEADER_LEN_V2,
       ROWS_HEADER_LEN_V2,
       //TODO  25 will be replaced byGtid_log_event::POST_HEADER_LENGTH;
@@ -657,6 +659,18 @@ Format_description_event(const char* buf, unsigned int event_len,
       post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
     for (int i= 0; i < 22; i++)
       post_header_len[i] = post_header_len_temp[i];
+
+      /*
+        We here have the possibility to simulate a master of before we changed
+        the table map id to be stored in 6 bytes: when it was stored in 4
+        bytes (=> post_header_len was 6). This is used to test backward
+        compatibility.
+      */
+      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+                      post_header_len[TABLE_MAP_EVENT-1]=
+                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
+                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
+                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
   }
     return;
 }
@@ -1781,59 +1795,7 @@ void User_var_event::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
-void Table_map_event::print_event_info(std::ostream& info)
-{
-  info << "table id: " << table_id << " ("
-       << db_name << "."
-       << table_name << ")";
-}
 
-void Table_map_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << this->header()->when.tv_sec;
-  info << "\tFlags: " << flags;
-  info << "\tColumn Type: ";
-  /**
-    TODO: Column types are stored as integers. To be
-    replaced by string representation of types.
-  */
-  std::vector<uint8_t>::iterator it;
-  for (it= columns.begin(); it != columns.end(); ++it)
-  {
-    info << "\t" << (int)*it;
-  }
-  info << "\n";
-  this->print_event_info(info);
-}
-
-void Row_event::print_event_info(std::ostream& info)
-{
-  info << "table id: " << table_id << " flags: ";
-  info << get_flag_string(static_cast<enum_flag>(flags));
-}
-
-void Row_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << this->header()->when.tv_sec;
-  info << "\n";
-  this->print_event_info(info);
-
-  //TODO: Extract table names and column data.
-  if (this->get_event_type() == PRE_GA_WRITE_ROWS_EVENT ||
-      this->get_event_type() == WRITE_ROWS_EVENT_V1 ||
-      this->get_event_type() == WRITE_ROWS_EVENT)
-    info << "\nType: Insert" ;
-
-  if (this->get_event_type() == PRE_GA_DELETE_ROWS_EVENT ||
-      this->get_event_type() == DELETE_ROWS_EVENT_V1 ||
-      this->get_event_type() == DELETE_ROWS_EVENT)
-    info << "\nType: Delete" ;
-
-  if (this->get_event_type() == PRE_GA_UPDATE_ROWS_EVENT ||
-      this->get_event_type() == UPDATE_ROWS_EVENT_V1 ||
-      this->get_event_type() == UPDATE_ROWS_EVENT)
-    info << "\nType: Update" ;
-}
 
 void Int_var_event::print_event_info(std::ostream& info)
 {
