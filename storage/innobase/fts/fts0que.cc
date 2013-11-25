@@ -699,8 +699,9 @@ fts_query_add_word_freq(
 		memset(&word_freq, 0, sizeof(word_freq));
 
 		word_freq.word.f_str = static_cast<byte*>(
-			mem_heap_alloc(query->heap, word->f_len));
+			mem_heap_alloc(query->heap, word->f_len + 1));
 		memcpy(word_freq.word.f_str, word->f_str, word->f_len);
+		word_freq.word.f_str[word->f_len] = 0;
 		word_freq.word.f_len = word->f_len;
 
 		word_freq.doc_count = 0;
@@ -3072,6 +3073,10 @@ fts_query_visitor(
 		}
 		break;
 
+	case FTS_AST_SUBEXP_LIST:
+		query->error = fts_ast_visit_sub_exp(node, fts_query_visitor, arg);
+		break;
+
 	default:
 		ut_error;
 	}
@@ -3105,13 +3110,7 @@ fts_ast_visit_sub_exp(
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
-	node = node->list.head;
-
-	if (!node || !node->next) {
-		return(error);
-	}
-
-	cur_oper = node->oper;
+	cur_oper = query->oper;
 
 	/* Save current result set */
 	parent_doc_ids = query->doc_ids;
@@ -3127,24 +3126,18 @@ fts_ast_visit_sub_exp(
 	query->multi_exist = false;
 	/* Process nodes in current sub-expression and store its
 	result set in query->doc_ids we created above. */
-	error = fts_ast_visit(FTS_NONE, node->next, visitor,
+	error = fts_ast_visit(FTS_NONE, node, visitor,
 			      arg, &will_be_ignored);
 
-	/* Reinstate parent node state and prepare for merge. */
+	/* Reinstate parent node state */
 	query->multi_exist = multi_exist;
 	query->oper = cur_oper;
-	subexpr_doc_ids = query->doc_ids;
-
-	/* Restore current result set. */
-	query->doc_ids = parent_doc_ids;
 
 	/* Merge the sub-expression result with the parent result set. */
+	subexpr_doc_ids = query->doc_ids;
+	query->doc_ids = parent_doc_ids;
 	if (error == DB_SUCCESS && !rbt_empty(subexpr_doc_ids)) {
 		error = fts_merge_doc_ids(query, subexpr_doc_ids);
-	}
-
-	if (query->oper == FTS_EXIST) {
-		query->multi_exist = true;
 	}
 
 	/* Free current result set. Result already merged into parent. */
