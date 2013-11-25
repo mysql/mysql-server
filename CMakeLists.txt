@@ -13,11 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-# Avoid warnings in higher versions
-if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
- CMAKE_POLICY(VERSION 2.8)
-endif()
+# There's a bug in unzipping prior to 2.8.2
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+
+# We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
+CMAKE_POLICY(SET CMP0018 OLD)
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
@@ -156,8 +156,26 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
+    EXECUTE_PROCESS(COMMAND isainfo -b
+      OUTPUT_VARIABLE ISAINFO_B
+      RESULT_VARIABLE ISAINFO_B_RES
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    IF(ISAINFO_B_RES)
+      MESSAGE(STATUS "Failed to run isainfo -b to determine arch bits: "
+        "${ISAINFO_B_RES}. Falling back to compiler's default.")
+    ELSE()
+      MESSAGE("Adding -m${ISAINFO_B}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m${ISAINFO_B}")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m${ISAINFO_B}")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
