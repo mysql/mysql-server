@@ -101,7 +101,7 @@ expr_lst: /* Empty */	{
 		$$ = fts_ast_create_node_list(state, $1);
 
 		if (!$$) {
-			$$ = fts_ast_create_node_subexp_list(state, $2);
+			$$ = $2;
 		} else {
 			fts_ast_add_node($$, $2);
 		}
@@ -110,13 +110,18 @@ expr_lst: /* Empty */	{
 
 sub_expr: '(' expr_lst ')'		{
 		$$ = $2;
+
+		if ($$) {
+			$$ = fts_ast_create_node_subexp_list(state, $$);
+		}
 	}
 
 	| prefix '(' expr_lst ')'	{
-		$$ = fts_ast_create_node_subexp_list(state, $1);
+		$$ = fts_ast_create_node_list(state, $1);
 
 		if ($3) {
-			fts_ast_add_node($$, $3);
+			fts_ast_add_node($$,
+				fts_ast_create_node_subexp_list(state, $3));
 		}
 	}
 	;

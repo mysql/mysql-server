@@ -553,14 +553,6 @@ fts_ast_visit(
 
 			break;
 
-		case FTS_AST_SUBEXP_LIST:
-			if (visit_pass != FTS_PASS_FIRST) {
-				break;
-			}
-
-			error = fts_ast_visit_sub_exp(node, visitor, arg);
-			break;
-
 		case FTS_AST_OPER:
 			oper = node->oper;
 			oper_node = node;
