@@ -12318,7 +12318,8 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
                                            *descr_event)
   : Binary_log_event(&buf, descr_event->binlog_version,
                      descr_event->server_version),
-    Ignorable_log_event(buf, descr_event)
+   Ignorable_log_event(buf, descr_event),
+   Rows_query_event(buf, event_len, descr_event)
 {
 }
 
