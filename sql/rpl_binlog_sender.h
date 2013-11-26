@@ -412,8 +412,9 @@ private:
   {
     uint32 cur_buffer_size= packet->alloced_length();
     uint32 buffer_used= packet->length();
-    uint32 new_buffer_size=
-      ALIGN_SIZE(static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR));
+    uint32 new_buffer_size= ALIGN_SIZE(
+      std::max(PACKET_MINIMUM_SIZE, 
+               static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR)));
 
     if (buffer_used < new_buffer_size)
       m_half_buffer_size_req_counter ++;
@@ -423,8 +424,7 @@ private:
     /* Check if we should shrink the buffer. */
     if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
     {
-      if (new_buffer_size > PACKET_MINIMUM_SIZE &&
-          new_buffer_size != cur_buffer_size)
+      if (new_buffer_size < cur_buffer_size)
       {
         /*
          The last PACKET_SHRINK_COUNTER_THRESHOLD consecutive packets
@@ -438,6 +438,7 @@ private:
       m_half_buffer_size_req_counter= 0;
     }
 
+    DBUG_ASSERT(new_buffer_size <= cur_buffer_size);
     DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
   }
 };
