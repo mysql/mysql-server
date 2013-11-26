@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -318,7 +318,10 @@ int ha_perfschema::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::rnd_next");
   if (!pfs_initialized)
+  {
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
@@ -330,6 +333,7 @@ int ha_perfschema::rnd_next(uchar *buf)
     if (result == 0)
       stats.records++;
   }
+  table->status= (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -346,13 +350,17 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("ha_perfschema::rnd_pos");
   if (!pfs_initialized)
+  {
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   int result= m_table->rnd_pos(pos);
   if (result == 0)
     result= m_table->read_row(table, buf, table->field);
+  table->status= (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
