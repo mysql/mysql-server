@@ -631,8 +631,6 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
   DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u", 
                       event_len, packet->alloced_length()));
   DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
-  uint32 cur_buffer_size= packet->alloced_length();
-  uint32 needed_buffer_size=cur_buffer_size;
   
   packet->length(0);  // size of the string
   packet->qs_append('\0');
@@ -643,11 +641,10 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
     set_unknow_error("Failed to run hook 'reserve_header'");
     DBUG_RETURN(1);
   }
-
-  needed_buffer_size= packet->length() + event_len;
   
   /* Resizes the buffer if needed. */
-  grow_packet(cur_buffer_size, needed_buffer_size, packet);
+  if (grow_packet(packet, event_len))
+    DBUG_RETURN(1);
   
   DBUG_PRINT("info", ("packet->alloced_length: %u (after potential "
                       "reallocation)", packet->alloced_length()));
