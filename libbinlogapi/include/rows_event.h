@@ -168,7 +168,7 @@ namespace binary_log
     <td>column_count bits, rounded up to nearest byte</td>
     <td>For each column, a bit indicating whether data in the column
     can be NULL or not.  The number of bytes needed for this is
-    int((column_count+7)/8).  The flag for the first column from the
+    int((column_count + 7) / 8).  The flag for the first column from the
     left is in the least-significant bit of the first byte, the second
     is in the second least significant bit of the first byte, the
     ninth is in the least significant bit of the second byte, and so
@@ -300,7 +300,8 @@ namespace binary_log
     <td>A 1 byte unsigned int representing the length in bits of the
     bitfield (0 to 64), followed by a 1 byte unsigned int
     representing the number of bytes occupied by the bitfield.  The
-    number of bytes is either int((length+7)/8) or int(length/8).</td>
+    number of bytes is either int((length + 7) / 8) or int(length / 8).
+    </td>
   </tr>
 
   <tr>
@@ -489,7 +490,7 @@ public:
     <td>Bitfield, variable sized</td>
     <td>Indicates whether each column is used, one bit per column.
         For this field, the amount of storage required for N columns
-        is INT((N+7)/8) bytes. </td>
+        is INT((N + 7) / 8) bytes. </td>
   </tr>
 
   <tr>
@@ -504,7 +505,7 @@ public:
     <td>for UPDATE_ROWS_LOG_EVENT only. Bit-field indicating whether
         each column is used in the UPDATE_ROWS_LOG_EVENT after-image;
         one bit per column. For this field, the amount of storage
-        required for N columns is INT((N+7)/8) bytes.</td>
+        required for N columns is INT((N + 7) / 8) bytes.</td>
   </tr>
 
   <tr>
@@ -512,7 +513,7 @@ public:
     <td>vector of elements of type unsigned char</td>
     <td> Bit-field indicating whether  each column is used in the after-image;
         one bit per column. For this field, the amount of storage
-        required for N columns is INT((N+7)/8) bytes.</td>
+        required for N columns is INT((N + 7) / 8) bytes.</td>
   </tr>
 
   <tr>
@@ -524,7 +525,7 @@ public:
              Only columns that are "used" according to the second field in
              the variable data part are listed here. If the second field in
              the variable data part has N one-bits, the amount of storage
-             required for this field is INT((N+7)/8) bytes.
+             required for this field is INT((N + 7) / 8) bytes.
            - The row-image, containing values of all table fields. This only
              lists table fields that are used (according to the second field
              of the variable data part) and non-NULL (according to the
@@ -559,14 +560,16 @@ public:
     COMPLETE_ROWS_F = (1U << 3)
   };
 
-  virtual ~Rows_event();
   Rows_event()
-  : m_table_id(0), m_extra_row_data(0)
+  : m_table_id(0), m_width(0), m_extra_row_data(0)
   {
   }
 
  Rows_event(const char *buf, unsigned int event_len,
              const Format_description_event *description_event);
+
+  virtual ~Rows_event();
+
 protected:
   Log_event_type  m_type;     /* Actual event type */
 

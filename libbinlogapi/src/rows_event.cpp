@@ -31,6 +31,7 @@ namespace binary_log
 unsigned long STDCALL get_field_length(unsigned char **packet)
 {
   unsigned char *pos= (unsigned char *)*packet;
+  uint32_t temp= 0;
   if (*pos < 251)
   {
     (*packet)++;
@@ -39,20 +40,26 @@ unsigned long STDCALL get_field_length(unsigned char **packet)
   if (*pos == 251)
   {
     (*packet)++;
-    return ((unsigned long ) ~0);//NULL_LENGTH;
+    return ((unsigned long) ~0);//NULL_LENGTH;
   }
   if (*pos == 252)
   {
-    (*packet)+=3;
-    return (unsigned long) uint2korr(pos+1);
+    (*packet)+= 3;
+    memcpy(&temp, pos + 1, 2); 
+    temp= le32toh(temp);
+    return (unsigned long)temp;
   }
   if (*pos == 253)
   {
-    (*packet)+=4;
-    return (unsigned long) uint3korr(pos+1);
+    (*packet)+= 4;
+    memcpy(&temp, pos + 1, 3); 
+    temp= le32toh(temp);
+    return (unsigned long)temp;
   }
-  (*packet)+=9;                                 /* Must be 254 when here */
-  return (unsigned long) uint4korr(pos+1);
+  (*packet)+= 9;                                 /* Must be 254 when here */
+  memcpy(&temp, pos + 1, 4);
+  temp= le32toh(temp);
+  return (unsigned long)temp;
 }
 
 
@@ -64,7 +71,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
                                  description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
-    m_table_id(ULONGLONG_MAX), m_flags(0), m_data_size(0),
+    m_table_id(0), m_flags(0), m_data_size(0),
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
     m_colcnt(0), m_field_metadata_size(0), m_null_bits(0)
 {
@@ -83,13 +90,15 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    m_table_id= uint4korr(post_start);
+    memcpy(&m_table_id, post_start, 4);
+    m_table_id= le64toh(m_table_id);
     post_start+= 4;
   }
   else
   {
     assert(post_header_len == TABLE_MAP_HEADER_LEN);
-    m_table_id= uint6korr(post_start);
+    memcpy(&m_table_id, post_start, 6);
+    m_table_id= le64toh(m_table_id);
     post_start+= TM_FLAGS_OFFSET;
   }
 
@@ -189,27 +198,28 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                        const Format_description_event *description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
-    m_table_id(0), m_extra_row_data(0)
+    m_table_id(0), m_width(0), m_extra_row_data(0)
 {
   uint8_t const common_header_len= description_event->common_header_len;
   Log_event_type event_type= (Log_event_type) buf[EVENT_TYPE_OFFSET];
   m_type= event_type;
 
   uint8_t const post_header_len=
-                description_event->post_header_len[event_type-1];
+                description_event->post_header_len[event_type - 1];
 
   const char *post_start= buf + common_header_len;
   post_start+= RW_MAPID_OFFSET;
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    m_table_id= uint4korr(post_start);
+    memcpy(&m_table_id, post_start, 4);
+    m_table_id= le64toh(m_table_id);
     post_start+= 4;
   }
   else
   {
-    //TODO: Will be replaced, after integration with patch rb2984
-    m_table_id= uint6korr(post_start);
+    memcpy(&m_table_id, post_start, 6);
+    m_table_id= le64toh(m_table_id);
     post_start+= RW_FLAGS_OFFSET;
   }
 
