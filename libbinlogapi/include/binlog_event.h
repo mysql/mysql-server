@@ -2610,6 +2610,35 @@ class Rand_event: public virtual Binary_log_event
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
+
+
+/**
+  @class Heartbeat_event
+
+  Replication event to ensure to slave that master is alive.
+  The event is originated by master's dump thread and sent straight to
+  slave without being logged. Slave itself does not store it in relay log
+  but rather uses a data for immediate checks and throws away the event.
+
+  Two members of the class log_ident and Binary_log_event::log_pos comprise
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
+  instance carries correspond to the last event master has sent from
+  its binlog.
+*/
+class Heartbeat_event: public virtual Binary_log_event
+{
+public:
+  Heartbeat_event(const char* buf, unsigned int event_len,
+                  const Format_description_event *description_event);
+
+  const char* get_log_ident() { return log_ident; }
+  unsigned int get_ident_len() { return ident_len; }
+
+protected:
+  const char* log_ident;
+  unsigned int ident_len;
+};
+
 Binary_log_event *create_incident_event(unsigned int type,
                                         const char *message,
                                         unsigned long pos= 0);

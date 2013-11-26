@@ -1802,6 +1802,19 @@ Execute_load_query_event(const char* buf,
 }
 
 
+Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
+                                 const Format_description_event*
+                                 description_event)
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version)
+{
+  unsigned char header_size= description_event->common_header_len;
+  ident_len= event_len - header_size;
+  set_if_smaller(ident_len, FN_REFLEN - 1);
+  log_ident= buf + header_size;
+}
+
+
 void Rotate_event::print_event_info(std::ostream& info)
 {
   info << "Binlog Position: " << pos;

@@ -6596,11 +6596,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       HB (heartbeat) cannot come before RL (Relay)
     */
     char  llbuf[22];
+    const Format_description_event
+                        des_ev(mi->get_mi_description_event()->binlog_version,
+                               server_version);
     Heartbeat_log_event hb(buf,
                            mi->rli->relay_log.relay_log_checksum_alg
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->get_mi_description_event());
+                           &des_ev);
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
