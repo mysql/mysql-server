@@ -100,9 +100,28 @@ private:
     Needed to be able to evaluate if buffer needs to be resized (shrunk).
   */
   ushort m_half_buffer_size_req_counter;
+  
+  /* 
+   * After these consecutive times using less than half of the buffer
+   * the buffer is shrunk.
+   */
   const static ushort PACKET_SHRINK_COUNTER_THRESHOLD;
+  
+  /**
+   * The minimum size of the buffer.
+   */
   const static uint PACKET_MINIMUM_SIZE;
+  
+  /**
+   * How much to grow the buffer each time we need to accommodate more bytes
+   * than it currently can hold.
+   */
   const static uint PACKET_GROW_FACTOR;
+  
+  /**
+   * The dual of PACKET_GROW_FACTOR. How much to shrink the buffer each time
+   * it is deemed to being underused.
+   */
   const static float PACKET_SHRINK_FACTOR;
   
   /*
@@ -341,10 +360,25 @@ private:
     m_last_file= m_last_file_buf;
   }
 
-  inline void grow_packet(uint32 cur_buffer_size, 
-                          uint32 needed_buffer_size,
-                          String *packet)
+  /**
+   * This function SHALL grow the buffer of the packet if needed.
+   * 
+   * If the buffer used for the packet is large enough to accommodate
+   * the requested extra bytes, then this function does not do anything.
+   * 
+   * On the other hand, if the requested size is bigger than the available
+   * free bytes in the buffer, the buffer is extended by a constant factor
+   * (@c PACKET_GROW_FACTOR).
+   * 
+   * @param packet  The buffer to resize if needed.
+   * @param extra_size  The size in bytes that the caller wants to add to the buffer.
+   * @return true if an error occurred, false otherwise.
+   */
+  inline bool grow_packet(String *packet, uint32 extra_size)
   {
+    uint32 cur_buffer_size= packet->alloced_length();
+    uint32 cur_buffer_used= packet->length();
+    uint32 needed_buffer_size= cur_buffer_used + extra_size;
     /*
       Grow the buffer if needed.
     */
@@ -356,10 +390,24 @@ private:
       uint32 new_buffer_size= 
         std::min(max_grown_buffer_size, 
                  static_cast<uint32>(m_thd->variables.max_allowed_packet));
-      packet->realloc(new_buffer_size);
+      return packet->realloc(new_buffer_size);
     }
+    
+    return false;
   }
 
+  /**
+   * This function SHALL shrink the size of the buffer used.
+   * 
+   * If less than half of the buffer was used in the last N  
+   * (@c PACKET_SHRINK_COUNTER_THRESHOLD) consecutive times this function 
+   * was called, then the buffer gets shrunk by a constant factor
+   * (@c PACKET_SHRINK_FACTOR).
+   * 
+   * The buffer is never shrunk less than a minimum size (@c PACKET_MINIMUM_SIZE).
+   * 
+   * @param packet  The buffer to shrink.
+   */
   inline void shrink_packet(String *packet)
   {
     uint32 cur_buffer_size= packet->alloced_length();
