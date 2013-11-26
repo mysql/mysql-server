@@ -1209,13 +1209,13 @@ public:
                                    const Format_description_log_event
                                    *description_event,
                                    my_bool crc_check);
-  
+
   /*
-   This function will read the common header into the buffer and 
+   This function will read the common header into the buffer and
    rewind the IO_CACHE back to the beginning of the event.
-   
+
    @param[in]         log_cache The IO_CACHE to read from.
-   @param[in/out]     header The buffer where to read the common header. This 
+   @param[in/out]     header The buffer where to read the common header. This
                       buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
 
    @returns           false on success, true otherwise.
@@ -1234,7 +1234,7 @@ public:
    This static function will read the event length from the common
    header that is on the IO_CACHE. Note that the IO_CACHE read position
    will not be updated.
-   
+
    @param[in]         log_cache The IO_CACHE to read from.
    @param[out]        length A pointer to the memory position where to store
                       the length value.

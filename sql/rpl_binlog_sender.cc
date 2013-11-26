@@ -29,7 +29,7 @@ const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const uint Binlog_sender::PACKET_MINIMUM_SIZE= 4096;
 const uint Binlog_sender::PACKET_GROW_FACTOR= 2;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
- 
+
 void Binlog_sender::init()
 {
   DBUG_ENTER("Binlog_sender::init");
@@ -44,9 +44,9 @@ void Binlog_sender::init()
 
   /* Initialize the buffer only once. */
   m_thd->packet.realloc(PACKET_MINIMUM_SIZE); // size of the buffer
-  DBUG_PRINT("info", ("Initial packet->alloced_length: %u", 
+  DBUG_PRINT("info", ("Initial packet->alloced_length: %u",
                       m_thd->packet.alloced_length()));
-  
+
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
                         thd->thread_id, thd->server_id,
@@ -349,11 +349,11 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
         String tmp;
         tmp.copy(thd->packet);
         tmp.length(thd->packet.length());
-        
+
         if (unlikely(send_heartbeat_event(&thd->packet, exclude_group_end_pos)))
           DBUG_RETURN(1);
         exclude_group_end_pos= 0;
-        
+
         /* Restore the copy back. */
         thd->packet.copy(tmp);
         thd->packet.length(tmp.length());
@@ -628,10 +628,10 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
   DBUG_ASSERT(packet);
   DBUG_ASSERT(packet == &m_thd->packet);
-  DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u", 
+  DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u",
                       event_len, packet->alloced_length()));
   DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
-  
+
   packet->length(0);  // size of the string
   packet->qs_append('\0');
 
@@ -641,14 +641,14 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
     set_unknow_error("Failed to run hook 'reserve_header'");
     DBUG_RETURN(1);
   }
-  
+
   /* Resizes the buffer if needed. */
   if (grow_packet(packet, event_len))
     DBUG_RETURN(1);
-  
+
   DBUG_PRINT("info", ("packet->alloced_length: %u (after potential "
                       "reallocation)", packet->alloced_length()));
-  
+
   DBUG_RETURN(0);
 }
 
@@ -760,21 +760,21 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
 
   if ((error= Log_event::peek_event_length(event_len, log_cache)))
     goto read_error;
-  
+
   if (reset_transmit_packet(packet, 0, *event_len))
     DBUG_RETURN(1);
 
   event_offset= packet->length();
   *event_ptr= (uchar *)packet->ptr() + event_offset;
-  
+
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-  
-  /* 
+
+  /*
     packet is big enough to read the event, since we have reallocated based
     on the length stated in the event header.
   */
@@ -782,7 +782,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
     goto read_error;
 
   set_last_pos(my_b_tell(log_cache));
- 
+
   DBUG_PRINT("info",
              ("Read event %s",
               Log_event::get_type_str(Log_event_type
@@ -799,7 +799,7 @@ read_error:
   */
   error= (error == LOG_READ_EOF) ? LOG_READ_IO : error;
   set_fatal_error(log_read_error_msg(error));
-  DBUG_RETURN(1);      
+  DBUG_RETURN(1);
 }
 
 int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
