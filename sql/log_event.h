@@ -4119,8 +4119,34 @@ private:
   bool commit_flag;
 };
 
+/**
+  @class Previous_gtids_log_event
 
-class Previous_gtids_log_event : public Log_event
+  This is the subclass if Previous_gtids_event and Log_event
+  It is used to record the Gtids executed in the last binary log file,
+  for ex after flush logs, or at the starting of the binary log file
+
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                 <<vir>>/       \<<vir>>
+                       /         \
+     B_l:Previous_gtids_event   Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                   Previous_gtids_log_event
+
+  B_l: Namespace Binary_log
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
+*/
+class Previous_gtids_log_event : public Log_event, public Previous_gtids_event
 {
 public:
 #ifndef MYSQL_CLIENT
@@ -4131,8 +4157,8 @@ public:
   int pack_info(Protocol*);
 #endif
 
-  Previous_gtids_log_event(const char *buffer, uint event_len,
-                           const Format_description_log_event *descr_event);
+  Previous_gtids_log_event(const char *buf, uint event_len,
+                           const Format_description_event *description_event);
   virtual ~Previous_gtids_log_event() {}
 
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
@@ -4148,13 +4174,15 @@ public:
   {
     if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
     {
-      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of debug option 'skip_writing_previous_gtids_log_event'"));
+      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of"
+                          "debug option 'skip_writing_previous_gtids_log_event'"));
       return false;
     }
 
     if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
     {
-      DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of debug option 'write_partial_previous_gtids_log_event'"));
+      DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of"
+                          "debug option 'write_partial_previous_gtids_log_event'"));
       return (Log_event::write_header(file, get_data_size()) ||
               Log_event::write_data_header(file));
     }
@@ -4184,10 +4212,6 @@ public:
   int do_apply_event(Relay_log_info const *rli) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
-
-private:
-  int buf_size;
-  const uchar *buf;
 };
 
 inline bool is_gtid_event(Log_event* evt)

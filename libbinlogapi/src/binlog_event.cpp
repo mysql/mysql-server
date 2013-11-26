@@ -1316,8 +1316,25 @@ Rows_query_event::~Rows_query_event()
      bapi_free(m_rows_query);
 }
 
+/**
+  ctor of Previous_gtid_event
+  Decodes the Gtids executed in the last binlog file
+*/
 
+Previous_gtids_event::
+Previous_gtids_event(const char *buffer, unsigned int event_len,
+                     const Format_description_event *description_event)
+  : Binary_log_event(&buffer, description_event->binlog_version,
+                     description_event->server_version)
+{
+  uint8_t const common_header_len= description_event->common_header_len;
+  uint8_t const post_header_len=
+    description_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
 
+  buf= (const unsigned char *)buffer + common_header_len + post_header_len;
+  buf_size= event_len - common_header_len - post_header_len;
+  return;
+}
 /******************************************************************************
                      Query_event methods
 ******************************************************************************/

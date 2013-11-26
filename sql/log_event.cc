@@ -1754,7 +1754,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev= new Gtid_log_event(buf, event_len, description_event);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
-      ev= new Previous_gtids_log_event(buf, event_len, description_event);
+      ev= new Previous_gtids_log_event(buf, event_len, &des_ev);
       break;
 #if defined(HAVE_REPLICATION)
     case WRITE_ROWS_EVENT:
@@ -12613,25 +12613,14 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 }
 #endif
 
-Previous_gtids_log_event::Previous_gtids_log_event(
-  const char *buffer, uint event_len,
-  const Format_description_log_event *descr_event)
-  : Binary_log_event(&buffer, descr_event->binlog_version,
-                     descr_event->server_version), Log_event(buffer, descr_event)
+Previous_gtids_log_event::
+Previous_gtids_log_event(const char *buf, uint event_len,
+                         const Format_description_event *description_event)
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Log_event(this->header()), Previous_gtids_event(buf, event_len, description_event)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
-
-  uint8 const common_header_len=
-    descr_event->common_header_len;
-  uint8 const post_header_len=
-    descr_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
-
-  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
-                     event_len, common_header_len, post_header_len));
-
-  buf= (const uchar *)buffer + common_header_len + post_header_len;
-  buf_size= (const uchar *)buffer + event_len - buf;
-  DBUG_PRINT("info", ("data size of the event: %d", buf_size));
   DBUG_VOID_RETURN;
 }
 
