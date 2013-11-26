@@ -532,7 +532,6 @@ char *bapi_stpcpy(char *dst, const char *src);
   bapi_strmake() returns pointer to closing null
 */
 char *bapi_strmake(char *dst, const char *src, size_t length);
-
 enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len);
 bool event_checksum_test(unsigned char* buf, unsigned long event_len,
                          enum_binlog_checksum_alg alg);
@@ -2562,7 +2561,6 @@ public:
   The state of the random number generation consists of 128 bits,
   which are stored internally as two 64-bit numbers.
 
-  @section Rand_event_binary_format Binary Format
 
   The Post-Header for this event type is empty.  The Body has two
   components:
@@ -2588,6 +2586,7 @@ public:
     <td>64 bit random seed2.</td>
   </tr>
   </table>
+  @section Rand_event_binary_format Binary Format
 */
 class Rand_event: public virtual Binary_log_event
 {
@@ -2609,6 +2608,50 @@ class Rand_event: public virtual Binary_log_event
   Log_event_type get_type_code() { return RAND_EVENT ; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+};
+
+
+/**
+  @class Previous_gtids_event
+  The Post-Header for this event type is empty.  The Body has two
+  components:
+
+  <table>
+  <caption>Body for Previous_gtids_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>buf</td>
+    <td>unsigned char array</td>
+    <td>It contains the Gtids executed in the
+        last binary log file.</td>
+  </tr>
+
+  <tr>
+    <td>buf_size</td>
+    <td>4 byte integer</td>
+    <td>Size of the above buffer</td>
+  </tr>
+  </table>
+  @section Previous_gtids_event_binary_format Binary Format
+*/
+class Previous_gtids_event : public virtual Binary_log_event
+{
+public:
+  Previous_gtids_event(const char *buf, unsigned int event_len,
+                       const Format_description_event *descr_event);
+  Previous_gtids_event() { }
+  Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT ; }
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+protected:
+  int buf_size;
+  const unsigned char *buf;
 };
 
 
