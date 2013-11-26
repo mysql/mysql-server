@@ -4630,8 +4630,8 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
 {  
   OperationRecord & op = filePtr.p->operation;
   BlockReference lqhRef = 0;
+  BackupRecordPtr ptr LINT_SET_PTR;
   {
-    BackupRecordPtr ptr LINT_SET_PTR;
     c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
     if (ptr.p->is_lcp()) {
       lqhRef = calcInstanceBlockRef(DBLQH);
@@ -4645,7 +4645,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     }
   }
 
-  if(filePtr.p->errorCode != 0)
+  if(filePtr.p->errorCode != 0 || ptr.p->checkError())
   {
     jam();
 
