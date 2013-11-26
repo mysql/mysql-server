@@ -641,3 +641,18 @@ create table t1(a point);
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#17834434: sql/table.h: Assertion tbl->updatable &&
+--echo #               !tbl->multitable_view failed
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+
+CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS t2;
+
+--error ER_NON_UPDATABLE_TABLE
+LOAD DATA LOCAL INFILE '' REPLACE INTO TABLE v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
