@@ -22,18 +22,11 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "my_sys.h"
+#include "test_utils.h"
 
 namespace bounded_queue_unittest {
 
 const int num_elements= 14;
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
 
 /*
   Elements to be sorted by tests below.
