@@ -138,6 +138,7 @@ HttpOperationResponder.prototype.close = function() {
   this.write(JSON.stringify(this.operation.result));
   this.write("\n");
   this.httpResponse.end();
+  this.operation.session.close();
 }; 
 
 // ======== Callbacks run at various phases of a database operation ======= //
