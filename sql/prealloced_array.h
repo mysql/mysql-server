@@ -121,6 +121,9 @@ public:
   Element_type &back() { return at(size() - 1); }
   const Element_type &back() const { return at(size() - 1); }
 
+  Element_type &front() { return at(0); }
+  const Element_type &front() const { return at(0); }
+
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
 

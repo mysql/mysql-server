@@ -82,7 +82,6 @@ std::ostream &operator<< (std::ostream &s, const TestFailLinePrinter &v)
 */
 
 using my_testing::Server_initializer;
-using my_testing::delete_container_pointers;
 using ::testing::Return;
 using ::testing::NiceMock;
 using ::testing::_;
