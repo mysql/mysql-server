@@ -8598,7 +8598,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   memset(&m_cols, 0, sizeof(m_cols));
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
-                          m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
+                          m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : NULL,
                           m_width,
                           false)))
   {
