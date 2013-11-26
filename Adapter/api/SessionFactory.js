@@ -44,7 +44,7 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
 SessionFactory.prototype.openSession = function() {
   var context = new userContext.UserContext(arguments, 2, 2, null, this);
   // delegate to context for execution
-  context.openSession();
+  return context.openSession();
 };
 
 
@@ -80,7 +80,7 @@ SessionFactory.prototype.allocateSessionSlot = function() {
 SessionFactory.prototype.getTableMetadata = function() {
   var context = new userContext.UserContext(arguments, 2, 2, null, this);
   // delegate to context for execution
-  context.getTableMetadata();
+  return context.getTableMetadata();
 };
 
 
