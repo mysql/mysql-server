@@ -1796,7 +1796,7 @@ TEST_F(OptRangeTest, KeyOr2)
   */
   EXPECT_EQ(fld1_20, tree_and1);
   EXPECT_EQ(0UL, fld1_20->keys[0]->use_count);
-  EXPECT_EQ(NULL, fld1_20->keys[0]->next_key_part);
+  EXPECT_EQ(null_arg, fld1_20->keys[0]->next_key_part);
 
   EXPECT_EQ(0UL, fld1_20->keys[1]->use_count);
   EXPECT_NE(null_arg, fld1_20->keys[1]->next_key_part);
