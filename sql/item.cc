@@ -4699,30 +4699,6 @@ void mark_select_range_as_dependent(THD *thd,
 
 
 /**
- Find a Item reference in a item list
-
- @param[in]   item            The Item to search for.
- @param[in]   list            Item list.
-
- @retval true   found
- @retval false  otherwise
-*/
-
-static bool find_item_in_item_list (Item *item, List<Item> *list)
-{
-  List_iterator<Item> li(*list);
-  Item *it= NULL;
-  while ((it= li++))
-  {
-    if (it->walk(&Item::find_item_processor, true,
-                 (uchar*)item))
-      return true;
-  }
-  return false;
-}
-
-
-/**
   Search a GROUP BY clause for a field with a certain name.
 
   Search the GROUP BY list for a column named as find_item. When searching
@@ -8134,8 +8110,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
   Item_field *field_arg= (Item_field *)arg;
 
   if (field_arg->field->table->insert_values &&
-      find_item_in_item_list(this, &thd->lex->value_list))
-
+      thd->lex->in_update_value_clause)
   {
     Field *def_field= field_arg->field->clone();
     if (!def_field)
