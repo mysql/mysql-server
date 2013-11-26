@@ -1451,11 +1451,10 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 }
 
 
-/*
-- Return NULL if argument is NULL.
-- Return zero if argument is not NULL, but we could not convert it to DATETIME.
-- Return zero if argument is not NULL and represents a valid DATETIME value,
-  but the value is out of the supported Unix timestamp range.
+/**
+   If argument is NULL, sets null_value. Otherwise:
+   if invalid DATETIME value, or a valid DATETIME value but which is out of
+   the supported Unix timestamp range, sets 'tm' to 0.
 */
 bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
