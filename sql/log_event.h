@@ -3879,7 +3879,8 @@ public:
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-    if (!(m_rows_query= (char*) bapi_malloc(query_len + 1, ROWS_QUERY_LOG_EVENT_ROWS_QUERY)))
+    if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
+                                          query_len + 1, MYF(MY_WME))))
       return;
     my_snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
@@ -3894,7 +3895,12 @@ public:
   Rows_query_log_event(const char *buf, uint event_len,
                        const Format_description_event *descr_event);
 
-
+  virtual ~Rows_query_log_event()
+  {
+    if (m_rows_query)
+      my_free(m_rows_query);
+    m_rows_query= NULL;
+  }
 #ifdef MYSQL_CLIENT
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif

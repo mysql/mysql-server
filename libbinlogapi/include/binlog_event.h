@@ -525,6 +525,13 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
   @return     pointer to the end of the string dest
 */
 char *bapi_stpcpy(char *dst, const char *src);
+/**
+  bapi_strmake(dest,src,length) moves length characters, or until end, of src to
+  dest and appends a closing NUL to dest.
+  Note that if strlen(src) >= length then dest[length] will be set to \0
+  bapi_strmake() returns pointer to closing null
+*/
+char *bapi_strmake(char *dst, const char *src, size_t length);
 
 enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len);
 bool event_checksum_test(unsigned char* buf, unsigned long event_len,
@@ -2403,7 +2410,7 @@ public:
   Rows_query_event()
   {
   }
-  ~Rows_query_event();
+  virtual ~Rows_query_event();
 protected:
   char *m_rows_query;
 };

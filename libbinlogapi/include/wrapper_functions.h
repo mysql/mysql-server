@@ -104,16 +104,16 @@ inline const void* bapi_memdup(const void* source, size_t len)
   @return Void pointer to the allocated chunk of memory
 */
 inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
-                                            MEMORY_LOG_EVENT)
+                                            MEMORY_LOG_EVENT, int flags=0)
 {
   void * dest= NULL;
   #if HAVE_MYSYS
   if (key_to_int == 1)
-    dest= my_malloc(key_memory_Rows_query_log_event_rows_query,size, MYF(0));
+    dest= my_malloc(key_memory_Rows_query_log_event_rows_query,size, MYF(flags));
   else if (key_to_int == 2)
-    dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(0));
+    dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(flags));
   else
-    dest= my_malloc(key_memory_log_event,size, MYF(0));
+    dest= my_malloc(key_memory_log_event,size, MYF(flags));
   #else
     dest=  malloc(size);
   #endif
@@ -136,6 +136,7 @@ inline void bapi_free(void* ptr)
 #else
   return free(ptr);
 #endif
+  ptr= 0;
 }
 
 #endif
