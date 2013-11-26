@@ -430,10 +430,10 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 ### libbinlogapi ##
-#libbinlobapi headers are used in log_event.h, which are included by header
+#libbinlogapi headers are used in log_event.h, which are included by header
 #files in other subdirectories, which are storage/perfschema, storage/federated
 #Since the hedear files of libbinblogapi are contained in libbinlogapi/include,
-#they need to be explicitly included
+#they need to be explicitly included.
 ### end comment ##
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogapi/include)
 

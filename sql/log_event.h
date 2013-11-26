@@ -3934,34 +3934,24 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
 
   Heartbeat Log Event class
 
-  Replication event to ensure to slave that master is alive.
-  The event is originated by master's dump thread and sent straight to
-  slave without being logged. Slave itself does not store it in relay log
-  but rather uses a data for immediate checks and throws away the event.
+  The class is not logged to a binary log, and is not applied on to the slave.
+  The decoding of the event on the slave side is done by its superclass,
+  binary_log::Heartbeat_event.
 
-  Two members of the class log_ident and Log_event::log_pos comprise 
-  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
-  instance carries correspond to the last event master has sent from
-  its binlog.
-
+  TODO: This class, can therefore be removed from this file, after is_valid()
+        and get_type_code() are moved as member variables in binlogapi library.
  ****************************************************************************/
-class Heartbeat_log_event: public Log_event
+class Heartbeat_log_event: public Log_event, public Heartbeat_event
 {
 public:
   Heartbeat_log_event(const char* buf, uint event_len,
-                      const Format_description_log_event* description_event);
+                      const Format_description_event* description_event);
   Log_event_type get_type_code() { return HEARTBEAT_LOG_EVENT; }
   bool is_valid() const
     {
       return (log_ident != NULL &&
               common_header->log_pos >= BIN_LOG_HEADER_SIZE);
     }
-  const char * get_log_ident() { return log_ident; }
-  uint get_ident_len() { return ident_len; }
-  
-private:
-  const char* log_ident;
-  uint ident_len;
 };
 
 /**
