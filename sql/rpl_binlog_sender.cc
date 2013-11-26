@@ -26,7 +26,7 @@
 #endif
 
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
-const uint Binlog_sender::PACKET_MINIMUM_SIZE= 4096;
+const uint32 Binlog_sender::PACKET_MINIMUM_SIZE= 4096;
 const uint Binlog_sender::PACKET_GROW_FACTOR= 2;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
 
