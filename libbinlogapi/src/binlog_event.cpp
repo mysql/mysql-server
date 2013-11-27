@@ -294,18 +294,6 @@ Binary_log_event::~Binary_log_event()
     //delete m_header;
 }
 
-Binary_log_event * create_incident_event(unsigned int type,
-                                         const char *message, unsigned long pos)
-{
-  Incident_event *incident= new Incident_event();
-  incident->header()->type_code= INCIDENT_EVENT;
-  //incident->header()->next_position= pos;
-  //incident->header()->event_length= LOG_EVENT_HEADER_SIZE + 2 + strlen(message);
-  incident->type= type;
-  incident->message.append(message);
-  return incident;
-}
-
 /**
    Empty ctor of Start_event_v3 called when we call the
    ctor of FDE which takes binlog_version as the parameter
@@ -1380,6 +1368,56 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 }
 
 /**
+  ctor of Incident_event
+  The buffer layout is as follows:
+  +-----------------------------------------------------+
+  | Incident_number | message_length | Incident_message |
+  +-----------------------------------------------------+
+
+  Incident number codes are listed in binlog_evnet.h.
+  The only code currently used is INCIDENT_LOST_EVENTS, which indicates that
+  there may be lost events (a "gap") in the replication stream that requires
+  databases to be resynchronized.
+*/
+Incident_event::Incident_event(const char *buf, unsigned int event_len,
+                               const Format_description_event *descr_event)
+{
+  uint8_t const common_header_len= descr_event->common_header_len;
+  uint8_t const post_header_len= descr_event->post_header_len[INCIDENT_EVENT-1];
+
+  m_message= NULL;
+  m_message_length= 0;
+  //TODO: replace uint*korr with le*toh
+  int incident_number= uint2korr(buf + common_header_len);
+  if (incident_number >= INCIDENT_COUNT ||
+      incident_number <= INCIDENT_NONE)
+  {
+    // If the incident is not recognized, this binlog event is
+    // invalid.  If we set incident_number to INCIDENT_NONE, the
+    // invalidity will be detected by is_valid().
+    m_incident= INCIDENT_NONE;
+
+  }
+  m_incident= static_cast<Incident>(incident_number);
+  char const *ptr= buf + common_header_len + post_header_len;
+  char const *const str_end= buf + event_len;
+  uint8_t len= 0;                   // Assignment to keep compiler happy
+  const char *str= NULL;          // Assignment to keep compiler happy
+  read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
+  //MY_WME= 16, MEMORY_LOG_EVENT = 0
+  if (!(m_message= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
+  {
+    /* Mark this event invalid */
+    m_incident= INCIDENT_NONE;
+    return;
+  }
+
+  bapi_strmake(m_message, str, len);
+  m_message_length= len;
+  return;
+}
+
+/**
   ctor of Previous_gtid_event
   Decodes the Gtids executed in the last binlog file
 */
@@ -1958,7 +1996,8 @@ void Int_var_event::print_long_info(std::ostream& info)
 
 void Incident_event::print_event_info(std::ostream& info)
 {
-  info << message;
+ //TODO: modify this method with the new members aadded
+ // info << m_message;
 }
 
 void Incident_event::print_long_info(std::ostream& info)

@@ -3677,65 +3677,59 @@ protected:
    The event is used to inform the slave that something out of the
    ordinary happened on the master that might cause the database to be
    in an inconsistent state.
+   Its the derived class of Incident_event
 
-   <table id="IncidentFormat">
-   <caption>Incident event format</caption>
-   <tr>
-     <th>Symbol</th>
-     <th>Format</th>
-     <th>Description</th>
-   </tr>
-   <tr>
-     <td>INCIDENT</td>
-     <td align="right">2</td>
-     <td>Incident number as an unsigned integer</td>
-   </tr>
-   <tr>
-     <td>MSGLEN</td>
-     <td align="right">1</td>
-     <td>Message length as an unsigned integer</td>
-   </tr>
-   <tr>
-     <td>MESSAGE</td>
-     <td align="right">MSGLEN</td>
-     <td>The message, if present. Not null terminated.</td>
-   </tr>
-   </table>
+  The inheritance structure is as follows
 
-  @section Delete_rows_log_event_binary_format Binary Format
+                    Binary_log_event
+                          /   \
+                         /     \
+                 <<vir>>/       \<<vir>>
+                       /         \
+         B_l:Incident_event     Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                   Incident_log_event
+
+  B_l: Namespace Binary_log
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
+  @section Incident_log_event_binary_format Binary Format
 */
-class Incident_log_event : public Log_event {
+class Incident_log_event : public Log_event, public Incident_event {
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
     : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING), m_incident(incident)
+                Log_event::EVENT_IMMEDIATE_LOGGING), Incident_event(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
-    m_message.str= NULL;                    /* Just as a precaution */
-    m_message.length= 0;
+    DBUG_ASSERT(m_message == NULL && m_message_length == 0);
     DBUG_VOID_RETURN;
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
     : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
                 Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING), m_incident(incident)
+                Log_event::EVENT_IMMEDIATE_LOGGING), Incident_event(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
-    m_message.str= NULL;
-    m_message.length= 0;
-    if (!(m_message.str= (char*) my_malloc(key_memory_Incident_log_event_message,
+    DBUG_ASSERT(m_message == NULL && m_message_length == 0);
+    if (!(m_message= (char*) my_malloc(key_memory_Incident_log_event_message,
                                            msg.length+1, MYF(MY_WME))))
     {
       /* Mark this event invalid */
       m_incident= INCIDENT_NONE;
       DBUG_VOID_RETURN;
     }
-    strmake(m_message.str, msg.str, msg.length);
-    m_message.length= msg.length;
+    strmake(m_message, msg.str, msg.length);
+    m_message_length= msg.length;
     DBUG_VOID_RETURN;
   }
 #endif
@@ -3745,7 +3739,7 @@ public:
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
-                     const Format_description_log_event *descr_event);
+                     const Format_description_event *description_event);
 
   virtual ~Incident_log_event();
 
@@ -3767,14 +3761,11 @@ public:
     return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
   }
   virtual int get_data_size() {
-    return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) m_message.length;
+    return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) m_message_length;
   }
 
 private:
   const char *description() const;
-
-  Incident m_incident;
-  LEX_STRING m_message;
 };
 
 
