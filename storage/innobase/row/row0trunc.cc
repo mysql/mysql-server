@@ -848,7 +848,7 @@ TruncateLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Index id "IB_ID_FMT " not found",
+				"Index id " IB_ID_FMT " not found",
 				index.m_id);
 		}
 	}

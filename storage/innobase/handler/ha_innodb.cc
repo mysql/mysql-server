@@ -3808,7 +3808,7 @@ innobase_close_connection(
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
+			"InnoDB transaction.  " TRX_ID_FMT " row modifications "
 			"will roll back.",
 			trx->undo_no);
 	}
@@ -6689,7 +6689,7 @@ calc_row_difference(
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be larger than"
-					" "IB_ID_FMT" for table",
+					" " IB_ID_FMT " for table",
 					innodb_table->fts->cache->next_doc_id
 					- 1);
 				ut_print_name(stderr, trx,
@@ -6701,9 +6701,9 @@ calc_row_difference(
 				    - prebuilt->table->fts->cache->next_doc_id)
 				   >= FTS_DOC_ID_MAX_STEP) {
 				fprintf(stderr,
-					"InnoDB: Doc ID "UINT64PF" is too"
+					"InnoDB: Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
-					" Doc ID used "UINT64PF" cannot"
+					" Doc ID used " UINT64PF " cannot"
 					" exceed or equal to %d\n",
 					doc_id,
 					prebuilt->table->fts->cache->next_doc_id - 1,
