@@ -1744,7 +1744,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev= new Execute_load_query_log_event(buf, event_len, &des_ev);
       break;
     case INCIDENT_EVENT:
-      ev = new Incident_log_event(buf, event_len, description_event);
+      ev = new Incident_log_event(buf, event_len, &des_ev);
       break;
     case ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, &des_ev);
@@ -12119,57 +12119,23 @@ void Update_rows_log_event::print(FILE *file,
 #endif
 
 
-Incident_log_event::Incident_log_event(const char *buf, uint event_len,
-                                       const Format_description_log_event *descr_event)
-  : Binary_log_event(&buf, descr_event->binlog_version,
-                     descr_event->server_version), Log_event(buf, descr_event)
+Incident_log_event::
+Incident_log_event(const char *buf, uint event_len,
+                   const Format_description_event *description_event)
+  : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+    Log_event(this->header()), Incident_event(buf, event_len, description_event)
 {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
 
-  uint8 const common_header_len=
-    descr_event->common_header_len;
-  uint8 const post_header_len=
-    descr_event->post_header_len[INCIDENT_EVENT-1];
-
-  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
-                     event_len, common_header_len, post_header_len));
-
-  m_message.str= NULL;
-  m_message.length= 0;
-  int incident_number= uint2korr(buf + common_header_len);
-  if (incident_number >= INCIDENT_COUNT ||
-      incident_number <= INCIDENT_NONE)
-  {
-    // If the incident is not recognized, this binlog event is
-    // invalid.  If we set incident_number to INCIDENT_NONE, the
-    // invalidity will be detected by is_valid().
-    m_incident= INCIDENT_NONE;
-    DBUG_VOID_RETURN;
-  }
-  m_incident= static_cast<Incident>(incident_number);
-  char const *ptr= buf + common_header_len + post_header_len;
-  char const *const str_end= buf + event_len;
-  uint8 len= 0;                   // Assignment to keep compiler happy
-  const char *str= NULL;          // Assignment to keep compiler happy
-  read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(m_message.str= (char*) my_malloc(key_memory_log_event,
-                                         len+1, MYF(MY_WME))))
-  {
-    /* Mark this event invalid */
-    m_incident= INCIDENT_NONE;
-    DBUG_VOID_RETURN;
-  }
-  strmake(m_message.str, str, len);
-  m_message.length= len;
-  DBUG_PRINT("info", ("m_incident: %d", m_incident));
   DBUG_VOID_RETURN;
 }
 
 
 Incident_log_event::~Incident_log_event()
 {
-  if (m_message.str)
-    my_free(m_message.str);
+  if (m_message)
+    bapi_free(m_message);
 }
 
 
@@ -12192,12 +12158,12 @@ int Incident_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   size_t bytes;
-  if (m_message.length > 0)
+  if (m_message_length > 0)
     bytes= my_snprintf(buf, sizeof(buf), "#%d (%s)",
                        m_incident, description());
   else
     bytes= my_snprintf(buf, sizeof(buf), "#%d (%s): %s",
-                       m_incident, description(), m_message.str);
+                       m_incident, description(), m_message);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -12234,7 +12200,7 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER(ER_SLAVE_INCIDENT),
               description(),
-              m_message.length > 0 ? m_message.str : "<none>");
+              m_message_length > 0 ? m_message : "<none>");
   DBUG_RETURN(1);
 }
 #endif
@@ -12258,14 +12224,14 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 {
   uchar tmp[1];
   DBUG_ENTER("Incident_log_event::write_data_body");
-  tmp[0]= (uchar) m_message.length;
+  tmp[0]= (uchar) m_message_length;
   crc= checksum_crc32(crc, (uchar*) tmp, 1);
-  if (m_message.length > 0)
+  if (m_message_length > 0)
   {
-    crc= checksum_crc32(crc, (uchar*) m_message.str, m_message.length);
+    crc= checksum_crc32(crc, (uchar*) m_message, m_message_length);
     // todo: report a bug on write_str accepts uint but treats it as uchar
   }
-  DBUG_RETURN(write_str_at_most_255_bytes(file, m_message.str, (uint) m_message.length));
+  DBUG_RETURN(write_str_at_most_255_bytes(file, m_message, (uint) m_message_length));
 }
 
 

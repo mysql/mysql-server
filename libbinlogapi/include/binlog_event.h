@@ -65,6 +65,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define NAME_LEN (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
 
+/**
+   Enumeration of the incidents that can occur for the server.
+ */
+enum Incident {
+  /** No incident */
+  INCIDENT_NONE = 0,
+
+  /** There are possibly lost events in the replication stream */
+  INCIDENT_LOST_EVENTS = 1,
+
+  /** Shall be last event of the enumeration */
+  INCIDENT_COUNT
+};
 
 /*
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
@@ -318,6 +331,8 @@ struct old_sql_ex
 
 #define SEQ_UNINIT -1
 
+namespace binary_log
+{
 /**
   Reads string from buf.
 
@@ -349,9 +364,6 @@ static inline int read_str_at_most_255_bytes(const char **buf,
   return 0;
 }
 
-
-namespace binary_log
-{
 /**
    This flag only makes sense for Format_description_event. It is set
    when the event is written, and *reset* when a binlog file is
@@ -2548,19 +2560,60 @@ public:
     void print_long_info(std::ostream& info);
 };
 
+/**
+  @class Incident_event
 
-class Incident_event: public Binary_log_event
+   Class representing an incident, an occurance out of the ordinary,
+   that happened on the master.
+
+   The event is used to inform the slave that something out of the
+   ordinary happened on the master that might cause the database to be
+   in an inconsistent state.
+
+   <table id="IncidentFormat">
+   <caption>Incident event format</caption>
+   <tr>
+     <th>Symbol</th>
+     <th>Format</th>
+     <th>Description</th>
+   </tr>
+   <tr>
+     <td>INCIDENT</td>
+     <td align="right">2</td>
+     <td>Incident number as an unsigned integer</td>
+   </tr>
+   <tr>
+     <td>MSGLEN</td>
+     <td align="right">1</td>
+     <td>Message length as an unsigned integer</td>
+   </tr>
+   <tr>
+     <td>MESSAGE</td>
+     <td align="right">MSGLEN</td>
+     <td>The message, if present. Not null terminated.</td>
+   </tr>
+   </table>
+
+  @section Incident_event_binary_format Binary Format
+*/
+class Incident_event: public virtual Binary_log_event
 {
 public:
-    Incident_event() : Binary_log_event() {}
-    Incident_event(Log_event_header *header) : Binary_log_event(header) {}
-    uint8_t type;
-    std::string message;
+  Incident_event(Incident incident)
+  : Binary_log_event(), m_incident(incident), m_message(NULL),
+    m_message_length(0)
+  {
+  }
+  Incident_event(const char *buf, unsigned int event_len,
+                 const Format_description_event *description_event);
 
-    Log_event_type get_type_code() { return INCIDENT_EVENT; }
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
+  Log_event_type get_type_code() { return INCIDENT_EVENT; }
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+protected:
+  Incident m_incident;
+  char *m_message;
+  size_t m_message_length;
 };
 
 /**
@@ -2847,10 +2900,6 @@ protected:
   const char* log_ident;
   unsigned int ident_len;
 };
-
-Binary_log_event *create_incident_event(unsigned int type,
-                                        const char *message,
-                                        unsigned long pos= 0);
 
 } // end namespace binary_log
 
