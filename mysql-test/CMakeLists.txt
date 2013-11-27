@@ -13,29 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(INSTALL_MYSQLTESTDIR)
-INSTALL(
- DIRECTORY .
- DESTINATION ${INSTALL_MYSQLTESTDIR}
- USE_SOURCE_PERMISSIONS
- COMPONENT Test
- PATTERN "var/" EXCLUDE
- PATTERN "lib/My/SafeProcess" EXCLUDE
- PATTERN "lib/t*" EXCLUDE
- PATTERN "CPack" EXCLUDE
- PATTERN "CMake*" EXCLUDE
- PATTERN "mtr.out*" EXCLUDE
- PATTERN ".cvsignore" EXCLUDE
- PATTERN "*.am" EXCLUDE
- PATTERN "*.in" EXCLUDE
- PATTERN "*.vcxproj" EXCLUDE
- PATTERN "*.vcxproj.filters" EXCLUDE
- PATTERN "*.vcxproj.user" EXCLUDE
- PATTERN "CTest" EXCLUDE
-)
-ENDIF()
-
-
+INSTALL_MYSQL_TEST("." ".")
 
 IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   # Enable running mtr from build directory

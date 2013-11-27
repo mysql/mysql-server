@@ -376,3 +376,27 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ENDIF()
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_MYSQL_TEST from to)
+  IF(INSTALL_MYSQLTESTDIR)
+    INSTALL(
+      DIRECTORY ${from}
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/${to}"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT Test
+      PATTERN "var/" EXCLUDE
+      PATTERN "lib/My/SafeProcess" EXCLUDE
+      PATTERN "lib/t*" EXCLUDE
+      PATTERN "CPack" EXCLUDE
+      PATTERN "CMake*" EXCLUDE
+      PATTERN "mtr.out*" EXCLUDE
+      PATTERN ".cvsignore" EXCLUDE
+      PATTERN "*.am" EXCLUDE
+      PATTERN "*.in" EXCLUDE
+      PATTERN "*.vcxproj" EXCLUDE
+      PATTERN "*.vcxproj.filters" EXCLUDE
+      PATTERN "*.vcxproj.user" EXCLUDE
+      PATTERN "CTest" EXCLUDE
+    )
+  ENDIF()
+ENDFUNCTION()

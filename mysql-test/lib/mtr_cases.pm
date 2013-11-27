@@ -62,6 +62,21 @@ use My::Suite;
 
 require "mtr_misc.pl";
 
+# locate plugin suites, depending on whether it's a build tree or installed
+my @plugin_suitedirs;
+my $plugin_suitedir_regex;
+my $overlay_regex;
+
+if (-d '../sql') {
+  @plugin_suitedirs= ('storage/*/mysql-test', 'plugin/*/mysql-test');
+  $overlay_regex= '\b(?:storage|plugin)/(\w+)/mysql-test\b';
+} else {
+  @plugin_suitedirs= ('mysql-test/plugin/*');
+  $overlay_regex= '\bmysql-test/plugin/(\w+)\b';
+}
+$plugin_suitedir_regex= $overlay_regex;
+$plugin_suitedir_regex=~ s/\Q(\w+)\E/\\w+/;
+
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
 my $skip_test_reg;
@@ -263,12 +278,11 @@ sub load_suite_object {
 
 
 # returns a pair of (suite, suitedir)
-sub load_suite_for_file($) {
+sub suite_for_file($) {
   my ($file) = @_;
-  return load_suite_object($2, $1)
-    if $file =~ m@^(.*/(?:storage|plugin)/\w+/mysql-test/(\w+))/@;
-  return load_suite_object($2, $1) if $file =~ m@^(.*/mysql-test/suite/(\w+))/@;
-  return load_suite_object('main', $1) if $file =~ m@^(.*/mysql-test)/@;
+  return ($2, $1) if $file =~ m@^(.*/$plugin_suitedir_regex/(\w+))/@o;
+  return ($2, $1) if $file =~ m@^(.*/mysql-test/suite/(\w+))/@;
+  return ('main', $1) if $file =~ m@^(.*/mysql-test)/@;
   mtr_error("Cannot determine suite for $file");
 }
 
@@ -318,12 +332,12 @@ sub parse_disabled {
 #
 # load suite.pm files from plugin suites
 # collect the list of default plugin suites.
+# XXX currently it does not support nested suites
 #
 sub collect_default_suites(@)
 {
   my @dirs = my_find_dir(dirname($::glob_mysql_test_dir),
-                        ['storage/*/mysql-test/*', 'plugin/*/mysql-test/*'],
-                        [], NOT_REQUIRED);
+                         [ @plugin_suitedirs ], '*');
   for my $d (@dirs) {
     next unless -f "$d/suite.pm";
     my $sname= basename($d);
@@ -361,25 +375,22 @@ sub collect_suite_name($$)
     else
     {
       my @dirs = my_find_dir(dirname($::glob_mysql_test_dir),
-                             ["mysql-test/suite",
-                              "storage/*/mysql-test",
-                              "plugin/*/mysql-test"],
-                             [$suitename]);
+                             ["mysql-test/suite", @plugin_suitedirs ],
+                             $suitename);
       #
       # if $suitename contained wildcards, we'll have many suites and
       # their overlays here. Let's group them appropriately.
       #
       for (@dirs) {
-        m@^.*/mysql-test/(?:suite/)?(.*)$@ or confess $_;
+        m@^.*/(?:mysql-test/suite|$plugin_suitedir_regex)/(.*)$@o or confess $_;
         push @{$suites{$1}}, $_;
       }
     }
   } else {
     $suites{$suitename} = [ $::glob_mysql_test_dir,
                             my_find_dir(dirname($::glob_mysql_test_dir),
-                                        ["storage/*/mysql-test",
-                                         "plugin/*/mysql-test"],
-                                        ['main'], NOT_REQUIRED) ];
+                                        [ @plugin_suitedirs ],
+                                        'main', NOT_REQUIRED) ];
   }
 
   my @cases;
@@ -426,7 +437,7 @@ sub collect_one_suite {
     local %file_combinations = ();
     local %file_in_overlay = ();
 
-    confess $_ unless m@/(?:storage|plugin)/(\w+)/mysql-test/[\w/]*\w$@;
+    confess $_ unless m@/$overlay_regex/@o;
     next unless defined $over and ($over eq '' or $over eq $1);
     push @cases, 
     # don't add cases that take *all* data from the parent suite
@@ -1072,7 +1083,7 @@ sub get_tags_from_file($$) {
   # for combinations we need to make sure that its suite object is loaded,
   # even if this file does not belong to a current suite!
   my $comb_file = "$suffix.combinations";
-  $suite = load_suite_for_file($comb_file) if $prefix[0] eq '';
+  $suite = load_suite_object(suite_for_file($comb_file)) if $prefix[0] eq '';
   my @comb;
   unless ($suite->{skip}) {
     my $from = "$prefix[0]$comb_file";
