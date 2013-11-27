@@ -543,6 +543,35 @@ EXPLAIN SELECT alias1.* FROM t3 LEFT JOIN v1 as alias1 ON ( t3.a = alias1.b );
 drop view v1;
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # MDEV-5344: LEFT OUTER JOIN table data is lost in ON DUPLICATE KEY UPDATE section
+--echo #
+create table t1 (
+	id int(10) unsigned NOT NULL DEFAULT '0',
+	v int(10) unsigned DEFAULT '0',
+	PRIMARY KEY (id)
+);
 
+create table t2 (
+	id int(10) unsigned NOT NULL DEFAULT '0',
+	PRIMARY KEY (id)
+) ;
+
+create table t3 (
+	id int(10) unsigned NOT NULL DEFAULT '0',
+	v int(10) unsigned DEFAULT '0',
+	PRIMARY KEY (id)
+);
+
+insert into t1 values (1, 10), (2, 10);
+insert into t2 values (1), (2);
+insert into t3 values (1, 20);
+
+insert into t1 
+select t2.id, 5 from t2 LEFT OUTER JOIN t3 ON t2.id = t3.id
+on duplicate key update t1.v = t3.v;
+
+select * from t1;
+drop table t1,t2,t3;
 
 SET optimizer_switch=@save_optimizer_switch;

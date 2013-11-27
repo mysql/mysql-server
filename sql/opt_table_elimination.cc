@@ -594,6 +594,21 @@ void eliminate_tables(JOIN *join)
   /* Find the tables that are referred to from WHERE/HAVING */
   used_tables= (join->conds?  join->conds->used_tables() : 0) | 
                (join->having? join->having->used_tables() : 0);
+
+  /*
+    For "INSERT ... SELECT ... ON DUPLICATE KEY UPDATE column = val"
+    we should also take into account tables mentioned in "val".
+  */
+  if (join->thd->lex->sql_command == SQLCOM_INSERT_SELECT &&
+      join->select_lex == &thd->lex->select_lex)
+  {
+    List_iterator<Item> val_it(thd->lex->value_list);
+    while ((item= val_it++))
+    {
+      DBUG_ASSERT(item->fixed);
+      used_tables |= item->used_tables();
+    }
+  }
   
   /* Add tables referred to from the select list */
   List_iterator<Item> it(join->fields_list);
