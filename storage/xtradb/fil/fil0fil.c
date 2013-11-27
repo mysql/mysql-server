@@ -5027,10 +5027,16 @@ fil_extend_space_to_desired_size(
 
 	mem_free(buf2);
 
-	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
-
 #ifdef HAVE_POSIX_FALLOCATE
 complete_io:
+	/* If posix_fallocate was used to extent the file space
+	we need to complete the io. Because no actual writes were
+	dispatched read operation is enough here. Without this
+	there will be assertion at shutdown indicating that
+	all IO is not completed. */
+	fil_node_complete_io(node, fil_system, OS_FILE_READ);
+#else
+	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
 #endif
 
 	*actual_size = space->size;
