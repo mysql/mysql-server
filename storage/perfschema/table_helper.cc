@@ -746,4 +746,23 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   }
 }
 
+void PFS_variable_name_row::make_row(const char* str, uint length)
+{
+  DBUG_ASSERT(length <= sizeof(m_str));
+  if (length > 0)
+  {
+    memcpy(m_str, str, length);
+  }
+  m_length= length;
+}
+
+void PFS_variable_value_row::make_row(const char* str, uint length)
+{
+  DBUG_ASSERT(length <= sizeof(m_str));
+  if (length > 0)
+  {
+    memcpy(m_str, str, length);
+  }
+  m_length= length;
+}
 

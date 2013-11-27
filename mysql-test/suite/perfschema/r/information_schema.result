@@ -75,6 +75,7 @@ performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
+performance_schema	user_variables_by_thread	def
 performance_schema	users	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
@@ -153,6 +154,7 @@ table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
+user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
@@ -231,6 +233,7 @@ table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
+user_variables_by_thread	10	Dynamic
 users	10	Fixed
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
 from information_schema.tables
@@ -309,6 +312,7 @@ table_io_waits_summary_by_index_usage	1000	0
 table_io_waits_summary_by_table	1000	0
 table_lock_waits_summary_by_table	1000	0
 threads	1000	0
+user_variables_by_thread	1000	0
 users	1000	0
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
@@ -387,6 +391,7 @@ table_io_waits_summary_by_index_usage	0	0
 table_io_waits_summary_by_table	0	0
 table_lock_waits_summary_by_table	0	0
 threads	0	0
+user_variables_by_thread	0	0
 users	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
@@ -465,6 +470,7 @@ table_io_waits_summary_by_index_usage	0	0	NULL
 table_io_waits_summary_by_table	0	0	NULL
 table_lock_waits_summary_by_table	0	0	NULL
 threads	0	0	NULL
+user_variables_by_thread	0	0	NULL
 users	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
@@ -543,6 +549,7 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
@@ -621,6 +628,7 @@ table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
 table_io_waits_summary_by_table	utf8_general_ci	NULL
 table_lock_waits_summary_by_table	utf8_general_ci	NULL
 threads	utf8_general_ci	NULL
+user_variables_by_thread	utf8_general_ci	NULL
 users	utf8_general_ci	NULL
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
@@ -699,4 +707,5 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+user_variables_by_thread	
 users	

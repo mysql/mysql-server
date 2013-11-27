@@ -582,6 +582,22 @@ struct PFS_memory_stat_row
   void set_field(uint index, Field *f);
 };
 
+struct PFS_variable_name_row
+{
+  void make_row(const char* str, uint length);
+
+  char m_str[64];
+  uint m_length;
+};
+
+struct PFS_variable_value_row
+{
+  void make_row(const char* str, uint length);
+
+  char m_str[1024];
+  uint m_length;
+};
+
 /** @} */
 
 #endif

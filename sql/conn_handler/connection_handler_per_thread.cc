@@ -274,6 +274,7 @@ pthread_handler_t handle_connection(void *arg)
 #endif
 
     mysql_thread_set_psi_id(thd->thread_id);
+    mysql_thread_set_psi_THD(thd);
     mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
     thd_manager->add_thd(thd);

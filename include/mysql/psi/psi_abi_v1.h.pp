@@ -27,6 +27,11 @@ typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
 struct OPAQUE_LEX_YYSTYPE;
+  struct opaque_THD
+  {
+    int dummy;
+  };
+  typedef struct opaque_THD THD;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -434,6 +439,8 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
                                  void *(*start_routine)(void*), void *arg);
 typedef struct PSI_thread* (*new_thread_v1_t)
   (PSI_thread_key key, const void *identity, ulonglong thread_id);
+typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
+                                    THD *thd);
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
@@ -687,6 +694,7 @@ struct PSI_v1
   spawn_thread_v1_t spawn_thread;
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
+  set_thread_THD_v1_t set_thread_THD;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
   set_thread_account_v1_t set_thread_account;

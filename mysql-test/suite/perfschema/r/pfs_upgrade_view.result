@@ -82,7 +82,8 @@ ERROR 1050 (42S01) at line 1645: Table 'session_connect_attrs' already exists
 ERROR 1050 (42S01) at line 1651: Table 'session_account_connect_attrs' already exists
 ERROR 1050 (42S01) at line 1665: Table 'table_handles' already exists
 ERROR 1050 (42S01) at line 1681: Table 'metadata_locks' already exists
-ERROR 1644 (HY000) at line 2418: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1690: Table 'user_variables_by_thread' already exists
+ERROR 1644 (HY000) at line 2427: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
