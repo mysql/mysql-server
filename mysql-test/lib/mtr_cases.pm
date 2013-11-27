@@ -23,7 +23,7 @@ package mtr_cases;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases);
+our @EXPORT= qw(collect_option collect_test_cases collect_default_suites);
 
 use Carp;
 
@@ -316,10 +316,32 @@ sub parse_disabled {
 }
 
 #
+# load suite.pm files from plugin suites
+# collect the list of default plugin suites.
+#
+sub collect_default_suites(@)
+{
+  my @dirs = my_find_dir(dirname($::glob_mysql_test_dir),
+                        ['storage/*/mysql-test/*', 'plugin/*/mysql-test/*'],
+                        [], NOT_REQUIRED);
+  for my $d (@dirs) {
+    next unless -f "$d/suite.pm";
+    my $sname= basename($d);
+    # ignore overlays here, otherwise we'd need accurate
+    # duplicate detection with overlay support for the default suite list
+    next if $sname eq 'main' or -d "$::glob_mysql_test_dir/suite/$sname";
+    my $s = load_suite_object($sname, $d);
+    push @_, $sname if $s->is_default();
+  }
+  return @_;
+}
+
+
+#
 # processes one user-specified suite name.
 # it could contain wildcards, e.g engines/*
 #
-sub collect_suite_name
+sub collect_suite_name($$)
 {
   my $suitename= shift;  # Test suite name
   my $opt_cases= shift;

@@ -3,6 +3,7 @@
 
 package My::Suite;
 
+sub is_default { 0 }
 sub config_files { () }
 sub servers { () }
 sub skip_combinations { () }
