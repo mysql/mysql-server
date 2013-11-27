@@ -134,6 +134,35 @@ template <class T> bool valid_buffer_range(T jump,
 {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
 }
+/**
+  Enumeration of group types formed while transactions.
+  The structure of a group is as follows:
+  Group {
+        SID (16 byte UUID):         the source identifier for the group
+        GNO (8 byte unsigned int):  the group number for the group
+        COMMIT_FLAG (boolean):      true if this is the last group of the
+                                    transaction
+        LGID (8 byte unsigned int): local group identifier: this is 1 for the
+                                    first group in the binary log, 2 for the
+                                    next one, etc. This is like an auto_increment
+                                    primary key on the binary log.
+        }
+*/
+enum enum_group_type
+{
+  AUTOMATIC_GROUP= 0,
+  GTID_GROUP,
+  ANONYMOUS_GROUP,
+  INVALID_GROUP,
+  UNDEFINED_GROUP
+};
+
+/*
+  G_COMMIT_TS status variable stores the logical timestamp when the transaction
+  entered the commit phase. This wll be used to apply transactions in parallel
+  on the slave.
+ */
+#define G_COMMIT_TS  1
 
 
 /**
@@ -729,11 +758,14 @@ public:
   */
   // virtual void print_long_info(std::ostream& info);
   virtual ~Binary_log_event();
-  /*
-     The value is set by caller of FD constructor and
-     Log_event::write_header() for the rest.
+
+  //TODO: Revisit this comment when encoder is moved in libbinlogapi
+  /**
+     Master side:
+     The value is set by caller of FD(Format Description) constructor
      In the FD case it's propagated into the last byte
-     of post_header_len[] at FD::write().
+     of post_header_len[].
+     Slave side:
      On the slave side the value is assigned from post_header_len[last]
      of the last seen FD event.
   */
@@ -2610,6 +2642,140 @@ class Rand_event: public virtual Binary_log_event
   void print_long_info(std::ostream& info);
 };
 
+/**
+  @struct  gtid_info
+  Structure to hold the members declared in the class Gtid_log_event
+  those member are objects of classes defined in server(rpl_gtid.h).
+  As we can not move all the classes defined there(in rpl_gtid.h) in libbinlogapi
+  so this structure was created, to provide a way to map the decoded
+  value in Gtid_event ctor and the class members defined in rpl_gtid.h,
+  these classes are also the members of Gtid_log_event(subclass of this in server code)
+
+  The structure contains the following components.
+  <table>
+  <caption>Structure gtid_info</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <th>type</th>
+    <th>enum_group_type</th>
+    <th>Group type of the groups created while transaction</th>
+  </tr>
+  <tr>
+    <th>bytes_to_copy</th>
+    <th>size_t</th>
+    <th>Number of bytes to copy from the buffer, this is
+        used as the size of array uuid_buf</th>
+  </tr>
+  <tr>
+    <th>uuid_buf</th>
+    <th>unsigned char array</th>
+    <th>This stores the Uuid of the server on which transaction
+        is happening</th>
+  </tr>
+  <tr>
+    <th>rpl_gtid_sidno</th>
+    <th>4 bytes integer</th>
+    <th>SIDNO (source ID number, first component of GTID)</th>
+  </tr>
+  <tr>
+    <th>rpl_gtid_gno</th>
+    <th>8 bytes integer</th>
+    <th>GNO (group number, second component of GTID)</th>
+  </tr>
+  </table>
+*/
+struct gtid_info
+{
+  uint8_t type;
+  //TODO Replace 16 with BYTE_LENGTH defined in struct Uuid in rpl_gtid.h
+  const static size_t bytes_to_copy= 16;
+  unsigned char uuid_buf[bytes_to_copy];
+  int32_t  rpl_gtid_sidno;
+  int64_t  rpl_gtid_gno;
+};
+
+/**
+  @class Gtid_event
+  GTID stands for Global Transaction IDentifier
+  It is composed of two part
+     SID for Source Identifier, and
+     GNO for Group Number.
+  The basic idea is to
+     1. Associate an identifier, the Global Transaction IDentifier or GTID,
+        to every transaction.
+     2. When a transaction is copied to a slave, re-executed on the slave,
+        and written to the slave's binary log, the GTID is preserved.
+     3. When a  slave connects to a master, the slave uses GTIDs instead of
+        (file, offset)
+  The Body has five components:
+
+  <table>
+  <caption>Body for Gtid_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>commit_seq_no</td>
+    <td>8 bytes signed integer</td>
+    <td>Prepare and commit sequence number. will be set to 0 if the event is
+        not a transaction starter</td>
+  </tr>
+  <tr>
+    <td>ENCODED_FLAG_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of the commit_flag in event encoding</td>
+  </tr>
+  <tr>
+    <td>ENCODED_SID_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of SID in event encoding</td>
+  </tr>
+  <tr>
+    <td>ENCODED_GNO_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of GNO in event encoding.</td>
+  </tr>
+  <tr>
+    <td>commit_flag</td>
+    <td>bool</td>
+    <td>True if this is the last group of the transaction</td>
+  </tr>
+  </table>
+
+  @section Gtid_event_binary_format Binary Format
+*/
+class Gtid_event: public virtual  Binary_log_event
+{
+public:
+  int64_t commit_seq_no;
+  Gtid_event(const char *buffer, uint32_t event_len,
+             const Format_description_event *descr_event);
+  Gtid_event(bool commit_flag_arg): commit_flag(commit_flag_arg) {}
+  Log_event_type get_type_code()
+  {
+    Log_event_type ret= (gtid_info_struct.type == 2 ?
+                         ANONYMOUS_GTID_LOG_EVENT : GTID_LOG_EVENT);
+    return ret;
+  }
+  //TODO: Add definitions for these methods
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+protected:
+  static const int ENCODED_FLAG_LENGTH= 1;
+  static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
+  static const int ENCODED_GNO_LENGTH= 8;
+  gtid_info gtid_info_struct;
+  bool commit_flag;
+};
 
 /**
   @class Previous_gtids_event
@@ -2645,7 +2811,7 @@ class Previous_gtids_event : public virtual Binary_log_event
 public:
   Previous_gtids_event(const char *buf, unsigned int event_len,
                        const Format_description_event *descr_event);
-  Previous_gtids_event() { }
+  Previous_gtids_event() { } //called by the ctor with Gtid_set parameter
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT ; }
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }

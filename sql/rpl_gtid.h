@@ -26,6 +26,7 @@
 #ifdef MYSQL_SERVER
 #include <mysqld.h>
 #endif
+#include <binlog_event.h>
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -2360,19 +2361,6 @@ private:
 
 /// Global state of GTIDs.
 extern Gtid_state *gtid_state;
-
-
-/**
-  Enumeration of group types.
-*/
-enum enum_group_type
-{
-  /**
-    It is important that AUTOMATIC_GROUP==0 so that the default value
-    for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
-  */
-  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP, UNDEFINED_GROUP
-};
 
 
 /**
