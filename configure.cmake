@@ -21,6 +21,7 @@ INCLUDE (CheckLibraryExists)
 INCLUDE (CheckFunctionExists)
 INCLUDE (CheckCCompilerFlag)
 INCLUDE (CheckCSourceRuns)
+INCLUDE (CheckCXXSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
@@ -86,6 +87,19 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
       "${CMAKE_CXX_FLAGS} -library=stlport4")
   ENDIF()
 ENDIF()
+
+# Check to see if we are using LLVM's libc++ rather than e.g. libstd++
+# Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
+CHECK_CXX_SOURCE_RUNS("
+#include <ciso646>
+int main()
+{
+#ifdef _LIBCPP_VERSION
+  return 0;
+#else
+  return 1;
+#endif
+}" HAVE_LLVM_LIBCPP)
 
 MACRO(DIRNAME IN OUT)
   GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
