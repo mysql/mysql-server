@@ -70,6 +70,20 @@ struct TABLE_SHARE;
 */
 struct OPAQUE_LEX_YYSTYPE;
 
+#ifdef __cplusplus
+  class THD;
+#else
+  /*
+    Phony declaration when compiling C code.
+    This is ok, because the C code will never have a THD anyway.
+  */
+  struct opaque_THD
+  {
+    int dummy;
+  };
+  typedef struct opaque_THD THD;
+#endif
+
 /**
   @file mysql/psi/psi.h
   Performance schema instrumentation interface.
@@ -1528,6 +1542,14 @@ typedef struct PSI_thread* (*new_thread_v1_t)
   (PSI_thread_key key, const void *identity, ulonglong thread_id);
 
 /**
+  Assign a THD to an instrumented thread.
+  @param thread the instrumented thread
+  @param THD the sql layer THD to assign
+*/
+typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
+                                    THD *thd);
+
+/**
   Assign an id to an instrumented thread.
   @param thread the instrumented thread
   @param id the id to assign
@@ -2371,6 +2393,8 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   /** @sa set_thread_id_v1_t. */
   set_thread_id_v1_t set_thread_id;
+  /** @sa set_thread_THD_v1_t. */
+  set_thread_THD_v1_t set_thread_THD;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */

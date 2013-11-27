@@ -2154,6 +2154,18 @@ void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id)
 
 /**
   Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_THD.
+*/
+void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd)
+{
+  PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (unlikely(pfs == NULL))
+    return;
+  pfs->m_thd= thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
   @sa PSI_v1::get_thread_id.
 */
 PSI_thread*
@@ -6328,6 +6340,7 @@ PSI_v1 PFS_v1=
   pfs_spawn_thread_v1,
   pfs_new_thread_v1,
   pfs_set_thread_id_v1,
+  pfs_set_thread_THD_v1,
   pfs_get_thread_v1,
   pfs_set_thread_user_v1,
   pfs_set_thread_account_v1,
