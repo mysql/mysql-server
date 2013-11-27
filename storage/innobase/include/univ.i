@@ -436,10 +436,10 @@ typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
-# define UINT32PF	"%"PRIu32
-# define INT64PF	"%"PRId64
-# define UINT64PF	"%"PRIu64
-# define UINT64PFx	"%016"PRIx64
+# define UINT32PF	"%" PRIu32
+# define INT64PF	"%" PRId64
+# define UINT64PF	"%" PRIu64
+# define UINT64PFx	"%016" PRIx64
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;

@@ -777,7 +777,7 @@ fil_node_open_file(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The size of single-table "
 				"tablespace file %s, is "
-				"only "UINT64PF", should "
+				"only " UINT64PF ", should "
 				"be at least %lu!",
 				node->name,
 				size_bytes,
