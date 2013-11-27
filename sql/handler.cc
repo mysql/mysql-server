@@ -1556,9 +1556,15 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     was called.
   */
   thd->transaction.flags.commit_low= false;
-  if (run_after_commit)
+  if (run_after_commit && thd->transaction.flags.run_hooks)
   {
-    /* If commit succeeded, we call the after_commit hook */
+    /*
+       If commit succeeded, we call the after_commit hook.
+
+       TODO: Investigate if this can be refactored so that there is
+             only one invocation of this hook in the code (in
+             MYSQL_LOG_BIN::finish_commit).
+    */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
     thd->transaction.flags.run_hooks= false;
