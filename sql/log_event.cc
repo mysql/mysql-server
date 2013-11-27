@@ -1751,7 +1751,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case GTID_LOG_EVENT:
     case ANONYMOUS_GTID_LOG_EVENT:
-      ev= new Gtid_log_event(buf, event_len, description_event);
+      ev= new Gtid_log_event(buf, event_len, &des_ev);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
       ev= new Previous_gtids_log_event(buf, event_len, &des_ev);
@@ -12403,63 +12403,16 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
-                               const Format_description_log_event *descr_event)
-  : Binary_log_event(&buffer, descr_event->binlog_version,
-                     descr_event->server_version), Log_event(buffer, descr_event)
+                               const Format_description_event *description_event)
+  : Binary_log_event(&buffer, description_event->binlog_version,
+                     description_event->server_version),
+    Log_event(this->header()), Gtid_event(buffer, event_len, description_event)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
-
-  uint8 const common_header_len=
-    descr_event->common_header_len;
-
-#ifndef DBUG_OFF
-  uint8 const post_header_len=
-    buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
-    descr_event->post_header_len[ANONYMOUS_GTID_LOG_EVENT - 1] :
-    descr_event->post_header_len[GTID_LOG_EVENT - 1];
-  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
-                     event_len, common_header_len, post_header_len));
-#endif
-/*
-  The layout of the buffer is as follows
-   +-------------+-------------+------------+------------+--------------+
-   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
-   +-------------+-------------+------------+------------+--------------+
-*/
-  char const *ptr_buffer= buffer + common_header_len;
-
-  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
-    ANONYMOUS_GROUP : GTID_GROUP;
-
-  commit_flag= *ptr_buffer != 0;
-  ptr_buffer+= ENCODED_FLAG_LENGTH;
-
-  sid.copy_from((uchar *)ptr_buffer);
-  ptr_buffer+= ENCODED_SID_LENGTH;
-
-  // SIDNO is only generated if needed, in get_sidno().
-  spec.gtid.sidno= -1;
-
-  spec.gtid.gno= uint8korr(ptr_buffer);
-  ptr_buffer+= ENCODED_GNO_LENGTH;
-
-  /* fetch the commit timestamp */
-  if (
-      /*Old masters will not have this part, so we should prevent segfaulting */
-      (uint)(ptr_buffer-buffer) < event_len &&
-      *ptr_buffer == G_COMMIT_TS)
-  {
-    ptr_buffer++;
-    commit_seq_no= (int64)uint8korr(ptr_buffer);
-    ptr_buffer+= COMMIT_SEQ_LEN;
-  }
-  else
-    /* We let coordinator complain when it sees that we have first
-       event and the master has not sent us the commit sequence number
-       Also, we can be rest assured that this is an old master, because new
-       master would have compained of the missing commit seq no while flushing.*/
-    commit_seq_no= SEQ_UNINIT;
-
+  spec.type=(enum_group_type)gtid_info_struct.type;
+  sid.copy_from((uchar *)gtid_info_struct.uuid_buf);
+  spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
+  spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
   DBUG_VOID_RETURN;
 }
 
@@ -12470,7 +12423,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
-  commit_flag(true)
+  Gtid_event(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
   spec= spec_arg ? *spec_arg : thd_arg->variables.gtid_next;

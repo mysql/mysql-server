@@ -3967,14 +3967,40 @@ int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to);
 extern TYPELIB binlog_checksum_typelib;
 
-class Gtid_log_event : public Log_event
+
+/**
+  @class Gtid_log_event
+
+  This is the subclass if Gtid_event and Log_event
+  Each transaction has a coordinate in the form of a pair:
+  GTID = (SID, GNO)
+  GTID stands for Global Transaction IDentifier,
+       SID for Source Identifier, and
+       GNO for Group Number.
+
+  The inheritance structure is as follows
+
+                    Binary_log_event
+                          /   \
+                         /     \
+                 <<vir>>/       \<<vir>>
+                       /         \
+            B_l:Gtid_event   Log_event
+                       \         /
+                        \       /
+                         \     /
+                          \   /
+                      Gtid_log_event
+
+  B_l: Namespace Binary_log
+
+  TODO: Remove virtual inheritance once all the events are implemented in
+        libbinlogapi
+
+*/
+class Gtid_log_event : public Log_event, public Gtid_event
 {
 public:
-  /*
-    Prepare and commit sequence number. will be set to 0 if the event is not a
-    transaction starter.
-   */
-  int64 commit_seq_no;
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -3988,7 +4014,7 @@ public:
   int pack_info(Protocol*);
 #endif
   Gtid_log_event(const char *buffer, uint event_len,
-                 const Format_description_log_event *descr_event);
+                 const Format_description_event *description_event);
 
   virtual ~Gtid_log_event() {}
 
@@ -4089,12 +4115,6 @@ private:
   static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
     rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
 
-  /// Length of the commit_flag in event encoding
-  static const int ENCODED_FLAG_LENGTH= 1;
-  /// Length of SID in event encoding
-  static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
-  /// Length of GNO in event encoding
-  static const int ENCODED_GNO_LENGTH= 8;
   /// Length of COMMIT TIMESTAMP index in event encoding
   static const int COMMIT_TS_INDEX_LEN= 1;
 
@@ -4115,8 +4135,6 @@ private:
   Gtid_specification spec;
   /// SID for this GTID.
   rpl_sid sid;
-  /// True if this is the last group of the transaction, false otherwise.
-  bool commit_flag;
 };
 
 /**
