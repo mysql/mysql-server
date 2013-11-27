@@ -44,7 +44,7 @@ public:
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
-    m_half_buffer_size_req_counter(0)
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MINIMUM_SIZE)
   {}
 
   ~Binlog_sender() {}
@@ -100,6 +100,12 @@ private:
     Needed to be able to evaluate if buffer needs to be resized (shrunk).
   */
   ushort m_half_buffer_size_req_counter;
+
+  /*
+   * The size of the buffer next time we shrink it.
+   * This variable is updated once everytime we shrink or grow the buffer.
+   */
+  uint32 m_new_shrink_size;
 
   /*
    * After these consecutive times using less than half of the buffer
@@ -374,27 +380,7 @@ private:
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(String *packet, uint32 extra_size)
-  {
-    uint32 cur_buffer_size= packet->alloced_length();
-    uint32 cur_buffer_used= packet->length();
-    uint32 needed_buffer_size= cur_buffer_used + extra_size;
-    /*
-      Grow the buffer if needed.
-    */
-    if (needed_buffer_size > cur_buffer_size)
-    {
-      uint32 grown_buffer_size= cur_buffer_size * PACKET_GROW_FACTOR;
-      uint32 max_grown_buffer_size= ALIGN_SIZE(
-        std::max(grown_buffer_size, needed_buffer_size));
-      uint32 new_buffer_size=
-        std::min(max_grown_buffer_size,
-                 static_cast<uint32>(m_thd->variables.max_allowed_packet));
-      return packet->realloc(new_buffer_size);
-    }
-
-    return false;
-  }
+  inline bool grow_packet(String *packet, uint32 extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.
@@ -408,39 +394,7 @@ private:
    *
    * @param packet  The buffer to shrink.
    */
-  inline void shrink_packet(String *packet)
-  {
-    uint32 cur_buffer_size= packet->alloced_length();
-    uint32 buffer_used= packet->length();
-    uint32 new_buffer_size= ALIGN_SIZE(
-      std::max(PACKET_MINIMUM_SIZE, 
-               static_cast<uint32>(cur_buffer_size * PACKET_SHRINK_FACTOR)));
-
-    if (buffer_used < new_buffer_size)
-      m_half_buffer_size_req_counter ++;
-    else
-      m_half_buffer_size_req_counter= 0;
-
-    /* Check if we should shrink the buffer. */
-    if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
-    {
-      if (new_buffer_size < cur_buffer_size)
-      {
-        /*
-         The last PACKET_SHRINK_COUNTER_THRESHOLD consecutive packets
-         required less than half of the current buffer size. Lets shrink
-         it to not waste memory.
-        */
-        packet->shrink(new_buffer_size);
-      }
-
-      /* Reset the counter. */
-      m_half_buffer_size_req_counter= 0;
-    }
-
-    DBUG_ASSERT(new_buffer_size <= cur_buffer_size);
-    DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
-  }
+  inline void shrink_packet(String *packet);
 };
 
 #endif // HAVE_REPLICATION
