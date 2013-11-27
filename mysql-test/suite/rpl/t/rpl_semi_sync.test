@@ -162,7 +162,7 @@ replace_result $engine_type ENGINE_TYPE;
 eval create table t1(a int) engine = $engine_type;
 
 # wait for the ack to arrive
---let $yes_tx_after= `SELECT $yes_tx_before + 2`
+--let $yes_tx_after= `SELECT $yes_tx_before + 1`
 --let $status_var= Rpl_semi_sync_master_yes_tx
 --let $status_var_value= $yes_tx_after
 --source include/wait_for_status_var.inc
