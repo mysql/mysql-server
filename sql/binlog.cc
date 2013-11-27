@@ -6493,6 +6493,12 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
     if (head->transaction.flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
+
+      /*
+        TODO: This hook here should probably move outside/below this
+              if and be the only after_commit invocation left in the
+              code.
+      */
       excursion.try_to_attach_to(head);
       bool all= head->transaction.flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
@@ -6646,8 +6652,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids(thd);
     /*
       If commit succeeded, we call the after_commit hook
+
+      TODO: This hook here should probably move outside/below this
+            if and be the only after_commit invocation left in the
+            code.
     */
-    if (thd->commit_error == THD::CE_NONE)
+    if ((thd->commit_error == THD::CE_NONE) && thd->transaction.flags.run_hooks)
     {
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
       thd->transaction.flags.run_hooks= false;
