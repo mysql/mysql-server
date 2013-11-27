@@ -2383,27 +2383,21 @@ fil_op_log_parse_or_replay(
 		break;
 
 	case MLOG_FILE_RENAME:
-		/* We do the rename based on space id, not old file name;
-		this should guarantee that after the log replay each .ibd file
-		has the correct name for the latest log sequence number; the
-		proof is left as an exercise :) */
+		/* In order to replay the rename, the following must hold:
+		* The new name is not already used.
+		* A tablespace is open in memory with the old name.
+		* The space ID for that tablepace matches this log entry.
+		This will prevent unintended renames during recovery. */
 
-		if (fil_tablespace_exists_in_mem(space_id)) {
+		if (fil_get_space_id_for_table(new_name) == ULINT_UNDEFINED
+		    && space_id == fil_get_space_id_for_table(name)) {
 			/* Create the database directory for the new name, if
 			it does not exist yet */
 			fil_create_directory_for_tablename(new_name);
 
-			/* Rename the table if there is not yet a tablespace
-			with the same name */
-
-			if (fil_get_space_id_for_table(new_name)
-			    == ULINT_UNDEFINED) {
-				/* We do not care about the old name, that
-				is why we pass NULL as the first argument. */
-				if (!fil_rename_tablespace(NULL, space_id,
-							   new_name, NULL)) {
-					ut_error;
-				}
+			if (!fil_rename_tablespace(name, space_id,
+						   new_name, NULL)) {
+				ut_error;
 			}
 		}
 
