@@ -380,8 +380,6 @@ rw_lock_x_lock_func_nowait(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
-
 	ibool success;
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
@@ -401,7 +399,8 @@ rw_lock_x_lock_func_nowait(
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
 	} else if (lock->recursive
-		   && os_thread_eq(lock->writer_thread, curr_thread)) {
+		   && os_thread_eq(lock->writer_thread,
+				   os_thread_get_curr_id())) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
