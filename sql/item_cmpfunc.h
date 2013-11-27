@@ -1478,7 +1478,7 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row();
   void store_value(Item *item);
-  inline void alloc_comparators();
+  void alloc_comparators(Item *item);
   int cmp(Item *arg);
   int compare(cmp_item *arg);
   cmp_item *make_same();
