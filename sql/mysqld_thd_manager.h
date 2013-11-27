@@ -208,6 +208,8 @@ public:
   */
   THD* find_thd(Find_THD_Impl *func);
 
+  THD* inspect_thd(THD *thd, Find_THD_Impl *func);
+
   // Declared static as it is referenced in handle_fatal_signal()
   static int global_thd_count;
 

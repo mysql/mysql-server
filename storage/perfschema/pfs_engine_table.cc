@@ -97,6 +97,8 @@
 #include "table_md_locks.h"
 #include "table_table_handles.h"
 
+#include "table_uvar_by_thread.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -199,6 +201,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_replication_execute_status::m_share,
   &table_replication_execute_status_by_coordinator::m_share,
   &table_replication_execute_status_by_worker::m_share,
+
+  &table_uvar_by_thread::m_share,
   NULL
 };
 

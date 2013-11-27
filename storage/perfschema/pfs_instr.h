@@ -29,6 +29,8 @@ struct PFS_table_share;
 struct PFS_thread_class;
 struct PFS_socket_class;
 
+class THD;
+
 #ifdef _WIN32
 #include <winsock2.h>
 #else
@@ -527,6 +529,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 
   PFS_events_transactions m_transaction_current;
 
+  THD *m_thd;
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
