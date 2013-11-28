@@ -132,14 +132,14 @@ Active.prototype.commit = function(session, user_arguments) {
   udebug.log('Active commit');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
   // delegate to context's commit for execution which will change the state to idle
-  context.commit();
+  return context.commit();
 };
 
 Active.prototype.rollback = function(session, user_arguments) {
   udebug.log('Active rollback');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
   // delegate to context's rollback for execution which will change the state to idle
-  context.rollback();
+  return context.rollback();
 };
 
 Active.prototype.isActive = function() {
@@ -173,7 +173,7 @@ RollbackOnly.prototype.rollback = function(session, user_arguments) {
   udebug.log('RollbackOnly rollback');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
   // delegate to context's rollback for execution which will set the state to idle
-  context.rollback();
+  return context.rollback();
 };
 
 RollbackOnly.prototype.isActive = function() {
