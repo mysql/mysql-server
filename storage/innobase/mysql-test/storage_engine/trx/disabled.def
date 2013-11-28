@@ -1,2 +1,0 @@
-cons_snapshot_serializable : MySQL:65146 (CONSISTENT SNAPSHOT does not work with SERIALIZABLE)
-

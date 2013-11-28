@@ -1,0 +1,11 @@
+--- suite/storage_engine/trx/level_read_committed.result	2013-11-28 19:18:48.000000000 +0400
++++ suite/storage_engine/trx/level_read_committed.reject	2013-11-28 19:18:59.000000000 +0400
+@@ -77,6 +77,8 @@
+ CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+ START TRANSACTION WITH CONSISTENT SNAPSHOT;
++Warnings:
++Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ connection con2;
+ INSERT INTO t1 (a) VALUES (1);
+ connection con1;
