@@ -38,7 +38,7 @@ let $default_char_type = CHAR(8);
 
 if (!$ENGINE)
 {
-  --skip ERROR: Storage engine under test is not defined, export ENGINE env variable or set it in define_engine.inc
+  --skip Storage engine under test is not defined, export ENGINE env variable or set it in define_engine.inc
 }
 
 # Check that the storage engine is loaded. Here we don't need to worry about the case,
