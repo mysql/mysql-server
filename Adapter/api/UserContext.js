@@ -36,45 +36,115 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
 function Promise() {
   // implement Promises/A+ http://promises-aplus.github.io/promises-spec/
   // until then is called, this is an empty promise with no performance impact
+  this.resolved = null;
 }
 
+/** Fulfill or reject the original promise.
+ * original_promise is the Promise from this implementation on which "then" was called
+ * new_promise is the Promise from this implementation returned by "then"
+ * if the fulfilled or rejected callback provided by "then" returns a promise, wire the new_result (thenable)
+ *  to fulfill the new_promise when new_result is fulfilled
+ *  or reject the new_promise when new_result is rejected
+ * otherwise, if the callback provided by "then" returns a value, fulfill the new_promise with that value
+ * if the callback provided by "then" throws an Error, reject the new_promise with that Error
+ */
+var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result) {
+  var new_result;
+  try {
+    new_result = fulfilled_or_rejected_callback.call(undefined, result);
+    if (typeof new_result !== 'undefined') {
+      // 2.3 The Promise Resolution Procedure
+      // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
+      if (new_result === original_promise) {
+        throw new Error('TypeError: Promise Resolution Procedure 2.3.1');
+      }
+      // 2.3.2 If x is a promise, adopt its state; but we don't care since it's also a thenable
+      var then;
+      try {
+        then = new_result.then;
+      } catch (thenE) {
+        // 2.2.3.2 If retrieving the property x.then results in a thrown exception e, 
+        // reject promise with e as the reason.
+        new_promise.reject(thenE);
+        return;
+      }
+      if (typeof then === 'function') {
+        // 2.3.3.3 If then is a function, call it with x as this, first argument resolvePromise, 
+        // and second argument rejectPromise
+        // 2.3.3.3.3 If both resolvePromise and rejectPromise are called, 
+        // or multiple calls to the same argument are made, the first call takes precedence, 
+        // and any further calls are ignored.
+        try {
+          then.call(new_result,
+            // 2.3.3.3.1 If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).
+            function(result) {
+              if (!new_promise.resolved) {
+                new_promise.fulfill(result);
+              }
+            },
+            // 2.3.3.3.2 If/when rejectPromise is called with a reason r, reject promise with r.
+            function(err) {
+              if (!new_promise.resolved) {
+                new_promise.reject(err);
+              }
+            }
+          );
+        } catch (callE) {
+          // 2.3.3.3.4 If calling then throws an exception e,
+          // 2.3.3.3.4.1 If resolvePromise or rejectPromise have been called, ignore it.
+          if (!new_promise.resolved) {
+            // 2.3.3.3.4.2 Otherwise, reject promise with e as the reason.
+            new_promise.reject(callE);
+          }
+        }
+      } else {
+        // 2.3.3.4 If then is not a function, fulfill promise with x.
+        new_promise.fulfill(new_result);
+      }
+    } else {
+      // 2.3.4 If x is not an object or function, fulfill promise with x.
+      new_promise.fulfill(new_result);
+    }
+  } catch (fulfillE) {
+    // 2.2.7.2 If either onFulfilled or onRejected throws an exception e,
+    // promise2 must be rejected with e as the reason.
+    new_promise.reject(fulfillE);
+  }
+  
+};
+
 Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
+  var self = this;
   var new_promise = new Promise();
   if (typeof this.fulfilled_callbacks === 'undefined') {
-    this.fulfilled_callbacks = [];
-    this.rejected_callbacks = [];
-    this.progress_callbacks = [];
+    self.fulfilled_callbacks = [];
+    self.rejected_callbacks = [];
+    self.progress_callbacks = [];
   }
-  if (this.err) {
+  if (self.err) {
     // this promise was already rejected
     global.setImmediate(function() {
-      rejected_callback.call(this.err);
-      new_promise.reject(this.err);
+      rejected_callback.call(undefined, self.err);
+      new_promise.reject(self.err);
     });
     return new_promise;
   }
   if (typeof this.result !== 'undefined') {
     // this promise was already fulfilled, possibly with a null result
     global.setImmediate(function() {
-      fulfilled_callback.call(this.result);
-      new_promise.fulfill(this.result);
+      fulfilled_callback.call(undefined, self.result);
+      new_promise.fulfill(self.result);
     });
     return new_promise;
   }
   // create a closure for each fulfilled_callback
   // the closure is a function that when called, calls setImmediate to call the fulfilled_callback with the result
   if (typeof fulfilled_callback === 'function') {
+    // the following function closes (this, fulfilled_callback, new_promise)
+    // and is called asynchronously when this promise is fulfilled
     this.fulfilled_callbacks.push(function(result) {
       global.setImmediate(function() {
-        var new_result;
-        try {
-          new_result = fulfilled_callback.call(undefined, result);
-          if (typeof new_result !== 'undefined') {
-            new_promise.fulfill(new_result);
-          }
-        } catch (e) {
-          new_promise.reject(e);
-        }
+        thenPromiseFulfilledOrRejected(self, fulfilled_callback, new_promise, result);
       });
     });
   } else {
@@ -92,15 +162,7 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   if (typeof rejected_callback === 'function') {
     this.rejected_callbacks.push(function(err) {
       global.setImmediate(function() {
-        var new_result;
-        try {
-          new_result = rejected_callback.call(undefined, err);
-          if (typeof new_result !== 'undefined') {
-            new_promise.fulfill(new_result);
-          }
-        } catch (e) {
-          new_promise.reject(e);
-        }
+        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, err);
       });
     });
   } else {
@@ -121,6 +183,10 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
 };
 
 Promise.prototype.fulfill = function(result) {
+  if (this.resolved) {
+    throw new Error('Fatal User Exception: fulfill called after fulfill or reject');
+  }
+  this.resolved = true;
   this.result = result;
   var fulfilled_callback;
   if (this.fulfilled_callbacks) {
@@ -133,6 +199,10 @@ Promise.prototype.fulfill = function(result) {
 };
 
 Promise.prototype.reject = function(err) {
+  if (this.resolved) {
+    throw new Error('Fatal User Exception: reject called after fulfill or reject');
+  }
+  this.resolved = true;
   this.err = err;
   var rejected_callback;
   if (this.rejected_callbacks) {

@@ -371,5 +371,74 @@ t_2274.run = function() {
 };
 tests.push(t_2274);
 
-module.exports.tests = tests;
+/* 2.3 If x is a thenable, it attempts to make promise adopt the state of x, under the assumption that 
+ * x behaves at least somewhat like a promise. 
+ * Otherwise, it fulfills promise with the value x.
+ */
+var t_23f = new harness.ConcurrentTest("2.3 The Promise Resolution Procedure: fulfilled");
+t_23f.run = function() {
+  var test = this;
+  var session;
+  var p1, p2, p3, p4;
+  
+  function onSession(s) {
+    session = s;
+    p4 = s.close();
+    return p4;
+  }
+  
+  function reportSuccess(result) {
+    test.errorIfNotNull('t_23f result of session.close should be null but is ' + result, result);
+    test.failOnError();
+  }
+  
+  function reportFailure(err) {
+    test.fail('t_23f failed', err);
+  }
+  
+  // t_23 begins here
+  p1 = mynode.openSession(good_properties);
+  p2 = p1.then(onSession);
+  p3 = p2.then(reportSuccess, reportFailure);
+};
+tests.push(t_23f);
 
+/* 2.3 If x is a thenable, it attempts to make promise adopt the state of x, under the assumption that 
+ * x behaves at least somewhat like a promise. 
+ * Otherwise, it fulfills promise with the value x.
+ */
+var t_23r = new harness.ConcurrentTest("2.3 The Promise Resolution Procedure: rejected");
+t_23r.run = function() {
+  var test = this;
+  var session;
+  var p1, p2, p3, p4;
+  
+  function onSession(s) {
+    session = s;
+    p4 = s.close();
+    return p4;
+  }
+  
+  function reportSuccess(result) {
+    test.errorIfNotNull('t_23r result of session.close should be null', result);
+    test.fail('t_23r should fail.');
+  }
+  
+  function reportFailure(err) {
+    // make sure err is what we expect it to be
+    if (!err.message.match('.*ER_ACCESS_DENIED_ERROR.*')) {
+      test.appendErrorMessage('t_23r error value is wrong: ' + err.message);
+    }
+    test.failOnError();
+  }
+  
+  // t_23 begins here
+  p1 = mynode.openSession(bad_properties);
+  p2 = p1.then(onSession);
+  p3 = p2.then(reportSuccess, reportFailure);
+};
+tests.push(t_23r);
+
+// need to test "then" when the promise has already been fulfilled or rejected
+
+module.exports.tests = tests;
