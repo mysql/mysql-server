@@ -543,8 +543,8 @@ buf_load()
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		buf_read_page_async(BUF_DUMP_SPACE(dump[i]),
-				    BUF_DUMP_PAGE(dump[i]));
+		buf_read_page_background(BUF_DUMP_SPACE(dump[i]),
+					 BUF_DUMP_PAGE(dump[i]), true);
 
 		if (i % 64 == 63) {
 			os_aio_simulated_wake_handler_threads();

@@ -116,7 +116,9 @@ released with log_release.
 lsn_t
 log_reserve_and_open(
 /*=================*/
-	ulint	len);	/*!< in: length of data to be catenated */
+	ulint		len,		/*!< in: length of data to be written */
+	bool		own_mutex);	/*!< in: true if caller owns
+					the mutex */
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the
 log mutex. */
@@ -124,8 +126,8 @@ log mutex. */
 void
 log_write_low(
 /*==========*/
-	byte*	str,		/*!< in: string */
-	ulint	str_len);	/*!< in: string length */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len);	/*!< in: string length */
 /************************************************************//**
 Closes the log.
 @return lsn */
@@ -380,6 +382,9 @@ log_group_write_buf(
 	byte*		buf,		/*!< in: buffer */
 	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
+#ifdef UNIV_DEBUG
+	ulint		pad_len,	/*!< in: pad len in the buffer len */
+#endif /* UNIV_DEBUG */
 	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */

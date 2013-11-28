@@ -50,12 +50,16 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
     if (thd->owned_gtid_set._add_gtid(gtid) != RETURN_STATUS_OK)
       goto err1;
     thd->owned_gtid.sidno= -1;
+    thd->owned_sid.clear();
 #else
     DBUG_ASSERT(0);
 #endif
   }
   else
+  {
     thd->owned_gtid= gtid;
+    thd->owned_sid= sid_map->sidno_to_sid(gtid.sidno);
+  }
   RETURN_OK;
 #ifdef HAVE_GTID_NEXT_LIST
 err1:
@@ -78,6 +82,7 @@ err2:
   }
   thd->owned_gtid_set.clear();
   thd->owned_gtid.sidno= 0;
+  thd->owned_sid.clear();
   RETURN_REPORTED_ERROR;
 }
 

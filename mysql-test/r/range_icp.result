@@ -2641,4 +2641,548 @@ a	b
 2001-01-01 11:22:33	2001-01-01 11:22:33
 
 DROP TABLE t1,t2;
+#
+# WL#7019: Add support for row value constructors in in predicates to
+# range optimizer
+#
+CREATE TABLE t1 (a INT, b INT, c INT, KEY x(a, b));
+INSERT INTO t1 VALUES (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6),
+(7, 7, 7), (8, 8, 8), (9, 9, 9);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+CREATE TABLE t3 (a INT, b INT, c INT, d INT, KEY x(a, b, c));
+INSERT INTO t3 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((NULL, NULL), (NULL, NULL));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((NULL,NULL),(NULL,NULL)))
+EXPLAIN SELECT a, b FROM t1 WHERE (a = 0 AND b = 0) OR (a = 1 AND b = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0)) or ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a = 0 AND b = 0) OR (a = 1 AND b = 1);
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	x	x	10	const,const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
+a	b
+0	0
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) in (<cache>((0,0,0)),<cache>((1,1,1))))
+FLUSH STATUS;
+SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+a	b	c
+0	0	0
+1	1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	x	x	15	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where ((`test`.`t3`.`a`,`test`.`t3`.`b`,`test`.`t3`.`c`) in (<cache>((0,0,0)),<cache>((1,1,1))))
+FLUSH STATUS;
+SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+a	b	c
+0	0	0
+1	1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE a = 0 AND b = 0 OR (a, b) IN ((1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0)) or ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE a = 0 AND b = 0 OR (a, b) IN ((1, 1));
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((1, 1)) OR a = 0 AND b = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)) or ((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0)))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN ((1, 1)) OR a = 0 AND b = 0;
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	100.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (((`test`.`t2`.`c` = 1) and (`test`.`t2`.`b` = 1) and (`test`.`t2`.`a` = 1)) or ((`test`.`t2`.`c` = 0) and (`test`.`t2`.`b` = 0) and (`test`.`t2`.`a` = 0)))
+FLUSH STATUS;
+SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t3 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	x	x	15	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (((`test`.`t3`.`c` = 1) and (`test`.`t3`.`b` = 1) and (`test`.`t3`.`a` = 1)) or ((`test`.`t3`.`c` = 0) and (`test`.`t3`.`b` = 0) and (`test`.`t3`.`a` = 0)))
+FLUSH STATUS;
+SELECT a, b FROM t3 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN (((SELECT 1), 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	x	x	10	const,const	1	100.00	Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN (((SELECT 1), 1));
+a	b
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>(('0',0)),<cache>((1,1))))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+SET @v = 0;
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>(((@`v`),0)),<cache>((1,1))))
+FLUSH STATUS;
+SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
+a	b
+0	0
+1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+CREATE TABLE t4 ( a INT, b INT );
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+INSERT INTO t4 SELECT a + 5, b + 5 FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+# Inner table in a nested-loops join
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1 USING(a, b)
+WHERE (t4.a, t4.b) IN ((1, 1), (0, 0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	Using where
+1	SIMPLE	t1	NULL	ref	x	x	10	test.t4.a,test.t4.b	410	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t4`.`b`) and (`test`.`t1`.`a` = `test`.`t4`.`a`) and ((`test`.`t4`.`a`,`test`.`t4`.`b`) in (<cache>((1,1)),<cache>((0,0)))))
+# Join on IN
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1
+WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (0, 0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((0,0))))
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1
+WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((1,1))))
+#
+# Tests for non-deterministic functions.
+#
+CREATE FUNCTION f1() RETURNS INT NOT DETERMINISTIC RETURN 1;
+# The statement immediately below should not use range access.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (f1(), 1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(`f1`(),1,1)))
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, f1(), 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,`f1`(),1)))
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, f1()));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,1,`f1`())))
+# The statement immediately below should not use range access.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = `f1`()))
+DROP FUNCTION f1;
+# The statement immediately below should not use range access.
+EXPLAIN
+SELECT a, b
+FROM t1 AS t1o
+WHERE EXISTS ( SELECT 1 FROM t1 WHERE (a, b) IN ((t1o.a, t1o.b)) );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1o	NULL	index	NULL	x	10	NULL	4098	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	NULL	ref	x	x	10	test.t1o.a,test.t1o.b	410	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.t1o.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1o.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
+#
+# Tests of dynamic range access
+#
+CREATE TABLE t5 (a int, b int, KEY (a));
+INSERT INTO t5 VALUES (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1);
+CREATE TABLE t6 (a int, b int, KEY (a));
+INSERT INTO t6 VALUES (3, 2), (4, 2), (100, 100), (101, 201), (102, 102);
+CREATE TABLE t7 (a int, b int, KEY (a, b));
+INSERT INTO t7 VALUES (1, 1), (2, 2), (1000, 1000), (1001, 1001), (1002, 1002),
+(1003, 1003), (1004, 1004);
+EXPLAIN SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE t7.a IN (t5.b, t6.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	80.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
+FLUSH STATUS;
+SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE t7.a IN (t5.b, t6.b);
+a	b	a	b	a	b
+3	1	3	2	1	1
+3	1	3	2	2	2
+4	1	4	2	1	1
+4	1	4	2	2	2
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	13
+EXPLAIN SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	80.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
+FLUSH STATUS;
+SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
+a	b	a	b	a	b
+3	1	3	2	1	1
+4	1	4	2	1	1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	13
+#
+# Regression tests of the worklog below.
+#
+# Make sure we process IN predicates only.
+# The code around this is very unclear.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) != (1, 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) <> <cache>((1,1)))
+# This should give us a ref scan, as it always did.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	x	x	10	const,const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0))
+EXPLAIN SELECT a, b FROM t1 WHERE (a, c) IN ((0, 0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	x	x	5	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (`test`.`t1`.`a` = 0))
+# ref scan on x(a).
+EXPLAIN SELECT * FROM t1 WHERE (a, c) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	x	x	5	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`c`) in (<cache>((0,0)),<cache>((1,1))))
+DROP TABLE t1, t2, t3, t4, t5, t6, t7;
+#
+# Bug#17635476: CRASH IN GET_MM_PARTS() OR ASSERT IN
+# GET_FUNC_MM_TREE_FROM_IN_PREDICATE()
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY (a)
+) ENGINE = INNODB;
+SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+a
+INSERT INTO t1 VALUES (0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),
+(7, 7), (8, 8), (9, 9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2 (
+a INT,
+b INT,
+KEY (a, b)
+);
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+FLUSH STATUS;
+SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+a
+0
+1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+EXPLAIN SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+FLUSH STATUS;
+SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+a
+0
+1
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+# Should not use range scan.
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (NULL, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((NULL,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+# Should not use range scan.
+EXPLAIN SELECT DISTINCT a FROM t2 WHERE (NULL, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	a	a	10	NULL	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((NULL,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+DROP TABLE t1, t2;
+#
+# Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+#
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+a	b
+0	0
+1	1
+DROP TABLE t2;
 set optimizer_switch=default;

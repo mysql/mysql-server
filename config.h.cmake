@@ -18,6 +18,7 @@
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
 #cmakedefine _GNU_SOURCE 1
+#cmakedefine HAVE_LLVM_LIBCPP 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_ASM_MSR_H 1
@@ -53,7 +54,6 @@
 #cmakedefine HAVE_SYSENT_H 1
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
-#cmakedefine HAVE_SYS_FPU_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
 #cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
@@ -114,7 +114,6 @@
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_FESETROUND 1
-#cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
@@ -122,7 +121,6 @@
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
-#cmakedefine HAVE_GETPAGESIZE 1
 #cmakedefine HAVE_GETPASS 1
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
@@ -486,5 +484,6 @@
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1
 #cmakedefine DISABLE_PSI_MEMORY 1
+#cmakedefine DISABLE_PSI_TRANSACTION 1
 
 #endif

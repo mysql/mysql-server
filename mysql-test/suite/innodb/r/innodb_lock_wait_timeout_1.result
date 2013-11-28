@@ -148,18 +148,6 @@ ref	NULL
 rows	NULL
 filtered	NULL
 Extra	No tables used
-id	NULL
-select_type	UNION RESULT
-table	<union2,3>
-partitions	NULL
-type	ALL
-possible_keys	NULL
-key	NULL
-key_len	NULL
-ref	NULL
-rows	NULL
-filtered	NULL
-Extra	Using temporary
 Warnings:
 Level	Note
 Code	1003
@@ -366,18 +354,6 @@ ref	NULL
 rows	NULL
 filtered	NULL
 Extra	No tables used
-id	NULL
-select_type	UNION RESULT
-table	<union2,3>
-partitions	NULL
-type	ALL
-possible_keys	NULL
-key	NULL
-key_len	NULL
-ref	NULL
-rows	NULL
-filtered	NULL
-Extra	Using temporary
 Warnings:
 Level	Note
 Code	1003

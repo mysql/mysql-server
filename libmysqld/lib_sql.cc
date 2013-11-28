@@ -337,9 +337,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
 
-  res= test(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
-                                 header, sizeof(header), 1, stmt) ||
-            emb_read_query_result(stmt->mysql));
+  res= MY_TEST(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
+                                    header, sizeof(header), 1, stmt) ||
+               emb_read_query_result(stmt->mysql));
   stmt->affected_rows= stmt->mysql->affected_rows;
   stmt->insert_id= stmt->mysql->insert_id;
   stmt->server_status= stmt->mysql->server_status;
@@ -426,7 +426,6 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->release_resources();
   Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
@@ -466,7 +465,8 @@ MYSQL_METHODS embedded_methods=
   emb_free_embedded_thd,
   emb_read_statistics,
   emb_read_query_result,
-  emb_read_rows_from_cursor
+  emb_read_rows_from_cursor,
+  free_rows
 };
 
 /*
@@ -654,7 +654,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= 1;
+  mysqld_server_started= true;
   mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 

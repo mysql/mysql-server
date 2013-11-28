@@ -1329,29 +1329,21 @@ buf_page_release_zip(
 }
 
 /********************************************************************//**
-Decrements the bufferfix count of a buffer control block and releases
-a latch, if specified. */
+Releases a latch, if specified. */
 UNIV_INLINE
 void
-buf_page_release(
-/*=============*/
+buf_page_release_latch(
+/*===================*/
 	buf_block_t*	block,		/*!< in: buffer block */
 	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
 {
-	ut_ad(block);
-
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->page.buf_fix_count > 0);
-
-	buf_page_mutex_enter(block);
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_s_unlock(&(block->debug_latch));
-#endif
-	block->page.buf_fix_count--;
-
-	buf_page_mutex_exit(block);
+	rw_lock_s_unlock(&block->debug_latch);
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (rw_latch == RW_S_LATCH) {
 		rw_lock_s_unlock(&block->lock);
@@ -1385,12 +1377,9 @@ void
 buf_pool_mutex_enter_all(void)
 /*==========================*/
 {
-	ulint   i;
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
-
-		buf_pool = buf_pool_from_array(i);
 		buf_pool_mutex_enter(buf_pool);
 	}
 }

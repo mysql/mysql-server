@@ -581,10 +581,24 @@ public:
   /**
     Pointer to 'last' select, or pointer to select where we stored
     global parameters for union.
+
+    If this is a union of multiple selects, the parser puts the global
+    parameters in fake_select_lex. If the union doesn't use a
+    temporary table, st_select_lex_unit::prepare() nulls out
+    fake_select_lex, but saves a copy in saved_fake_select_lex in
+    order to preserve the global parameters.
+
+    If it is not a union, first_select() is the last select.
+
+    @return select containing the global parameters
   */
   inline st_select_lex *global_parameters() const
   {
-    return (fake_select_lex ? fake_select_lex : first_select());
+    if (fake_select_lex != NULL)
+      return fake_select_lex;
+    else if (saved_fake_select_lex != NULL)
+      return saved_fake_select_lex;
+    return first_select();
   };
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
@@ -597,6 +611,11 @@ public:
     ORDER BY and LIMIT
   */
   st_select_lex *fake_select_lex;
+  /**
+    SELECT_LEX that stores LIMIT and OFFSET for UNION ALL when no
+    fake_select_lex is used.
+  */
+  st_select_lex *saved_fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
 
@@ -628,6 +647,7 @@ public:
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union () const;
+  bool union_needs_tmp_table();
 
   /// Include a query expression below a query block.
   void include_down(LEX *lex, st_select_lex *outer);
@@ -1001,6 +1021,22 @@ public:
   */
   void cut_subtree() { slave= 0; }
   bool test_limit();
+  /**
+    Get offset for LIMIT.
+
+    Evaluate offset item if necessary.
+
+    @return Number of rows to skip.
+  */
+  ha_rows get_offset();
+  /**
+   Get limit.
+
+   Evaluate limit item if necessary.
+
+   @return Limit of rows in result.
+  */
+  ha_rows get_limit();
 
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
@@ -1307,7 +1343,7 @@ public:
   }
   bool requires_prelocking()
   {
-    return test(query_tables_own_last);
+    return MY_TEST(query_tables_own_last);
   }
   void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
   {
@@ -2631,6 +2667,8 @@ public:
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+  /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
+  bool in_update_value_clause;
 
   /*
     The set of those tables whose fields are referenced in all subqueries

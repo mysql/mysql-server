@@ -19,11 +19,16 @@
 # - events_statements_summary_by_account_by_event_name
 # - events_statements_summary_by_user_by_event_name
 # - events_statements_summary_by_host_by_event_name
+# - events_transactions_summary_by_thread_by_event_name
+# - events_transactions_summary_by_account_by_event_name
+# - events_transactions_summary_by_user_by_event_name
+# - events_transactions_summary_by_host_by_event_name
 #
 # Globally:
 # - events_waits_summary_global_by_event_name
 # - events_stages_summary_global_by_event_name
 # - events_statements_summary_global_by_event_name
+# - events_transactions_summary_global_by_event_name
 #
 # The tests are written with the following helpers:
 # - include/event_aggregate_setup.inc
@@ -131,6 +136,9 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'statement/com/error',
                  'statement/sp/freturn');
 
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('transaction');
+
 # Start from a known clean state, to avoid noise from previous tests
 flush tables;
 flush status;
@@ -154,6 +162,13 @@ truncate performance_schema.events_statements_summary_by_user_by_event_name;
 truncate performance_schema.events_statements_summary_by_host_by_event_name;
 truncate performance_schema.events_statements_summary_global_by_event_name;
 truncate performance_schema.events_statements_history_long;
+
+truncate performance_schema.events_transactions_summary_by_thread_by_event_name;
+truncate performance_schema.events_transactions_summary_by_account_by_event_name;
+truncate performance_schema.events_transactions_summary_by_user_by_event_name;
+truncate performance_schema.events_transactions_summary_by_host_by_event_name;
+truncate performance_schema.events_transactions_summary_global_by_event_name;
+truncate performance_schema.events_transactions_history_long;
 
 --disable_warnings
 drop procedure if exists dump_thread;
@@ -342,6 +357,39 @@ prepare dump_statements_history from
                        'statement/com/Quit',
                        'statement/com/error',
                        'statement/sp/freturn')
+  group by event_name order by event_name;";
+
+prepare dump_transactions_account from
+  "select user, host, event_name, count_star
+  from performance_schema.events_transactions_summary_by_account_by_event_name
+  where user like \'user%\'
+  and event_name in ('transaction')
+  order by user, host, event_name;";
+
+prepare dump_transactions_user from
+  "select user, event_name, count_star
+  from performance_schema.events_transactions_summary_by_user_by_event_name
+  where user like \'user%\'
+  and event_name in ('transaction')
+  order by user, event_name;";
+
+prepare dump_transactions_host from
+  "select host, event_name, count_star
+  from performance_schema.events_transactions_summary_by_host_by_event_name
+  where host=\'localhost\'
+  and event_name in ('transaction')
+  order by host, event_name;";
+
+prepare dump_transactions_global from
+  "select event_name, count_star
+  from performance_schema.events_transactions_summary_global_by_event_name
+  where event_name in ('transaction')
+  order by event_name;";
+
+prepare dump_transactions_history from
+  "select event_name, count(event_name)
+  from performance_schema.events_transactions_history_long
+  where event_name in ('transaction')
   group by event_name order by event_name;";
 
 prepare dump_users from

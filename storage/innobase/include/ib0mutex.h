@@ -1028,10 +1028,9 @@ struct PolicyMutex
 
 		locker = pfs_begin_lock(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
+		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().enter(m_impl, name, line);
-
-		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().locked(m_impl);
 

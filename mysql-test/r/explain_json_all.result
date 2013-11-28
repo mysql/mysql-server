@@ -517,7 +517,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
 EXPLAIN FORMAT=JSON (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
@@ -525,9 +524,7 @@ EXPLAIN
 {
   "query_block": {
     "union_result": {
-      "using_temporary_table": true,
-      "table_name": "<union1,2>",
-      "access_type": "ALL",
+      "using_temporary_table": false,
       "query_specifications": [
         {
           "dependent": false,
@@ -1490,7 +1487,7 @@ AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 EXPLAIN
 {
   "query_block": {
-    "select_id": 3,
+    "select_id": 1,
     "cost_info": {
       "query_cost": "22.82"
     } /* cost_info */,
@@ -1987,7 +1984,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (/* select#2 */ select 1 AS `a`,2 AS `b` union all /* select#3 */ select 1 AS `a`,2 AS `b`) `t1` group by `t1`.`a` order by `t1`.`b` desc
 EXPLAIN FORMAT=JSON SELECT a, b FROM 
@@ -2030,9 +2026,7 @@ EXPLAIN
             "cacheable": true,
             "query_block": {
               "union_result": {
-                "using_temporary_table": true,
-                "table_name": "<union2,3>",
-                "access_type": "ALL",
+                "using_temporary_table": false,
                 "query_specifications": [
                   {
                     "dependent": false,

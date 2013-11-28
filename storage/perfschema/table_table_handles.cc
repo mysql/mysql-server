@@ -154,7 +154,7 @@ table_table_handles::rnd_pos(const void *pos)
 
 void table_table_handles::make_row(PFS_table *table)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_table_share *share;
   PFS_thread *thread;
 

@@ -77,10 +77,6 @@ SELECT @@global.query_prealloc_size  ;
 SET @@global.query_prealloc_size   = 655354;
 SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = 4294967295;
-SELECT @@global.query_prealloc_size  ;
-
-
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ##################################################################################
 # Change the value of query_prealloc_size   to a valid value for SESSION Scope   #
@@ -92,47 +88,7 @@ SELECT @@session.query_prealloc_size  ;
 SET @@session.query_prealloc_size   = 655345;
 SELECT @@session.query_prealloc_size  ;
 
-SET @@session.query_prealloc_size   = 4294967295;
-SELECT @@session.query_prealloc_size  ;
-
-
---echo '#--------------------FN_DYNVARS_005_05-------------------------#'
-###########################################################################
-#        Check the value of query_prealloc_size for out of bounds         #
-###########################################################################
-
---disable_warnings
-SET @@global.query_prealloc_size = 4294967296;
---enable_warnings
-SELECT @@global.query_prealloc_size IN (4294967296,4294966272);
-
---disable_warnings
-SET @@global.query_prealloc_size = 12345678901;
---enable_warnings
-SELECT @@global.query_prealloc_size IN (12345678848,4294966272);
-
---disable_warnings
-SET @@global.query_prealloc_size = 18446744073709551615;
---enable_warnings
-SELECT @@global.query_prealloc_size IN (18446744073709550592,4294966272);
-
---disable_warnings
-SET @@session.query_prealloc_size = 4294967296;
---enable_warnings
-SELECT @@session.query_prealloc_size IN (4294967296,4294966272);
-
---disable_warnings
-SET @@session.query_prealloc_size = 12345678901;
---enable_warnings
-SELECT @@session.query_prealloc_size IN (12345678848,4294966272);
-
---disable_warnings
-SET @@session.query_prealloc_size = 18446744073709551615;
---enable_warnings
-SELECT @@session.query_prealloc_size IN (18446744073709550592,4294966272);
-
-
---echo '#------------------FN_DYNVARS_005_06-----------------------#'
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
 ####################################################################
 #  Change the value of query_prealloc_size   to an invalid value   #
 ####################################################################
@@ -179,7 +135,7 @@ SET @@session.query_prealloc_size   = "test";
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.query_prealloc_size   = " ";
 
---echo '#------------------FN_DYNVARS_005_07-----------------------#'
+--echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
@@ -189,7 +145,7 @@ SELECT @@global.query_prealloc_size   = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 
---echo '#------------------FN_DYNVARS_005_08-----------------------#'
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
@@ -199,7 +155,7 @@ FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 
 
---echo '#------------------FN_DYNVARS_005_09-----------------------#'
+--echo '#------------------FN_DYNVARS_005_08-----------------------#'
 ####################################################################
 #     Check if TRUE and FALSE values can be used on variable       #
 ####################################################################
@@ -211,7 +167,7 @@ SELECT @@global.query_prealloc_size  ;
 
 
 
---echo '#---------------------FN_DYNVARS_001_10----------------------#'
+--echo '#---------------------FN_DYNVARS_005_09----------------------#'
 ################################################################################
 # Check if accessing variable with and without GLOBAL point to same variable   #
 ################################################################################
@@ -220,7 +176,7 @@ SET @@global.query_prealloc_size   = 10;
 SELECT @@query_prealloc_size   = @@global.query_prealloc_size  ;
 
 
---echo '#---------------------FN_DYNVARS_001_11----------------------#'
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
 ##############################################################################
 # Check if accessing variable with SESSION,LOCAL and without SCOPE points to #
 # to the same session variable                                               #
@@ -231,7 +187,7 @@ SELECT @@query_prealloc_size   = @@local.query_prealloc_size  ;
 SELECT @@local.query_prealloc_size   = @@session.query_prealloc_size  ;
 
 
---echo '#---------------------FN_DYNVARS_001_12----------------------#'
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
 ################################################################################
 #    Check if query_prealloc_size   can be accessed with and without @@ sign   #
 ################################################################################

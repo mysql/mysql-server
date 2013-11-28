@@ -83,6 +83,9 @@ struct PFS_global_param
   bool m_consumer_events_statements_current_enabled;
   bool m_consumer_events_statements_history_enabled;
   bool m_consumer_events_statements_history_long_enabled;
+  bool m_consumer_events_transactions_current_enabled;
+  bool m_consumer_events_transactions_history_enabled;
+  bool m_consumer_events_transactions_history_long_enabled;
   bool m_consumer_events_waits_current_enabled;
   bool m_consumer_events_waits_history_enabled;
   bool m_consumer_events_waits_history_long_enabled;
@@ -196,7 +199,7 @@ struct PFS_global_param
     @sa statement_class_lost.
   */
   ulong m_statement_class_sizing;
-  /** Maximum number of rows per thread in table EVENTS_STATEMENT_HISTORY. */
+  /** Maximum number of rows per thread in table EVENTS_STATEMENTS_HISTORY. */
   long m_events_statements_history_sizing;
   /** Maximum number of rows in table EVENTS_STATEMENTS_HISTORY_LONG. */
   long m_events_statements_history_long_sizing;
@@ -204,6 +207,11 @@ struct PFS_global_param
   long m_digest_sizing;
   /** Maximum number of programs to be captured */
   long m_program_sizing;
+  /** Maximum number of rows per thread in table EVENTS_TRANSACTIONS_HISTORY. */
+  long m_events_transactions_history_sizing;
+  /** Maximum number of rows in table EVENTS_TRANSACTIONS_HISTORY_LONG. */
+  long m_events_transactions_history_long_sizing;
+
   /** Maximum number of session attribute strings per thread */
   long m_session_connect_attrs_sizing;
   /** Maximum size of statement stack */

@@ -35,6 +35,8 @@ Created 6/9/1994 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 #include "mach0data.h"
 
+#include <memory>
+
 /* -------------------- MEMORY HEAPS ----------------------------- */
 
 /* A block of a memory heap consists of the info structure
@@ -402,6 +404,62 @@ struct mem_block_info_t {
 #endif
 };
 
+/** Custom allocator for STL that uses an InnoDB heap. */
+template <typename T>
+struct heap_alloc_t
+{
+	// Required by the standard
+	typedef T value_type;
+	typedef size_t size_type;
+	typedef value_type* pointer;
+	typedef value_type& reference;
+	typedef ptrdiff_t difference_type;
+	typedef const value_type* const_pointer;
+	typedef const value_type& const_reference;
+
+	/**
+	@param heap	The heap to use */
+	heap_alloc_t(mem_heap_t* heap) : m_heap(heap) UNIV_NOTHROW { }
+
+	/** Destructor */
+	~heap_alloc_t() UNIV_NOTHROW { }
+
+	// Required by the standard
+	template<typename Type>
+	struct rebind
+	{
+		typedef heap_alloc_t<Type> other;
+	};
+
+	/** @return address of a non const reference */
+	pointer address(reference ref) { return(&ref); }
+
+	/** @return address of a const reference */
+	const_pointer address(const_reference ref) { return(&ref); }
+
+	/** For placement new */
+	void construct(pointer ptr, const T& t){ new(ptr) T(t); }
+
+	/* Destroy the object, call the destructor */
+	void destroy(pointer ptr) { ptr->~T(); }
+
+	/** Allocate the memory */
+	pointer allocate(size_type n_bytes, const void*)
+	{
+		return(mem_heap_alloc(m_heap, n_bytes));
+	}
+
+	/** Free the memory, note we don't free from the heap */
+	void deallocate(pointer ptr, size_type n_bytes) { }
+
+private:
+	// Disable copying
+	heap_alloc_t(const heap_alloc_t& heap);
+	heap_alloc_t& operator=(const heap_alloc_t&);
+
+	/** The heap to use */
+	mem_heap_t*		m_heap;
+};
 #define MEM_BLOCK_MAGIC_N	764741555
 #define MEM_FREED_BLOCK_MAGIC_N	547711122
 

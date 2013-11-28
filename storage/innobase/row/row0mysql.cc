@@ -1445,7 +1445,7 @@ error_exit:
 			if (doc_id < next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be large than"
-					" "UINT64PF" for table",
+					" " UINT64PF " for table",
 					next_doc_id - 1);
 				ut_print_name(stderr, trx, TRUE, table->name);
 				putc('\n', stderr);
@@ -1460,9 +1460,9 @@ error_exit:
 
 			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
 				fprintf(stderr,
-					"InnoDB: Doc ID "UINT64PF" is too"
+					"InnoDB: Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
-					" used Doc ID "UINT64PF" cannot"
+					" used Doc ID " UINT64PF " cannot"
 					" exceed or equal to %d\n",
 					doc_id, next_doc_id - 1,
 					FTS_DOC_ID_MAX_STEP);
@@ -3453,20 +3453,23 @@ row_drop_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
+	
+		if (!row_is_mysql_tmp_table_name(name)) {
+			ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, name);
-		fputs(" does not exist in the InnoDB internal\n"
-		      "InnoDB: data dictionary though MySQL is"
-		      " trying to drop it.\n"
-		      "InnoDB: Have you copied the .frm file"
-		      " of the table to the\n"
-		      "InnoDB: MySQL database directory"
-		      " from another database?\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+			fputs("  InnoDB: Error: table ", stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fputs(" does not exist in the InnoDB internal\n"
+			      "InnoDB: data dictionary though MySQL is"
+			      " trying to drop it.\n"
+			      "InnoDB: Have you copied the .frm file"
+			      " of the table to the\n"
+			      "InnoDB: MySQL database directory"
+			      " from another database?\n"
+			      "InnoDB: You can look for further help from\n"
+			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+			      stderr);
+		}
 		goto funct_exit;
 	}
 
@@ -4704,15 +4707,31 @@ row_rename_table_for_mysql(
 		if (err != DB_SUCCESS
 		    && !Tablespace::is_system_tablespace(table->space)) {
 			char*	orig_name = table->name;
+			trx_t*	trx_bg = trx_allocate_for_background();
+
+			/* If the first fts_rename fails, the trx would
+			be rolled back and committed, we can't use it any more,
+			so we have to start a new background trx here. */
+			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+			trx_bg->op_info = "Revert the failing rename "
+					  "for fts aux tables";
+			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			/* If rename fails and table has its own tablespace,
 			we need to call fts_rename_aux_tables again to
 			revert the ibd file rename, which is not under the
 			control of trx. Also notice the parent table name
-			in cache is not changed yet. */
+			in cache is not changed yet. If the reverting fails,
+			the ibd data may be left in the new database, which
+			can be fixed only manually. */
 			table->name = const_cast<char*>(new_name);
-			fts_rename_aux_tables(table, old_name, trx);
+			fts_rename_aux_tables(table, old_name, trx_bg);
 			table->name = orig_name;
+
+			trx_bg->dict_operation_lock_mode = 0;
+			trx_commit_for_mysql(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 	}
 

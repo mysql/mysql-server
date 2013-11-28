@@ -671,8 +671,6 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
     error = 1;
   }
 
-  /* Cleanup links between thread and my_thd, then delete it */ 
-  my_thd->restore_globals();
   delete my_thd;
   
   if (passed_thd)
@@ -6841,7 +6839,6 @@ ndb_binlog_thread_func(void *arg)
   */
   sql_print_information("Starting Cluster Binlog Thread");
 
-  pthread_detach_this_thread();
   thd->real_id= pthread_self();
   thd_manager->add_thd(thd);
   thd->lex->start_transaction_opt= 0;
@@ -7552,7 +7549,7 @@ restart_cluster_failure:
               if (thd->killed)
               {
                 DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
-                thd_manager->acquire_thd_lock();
+                mysql_mutex_lock(&thd->LOCK_thd_data);
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
@@ -7561,7 +7558,7 @@ restart_cluster_failure:
                 ndb_binlog_index_table__write_rows(thd, rows);
                 /* Restore kill flag */
                 thd->killed= killed;
-                thd_manager->release_thd_lock();
+                mysql_mutex_unlock(&thd->LOCK_thd_data);
               }
             }
           }

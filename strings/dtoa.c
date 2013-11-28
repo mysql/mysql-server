@@ -1358,9 +1358,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   Long L;
   ULong y, z;
   Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
-#ifdef SET_INEXACT
-  int inexact, oldinexact;
-#endif
 #ifdef Honor_FLT_ROUNDS
   int rounding;
 #endif
@@ -1528,10 +1525,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   dval(&rv)= y;
   if (k > 9)
   {
-#ifdef SET_INEXACT
-    if (k > DBL_DIG)
-      oldinexact = get_inexact();
-#endif
     dval(&rv)= tens[k - 9] * dval(&rv) + z;
   }
   bd0= 0;
@@ -1597,11 +1590,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   }
   e1+= nd - k;
 
-#ifdef SET_INEXACT
-  inexact= 1;
-  if (k <= DBL_DIG)
-    oldinexact= get_inexact();
-#endif
   scale= 0;
 #ifdef Honor_FLT_ROUNDS
   if ((rounding= Flt_Rounds) >= 2)
@@ -1643,11 +1631,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
         word0(&rv)= Exp_mask;
         word1(&rv)= 0;
 #endif /*Honor_FLT_ROUNDS*/
-#ifdef SET_INEXACT
-        /* set overflow bit */
-        dval(&rv0)= 1e300;
-        dval(&rv0)*= dval(&rv0);
-#endif
         if (bd0)
           goto retfree;
         goto ret;
@@ -1788,9 +1771,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
         if (!delta->p.x[0] && delta->wds <= 1)
         {
           /* exact */
-#ifdef SET_INEXACT
-          inexact= 0;
-#endif
           break;
         }
         if (rounding)
@@ -1855,18 +1835,11 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       if (dsign || word1(&rv) || word0(&rv) & Bndry_mask ||
           (word0(&rv) & Exp_mask) <= (2 * P + 1) * Exp_msk1)
       {
-#ifdef SET_INEXACT
-        if (!delta->x[0] && delta->wds <= 1)
-          inexact= 0;
-#endif
         break;
       }
       if (!delta->p.x[0] && delta->wds <= 1)
       {
         /* exact result */
-#ifdef SET_INEXACT
-        inexact= 0;
-#endif
         break;
       }
       delta= lshift(delta, Log2P, &alloc);
@@ -2013,7 +1986,6 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       }
     }
     z= word0(&rv) & Exp_mask;
-#ifndef SET_INEXACT
     if (!scale)
       if (y == z)
       {
@@ -2029,40 +2001,18 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
         else if (aadj < .4999999 / FLT_RADIX)
           break;
       }
-#endif
  cont:
     Bfree(bb, &alloc);
     Bfree(bd, &alloc);
     Bfree(bs, &alloc);
     Bfree(delta, &alloc);
   }
-#ifdef SET_INEXACT
-  if (inexact)
-  {
-    if (!oldinexact)
-    {
-      word0(&rv0)= Exp_1 + (70 << Exp_shift);
-      word1(&rv0)= 0;
-      dval(&rv0)+= 1.;
-    }
-  }
-  else if (!oldinexact)
-    clear_inexact();
-#endif
   if (scale)
   {
     word0(&rv0)= Exp_1 - 2 * P * Exp_msk1;
     word1(&rv0)= 0;
     dval(&rv)*= dval(&rv0);
   }
-#ifdef SET_INEXACT
-  if (inexact && !(word0(&rv) & Exp_mask))
-  {
-    /* set underflow bit */
-    dval(&rv0)= 1e-300;
-    dval(&rv0)*= dval(&rv0);
-  }
-#endif
  retfree:
   Bfree(bb, &alloc);
   Bfree(bd, &alloc);

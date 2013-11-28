@@ -1901,7 +1901,6 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint*		offsets		= NULL;
 	DBUG_ENTER("row_ins_scan_sec_index_for_duplicate");
 
-	DBUG_PRINT("ib_row", ("index: %s", index->name));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
@@ -2184,13 +2183,15 @@ row_ins_duplicate_error_in_clust(
 				INSERT ON DUPLICATE KEY UPDATE). */
 
 				err = row_ins_set_exclusive_rec_lock(
-					lock_type, btr_cur_get_block(cursor),
+					lock_type,
+					btr_cur_get_block(cursor),
 					rec, cursor->index, offsets, thr);
 			} else {
 
 				err = row_ins_set_shared_rec_lock(
-					lock_type, btr_cur_get_block(cursor),
-					rec, cursor->index, offsets, thr);
+					lock_type,
+					btr_cur_get_block(cursor), rec,
+					cursor->index, offsets, thr);
 			}
 
 			switch (err) {
@@ -2632,12 +2633,6 @@ row_ins_sec_index_entry_low(
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
-	DBUG_PRINT("ib_row", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
-			      ": %s",
-			      index->name, index->id,
-			      thr ? thr_get_trx(thr)->id : trx_id,
-			      rec_printer(entry).str().c_str()));
-
 	cursor.thr = thr;
 	ut_ad(thr_get_trx(thr)->id);
 
@@ -2801,7 +2796,6 @@ row_ins_sec_index_entry_low(
 		default:
 			goto func_exit;
 		}
-
 	}
 
 	ut_ad(thr_get_trx(thr)->error_state == DB_SUCCESS);

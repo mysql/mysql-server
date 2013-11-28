@@ -16,6 +16,8 @@ performance_schema_events_stages_history_long_size	1000
 performance_schema_events_stages_history_size	10
 performance_schema_events_statements_history_long_size	1000
 performance_schema_events_statements_history_size	10
+performance_schema_events_transactions_history_long_size	1000
+performance_schema_events_transactions_history_size	10
 performance_schema_events_waits_history_long_size	1000
 performance_schema_events_waits_history_size	10
 performance_schema_hosts_size	100
@@ -107,9 +109,9 @@ performance_schema	rwlock_instances.memory	426624
 performance_schema	cond_instances.size	128
 performance_schema	cond_instances.count	1079
 performance_schema	cond_instances.memory	138112
-performance_schema	threads.size	2816
+performance_schema	threads.size	3200
 performance_schema	threads.count	289
-performance_schema	threads.memory	813824
+performance_schema	threads.memory	924800
 performance_schema	file_instances.size	704
 performance_schema	file_instances.count	1754
 performance_schema	file_instances.memory	1234816
@@ -143,9 +145,9 @@ performance_schema	events_waits_summary_by_user_by_event_name.memory	1228800
 performance_schema	events_waits_summary_by_host_by_event_name.size	32
 performance_schema	events_waits_summary_by_host_by_event_name.count	38400
 performance_schema	events_waits_summary_by_host_by_event_name.memory	1228800
-performance_schema	(pfs_user).size	128
+performance_schema	(pfs_user).size	192
 performance_schema	(pfs_user).count	100
-performance_schema	(pfs_user).memory	12800
+performance_schema	(pfs_user).memory	19200
 performance_schema	(pfs_host).size	192
 performance_schema	(pfs_host).count	100
 performance_schema	(pfs_host).memory	19200
@@ -227,7 +229,7 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	20
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	94
+performance_schema	(table_share_hash).count	102
 performance_schema	(table_share_hash).size	556
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
@@ -255,17 +257,35 @@ performance_schema	memory_summary_by_host_by_event_name.memory	1800000
 performance_schema	metadata_locks.row_size	512
 performance_schema	metadata_locks.row_count	10000
 performance_schema	metadata_locks.memory	5120000
-performance_schema	performance_schema.memory	103045120
+performance_schema	events_transactions_history.size	344
+performance_schema	events_transactions_history.count	2890
+performance_schema	events_transactions_history.memory	994160
+performance_schema	events_transactions_history_long.size	344
+performance_schema	events_transactions_history_long.count	1000
+performance_schema	events_transactions_history_long.memory	344000
+performance_schema	events_transactions_summary_by_thread_by_event_name.size	88
+performance_schema	events_transactions_summary_by_thread_by_event_name.count	289
+performance_schema	events_transactions_summary_by_thread_by_event_name.memory	25432
+performance_schema	events_transactions_summary_by_account_by_event_name.size	88
+performance_schema	events_transactions_summary_by_account_by_event_name.count	100
+performance_schema	events_transactions_summary_by_account_by_event_name.memory	8800
+performance_schema	events_transactions_summary_by_user_by_event_name.size	88
+performance_schema	events_transactions_summary_by_user_by_event_name.count	100
+performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
+performance_schema	events_transactions_summary_by_host_by_event_name.size	88
+performance_schema	events_transactions_summary_by_host_by_event_name.count	100
+performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
+performance_schema	performance_schema.memory	104552488
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
-COUNT_ALLOC	53
+COUNT_ALLOC	59
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	103045120
+SUM_NUMBER_OF_BYTES_ALLOC	104552488
 SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	53
-CURRENT_COUNT_USED	53
-HIGH_COUNT_USED	53
-LOW_NUMBER_OF_BYTES_USED	103045120
-CURRENT_NUMBER_OF_BYTES_USED	103045120
-HIGH_NUMBER_OF_BYTES_USED	103045120
+LOW_COUNT_USED	59
+CURRENT_COUNT_USED	59
+HIGH_COUNT_USED	59
+LOW_NUMBER_OF_BYTES_USED	104552488
+CURRENT_NUMBER_OF_BYTES_USED	104552488
+HIGH_NUMBER_OF_BYTES_USED	104552488

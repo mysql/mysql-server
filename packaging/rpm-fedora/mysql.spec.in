@@ -18,6 +18,9 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
+
+%global milestone   m13 
+
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 %global obs_ver      @VERSION@
@@ -45,7 +48,7 @@
 %endif
 
 
-%global src_dir               %{src_base}-%{version}
+%global src_dir               %{src_base}-@VERSION@
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -68,8 +71,8 @@
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @VERSION@
-Release:        1%{?dist}
+Version:        @MYSQL_NO_DASH_VERSION@
+Release:        0.1%{?milestone:.%{milestone}}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -81,8 +84,8 @@ Source3:        mysql.conf
 Source4:        my_config.h
 Source5:        mysql-embedded-check.c
 Source6:        mysql_config.sh
-Patch0:         mysql-5.6-libmysqlclient-symbols.patch
-Patch1:         mysql-5.6.14-mysql-install.patch
+Patch0:         mysql-5.6.14-mysql-install.patch
+Patch1:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  time
@@ -312,13 +315,13 @@ This package contains files needed for developing applicatison using
 the embedded version of the MySQL server.
 
 %prep
-%setup -T -a 0 -c -n %{src_dir}
+%setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
-%patch1 -p1
+%patch0 -p1
 popd
 cp -a %{src_dir} %{src_dir}-client
 pushd %{src_dir}-client
-%patch0
+%patch1 -p0
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -346,6 +349,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -365,6 +369,7 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -388,7 +393,7 @@ mkdir release
   # Compile check
   cp %{SOURCE5} .
   ln -s libmysqld.so.%{libmysqld_so_long} libmysqld.so.%{libmysqld_so_major}
-  %{__cc} -I../../../mysql-%{version}/include -I../../include $CFLAGS \
+  %{__cc} -I../../../%{src_dir}/include -I../../include $CFLAGS \
       mysql-embedded-check.c libmysqld.so.%{libmysqld_so_major}
   LD_LIBRARY_PATH=. ldd ./a.out
 )
@@ -401,6 +406,7 @@ mkdir client
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -726,6 +732,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.1.m13
+- Initial 5.7 port
+
 * Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
 - Updated to 5.6.15
 
@@ -852,7 +861,7 @@ fi
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
-- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+- Replace "/var/lib/mysql" by the spec file variable "%%{mysqldatadir}".
 
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
@@ -1112,7 +1121,7 @@ fi
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}",
+- Call "make install" using "benchdir_root=%%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
@@ -1229,7 +1238,7 @@ fi
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
 - Compile MySQL with bundled zlib
-- Fixed %packager name to "MySQL Production Engineering Team"
+- Fixed %%packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
@@ -1286,7 +1295,7 @@ fi
 
 * Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
 
-- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+- fixed the removing of the RPM_BUILD_ROOT in the %%clean section (the
   $RBR variable did not get expanded, thus leaving old build roots behind)
 
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>

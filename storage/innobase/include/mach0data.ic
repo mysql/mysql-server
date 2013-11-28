@@ -823,6 +823,8 @@ mach_write_int_type(
 	ulint		len,		/*!< in: length of src */
 	bool		usign)		/*!< in: signed or unsigned flag */
 {
+	ut_ad(len >= 1 && len <= 8);
+
 #ifdef WORDS_BIGENDIAN
         memcpy(dest, src, len);
 #else

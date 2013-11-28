@@ -98,7 +98,7 @@ typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
   must return a pointer to a variable of type uint. A argument is stored in
   the location pointed to by the returned pointer.
 */
-typedef void *(*my_getopt_value)(const char *, uint, const struct my_option *,
+typedef void *(*my_getopt_value)(const char *, size_t, const struct my_option *,
                                  int *);
 
 

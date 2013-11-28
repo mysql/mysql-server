@@ -897,12 +897,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                   system_charset_info);
 
   char md5[MD5_BUFF_LENGTH];
-  bool can_be_merged;
   char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
   bool was_truncated;
   DBUG_ENTER("mysql_register_view");
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  const bool can_be_merged= lex->can_be_merged() &&
+    lex->create_view_algorithm != VIEW_ALGORITHM_TMPTABLE;
+
+  if (can_be_merged)
+  {
+    for (ORDER *order= lex->select_lex->order_list.first ;
+         order; order= order->next)
+      order->used_alias= false;               /// @see Item::print_for_order()
+  }
 
   /* Generate view definition and IS queries. */
   view_query.length(0);
@@ -940,9 +953,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
   view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
+      !can_be_merged)
   {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
@@ -953,8 +965,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
+
+  if ((view->updatable_view= can_be_merged))
   {
     /* TODO: change here when we will support UNIONs */
     for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
@@ -1128,9 +1140,9 @@ err:
    parent_lex)
    @param  parent_select
  */
-static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
-                                           SELECT_LEX *removed_select,
-                                           SELECT_LEX *parent_select)
+void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                    SELECT_LEX *removed_select,
+                                    SELECT_LEX *parent_select)
 {
   List_iterator_fast<TABLE_LIST> ti(join_list);
   TABLE_LIST *tbl;
@@ -1925,32 +1937,25 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 }
 
 
-/*
+/**
   check of key (primary or unique) presence in updatable view
 
-  SYNOPSIS
-    check_key_in_view()
-    thd     thread handler
-    view    view for check with opened table
+  If the table to be checked is a view and the query has LIMIT clause,
+  then check that the view fulfills one of the following constraints:
+   1) it contains the primary key of the underlying updatable table.
+   2) it contains a unique key of the underlying updatable table whose
+      columns are all non-nullable.
+   3) it contains all columns of the underlying updatable table.
 
-  DESCRIPTION
-    If it is VIEW and query have LIMIT clause then check that underlying
-    table of view contain one of following:
-      1) primary key of underlying table
-      2) unique key underlying table with fields for which NULL value is
-         impossible
-      3) all fields of underlying table
+  @param thd       thread handler
+  @param view      view for check with opened table
+  @param table_ref underlying updatable table of the view
 
-  RETURN
-    FALSE   OK
-    TRUE    view do not contain key or all fields
+  @return false is success, true if error
 */
 
-bool check_key_in_view(THD *thd, TABLE_LIST *view)
+bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
 {
-  TABLE *table;
-  Field_translator *trans, *end_of_trans;
-  KEY *key_info, *key_info_end;
   DBUG_ENTER("check_key_in_view");
 
   /*
@@ -1960,14 +1965,14 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   if ((!view->view && !view->belong_to_view) ||
       thd->lex->sql_command == SQLCOM_INSERT ||
       thd->lex->select_lex->select_limit == 0)
-    DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
-  table= view->table;
-  view= view->top_table();
-  trans= view->field_translation;
-  key_info_end= (key_info= table->key_info)+ table->s->keys;
+    DBUG_RETURN(false); /* it is normal table or query without LIMIT */
 
-  end_of_trans=  view->field_translation_end;
-  DBUG_ASSERT(table != 0 && view->field_translation != 0);
+  TABLE *const table = table_ref->table;
+  view= view->top_table();
+  Field_translator *const trans= view->field_translation;
+  Field_translator *const end_of_trans= view->field_translation_end;
+  KEY *key_info= table->key_info;
+  KEY *const key_info_end= key_info + table->s->keys;
 
   {
     /*

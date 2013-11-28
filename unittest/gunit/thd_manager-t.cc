@@ -95,34 +95,6 @@ TEST_F(ThreadManagerTest, IncThreadCreated)
   EXPECT_EQ(1U, thd_manager->get_num_thread_created());
 }
 
-// Verifies death with assert functions
-// Google Test recommends DeathTest suffix for classes used in death tests.
-typedef ThreadManagerTest ThreadManagerDeathTest;
-
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF) && SAFE_MUTEX
-TEST_F(ThreadManagerDeathTest, AssertTest)
-{
-  thd_manager->acquire_thd_lock();
-  ::testing::FLAGS_gtest_death_test_style= "threadsafe";
-  EXPECT_DEATH(thd_manager->assert_if_mutex_owner(),
-               ".*Assertion.*LOCK_thd_count*");
-  thd_manager->release_thd_lock();
-  EXPECT_DEATH(thd_manager->assert_if_not_mutex_owner(),
-               ".*Assertion.*LOCK_thd_count*");
-}
-#endif
-
-// Inverse of assert functionality is checked
-TEST_F(ThreadManagerTest, AssertOwnerTest)
-{
-  // Should not assert as mutex is not acquired
-  thd_manager->assert_if_mutex_owner();
-  thd_manager->acquire_thd_lock();
-  thd_manager->assert_if_not_mutex_owner();
-  thd_manager->release_thd_lock();
-  thd_manager->assert_if_mutex_owner();
-}
-
 /*
   Test function to validate do_for_all_thd, do_for_all_thd_copy.
   It emulates counter function to count number of thds in thd list.

@@ -97,7 +97,6 @@
 #include "set_var.h"
 #include "opt_trace.h"
 #include "mysql/psi/mysql_statement.h"
-#include "sql_bootstrap.h"
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 #include "sql_analyse.h"
@@ -657,172 +656,6 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
-}
-
-static char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
-{
-  MYSQL_FILE *in= static_cast<MYSQL_FILE*> (input);
-  char *line= mysql_file_fgets(buffer, size, in);
-  if (error)
-    *error= (line == NULL) ? ferror(in->m_file) : 0;
-  return line;
-}
-
-static void handle_bootstrap_impl(THD *thd)
-{
-  MYSQL_FILE *file= bootstrap_file;
-  char buffer[MAX_BOOTSTRAP_QUERY_SIZE];
-  char *query;
-  int length;
-  int rc;
-  int error= 0;
-
-  DBUG_ENTER("handle_bootstrap");
-
-#ifndef EMBEDDED_LIBRARY
-  pthread_detach_this_thread();
-  thd->thread_stack= (char*) &thd;
-#endif /* EMBEDDED_LIBRARY */
-
-  thd->security_ctx->user= (char*) my_strdup(key_memory_Security_context,
-                                             "boot", MYF(MY_WME));
-  thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]=0;
-  /*
-    Make the "client" handle multiple results. This is necessary
-    to enable stored procedures with SELECTs and Dynamic SQL
-    in init-file.
-  */
-  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
-
-  thd->init_for_queries();
-
-  buffer[0]= '\0';
-
-  for ( ; ; )
-  {
-    rc= read_bootstrap_query(buffer, &length, file, fgets_fn, &error);
-
-    if (rc == READ_BOOTSTRAP_EOF)
-      break;
-    /*
-      Check for bootstrap file errors. SQL syntax errors will be
-      caught below.
-    */
-    if (rc != READ_BOOTSTRAP_SUCCESS)
-    {
-      /*
-        mysql_parse() may have set a successful error status for the previous
-        query. We must clear the error status to report the bootstrap error.
-      */
-      thd->get_stmt_da()->reset_diagnostics_area();
-
-      /* Get the nearest query text for reference. */
-      char *err_ptr= buffer + (length <= MAX_BOOTSTRAP_ERROR_LEN ?
-                                        0 : (length - MAX_BOOTSTRAP_ERROR_LEN));
-      switch (rc)
-      {
-      case READ_BOOTSTRAP_ERROR:
-        my_printf_error(ER_UNKNOWN_ERROR, "Bootstrap file error, return code (%d). "
-                        "Nearest query: '%s'", MYF(0), error, err_ptr);
-        break;
-
-      case READ_BOOTSTRAP_QUERY_SIZE:
-        my_printf_error(ER_UNKNOWN_ERROR, "Bootstrap file error. Query size "
-                        "exceeded %d bytes near '%s'.", MYF(0),
-                        MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
-        break;
-
-      default:
-        DBUG_ASSERT(false);
-        break;
-      }
-
-      thd->protocol->end_statement();
-      bootstrap_error= 1;
-      break;
-    }
-
-    query= (char *) thd->memdup_w_gap(buffer, length + 1,
-                                      thd->db_length + 1 +
-                                      QUERY_CACHE_FLAGS_SIZE);
-    size_t db_len= 0;
-    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
-    thd->set_query_and_id(query, length, thd->charset(), next_query_id());
-    DBUG_PRINT("query",("%-.4096s",thd->query()));
-#if defined(ENABLED_PROFILING)
-    thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query(), length);
-#endif
-
-    /*
-      We don't need to obtain LOCK_thd_count here because in bootstrap
-      mode we have only one thread.
-    */
-    thd->set_time();
-    Parser_state parser_state;
-    if (parser_state.init(thd, thd->query(), length))
-    {
-      thd->protocol->end_statement();
-      bootstrap_error= 1;
-      break;
-    }
-
-    mysql_parse(thd, thd->query(), length, &parser_state);
-
-    bootstrap_error= thd->is_error();
-    thd->protocol->end_statement();
-
-#if defined(ENABLED_PROFILING)
-    thd->profiling.finish_current_query();
-#endif
-
-    if (bootstrap_error)
-      break;
-
-    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Execute commands from bootstrap_file.
-
-  Used when creating the initial grant tables.
-*/
-
-pthread_handler_t handle_bootstrap(void *arg)
-{
-  THD *thd=(THD*) arg;
-
-  mysql_thread_set_psi_id(thd->thread_id);
-
-  /* The following must be called before DBUG_ENTER */
-  thd->thread_stack= (char*) &thd;
-  if (my_thread_init() || thd->store_globals())
-  {
-#ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-#endif
-    thd->fatal_error();
-    bootstrap_error= 1;
-    net_end(&thd->net);
-  }
-  else
-  {
-    Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-    thd_manager->add_thd(thd);
-
-    handle_bootstrap_impl(thd);
-
-    net_end(&thd->net);
-    thd->release_resources();
-    thd_manager->remove_thd(thd);
-  }
-  my_thread_end();
-  return 0;
 }
 
 
@@ -5558,7 +5391,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (!test(table_options & TL_OPTION_ALIAS))
+  if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     enum_ident_name_check ident_check_status=
       check_table_name(table->table.str, table->table.length, FALSE);
@@ -5608,10 +5441,10 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->table_name=table->table.str;
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
-  ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
-  ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
-  ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
+  ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
+  ptr->ignore_leaves= MY_TEST(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (!ptr->derived && is_infoschema_db(ptr->db, ptr->db_length))
   {
@@ -5702,7 +5535,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   lex->add_to_query_tables(ptr);
 
   // Pure table aliases do not need to be locked:
-  if (!test(table_options & TL_OPTION_ALIAS))
+  if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     MDL_REQUEST_INIT(& ptr->mdl_request,
                      MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
