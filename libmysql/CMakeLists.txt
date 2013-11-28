@@ -139,6 +139,7 @@ mysql_load_plugin_v
 mysql_options4
 mysql_plugin_options
 mysql_reset_connection
+mysql_get_option
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -267,7 +268,7 @@ IF(NOT DISABLE_SHARED)
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
       SET(libmysql_link_flags
-        "${libmysql_link_flags} -Wl,--version-script=libmysql.ver")
+        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
       SET_TARGET_PROPERTIES(libmysql
         PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
     ENDIF() 

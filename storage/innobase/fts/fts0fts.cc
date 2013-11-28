@@ -4576,6 +4576,7 @@ fts_add_token(
 			reinterpret_cast<char*>(t_str.f_str), t_str.f_len);
 
 		t_str.f_len = newlen;
+		t_str.f_str[newlen] = 0;
 
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
@@ -6273,7 +6274,7 @@ fts_rename_one_aux_table_to_hex_format(
 {
 	const char*     ptr;
 	fts_table_t	fts_table;
-	char*		new_name;
+	char		new_name[MAX_FULL_NAME_LEN];
 	dberr_t		error;
 
 	ptr = strchr(aux_table->name, '/');
@@ -6319,7 +6320,7 @@ fts_rename_one_aux_table_to_hex_format(
 	fts_table.index_id = aux_table->index_id;
 	fts_table.table = parent_table;
 
-	new_name = fts_get_table_name(&fts_table);
+	fts_get_table_name(&fts_table, new_name);
 	ut_ad(strcmp(new_name, aux_table->name) != 0);
 
 	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
@@ -6339,8 +6340,6 @@ fts_rename_one_aux_table_to_hex_format(
 			"Renamed aux table \'%s\' to \'%s\'.",
 			aux_table->name, new_name);
 	}
-
-	ut_free(new_name);
 
 	return (error);
 }

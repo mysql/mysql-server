@@ -148,7 +148,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
       {
 	float nr;
 	float4get(nr,pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
 	  memset(key, 0, length);
@@ -160,7 +160,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
       {
 	double nr;
 	float8get(nr,pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  memset(key, 0, length);
 	  key+=length;

@@ -5146,14 +5146,6 @@ bool JOIN::make_tmp_tables_info()
           DBUG_RETURN(true);
       }
 
-      /*
-        If there is no sorting or grouping, 'use_order'
-        index result should not have been requested.
-      */
-      DBUG_ASSERT(!(ordered_index_usage == ordered_index_void &&
-                    !plan_is_const() &&
-                    join_tab[const_tables].use_order()));
-
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
       if (group_list || tmp_table_param.sum_func_count)

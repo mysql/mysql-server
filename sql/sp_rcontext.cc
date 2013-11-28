@@ -22,6 +22,7 @@
 #include "sp_pcontext.h"
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
 #include "sp_instr.h"
+#include "template_utils.h"
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -39,6 +40,8 @@ sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
    m_return_value_fld(return_value_fld),
    m_return_value_set(false),
    m_in_sub_stmt(in_sub_stmt),
+   m_visible_handlers(PSI_INSTRUMENT_ME),
+   m_activated_handlers(PSI_INSTRUMENT_ME),
    m_ccount(0)
 {
 }
@@ -49,12 +52,8 @@ sp_rcontext::~sp_rcontext()
   if (m_var_table)
     free_blobs(m_var_table);
 
-  while (m_activated_handlers.elements())
-    delete m_activated_handlers.pop();
-
-  while (m_visible_handlers.elements())
-    delete m_visible_handlers.pop();
-  
+  delete_container_pointers(m_activated_handlers);
+  delete_container_pointers(m_visible_handlers);
   pop_all_cursors();
 
   // Leave m_var_items and m_case_expr_holders untouched.
@@ -210,25 +209,29 @@ bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
     return true;
   }
 
-  return m_visible_handlers.append(he);
+  return m_visible_handlers.push_back(he);
 }
 
 
 void sp_rcontext::pop_handlers(sp_pcontext *current_scope)
 {
-  for (int i= m_visible_handlers.elements() - 1; i >= 0; --i)
+  for (int i= static_cast<int>(m_visible_handlers.size()) - 1; i >= 0; --i)
   {
     int handler_level= m_visible_handlers.at(i)->handler->scope->get_level();
 
     if (handler_level >= current_scope->get_level())
-      delete m_visible_handlers.pop();
+    {
+      delete m_visible_handlers.back();
+      m_visible_handlers.pop_back();
+    }
   }
 }
 
 
 void sp_rcontext::pop_handler_frame(THD *thd)
 {
-  Handler_call_frame *frame= m_activated_handlers.pop();
+  Handler_call_frame *frame= m_activated_handlers.back();
+  m_activated_handlers.pop_back();
 
   // Also pop matching DA and copy new conditions.
   DBUG_ASSERT(thd->get_stmt_da() == &frame->handler_da);
@@ -256,7 +259,7 @@ void sp_rcontext::exit_handler(THD *thd, sp_pcontext *target_scope)
   pop_handler_frame(thd);
 
   // Pop frames below the target scope level.
-  for (int i= m_activated_handlers.elements() - 1; i >= 0; --i)
+  for (int i= static_cast<int>(m_activated_handlers.size()) - 1; i >= 0; --i)
   {
     int handler_level= m_activated_handlers.at(i)->handler->scope->get_level();
 
@@ -374,7 +377,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   DBUG_ASSERT(found_condition);
 
   sp_handler_entry *handler_entry= NULL;
-  for (int i= 0; i < m_visible_handlers.elements(); ++i)
+  for (size_t i= 0; i < m_visible_handlers.size(); ++i)
   {
     sp_handler_entry *h= m_visible_handlers.at(i);
 
@@ -418,7 +421,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     DBUG_RETURN(false);
   }
 
-  m_activated_handlers.append(frame);
+  m_activated_handlers.push_back(frame);
 
   /* End aborted result set. */
   if (end_partial_result_set)

@@ -3168,4 +3168,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((NULL,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
 DROP TABLE t1, t2;
+#
+# Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+#
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+a	b
+0	0
+1	1
+DROP TABLE t2;
 set optimizer_switch=default;

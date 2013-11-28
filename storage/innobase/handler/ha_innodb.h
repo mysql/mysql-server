@@ -394,11 +394,6 @@ int thd_non_transactional_update(const MYSQL_THD thd);
 @return Value to be used as index into the binlog_format_names array */
 int thd_binlog_format(const MYSQL_THD thd);
 
-/** Mark transaction to rollback and mark error as fatal to a sub-statement.
-@param thd Thread handle
-@param all TRUE <=> rollback main transaction. */
-void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
-
 /** Check if binary logging is filtered for thread's current db.
 @param thd Thread handle
 @retval 1 the query is not filtered, 0 otherwise. */

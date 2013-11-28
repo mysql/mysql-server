@@ -73,6 +73,7 @@ CREATE PROCEDURE transaction_verifier(IN i_table INT,
                                       IN i_state VARCHAR(32),
                                       IN i_xid VARCHAR(132),
                                       IN i_xa_state VARCHAR(64),
+                                      IN i_gtid VARCHAR(64),
                                       IN i_access_mode VARCHAR(32),
                                       IN i_isolation_level VARCHAR(64),
                                       IN i_autocommit VARCHAR(16),
@@ -88,6 +89,7 @@ BEGIN
   SET @state           = i_state;
   SET @xid             = i_xid;
   SET @xa_state        = i_xa_state;
+  SET @gtid            = i_gtid;
   SET @access_mode     = i_access_mode;
   SET @isolation_level = i_isolation_level;
   SET @autocommit      = i_autocommit;
@@ -126,6 +128,11 @@ BEGIN
   END IF;
   IF i_xa_state != '' THEN
     SET @query = CONCAT(@query, ' AND (xa_state = @xa_state)');
+  END IF;
+  IF i_gtid = 'NULL' THEN
+    SET @query = CONCAT(@query, ' AND (gtid IS NULL)');
+  ELSEIF i_gtid != '' THEN
+    SET @query = CONCAT(@query, ' AND (gtid = @gtid)');
   END IF;
   IF i_access_mode != '' THEN
     SET @query = CONCAT(@query, ' AND (access_mode = @access_mode)');
@@ -167,6 +174,7 @@ BEGIN
     SET @columns = CONCAT(@columns, ' RPAD(@state, 11, " ")         AS "state      ",');
     SET @columns = CONCAT(@columns, ' RPAD(@xid, 15, " ")           AS "xid            ",');
     SET @columns = CONCAT(@columns, ' RPAD(@xa_state, 12, " ")      AS "xa_state    ",');
+    SET @columns = CONCAT(@columns, ' RPAD(@gtid, 38, " ")          AS "gtid                                  ",');
     SET @columns = CONCAT(@columns, ' RPAD(@access_mode, 11, " ")   AS access_mode,');
     SET @columns = CONCAT(@columns, ' RPAD(@isolation_level, 16, " ") AS "isolation_level ",');
     SET @columns = CONCAT(@columns, ' RPAD(@autocommit, 10, " ")    AS autocommit,');
@@ -185,6 +193,7 @@ BEGIN
     SET @columns = CONCAT(@columns, ' RPAD(state, 11, " ")           AS "state      ",');
     SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xid, "NULL"), 15, " ") AS "xid            ",');
     SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xa_state, "NULL"), 12, " ") AS "xa_state    ",');
+    SET @columns = CONCAT(@columns, ' RPAD(IFNULL(gtid, "NULL"), 38, " ") AS "gtid                                  ",');
     SET @columns = CONCAT(@columns, ' RPAD(access_mode, 11, " ")     AS access_mode,');
     SET @columns = CONCAT(@columns, ' RPAD(isolation_level, 16, " ") AS "isolation_level ",');
     SET @columns = CONCAT(@columns, ' RPAD(autocommit, 10, " ")      AS autocommit,');

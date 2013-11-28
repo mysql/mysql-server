@@ -238,6 +238,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   TABLE_LIST *const insert_table_ref=
     table_list->updatable &&             // View must be updatable
+    !table_list->multitable_view &&      // Multi-table view not allowed
     !table_list->derived ?               // derived tables not allowed
     table_list->updatable_base_table() : NULL;
 

@@ -1818,9 +1818,9 @@ innobase_start_or_create_for_mysql(void)
 			} else if (size != srv_log_file_size) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Log file %s is"
-					" of different size "UINT64PF" bytes"
+					" of different size " UINT64PF " bytes"
 					" than other log"
-					" files "UINT64PF" bytes!",
+					" files " UINT64PF " bytes!",
 					logfilename,
 					size << UNIV_PAGE_SIZE_SHIFT,
 					(os_offset_t) srv_log_file_size
