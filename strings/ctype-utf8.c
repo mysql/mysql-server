@@ -21,11 +21,13 @@
 #include "m_string.h"
 #include "m_ctype.h"
 #include <errno.h>
+#include "my_uctype.h"
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT
 #endif
 
+#define IS_CONTINUATION_BYTE(c) (((c) ^ 0x80) < 0x40)
 
 #define MY_UTF8MB3_GENERAL_CI MY_UTF8MB3 "_general_ci"
 #define MY_UTF8MB3_GENERAL_CS MY_UTF8MB3 "_general_cs"
@@ -40,25 +42,41 @@
 #define HAVE_CHARSET_utf8
 #endif
 
-#ifdef HAVE_CHARSET_utf8
-#define HAVE_UNIDATA
-#endif
 
-#ifdef HAVE_CHARSET_ucs2
-#define HAVE_UNIDATA
-#endif
+static inline
+int my_valid_mbcharlen_utf8mb3(const uchar *s, const uchar *e)
+{
+  uchar c;
 
-#ifdef HAVE_CHARSET_utf16
-#define HAVE_UNIDATA
-#endif
+  DBUG_ASSERT(s < e);
+  c= s[0];
+  if (c < 0x80)
+    return 1;
 
-#ifdef HAVE_CHARSET_utf32
-#define HAVE_UNIDATA
-#endif
+  if (c < 0xc2)
+    return MY_CS_ILSEQ;
 
-#ifdef HAVE_UNIDATA
+  if (c < 0xe0)
+  {
+    if (s+2 > e) /* We need 2 characters */
+      return MY_CS_TOOSMALL2;
 
-#include "my_uctype.h"
+    if (!(IS_CONTINUATION_BYTE(s[1])))
+      return MY_CS_ILSEQ;
+
+    return 2;
+  }
+
+  DBUG_ASSERT(c < 0xf0);
+  if (s+3 > e) /* We need 3 characters */
+    return MY_CS_TOOSMALL3;
+
+  if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
+          (c >= 0xe1 || s[1] >= 0xa0)))
+    return MY_CS_ILSEQ;
+
+  return 3;
+}
 
 static const MY_UNICASE_CHARACTER plane00[]={
   {0x0000,0x0000,0x0000},  {0x0001,0x0001,0x0001},
@@ -5205,7 +5223,6 @@ my_strnxfrmlen_unicode_full_bin(const CHARSET_INFO *cs, size_t len)
 {
   return ((len + 3) / cs->mbmaxlen) * 3;
 }
-#endif /* HAVE_UNIDATA */
 
 
 #ifdef HAVE_CHARSET_utf8
@@ -5307,7 +5324,7 @@ static int my_utf8_uni(const CHARSET_INFO *cs __attribute__((unused)),
     if (s+2 > e) /* We need 2 characters */
       return MY_CS_TOOSMALL2;
 
-    if (!((s[1] ^ 0x80) < 0x40))
+    if (!(IS_CONTINUATION_BYTE(s[1])))
       return MY_CS_ILSEQ;
 
     *pwc = ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
@@ -5318,7 +5335,7 @@ static int my_utf8_uni(const CHARSET_INFO *cs __attribute__((unused)),
     if (s+3 > e) /* We need 3 characters */
       return MY_CS_TOOSMALL3;
 
-    if (!((s[1] ^ 0x80) < 0x40 && (s[2] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
 
@@ -5328,66 +5345,6 @@ static int my_utf8_uni(const CHARSET_INFO *cs __attribute__((unused)),
 
     return 3;
   }
-#ifdef UNICODE_32BIT
-  else if (c < 0xf8 && sizeof(my_wc_t)*8 >= 32)
-  {
-    if (s+4 > e) /* We need 4 characters */
-      return MY_CS_TOOSMALL4;
-
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
-          (s[3] ^ 0x80) < 0x40 &&
-          (c >= 0xf1 || s[1] >= 0x90)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x07) << 18)    |
-           ((my_wc_t) (s[1] ^ 0x80) << 12) |
-           ((my_wc_t) (s[2] ^ 0x80) << 6)  |
-            (my_wc_t) (s[3] ^ 0x80);
-
-    return 4;
-  }
-   else if (c < 0xfc && sizeof(my_wc_t)*8 >= 32)
-  {
-    if (s+5 >e) /* We need 5 characters */
-      return MY_CS_TOOSMALL5;
-
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
-          (s[3] ^ 0x80) < 0x40 &&
-          (s[4] ^ 0x80) < 0x40 &&
-          (c >= 0xf9 || s[1] >= 0x88)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x03) << 24) |
-           ((my_wc_t) (s[1] ^ 0x80) << 18) |
-           ((my_wc_t) (s[2] ^ 0x80) << 12) |
-           ((my_wc_t) (s[3] ^ 0x80) << 6) |
-            (my_wc_t) (s[4] ^ 0x80);
-    return 5;
-  }
-  else if (c < 0xfe && sizeof(my_wc_t)*8 >= 32)
-  {
-    if ( s+6 >e ) /* We need 6 characters */
-      return MY_CS_TOOSMALL6;
-
-    if (!((s[1] ^ 0x80) < 0x40   &&
-          (s[2] ^ 0x80) < 0x40   &&
-          (s[3] ^ 0x80) < 0x40   &&
-          (s[4] ^ 0x80) < 0x40   &&
-          (s[5] ^ 0x80) < 0x40   &&
-          (c >= 0xfd || s[1] >= 0x84)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x01) << 30)
-      | ((my_wc_t) (s[1] ^ 0x80) << 24)
-      | ((my_wc_t) (s[2] ^ 0x80) << 18)
-      | ((my_wc_t) (s[3] ^ 0x80) << 12)
-      | ((my_wc_t) (s[4] ^ 0x80) << 6)
-      | (my_wc_t) (s[5] ^ 0x80);
-    return 6;
-  }
-#endif
   return MY_CS_ILSEQ;
 }
 
@@ -5420,11 +5377,11 @@ static int my_utf8_uni_no_range(const CHARSET_INFO *cs
     *pwc = ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
     return 2;
   }
-  
+
   if (c < 0xf0)
   {
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
 
@@ -5452,15 +5409,7 @@ static int my_uni_utf8 (const CHARSET_INFO *cs __attribute__((unused)),
     count = 2;
   else if (wc < 0x10000)
     count = 3;
-#ifdef UNICODE_32BIT
-  else if (wc < 0x200000)
-    count = 4;
-  else if (wc < 0x4000000)
-    count = 5;
-  else if (wc <= 0x7fffffff)
-    count = 6;
-#endif
-    else return MY_CS_ILUNI;
+  else return MY_CS_ILUNI;
 
   /*
     e is a character after the string r, not the last character of it.
@@ -5471,11 +5420,6 @@ static int my_uni_utf8 (const CHARSET_INFO *cs __attribute__((unused)),
 
   switch (count) {
     /* Fall through all cases!!! */
-#ifdef UNICODE_32BIT
-    case 6: r[5] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x4000000;
-    case 5: r[4] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x200000;
-    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
-#endif
     case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
     case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
     case 1: r[0] = (uchar) wc;
@@ -5938,11 +5882,91 @@ size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static uint my_ismbchar_utf8(const CHARSET_INFO *cs, const char *b,
+static
+int my_valid_mbcharlen_utf8(const CHARSET_INFO *cs __attribute__((unused)),
+                            const uchar *s, const uchar *e)
+{
+  uchar c;
+
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+
+  c= s[0];
+  if (c < 0xf0)
+    return my_valid_mbcharlen_utf8mb3(s, e);
+
+#ifdef UNICODE_32BIT
+  if (c < 0xf8 && sizeof(my_wc_t)*8 >= 32)
+  {
+    if (s+4 > e) /* We need 4 characters */
+      return MY_CS_TOOSMALL4;
+
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
+          (c >= 0xf1 || s[1] >= 0x90)))
+      return MY_CS_ILSEQ;
+
+    return 4;
+  }
+  if (c < 0xfc && sizeof(my_wc_t)*8 >= 32)
+  {
+    if (s+5 >e) /* We need 5 characters */
+      return MY_CS_TOOSMALL5;
+
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
+          IS_CONTINUATION_BYTE(s[4]) &&
+          (c >= 0xf9 || s[1] >= 0x88)))
+      return MY_CS_ILSEQ;
+
+    return 5;
+  }
+  if (c < 0xfe && sizeof(my_wc_t)*8 >= 32)
+  {
+    if ( s+6 >e ) /* We need 6 characters */
+      return MY_CS_TOOSMALL6;
+
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
+          IS_CONTINUATION_BYTE(s[4]) &&
+          IS_CONTINUATION_BYTE(s[5]) &&
+          (c >= 0xfd || s[1] >= 0x84)))
+      return MY_CS_ILSEQ;
+
+    return 6;
+  }
+#endif
+  return MY_CS_ILSEQ;
+}
+
+static size_t
+my_well_formed_len_utf8(const CHARSET_INFO *cs, const char *b, const char *e,
+                        size_t pos, int *error)
+{
+  const char *b_start= b;
+  *error= 0;
+  while (pos)
+  {
+    int mb_len;
+
+    if ((mb_len= my_valid_mbcharlen_utf8(cs, (uchar*) b, (uchar*) e)) <= 0)
+    {
+      *error= b < e ? 1 : 0;
+      break;
+    }
+    b+= mb_len;
+    pos--;
+  }
+  return (size_t) (b - b_start);
+}
+
+static uint my_ismbchar_utf8(const CHARSET_INFO *cs,const char *b,
                              const char *e)
 {
-  my_wc_t wc;
-  int  res= my_utf8_uni(cs,&wc, (const uchar*)b, (const uchar*)e);
+  int  res= my_valid_mbcharlen_utf8(cs, (const uchar*)b, (const uchar*)e);
   return (res>1) ? res : 0;
 }
 
@@ -5957,14 +5981,6 @@ static uint my_mbcharlen_utf8(const CHARSET_INFO *cs  __attribute__((unused)),
     return 2;
   else if (c < 0xf0)
     return 3;
-#ifdef UNICODE_32BIT
-  else if (c < 0xf8)
-    return 4;
-  else if (c < 0xfc)
-    return 5;
-  else if (c < 0xfe)
-    return 6;
-#endif
   return 0; /* Illegal mb head */;
 }
 
@@ -6007,7 +6023,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
     my_mbcharlen_utf8,
     my_numchars_mb,
     my_charpos_mb,
-    my_well_formed_len_mb,
+    my_well_formed_len_utf8,
     my_lengthsp_8bit,
     my_numcells_mb,
     my_utf8_uni,
@@ -7815,7 +7831,7 @@ my_mb_wc_utf8mb4(const CHARSET_INFO *cs __attribute__((unused)),
     if (s + 2 > e) /* We need 2 characters */
       return MY_CS_TOOSMALL2;
 
-    if (!((s[1] ^ 0x80) < 0x40))
+    if (!(IS_CONTINUATION_BYTE(s[1])))
       return MY_CS_ILSEQ;
 
     *pwc= ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
@@ -7826,7 +7842,7 @@ my_mb_wc_utf8mb4(const CHARSET_INFO *cs __attribute__((unused)),
     if (s + 3 > e) /* We need 3 characters */
       return MY_CS_TOOSMALL3;
 
-    if (!((s[1] ^ 0x80) < 0x40 && (s[2] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
 
@@ -7859,9 +7875,9 @@ my_mb_wc_utf8mb4(const CHARSET_INFO *cs __attribute__((unused)),
       [F4][80..8F][80..BF][80..BF]
     */
 
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
-          (s[3] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
           (c >= 0xf1 || s[1] >= 0x90) &&
           (c <= 0xf3 || s[1] <= 0x8F)))
       return MY_CS_ILSEQ;
@@ -7897,17 +7913,17 @@ my_mb_wc_utf8mb4_no_range(const CHARSET_INFO *cs __attribute__((unused)),
 
   if (c < 0xe0)
   {
-    if (!((s[1] ^ 0x80) < 0x40))
+    if (!IS_CONTINUATION_BYTE(s[1]))
       return MY_CS_ILSEQ;
 
     *pwc = ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
     return 2;
   }
-  
+
   if (c < 0xf0)
   {
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
     *pwc= ((my_wc_t) (c & 0x0f) << 12)   |
@@ -7918,9 +7934,9 @@ my_mb_wc_utf8mb4_no_range(const CHARSET_INFO *cs __attribute__((unused)),
   }
   else if (c < 0xf5)
   {
-    if (!((s[1] ^ 0x80) < 0x40 &&
-          (s[2] ^ 0x80) < 0x40 &&
-          (s[3] ^ 0x80) < 0x40 &&
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
           (c >= 0xf1 || s[1] >= 0x90) &&
           (c <= 0xf3 || s[1] <= 0x8F)))
       return MY_CS_ILSEQ;
@@ -8203,12 +8219,11 @@ my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
                      const uchar *t, size_t tlen,
                      my_bool t_is_prefix)
 {
-  my_wc_t s_wc,t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
@@ -8271,11 +8286,10 @@ my_strnncollsp_utf8mb4(const CHARSET_INFO *cs,
                        my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= FALSE;
@@ -8434,11 +8448,84 @@ my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+static int
+my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs __attribute__((unused)),
+                           const uchar *s, const uchar *e)
+{
+  uchar c;
+
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+
+  c= s[0];
+  if (c < 0xf0)
+    return my_valid_mbcharlen_utf8mb3(s, e);
+
+  if (c < 0xf5)
+  {
+    if (s + 4 > e) /* We need 4 characters */
+      return MY_CS_TOOSMALL4;
+
+    /*
+      UTF-8 quick four-byte mask:
+      11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+      Encoding allows to encode U+00010000..U+001FFFFF
+
+      The maximum character defined in the Unicode standard is U+0010FFFF.
+      Higher characters U+00110000..U+001FFFFF are not used.
+
+      11110000.10010000.10xxxxxx.10xxxxxx == F0.90.80.80 == U+00010000 (min)
+      11110100.10001111.10111111.10111111 == F4.8F.BF.BF == U+0010FFFF (max)
+
+      Valid codes:
+      [F0][90..BF][80..BF][80..BF]
+      [F1][80..BF][80..BF][80..BF]
+      [F2][80..BF][80..BF][80..BF]
+      [F3][80..BF][80..BF][80..BF]
+      [F4][80..8F][80..BF][80..BF]
+    */
+
+    if (!(IS_CONTINUATION_BYTE(s[1]) &&
+          IS_CONTINUATION_BYTE(s[2]) &&
+          IS_CONTINUATION_BYTE(s[3]) &&
+          (c >= 0xf1 || s[1] >= 0x90) &&
+          (c <= 0xf3 || s[1] <= 0x8F)))
+      return MY_CS_ILSEQ;
+
+    return 4;
+  }
+
+  return MY_CS_ILSEQ;
+}
+
+
+static
+size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs,
+                                  const char *b, const char *e,
+                                  size_t pos, int *error)
+{
+  const char *b_start= b;
+  *error= 0;
+  while (pos)
+  {
+    int mb_len;
+
+    if ((mb_len= my_valid_mbcharlen_utf8mb4(cs, (uchar*) b, (uchar*) e)) <= 0)
+    {
+      *error= b < e ? 1 : 0;
+      break;
+    }
+    b+= mb_len;
+    pos--;
+  }
+  return (size_t) (b - b_start);
+}
+
+
 static uint
 my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
 {
-  my_wc_t wc;
-  int res= my_mb_wc_utf8mb4(cs,&wc, (const uchar*)b, (const uchar*)e);
+  int res= my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
   return (res > 1) ? res : 0;
 }
 
@@ -8499,7 +8586,7 @@ MY_CHARSET_HANDLER my_charset_utf8mb4_handler=
   my_mbcharlen_utf8mb4,
   my_numchars_mb,
   my_charpos_mb,
-  my_well_formed_len_mb,
+  my_well_formed_len_utf8mb4,
   my_lengthsp_8bit,
   my_numcells_mb,
   my_mb_wc_utf8mb4,

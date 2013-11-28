@@ -39,6 +39,7 @@
 #include "lock.h"
 #include "abstract_query_plan.h"
 #include "opt_explain_format.h"  // Explain_format_flags
+#include "sql_view.h"            // repoint_contexts_of_join_nests
 
 #include <algorithm>
 using std::max;
@@ -2744,12 +2745,12 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
           Note:
-          RAND_TABLE_BIT mask should not be counted as it
-          prevents update of inner table dependences.
-          For example it might happen if RAND() function
+          PSEUDO_TABLE_BITS mask should not be counted as it
+          prevents update of inner table dependencies.
+          For example it might happen if RAND()/COUNT(*) function
           is used in JOIN ON clause.
 	*/  
-        if (!((prev_table->join_cond()->used_tables() & ~RAND_TABLE_BIT) &
+        if (!((prev_table->join_cond()->used_tables() & ~PSEUDO_TABLE_BITS) &
               ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
@@ -7051,12 +7052,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   {
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
-    SELECT_LEX *old_sl= tl->select_lex;
-    tl->select_lex= parent_select; 
-    for (TABLE_LIST *emb= tl->embedding;
-         emb && emb->select_lex == old_sl;
-         emb= emb->embedding)
-      emb->select_lex= parent_select;
   }
   parent_join->tables+= subq_select->join->tables;
   parent_join->primary_tables+= subq_select->join->tables;
@@ -7150,6 +7145,10 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
        select != NULL;
        select= select->removed_select)
     select->context.select_lex= parent_select;
+
+  repoint_contexts_of_join_nests(subq_select->top_join_list,
+                                 subq_select, parent_select);
+
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
@@ -10117,7 +10116,11 @@ void JOIN::recount_field_types()
   {
     for (SELECT_LEX *s= u->first_select(); s != NULL; s= s->next_select())
     {
-      s->join->recount_field_types();
+       // ON DUPLICATE KEY UPDATE subqueries may be unprepared at this
+       // point.
+      DBUG_ASSERT(!(s->join == NULL && s->master_unit()->is_prepared()));
+      if (s->join != NULL)
+        s->join->recount_field_types();
     }
   }
 }

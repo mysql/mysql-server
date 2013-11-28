@@ -166,8 +166,6 @@ using std::vector;
 #include <sys/utsname.h>
 #endif /* _WIN32 */
 
-#include <my_libwrap.h>
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -1009,11 +1007,6 @@ static my_bool plugins_are_initialized= FALSE;
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
-#ifdef HAVE_LIBWRAP
-const char *libwrapName= NULL;
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-#endif /* HAVE_LIBWRAP */
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
@@ -3465,9 +3458,8 @@ static int generate_server_uuid()
   func_uuid= new (thd->mem_root) Item_func_uuid();
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
+
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
 
   strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
   server_uuid[UUID_LENGTH]= '\0';
@@ -4388,11 +4380,6 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifdef HAVE_LIBWRAP
-  libwrapName= my_progname+dirname_length(my_progname);
-  openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif /* HAVE_LIBWRAP */
-
 #ifndef DBUG_OFF
   test_lc_time_sz();
   srand(time(NULL));
@@ -4681,9 +4668,6 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 */
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
-
-  /* In case some Connection_handler created THDs in this thread */
-  my_pthread_set_THR_THD(0);
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -6576,9 +6560,6 @@ static int mysql_init_variables(void)
   have_compress= SHOW_OPTION_YES;
 #else
   have_compress= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_LIBWRAP
-  libwrapName= NullS;
 #endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;

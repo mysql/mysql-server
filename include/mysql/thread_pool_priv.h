@@ -165,10 +165,10 @@ void close_connection(THD *thd, uint errcode);
 void end_connection(THD *thd);
 /* Release resources of the THD object */
 void thd_release_resources(THD *thd);
-/* Reset the context associated with the thread */
-void restore_globals(THD *thd);
 /* Destroy THD object */
 void destroy_thd(THD *thd);
+/* Set pthread key THR_THD */
+void set_pthread_THR_THD(THD *thd);
 
 /*
   max_connections is needed to calculate the maximum number of threads

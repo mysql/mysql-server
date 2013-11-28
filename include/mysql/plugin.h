@@ -564,6 +564,17 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
 void thd_inc_row_count(MYSQL_THD thd);
 int thd_allow_batch(MYSQL_THD thd);
 
+
+/**
+  Mark transaction to rollback and mark error as fatal to a
+  sub-statement if in sub statement mode.
+
+  @param thd  user thread connection handle
+  @param all  if all != 0, rollback the main transaction
+*/
+
+void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
+
 /**
   Create a temporary file.
 

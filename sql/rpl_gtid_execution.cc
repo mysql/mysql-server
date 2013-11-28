@@ -23,7 +23,8 @@
 #include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
-
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 
 /**
   Acquire group ownership for a single group.  This is used to start a
@@ -96,7 +97,16 @@ int gtid_acquire_ownership_single(THD *thd)
     }
   }
   gtid_state->unlock_sidno(gtid_next.sidno);
+
   global_sid_lock->unlock();
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /* Set the transaction GTID in the Performance Schema */
+  if (thd->m_transaction_psi != NULL && !ret && thd->owned_gtid.sidno >= 1)
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
+                               &thd->variables.gtid_next);
+#endif
+
   DBUG_RETURN(ret);
 }
 
@@ -211,6 +221,11 @@ int gtid_acquire_ownership_multiple(THD *thd)
       gtid_state->unlock_sidno(sidno);
 
   global_sid_lock->unlock();
+
+  /*
+    TODO: If this code is enabled, set the GTID in the Performance Schema,
+    similar to gtid_acquire_ownership_single().
+  */
 
   DBUG_RETURN(ret);
 }

@@ -1365,7 +1365,7 @@ bool union_result_ctx::format_body(Opt_trace_context *json,
   @param list   list of context (*_ctx)  objects
   @param hide   if true, ban the output of K_SELECT_ID JSON property
                 in the underlying table_with_where_and_derived_ctx
-                objects
+                and materialize_ctx objects
 
   @return       id of underlying objects
 */
@@ -1439,7 +1439,16 @@ public:
     table_base_ctx(CTX_MATERIALIZATION, K_TABLE, parent_arg)
   {}
 
-  virtual size_t id(bool hide) { return join_ctx::id(hide); }
+  virtual size_t id(bool hide)
+  {
+    if (hide)
+    {
+     is_hidden_id= true;
+     /* Set the materizlize table's id to hide */
+     join_ctx::id(hide);
+    }
+    return table_base_ctx::id(hide);
+  }
   virtual bool cacheable() { return join_ctx::cacheable(); }
   virtual bool dependent() { return join_ctx::dependent(); }
 

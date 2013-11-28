@@ -3724,7 +3724,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= mutex->m_class->m_event_name_index;
-  
+
     DBUG_ASSERT(index <= wait_class_max);
     DBUG_ASSERT(sanitize_thread(thread) != NULL);
     DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
@@ -4657,6 +4657,8 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
         return NULL;
       }
 
+      pfs_dirty_state dirty_state;
+      pfs_thread->m_stmt_lock.allocated_to_dirty(& dirty_state);
       PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
       pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       pfs->m_event_id= event_id;
@@ -4751,6 +4753,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       flags|= STATE_FLAG_EVENT;
 
       pfs_thread->m_events_statements_count++;
+      pfs_thread->m_stmt_lock.dirty_to_allocated(& dirty_state);
     }
   }
   else
@@ -5091,6 +5094,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
       DBUG_ASSERT(pfs != NULL);
 
+      pfs_dirty_state dirty_state;
+      thread->m_stmt_lock.allocated_to_dirty(& dirty_state);
+
       switch(da->status())
       {
         case Diagnostics_area::DA_EMPTY:
@@ -5140,6 +5146,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
       DBUG_ASSERT(thread->m_events_statements_count > 0);
       thread->m_events_statements_count--;
+      thread->m_stmt_lock.dirty_to_allocated(& dirty_state);
     }
   }
   else
@@ -5586,7 +5593,7 @@ void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker,
 {
   PSI_transaction_locker_state *state= reinterpret_cast<PSI_transaction_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  
+
   if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_transactions *pfs= reinterpret_cast<PFS_events_transactions*> (state->m_transaction);
