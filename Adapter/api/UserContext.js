@@ -816,6 +816,8 @@ exports.UserContext.prototype.createQuery = function() {
   userContext.domainObject = typeof(this.user_arguments[0]) !== 'string';
   // get DBTableHandler for constructor/tableName
   getTableHandler(userContext.user_arguments[0], userContext.session, createQueryOnTableHandler);
+
+  return userContext.promise;
 };
 
 /** maximum skip and limit parameters are some large number */
@@ -972,6 +974,8 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   default: 
     throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported');
   }
+  
+  return userContext.promise;
 };
 
 
@@ -1385,6 +1389,7 @@ exports.UserContext.prototype.executeBatch = function(operationContexts) {
     // now execute the operations
     executeBatchOnOperationDefined(0);
   }
+  return userContext.promise;
 };
 
 /** Commit an active transaction. 
