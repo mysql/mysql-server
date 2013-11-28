@@ -104,6 +104,7 @@ function ConsoleOperationResponder(operation) {
 
 ConsoleOperationResponder.prototype.setError = function(e) {
  this.error = e;
+ udebug.log(e.stack);
 };
 
 ConsoleOperationResponder.prototype.write = function(x) {
@@ -151,16 +152,13 @@ function mainLoopComplete() {
   process.exit(0);
 }
 
-
-/* Increment a stored counter
-   This uses session.load() to read in an object from the database,
-   increments the counter, then uses session.update() to save it back.
+/* onOpenSession(): bridge from openSession() to operation.run()
 */
-function increment(session, object, counterProperty) {
-  return session.load(object).then(function() {
-    object[counterProperty] += 1;
-    return session.update(object);    
-  });
+function onOpenSession(session, operation) {
+  udebug.log("onOpenSession");
+  assert(session);
+  operation.session = session;
+  operation.run(session);
 }
 
 
@@ -205,6 +203,7 @@ function extractTags(message) {
 
 function Operation() {
   this.run          = {};    // a run() method
+  this.session      = {};    // This will be set in onOpenSession
   this.responder    = {};    // OperationResponder for this operation
   this.result       = {};    // Result object to be returned to the user
   this.data         = {};    // HTTP POST data
@@ -231,12 +230,6 @@ function Operation() {
   };
 }
 
-function onOpenSession(session, operation) {
-  udebug.log("onOpenSession");
-  operation.session = session;
-  operation.run(session);
-}
-
 
 // Each Operation constructor takes (params, data), where "params" is an array
 // of URL or command-line parameters.  "data" is the HTTP POST data.
@@ -252,9 +245,10 @@ function onOpenSession(session, operation) {
 function AddUserOperation(params, data) {
   var author = new Author(params[0], data);
   Operation.call(this);    /* inherit */
-  
+
   this.run = function(session) {
     session.persist(author).
+      then(function() { return author; }).
       then(this.setResult).
       then(this.onComplete, this.onError)
   };
@@ -282,9 +276,10 @@ LookupUserOperation.signature = [ "get", "user", "<user_name>" ];
 function DeleteUserOperation(params, data) { 
   Operation.call(this);    /* inherit */
   var author_name = params[0];
-
+  
   this.run = function(session) {
     session.remove(Author, author_name).
+      then(function() {return {"deleted": author_name}}).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -304,48 +299,68 @@ function InsertTweetOperation(params, data) {
   Operation.call(this);    /* inherit */
 
   var session;
-  var author = params[0];
   var message = data;
-  var tweet = new Tweet(author, message);
+  var authorName = params[0];
+  var tweet = new Tweet(authorName, message);
 
-  function incrementTweetCount(self) {
-    var authorRecord = new Author(author);  // Increment author's tweet count 
-    return increment(self, authorRecord, "tweets");
-  }
-
-  function onTweetCreateTagEntries() {
-    var batch, tags, tag, tagEntry;
-
-    /* Store all #hashtag and @mention entries in a single batch */
-
-    tags = extractTags(message);
-    batch = session.createBatch();
-
-    tag = tags.hash.pop();   // # hashtags
-    while(tag !== undefined) {
-      tagEntry = new HashtagEntry(tag, tweet);
-      batch.persist(tagEntry);   // callback?????
-      tag = tags.hash.pop(); 
-    }
-    
-    tag = tags.at.pop();   // @ mentions
-    while(tag !== undefined) {
-      tagEntry = new Mention(tag, tweet);
-      batch.persist(tagEntry);   // !!?? callback !!??
-      tag = tags.at.pop();
-    }
-
-    return batch.execute();
-  }
-
+  var self = this;   /// PART OF HACK AROUND EXECUTEBATCH();
   this.run = function(session) {   /* Start here */
+
+    function onTweetCreateTagEntries() {
+      var batch, tags, tag, tagEntry;
+
+      /* Store all #hashtag and @mention entries in a single batch */
+
+      tags = extractTags(message);
+      batch = session.createBatch();
+
+      tag = tags.hash.pop();   // # hashtags
+      while(tag !== undefined) {
+        tagEntry = new HashtagEntry(tag, tweet);
+        batch.persist(tagEntry);   // callback?????
+        tag = tags.hash.pop(); 
+      }
+      
+      tag = tags.at.pop();   // @ mentions
+      while(tag !== undefined) {
+        tagEntry = new Mention(tag, tweet);
+        batch.persist(tagEntry);   // !!?? callback !!??
+        tag = tags.at.pop();
+      }
+
+//    return batch.execute();    
+// BEGIN HACK
+      batch.execute(function(err) { 
+        if(err) { console.log(err); session.currentTransaction().rollback();
+                  self.onError(err);
+        } else  { session.currentTransaction().commit();
+                  self.onComplete();
+        }
+      });
+// END HACK
+    }
+  
+    function commitOnSuccess() {
+      session.currentTransaction().commit();
+      return 1;
+    }
+
+    function rollbackOnError(err) {
+      session.currentTransaction().rollback();
+      return err;       
+    }
+
     session.currentTransaction().begin();
     session.persist(tweet).
-      then(onTweetCreateTagEntries).
-      then(incrementTweetCount).
-      then(session.currentTransaction().commit,
-           session.currentTransaction().rollback).
-      then(this.onComplete, this.onError);
+      then(function() { return tweet;}).
+      then(this.setResult).
+// FIXME: Waiting on promise resolution procedure
+      then(function() { return session.find(Author, authorName)}).
+      then(function(a) { console.log(a); process.exit(); a.tweets++ ; return session.save(a) }).
+      then(onTweetCreateTagEntries, this.onError);
+//      then(onTweetCreateTagEntries).
+//      then(commitOnSuccess, rollbackOnError).
+//      then(this.onComplete, this.onError);
   };
 }
 InsertTweetOperation.signature = [ "post", "tweet", "<author>", " << Message >>" ];
@@ -358,10 +373,10 @@ function DeleteTweetOperation(params, data) {
   Operation.call(this);    /* inherit */
   var tweet_id = params[0];
 
-//FIXME set operation result
-
   this.run = function(session) {
     session.remove(Tweet, tweet_id).
+      then(function() { return { "deleted" : tweet_id }}).
+      then(this.setResult).
       then(this.onComplete, this.onError);
   };
 }
