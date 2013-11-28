@@ -44,7 +44,7 @@ public:
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
-    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MINIMUM_SIZE)
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE)
   {}
 
   ~Binlog_sender() {}
@@ -108,6 +108,26 @@ private:
   uint32 m_new_shrink_size;
 
   /*
+     Max size of the buffer is 4GB (UINT_MAX32). It is UINT_MAX32 since the
+     threshold is set to (@c Log_event::read_log_event):
+
+       max(max_allowed_packet,
+           opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)
+
+     - opt_binlog_rows_event_max_size is defined as an unsigned long,
+       thence in theory row events can be bigger than UINT_MAX32.
+
+     - max_allowed_packet is set to MAX_MAX_ALLOWED_PACKET which is in
+       turn defined as 1GB (i.e., 1024*1024*1024). (@c Binlog_sender::init()).
+
+     Therefore, anything bigger than UINT_MAX32 is not loadable into the
+     packet, thus we set the limit to 4GB (which is the value for UINT_MAX32,
+     @c PACKET_MAXIMUM_SIZE).
+
+   */
+  const static uint32 PACKET_MAX_SIZE;
+
+  /*
    * After these consecutive times using less than half of the buffer
    * the buffer is shrunk.
    */
@@ -116,7 +136,7 @@ private:
   /**
    * The minimum size of the buffer.
    */
-  const static uint PACKET_MINIMUM_SIZE;
+  const static uint PACKET_MIN_SIZE;
 
   /**
    * How much to grow the buffer each time we need to accommodate more bytes
@@ -390,7 +410,7 @@ private:
    * was called, then the buffer gets shrunk by a constant factor
    * (@c PACKET_SHRINK_FACTOR).
    *
-   * The buffer is never shrunk less than a minimum size (@c PACKET_MINIMUM_SIZE).
+   * The buffer is never shrunk less than a minimum size (@c PACKET_MIN_SIZE).
    *
    * @param packet  The buffer to shrink.
    */
