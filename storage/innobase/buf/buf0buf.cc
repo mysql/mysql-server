@@ -303,8 +303,6 @@ lsn_t
 buf_pool_get_oldest_modification(void)
 /*==================================*/
 {
-	ulint		i;
-	buf_page_t*	bpage;
 	lsn_t		lsn = 0;
 	lsn_t		oldest_lsn = 0;
 
@@ -312,12 +310,14 @@ buf_pool_get_oldest_modification(void)
 	thread to add a dirty page to any flush list. */
 	log_flush_order_mutex_enter();
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
 
 		buf_flush_list_mutex_enter(buf_pool);
+
+		buf_page_t*	bpage;
 
 		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
@@ -2677,15 +2677,13 @@ buf_page_get_gen(
 	buf_block_t*	block;
 	ulint		fold;
 	unsigned	access_time;
-	ulint		fix_type;
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
 	BPageMutex*	block_mutex;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_SX_LATCH)
@@ -2963,7 +2961,7 @@ wait_until_unfixed:
 		verification is not necessary when decompressing the page. */
 		ut_a(buf_zip_decompress(block, FALSE));
 
-		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
+		if (!recv_no_ibuf_operations) {
 			if (access_time) {
 #ifdef UNIV_IBUF_COUNT_DEBUG
 				ut_a(ibuf_count_get(space, offset) == 0);
@@ -3102,6 +3100,8 @@ wait_until_unfixed:
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+	mtr_memo_type_t	fix_type;
+
 	switch (rw_latch) {
 	case RW_NO_LATCH:
 		if (must_read) {
@@ -3187,11 +3187,10 @@ buf_page_optimistic_get(
 	buf_pool_t*	buf_pool;
 	unsigned	access_time;
 	ibool		success;
-	ulint		fix_type;
 
 	ut_ad(block);
 	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	buf_page_mutex_enter(block);
@@ -3218,22 +3217,25 @@ buf_page_optimistic_get(
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
 
+	mtr_memo_type_t	fix_type;
+
 	switch (rw_latch) {
 	case RW_S_LATCH:
-		success = rw_lock_s_lock_nowait(&(block->lock),
-						file, line);
+		success = rw_lock_s_lock_nowait(&block->lock, file, line);
+
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 	case RW_X_LATCH:
-		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
-							    file, line);
+		success = rw_lock_x_lock_func_nowait_inline(
+			&block->lock, file, line);
+
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 		break;
 	default:
 		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
-	if (UNIV_UNLIKELY(!success)) {
+	if (!success) {
 		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
 		buf_page_mutex_exit(block);
@@ -3241,13 +3243,14 @@ buf_page_optimistic_get(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
+	if (modify_clock != block->modify_clock) {
+
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 		if (rw_latch == RW_S_LATCH) {
-			rw_lock_s_unlock(&(block->lock));
+			rw_lock_s_unlock(&block->lock);
 		} else {
-			rw_lock_x_unlock(&(block->lock));
+			rw_lock_x_unlock(&block->lock);
 		}
 
 		buf_page_mutex_enter(block);
@@ -3269,7 +3272,7 @@ buf_page_optimistic_get(
 	buf_page_mutex_enter(block);
 	ut_a(!block->page.file_page_was_freed);
 	buf_page_mutex_exit(block);
-#endif
+#endif /* defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG */
 
 	if (!access_time) {
 		/* In the case of a first access, try to apply linear
@@ -3309,10 +3312,8 @@ buf_page_get_known_nowait(
 {
 	buf_pool_t*	buf_pool;
 	ibool		success;
-	ulint		fix_type;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	buf_page_mutex_enter(block);
@@ -3346,15 +3347,17 @@ buf_page_get_known_nowait(
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
 
+	mtr_memo_type_t	fix_type;
+
 	switch (rw_latch) {
 	case RW_S_LATCH:
-		success = rw_lock_s_lock_nowait(&(block->lock),
-						file, line);
+		success = rw_lock_s_lock_nowait(&block->lock, file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 	case RW_X_LATCH:
-		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
-							    file, line);
+		success = rw_lock_x_lock_func_nowait_inline(
+			&block->lock, file, line);
+
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 		break;
 	default:
@@ -3418,12 +3421,11 @@ buf_page_try_get_func(
 {
 	buf_block_t*	block;
 	ibool		success;
-	ulint		fix_type;
 	buf_pool_t*	buf_pool = buf_pool_get(space_id, page_no);
 	rw_lock_t*	hash_lock;
 
 	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 
 	block = buf_block_hash_get_s_locked(buf_pool, space_id,
 					    page_no, &hash_lock);
@@ -3449,7 +3451,7 @@ buf_page_try_get_func(
 	buf_block_buf_fix_inc(block, file, line);
 	buf_page_mutex_exit(block);
 
-	fix_type = MTR_MEMO_PAGE_S_FIX;
+	mtr_memo_type_t	fix_type = MTR_MEMO_PAGE_S_FIX;
 	success = rw_lock_s_lock_nowait(&block->lock, file, line);
 
 	if (!success) {
@@ -3875,8 +3877,7 @@ buf_page_create(
 	buf_pool_t*	buf_pool	= buf_pool_get(space, offset);
 	rw_lock_t*	hash_lock;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad(space || !zip_size);
 
 	free_block = buf_LRU_get_free_block(buf_pool);
@@ -4323,6 +4324,7 @@ corrupt:
 		if (uncompressed
 		    && !recv_no_ibuf_operations
 		    && !srv_is_tablespace_truncated(bpage->space)) {
+
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),

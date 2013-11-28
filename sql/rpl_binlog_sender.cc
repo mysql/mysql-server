@@ -20,7 +20,6 @@
 #include "debug_sync.h"
 #include "my_pthread.h"
 #include "rpl_master.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -35,10 +34,9 @@ void Binlog_sender::init()
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
 
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->acquire_thd_lock();
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= &m_linfo;
-  thd_manager->release_thd_lock();
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
@@ -95,10 +93,10 @@ void Binlog_sender::cleanup()
   THD *thd= m_thd;
 
   (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, 0/*flags*/));
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->acquire_thd_lock();
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
-  thd_manager->release_thd_lock();
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet;
 

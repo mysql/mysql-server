@@ -123,6 +123,9 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_STATEMENT:
       instr_class= find_statement_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_TRANSACTION:
+      instr_class= find_transaction_class(m_pos.m_index_2);
+      break;
     case pos_setup_instruments::VIEW_SOCKET:
       instr_class= find_socket_class(m_pos.m_index_2);
       break;
@@ -182,6 +185,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_STATEMENT:
     instr_class= find_statement_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_TRANSACTION:
+    instr_class= find_transaction_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_socket_class(m_pos.m_index_2);
@@ -300,6 +306,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_STAGE:
     case pos_setup_instruments::VIEW_STATEMENT:
+    case pos_setup_instruments::VIEW_TRANSACTION:
       /* No flag to update. */
       break;
     case pos_setup_instruments::VIEW_SOCKET:

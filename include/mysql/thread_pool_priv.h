@@ -153,8 +153,6 @@ bool do_command(THD *thd);
   ensure that the proper MySQL Server logic attached to these events is
   executed.
 */
-/* Initialise a new connection handler thread */
-bool init_new_connection_handler_thread();
 /* Prepare connection as part of connection set-up */
 bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
@@ -167,10 +165,10 @@ void close_connection(THD *thd, uint errcode);
 void end_connection(THD *thd);
 /* Release resources of the THD object */
 void thd_release_resources(THD *thd);
-/* Reset the context associated with the thread */
-void restore_globals(THD *thd);
 /* Destroy THD object */
 void destroy_thd(THD *thd);
+/* Set pthread key THR_THD */
+void set_pthread_THR_THD(THD *thd);
 
 /*
   max_connections is needed to calculate the maximum number of threads

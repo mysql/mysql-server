@@ -969,11 +969,22 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
   fields= (char*)field_lens + num_fields;
   table_name= fields + field_block_len;
   db= table_name + table_name_len + 1;
-  fname= db + db_len + 1;
-  fname_len= strlen(fname);
-  // null termination is accomplished by the caller doing buf[event_len]= 0
+  DBUG_EXECUTE_IF ("simulate_invalid_address",
+                   db_len = data_len;);
+  fname = db + db_len + 1;
+  if ((db_len > data_len) || (fname > buf_end))
+    goto err;
+  fname_len = (unsigned int) strlen(fname);
+  if ((fname_len > data_len) || (fname + fname_len > buf_end))
+    goto err;
+  // null termination is accomplished by the caller doing buf[event_len]=0
 
   return 0;
+
+err:
+  // Invalid event.
+  table_name = 0;
+  return 1;
 }
 
 

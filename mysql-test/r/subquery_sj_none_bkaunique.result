@@ -3816,7 +3816,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1660.03"
+      "query_cost": "1660.04"
     },
     "nested_loop": [
       {
@@ -3852,7 +3852,7 @@ EXPLAIN
           "cost_info": {
             "read_cost": "70.02",
             "eval_cost": "1586.00",
-            "prefix_cost": "1660.03",
+            "prefix_cost": "1660.04",
             "data_read_per_join": "867K"
           },
           "used_columns": [

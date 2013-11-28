@@ -135,7 +135,7 @@ public:
   timeval get_created_timestamp() const
   {
     timeval timestamp_value;
-    timestamp_value.tv_sec= m_created_timestamp / 100;
+    timestamp_value.tv_sec= static_cast<long>(m_created_timestamp / 100);
     timestamp_value.tv_usec= (m_created_timestamp % 100) * 10000;
     return timestamp_value;
   }

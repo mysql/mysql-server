@@ -2749,7 +2749,7 @@ try_again:
 	}
 
 	fprintf(stderr,
-		"InnoDB: Error: tried to read "ULINTPF" bytes at offset "
+		"InnoDB: Error: tried to read " ULINTPF " bytes at offset "
 		UINT64PF"\n"
 		"InnoDB: Was only able to read %ld.\n",
 		n, offset, (lint) ret);
@@ -3115,7 +3115,7 @@ retry:
 
 		fprintf(stderr,
 			" InnoDB: Error: Write to file %s failed"
-			" at offset "UINT64PF".\n"
+			" at offset " UINT64PF ".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
 			"InnoDB: Operating system error number %lu.\n"

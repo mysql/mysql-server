@@ -21,22 +21,23 @@
 #include "mysqld_error.h"              // ER_*
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
+#include "mysqld.h"                    // max_connections
 #include "plugin_connection_handler.h" // Plugin_connection_handler
 #include "sql_callback.h"              // MYSQL_CALLBACK
 #include "sql_class.h"                 // THD
 
 
 // Initialize static members
-ulong Connection_handler_manager::aborted_connects= 0;
 uint Connection_handler_manager::connection_count= 0;
 ulong Connection_handler_manager::max_used_connections= 0;
-uint Connection_handler_manager::max_threads= 0;
 THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
+mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
 #ifndef EMBEDDED_LIBRARY
 Connection_handler_manager* Connection_handler_manager::m_instance= NULL;
 ulong Connection_handler_manager::thread_handling=
   SCHEDULER_ONE_THREAD_PER_CONNECTION;
+uint Connection_handler_manager::max_threads= 0;
 
 
 /**
@@ -69,27 +70,65 @@ static void scheduler_wait_sync_end()
 }
 
 
-bool Connection_handler_manager::check_and_incr_conn_count()
+bool Connection_handler_manager::valid_connection_count()
 {
+  bool connection_accepted= true;
   mysql_mutex_lock(&LOCK_connection_count);
-  if (connection_count >= max_connections + 1 || abort_loop)
+  if (connection_count > max_connections)
   {
-    mysql_mutex_unlock(&LOCK_connection_count);
-    connection_errors_max_connection++;
-    return false;
+    connection_accepted= false;
+    m_connection_errors_max_connection++;
   }
-  ++connection_count;
-
-  if (connection_count > max_used_connections)
-    max_used_connections= connection_count;
   mysql_mutex_unlock(&LOCK_connection_count);
-  return true;
+  return connection_accepted;
 }
 
 
+bool Connection_handler_manager::check_and_incr_conn_count()
+{
+  bool connection_accepted= true;
+  mysql_mutex_lock(&LOCK_connection_count);
+  /*
+    Here we allow max_connections + 1 clients to connect
+    (by checking before we increment by 1).
+
+    The last connection is reserved for SUPER users. This is
+    checked later during authentication where valid_connection_count()
+    is called for non-SUPER users only.
+  */
+  if (connection_count > max_connections)
+  {
+    connection_accepted= false;
+    m_connection_errors_max_connection++;
+  }
+  else
+  {
+    ++connection_count;
+    if (connection_count > max_used_connections)
+      max_used_connections= connection_count;
+  }
+  mysql_mutex_unlock(&LOCK_connection_count);
+  return connection_accepted;
+}
+
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_connection_count;
+
+static PSI_mutex_info all_conn_manager_mutexes[]=
+{
+  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL}
+};
+#endif
+
 bool Connection_handler_manager::init()
 {
-  Per_thread_connection_handler::allocate_waiting_channel_info_list();
+  /*
+    This is a static member function.
+    Per_thread_connection_handler's static members need to be initialized
+    even if One_thread_connection_handler is used instead.
+  */
+  Per_thread_connection_handler::init();
 
   Connection_handler *connection_handler= NULL;
   switch (Connection_handler_manager::thread_handling)
@@ -105,15 +144,29 @@ bool Connection_handler_manager::init()
   }
 
   if (connection_handler == NULL)
+  {
+    // This is a static member function.
+    Per_thread_connection_handler::destroy();
     return true;
+  }
 
   m_instance= new (std::nothrow) Connection_handler_manager(connection_handler);
 
   if (m_instance == NULL)
   {
     delete connection_handler;
+    // This is a static member function.
+    Per_thread_connection_handler::destroy();
     return true;
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  int count= array_elements(all_conn_manager_mutexes);
+  mysql_mutex_register("sql", all_conn_manager_mutexes, count);
+#endif
+
+  mysql_mutex_init(key_LOCK_connection_count,
+                   &LOCK_connection_count, MY_MUTEX_INIT_FAST);
 
   max_threads= connection_handler->get_max_threads();
 
@@ -128,12 +181,13 @@ bool Connection_handler_manager::init()
 
 void Connection_handler_manager::destroy_instance()
 {
-  Per_thread_connection_handler::deallocate_waiting_channel_info_list();
+  Per_thread_connection_handler::destroy();
 
   if (m_instance != NULL)
   {
     delete m_instance;
     m_instance= NULL;
+    mysql_mutex_destroy(&LOCK_connection_count);
   }
 }
 
@@ -170,7 +224,7 @@ bool Connection_handler_manager::unload_connection_handler()
 void
 Connection_handler_manager::process_new_connection(Channel_info* channel_info)
 {
-  if (!check_and_incr_conn_count())
+  if (abort_loop || !check_and_incr_conn_count())
   {
     channel_info->send_error_and_close_channel(ER_CON_COUNT_ERROR, 0, true);
     delete channel_info;
@@ -179,7 +233,6 @@ Connection_handler_manager::process_new_connection(Channel_info* channel_info)
 
   if (m_connection_handler->add_connection(channel_info))
   {
-    dec_connection_count();
     inc_aborted_connects();
     delete channel_info;
   }
@@ -204,15 +257,7 @@ void destroy_channel_info(Channel_info* channel_info)
 
 void dec_connection_count()
 {
-  mysql_mutex_lock(&LOCK_connection_count);
-  Connection_handler_manager::connection_count--;
-  mysql_mutex_unlock(&LOCK_connection_count);
-}
-
-
-void inc_aborted_connects()
-{
-  Connection_handler_manager::aborted_connects++;
+  Connection_handler_manager::dec_connection_count();
 }
 #endif // !EMBEDDED_LIBRARY
 

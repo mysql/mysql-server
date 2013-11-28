@@ -543,6 +543,12 @@ innodb_conn_clean_data(
 			conn_data->row_buf_len = 0;
 		}
 
+		if (conn_data->cmd_buf) {
+			free(conn_data->cmd_buf);
+			conn_data->cmd_buf = NULL;
+			conn_data->cmd_buf_len = 0;
+		}
+
 		if (conn_data->mul_col_buf) {
 			free(conn_data->mul_col_buf);
 			conn_data->mul_col_buf = NULL;
@@ -686,36 +692,6 @@ innodb_destroy(
 	free(innodb_eng);
 }
 
-
-/*** allocate ***/
-
-/*******************************************************************//**
-Allocate gets a struct item from the slab allocator, and fills in
-everything but the value.  It seems like we can just pass this on to
-the default engine; we'll intercept it later in store(). */
-static
-ENGINE_ERROR_CODE
-innodb_allocate(
-/*============*/
-	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
-	const void*	cookie,		/*!< in: connection cookie */
-	item **		item,		/*!< out: item to allocate */
-	const void*	key,		/*!< in: key */
-	const size_t	nkey,		/*!< in: key length */
-	const size_t	nbytes,		/*!< in: estimated value length */
-	const int	flags,		/*!< in: flag */
-	const rel_time_t exptime)	/*!< in: expiration time */
-{
-	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	struct default_engine*	def_eng = default_handle(innodb_eng);
-
-	/* We use default engine's memory allocator to allocate memory
-	for item */
-	return(def_eng->engine.allocate(innodb_eng->default_engine,
-					cookie, item, key, nkey, nbytes,
-					flags, exptime));
-}
-
 /** Defines for connection initialization to indicate if we will
 do a read or write operation, or in the case of CONN_MODE_NONE, just get
 the connection's conn_data structure */
@@ -754,14 +730,20 @@ innodb_conn_init(
 	ib_crsr_t		idx_crsr;
 	bool			trx_updated = false;
 
-	LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
-
 	/* Get this connection's conn_data */
 	conn_data = engine->server.cookie->get_engine_specific(cookie);
 
 	assert(!conn_data || !conn_data->in_use);
 
 	if (!conn_data) {
+		LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+		conn_data = engine->server.cookie->get_engine_specific(cookie);
+
+		if (conn_data) {
+                        UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+			goto have_conn;
+		}
+
 		if (UT_LIST_GET_LEN(engine->conn_data) > 2048) {
 			/* Some of conn_data can be stale, recycle them */
 			innodb_conn_clean(engine, false, true);
@@ -770,6 +752,7 @@ innodb_conn_init(
 		conn_data = malloc(sizeof(*conn_data));
 
 		if (!conn_data) {
+			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 			return(NULL);
 		}
 
@@ -784,23 +767,25 @@ innodb_conn_init(
 					 : engine->meta_info;
 		conn_data->row_buf = malloc(1024);
 		conn_data->row_buf_len = 1024;
-		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
-	}
 
+		conn_data->cmd_buf = malloc(1024);
+		conn_data->cmd_buf_len = 1024;
+
+		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
+		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+	}
+have_conn:
 	meta_info = conn_data->conn_meta;
 	meta_index = &meta_info->index_info;
 
 	assert(engine->conn_data.count > 0);
 
 	if (conn_option == CONN_MODE_NONE) {
-		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 		return(conn_data);
 	}
 
 	LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 	conn_data->in_use = true;
-
-	UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 
 	crsr = conn_data->crsr;
 	read_crsr = conn_data->read_crsr;
@@ -1010,8 +995,24 @@ innodb_conn_init(
 					conn_data->crsr_trx);
 			}
 
-			innodb_cb_cursor_lock(
+			err = innodb_cb_cursor_lock(
 				engine, conn_data->read_crsr, lock_mode);
+
+			if (err != DB_SUCCESS) {
+				innodb_cb_cursor_close(
+					conn_data->read_crsr);
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
+				conn_data->crsr_trx = NULL;
+				conn_data->read_crsr = NULL;
+				conn_data->in_use = false;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
+					has_lock, conn_data);
+
+				return(NULL);
+                        }
 
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
@@ -1032,8 +1033,24 @@ innodb_conn_init(
 
 			ib_cb_cursor_stmt_begin(conn_data->read_crsr);
 
-			innodb_cb_cursor_lock(
+			err = innodb_cb_cursor_lock(
 				engine, conn_data->read_crsr, lock_mode);
+
+			if (err != DB_SUCCESS) {
+				innodb_cb_cursor_close(
+					conn_data->read_crsr);
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
+				conn_data->crsr_trx = NULL;
+				conn_data->read_crsr = NULL;
+				conn_data->in_use = false;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
+					has_lock, conn_data);
+
+				return(NULL);
+                        }
 
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
@@ -1063,6 +1080,66 @@ innodb_conn_init(
 	return(conn_data);
 }
 
+/*** allocate ***/
+
+/*******************************************************************//**
+Allocate gets a struct item from the slab allocator, and fills in
+everything but the value.  It seems like we can just pass this on to
+the default engine; we'll intercept it later in store(). */
+static
+ENGINE_ERROR_CODE
+innodb_allocate(
+/*============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item **		item,		/*!< out: item to allocate */
+	const void*	key,		/*!< in: key */
+	const size_t	nkey,		/*!< in: key length */
+	const size_t	nbytes,		/*!< in: estimated value length */
+	const int	flags,		/*!< in: flag */
+	const rel_time_t exptime)	/*!< in: expiration time */
+{
+	size_t			len;
+	struct innodb_engine*	innodb_eng = innodb_handle(handle);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
+	innodb_conn_data_t*	conn_data;
+	hash_item*		it = NULL;
+
+	len = sizeof(*it) + nkey + nbytes + sizeof(uint64_t);
+	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+
+	if (!conn_data) {
+		conn_data = innodb_conn_init(innodb_eng, cookie,
+					     CONN_MODE_WRITE,
+					     IB_LOCK_X, false, NULL);
+		if (!conn_data) {
+			return(ENGINE_TMPFAIL);
+		}
+	}
+
+	if (len > conn_data->cmd_buf_len) {
+		free(conn_data->cmd_buf);
+		conn_data->cmd_buf = malloc(len);
+		conn_data->cmd_buf_len = len;
+	}
+
+	it = (hash_item*) conn_data->cmd_buf;
+
+	it->next = it->prev = it->h_next = 0;
+	it->refcount = 1;
+	it->iflag = def_eng->config.use_cas ? ITEM_WITH_CAS : 0;
+	it->nkey = nkey;
+	it->nbytes = nbytes;
+	it->flags = flags;
+	/* item_get_key() is a memcached code, here we cast away const return */
+	memcpy((void*) item_get_key(it), key, nkey);
+	it->exptime = exptime;
+
+	*item = it;
+	conn_data->in_use = false;
+
+	return(ENGINE_SUCCESS);
+}
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */

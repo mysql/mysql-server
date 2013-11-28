@@ -1,0 +1,85 @@
+#
+# Added to get better coverage of merge_buffers()
+#
+CREATE TABLE t1 (
+  id int NOT NULL auto_increment PRIMARY KEY,
+  b int NOT NULL,
+  c datetime NOT NULL,
+  INDEX idx_b(b),
+  INDEX idx_c(c)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  b int NOT NULL auto_increment PRIMARY KEY,
+  c datetime NOT NULL
+) ENGINE= MyISAM;
+
+INSERT INTO t2(c) VALUES ('2007-01-01');
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-02';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-03';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
+set @@sort_buffer_size=8192;
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 10 #
+EXPLAIN
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+set @@sort_buffer_size=default;
+
+DROP TABLE t1,t2;
+
+#
+# Added to get coverage of the re-use of chunk buffers in filesort.
+#
+set optimizer_switch='semijoin=off';
+set optimizer_switch='materialization=off';
+
+CREATE TABLE t1 (topic BIGINT NOT NULL DEFAULT 0);
+
+disable_query_log;
+let $1= 1370;
+while ($1)
+{
+  eval INSERT INTO t1 (topic) VALUES($1);
+  dec $1;
+}
+enable_query_log;
+
+SET @@session.sort_buffer_size=32768;
+
+SELECT * from t1 WHERE topic IN
+(SELECT topic FROM t1 GROUP BY topic HAVING topic < 2000)
+LIMIT 2
+;
+
+SET @@session.sort_buffer_size=DEFAULT;
+
+drop table t1;
+
+set optimizer_switch=default;

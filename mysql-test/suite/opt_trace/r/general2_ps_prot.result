@@ -3043,7 +3043,7 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 8,
-                          "cost": 18.422,
+                          "cost": 18.423,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -3131,7 +3131,7 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 8,
-                          "cost": 18.422,
+                          "cost": 18.423,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -3184,7 +3184,7 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 8,
-                          "cost": 18.422,
+                          "cost": 18.423,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -3272,7 +3272,7 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 8,
-                          "cost": 18.422,
+                          "cost": 18.423,
                           "chosen": false
                         }
                       ] /* considered_access_paths */

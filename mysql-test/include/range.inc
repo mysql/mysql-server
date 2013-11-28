@@ -1796,3 +1796,257 @@ eval $query_ba;
 --echo
 DROP TABLE t1,t2;
 
+--echo #
+--echo # WL#7019: Add support for row value constructors in in predicates to
+--echo # range optimizer
+--echo #
+CREATE TABLE t1 (a INT, b INT, c INT, KEY x(a, b));
+
+INSERT INTO t1 VALUES (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6),
+  (7, 7, 7), (8, 8, 8), (9, 9, 9);
+
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1);
+
+ANALYZE TABLE t1;
+
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+
+ANALYZE TABLE t2;
+
+CREATE TABLE t3 (a INT, b INT, c INT, d INT, KEY x(a, b, c));
+
+INSERT INTO t3 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+
+INSERT INTO t3 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+
+ANALYZE TABLE t3;
+
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((NULL, NULL), (NULL, NULL));
+
+let $ERC_query=
+SELECT a, b FROM t1 WHERE (a = 0 AND b = 0) OR (a = 1 AND b = 1);
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+source include/explain_run_count.inc;
+
+let $ERC_query=SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+source include/explain_run_count.inc;
+
+let $ERC_query=SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE a = 0 AND b = 0 OR (a, b) IN ((1, 1));
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN ((1, 1)) OR a = 0 AND b = 0;
+source include/explain_run_count.inc;
+
+let $ERC_query=
+SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+source include/explain_run_count.inc;
+
+let $ERC_query=
+SELECT a, b FROM t3 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN (((SELECT 1), 1));
+source include/explain_run_count.inc;
+
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
+source include/explain_run_count.inc;
+
+SET @v = 0;
+let $ERC_query= SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
+source include/explain_run_count.inc;
+
+CREATE TABLE t4 ( a INT, b INT );
+
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+INSERT INTO t4 SELECT a + 5, b + 5 FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+
+--echo # Inner table in a nested-loops join
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1 USING(a, b)
+WHERE (t4.a, t4.b) IN ((1, 1), (0, 0));
+
+--echo # Join on IN
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1
+WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (0, 0));
+
+EXPLAIN
+SELECT t4.*, t1.a, t1.b
+FROM t4 JOIN t1
+WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (1, 1));
+
+
+--echo #
+--echo # Tests for non-deterministic functions.
+--echo #
+CREATE FUNCTION f1() RETURNS INT NOT DETERMINISTIC RETURN 1;
+
+--echo # The statement immediately below should not use range access.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (f1(), 1, 1));
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, f1(), 1));
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, f1()));
+
+--echo # The statement immediately below should not use range access.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
+
+DROP FUNCTION f1;
+
+--echo # The statement immediately below should not use range access.
+EXPLAIN
+SELECT a, b
+FROM t1 AS t1o
+WHERE EXISTS ( SELECT 1 FROM t1 WHERE (a, b) IN ((t1o.a, t1o.b)) );
+
+--echo #
+--echo # Tests of dynamic range access
+--echo #
+CREATE TABLE t5 (a int, b int, KEY (a));
+INSERT INTO t5 VALUES (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1);
+
+CREATE TABLE t6 (a int, b int, KEY (a));
+INSERT INTO t6 VALUES (3, 2), (4, 2), (100, 100), (101, 201), (102, 102);
+
+CREATE TABLE t7 (a int, b int, KEY (a, b));
+INSERT INTO t7 VALUES (1, 1), (2, 2), (1000, 1000), (1001, 1001), (1002, 1002),
+(1003, 1003), (1004, 1004);
+
+let $ERC_query=
+SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE t7.a IN (t5.b, t6.b);
+source include/explain_run_count.inc;
+
+let $ERC_query=
+SELECT *
+FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
+WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
+source include/explain_run_count.inc;
+
+--echo #
+--echo # Regression tests of the worklog below.
+--echo #
+
+--echo # Make sure we process IN predicates only.
+--echo # The code around this is very unclear.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) != (1, 1);
+
+--echo # This should give us a ref scan, as it always did.
+EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
+
+EXPLAIN SELECT a, b FROM t1 WHERE (a, c) IN ((0, 0));
+
+--echo # ref scan on x(a).
+EXPLAIN SELECT * FROM t1 WHERE (a, c) IN ((0, 0), (1, 1));
+
+DROP TABLE t1, t2, t3, t4, t5, t6, t7;
+
+--echo #
+--echo # Bug#17635476: CRASH IN GET_MM_PARTS() OR ASSERT IN
+--echo # GET_FUNC_MM_TREE_FROM_IN_PREDICATE()
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  KEY (a)
+) ENGINE = INNODB;
+
+SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+
+INSERT INTO t1 VALUES (0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),
+  (7, 7), (8, 8), (9, 9);
+ANALYZE TABLE t1;
+
+CREATE TABLE t2 (
+  a INT,
+  b INT,
+  KEY (a, b)
+);
+
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+
+let $ERC_query=
+SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+source include/explain_run_count.inc;
+
+let $ERC_query=
+SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+source include/explain_run_count.inc;
+
+--echo # Should not use range scan.
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (NULL, b) IN ((0, 0), (1, 1));
+
+--echo # Should not use range scan.
+EXPLAIN SELECT DISTINCT a FROM t2 WHERE (NULL, b) IN ((0, 0), (1, 1));
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+--echo #
+
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+
+INSERT INTO t2 SELECT * FROM t2;
+
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+
+ANALYZE TABLE t2;
+
+SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+DROP TABLE t2;

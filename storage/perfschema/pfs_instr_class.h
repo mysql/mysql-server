@@ -20,6 +20,7 @@
 #include "mysql_com.h"                          /* NAME_LEN */
 #include "lf.h"
 #include "pfs_global.h"
+#include "pfs_atomic.h"
 
 /**
   @file storage/perfschema/pfs_instr_class.h
@@ -68,6 +69,8 @@ typedef unsigned int PFS_file_key;
 typedef unsigned int PFS_stage_key;
 /** Key, naming a statement instrument. */
 typedef unsigned int PFS_statement_key;
+/** Key, naming a transaction instrument. */
+typedef unsigned int PFS_transaction_key;
 /** Key, naming a socket instrument. */
 typedef unsigned int PFS_socket_key;
 /** Key, naming a memory instrument. */
@@ -83,12 +86,13 @@ enum PFS_class_type
   PFS_CLASS_TABLE=       5,
   PFS_CLASS_STAGE=       6,
   PFS_CLASS_STATEMENT=   7,
-  PFS_CLASS_SOCKET=      8,
-  PFS_CLASS_TABLE_IO=    9,
-  PFS_CLASS_TABLE_LOCK= 10,
-  PFS_CLASS_IDLE=       11,
-  PFS_CLASS_MEMORY=     12,
-  PFS_CLASS_METADATA=   13,
+  PFS_CLASS_TRANSACTION= 8,
+  PFS_CLASS_SOCKET=      9,
+  PFS_CLASS_TABLE_IO=   10,
+  PFS_CLASS_TABLE_LOCK= 11,
+  PFS_CLASS_IDLE=       12,
+  PFS_CLASS_MEMORY=     13,
+  PFS_CLASS_METADATA=   14,
   PFS_CLASS_LAST=       PFS_CLASS_METADATA,
   PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
 };
@@ -139,6 +143,7 @@ struct PFS_instr_class
     - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME for waits
     - EVENTS_STAGES_SUMMARY_*_BY_EVENT_NAME for stages
     - EVENTS_STATEMENTS_SUMMARY_*_BY_EVENT_NAME for statements
+    - EVENTS_TRANSACTIONS_SUMMARY_*_BY_EVENT_NAME for transactions
   */
   uint m_event_name_index;
   /** Instrument name. */
@@ -332,6 +337,8 @@ extern PFS_table_io_stat global_table_io_stat;
 extern PFS_table_lock_stat global_table_lock_stat;
 /** Statistics for the METADATA instrument. */
 extern PFS_single_stat global_metadata_stat;
+/** Statistics for the transaction instrument. */
+extern PFS_transaction_stat global_transaction_stat;
 
 inline uint sanitize_index_count(uint count)
 {
@@ -344,8 +351,11 @@ inline uint sanitize_index_count(uint count)
 #define GLOBAL_TABLE_LOCK_EVENT_INDEX 1
 #define GLOBAL_IDLE_EVENT_INDEX 2
 #define GLOBAL_METADATA_EVENT_INDEX 3
-/** Number of global events. */
+/** Number of global wait events. */
 #define COUNT_GLOBAL_EVENT_INDEX 4
+
+/** Transaction events are not wait events .*/
+#define GLOBAL_TRANSACTION_INDEX 0
 
 /**
   Instrument controlling all table io.
@@ -393,6 +403,13 @@ struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 struct PFS_ALIGNED PFS_statement_class : public PFS_instr_class
 {
 };
+
+/** Instrumentation metadata for a transaction. */
+struct PFS_ALIGNED PFS_transaction_class : public PFS_instr_class
+{
+};
+
+extern PFS_transaction_class global_transaction_class;
 
 struct PFS_socket;
 
@@ -489,6 +506,8 @@ PFS_instr_class *find_idle_class(uint index);
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
 PFS_instr_class *find_metadata_class(uint index);
 PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe);
+PFS_transaction_class *find_transaction_class(uint index);
+PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
@@ -515,6 +534,7 @@ extern ulong stage_class_max;
 extern ulong stage_class_lost;
 extern ulong statement_class_max;
 extern ulong statement_class_lost;
+extern ulong transaction_class_max;
 extern ulong socket_class_max;
 extern ulong socket_class_lost;
 extern ulong memory_class_max;

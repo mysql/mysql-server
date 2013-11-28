@@ -419,10 +419,12 @@ recv_sys_empty_hash(void)
 }
 
 #ifndef UNIV_HOTBACKUP
-# ifndef UNIV_LOG_DEBUG
+
 /********************************************************//**
 Frees the recovery system. */
+# ifndef UNIV_LOG_DEBUG
 static
+# endif /* !UNIV_LOG_DEBUG */
 void
 recv_sys_debug_free(void)
 /*=====================*/
@@ -444,7 +446,6 @@ recv_sys_debug_free(void)
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
 }
-# endif /* UNIV_LOG_DEBUG */
 
 /********************************************************//**
 Copies a log segment from the most up-to-date log group to the other log
@@ -810,7 +811,7 @@ static
 byte*
 recv_parse_or_apply_log_rec_body(
 /*=============================*/
-	byte		type,	/*!< in: type */
+	mlog_id_t	type,	/*!< in: type */
 	byte*		ptr,	/*!< in: pointer to a buffer */
 	byte*		end_ptr,/*!< in: pointer to the buffer end */
 	buf_block_t*	block,	/*!< in/out: buffer block or NULL; if
@@ -1101,14 +1102,22 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(
-			ptr, end_ptr, type, space_id, page_no, 0, false);
+		/* Do not rerun file-based log entries if this is
+		IO completion from a page read. */
+		if (page == NULL) {
+			ptr = fil_op_log_parse_or_replay(
+				ptr, end_ptr, type, space_id, page_no, 0, false);
+		}
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(
-			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
+		/* Do not rerun file-based log entries if this is
+		IO completion from a page read. */
+		if (page == NULL) {
+			ptr = fil_op_log_parse_or_replay(
+				ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
+		}
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1218,13 +1227,13 @@ static
 void
 recv_add_to_hash_table(
 /*===================*/
-	byte	type,		/*!< in: log record type */
-	ulint	space,		/*!< in: space id */
-	ulint	page_no,	/*!< in: page number */
-	byte*	body,		/*!< in: log record body */
-	byte*	rec_end,	/*!< in: log record end */
-	lsn_t	start_lsn,	/*!< in: start lsn of the mtr */
-	lsn_t	end_lsn)	/*!< in: end lsn of the mtr */
+	mlog_id_t	type,		/*!< in: log record type */
+	ulint		space,		/*!< in: space id */
+	ulint		page_no,	/*!< in: page number */
+	byte*		body,		/*!< in: log record body */
+	byte*		rec_end,	/*!< in: log record end */
+	lsn_t		start_lsn,	/*!< in: start lsn of the mtr */
+	lsn_t		end_lsn)	/*!< in: end lsn of the mtr */
 {
 	recv_t*		recv;
 	ulint		len;
@@ -1496,11 +1505,10 @@ recv_recover_page_func(
 				    (unsigned) recv_addr->space,
 				    (unsigned) recv_addr->page_no));
 
-			recv_parse_or_apply_log_rec_body(recv->type, buf,
-							 buf + recv->len,
-							 block, &mtr,
-							 recv_addr->space,
-							 recv_addr->page_no);
+			recv_parse_or_apply_log_rec_body(
+				recv->type, buf, buf + recv->len,
+				block, &mtr, recv_addr->space,
+				recv_addr->page_no);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -1543,7 +1551,7 @@ recv_recover_page_func(
 	/* Make sure that committing mtr does not change the modification
 	lsn values of page */
 
-	mtr.modifications = FALSE;
+	mtr.discard_modifications();
 
 	mtr_commit(&mtr);
 
@@ -1920,12 +1928,12 @@ static
 ulint
 recv_parse_log_rec(
 /*===============*/
-	byte*	ptr,	/*!< in: pointer to a buffer */
-	byte*	end_ptr,/*!< in: pointer to the buffer end */
-	byte*	type,	/*!< out: type */
-	ulint*	space,	/*!< out: space id */
-	ulint*	page_no,/*!< out: page number */
-	byte**	body)	/*!< out: log record body start */
+	byte*		ptr,	/*!< in: pointer to a buffer */
+	byte*		end_ptr,/*!< in: pointer to the buffer end */
+	mlog_id_t*	type,	/*!< out: type */
+	ulint*		space,	/*!< out: space id */
+	ulint*		page_no,/*!< out: page number */
+	byte**		body)	/*!< out: log record body start */
 {
 	byte*	new_ptr;
 
@@ -1938,13 +1946,13 @@ recv_parse_log_rec(
 
 	if (*ptr == MLOG_MULTI_REC_END) {
 
-		*type = *ptr;
+		*type = static_cast<mlog_id_t>(*ptr);
 
 		return(1);
 	}
 
 	if (*ptr == MLOG_DUMMY_RECORD) {
-		*type = *ptr;
+		*type = static_cast<mlog_id_t>(*ptr);
 
 		*space = ULINT_UNDEFINED - 1; /* For debugging */
 
@@ -2022,13 +2030,12 @@ recv_check_incomplete_log_recs(
 	byte*	ptr,	/*!< in: pointer to a complete log record */
 	ulint	len)	/*!< in: length of the log record */
 {
-	ulint	i;
-	byte	type;
-	ulint	space;
-	ulint	page_no;
-	byte*	body;
+	for (ulint i = 0; i < len; i++) {
+		mlog_id_t	type;
+		byte*		body;
+		ulint		space;
+		ulint		page_no;
 
-	for (i = 0; i < len; i++) {
 		ut_a(0 == recv_parse_log_rec(ptr, ptr + i, &type, &space,
 					     &page_no, &body));
 	}
@@ -2109,18 +2116,18 @@ recv_parse_log_recs(
 				to the hash table; this is set to FALSE if just
 				debug checking is needed */
 {
-	byte*	ptr;
-	byte*	end_ptr;
-	ulint	single_rec;
-	ulint	len;
-	ulint	total_len;
-	lsn_t	new_recovered_lsn;
-	lsn_t	old_lsn;
-	byte	type;
-	ulint	space;
-	ulint	page_no;
-	byte*	body;
-	ulint	n_recs;
+	byte*		ptr;
+	byte*		end_ptr;
+	ulint		single_rec;
+	ulint		len;
+	ulint		total_len;
+	lsn_t		new_recovered_lsn;
+	lsn_t		old_lsn;
+	mlog_id_t	type;
+	ulint		space;
+	ulint		page_no;
+	byte*		body;
+	ulint		n_recs;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 	ut_ad(recv_sys->parse_start_lsn != 0);
@@ -2150,8 +2157,8 @@ loop:
 		if (len == 0 || recv_sys->found_corrupt_log) {
 			if (recv_sys->found_corrupt_log) {
 
-				recv_report_corrupt_log(ptr,
-							type, space, page_no);
+				recv_report_corrupt_log(
+					ptr, type, space, page_no);
 			}
 
 			return(FALSE);
@@ -2300,8 +2307,9 @@ loop:
 
 		for (;;) {
 			old_lsn = recv_sys->recovered_lsn;
-			len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
-						 &page_no, &body);
+			len = recv_parse_log_rec(
+				ptr, end_ptr, &type, &space, &page_no, &body);
+
 			if (recv_sys->found_corrupt_log) {
 
 				recv_report_corrupt_log(ptr,

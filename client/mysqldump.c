@@ -477,7 +477,8 @@ static struct my_option my_long_options[] =
     "are not enabled on the server, an error is generated. If OFF is "
     "used, this option does nothing. If AUTO is used and GTIDs are enabled "
     "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
-    "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
+    "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
+    "then the default (AUTO) value will be considered.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -921,9 +922,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SET_GTID_PURGED:
     {
-      opt_set_gtid_purged_mode= find_type_or_exit(argument,
-                                                  &set_gtid_purged_mode_typelib,
-                                                  opt->name)-1;
+      if (argument)
+        opt_set_gtid_purged_mode= find_type_or_exit(argument,
+                                                    &set_gtid_purged_mode_typelib,
+                                                    opt->name)-1;
       break;
     }
   case (int) OPT_MYSQLDUMP_IGNORE_ERROR:
@@ -1595,17 +1597,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql_connection,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql_connection);
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)

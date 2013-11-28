@@ -31,6 +31,8 @@ struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
+struct PSI_transaction_locker;
+typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;

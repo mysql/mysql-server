@@ -25,14 +25,17 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/sql
 )
 
+SET(CONF_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
+)
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
-
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${CONF_SOURCES}
+                            PROPERTIES GENERATED 1)
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
@@ -46,11 +49,11 @@ SET(SQL_SHARED_SOURCES
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/password.c
-  conn_handler/connection_handler_manager.cc
+  bootstrap.cc
+  conn_handler/connection_handler_manager.cc 
   datadict.cc
   debug_sync.cc
   derror.cc
-  des_key_file.cc
   discover.cc
   field.cc
   field_conv.cc
@@ -80,7 +83,6 @@ SET(SQL_SHARED_SOURCES
   lock.cc
   log.cc
   mdl.cc
-  mf_iocache.cc
   my_decimal.cc
   net_serv.cc
   opt_explain.cc
@@ -97,7 +99,6 @@ SET(SQL_SHARED_SOURCES
   records.cc
   rpl_handler.cc
   set_var.cc
-  signal_handler.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -181,15 +182,11 @@ SET(SQL_SHARED_SOURCES
   xa.cc
 )
 
-IF(WIN32)
-  LIST(APPEND SQL_SHARED_SOURCES named_pipe.cc)
-ENDIF()
-
 SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
-  ${MYSYS_LIBWRAP_SOURCE}
+  ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
   ../sql-common/client.c
@@ -202,19 +199,23 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc
   event_parse_data.cc
   event_queue.cc
   event_scheduler.cc
   events.cc
+  mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
+  signal_handler.cc
   sql_client.cc
   )
 
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
+              named_pipe.cc
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
       )

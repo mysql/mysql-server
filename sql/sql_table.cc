@@ -1706,8 +1706,6 @@ void execute_ddl_log_recovery()
   global_ddl_log.recovery_phase= FALSE;
   mysql_mutex_unlock(&LOCK_gdl);
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 
@@ -3870,7 +3868,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  with length (unlike blobs, where ft code takes data length from a
 	  data prefix, ignoring column->length).
 	*/
-	column->length=test(f_is_blob(sql_field->pack_flag));
+	column->length= MY_TEST(f_is_blob(sql_field->pack_flag));
       }
       else
       {
@@ -6779,6 +6777,123 @@ blob_length_by_type(enum_field_types type)
 
 
 /**
+  Convert the old temporal data types to the new temporal
+  type format for ADD/CHANGE COLUMN, ADD INDEXES and ALTER
+  FORCE ALTER operation.
+
+  @param thd                Thread context.
+  @param alter_info         Alter info parameters.
+
+  @retval true              Error.
+  @retval false             Either the old temporal data types
+                            are not present or they are present
+                            and have been successfully upgraded.
+*/
+
+static bool
+upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
+{
+  bool old_temporal_type_present= false;
+
+  DBUG_ENTER("upgrade_old_temporal_types");
+
+  if (!((alter_info->flags & Alter_info::ALTER_ADD_COLUMN) ||
+      (alter_info->flags & Alter_info::ALTER_ADD_INDEX) ||
+      (alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN) ||
+      (alter_info->flags & Alter_info::ALTER_RECREATE)))
+    DBUG_RETURN(false);
+
+  /*
+    Upgrade the old temporal types if any, for ADD/CHANGE COLUMN/
+    ADD INDEXES and FORCE ALTER operation.
+  */
+  Create_field *def;
+  List_iterator<Create_field> create_it(alter_info->create_list);
+
+  while ((def= create_it++))
+  {
+    // Check if any old temporal type is present.
+    if ((def->sql_type == MYSQL_TYPE_TIME) ||
+        (def->sql_type == MYSQL_TYPE_DATETIME) ||
+        (def->sql_type == MYSQL_TYPE_TIMESTAMP))
+    {
+       old_temporal_type_present= true;
+       break;
+    }
+  }
+
+  // Upgrade is not required since there are no old temporal types.
+  if (!old_temporal_type_present)
+    DBUG_RETURN(false);
+
+  // Upgrade old temporal types to the new temporal types.
+  create_it.rewind();
+  while ((def= create_it++))
+  {
+    enum  enum_field_types sql_type;
+    Item *default_value= def->def, *update_value= NULL;
+
+    /*
+       Set CURRENT_TIMESTAMP as default/update value based on
+       the unireg_check value.
+    */
+
+    if ((def->sql_type == MYSQL_TYPE_DATETIME ||
+         def->sql_type == MYSQL_TYPE_TIMESTAMP)
+        && (def->unireg_check != Field::NONE))
+    {
+      Item_func_now_local *now = new (thd->mem_root) Item_func_now_local(0);
+      if (!now)
+        DBUG_RETURN(true);
+
+      if (def->unireg_check == Field::TIMESTAMP_DN_FIELD)
+        default_value= now;
+      else if (def->unireg_check == Field::TIMESTAMP_UN_FIELD)
+        update_value= now;
+      else if (def->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
+      {
+        update_value= now;
+        default_value= now;
+      }
+    }
+
+    switch (def->sql_type)
+    {
+    case MYSQL_TYPE_TIME:
+        sql_type= MYSQL_TYPE_TIME2;
+        break;
+    case MYSQL_TYPE_DATETIME:
+        sql_type= MYSQL_TYPE_DATETIME2;
+        break;
+    case MYSQL_TYPE_TIMESTAMP:
+        sql_type= MYSQL_TYPE_TIMESTAMP2;
+        break;
+    default:
+      continue;
+    }
+
+    // Replace the old temporal field with the new temporal field.
+    Create_field *temporal_field= NULL;
+    if (!(temporal_field= new (thd->mem_root) Create_field()) ||
+        temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
+                             (def->flags & NOT_NULL_FLAG), default_value,
+                             update_value, &def->comment, def->change, NULL,
+                             NULL, 0))
+      DBUG_RETURN(true);
+
+    temporal_field->field= def->field;
+    create_it.replace(temporal_field);
+  }
+
+  // Report a NOTE informing about the upgrade.
+  push_warning_printf(thd, Sql_condition::SL_NOTE,
+                      ER_OLD_TEMPORALS_UPGRADED,
+                      ER(ER_OLD_TEMPORALS_UPGRADED));
+  DBUG_RETURN(false);
+}
+
+
+/**
   Prepare column and key definitions for CREATE TABLE in ALTER TABLE.
 
   This function transforms parse output of ALTER TABLE - lists of
@@ -7239,7 +7354,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
-                   test(key_info->flags & HA_GENERATED_KEY),
+                   MY_TEST(key_info->flags & HA_GENERATED_KEY),
                    key_parts);
       new_key_list.push_back(key);
     }
@@ -8128,6 +8243,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
   }
+
+  if (upgrade_old_temporal_types(thd, alter_info))
+    DBUG_RETURN(true);
 
   /*
     If the old table had partitions and we are doing ALTER TABLE ...
@@ -9281,7 +9399,7 @@ static bool check_engine(THD *thd, const char *db_name,
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
-        test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+        MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);

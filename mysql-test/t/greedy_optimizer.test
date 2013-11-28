@@ -1,10 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This is a Myisam engine specific testcase
+# Hence MTR starts mysqld with MyISAM as default
 --source include/force_myisam_default.inc
-
-#Want to skip this test from daily Valgrind execution
+--source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
+
 #
 # A simple test of the greedy query optimization algorithm and the switches that
 # control the optimizationprocess.

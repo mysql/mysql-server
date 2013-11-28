@@ -128,37 +128,30 @@ static	file_format_t	file_format_max;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
-Checks whether a trx is in one of rw_trx_list or ro_trx_list.
-@return TRUE if is in */
+Checks whether a trx is in one of rw_trx_list
+@return true if is in */
 
-ibool
-trx_in_trx_list(
+bool
+trx_in_rw_trx_list(
 /*============*/
 	const trx_t*	in_trx)	/*!< in: transaction */
 {
 	const trx_t*	trx;
-	trx_list_t*	trx_list;
 
 	/* Non-locking autocommits should not hold any locks. */
-	assert_trx_in_list(in_trx);
-
-	trx_list = (in_trx->read_only || in_trx->rsegs.m_redo.rseg == 0)
-		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
+	check_trx_state(in_trx);
 
 	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_assert_started(in_trx));
 
-	for (trx = UT_LIST_GET_FIRST(*trx_list);
-	     trx != 0 && trx != in_trx;
+	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
+	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 
-		ut_ad(!(trx->rsegs.m_redo.rseg == 0 || trx->read_only)
-		      == (trx_list == &trx_sys->rw_trx_list)
-		      || (trx->rsegs.m_redo.rseg != 0 && trx->read_only)
-		      == (trx_list == &trx_sys->ro_trx_list));
+		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
 	}
 
 	return(trx != 0);
@@ -555,8 +548,6 @@ trx_sys_init_at_db_start(void)
 
 	trx_sys_mutex_enter();
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
-
 	if (UT_LIST_GET_LEN(trx_sys->rw_trx_list) > 0) {
 		const trx_t*	trx;
 
@@ -609,7 +600,6 @@ trx_sys_create(void)
 	mutex_create("trx_sys", &trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
-	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
@@ -1246,8 +1236,6 @@ trx_sys_close(void)
 
 	trx_sys_mutex_enter();
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
-
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 
@@ -1288,7 +1276,6 @@ trx_sys_close(void)
 
 	delete trx_sys->mvcc;
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
@@ -1351,7 +1338,7 @@ trx_sys_validate_trx_list_low(
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 

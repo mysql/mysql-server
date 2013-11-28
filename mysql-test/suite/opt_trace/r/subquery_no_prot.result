@@ -2095,6 +2095,9 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
             } /* join_preparation */
           },
           {
+            "IN_uses_bisection": true
+          },
+          {
             "expanded_query": "/* select#1 */ select (/* select#2 */ select sum(`subquery1_t1`.`col_int_nokey`) AS `subquery1_field1` from `t1` `subquery1_t1`) AS `field1` from (`t1` `table1` straight_join `t1` `table2` on((`table2`.`col_varchar_key` = `table1`.`col_varchar_key`))) where (<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)))) and (`table1`.`pk` in (192,18))) order by `field1` desc"
           }
         ] /* steps */
@@ -2770,7 +2773,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -2971,7 +2974,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -3010,7 +3013,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1509.9,
+                          "cost": 1510.1,
                           "chosen": false
                         }
                       ] /* considered_access_paths */

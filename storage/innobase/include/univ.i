@@ -239,18 +239,18 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
                                                 info output */
+#define UNIV_LOG_DEBUG                          /* the above option prevents
+                                                forcing of log to disk
+                                                at a buffer page write:
+                                                it should be tested with
+                                                this option off; also some
+                                                ibuf tests are suppressed */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
-/*
-#define UNIV_SQL_DEBUG
-#define UNIV_LOG_DEBUG
-*/
-			/* the above option prevents forcing of log to disk
-			at a buffer page write: it should be tested with this
-			option off; also some ibuf tests are suppressed */
+// #define UNIV_SQL_DEBUG
 
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
@@ -430,16 +430,16 @@ macro ULINTPF. */
 # define UINT32PF	"%lu"
 # define INT64PF	"%lld"
 # define UINT64PF	"%llu"
-# define UINT64PFx	"%016llu" /* TODO: fix Bug#16559254 */
+# define UINT64PFx	"%016llx"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
-# define UINT32PF	"%"PRIu32
-# define INT64PF	"%"PRId64
-# define UINT64PF	"%"PRIu64
-# define UINT64PFx	"%016"PRIx64
+# define UINT32PF	"%" PRIu32
+# define INT64PF	"%" PRId64
+# define UINT64PF	"%" PRIu64
+# define UINT64PFx	"%016" PRIx64
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;

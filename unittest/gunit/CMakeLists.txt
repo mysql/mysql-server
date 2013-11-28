@@ -98,7 +98,7 @@ SET(GMOCK_DOWNLOAD_URL
 MACRO(HTTP_PROXY_HINT)
   MESSAGE(STATUS
     "If you are inside a firewall, you may need to use an http proxy: "
-    "export http_proxy=http://foo.bar.com:80")
+    "export http_proxy=http://example.com:80")
 ENDMACRO()
 
 
@@ -281,6 +281,7 @@ SET(SERVER_TESTS
   make_sortkey
   my_decimal
   opt_range
+  opt_ref
   opt_trace
   segfault
   sql_table
@@ -288,6 +289,7 @@ SET(SERVER_TESTS
   table_cache
   tc_log_mmap
   thd_manager
+  unique
 )
 
 ## Merging tests into fewer executables saves *a lot* of

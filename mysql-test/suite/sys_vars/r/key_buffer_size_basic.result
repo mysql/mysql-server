@@ -20,28 +20,22 @@ Warning	1292	Truncated incorrect key_buffer_size value: '65535'
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
 61440
-SET @@global.key_buffer_size = 4294967295;
-Warnings:
-Warning	1292	Truncated incorrect key_buffer_size value: '4294967295'
-SELECT @@global.key_buffer_size;
-@@global.key_buffer_size
-4294963200
 '#--------------------FN_DYNVARS_055_04-------------------------#'
 SET @@global.key_buffer_size = -1;
 ERROR HY000: Cannot drop default keycache
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
-4294963200
+61440
 SET @@global.key_buffer_size = 4;
 ERROR HY000: Cannot drop default keycache
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
-4294963200
+61440
 SET @@global.key_buffer_size = -1024;
 ERROR HY000: Cannot drop default keycache
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
-4294963200
+61440
 SET @@global.key_buffer_size = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
 SET @@global.key_buffer_size = ' ';
@@ -75,16 +69,7 @@ ERROR HY000: Cannot drop default keycache
 SELECT @@key_buffer_size = @@global.key_buffer_size;
 @@key_buffer_size = @@global.key_buffer_size
 1
-'#--------------------FN_DYNVARS_055_09-------------------------#'
-SET @@global.key_buffer_size = 4294967296;
-SELECT @@global.key_buffer_size IN (4294967296, 4294963200);
-@@global.key_buffer_size IN (4294967296, 4294963200)
-1
-SET @@global.key_buffer_size = 12345678901;
-SELECT @@global.key_buffer_size IN (12345675776, 4294963200);
-@@global.key_buffer_size IN (12345675776, 4294963200)
-1
-'#---------------------FN_DYNVARS_055_10----------------------#'
+'#---------------------FN_DYNVARS_055_9----------------------#'
 SET key_buffer_size = 8 ;
 ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.key_buffer_size = 10;

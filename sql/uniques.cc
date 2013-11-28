@@ -130,13 +130,14 @@ inline double log2_n_fact(double x)
       total_buf_elems * log2(n_buffers) * ROWID_COMPARE_COST;
 */
 
-static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
-                                     uint *first, uint *last)
+static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
+                                     uint elem_size,
+                                     uint first, uint last)
 {
   uint total_buf_elems= 0;
-  for (uint *pbuf= first; pbuf <= last; pbuf++)
-    total_buf_elems+= *pbuf;
-  *last= total_buf_elems;
+  for (uint pbuf= first; pbuf <= last; pbuf++)
+    total_buf_elems+= buff_elems[pbuf];
+  buff_elems[last]= total_buf_elems;
 
   size_t n_buffers= last - first + 1;
 
@@ -173,13 +174,14 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
     Cost of merge in disk seeks.
 */
 
-static double get_merge_many_buffs_cost(uint *buffer,
+static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
                                         uint maxbuffer, uint max_n_elems,
                                         uint last_n_elems, int elem_size)
 {
   int i;
   double total_cost= 0.0;
-  uint *buff_elems= buffer; /* #s of elements in each of merged sequences */
+  Unique::Imerge_cost_buf_type buff_elems=
+    buffer; /* #s of elements in each of merged sequences */
 
   /*
     Set initial state: first maxbuffer sequences contain max_n_elems elements
@@ -201,20 +203,20 @@ static double get_merge_many_buffs_cost(uint *buffer,
       for (i = 0; i <= (int) maxbuffer - MERGEBUFF*3/2; i += MERGEBUFF)
       {
         total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                           buff_elems + i,
-                                           buff_elems + i + MERGEBUFF-1);
+                                           i,
+                                           i + MERGEBUFF-1);
 	lastbuff++;
       }
       total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                         buff_elems + i,
-                                         buff_elems + maxbuffer);
+                                         i,
+                                         maxbuffer);
       maxbuffer= lastbuff;
     }
   }
 
   /* Simulate final merge_buff call. */
   total_cost += get_merge_buffers_cost(buff_elems, elem_size,
-                                       buff_elems, buff_elems + maxbuffer);
+                                       0, maxbuffer);
   return total_cost;
 }
 
@@ -266,7 +268,8 @@ static double get_merge_many_buffs_cost(uint *buffer,
       these will be random seeks.
 */
 
-double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
+double Unique::get_use_cost(Imerge_cost_buf_type buffer,
+                            uint nkeys, uint key_size,
                             ulonglong max_in_memory_size)
 {
   ulong max_elements_in_tree;
@@ -328,11 +331,10 @@ Unique::~Unique()
     /* Write tree to disk; clear tree */
 bool Unique::flush()
 {
-  BUFFPEK file_ptr;
-  memset(&file_ptr, 0, sizeof(file_ptr));
+  Merge_chunk file_ptr;
   elements+= tree.elements_in_tree;
-  file_ptr.count=tree.elements_in_tree;
-  file_ptr.file_pos=my_b_tell(&file);
+  file_ptr.set_rowcount(tree.elements_in_tree);
+  file_ptr.set_file_position(my_b_tell(&file));
 
   if (tree_walk(&tree, (tree_walk_action) unique_write_to_file,
 		(void*) this, left_root_right) ||
@@ -370,14 +372,15 @@ Unique::reset()
   The comparison function, passed to queue_init() in merge_walk() and in
   merge_buffers() when the latter is called from Uniques::get() must
   use comparison function of Uniques::tree, but compare members of struct
-  BUFFPEK.
+  Merge_chunk.
 */
 
 C_MODE_START
 
-static int buffpek_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
+static int merge_chunk_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
 {
-  BUFFPEK_COMPARE_CONTEXT *ctx= (BUFFPEK_COMPARE_CONTEXT *) arg;
+  Merge_chunk_compare_context *ctx=
+    static_cast<Merge_chunk_compare_context*>(arg);
   return ctx->key_compare(ctx->key_compare_arg,
                           *((uchar **) key_ptr1), *((uchar **)key_ptr2));
 }
@@ -401,10 +404,10 @@ C_MODE_END
                        key_length
     key_length         size of tree element; key_length * (end - begin)
                        must be less or equal than merge_buffer_size.
-    begin              pointer to BUFFPEK struct for the first tree.
-    end                pointer to BUFFPEK struct for the last tree;
+    begin              pointer to Merge_chunk struct for the first tree.
+    end                pointer to Merge_chunk struct for the last tree;
                        end > begin and [begin, end) form a consecutive
-                       range. BUFFPEKs structs in that range are used and
+                       range. Merge_chunks structs in that range are used and
                        overwritten in merge_walk().
     walk_action        element visitor. Action is called for each unique
                        key.
@@ -420,17 +423,17 @@ C_MODE_END
 */
 
 static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
-                       uint key_length, BUFFPEK *begin, BUFFPEK *end,
+                       uint key_length, Merge_chunk *begin, Merge_chunk *end,
                        tree_walk_action walk_action, void *walk_action_arg,
                        qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
 {
-  BUFFPEK_COMPARE_CONTEXT compare_context = { compare, compare_arg };
+  Merge_chunk_compare_context compare_context = { compare, compare_arg };
   QUEUE queue;
   if (end <= begin ||
       merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
-      init_queue(&queue, (uint) (end - begin), offsetof(BUFFPEK, key), 0,
-                 buffpek_compare, &compare_context))
+      init_queue(&queue, (uint) (end - begin), Merge_chunk::offset_to_key(), 0,
+                 merge_chunk_compare, &compare_context))
     return 1;
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size-= key_length;
@@ -440,8 +443,14 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   /* if piece_size is aligned reuse_freed_buffer will always hit */
   uint piece_size= max_key_count_per_piece * key_length;
   uint bytes_read;               /* to hold return value of read_to_buffer */
-  BUFFPEK *top;
+  Merge_chunk *top;
   int res= 1;
+
+  // read_to_buffer() needs only rec_length.
+  Sort_param sort_param;
+  sort_param.rec_length= key_length;
+  DBUG_ASSERT(!sort_param.using_addon_fields());
+
   /*
     Invariant: queue must contain top element from each tree, until a tree
     is not completely walked through.
@@ -450,15 +459,16 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   */
   for (top= begin; top != end; ++top)
   {
-    top->base= merge_buffer + (top - begin) * piece_size;
-    top->max_keys= max_key_count_per_piece;
-    bytes_read= read_to_buffer(file, top, key_length);
+    top->set_buffer_start(merge_buffer + (top - begin) * piece_size);
+    top->set_buffer_end(top->buffer_start() + piece_size);
+    top->set_max_keys(max_key_count_per_piece);
+    bytes_read= read_to_buffer(file, top, &sort_param);
     if (bytes_read == (uint) (-1))
       goto end;
     DBUG_ASSERT(bytes_read);
     queue_insert(&queue, (uchar *) top);
   }
-  top= (BUFFPEK *) queue_top(&queue);
+  top= static_cast<Merge_chunk *>(static_cast<void*>(queue_top(&queue)));
   while (queue.elements > 1)
   {
     /*
@@ -468,20 +478,21 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
       elements in each tree are unique. Action is applied only to unique
       elements.
     */
-    void *old_key= top->key;
+    void *old_key= top->current_key();
     /*
       read next key from the cache or from the file and push it to the
       queue; this gives new top.
     */
-    top->key+= key_length;
-    if (--top->mem_count)
+    top->advance_current_key(key_length);
+    top->decrement_mem_count();
+    if (top->mem_count())
       queue_replaced(&queue);
     else /* next piece should be read */
     {
       /* save old_key not to overwrite it in read_to_buffer */
       memcpy(save_key_buff, old_key, key_length);
       old_key= save_key_buff;
-      bytes_read= read_to_buffer(file, top, key_length);
+      bytes_read= read_to_buffer(file, top, &sort_param);
       if (bytes_read == (uint) (-1))
         goto end;
       else if (bytes_read > 0)      /* top->key, top->mem_count are reset */
@@ -493,12 +504,12 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
           give all its memory to the nearest tree.
         */
         queue_remove(&queue, 0);
-        reuse_freed_buff(&queue, top, key_length);
+        top->reuse_freed_buff(&queue);
       }
     }
-    top= (BUFFPEK *) queue_top(&queue);
+    top= static_cast<Merge_chunk *>(static_cast<void*>(queue_top(&queue)));
     /* new top has been obtained; if old top is unique, apply the action */
-    if (compare(compare_arg, old_key, top->key))
+    if (compare(compare_arg, old_key, top->current_key()))
     {
       if (walk_action(old_key, 1, walk_action_arg))
         goto end;
@@ -513,12 +524,12 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   {
     do
     {
-      if (walk_action(top->key, 1, walk_action_arg))
+      if (walk_action(top->current_key(), 1, walk_action_arg))
         goto end;
-      top->key+= key_length;
+      top->advance_current_key(key_length);
     }
-    while (--top->mem_count);
-    bytes_read= read_to_buffer(file, top, key_length);
+    while (top->decrement_mem_count());
+    bytes_read= read_to_buffer(file, top, &sort_param);
     if (bytes_read == (uint) (-1))
       goto end;
   }
@@ -596,8 +607,8 @@ bool Unique::get(TABLE *table)
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->sort.record_pointers == NULL);
-    if ((record_pointers=table->sort.record_pointers= (uchar*)
+    DBUG_ASSERT(table->sort.sorted_result == NULL);
+    if ((record_pointers= table->sort.sorted_result= (uchar*)
 	 my_malloc(key_memory_Filesort_info_record_pointers,
                    size * tree.elements_in_tree, MYF(0))))
     {
@@ -611,9 +622,9 @@ bool Unique::get(TABLE *table)
     return 1;
 
   IO_CACHE *outfile=table->sort.io_cache;
-  BUFFPEK *file_ptr= file_ptrs.begin();
-  uint maxbuffer= file_ptrs.size() - 1;
-  uchar *sort_buffer;
+  Merge_chunk *file_ptr= file_ptrs.begin();
+  size_t num_chunks= file_ptrs.size();
+  uchar *sort_memory;
   my_off_t save_pos;
   bool error=1;
 
@@ -637,30 +648,34 @@ bool Unique::get(TABLE *table)
     (uint) (max_in_memory_size / sort_param.sort_length);
   sort_param.not_killable=1;
 
-  if (!(sort_buffer=(uchar*) my_malloc(key_memory_Unique_sort_buffer,
-                                       (sort_param.max_keys_per_buffer + 1) *
-                                       sort_param.sort_length,
-                                       MYF(0))))
+  const size_t num_bytes=
+    (sort_param.max_keys_per_buffer + 1) * sort_param.sort_length;
+  if (!(sort_memory=(uchar*) my_malloc(key_memory_Unique_sort_buffer,
+                                       num_bytes, MYF(0))))
     return 1;
-  sort_param.unique_buff= sort_buffer+(sort_param.max_keys_per_buffer *
+  sort_param.unique_buff= sort_memory+(sort_param.max_keys_per_buffer *
                                        sort_param.sort_length);
 
-  sort_param.compare= (qsort2_cmp) buffpek_compare;
+  sort_param.compare= (qsort2_cmp) merge_chunk_compare;
   sort_param.cmp_context.key_compare= tree.compare;
   sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
-  if (merge_many_buff(&sort_param,sort_buffer,file_ptr,&maxbuffer,&file))
+  if (merge_many_buff(&sort_param, Sort_buffer(sort_memory, num_bytes),
+                      Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
+                      &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
-  if (merge_buffers(&sort_param, &file, outfile, sort_buffer, file_ptr,
-		    file_ptr, file_ptr+maxbuffer,0))
+  if (merge_buffers(&sort_param, &file, outfile,
+                    Sort_buffer(sort_memory, num_bytes),
+                    file_ptr,
+                    Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
   error=0;
 err:
-  my_free(sort_buffer);
+  my_free(sort_memory);
   if (flush_io_cache(outfile))
     error=1;
 
