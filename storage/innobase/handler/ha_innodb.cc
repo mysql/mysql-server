@@ -470,6 +470,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
+	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level,
@@ -1375,7 +1376,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, true);
+			thd_mark_transaction_to_rollback(thd, 1);
 		}
 
 		return(HA_ERR_LOCK_DEADLOCK);
@@ -1387,7 +1388,7 @@ convert_error_code_to_mysql(
 
 		if (thd) {
 			thd_mark_transaction_to_rollback(
-				thd, (bool) row_rollback_on_timeout);
+				thd, (int) row_rollback_on_timeout);
 		}
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
@@ -1462,7 +1463,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, true);
+			thd_mark_transaction_to_rollback(thd, 1);
 		}
 
 		return(HA_ERR_LOCK_TABLE_FULL);
@@ -3807,7 +3808,7 @@ innobase_close_connection(
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
+			"InnoDB transaction.  " TRX_ID_FMT " row modifications "
 			"will roll back.",
 			trx->undo_no);
 	}
@@ -5136,23 +5137,7 @@ innobase_fts_text_cmp_prefix(
 	to negate the result */
 	return(-result);
 }
-/******************************************************************//**
-compare two character string according to their charset. */
 
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*     p1,		/*!< in: key */
-	const void*     p2)		/*!< in: node */
-{
-	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-	uchar*			s1 = (uchar*) p1;
-	uchar*			s2 = *(uchar**) p2;
-
-	return(ha_compare_text(charset, s1, (uint) strlen((const char*) s1),
-			       s2, (uint) strlen((const char*) s2), 0, 0));
-}
 /******************************************************************//**
 Makes all characters in a string lower case. */
 
@@ -6704,7 +6689,7 @@ calc_row_difference(
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be larger than"
-					" "IB_ID_FMT" for table",
+					" " IB_ID_FMT " for table",
 					innodb_table->fts->cache->next_doc_id
 					- 1);
 				ut_print_name(stderr, trx,
@@ -6716,9 +6701,9 @@ calc_row_difference(
 				    - prebuilt->table->fts->cache->next_doc_id)
 				   >= FTS_DOC_ID_MAX_STEP) {
 				fprintf(stderr,
-					"InnoDB: Doc ID "UINT64PF" is too"
+					"InnoDB: Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
-					" Doc ID used "UINT64PF" cannot"
+					" Doc ID used " UINT64PF " cannot"
 					" exceed or equal to %d\n",
 					doc_id,
 					prebuilt->table->fts->cache->next_doc_id - 1,
@@ -10251,7 +10236,7 @@ ha_innobase::records()
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
-		thd_mark_transaction_to_rollback(user_thd, true);
+		thd_mark_transaction_to_rollback(user_thd, 1);
 		DBUG_RETURN(HA_POS_ERROR);
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));

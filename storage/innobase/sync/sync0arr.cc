@@ -483,6 +483,13 @@ sync_array_cell_print(
 #ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
+#ifdef UNIV_DEBUG
+		const char*	name = policy.m_file_name;
+		if (name == NULL) {
+			/* The mutex might have been released. */
+			name = "NULL";
+		}
+#endif /* UNIV_DEBUG */
 
 		fprintf(file,
 			"Mutex at %p created file %s line %lu, lock var %lu\n"
@@ -495,7 +502,7 @@ sync_array_cell_print(
 			(ulong) policy.m_cline,
 			(ulong) mutex->state()
 #ifdef UNIV_DEBUG
-			,policy.m_file_name,
+			,name,
 			(ulong) policy.m_line
 #endif /* UNIV_DEBUG */
 		       );
@@ -693,12 +700,18 @@ sync_array_detect_deadlock(
 				arr, start, thread, 0, depth);
 
 			if (ret) {
+				const char*	name = policy.m_file_name;
+				if (name == NULL) {
+					/* The mutex might have been
+					released. */
+					name = "NULL";
+				}
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Mutex %p owned by thread "
 					"%lu file %s line %lu\n",
 					mutex,
 					(ulong) os_thread_pf(thread),
-					policy.m_file_name,
+					name,
 					(ulong) policy.m_line);
 
 				sync_array_cell_print(stderr, cell);

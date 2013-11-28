@@ -4150,29 +4150,39 @@ cmp_item_row::~cmp_item_row()
 }
 
 
-void cmp_item_row::alloc_comparators()
+void cmp_item_row::alloc_comparators(Item *item)
 {
+  n= item->cols();
+  DBUG_ASSERT(comparators == NULL);
   if (!comparators)
     comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+  if (comparators)
+  {
+    for (uint i= 0; i < n; i++)
+    {
+      DBUG_ASSERT(comparators[i] == NULL);
+      Item *item_i= item->element_index(i);
+      if (!(comparators[i]=
+            cmp_item::get_comparator(item_i->result_type(),
+                                     item_i->collation.collation)))
+        break;                                  // new failed
+      if (item_i->result_type() == ROW_RESULT)
+        static_cast<cmp_item_row*>(comparators[i])->alloc_comparators(item_i);
+    }
+  }
 }
 
 
 void cmp_item_row::store_value(Item *item)
 {
   DBUG_ENTER("cmp_item_row::store_value");
-  n= item->cols();
-  alloc_comparators();
+  DBUG_ASSERT(comparators);
   if (comparators)
   {
     item->bring_value();
     item->null_value= 0;
-    for (uint i=0; i < n; i++)
+    for (uint i= 0; i < n; i++)
     {
-      if (!comparators[i])
-        if (!(comparators[i]=
-              cmp_item::get_comparator(item->element_index(i)->result_type(),
-                                       item->element_index(i)->collation.collation)))
-	  break;					// new failed
       comparators[i]->store_value(item->element_index(i));
       item->null_value|= item->element_index(i)->null_value;
     }
@@ -4464,7 +4474,7 @@ void Item_func_in::fix_length_and_dec()
         cmp_items[ROW_RESULT]= cmp;
       }
       cmp->n= args[0]->cols();
-      cmp->alloc_comparators();
+      cmp->alloc_comparators(args[0]);
     }
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
@@ -4580,11 +4590,8 @@ void Item_func_in::fix_length_and_dec()
         break;
       case ROW_RESULT:
         /*
-          The row comparator was created at the beginning but only DATETIME
-          items comparators were initialized. Call store_value() to setup
-          others.
+          The row comparator was created at the beginning.
         */
-        ((in_row*)array)->tmp.store_value(args[0]);
         break;
       case DECIMAL_RESULT:
         array= new in_decimal(arg_count - 1);

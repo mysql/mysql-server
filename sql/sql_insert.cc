@@ -1181,11 +1181,13 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         *values, MARK_COLUMNS_READ, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
+    thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
                         update_values, MARK_COLUMNS_READ, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, update_values, map);
+    thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1793,8 +1795,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
     }
+    lex->in_update_value_clause= true;
     res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
                              MARK_COLUMNS_READ, 0, 0);
+    lex->in_update_value_clause= false;
     if (!res)
     {
       /*
