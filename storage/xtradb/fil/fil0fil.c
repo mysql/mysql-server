@@ -5034,7 +5034,11 @@ complete_io:
 	dispatched read operation is enough here. Without this
 	there will be assertion at shutdown indicating that
 	all IO is not completed. */
-	fil_node_complete_io(node, fil_system, OS_FILE_READ);
+	if (srv_use_posix_fallocate) {
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
+	} else {
+		fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
+	}
 #else
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
 #endif
