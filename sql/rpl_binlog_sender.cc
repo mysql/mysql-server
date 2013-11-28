@@ -25,10 +25,11 @@
   static uint binlog_dump_count= 0;
 #endif
 
-const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
-const uint32 Binlog_sender::PACKET_MINIMUM_SIZE= 4096;
+const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
+const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const uint Binlog_sender::PACKET_GROW_FACTOR= 2;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 
 void Binlog_sender::init()
 {
@@ -43,8 +44,8 @@ void Binlog_sender::init()
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /* Initialize the buffer only once. */
-  m_thd->packet.realloc(PACKET_MINIMUM_SIZE); // size of the buffer
-  m_new_shrink_size= PACKET_MINIMUM_SIZE;
+  m_thd->packet.realloc(PACKET_MIN_SIZE); // size of the buffer
+  m_new_shrink_size= PACKET_MIN_SIZE;
   DBUG_PRINT("info", ("Initial packet->alloced_length: %u",
                       m_thd->packet.alloced_length()));
 
@@ -631,7 +632,7 @@ inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
   DBUG_ASSERT(packet == &m_thd->packet);
   DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u",
                       event_len, packet->alloced_length()));
-  DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
+  DBUG_ASSERT(packet->alloced_length() >= PACKET_MIN_SIZE);
 
   packet->length(0);  // size of the string
   packet->qs_append('\0');
@@ -929,24 +930,33 @@ inline bool Binlog_sender::grow_packet(String *packet, uint32 extra_size)
   uint32 cur_buffer_size= packet->alloced_length();
   uint32 cur_buffer_used= packet->length();
   uint32 needed_buffer_size= cur_buffer_used + extra_size;
+  
+  DBUG_ASSERT(extra_size <= (PACKET_MAX_SIZE - cur_buffer_size));
+  if (extra_size > (PACKET_MAX_SIZE - cur_buffer_size))
+    /* Not enough memory: requesting packet to be bigger than the max allowed. */
+    DBUG_RETURN(true);
+
   /*
     Grow the buffer if needed.
   */
   if (needed_buffer_size > cur_buffer_size)
   {
     uint32 grown_buffer_size= cur_buffer_size * PACKET_GROW_FACTOR;
-    uint32 max_grown_buffer_size= ALIGN_SIZE(
+
+    /*
+      In case grown_buffer_size wraps or is not enough to hold the bytes we
+      want to put in, the line below makes sure that we end up allocating
+      enough space anyway.
+     */
+    uint32 new_buffer_size= ALIGN_SIZE(
       std::max(grown_buffer_size, needed_buffer_size));
-    uint32 new_buffer_size=
-      std::min(max_grown_buffer_size,
-               static_cast<uint32>(m_thd->variables.max_allowed_packet));
 
     if (packet->realloc(new_buffer_size))
       DBUG_RETURN(true);
 
     /* recalculate the size to shrink to next time we decide to shrink. */
     m_new_shrink_size= ALIGN_SIZE(
-      std::max(PACKET_MINIMUM_SIZE,
+      std::max(PACKET_MIN_SIZE,
                static_cast<uint32>(new_buffer_size * PACKET_SHRINK_FACTOR)));
   }
 
@@ -980,7 +990,7 @@ inline void Binlog_sender::shrink_packet(String *packet)
 
         /* recalculate the size to shrink to next time. */
         m_new_shrink_size= ALIGN_SIZE(
-          std::max(PACKET_MINIMUM_SIZE,
+          std::max(PACKET_MIN_SIZE,
                    static_cast<uint32>(m_new_shrink_size * PACKET_SHRINK_FACTOR)));
       }
 
@@ -992,7 +1002,7 @@ inline void Binlog_sender::shrink_packet(String *packet)
     m_half_buffer_size_req_counter= 0;
 
   DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
-  DBUG_ASSERT(packet->alloced_length() >= PACKET_MINIMUM_SIZE);
+  DBUG_ASSERT(packet->alloced_length() >= PACKET_MIN_SIZE);
 }
 
 #endif // HAVE_REPLICATION
