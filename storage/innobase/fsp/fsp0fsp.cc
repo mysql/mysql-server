@@ -3595,6 +3595,7 @@ fseg_get_first_extent(
 	return(descr);
 }
 
+#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
@@ -3701,7 +3702,6 @@ fseg_validate_low(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
