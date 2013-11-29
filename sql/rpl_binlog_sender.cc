@@ -27,9 +27,9 @@
 
 const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
 const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
-const uint Binlog_sender::PACKET_GROW_FACTOR= 2;
-const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
+const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
+const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
 
 void Binlog_sender::init()
 {
@@ -44,10 +44,10 @@ void Binlog_sender::init()
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /* Initialize the buffer only once. */
-  m_thd->packet.realloc(PACKET_MIN_SIZE); // size of the buffer
+  m_packet.realloc(PACKET_MIN_SIZE); // size of the buffer
   m_new_shrink_size= PACKET_MIN_SIZE;
   DBUG_PRINT("info", ("Initial packet->alloced_length: %u",
-                      m_thd->packet.alloced_length()));
+                      m_packet.alloced_length()));
 
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
@@ -142,7 +142,7 @@ void Binlog_sender::run()
       The main issue here are some dependencies on mysqlbinlog, that should be
       solved in the future.
     */
-    if (unlikely(fake_rotate_event(&m_thd->packet, log_file, start_pos)))
+    if (unlikely(fake_rotate_event(log_file, start_pos)))
       break;
 
     file= open_binlog_file(&log_cache, log_file, &m_errmsg);
@@ -201,7 +201,7 @@ void Binlog_sender::run()
 
 int Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  if (unlikely(send_format_description_event(&m_thd->packet, log_cache,
+  if (unlikely(send_format_description_event(log_cache,
                                              start_pos > BIN_LOG_HEADER_SIZE)))
     return 1;
 
@@ -325,7 +325,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
 
     log_pos= my_b_tell(log_cache);
 
-    if (before_send_hook(&thd->packet, log_file, log_pos))
+    if (before_send_hook(log_file, log_pos))
       DBUG_RETURN(1);
     /*
       TODO: Set m_exclude_gtid to NULL if all gtids in m_exclude_gtid has
@@ -349,30 +349,29 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       {
         /* Save a copy of the buffer content. */
         String tmp;
-        tmp.copy(thd->packet);
-        tmp.length(thd->packet.length());
+        tmp.copy(m_packet);
+        tmp.length(m_packet.length());
 
-        if (unlikely(send_heartbeat_event(&thd->packet, exclude_group_end_pos)))
+        if (unlikely(send_heartbeat_event(exclude_group_end_pos)))
           DBUG_RETURN(1);
         exclude_group_end_pos= 0;
 
         /* Restore the copy back. */
-        thd->packet.copy(tmp);
-        thd->packet.length(tmp.length());
+        m_packet.copy(tmp);
+        m_packet.length(tmp.length());
       }
 
-      if (unlikely(send_packet(&thd->packet)))
+      if (unlikely(send_packet()))
         DBUG_RETURN(1);
     }
 
-    if (unlikely(after_send_hook(&thd->packet,
-                                 log_file, in_exclude_group ? log_pos : 0)))
+    if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
       DBUG_RETURN(1);
   }
 
   if (unlikely(in_exclude_group))
   {
-    if (send_heartbeat_event(&thd->packet, log_pos))
+    if (send_heartbeat_event(log_pos))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -456,7 +455,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
           sql_print_information("the rest of heartbeat info skipped ...");
       }
 #endif
-      if (send_heartbeat_event(&m_thd->packet, log_pos))
+      if (send_heartbeat_event(log_pos))
         return 1;
   } while (!m_thd->killed);
 
@@ -578,24 +577,22 @@ void Binlog_sender::init_checksum_alg()
   DBUG_VOID_RETURN;
 }
 
-int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
+int Binlog_sender::fake_rotate_event(const char *next_log_file,
                                      my_off_t log_pos)
 {
   DBUG_ENTER("fake_rotate_event");
-  DBUG_ASSERT(packet != NULL);
-
   const char* p = next_log_file + dirname_length(next_log_file);
   ulong ident_len = strlen(p);
   ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
-  if (reset_transmit_packet(packet, 0, event_len))
+  if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= packet->length();
-  packet->length(event_len + event_offset);
-  uchar *header= (uchar *)packet->ptr() + event_offset;
+  uint32 event_offset= m_packet.length();
+  m_packet.length(event_len + event_offset);
+  uchar *header= (uchar *)m_packet.ptr() + event_offset;
   uchar *rotate_header= header + LOG_EVENT_HEADER_LEN;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
@@ -614,7 +611,7 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
 
-  DBUG_RETURN(send_packet(packet));
+  DBUG_RETURN(send_packet());
 }
 
 inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_len)
@@ -624,38 +621,36 @@ inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_le
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags,
+inline int Binlog_sender::reset_transmit_packet(ushort flags,
                                                 uint32 event_len)
 {
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
-  DBUG_ASSERT(packet);
-  DBUG_ASSERT(packet == &m_thd->packet);
-  DBUG_PRINT("info", ("event_len: %u, packet->alloced_length: %u",
-                      event_len, packet->alloced_length()));
-  DBUG_ASSERT(packet->alloced_length() >= PACKET_MIN_SIZE);
-
-  packet->length(0);  // size of the string
-  packet->qs_append('\0');
+  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %u",
+                      event_len, m_packet.alloced_length()));
+  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+  
+  
+  m_packet.length(0);  // size of the string
+  m_packet.qs_append('\0');
  
   /* reserve and set default header */
-  if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, packet)))
+  if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
   {
     set_unknow_error("Failed to run hook 'reserve_header'");
     DBUG_RETURN(1);
   }
 
   /* Resizes the buffer if needed. */
-  if (grow_packet(packet, event_len))
+  if (grow_packet(event_len))
     DBUG_RETURN(1);
 
-  DBUG_PRINT("info", ("packet->alloced_length: %u (after potential "
-                      "reallocation)", packet->alloced_length()));
+  DBUG_PRINT("info", ("m_packet.alloced_length: %u (after potential "
+                      "reallocation)", m_packet.alloced_length()));
 
   DBUG_RETURN(0);
 }
 
-int Binlog_sender::send_format_description_event(String *packet,
-                                                 IO_CACHE *log_cache,
+int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
                                                  bool clear_log_pos)
 {
   DBUG_ENTER("Binlog_sender::send_format_description_event");
@@ -708,7 +703,7 @@ int Binlog_sender::send_format_description_event(String *packet,
       calc_event_checksum(event_ptr, event_len);
   }
 
-  DBUG_RETURN(send_packet(packet));
+  DBUG_RETURN(send_packet());
 }
 
 int Binlog_sender::has_previous_gtid_log_event(IO_CACHE *log_cache,
@@ -757,17 +752,16 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
   DBUG_ENTER("Binlog_sender::read_event");
 
   uint32 event_offset;
-  String *packet= &m_thd->packet;
   int error= 0;
 
   if ((error= Log_event::peek_event_length(event_len, log_cache)))
     goto read_error;
 
-  if (reset_transmit_packet(packet, 0, *event_len))
+  if (reset_transmit_packet(0, *event_len))
     DBUG_RETURN(1);
 
-  event_offset= packet->length();
-  *event_ptr= (uchar *)packet->ptr() + event_offset;
+  event_offset= m_packet.length();
+  *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
@@ -780,7 +774,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
     packet is big enough to read the event, since we have reallocated based
     on the length stated in the event header.
   */
-  if ((error= Log_event::read_log_event(log_cache, packet, NULL, checksum_alg)))
+  if ((error= Log_event::read_log_event(log_cache, &m_packet, NULL, checksum_alg)))
     goto read_error;
 
   set_last_pos(my_b_tell(log_cache));
@@ -804,10 +798,9 @@ read_error:
   DBUG_RETURN(1);
 }
 
-int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
+int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 {
   DBUG_ENTER("send_heartbeat_event");
-  DBUG_ASSERT(packet);
   const char* filename= m_linfo.log_file_name;
   const char* p= filename + dirname_length(filename);
   uint32 ident_len= (uint32) strlen(p);
@@ -816,12 +809,12 @@ int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
 
-  if (reset_transmit_packet(packet, 0, event_len))
+  if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= packet->length();
-  packet->length(event_len + event_offset);
-  uchar *header= (uchar *)packet->ptr() + event_offset;
+  uint32 event_offset= m_packet.length();
+  m_packet.length(event_len + event_offset);
+  uchar *header= (uchar *)m_packet.ptr() + event_offset;
 
   /* Timestamp field */
   int4store(header, 0);
@@ -835,7 +828,7 @@ int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
 
-  DBUG_RETURN(send_packet_and_flush(packet));
+  DBUG_RETURN(send_packet_and_flush());
 }
 
 inline int Binlog_sender::flush_net()
@@ -848,36 +841,34 @@ inline int Binlog_sender::flush_net()
   return 0;
 }
 
-inline int Binlog_sender::send_packet(String *packet)
+inline int Binlog_sender::send_packet()
 {
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
-  DBUG_ASSERT(packet == &m_thd->packet);
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
-                       my_net_write(&m_thd->net, (uchar*) packet->ptr(),
-                                    packet->length())))
+                       my_net_write(&m_thd->net, (uchar*) m_packet.ptr(),
+                                    m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
     return 1;
   }
 
   /* Shrink the packet if needed. */
-  shrink_packet(packet);
+  shrink_packet();
 
   return 0;
 }
 
-inline int Binlog_sender::send_packet_and_flush(String *packet)
+inline int Binlog_sender::send_packet_and_flush()
 {
-  return (send_packet(packet) || flush_net());
+  return (send_packet() || flush_net());
 }
 
-inline int Binlog_sender::before_send_hook(String *packet,
-                                           const char *log_file,
+inline int Binlog_sender::before_send_hook(const char *log_file,
                                            my_off_t log_pos)
 {
   if (RUN_HOOK(binlog_transmit, before_send_event,
-               (m_thd, 0/*flags*/, packet, log_file, log_pos)))
+               (m_thd, 0/*flags*/, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("run 'before_send_event' hook failed");
     return 1;
@@ -885,12 +876,11 @@ inline int Binlog_sender::before_send_hook(String *packet,
   return 0;
 }
 
-inline int Binlog_sender::after_send_hook(String *packet,
-                                          const char *log_file,
+inline int Binlog_sender::after_send_hook(const char *log_file,
                                           my_off_t log_pos)
 {
   if (RUN_HOOK(binlog_transmit, after_send_event,
-               (m_thd, 0/*flags*/, packet, log_file, log_pos)))
+               (m_thd, 0/*flags*/, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("Failed to run hook 'after_send_event'");
     return 1;
@@ -924,13 +914,13 @@ inline int Binlog_sender::check_event_count()
 #endif
 
 
-inline bool Binlog_sender::grow_packet(String *packet, uint32 extra_size)
+inline bool Binlog_sender::grow_packet(uint32 extra_size)
 {
   DBUG_ENTER("Binlog_sender::grow_packet");
-  uint32 cur_buffer_size= packet->alloced_length();
-  uint32 cur_buffer_used= packet->length();
+  uint32 cur_buffer_size= m_packet.alloced_length();
+  uint32 cur_buffer_used= m_packet.length();
   uint32 needed_buffer_size= cur_buffer_used + extra_size;
-  
+
   DBUG_ASSERT(extra_size <= (PACKET_MAX_SIZE - cur_buffer_size));
   if (extra_size > (PACKET_MAX_SIZE - cur_buffer_size))
     /* Not enough memory: requesting packet to be bigger than the max allowed. */
@@ -941,68 +931,82 @@ inline bool Binlog_sender::grow_packet(String *packet, uint32 extra_size)
   */
   if (needed_buffer_size > cur_buffer_size)
   {
-    uint32 grown_buffer_size= cur_buffer_size * PACKET_GROW_FACTOR;
+    /* calculates the new, larger, buffer size. */
+    uint32 new_buffer_size= calc_buffer_size(cur_buffer_size,
+                                             needed_buffer_size,
+                                             PACKET_GROW_FACTOR);
 
-    /*
-      In case grown_buffer_size wraps or is not enough to hold the bytes we
-      want to put in, the line below makes sure that we end up allocating
-      enough space anyway.
-     */
-    uint32 new_buffer_size= ALIGN_SIZE(
-      std::max(grown_buffer_size, needed_buffer_size));
-
-    if (packet->realloc(new_buffer_size))
+    if (m_packet.realloc(new_buffer_size))
       DBUG_RETURN(true);
 
-    /* recalculate the size to shrink to next time we decide to shrink. */
-    m_new_shrink_size= ALIGN_SIZE(
-      std::max(PACKET_MIN_SIZE,
-               static_cast<uint32>(new_buffer_size * PACKET_SHRINK_FACTOR)));
+    /* 
+     Calculates the new, smaller buffer, size to use the next time
+     one wants to shrink the buffer.
+    */
+    m_new_shrink_size= calc_buffer_size(m_new_shrink_size,
+                                        PACKET_MIN_SIZE,
+                                        PACKET_SHRINK_FACTOR);
   }
 
   DBUG_RETURN(false);
 }
 
-inline void Binlog_sender::shrink_packet(String *packet)
+inline void Binlog_sender::shrink_packet()
 {
-  uint32 cur_buffer_size= packet->alloced_length();
-  uint32 buffer_used= packet->length();
- 
-  /* increment the counter if we used less than the new shrink size. */
-  if (buffer_used < m_new_shrink_size)
+  uint32 cur_buffer_size= m_packet.alloced_length();
+  uint32 buffer_used= m_packet.length();
+
+  DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
+  
+  /* 
+     If the packet is already at the minimum size, just
+     do nothing. Otherwise, check if we should shrink.
+   */
+  if (cur_buffer_size > PACKET_MIN_SIZE)
   {
-    /* Check if we should shrink the buffer. */
-    if (m_half_buffer_size_req_counter++ == PACKET_SHRINK_COUNTER_THRESHOLD)
+    /* increment the counter if we used less than the new shrink size. */
+    if (buffer_used < m_new_shrink_size)
     {
-      /*
-         Only if we are above the minimum size, in which case m_new_shrink_size
-         can still be smaller than current buffer size, we will shrink the
-         current buffer.
-       */
-      if (m_new_shrink_size < cur_buffer_size)
+      m_half_buffer_size_req_counter++;
+
+      /* Check if we should shrink the buffer. */
+      if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
       {
         /*
          The last PACKET_SHRINK_COUNTER_THRESHOLD consecutive packets
          required less than half of the current buffer size. Lets shrink
-         it to not waste memory.
+         it to not hold more memory than we potentially need.
         */
-        packet->shrink(m_new_shrink_size);
+        m_packet.shrink(m_new_shrink_size);
 
-        /* recalculate the size to shrink to next time. */
-        m_new_shrink_size= ALIGN_SIZE(
-          std::max(PACKET_MIN_SIZE,
-                   static_cast<uint32>(m_new_shrink_size * PACKET_SHRINK_FACTOR)));
+        /* 
+           Calculates the new, smaller buffer, size to use the next time
+           one wants to shrink the buffer.
+         */
+        m_new_shrink_size= calc_buffer_size(m_new_shrink_size,
+                                            PACKET_MIN_SIZE,
+                                            PACKET_SHRINK_FACTOR);
+
+        /* Reset the counter. */
+        m_half_buffer_size_req_counter= 0;
       }
-
-      /* Reset the counter. */
-      m_half_buffer_size_req_counter= 0;
     }
+    else
+      m_half_buffer_size_req_counter= 0;
   }
-  else
-    m_half_buffer_size_req_counter= 0;
 
   DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
-  DBUG_ASSERT(packet->alloced_length() >= PACKET_MIN_SIZE);
+  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+}
+
+inline uint32 Binlog_sender::calc_buffer_size(uint32 current_size,
+                                              uint32 min_size,
+                                              float factor)
+{
+  uint32 new_size= 
+    static_cast<uint32>(current_size * factor);
+
+  return ALIGN_SIZE(std::max(new_size, min_size));
 }
 
 #endif // HAVE_REPLICATION
