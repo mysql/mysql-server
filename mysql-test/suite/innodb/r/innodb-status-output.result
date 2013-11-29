@@ -1,0 +1,63 @@
+CREATE TABLE innodb_monitor(a SERIAL) ENGINE=InnoDB;
+Warnings:
+Warning	131	Using the table name innodb_monitor to enable diagnostic output is deprecated and may be removed in future releases. Use INFORMATION_SCHEMA or PERFORMANCE_SCHEMA tables or SET GLOBAL innodb_status_output=ON.
+SHOW VARIABLES LIKE 'innodb_status_output%';
+Variable_name	Value
+innodb_status_output	ON
+innodb_status_output_locks	OFF
+DROP TABLE innodb_monitor;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+Variable_name	Value
+innodb_status_output	OFF
+innodb_status_output_locks	OFF
+CREATE TABLE innodb_lock_monitor(a SERIAL) ENGINE=InnoDB;
+Warnings:
+Warning	131	Using the table name innodb_lock_monitor to enable diagnostic output is deprecated and may be removed in future releases. Use INFORMATION_SCHEMA or PERFORMANCE_SCHEMA tables or SET GLOBAL innodb_status_output=ON.
+SHOW VARIABLES LIKE 'innodb_status_output%';
+Variable_name	Value
+innodb_status_output	ON
+innodb_status_output_locks	ON
+DROP TABLE innodb_lock_monitor;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+Variable_name	Value
+innodb_status_output	OFF
+innodb_status_output_locks	OFF
+CREATE TABLE innodb_tablespace_monitor(a SERIAL) ENGINE=InnoDB;
+Warnings:
+Warning	131	Using the table name innodb_tablespace_monitor to enable diagnostic output is deprecated and may be removed in future releases. Use INFORMATION_SCHEMA or PERFORMANCE_SCHEMA tables or SET GLOBAL innodb_status_output=ON.
+DROP TABLE innodb_tablespace_monitor;
+CREATE TABLE innodb_table_monitor(a SERIAL) ENGINE=InnoDB;
+Warnings:
+Warning	131	Using the table name innodb_table_monitor to enable diagnostic output is deprecated and may be removed in future releases. Use INFORMATION_SCHEMA or PERFORMANCE_SCHEMA tables or SET GLOBAL innodb_status_output=ON.
+DROP TABLE innodb_table_monitor;
+CREATE TABLE t(a SERIAL) ENGINE=InnoDB;
+INSERT INTO t VALUES(42);
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+a
+42
+SET GLOBAL innodb_status_output_locks=ON;
+SET GLOBAL innodb_status_output=ON;
+SELECT SLEEP(30);
+SLEEP(30)
+0
+COMMIT;
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+a
+42
+SET GLOBAL innodb_status_output_locks=ON;
+SELECT SLEEP(30);
+SLEEP(30)
+0
+COMMIT;
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+a
+42
+SET GLOBAL innodb_status_output=ON;
+SELECT SLEEP(30);
+SLEEP(30)
+0
+COMMIT;
+DROP TABLE t;
