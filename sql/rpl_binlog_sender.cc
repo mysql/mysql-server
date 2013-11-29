@@ -621,8 +621,7 @@ inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_le
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(ushort flags,
-                                                uint32 event_len)
+inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
 {
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
   DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %u",
@@ -1002,8 +1001,7 @@ inline uint32 Binlog_sender::calc_buffer_size(uint32 current_size,
                                               uint32 min_size,
                                               float factor)
 {
-  uint32 new_size=
-    static_cast<uint32>(current_size * factor);
+  uint32 new_size= static_cast<uint32>(current_size * factor);
 
   return ALIGN_SIZE(std::max(new_size, min_size));
 }
