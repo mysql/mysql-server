@@ -38,8 +38,8 @@ class Binlog_sender
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
               Gtid_set *exclude_gtids)
-    : m_thd(thd), m_start_file(start_file), m_start_pos(start_pos),
-    m_exclude_gtid(exclude_gtids),
+    : m_thd(thd), m_packet(thd->packet), m_start_file(start_file), 
+    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
@@ -56,7 +56,8 @@ public:
   void run();
 private:
   THD *m_thd;
-
+  String& m_packet;
+  
   /* Requested start binlog file and position */
   const char *m_start_file;
   my_off_t m_start_pos;
@@ -142,7 +143,7 @@ private:
    * How much to grow the buffer each time we need to accommodate more bytes
    * than it currently can hold.
    */
-  const static uint PACKET_GROW_FACTOR;
+  const static float PACKET_GROW_FACTOR;
 
   /**
    * The dual of PACKET_GROW_FACTOR. How much to shrink the buffer each time
@@ -235,7 +236,7 @@ private:
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int fake_rotate_event(String *packet, const char *next_log_file,
+  int fake_rotate_event(const char *next_log_file,
                         my_off_t log_pos);
 
   /**
@@ -245,13 +246,12 @@ private:
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] packet         The buffer used to store the event.
      @param[in] log_cache      IO_CACHE of the binlog will be dumpped
      @param[in] clear_log_pos  If clears end_pos field in the event.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(String *packet, IO_CACHE *log,
+  int send_format_description_event(IO_CACHE *log,
                                     bool clear_log_pos);
   /**
      It sends a heartbeat to the client.
@@ -261,7 +261,7 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_heartbeat_event(String* packet, my_off_t log_pos);
+  int send_heartbeat_event(my_off_t log_pos);
 
   /**
      It reads a event from binlog file.
@@ -300,11 +300,11 @@ private:
 
   inline void calc_event_checksum(uchar *event_ptr, uint32 event_len);
   inline int flush_net();
-  inline int send_packet(String *packet);
-  inline int send_packet_and_flush(String *packet);
-  inline int before_send_hook(String *packet, const char *log_file,
+  inline int send_packet();
+  inline int send_packet_and_flush();
+  inline int before_send_hook(const char *log_file,
                               my_off_t log_pos);
-  inline int after_send_hook(String *packet, const char *log_file,
+  inline int after_send_hook(const char *log_file,
                              my_off_t log_pos);
   /*
     Reset thread transmit packet buffer for event sending
@@ -320,7 +320,7 @@ private:
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(String *packet, ushort flags,
+  inline int reset_transmit_packet(ushort flags,
                                    uint32 event_len= 0);
 
   /**
@@ -400,7 +400,7 @@ private:
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(String *packet, uint32 extra_size);
+  inline bool grow_packet(uint32 extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.
@@ -414,7 +414,18 @@ private:
    *
    * @param packet  The buffer to shrink.
    */
-  inline void shrink_packet(String *packet);
+  inline void shrink_packet();
+
+  /*
+   * Helper function to recalculate a new size for the buffer.
+   * 
+   * @param current_size The baseline (for instance, the current buffer size).
+   * @param min_size The resulting buffer size, needs to be at least as large
+   *                 as this parameter states.
+   * @param factor The multiplier factor on the baseline.
+   * @return The new size.
+   */
+  inline uint32 calc_buffer_size(uint32 current_size, uint32 min_size, float factor);
 };
 
 #endif // HAVE_REPLICATION
