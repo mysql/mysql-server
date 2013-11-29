@@ -36,7 +36,6 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
 function Promise() {
   // implement Promises/A+ http://promises-aplus.github.io/promises-spec/
   // until then is called, this is an empty promise with no performance impact
-  this.resolved = null;
 }
 
 /** Fulfill or reject the original promise.
@@ -115,26 +114,27 @@ var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rej
 
 Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
   var self = this;
+  // create a new promise to return from the "then" method
   var new_promise = new Promise();
-  if (typeof this.fulfilled_callbacks === 'undefined') {
+  if (typeof self.fulfilled_callbacks === 'undefined') {
     self.fulfilled_callbacks = [];
     self.rejected_callbacks = [];
     self.progress_callbacks = [];
   }
-  if (self.err) {
-    // this promise was already rejected
-    global.setImmediate(function() {
-      rejected_callback.call(undefined, self.err);
-      new_promise.reject(self.err);
-    });
-    return new_promise;
-  }
-  if (typeof this.result !== 'undefined') {
-    // this promise was already fulfilled, possibly with a null result
-    global.setImmediate(function() {
-      fulfilled_callback.call(undefined, self.result);
-      new_promise.fulfill(self.result);
-    });
+  if (self.resolved) {
+    if (self.err) {
+      // this promise was already rejected
+      global.setImmediate(function() {
+        rejected_callback.call(undefined, self.err);
+        new_promise.reject(self.err);
+      });
+    } else {
+      // this promise was already fulfilled, possibly with a null or undefined result
+      global.setImmediate(function() {
+        fulfilled_callback.call(undefined, self.result);
+        new_promise.fulfill(self.result);
+      });
+    }
     return new_promise;
   }
   // create a closure for each fulfilled_callback
