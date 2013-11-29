@@ -628,11 +628,10 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags,
   DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %u",
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
-  
-  
+
   m_packet.length(0);  // size of the string
   m_packet.qs_append('\0');
- 
+
   /* reserve and set default header */
   if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
   {
@@ -939,7 +938,7 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
     if (m_packet.realloc(new_buffer_size))
       DBUG_RETURN(true);
 
-    /* 
+    /*
      Calculates the new, smaller buffer, size to use the next time
      one wants to shrink the buffer.
     */
@@ -957,8 +956,8 @@ inline void Binlog_sender::shrink_packet()
   uint32 buffer_used= m_packet.length();
 
   DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
-  
-  /* 
+
+  /*
      If the packet is already at the minimum size, just
      do nothing. Otherwise, check if we should shrink.
    */
@@ -979,7 +978,7 @@ inline void Binlog_sender::shrink_packet()
         */
         m_packet.shrink(m_new_shrink_size);
 
-        /* 
+        /*
            Calculates the new, smaller buffer, size to use the next time
            one wants to shrink the buffer.
          */
@@ -1003,7 +1002,7 @@ inline uint32 Binlog_sender::calc_buffer_size(uint32 current_size,
                                               uint32 min_size,
                                               float factor)
 {
-  uint32 new_size= 
+  uint32 new_size=
     static_cast<uint32>(current_size * factor);
 
   return ALIGN_SIZE(std::max(new_size, min_size));
