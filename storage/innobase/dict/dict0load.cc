@@ -201,66 +201,6 @@ loop:
 }
 
 /********************************************************************//**
-Prints to the standard output information on all tables found in the data
-dictionary system table. */
-
-void
-dict_print(void)
-/*============*/
-{
-	dict_table_t*	table;
-	btr_pcur_t	pcur;
-	const rec_t*	rec;
-	mem_heap_t*	heap;
-	mtr_t		mtr;
-
-	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
-	monitor printout */
-
-	os_increment_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-
-	heap = mem_heap_create(1000);
-	mutex_enter(&(dict_sys->mutex));
-	mtr_start(&mtr);
-
-	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
-
-	while (rec) {
-		const char* err_msg;
-
-		err_msg = static_cast<const char*>(
-			dict_process_sys_tables_rec_and_mtr_commit(
-				heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE,
-				&mtr));
-
-		if (!err_msg) {
-			dict_table_print(table);
-		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: %s\n", err_msg);
-		}
-
-		mem_heap_empty(heap);
-
-		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
-	}
-
-	mtr_commit(&mtr);
-	mutex_exit(&(dict_sys->mutex));
-	mem_heap_free(heap);
-
-	/* Restore the fatal semaphore wait timeout */
-	os_decrement_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-}
-
-/********************************************************************//**
 This function gets the next system table record as it scans the table.
 @return the next record if found, NULL if end of scan */
 static

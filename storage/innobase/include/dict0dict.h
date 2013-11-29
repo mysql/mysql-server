@@ -608,14 +608,6 @@ dict_table_get_col_name(
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
-Prints a table data. */
-
-void
-dict_table_print(
-/*=============*/
-	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
 Outputs info on foreign keys of a table. */
 
 void
