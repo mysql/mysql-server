@@ -7095,8 +7095,8 @@ ER_SLAVE_SQL_THREAD_MUST_STOP
 ER_SLAVE_IO_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first"
 
-ER_OPEN_TEMP_TABLES_MUST_BE_ZERO
-  eng "This operation is not allowed when the slave applier has open temporary tables. Wait until slave_open_temp_tables = 0. You can force the slave applier to drop its temporary tables by issuing STOP SLAVE SQL_THREAD."
+ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
+  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
 #
 #  End of 5.7 error messages.
 #
