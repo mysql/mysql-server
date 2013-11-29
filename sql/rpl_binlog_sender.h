@@ -38,7 +38,7 @@ class Binlog_sender
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
               Gtid_set *exclude_gtids)
-    : m_thd(thd), m_packet(thd->packet), m_start_file(start_file), 
+    : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
@@ -57,7 +57,7 @@ public:
 private:
   THD *m_thd;
   String& m_packet;
-  
+
   /* Requested start binlog file and position */
   const char *m_start_file;
   my_off_t m_start_pos;
@@ -137,7 +137,7 @@ private:
   /**
    * The minimum size of the buffer.
    */
-  const static uint PACKET_MIN_SIZE;
+  const static uint32 PACKET_MIN_SIZE;
 
   /**
    * How much to grow the buffer each time we need to accommodate more bytes
@@ -418,7 +418,7 @@ private:
 
   /*
    * Helper function to recalculate a new size for the buffer.
-   * 
+   *
    * @param current_size The baseline (for instance, the current buffer size).
    * @param min_size The resulting buffer size, needs to be at least as large
    *                 as this parameter states.
