@@ -42,7 +42,13 @@ t1.run = function() {
   function commit() {
     return testCase.session.currentTransaction().commit();
   }
+  function commitOnFailure(err) {
+    testCase.appendErrorMessage('error reported' + err.message);
+    return testCase.session.currentTransaction().commit();
+  }
   function reportSuccess() {
+    testCase.errorIfTrue('t1 transaction should not be active after commit promise fulfilled', 
+        testCase.session.currentTransaction().isActive());
     testCase.failOnError();
   }
   function reportFailure(err) {
@@ -52,7 +58,7 @@ t1.run = function() {
     then(beginTransaction).
     then(find).
     then(verify).
-    then(commit).
+    then(commit, commitOnFailure).
     then(reportSuccess, reportFailure);
 };
 
