@@ -425,10 +425,10 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     static uint8_t server_event_header_length_ver_1_3[]=
     {
       START_V3_HEADER_LEN, QUERY_HEADER_MINIMAL_LEN, STOP_HEADER_LEN,
-      binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN, INTVAR_HEADER_LEN, LOAD_HEADER_LEN, 0,
-      CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN, EXEC_LOAD_HEADER_LEN,
-      DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN, RAND_HEADER_LEN,
-      USER_VAR_HEADER_LEN
+      uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN), INTVAR_HEADER_LEN,
+      LOAD_HEADER_LEN, 0, CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN,
+      EXEC_LOAD_HEADER_LEN, DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN,
+      RAND_HEADER_LEN, USER_VAR_HEADER_LEN
     };
     post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
                                            + BINLOG_CHECKSUM_ALG_DESC_LEN);
