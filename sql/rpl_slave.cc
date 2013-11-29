@@ -8170,6 +8170,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
+
   THD_STAGE_INFO(thd, stage_killing_slave);
   int thread_mask;
   lock_slave_threads(mi);
@@ -8179,6 +8180,20 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   // Get a mask of _running_ threads
   init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
+
+  /*
+    If the slave has open temp tables and there is a following CHANGE MASTER
+    there is apossibility that the temporary tables are left open forever.
+    Though we dont restrict failover here, we do warn users. In future, we
+    should have a command to delete open temp tables the slave has replicated.
+    See WL#7441 regarding this command.
+  */
+
+  if (slave_open_temp_tables)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
+                 ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
+
   /*
     Below we will stop all running threads.
     But if the user wants to stop only one thread, do as if the other thread
@@ -8333,6 +8348,21 @@ bool change_master(THD* thd, Master_info* mi)
      need_relay_log_purge= 0;
 
   /*
+    If the receiver/applier is running and the slave has open temporary tables,
+    we print a warning on CHANGE MASTER stating that there are open temp tables
+    and that there is a possibility that these could stay forever eating up the
+    memory resources.
+
+    If the slave threads are stopped, we would have already printed a warning
+    on STOP SLAVE. Hence we avoid repeating the same warning now.
+  */
+  if ((thread_mask & SLAVE_SQL || thread_mask & SLAVE_IO)
+     && slave_open_temp_tables)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
+                 ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
+
+  /*
     change master with master_auto_position=1 requires stopping both IO and SQL
     threads. If any thread is running, we throw an error.
   */
@@ -8345,7 +8375,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   /*
    We error out if SQL thread is running and there is a CHANGE MASTER
-   using RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION. 
+   using RELAY_LOG_FILE, RELAY_LOG_POS, MASTER_DELAY and MASTER_AUTO_POSITION.
   */
   if (thread_mask & SLAVE_SQL &&
       (lex_mi->relay_log_name ||
@@ -8355,19 +8385,6 @@ bool change_master(THD* thd, Master_info* mi)
   {
     my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP),
                MYF(0));
-    ret= true;
-    goto err;
-  }
-
-  /*
-    TODO: Discuss this with Sven/Luis/team.
-    If the applier is running and the slave has open temporary tables, we dont allow
-    CHANGE MASTER.
-  */
-  if (thread_mask & SLAVE_SQL && slave_open_temp_tables)
-  {
-    my_message(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO,
-               ER(ER_OPEN_TEMP_TABLES_MUST_BE_ZERO), MYF(0));
     ret= true;
     goto err;
   }
