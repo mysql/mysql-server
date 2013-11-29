@@ -236,8 +236,7 @@ private:
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int fake_rotate_event(const char *next_log_file,
-                        my_off_t log_pos);
+  int fake_rotate_event(const char *next_log_file, my_off_t log_pos);
 
   /**
      When starting to dump a binlog file, Format_description_log_event
@@ -251,8 +250,7 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(IO_CACHE *log,
-                                    bool clear_log_pos);
+  int send_format_description_event(IO_CACHE *log, bool clear_log_pos);
   /**
      It sends a heartbeat to the client.
 
@@ -302,10 +300,8 @@ private:
   inline int flush_net();
   inline int send_packet();
   inline int send_packet_and_flush();
-  inline int before_send_hook(const char *log_file,
-                              my_off_t log_pos);
-  inline int after_send_hook(const char *log_file,
-                             my_off_t log_pos);
+  inline int before_send_hook(const char *log_file, my_off_t log_pos);
+  inline int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
     Reset thread transmit packet buffer for event sending
 
@@ -320,8 +316,7 @@ private:
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(ushort flags,
-                                   uint32 event_len= 0);
+  inline int reset_transmit_packet(ushort flags, uint32 event_len= 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
