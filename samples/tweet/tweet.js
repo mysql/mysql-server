@@ -215,7 +215,7 @@ function Operation() {
   this.setResult = function(value) {
     udebug.log("Operation setResult", value);
     self.result = value;
-    return value;  // FIXME: "fulfill promise with undefined" 
+    return value;
   };
   
   this.onComplete = function() {
@@ -303,10 +303,10 @@ function InsertTweetOperation(params, data) {
   var authorName = params[0];
   var tweet = new Tweet(authorName, message);
 
-  var self = this;   /// PART OF HACK AROUND EXECUTEBATCH();
   this.run = function(session) {   /* Start here */
 
     function onTweetCreateTagEntries() {
+      udebug.log("onTweetCreateTagEntries");
       var batch, tags, tag, tagEntry;
 
       /* Store all #hashtag and @mention entries in a single batch */
@@ -317,50 +317,55 @@ function InsertTweetOperation(params, data) {
       tag = tags.hash.pop();   // # hashtags
       while(tag !== undefined) {
         tagEntry = new HashtagEntry(tag, tweet);
-        batch.persist(tagEntry);   // callback?????
+        batch.persist(tagEntry);
         tag = tags.hash.pop(); 
       }
       
       tag = tags.at.pop();   // @ mentions
       while(tag !== undefined) {
         tagEntry = new Mention(tag, tweet);
-        batch.persist(tagEntry);   // !!?? callback !!??
+        batch.persist(tagEntry);
         tag = tags.at.pop();
       }
 
-//    return batch.execute();    
-// BEGIN HACK
-      batch.execute(function(err) { 
-        if(err) { console.log(err); session.currentTransaction().rollback();
-                  self.onError(err);
-        } else  { session.currentTransaction().commit();
-                  self.onComplete();
-        }
-      });
-// END HACK
+var p = batch.execute();
+console.log(p);
+assert(p.resolved);
+return p;
+//      return batch.execute();    
     }
   
-    function commitOnSuccess() {
-      session.currentTransaction().commit();
-      return 1;
+    // Transaction commit() and rollback() do not yet properly return promises
+    var self = this; // part of workaround
+    function commitOnSuccess(value) {
+      console.log("commitOnSuccess", value);
+      session.currentTransaction().commit(function(err) {
+        if(err) {
+          self.onError(err);
+        } else {
+          self.setResult(tweet);
+          self.onComplete();
+        }
+      });
     }
 
     function rollbackOnError(err) {
-      session.currentTransaction().rollback();
-      return err;       
+      console.log("rollbackOnError", error);
+      session.currentTransaction().rollback(function() {
+        self.onError(err);
+      });
     }
 
     session.currentTransaction().begin();
     session.persist(tweet).
-      then(function() { return tweet;}).
-      then(this.setResult).
-// FIXME: Waiting on promise resolution procedure
       then(function() { return session.find(Author, authorName)}).
-      then(function(a) { console.log(a); process.exit(); a.tweets++ ; return session.save(a) }).
-      then(onTweetCreateTagEntries, this.onError);
-//      then(onTweetCreateTagEntries).
-//      then(commitOnSuccess, rollbackOnError).
-//      then(this.onComplete, this.onError);
+      then(function(a) { a.tweets++ ; return session.save(a) }).
+      then(onTweetCreateTagEntries).
+      then(commitOnSuccess, rollbackOnError);
+      // then(function() {return tweet}).
+      // then(this.setResult).
+      // then(this.onComplete, this.onError);
+ console.log("end of run()");
   };
 }
 InsertTweetOperation.signature = [ "post", "tweet", "<author>", " << Message >>" ];
@@ -401,12 +406,12 @@ ReadTweetOperation.signature = [ "get", "tweet", "<tweet_id>" ];
 */
 function FollowOperation(params, data) {
   Operation.call(this);
-
-//FIXME set operation result
   
   this.run = function(session) {
     var record = new Follow(params[0], params[1]);
-    session.persist(record).  
+    session.persist(record).
+      then(function() { return record }).
+      then(this.setResult).
       then(this.onComplete, this.onError);
   };
 }
