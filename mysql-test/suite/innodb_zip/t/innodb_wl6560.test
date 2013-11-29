@@ -75,7 +75,7 @@ drop table if exists t1;
 select @@global.innodb_file_per_table;
 create temporary table t1 (i int, f float, c char(100)) engine=innodb;
 #
---source suite/innodb/include/innodb_temp_table_dml.inc
+--source suite/innodb_zip/include/innodb_temp_table_dml.inc
 #
 # alter table
 --error ER_CANNOT_DISCARD_TEMPORARY_TABLE
@@ -103,7 +103,7 @@ show create table t1;
 --replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
 --list_files $MYSQL_TMP_DIR/ *.ibd
 #
---source suite/innodb/include/innodb_temp_table_dml.inc
+--source suite/innodb_zip/include/innodb_temp_table_dml.inc
 #
 # alter table
 --error ER_CANNOT_DISCARD_TEMPORARY_TABLE

@@ -137,5 +137,4 @@ SELECT @size >= 0;
 DROP TABLE tab5;
 DROP TABLE tab6;
 #reset back the compression_level to default.
-SET global innodb_compression_level=6;
 SET GLOBAL innodb_file_format='Antelope';
