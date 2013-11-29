@@ -42,9 +42,24 @@
 %global libmysqld_so_long     0.0.1
 
 # Version for compat libs
+%endif
+
+%if 0%{?rhel} == 6
 %global compatver             5.1.72
 
-%global src_dir               %{src_base}-%{mysql_version}
+# multiarch
+%global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
+
+# Hack to support el5 where __isa_bits not defined. Note: supports i386 and x86_64 only, sorry.
+%if x%{?__isa_bits} == x
+%ifarch %{ix86}
+%global __isa_bits            32
+%endif
+%ifarch x86_64
+%global __isa_bits            64
+%endif
+%endif
+
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -52,9 +67,6 @@
 %global debug_package         %{nil}
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
-
-# multiarch
-%global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
 %if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE.mysql
@@ -69,7 +81,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?dist}
+Release:        0.3%{?milestone:.%{milestone}}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -751,6 +763,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Nov 18 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.3.m13
+- Fixed isa_bits error 
+
 * Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.1.m13
 - Initial 5.7 port
 
