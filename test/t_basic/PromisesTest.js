@@ -38,10 +38,8 @@ t1.run = function() {
   }
   function verify(instance) {
     global.verify_t_basic(null, instance, id, testCase, true);
-//    throw new Error('testing error condition');
   }
   function commit() {
-    console.log('committing');
     return testCase.session.currentTransaction().commit();
   }
   function reportSuccess() {
