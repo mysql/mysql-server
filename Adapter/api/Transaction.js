@@ -202,17 +202,17 @@ Transaction.prototype.rollbackOnly = rollbackOnly;
 
 Transaction.prototype.begin = function() {
   udebug.log('Transaction.begin');
-  this.state.begin(this.session, arguments);
+  return this.state.begin(this.session, arguments);
 };
 
 Transaction.prototype.commit = function() {
   udebug.log('Transaction.commit');
-  this.state.commit(this.session, arguments);
+  return this.state.commit(this.session, arguments);
 };
 
 Transaction.prototype.rollback = function() {
   udebug.log('Transaction.rollback');
-  this.state.rollback(this.session, arguments);
+  return this.state.rollback(this.session, arguments);
 };
 
 Transaction.prototype.isActive = function() {
