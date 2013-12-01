@@ -53,7 +53,7 @@ var execute = function() {
   var session = this.mynode_query_domain_type.session;
   var context = new userContext.UserContext(arguments, 2, 2, session, session.sessionFactory);
   // delegate to context's execute for execution
-  context.executeQuery(this);
+  return context.executeQuery(this);
 };
 
 var queryDomainTypeFunctions = {};
@@ -166,6 +166,13 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
     }
   });
 };
+
+QueryDomainType.prototype.inspect = function() { 
+  var mynode = this.mynode_query_domain_type;
+  return "[[API Query on table: " + mynode.dbTableHandler.dbTable.name + 
+    ", type: " + mynode.queryType + ", predicate: " + 
+    util.inspect(mynode.predicate) + "]]\n";
+}
 
 QueryDomainType.prototype.not = function(queryPredicate) {
   return new QueryNot(queryPredicate);

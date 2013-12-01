@@ -131,7 +131,7 @@ exports.Session.prototype.save = function(tableIndicator) {
 exports.Session.prototype.createQuery = function() {
   // createQuery(tableIndicator, callback)
   var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
-  context.createQuery();
+  return context.createQuery();
 };
 
 
