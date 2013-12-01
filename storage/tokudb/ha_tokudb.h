@@ -784,9 +784,21 @@ private:
 #endif
 };
 
+#if defined(MARIADB_BASE_VERSION)
+struct ha_index_option_struct {
+    bool clustering;
+};
+
+static inline bool key_is_clustering(const KEY *key) {
+    return (key->flags & HA_CLUSTERING) || (key->option_struct && key->option_struct->clustering);
+}
+
+#else
+
 static inline bool key_is_clustering(const KEY *key) {
     return key->flags & HA_CLUSTERING;
 }
+#endif
 
 #endif
 

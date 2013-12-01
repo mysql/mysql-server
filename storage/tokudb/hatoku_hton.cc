@@ -126,6 +126,13 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
+#if defined(MARIADB_BASE_VERSION)
+ha_create_table_option tokudb_index_options[] = {
+    HA_IOPTION_BOOL("clustering", clustering, 0),
+    HA_IOPTION_END
+};
+#endif
+
 static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_used __attribute__ ((unused))) {
     *length = share->table_name_length;
     return (uchar *) share->table_name;
@@ -363,6 +370,11 @@ static int tokudb_init_func(void *p) {
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
 #endif
+
+#if defined(MARIADB_BASE_VERSION)
+    tokudb_hton->index_options = tokudb_index_options;
+#endif
+
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
