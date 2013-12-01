@@ -950,7 +950,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   
   // executeQuery starts here
   // query.execute(parameters, callback)
-  udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate.toString(), 
+  udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate, 
       'with parameters', userContext.user_arguments[0]);
   // execute the query and call back user
   queryType = queryDomainType.mynode_query_domain_type.queryType;

@@ -250,7 +250,7 @@ function AddUserOperation(params, data) {
     session.persist(author).
       then(function() { return author; }).
       then(this.setResult).
-      then(this.onComplete, this.onError)
+      then(this.onComplete, this.onError);
   };
 }
 AddUserOperation.signature = [ "put", "user", "<user_name>", " << Full Name >>" ];
@@ -279,7 +279,7 @@ function DeleteUserOperation(params, data) {
   
   this.run = function(session) {
     session.remove(Author, author_name).
-      then(function() {return {"deleted": author_name}}).
+      then(function() {return {"deleted": author_name};}).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -305,7 +305,7 @@ function InsertTweetOperation(params, data) {
 
   this.run = function(session) {   /* Start here */
 
-    function onTweetCreateTagEntries() {
+    function createTagEntries() {
       udebug.log("onTweetCreateTagEntries");
       var batch, tags, tag, tagEntry;
 
@@ -328,44 +328,31 @@ function InsertTweetOperation(params, data) {
         tag = tags.at.pop();
       }
 
-var p = batch.execute();
-console.log(p);
-assert(p.resolved);
-return p;
-//      return batch.execute();    
+      return batch.execute();    
+    }
+
+    function incrementTweetCount(author) {
+      author.tweets++;
+      return session.save(author);
     }
   
-    // Transaction commit() and rollback() do not yet properly return promises
-    var self = this; // part of workaround
     function commitOnSuccess(value) {
-      console.log("commitOnSuccess", value);
-      session.currentTransaction().commit(function(err) {
-        if(err) {
-          self.onError(err);
-        } else {
-          self.setResult(tweet);
-          self.onComplete();
-        }
-      });
+      return session.currentTransaction().commit(); 
     }
 
     function rollbackOnError(err) {
-      console.log("rollbackOnError", error);
-      session.currentTransaction().rollback(function() {
-        self.onError(err);
-      });
+      return session.currentTransaction().rollback();
     }
 
     session.currentTransaction().begin();
     session.persist(tweet).
-      then(function() { return session.find(Author, authorName)}).
-      then(function(a) { a.tweets++ ; return session.save(a) }).
-      then(onTweetCreateTagEntries).
-      then(commitOnSuccess, rollbackOnError);
-      // then(function() {return tweet}).
-      // then(this.setResult).
-      // then(this.onComplete, this.onError);
- console.log("end of run()");
+      then(function() { return session.find(Author, authorName);}).
+      then(incrementTweetCount).
+      then(createTagEntries).
+      then(commitOnSuccess, rollbackOnError).
+      then(function() {return tweet}).
+      then(this.setResult).
+      then(this.onComplete, this.onError);
   };
 }
 InsertTweetOperation.signature = [ "post", "tweet", "<author>", " << Message >>" ];
@@ -380,7 +367,7 @@ function DeleteTweetOperation(params, data) {
 
   this.run = function(session) {
     session.remove(Tweet, tweet_id).
-      then(function() { return { "deleted" : tweet_id }}).
+      then(function() { return { "deleted" : tweet_id };}).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -410,7 +397,7 @@ function FollowOperation(params, data) {
   this.run = function(session) {
     var record = new Follow(params[0], params[1]);
     session.persist(record).
-      then(function() { return record }).
+      then(function() { return record; }).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -418,12 +405,13 @@ function FollowOperation(params, data) {
 FollowOperation.signature = [ "put", "follow", "<user_follower> <user_followed>"];
 
 
-/* Common callback for queries on field=value
+/* Takes query and params; builds an equal condition on each param.
+   Returns the promise from query.execute()
 */
 function buildQueryEq(query, qparams) {
   var field;
   for(field in qparams) {
-    if(qparams.hasOwnProperty(field) && query[field]) {
+    if(qparams.hasOwnProperty(field) && query[field]) { 
       query.where(query[field].eq(query.param(field)));
     }
   }
@@ -434,14 +422,12 @@ function buildQueryEq(query, qparams) {
 /* Who follows a user?
 */
 function FollowersOperation(params, data) {
-  Operation.call(this);
-  
+  Operation.call(this);  
+  var queryParams =  {"followed" : params[0]};
+
   this.run = function(session) {
-    function buildQuery(query) {
-      return buildQueryEq(query, {"followed" : params[0] });
-    }
     session.createQuery(Follow).
-      then(buildQuery).
+      then(function(query) {return buildQueryEq(query, queryParams); }).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -452,14 +438,12 @@ FollowersOperation.signature = [ "get", "followers", "<user_name>" ];
 /* Whom does a user follow?
 */
 function FollowingOperation(params, data) {
-  Operation.call(this);
-  
+  Operation.call(this);  
+  var queryParams = { "follower" : params[0] };
+
   this.run = function(session) {
-    function buildQuery(query) {
-      return buildQueryEq(query, {"follower" : params[0] });
-    }
-    session.createQuery(Follow).
-      then(buildQuery).
+   session.createQuery(Follow).
+      then(function (query) { return buildQueryEq(query, queryParams); }).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -472,12 +456,12 @@ FollowingOperation.signature = [ "get", "following" , "<user_name>" ];
 function RecentTweetsOperation(params, data) {
   Operation.call(this);
   var limit = params && params[0] ? Number(params[0]) : 20;
+  var queryParams =  {"zero" : 0, "order" : "desc", "limit" : limit};
   
   function buildQuery(query) {
-    var params = {"zero" : 0, "order" : "desc", "limit" : limit};
     /* use id > 0 to coerce a descending index scan on id */
     query.where(query.id.gt(query.param("zero")));
-    return query.execute(params);
+    return query.execute(queryParams);
   }
 
   this.run = function(session) {
@@ -514,7 +498,7 @@ TweetsByUserOperation.signature = [ "get" , "tweets-by" , "<user_name>" ];
 function fetchTweetsInBatch(scanResults, session) {
   var batch, r;
   var resultData = [];
-  
+
   function addTweetToResults(e, tweet) {
     if(tweet && ! e) resultData.push(tweet);
   }
@@ -535,17 +519,14 @@ function fetchTweetsInBatch(scanResults, session) {
 */
 function TweetsAtUserOperation(params, data) {
   Operation.call(this);
+  var tag = params[0];
+  if(tag.charAt(0) == "@") {    tag = tag.substring(1);   }
+  var queryParams = {"at_user" : tag, "order" : "desc" , "limit" : 20 };
   
   this.run = function(session) {
-    var tag = params[0];
-    if(tag.charAt(0) == "@") {    tag = tag.substring(1);   }
-    var qp = {"at_user" : tag, "order" : "desc" , "limit" : 20 };
-    function buildQuery(query) {
-      return buildQueryEq(query, qp);
-    }
     session.createQuery(Mention).
-      then(buildQuery).
-      then(fetchTweetsInBatch).
+      then(function(query) { return buildQueryEq(query, queryParams); }).
+      then(function(results) { return fetchTweetsInBatch(results, session); }).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -567,7 +548,7 @@ function TweetsByHashtagOperation(params, data) {
     }
     session.createQuery(HashtagEntry).
       then(buildQuery).
-      then(fetchTweetsInBatch).
+      then(function(results) { return fetchTweetsInBatch(results, session); }).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
