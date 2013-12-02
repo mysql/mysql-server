@@ -3149,7 +3149,8 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), thd(NULL), option_type(OPT_DEFAULT),
-  is_set_password_sql(false), is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0),
+  in_update_value_clause(false)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

@@ -61,7 +61,7 @@ create table t2
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
         ) engine = innodb;
---source suite/innodb/include/innodb_dml_ops.inc
+--source suite/innodb_zip/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
 #
@@ -73,7 +73,7 @@ create temporary table t2
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
         ) engine = innodb;
---source suite/innodb/include/innodb_dml_ops.inc
+--source suite/innodb_zip/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
 #
@@ -86,7 +86,7 @@ create table t2
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
         ) engine = innodb;
---source suite/innodb/include/innodb_dml_ops.inc
+--source suite/innodb_zip/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
 #
@@ -98,7 +98,7 @@ create temporary table t2
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
         ) engine = innodb;
---source suite/innodb/include/innodb_dml_ops.inc
+--source suite/innodb_zip/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
 

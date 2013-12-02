@@ -24,7 +24,6 @@
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
-#include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"
@@ -261,6 +260,7 @@ sp_head::sp_head(enum_sp_type type)
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
   m_root_parsing_ctx(NULL),
+  m_instructions(&main_mem_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -268,6 +268,8 @@ sp_head::sp_head(enum_sp_type type)
   m_first_instance= this;
   m_first_free_instance= this;
   m_last_cached_sp= this;
+
+  m_instructions.reserve(32);
 
   m_return_field_def.charset = NULL;
 
@@ -1781,7 +1783,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
   */
   instr->mem_root= get_persistent_mem_root();
 
-  return m_instructions.append(instr);
+  return m_instructions.push_back(instr);
 }
 
 
@@ -1806,7 +1808,7 @@ void sp_head::optimize()
     {
       if (src != dst)
       {
-        m_instructions.set(dst, i);
+        m_instructions[dst]= i;
 
         /* Move the instruction and update prev. jumps */
         sp_branch_instr *ibp;
@@ -1821,7 +1823,7 @@ void sp_head::optimize()
     }
   }
 
-  m_instructions.elements(dst);
+  m_instructions.resize(dst);
   bp.empty();
 }
 

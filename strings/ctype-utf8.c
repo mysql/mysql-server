@@ -21,6 +21,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 #include <errno.h>
+#include "my_uctype.h"
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT
@@ -41,24 +42,6 @@
 #define HAVE_CHARSET_utf8
 #endif
 
-#ifdef HAVE_CHARSET_utf8
-#define HAVE_UNIDATA
-#endif
-
-#ifdef HAVE_CHARSET_ucs2
-#define HAVE_UNIDATA
-#endif
-
-#ifdef HAVE_CHARSET_utf16
-#define HAVE_UNIDATA
-#endif
-
-#ifdef HAVE_CHARSET_utf32
-#define HAVE_UNIDATA
-#endif
-
-
-#if defined(HAVE_CHARSET_utf8) || defined(HAVE_CHARSET_utf8mb4)
 
 static inline
 int my_valid_mbcharlen_utf8mb3(const uchar *s, const uchar *e)
@@ -94,12 +77,6 @@ int my_valid_mbcharlen_utf8mb3(const uchar *s, const uchar *e)
 
   return 3;
 }
-
-#endif  /*HAVE_CHARSET_utf8 || HAVE_CHARSET_utf8mb4*/
-
-#ifdef HAVE_UNIDATA
-
-#include "my_uctype.h"
 
 static const MY_UNICASE_CHARACTER plane00[]={
   {0x0000,0x0000,0x0000},  {0x0001,0x0001,0x0001},
@@ -5246,7 +5223,6 @@ my_strnxfrmlen_unicode_full_bin(const CHARSET_INFO *cs, size_t len)
 {
   return ((len + 3) / cs->mbmaxlen) * 3;
 }
-#endif /* HAVE_UNIDATA */
 
 
 #ifdef HAVE_CHARSET_utf8
@@ -5369,66 +5345,6 @@ static int my_utf8_uni(const CHARSET_INFO *cs __attribute__((unused)),
 
     return 3;
   }
-#ifdef UNICODE_32BIT
-  else if (c < 0xf8 && sizeof(my_wc_t)*8 >= 32)
-  {
-    if (s+4 > e) /* We need 4 characters */
-      return MY_CS_TOOSMALL4;
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) &&
-          IS_CONTINUATION_BYTE(s[2]) &&
-          IS_CONTINUATION_BYTE(s[3]) &&
-          (c >= 0xf1 || s[1] >= 0x90)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x07) << 18)    |
-           ((my_wc_t) (s[1] ^ 0x80) << 12) |
-           ((my_wc_t) (s[2] ^ 0x80) << 6)  |
-            (my_wc_t) (s[3] ^ 0x80);
-
-    return 4;
-  }
-   else if (c < 0xfc && sizeof(my_wc_t)*8 >= 32)
-  {
-    if (s+5 >e) /* We need 5 characters */
-      return MY_CS_TOOSMALL5;
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) &&
-          IS_CONTINUATION_BYTE(s[2]) &&
-          IS_CONTINUATION_BYTE(s[3]) &&
-          IS_CONTINUATION_BYTE(s[4]) &&
-          (c >= 0xf9 || s[1] >= 0x88)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x03) << 24) |
-           ((my_wc_t) (s[1] ^ 0x80) << 18) |
-           ((my_wc_t) (s[2] ^ 0x80) << 12) |
-           ((my_wc_t) (s[3] ^ 0x80) << 6) |
-            (my_wc_t) (s[4] ^ 0x80);
-    return 5;
-  }
-  else if (c < 0xfe && sizeof(my_wc_t)*8 >= 32)
-  {
-    if ( s+6 >e ) /* We need 6 characters */
-      return MY_CS_TOOSMALL6;
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) &&
-          IS_CONTINUATION_BYTE(s[2]) &&
-          IS_CONTINUATION_BYTE(s[3]) &&
-          IS_CONTINUATION_BYTE(s[4]) &&
-          IS_CONTINUATION_BYTE(s[5]) &&
-          (c >= 0xfd || s[1] >= 0x84)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x01) << 30)
-      | ((my_wc_t) (s[1] ^ 0x80) << 24)
-      | ((my_wc_t) (s[2] ^ 0x80) << 18)
-      | ((my_wc_t) (s[3] ^ 0x80) << 12)
-      | ((my_wc_t) (s[4] ^ 0x80) << 6)
-      | (my_wc_t) (s[5] ^ 0x80);
-    return 6;
-  }
-#endif
   return MY_CS_ILSEQ;
 }
 
@@ -5493,15 +5409,7 @@ static int my_uni_utf8 (const CHARSET_INFO *cs __attribute__((unused)),
     count = 2;
   else if (wc < 0x10000)
     count = 3;
-#ifdef UNICODE_32BIT
-  else if (wc < 0x200000)
-    count = 4;
-  else if (wc < 0x4000000)
-    count = 5;
-  else if (wc <= 0x7fffffff)
-    count = 6;
-#endif
-    else return MY_CS_ILUNI;
+  else return MY_CS_ILUNI;
 
   /*
     e is a character after the string r, not the last character of it.
@@ -5512,11 +5420,6 @@ static int my_uni_utf8 (const CHARSET_INFO *cs __attribute__((unused)),
 
   switch (count) {
     /* Fall through all cases!!! */
-#ifdef UNICODE_32BIT
-    case 6: r[5] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x4000000;
-    case 5: r[4] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x200000;
-    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
-#endif
     case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
     case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
     case 1: r[0] = (uchar) wc;
@@ -6078,14 +5981,6 @@ static uint my_mbcharlen_utf8(const CHARSET_INFO *cs  __attribute__((unused)),
     return 2;
   else if (c < 0xf0)
     return 3;
-#ifdef UNICODE_32BIT
-  else if (c < 0xf8)
-    return 4;
-  else if (c < 0xfc)
-    return 5;
-  else if (c < 0xfe)
-    return 6;
-#endif
   return 0; /* Illegal mb head */;
 }
 
@@ -8324,12 +8219,11 @@ my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
                      const uchar *t, size_t tlen,
                      my_bool t_is_prefix)
 {
-  my_wc_t s_wc,t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
@@ -8392,11 +8286,10 @@ my_strnncollsp_utf8mb4(const CHARSET_INFO *cs,
                        my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= FALSE;
