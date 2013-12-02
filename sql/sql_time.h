@@ -33,6 +33,7 @@ typedef struct st_known_date_time_format KNOWN_DATE_TIME_FORMAT;
 
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
+void time_to_daytime_interval(MYSQL_TIME *l_time);
 bool get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code);
 bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str, uint length,

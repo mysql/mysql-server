@@ -1085,3 +1085,22 @@ int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
   return 0;
 }
 
+
+/*
+  Convert a TIME value to DAY-TIME interval, e.g. for extraction:
+    EXTRACT(DAY FROM x), EXTRACT(HOUR FROM x), etc.
+  Moves full days from ltime->hour to ltime->day.
+  Note, time_type is set to MYSQL_TIMESTAMP_NONE, to make sure that
+  the structure is not used for anything else other than extraction:
+  non-extraction TIME functions expect zero day value!
+*/
+void time_to_daytime_interval(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_TIME);
+  DBUG_ASSERT(ltime->year == 0);
+  DBUG_ASSERT(ltime->month == 0);
+  DBUG_ASSERT(ltime->day == 0);
+  ltime->day= ltime->hour / 24;
+  ltime->hour%= 24;
+  ltime->time_type= MYSQL_TIMESTAMP_NONE;
+}

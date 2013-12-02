@@ -645,8 +645,8 @@ fractional:
   
   l_time->year=         0;                      /* For protocol::store_time */
   l_time->month=        0;
-  l_time->day=          date[0];
-  l_time->hour=         date[1];
+  l_time->day=          0;
+  l_time->hour=         date[1] + date[0] * 24; /* Mix days and hours */
   l_time->minute=       date[2];
   l_time->second=       date[3];
   l_time->second_part=  date[4];
