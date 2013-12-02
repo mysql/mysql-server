@@ -539,21 +539,6 @@ fsp_parse_init_file_page(
 	byte*		ptr,	/*!< in: buffer */
 	byte*		end_ptr, /*!< in: buffer end */
 	buf_block_t*	block);	/*!< in: block or NULL */
-/*******************************************************************//**
-Validates the file space system and its segments.
-@return TRUE if ok */
-
-ibool
-fsp_validate(
-/*=========*/
-	ulint	space);	/*!< in: space id */
-/*******************************************************************//**
-Prints info of a file space. */
-
-void
-fsp_print(
-/*======*/
-	ulint	space);	/*!< in: space id */
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
