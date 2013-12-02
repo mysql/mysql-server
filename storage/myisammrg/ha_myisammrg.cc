@@ -1125,31 +1125,36 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
-    MYRG_TABLE *open_table;
+    TABLE_LIST *child_table;
     THD *thd=current_thd;
 
     create_info->merge_list.next= &create_info->merge_list.first;
     create_info->merge_list.elements=0;
 
-    for (open_table=file->open_tables ;
-	 open_table != file->end_table ;
-	 open_table++)
+    if (table->child_l != NULL)
     {
-      TABLE_LIST *ptr;
-      LEX_STRING db, name;
-      LINT_INIT(db.str);
+      for (child_table= table->child_l;;
+           child_table= child_table->next_global)
+      {
+        TABLE_LIST *ptr;
 
-      if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
-	goto err;
-      split_file_name(open_table->table->filename, &db, &name);
-      if (!(ptr->table_name= thd->strmake(name.str, name.length)))
-	goto err;
-      if (db.length && !(ptr->db= thd->strmake(db.str, db.length)))
-	goto err;
+        if (!(ptr= (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+          goto err;
 
-      create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = ptr;
-      create_info->merge_list.next= &ptr->next_local;
+        if (!(ptr->table_name= thd->strmake(child_table->table_name,
+                                            child_table->table_name_length)))
+          goto err;
+        if (child_table->db && !(ptr->db= thd->strmake(child_table->db,
+                                   child_table->db_length)))
+          goto err;
+
+        create_info->merge_list.elements++;
+        (*create_info->merge_list.next)= ptr;
+        create_info->merge_list.next= &ptr->next_local;
+
+        if (&child_table->next_global == table->child_last_l)
+          break;
+      }
     }
     *create_info->merge_list.next=0;
   }

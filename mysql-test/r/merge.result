@@ -2368,6 +2368,13 @@ FLUSH TABLES;
 ERROR HY000: Can't reopen table: 'm1'
 UNLOCK TABLES;
 DROP TABLE t1, t2, t3, m1;
+create temporary table t1_temp(i int);
+create temporary table tm_temp_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+alter table tm_temp_temp insert_method=first;
+check table tm_temp_temp;
+Table	Op	Msg_type	Msg_text
+test.tm_temp_temp	check	status	OK
+drop temporary table t1_temp, tm_temp_temp;
 End of 5.1 tests
 # 
 # MDEV-4277: Crash inside mi_killed_in_mariadb() with myisammrg

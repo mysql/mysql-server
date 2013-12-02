@@ -1863,6 +1863,15 @@ FLUSH TABLES;
 UNLOCK TABLES;
 DROP TABLE t1, t2, t3, m1;
 
+#
+#  MDEV-5266 MySQL:57657 - Temporary MERGE table with temporary underlying is broken by ALTER
+#
+create temporary table t1_temp(i int);
+create temporary table tm_temp_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+alter table tm_temp_temp insert_method=first;
+check table tm_temp_temp;
+drop temporary table t1_temp, tm_temp_temp;
+
 --echo End of 5.1 tests
 
 --echo # 
