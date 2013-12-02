@@ -475,7 +475,6 @@ bool Rpl_info_table_access::drop_thd(THD *thd)
   if (saved_current_thd != current_thd)
   {
     delete thd;
-    my_pthread_set_THR_THD(NULL);
   }
 
   DBUG_RETURN(FALSE);

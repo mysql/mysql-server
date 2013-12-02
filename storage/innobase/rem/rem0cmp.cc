@@ -34,10 +34,6 @@ Created 7/1/1994 Heikki Tuuri
 #include "handler0alter.h"
 #include "srv0srv.h"
 
-#include <algorithm>
-
-using std::min;
-
 /*		ALPHABETICAL ORDER
 		==================
 
@@ -364,11 +360,62 @@ cmp_data(
 				       data2, (unsigned) len2));
 	}
 
-	ulint	len	= min(len1, len2);
-	int	cmp	= memcmp(data1, data2, len);
+	ulint	len;
+	int	cmp;
 
-	if (cmp) {
-		return(cmp);
+	if (len1 < len2) {
+		len = len1;
+		len2 -= len;
+		len1 = 0;
+	} else {
+		len = len2;
+		len1 -= len;
+		len2 = 0;
+	}
+
+	if (len) {
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+		/* Compare the first bytes with a loop to avoid the call
+		overhead of memcmp(). On x86 and x86-64, the GCC built-in
+		(repz cmpsb) seems to be very slow, so we will be calling the
+		libc version. http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
+		tracks the slowness of the GCC built-in memcmp().
+
+		We compare up to the first 4..7 bytes with the loop.
+		The (len & 3) is used for "normalizing" or
+		"quantizing" the len parameter for the memcmp() call,
+		in case the whole prefix is equal. On x86 and x86-64,
+		the GNU libc memcmp() of equal strings is faster with
+		len=4 than with len=3.
+
+		On other architectures than the IA32 or AMD64, there could
+		be a built-in memcmp() that is faster than the loop.
+		We only use the loop where we know that it can improve
+		the performance. */
+		for (ulint i = 4 + (len & 3); i > 0; i--) {
+			cmp = int(*data1++) - int(*data2++);
+			if (cmp) {
+				return(cmp);
+			}
+
+			if (!--len) {
+				break;
+			}
+		}
+
+		if (len) {
+#endif /* IA32 or AMD64 */
+			cmp = memcmp(data1, data2, len);
+
+			if (cmp) {
+				return(cmp);
+			}
+
+			data1 += len;
+			data2 += len;
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+		}
+#endif /* IA32 or AMD64 */
 	}
 
 	cmp = (int) (len1 - len2);
@@ -377,13 +424,15 @@ cmp_data(
 		return(cmp);
 	}
 
-	if (len < len1) {
+	len = 0;
+
+	if (len1) {
 		do {
 			cmp = static_cast<int>(
 				mach_read_from_1(&data1[len++]) - pad);
 		} while (cmp == 0 && len < len1);
 	} else {
-		ut_ad(len < len2);
+		ut_ad(len2 > 0);
 
 		do {
 			cmp = static_cast<int>(
@@ -783,3 +832,26 @@ order_resolved:
 	*matched_fields = cur_field;
 	return(ret);
 }
+
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+void
+test_cmp_data_data(ulint len)
+{
+	speedo_t		speedo;
+	int			i;
+	static byte		zeros[64];
+
+	if (len > sizeof zeros) {
+		len = sizeof zeros;
+	}
+
+	speedo_reset(&speedo);
+
+	for (i = 1000000; i > 0; i--) {
+		i += cmp_data(DATA_INT, 0, zeros, len, zeros, len);
+	}
+
+	speedo_show(&speedo);
+}
+#endif /* UNIV_COMPILE_TEST_FUNCS */

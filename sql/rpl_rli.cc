@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,8 +113,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                          key_RELAYLOG_LOCK_done,
                          key_RELAYLOG_LOCK_flush_queue,
                          key_RELAYLOG_LOCK_log,
+                         PSI_NOT_INSTRUMENTED, /* Relaylog doesn't support LOCK_binlog_end_pos */
                          key_RELAYLOG_LOCK_sync,
-                         0, /* Relaylog doesn't support LOCK_binlog_end_pos */
                          key_RELAYLOG_LOCK_sync_queue,
                          key_RELAYLOG_LOCK_xids,
                          key_RELAYLOG_COND_done,

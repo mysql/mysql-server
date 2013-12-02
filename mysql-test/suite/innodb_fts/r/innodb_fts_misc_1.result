@@ -44,6 +44,7 @@ id2
 3
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
 id1
+1
 2
 3
 4
@@ -51,6 +52,7 @@ id1
 6
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
 id2
+1
 2
 3
 4
@@ -89,9 +91,11 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN
 id1
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
+3
 6
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id1;
 id1
+1
 2
 3
 4
@@ -99,6 +103,7 @@ id1
 6
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id2;
 id2
+1
 2
 3
 4
@@ -106,6 +111,7 @@ id2
 6
 SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
 id2
+1
 2
 3
 4
@@ -212,10 +218,8 @@ SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id2	a2	b2
 SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
 id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 DROP TABLE t2 , t1;
 DROP TABLE IF EXISTS t2,t1;
 SET NAMES utf8;
@@ -264,10 +268,12 @@ id2	a2	b2
 3	Optimizing MySQL	In this tutorial we will show ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
 id1	a1	b1
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
 id2	a2	b2
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
@@ -327,9 +333,11 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
+3	changing column - on UPDATE cascade	In this tutorial we will show ...
 6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id1;
 id1	a1	b1
+1	changing column - on UPDATE cascade	to check foreign constraint
 2	changing column - on UPDATE cascade	to check foreign constraint
 3	changing column - on UPDATE cascade	to check foreign constraint
 4	changing column - on UPDATE cascade	to check foreign constraint
@@ -337,6 +345,7 @@ id1	a1	b1
 6	changing column - on UPDATE cascade	to check foreign constraint
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id2;
 id2	a2	b2
+1	changing column - on UPDATE cascade	DBMS stands for DataBase VÐƷWİ...
 2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
 4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
@@ -344,6 +353,7 @@ id2	a2	b2
 6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
 id2	a2	b2
+1	changing column - on UPDATE cascade	DBMS stands for DataBase VÐƷWİ...
 2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
 4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...

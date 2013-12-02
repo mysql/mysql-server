@@ -2356,7 +2356,7 @@ state_ok:
 
 	if (trx->undo_no != 0) {
 		newline = TRUE;
-		fprintf(f, ", undo log entries "TRX_ID_FMT, trx->undo_no);
+		fprintf(f, ", undo log entries " TRX_ID_FMT, trx->undo_no);
 	}
 
 	if (newline) {
@@ -2685,7 +2685,7 @@ trx_recover_for_mysql(
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Transaction contains changes"
-				" to "TRX_ID_FMT" rows\n",
+				" to " TRX_ID_FMT " rows\n",
 				trx->undo_no);
 
 			count++;
