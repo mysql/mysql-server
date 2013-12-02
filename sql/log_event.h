@@ -1247,9 +1247,9 @@ public:
     DBUG_ENTER("Binlog_sender::peek_event_length");
     char header[LOG_EVENT_MINIMAL_HEADER_LEN];
     if (peek_event_header(header, log_cache))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     *length= uint4korr(header + EVENT_LEN_OFFSET);
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
   /**
