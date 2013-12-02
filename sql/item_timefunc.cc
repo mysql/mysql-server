@@ -1338,7 +1338,7 @@ longlong Item_func_weekday::val_int()
 
   return (longlong) calc_weekday(calc_daynr(ltime.year, ltime.month,
                                             ltime.day),
-                                 odbc_type) + test(odbc_type);
+                                 odbc_type) + MY_TEST(odbc_type);
 }
 
 void Item_func_dayname::fix_length_and_dec()
@@ -1443,7 +1443,26 @@ longlong Item_timeval_func::val_int()
 my_decimal *Item_timeval_func::val_decimal(my_decimal *decimal_value)
 {
   struct timeval tm;
-  return val_timeval(&tm) ? NULL : timeval2my_decimal(&tm, decimal_value);
+  if (val_timeval(&tm))
+  {
+    /*
+      Whatever is returned by this function SHOULD not matter, as null_value
+      is surely true (set by val_timeval() when it returns true).
+      Even a NULL ptr should be ok, as it should be unused.
+      But returned ptr is used. Because:
+      - make_sortkey() sees that maybe_null is false so ignores null_value
+        and looks at return value (=> crash)
+      - so for safety, for inconsistent cases like this, we return a zero
+        DECIMAL instead of NULL ptr.
+
+      Notice that val_str() returns NULL ptr! And filesort works around it,
+      grep for "or have an item marked not null when it can be null" in
+      filesort.cc...
+    */
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
+  return timeval2my_decimal(&tm, decimal_value);
 }
 
 
@@ -1466,6 +1485,10 @@ String *Item_timeval_func::val_str(String *str)
 }
 
 
+/**
+   @retval true  args[0] is SQL NULL, so item is set to SQL NULL
+   @retval false item's value is set, to 0 if out of range
+*/
 bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
 {
   DBUG_ASSERT(fixed == 1);

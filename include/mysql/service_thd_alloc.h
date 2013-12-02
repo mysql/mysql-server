@@ -43,13 +43,13 @@ struct st_mysql_lex_string
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
 
 extern struct thd_alloc_service_st {
-  void *(*thd_alloc_func)(MYSQL_THD, unsigned int);
-  void *(*thd_calloc_func)(MYSQL_THD, unsigned int);
+  void *(*thd_alloc_func)(MYSQL_THD, size_t);
+  void *(*thd_calloc_func)(MYSQL_THD, size_t);
   char *(*thd_strdup_func)(MYSQL_THD, const char *);
-  char *(*thd_strmake_func)(MYSQL_THD, const char *, unsigned int);
-  void *(*thd_memdup_func)(MYSQL_THD, const void*, unsigned int);
+  char *(*thd_strmake_func)(MYSQL_THD, const char *, size_t);
+  void *(*thd_memdup_func)(MYSQL_THD, const void*, size_t);
   MYSQL_LEX_STRING *(*thd_make_lex_string_func)(MYSQL_THD, MYSQL_LEX_STRING *,
-                                        const char *, unsigned int, int);
+                                        const char *, size_t, int);
 } *thd_alloc_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -84,11 +84,11 @@ extern struct thd_alloc_service_st {
 
   @see alloc_root()
 */
-void *thd_alloc(MYSQL_THD thd, unsigned int size);
+void *thd_alloc(MYSQL_THD thd, size_t size);
 /**
   @see thd_alloc()
 */
-void *thd_calloc(MYSQL_THD thd, unsigned int size);
+void *thd_calloc(MYSQL_THD thd, size_t size);
 /**
   @see thd_alloc()
 */
@@ -96,11 +96,11 @@ char *thd_strdup(MYSQL_THD thd, const char *str);
 /**
   @see thd_alloc()
 */
-char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size);
+char *thd_strmake(MYSQL_THD thd, const char *str, size_t size);
 /**
   @see thd_alloc()
 */
-void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
+void *thd_memdup(MYSQL_THD thd, const void* str, size_t size);
 
 /**
   Create a LEX_STRING in this connection's local memory pool
@@ -116,7 +116,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
   @see thd_alloc()
 */
 MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
+                                      const char *str, size_t size,
                                       int allocate_lex_string);
 
 #endif

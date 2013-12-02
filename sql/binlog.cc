@@ -25,7 +25,6 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
-#include "global_threads.h"
 #include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
@@ -34,6 +33,9 @@
 #include <string>
 #include <m_ctype.h>				// For is_number
 #include <my_stacktrace.h>
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 
 using std::max;
 using std::min;
@@ -1083,6 +1085,13 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   global_sid_lock->unlock();
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /* Set the transaction GTID in the Performance Schema */
+  if (thd->m_transaction_psi != NULL && !error && thd->owned_gtid.sidno >= 1)
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
+                               &thd->variables.gtid_next);
+#endif
+
   /*
     If an automatic group number was generated, change the first event
     into a "real" one.
@@ -1841,9 +1850,39 @@ static uint purge_log_get_error_code(int res)
 }
 
 #ifdef HAVE_REPLICATION
+/**
+  Adjust log offset in the binary log file for all running slaves
+  This class implements call back function for do_for_all_thd().
+  It is called for each thd in thd list to adjust offset.
+*/
+class Adjust_offset : public Do_THD_Impl
+{
+public:
+  Adjust_offset(my_off_t value) : m_purge_offset(value) {}
+  virtual void operator()(THD *thd)
+  {
+    LOG_INFO* linfo;
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    if ((linfo= thd->current_linfo))
+    {
+      /*
+        Index file offset can be less that purge offset only if
+        we just started reading the index file. In that case
+        we have nothing to adjust.
+      */
+      if (linfo->index_file_offset < m_purge_offset)
+        linfo->fatal = (linfo->index_file_offset != 0);
+      else
+        linfo->index_file_offset -= m_purge_offset;
+    }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+  }
+private:
+  my_off_t m_purge_offset;
+};
 
 /*
-  Adjust the position pointer in the binary log file for all running slaves
+  Adjust the position pointer in the binary log file for all running slaves.
 
   SYNOPSIS
     adjust_linfo_offsets()
@@ -1851,74 +1890,64 @@ static uint purge_log_get_error_code(int res)
 
   NOTES
     - This is called when doing a PURGE when we delete lines from the
-      index log file
+      index log file.
 
   REQUIREMENTS
     - Before calling this function, we have to ensure that no threads are
-      using any binary log file before purge_offset.a
+      using any binary log file before purge_offset.
 
   TODO
     - Inform the slave threads that they should sync the position
       in the binary log file with flush_relay_log_info.
       Now they sync is done for next read.
 */
-
 static void adjust_linfo_offsets(my_off_t purge_offset)
 {
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    LOG_INFO* linfo;
-    if ((linfo = (*it)->current_linfo))
-    {
-      mysql_mutex_lock(&linfo->lock);
-      /*
-	Index file offset can be less that purge offset only if
-	we just started reading the index file. In that case
-	we have nothing to adjust
-      */
-      if (linfo->index_file_offset < purge_offset)
-	linfo->fatal = (linfo->index_file_offset != 0);
-      else
-	linfo->index_file_offset -= purge_offset;
-      mysql_mutex_unlock(&linfo->lock);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Adjust_offset adjust_offset(purge_offset);
+  Global_THD_manager::get_instance()->do_for_all_thd(&adjust_offset);
 }
 
+/**
+  This class implements Call back function for do_for_all_thd().
+  It is called for each thd in thd list to count
+  threads using bin log file
+*/
+
+class Log_in_use : public Do_THD_Impl
+{
+public:
+  Log_in_use(const char* value) : m_log_name(value), m_count(0)
+  {
+    m_log_name_len = strlen(m_log_name) + 1;
+  }
+  virtual void operator()(THD *thd)
+  {
+    LOG_INFO* linfo;
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    if ((linfo = thd->current_linfo))
+    {
+      if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
+      {
+        sql_print_warning("file %s was not purged because it was being read"
+                          "by thread number %llu", m_log_name,
+                          (ulonglong)thd->thread_id);
+        m_count++;
+      }
+    }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+  }
+  int get_count() { return m_count; }
+private:
+  const char* m_log_name;
+  size_t m_log_name_len;
+  int m_count;
+};
 
 static int log_in_use(const char* log_name)
 {
-  size_t log_name_len = strlen(log_name) + 1;
-  int thread_count=0;
-
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    LOG_INFO* linfo;
-    if ((linfo = (*it)->current_linfo))
-    {
-      mysql_mutex_lock(&linfo->lock);
-      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
-      {
-        thread_count++;
-        sql_print_warning("file %s was not purged because it was being read"
-                          "by thread number %llu", log_name,
-                          (ulonglong)(*it)->thread_id);
-      }
-      mysql_mutex_unlock(&linfo->lock);
-    }
-  }
-
-  mysql_mutex_unlock(&LOCK_thread_count);
-  return thread_count;
+  Log_in_use log_in_use(log_name);
+  Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
+  return log_in_use.get_count();
 }
 
 static bool purge_error_message(THD* thd, int res)
@@ -2314,9 +2343,9 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       goto err;
     }
 
-    mysql_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&thd->LOCK_thd_data);
     thd->current_linfo = &linfo;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
@@ -2417,9 +2446,9 @@ err:
   else
     my_eof(thd);
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo = 0;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
@@ -2927,6 +2956,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   this object.
   @param prev_gtids If not NULL, then the GTIDs from the
   Previous_gtids_log_events are stored in this object.
+  @param last_gtid If not NULL, then the last GTID information from the
+  file will be stored in this object.
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
@@ -2945,7 +2976,8 @@ enum enum_read_gtids_from_binlog_status
 { GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
-                       Gtid_set *prev_gtids, bool verify_checksum)
+                       Gtid_set *prev_gtids, Gtid *last_gtid,
+                       bool verify_checksum)
 {
   DBUG_ENTER("read_gtids_from_binlog");
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -3053,24 +3085,34 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         at least one Gtid_log_event, so that we can distinguish the
         return values GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need
         to read anything else from the binary log.
+        But if last_gtid is requested (i.e., NOT NULL), we should continue to
+        read all gtids. Otherwise, we are done.
       */
-      if (all_gtids == NULL)
+      if (all_gtids == NULL && last_gtid == NULL)
+      {
         ret= GOT_GTIDS, done= true;
+      }
       else
       {
         Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
         rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
         if (sidno < 0)
           ret= ERROR, done= true;
+        else
         {
-          if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-            ret= ERROR, done= true;
-          else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-                   RETURN_STATUS_OK)
-            ret= ERROR, done= true;
+          if (all_gtids)
+          {
+            if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                     RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                                filename, sidno, gtid_ev->get_gno()));
+          }
+          if (last_gtid)
+            last_gtid->set(sidno, gtid_ev->get_gno());
         }
-        DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                            filename, sidno, gtid_ev->get_gno()));
       }
       break;
     }
@@ -3168,7 +3210,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
     switch (read_gtids_from_binlog(filename, NULL, &binlog_previous_gtid_set,
-                                   opt_master_verify_checksum))
+                                 NULL, opt_master_verify_checksum))
     {
     case ERROR:
       *errmsg= "Error reading header of binary log while looking for "
@@ -3218,6 +3260,7 @@ end:
 }
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
+                                   Gtid *last_gtid,
                                    bool verify_checksum, bool need_lock)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
@@ -3277,15 +3320,17 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
                         rit->c_str(), reached_first_file));
-    while (!got_gtids && !reached_first_file)
+    while ((!got_gtids || (last_gtid && last_gtid->empty()))
+           && !reached_first_file)
     {
       const char *filename= rit->c_str();
       rit++;
       reached_first_file= (rit == filename_list.rend());
       DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
                           filename, got_gtids, reached_first_file));
-      switch (read_gtids_from_binlog(filename, all_gtids,
+      switch (read_gtids_from_binlog(filename, got_gtids ? NULL : all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
+                                     last_gtid,
                                      verify_checksum))
       {
       case ERROR:
@@ -3308,7 +3353,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     {
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
-      switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
+      switch (read_gtids_from_binlog(filename, NULL, lost_gtids, NULL,
                                      verify_checksum))
       {
       case ERROR:
@@ -3967,14 +4012,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   ha_reset_logs(thd);
 
   /*
-    The following mutex is needed to ensure that no threads call
-    'delete thd' as we would then risk missing a 'rollback' from this
-    thread. If the transaction involved MyISAM tables, it should go
-    into binlog even on rollback.
-  */
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
   */
@@ -4095,7 +4132,6 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
   global_sid_lock->unlock();
-  mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -4515,6 +4551,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
                        const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
+                       NULL,
                        opt_master_verify_checksum,
                        false/*false=don't need lock*/);
     global_sid_lock->unlock();
@@ -6947,6 +6984,12 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
     if (head->transaction.flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
+
+      /*
+        TODO: This hook here should probably move outside/below this
+              if and be the only after_commit invocation left in the
+              code.
+      */
       excursion.try_to_attach_to(head);
       bool all= head->transaction.flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
@@ -7100,8 +7143,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids(thd);
     /*
       If commit succeeded, we call the after_commit hook
+
+      TODO: This hook here should probably move outside/below this
+            if and be the only after_commit invocation left in the
+            code.
     */
-    if (thd->commit_error == THD::CE_NONE)
+    if ((thd->commit_error == THD::CE_NONE) && thd->transaction.flags.run_hooks)
     {
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
       thd->transaction.flags.run_hooks= false;
@@ -7594,8 +7641,8 @@ void register_binlog_handler(THD *thd, bool trx)
       Set callbacks in order to be able to call commmit or rollback.
     */
     if (trx)
-      trans_register_ha(thd, TRUE, binlog_hton);
-    trans_register_ha(thd, FALSE, binlog_hton);
+      trans_register_ha(thd, TRUE, binlog_hton, NULL);
+    trans_register_ha(thd, FALSE, binlog_hton, NULL);
 
     /*
       Set the binary log as read/write otherwise callbacks are not called.
@@ -7778,7 +7825,56 @@ void
 THD::add_to_binlog_accessed_dbs(const char *db_param)
 {
   char *after_db;
-  MEM_ROOT *db_mem_root= &main_mem_root;
+  /*
+    binlog_accessed_db_names list is to maintain the database
+    names which are referenced in a given command.
+    Prior to bug 17806014 fix, 'main_mem_root' memory root used
+    to store this list. The 'main_mem_root' scope is till the end
+    of the query. Hence it caused increasing memory consumption
+    problem in big procedures like the ones mentioned below.
+    Eg: CALL p1() where p1 is having 1,00,000 create and drop tables.
+    'main_mem_root' is freed only at the end of the command CALL p1()'s
+    execution. But binlog_accessed_db_names list scope is only till the
+    individual statements specified the procedure(create/drop statements).
+    Hence the memory allocated in 'main_mem_root' was left uncleared
+    until the p1's completion, even though it is not required after
+    completion of individual statements.
+
+    Instead of using 'main_mem_root' whose scope is complete query execution,
+    now the memroot is changed to use 'thd->mem_root' whose scope is until the
+    individual statement in CALL p1(). 'thd->mem_root' is set to 'execute_mem_root'
+    in the context of procedure and it's scope is till the individual statement
+    in CALL p1() and thd->memroot is equal to 'main_mem_root' in the context
+    of a normal 'top level query'.
+
+    Eg: a) create table t1(i int); => If this function is called while
+           processing this statement, thd->memroot is equal to &main_mem_root
+           which will be freed immediately after executing this statement.
+        b) CALL p1() -> p1 contains create table t1(i int); => If this function
+           is called while processing create table statement which is inside
+           a stored procedure, then thd->memroot is equal to 'execute_mem_root'
+           which will be freed immediately after executing this statement.
+    In both a and b case, thd->memroot will be freed immediately and will not
+    increase memory consumption.
+
+    A special case(stored functions/triggers):
+    Consider the following example:
+    create function f1(i int) returns int
+    begin
+      insert into db1.t1 values (1);
+      insert into db2.t1 values (2);
+    end;
+    When we are processing SELECT f1(), the list should contain db1, db2 names.
+    Since thd->mem_root contains 'execute_mem_root' in the context of
+    stored function, the mem root will be freed after adding db1 in
+    the list and when we are processing the second statement and when we try
+    to add 'db2' in the db1's list, it will lead to crash as db1's memory
+    is already freed. To handle this special case, if in_sub_stmt is set
+    (which is true incase of stored functions/triggers), we use &main_mem_root,
+    if not set we will use thd->memroot which changes it's value to
+    'execute_mem_root' or '&main_mem_root' depends on the context.
+   */
+  MEM_ROOT *db_mem_root= in_sub_stmt ? &main_mem_root : mem_root;
 
   if (!binlog_accessed_db_names)
     binlog_accessed_db_names= new (db_mem_root) List<char>;
@@ -7825,7 +7921,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     }
   }
   if (after_db)
-    binlog_accessed_db_names->push_back(after_db, &main_mem_root);
+    binlog_accessed_db_names->push_back(after_db, db_mem_root);
 }
 
 /*

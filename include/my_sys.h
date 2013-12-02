@@ -253,12 +253,6 @@ extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern ulong    my_file_total_opened;
 extern my_bool	my_init_done;
 
-					/* Point to current my_message() */
-extern void (*my_sigtstp_cleanup)(void),
-					/* Executed before jump to shell */
-	    (*my_sigtstp_restart)(void),
-	    (*my_abort_hook)(int);
-					/* Executed when comming from shell */
 extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
 extern int my_umask_dir,
 	   my_recived_signals,	/* Signals we have got */
@@ -887,11 +881,16 @@ int my_munmap(void *, size_t);
 #endif
 
 /* my_getpagesize */
-#ifdef HAVE_GETPAGESIZE
-#define my_getpagesize()        getpagesize()
+static inline int my_getpagesize()
+{
+#ifndef _WIN32
+  return getpagesize();
 #else
-int my_getpagesize(void);
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return (int)si.dwPageSize;
 #endif
+}
 
 int my_msync(int, void *, size_t, int);
 

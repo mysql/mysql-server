@@ -109,7 +109,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
+    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
   },
   {
@@ -200,7 +200,7 @@ void table_events_waits_common::clear_object_columns()
   m_row.m_index_name_length= 0;
 }
 
-int table_events_waits_common::make_table_object_columns(volatile PFS_events_waits *wait)
+int table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
 {
   uint safe_index;
   PFS_table_share *safe_table_share;
@@ -262,7 +262,7 @@ int table_events_waits_common::make_table_object_columns(volatile PFS_events_wai
   return 0;
 }
 
-int table_events_waits_common::make_file_object_columns(volatile PFS_events_waits *wait)
+int table_events_waits_common::make_file_object_columns(PFS_events_waits *wait)
 {
   PFS_file *safe_file;
 
@@ -294,7 +294,7 @@ int table_events_waits_common::make_file_object_columns(volatile PFS_events_wait
   return 0;
 }
 
-int table_events_waits_common::make_socket_object_columns(volatile PFS_events_waits *wait)
+int table_events_waits_common::make_socket_object_columns(PFS_events_waits *wait)
 {
   PFS_socket *safe_socket;
 
@@ -346,7 +346,7 @@ int table_events_waits_common::make_socket_object_columns(volatile PFS_events_wa
   return 0;
 }
 
-int table_events_waits_common::make_metadata_lock_object_columns(volatile PFS_events_waits *wait)
+int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_waits *wait)
 {
   PFS_metadata_lock *safe_metadata_lock;
 
@@ -923,7 +923,7 @@ int table_events_waits_current::rnd_pos(const void *pos)
 
 void table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -1040,7 +1040,7 @@ int table_events_waits_history::rnd_pos(const void *pos)
 
 void table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);

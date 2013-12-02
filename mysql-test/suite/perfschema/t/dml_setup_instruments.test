@@ -30,12 +30,16 @@ select * from performance_schema.setup_instruments
 
 # COND_handler_count is dependent on the build (Windows only)
 # DEBUG_SYNC::cond is dependent on the build (DEBUG only)
+# COND_main_thread_in_use is dependent on the build (non Windows)
+# COND_start_signal_handler is dependent on the build (non Windows)
 
 select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
     'wait/synch/cond/sql/COND_handler_count',
-    'wait/synch/cond/sql/DEBUG_SYNC::cond')
+    'wait/synch/cond/sql/DEBUG_SYNC::cond',
+    'wait/synch/cond/sql/COND_socket_listener_active',
+    'wait/synch/cond/sql/COND_start_signal_handler')
   order by name limit 10;
 
 --disable_result_log

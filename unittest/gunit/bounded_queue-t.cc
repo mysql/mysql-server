@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,18 +22,11 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "my_sys.h"
+#include "test_utils.h"
 
 namespace bounded_queue_unittest {
 
 const int num_elements= 14;
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
 
 /*
   Elements to be sorted by tests below.
@@ -91,11 +84,17 @@ int test_key_compare(size_t *cmp_arg, Test_key **a, Test_key **b)
 /*
   Generates a Test_key for a given Test_element.
  */
-void test_keymaker(Sort_param *sp, Test_key *key, Test_element *element)
+class Test_keymaker
 {
-  key->element= element;
-  key->key= element->val;
-}
+public:
+  uint make_sortkey(Test_key *key, Test_element *element)
+  {
+    key->element= element;
+    key->key= element->val;
+    return sizeof(key->key);
+  }
+  size_t compare_length() const { return sizeof(int); }
+};
 
 
 /*
@@ -118,9 +117,7 @@ struct Key_container
 class BoundedQueueTest : public ::testing::Test
 {
 protected:
-  BoundedQueueTest() : m_key_size(sizeof(int))
-  {
-  }
+  BoundedQueueTest() {}
 
   virtual void SetUp()
   {
@@ -142,8 +139,8 @@ protected:
   // Some random intput data, to be sorted.
   Test_element  m_test_data[num_elements];
 
-  size_t m_key_size;
-  Bounded_queue<Test_element, Test_key> m_queue;
+  Test_keymaker m_keymaker;
+  Bounded_queue<Test_element *, Test_key *, Test_keymaker> m_queue;
 private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(BoundedQueueTest);
 };
@@ -170,8 +167,7 @@ TEST_F(BoundedQueueDeathTest, DieIfNotInitialized)
 TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue)
 {
   EXPECT_EQ(0, m_queue.init(0, true, test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(),
                             ".*Assertion .*elements > 0.*");
@@ -186,8 +182,7 @@ TEST_F(BoundedQueueTest, ConstructAndDestruct)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true,
                             test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
 }
 
 
@@ -198,12 +193,10 @@ TEST_F(BoundedQueueTest, TooManyElements)
 {
   EXPECT_EQ(1, m_queue.init(UINT_MAX, true,
                             test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   EXPECT_EQ(1, m_queue.init(UINT_MAX - 1, true,
                             test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
 }
 
 
@@ -213,9 +206,9 @@ TEST_F(BoundedQueueTest, TooManyElements)
 TEST_F(BoundedQueueTest, ZeroSizeQueue)
 {
   EXPECT_EQ(0, m_queue.init(0, true, test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
+  // There is always one extra element in the queue.
   EXPECT_EQ(1U, m_queue.num_elements());
 }
 
@@ -226,11 +219,11 @@ TEST_F(BoundedQueueTest, ZeroSizeQueue)
 TEST_F(BoundedQueueTest, PushAndPopKeepLargest)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, false, test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
   // We expect the queue to contain [7 .. 13]
   const int max_key_val= array_size(m_test_data) - 1;
+  EXPECT_EQ(static_cast<uint>(num_elements / 2 + 1), m_queue.num_elements());
   while (m_queue.num_elements() > 0)
   {
     Test_key **top= m_queue.pop();
@@ -250,8 +243,7 @@ TEST_F(BoundedQueueTest, PushAndPopKeepLargest)
 TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true, test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
   // We expect the queue to contain [6 .. 0]
   while (m_queue.num_elements() > 0)
@@ -272,8 +264,7 @@ TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 TEST_F(BoundedQueueTest, InsertAndSort)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true, test_key_compare,
-                            m_key_size,
-                            &test_keymaker, NULL, m_keys.key_ptrs));
+                            &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
   uchar *base=  (uchar*) &m_keys.key_ptrs[0];
   size_t size=  sizeof(Test_key);
@@ -332,10 +323,16 @@ int int_ptr_compare(size_t *cmp_arg, int **a, int **b)
 /*
   Generates an integer key for a given integer element.
  */
-void int_keymaker(Sort_param *sp, int *to, int *from)
+class Int_keymaker
 {
-  memcpy(to, from, sizeof(int));
-}
+public:
+  uint make_sortkey(int *to, int *from)
+  {
+    memcpy(to, from, sizeof(int));
+    return sizeof(int);
+  }
+  size_t compare_length() const { return sizeof(int); }
+};
 
 
 /*
@@ -378,9 +375,10 @@ void insert_and_sort()
   {
     Container *keys= new Container;
     srand(0);
-    Bounded_queue<int, int> queue;
+    Int_keymaker int_keymaker;
+    Bounded_queue<int *, int *, Int_keymaker> queue;
     EXPECT_EQ(0, queue.init(limit, true, int_ptr_compare,
-                            sizeof(int), &int_keymaker, NULL, keys->key_ptrs));
+                            &int_keymaker, keys->key_ptrs));
     for (int ix= 0; ix < num_rows; ++ix)
     {
       int data= rand();

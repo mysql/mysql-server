@@ -307,7 +307,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;

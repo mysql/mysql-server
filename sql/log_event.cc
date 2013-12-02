@@ -792,7 +792,7 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
   {
     if (*need_comma)
       my_b_printf(file,", ");
-    my_b_printf(file,"%s=%d", name, test(flags & option));
+    my_b_printf(file,"%s=%d", name, MY_TEST(flags & option));
     *need_comma= 1;
   }
 }
@@ -3758,7 +3758,7 @@ bool Query_log_event::write(IO_CACHE* file)
     commit timestamp. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (!file->commit_seq_offset > 0)
+  if (file->commit_seq_offset == 0)
   {
     file->commit_seq_offset= QUERY_HEADER_LEN +
                              (uint)(start-start_of_status);
@@ -3855,15 +3855,23 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    table_map_for_update((ulonglong)thd_arg->table_map_for_update),
    master_data_written(0), mts_accessed_dbs(0)
 {
-  time_t end_time;
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
 
   error_code= errcode;
 
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -6254,9 +6262,18 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    db(db_arg), fname(ex->file_name), local_fname(FALSE),
    is_concurrent(is_concurrent_arg)
 {
-  time_t end_time;
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -6398,11 +6415,22 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fields = (char*)field_lens + num_fields;
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
+  DBUG_EXECUTE_IF ("simulate_invalid_address",
+                   db_len = data_len;);
   fname = db + db_len + 1;
+  if ((db_len > data_len) || (fname > buf_end))
+    goto err;
   fname_len = (uint) strlen(fname);
+  if ((fname_len > data_len) || (fname + fname_len > buf_end))
+    goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
+
+err:
+  // Invalid event.
+  table_name = 0;
+  DBUG_RETURN(1);
 }
 
 
@@ -7474,6 +7502,8 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 bool Xid_log_event::do_commit(THD *thd_arg)
 {
+  DBUG_EXECUTE_IF("dbug.reached_commit",
+                  {DBUG_SET("+d,dbug.enabled_commit");});
   bool error= trans_commit(thd_arg); /* Automatically rolls back on error. */
   DBUG_EXECUTE_IF("crash_after_apply", 
                   sql_print_information("Crashing crash_after_apply.");

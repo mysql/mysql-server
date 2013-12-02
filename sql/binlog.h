@@ -263,9 +263,6 @@ private:
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key key_LOG_INFO_lock;
-#endif
 
 /*
   Note that we destroy the lock mutex in the destructor here.
@@ -279,15 +276,12 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   int entry_index; //used in purge_logs(), calculatd in find_log_pos().
-  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
@@ -583,6 +577,8 @@ public:
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
+    @param last_gtid Will be filled with the last availble GTID information
+    in the binary/relay log files.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
@@ -590,7 +586,8 @@ public:
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum, bool need_lock);
+                      Gtid *last_gtid, bool verify_checksum,
+                      bool need_lock);
 
   void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
   {
@@ -904,7 +901,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   DBUG_ASSERT(ptr);
   if (ptr)
   {
-    uint length= strlen(ptr);
+    size_t length= strlen(ptr);
 
     // Strips the CR+LF at the end of log name and \0-terminates it.
     if (length && ptr[length-1] == '\n')

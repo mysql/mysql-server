@@ -143,11 +143,7 @@ skip:
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #else
-# ifdef HAVE_GETPAGESIZE
 	size = getpagesize();
-# else
-	size = UNIV_PAGE_SIZE;
-# endif
 	/* Align block size to system page size */
 	ut_ad(ut_is_2pow(size));
 	size = *n = ut_2pow_round(*n + (size - 1), size);

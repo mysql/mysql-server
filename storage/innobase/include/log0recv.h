@@ -31,6 +31,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "buf0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
+#include "mtr0types.h"
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
@@ -242,7 +243,17 @@ Applies log records in the hash table to a backup. */
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
-#endif
+
+#elif defined(UNIV_LOG_DEBUG)
+
+/********************************************************//**
+Frees the recovery system. */
+
+void
+recv_sys_debug_free(void);
+/*=====================*/
+
+#endif /* UNIV_HOTBACKUP */
 
 /** Block of log record data */
 struct recv_data_t{
@@ -254,7 +265,7 @@ struct recv_data_t{
 
 /** Stored log record struct */
 struct recv_t{
-	byte		type;	/*!< log record type */
+	mlog_id_t	type;	/*!< log record type */
 	ulint		len;	/*!< log record body length in bytes */
 	recv_data_t*	data;	/*!< chain of blocks containing the log record
 				body */

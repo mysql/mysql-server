@@ -27,23 +27,25 @@
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
+#include "prealloced_array.h"
 
 #include <algorithm>
+#include <functional>
 
 #include "trigger.h"                  // Trigger
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 
-///////////////////////////////////////////////////////////////////////////
-// Static function implementation.
-///////////////////////////////////////////////////////////////////////////
 
-
-static int cmp_splocal_locations(Item_splocal * const *a,
-                                 Item_splocal * const *b)
+class Cmp_splocal_locations :
+  public std::binary_function<const Item_splocal*, const Item_splocal*, bool>
 {
-  return (int)((*a)->pos_in_query - (*b)->pos_in_query);
-}
-
+public:
+  bool operator()(const Item_splocal *a, const Item_splocal *b)
+  {
+    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+    return a->pos_in_query < b->pos_in_query;
+  }
+};
 
 /*
   StoredRoutinesBinlogging
@@ -140,10 +142,8 @@ static int cmp_splocal_locations(Item_splocal * const *a,
 */
 static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 {
-  Dynamic_array<Item_splocal*> sp_vars_uses;
-  char *pbuf, *cur, buffer[512];
-  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
-  int prev_pos, res, buf_len;
+  // Stack-local array, does not need instrumentation.
+  Prealloced_array<Item_splocal*, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
   for (Item *item= instr->free_list; item; item= item->next)
@@ -152,27 +152,30 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     {
       Item_splocal *item_spl= (Item_splocal*)item;
       if (item_spl->pos_in_query)
-        sp_vars_uses.append(item_spl);
+        sp_vars_uses.push_back(item_spl);
     }
   }
 
-  if (!sp_vars_uses.elements())
+  if (sp_vars_uses.empty())
     return false;
 
   /* Sort SP var refs by their occurrences in the query */
-  sp_vars_uses.sort(cmp_splocal_locations);
+  std::sort(sp_vars_uses.begin(), sp_vars_uses.end(), Cmp_splocal_locations());
 
   /*
     Construct a statement string where SP local var refs are replaced
     with "NAME_CONST(name, value)"
   */
+  char buffer[512];
+  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  cur= query_str->str;
-  prev_pos= res= 0;
+  char *cur= query_str->str;
+  int prev_pos= 0;
+  int res= 0;
   thd->query_name_consts= 0;
 
-  for (Item_splocal **splocal= sp_vars_uses.front(); 
-       splocal <= sp_vars_uses.back(); splocal++)
+  for (Item_splocal **splocal= sp_vars_uses.begin(); 
+       splocal != sp_vars_uses.end(); splocal++)
   {
     Item *val;
 
@@ -233,8 +236,9 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
             <db_name>     Name of current database
             <flags>       Flags struct
   */
-  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-           QUERY_CACHE_FLAGS_SIZE + 1;
+  int buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
+               QUERY_CACHE_FLAGS_SIZE + 1;
+  char *pbuf;
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());

@@ -39,8 +39,12 @@ using std::max;
 
 ulonglong Item_sum::ram_limitation(THD *thd)
 {
-  return min(thd->variables.tmp_table_size,
-      thd->variables.max_heap_table_size);
+  ulonglong limitation= min(thd->variables.tmp_table_size,
+                            thd->variables.max_heap_table_size);
+
+  DBUG_EXECUTE_IF("simulate_low_itemsum_ram_limitation", limitation= 32;);
+
+  return limitation;
 }
 
 
@@ -3212,10 +3216,11 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  const size_t order_array_sz= ALIGN_SIZE(sizeof(ORDER *) * arg_count_order);
+  if (!(order= (ORDER **) thd->alloc(order_array_sz +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  tmp= (ORDER *)((uchar*)order + order_array_sz);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     /*
@@ -3440,7 +3445,7 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select();
-  const bool order_or_distinct= test(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 
   /*

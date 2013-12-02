@@ -18,8 +18,8 @@
 
 #include "sys_vars.h"
 #include "my_stacktrace.h"
-#include "global_threads.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "mysqld_thd_manager.h"          // Global_THD_manager
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -114,7 +114,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 #endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
-  my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
+  my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
 
   my_safe_printf_stderr("connection_count=%u\n",
                         Connection_handler_manager::connection_count);

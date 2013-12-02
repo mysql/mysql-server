@@ -1009,7 +1009,7 @@ Parses a log record of a record list end or start deletion.
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
-	byte		type,	/*!< in: MLOG_LIST_END_DELETE,
+	mlog_id_t	type,	/*!< in: MLOG_LIST_END_DELETE,
 				MLOG_LIST_START_DELETE,
 				MLOG_COMP_LIST_END_DELETE or
 				MLOG_COMP_LIST_START_DELETE */
@@ -1143,6 +1143,14 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
+/** Get the last non-delete-marked record on a page.
+@param[in]	page	index tree leaf page
+@return the last record, not delete-marked
+@retval infimum record if all records are delete-marked */
+
+const rec_t*
+page_find_rec_max_not_deleted(
+	const page_t*	page);
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

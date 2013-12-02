@@ -152,8 +152,10 @@ INSERT INTO t1 SELECT 10 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 20 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	80	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	80	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`c2` > 3)
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -171,8 +173,10 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE		
 t1	1	c2d	1	c2	A	10	NULL	NULL	YES	BTREE		
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c2d	c2d	5	NULL	32	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c2d	c2d	5	NULL	32	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`c2` > 3)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

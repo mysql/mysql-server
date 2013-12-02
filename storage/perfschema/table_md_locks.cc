@@ -156,7 +156,7 @@ int table_metadata_locks::rnd_pos(const void *pos)
 
 void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   const char *base;
   const char *safe_source_file;
 

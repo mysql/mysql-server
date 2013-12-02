@@ -93,12 +93,12 @@ SELECT fid, Dimension(g) FROM gis_geometry;
 SELECT fid, GeometryType(g) FROM gis_geometry;
 SELECT fid, IsEmpty(g) FROM gis_geometry;
 SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
---replace_column 9 #
+--replace_column 10 #
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
 
 SELECT fid, X(g) FROM gis_point;
 SELECT fid, Y(g) FROM gis_point;
---replace_column 9 #
+--replace_column 10 #
 explain extended select X(g),Y(g) FROM gis_point;
 
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
@@ -107,7 +107,7 @@ SELECT fid, GLength(g) FROM gis_line;
 SELECT fid, NumPoints(g) FROM gis_line;
 SELECT fid, AsText(PointN(g, 2)) FROM gis_line;
 SELECT fid, IsClosed(g) FROM gis_line;
---replace_column 9 #
+--replace_column 10 #
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
 
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
@@ -115,7 +115,7 @@ SELECT fid, Area(g) FROM gis_polygon;
 SELECT fid, AsText(ExteriorRing(g)) FROM gis_polygon;
 SELECT fid, NumInteriorRings(g) FROM gis_polygon;
 SELECT fid, AsText(InteriorRingN(g, 1)) FROM gis_polygon;
---replace_column 9 #
+--replace_column 10 #
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
 
 SELECT fid, IsClosed(g) FROM gis_multi_line;
@@ -127,7 +127,7 @@ SELECT fid, NumGeometries(g) from gis_multi_point;
 SELECT fid, NumGeometries(g) from gis_multi_line;
 SELECT fid, NumGeometries(g) from gis_multi_polygon;
 SELECT fid, NumGeometries(g) from gis_geometrycollection;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
 
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
@@ -135,7 +135,7 @@ SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_line;
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_polygon;
 SELECT fid, AsText(GeometryN(g, 2)) from gis_geometrycollection;
 SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
@@ -143,7 +143,7 @@ Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,

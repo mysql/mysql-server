@@ -155,6 +155,7 @@ ulong	srv_flush_log_at_trx_commit = 1;
 uint	srv_flush_log_at_timeout = 1;
 ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
+ulong	srv_log_write_ahead_size = 0;
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
@@ -320,10 +321,8 @@ ulint	srv_available_undo_logs         = 0;
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
 ibool	srv_print_verbose_log		= TRUE;
-ibool	srv_print_innodb_monitor	= FALSE;
-ibool	srv_print_innodb_lock_monitor	= FALSE;
-ibool	srv_print_innodb_tablespace_monitor = FALSE;
-ibool	srv_print_innodb_table_monitor = FALSE;
+my_bool	srv_print_innodb_monitor	= FALSE;
+my_bool	srv_print_innodb_lock_monitor	= FALSE;
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
@@ -1439,8 +1438,6 @@ DECLARE_THREAD(srv_monitor_thread)(
 	ib_int64_t	sig_count;
 	double		time_elapsed;
 	time_t		current_time;
-	time_t		last_table_monitor_time;
-	time_t		last_tablespace_monitor_time;
 	time_t		last_monitor_time;
 	ulint		mutex_skipped;
 	ibool		last_srv_print_monitor;
@@ -1458,10 +1455,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
-	srv_last_monitor_time = ut_time();
-	last_table_monitor_time = ut_time();
-	last_tablespace_monitor_time = ut_time();
-	last_monitor_time = ut_time();
+	srv_last_monitor_time = last_monitor_time = ut_time();
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
@@ -1520,69 +1514,13 @@ loop:
 			os_file_set_eof(srv_monitor_file);
 			mutex_exit(&srv_monitor_file_mutex);
 		}
-
-		if (srv_print_innodb_tablespace_monitor
-		    && difftime(current_time,
-				last_tablespace_monitor_time) > 60) {
-			last_tablespace_monitor_time = ut_time();
-
-			fputs("========================"
-			      "========================\n",
-			      stderr);
-
-			ut_print_timestamp(stderr);
-
-			fputs(" INNODB TABLESPACE MONITOR OUTPUT\n"
-			      "========================"
-			      "========================\n",
-			      stderr);
-
-			fsp_print(0);
-			fputs("Validating tablespace\n", stderr);
-			fsp_validate(0);
-			fputs("Validation ok\n"
-			      "---------------------------------------\n"
-			      "END OF INNODB TABLESPACE MONITOR OUTPUT\n"
-			      "=======================================\n",
-			      stderr);
-		}
-
-		if (srv_print_innodb_table_monitor
-		    && difftime(current_time, last_table_monitor_time) > 60) {
-
-			last_table_monitor_time = ut_time();
-
-			fprintf(stderr, "Warning: %s\n",
-				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
-
-			fputs("===========================================\n",
-			      stderr);
-
-			ut_print_timestamp(stderr);
-
-			fputs(" INNODB TABLE MONITOR OUTPUT\n"
-			      "===========================================\n",
-			      stderr);
-			dict_print();
-
-			fputs("-----------------------------------\n"
-			      "END OF INNODB TABLE MONITOR OUTPUT\n"
-			      "==================================\n",
-			      stderr);
-
-			fprintf(stderr, "Warning: %s\n",
-				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
-		}
 	}
 
 	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 		goto exit_func;
 	}
 
-	if (srv_print_innodb_monitor
-	    || srv_print_innodb_lock_monitor
-	    || srv_print_innodb_tablespace_monitor
-	    || srv_print_innodb_table_monitor) {
+	if (srv_print_innodb_monitor || srv_print_innodb_lock_monitor) {
 		goto loop;
 	}
 

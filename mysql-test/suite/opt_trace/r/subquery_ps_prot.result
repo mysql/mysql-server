@@ -2055,6 +2055,9 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
             } /* join_preparation */
           },
           {
+            "IN_uses_bisection": true
+          },
+          {
             "expanded_query": "/* select#1 */ select (/* select#2 */ select sum(`subquery1_t1`.`col_int_nokey`) AS `subquery1_field1` from `t1` `subquery1_t1`) AS `field1` from (`t1` `table1` straight_join `t1` `table2` on((`table2`.`col_varchar_key` = `table1`.`col_varchar_key`))) where (<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)))) and (`table1`.`pk` in (192,18))) order by `field1` desc"
           }
         ] /* steps */
@@ -2491,19 +2494,25 @@ set optimizer_switch="firstmatch=off,materialization=off";
 set @old_opt_prune_level=@@optimizer_prune_level;
 set optimizer_prune_level=0;
 explain select * from t2 where a in (select b from t1 where a=3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	8	Using index; LooseScan
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a	a	5	const	8	100.00	Using index; LooseScan
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 3))
 # Equality-propagation involving inner field => 1st sj equality is bound
 explain select * from t2 where (b+0,a+0) in (select a,b from t1 where a=3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	8	Using index; LooseScan
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a	a	5	const	8	100.00	Using index; LooseScan
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = 3) and ((`test`.`t2`.`b` + 0) = 3) and ((`test`.`t2`.`a` + 0) = `test`.`t1`.`b`))
 # Equality-propagation involving outer field => 3rd sj equality is bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1) and filler='abc';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	SIMPLE	t1	ref	a	a	10	test.t2.b,test.t2.a	1	Using index; Start temporary; End temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index; Start temporary; End temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`filler` = 'abc') and (`test`.`t2`.`filler` = (`test`.`t2`.`b` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -2560,9 +2569,11 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                         } 
 # Remove the condition on 'filler' => 3rd sj equality is not bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	SIMPLE	t1	ref	a	a	10	test.t2.b,test.t2.a	1	Using index; Start temporary; End temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index; Start temporary; End temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`filler` = (`test`.`t2`.`b` * 3)))
 SELECT show_json_object('"searching_loose_scan_index": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"searching_loose_scan_index": {', TRACE)
@@ -2578,10 +2589,12 @@ show_json_object('"searching_loose_scan_index": {', TRACE)
 explain select * from t2 as t3, t2
 where t2.filler=t3.filler and
 (t2.b,t2.a,t2.filler) in (select a,b,a*3 from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	SIMPLE	t1	ref	a	a	10	test.t2.b,test.t2.a	1	Using index; Start temporary; End temporary
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index; Start temporary; End temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (`test`.`t3`.`filler` = `test`.`t2`.`filler`) and (`test`.`t2`.`filler` = (`test`.`t2`.`b` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -2641,10 +2654,12 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 # If t1 is before t3, 3rd sj equality is not bound.
 explain select * from t2 as t3 left join t2 on t2.filler+10=t3.filler+20
 where (t2.b,t2.a,t3.filler+2) in (select a,b,a*3 from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
-1	SIMPLE	t1	ref	a	a	10	test.t2.b,test.t2.a	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; End temporary; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
+1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and ((`test`.`t3`.`filler` + 2) = (`test`.`t2`.`b` * 3)) and ((`test`.`t2`.`filler` + 10) = (`test`.`t3`.`filler` + 20)))
 SELECT show_json_object('"considered_execution_plans": [', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"considered_execution_plans": [', TRACE)
@@ -2710,7 +2725,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -2911,7 +2926,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 9,
                               "rows": 75,
-                              "cost": 150049,
+                              "cost": 150090,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -2950,7 +2965,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1509.9,
+                          "cost": 1510.1,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -3263,10 +3278,12 @@ explain select *
 from t1 left join t1 as t2
 on (t2.a= t1.a and (t2.a,t2.b) in (select a,b from t1 as t3))
 where t1.a < 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b_c_a	113	NULL	1	Using where; Using index
-1	SIMPLE	t3	index	b_c_a	b_c_a	113	NULL	1	Using where; Using index; LooseScan
-1	SIMPLE	t2	ref	b_c_a	b_c_a	103	test.t3.b	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	b_c_a	113	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	index	b_c_a	b_c_a	113	NULL	1	100.00	Using where; Using index; LooseScan
+1	SIMPLE	t2	NULL	ref	b_c_a	b_c_a	103	test.t3.b	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join (`test`.`t1` `t2` semi join (`test`.`t1` `t3`)) on(((`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and 1)) where (`test`.`t1`.`a` < 5)
 drop table t1;
 #
 # Show that loosescan planning is not dependent on order of
@@ -3306,10 +3323,12 @@ CREATE TABLE t2 (a INT, b INT) ENGINE=INNODB;
 EXPLAIN SELECT * FROM t2 AS t3, t2
 WHERE t2.b=t3.b AND  
 (t2.b) IN (SELECT b*3 FROM t1 WHERE a=10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Start temporary; End temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using where; Start temporary; End temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t1`.`a` = 10) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`b` = (`test`.`t1`.`b` * 3)))
 SELECT TRACE LIKE '%"some_index_part_used": false%'
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 TRACE LIKE '%"some_index_part_used": false%'
@@ -3330,10 +3349,12 @@ SELECT it1.b
 FROM it1 JOIN it2
 ON it1.a = it2.a
 );
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	it1	index	a	a	9	NULL	2	Using where; Using index; Start temporary
-1	SIMPLE	it2	ref	a	a	4	test.it1.a	1	Using index
-1	SIMPLE	ot1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it1	NULL	index	a	a	9	NULL	2	100.00	Using where; Using index; Start temporary
+1	SIMPLE	it2	NULL	ref	a	a	4	test.it1.a	1	100.00	Using index
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it1` join `test`.`it2`) where ((`test`.`it2`.`a` = `test`.`it1`.`a`) and (`test`.`ot1`.`a` = `test`.`it1`.`b`))
 SELECT TRACE LIKE '%"index_can_remove_duplicates": false%'
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 TRACE LIKE '%"index_can_remove_duplicates": false%'
@@ -3345,18 +3366,22 @@ DROP TABLE ot1, it1, it2;
 create table t1 (a int, b varchar(100), key a_b (a,b));
 insert into t1 values(25,'111111'),(25,'1111112');
 explain select * from t1 as t2 where t2.b in (select b from t1 where a=25);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a_b	a_b	5	const	1	Using index; LooseScan
-1	SIMPLE	t2	index	NULL	a_b	108	NULL	2	Using where; Using index; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a_b	a_b	5	const	1	100.00	Using index; LooseScan
+1	SIMPLE	t2	NULL	index	NULL	a_b	108	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` semi join (`test`.`t1`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 25))
 select * from t1 as t2 where t2.b in (select b from t1 where a=25);
 a	b
 25	111111
 25	1111112
 alter table t1 drop key a_b, add key a_b_prefix (a,b(2));
 explain select * from t1 as t2 where t2.b in (select b from t1 where a=25);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a_b_prefix	a_b_prefix	5	const	1	Start temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a_b_prefix	a_b_prefix	5	const	1	100.00	Start temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` semi join (`test`.`t1`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 25))
 select * from t1 as t2 where t2.b in (select b from t1 where a=25);
 a	b
 25	111111

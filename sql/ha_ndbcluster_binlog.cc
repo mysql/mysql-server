@@ -24,7 +24,6 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 
-#include "global_threads.h"
 #include "rpl_injector.h"
 #include "rpl_filter.h"
 #if MYSQL_VERSION_ID > 50600
@@ -33,10 +32,10 @@
 #include "slave.h"
 #include "log_event.h"
 #endif
-#include "global_threads.h"
 #include "ha_ndbcluster_binlog.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -672,8 +671,6 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
     error = 1;
   }
 
-  /* Cleanup links between thread and my_thd, then delete it */ 
-  my_thd->restore_globals();
   delete my_thd;
   
   if (passed_thd)
@@ -6784,6 +6781,7 @@ ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   injector *inj= injector::instance();
   uint incident_id= 0;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   enum { BCCC_running, BCCC_exit, BCCC_restart } binlog_thread_state;
 
@@ -6807,9 +6805,7 @@ ndb_binlog_thread_func(void *arg)
   /* We need to set thd->thread_id before thd->store_globals, or it will
      set an invalid value for thd->variables.pseudo_thread_id.
   */
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->thread_id= thd_manager->get_inc_thread_id();
 
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
@@ -6843,9 +6839,8 @@ ndb_binlog_thread_func(void *arg)
   */
   sql_print_information("Starting Cluster Binlog Thread");
 
-  pthread_detach_this_thread();
   thd->real_id= pthread_self();
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd->lex->start_transaction_opt= 0;
 
 
@@ -7554,7 +7549,7 @@ restart_cluster_failure:
               if (thd->killed)
               {
                 DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
-                (void) mysql_mutex_lock(&LOCK_thread_count);
+                mysql_mutex_lock(&thd->LOCK_thd_data);
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
@@ -7563,7 +7558,7 @@ restart_cluster_failure:
                 ndb_binlog_index_table__write_rows(thd, rows);
                 /* Restore kill flag */
                 thd->killed= killed;
-                (void) mysql_mutex_unlock(&LOCK_thread_count);
+                mysql_mutex_unlock(&thd->LOCK_thd_data);
               }
             }
           }
@@ -7728,7 +7723,7 @@ restart_cluster_failure:
   }
 
   thd->release_resources();
-  remove_global_thread(thd);
+  thd_manager->remove_thd(thd);
   delete thd;
 
   ndb_binlog_thread_running= -1;

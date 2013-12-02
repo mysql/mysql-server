@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ int table_file_instances::rnd_pos(const void *pos)
 
 void table_file_instances::make_row(PFS_file *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_file_class *safe_class;
 
   m_row_exists= false;

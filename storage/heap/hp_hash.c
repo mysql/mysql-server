@@ -476,7 +476,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
   {
     if (seg->null_bit)
     {
-      int found_null=test(rec[seg->null_pos] & seg->null_bit);
+      int found_null=MY_TEST(rec[seg->null_pos] & seg->null_bit);
       if (found_null != (int) *key++)
 	return 1;
       if (found_null)
@@ -564,7 +564,7 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
     uint char_length= seg->length;
     uchar *pos= (uchar*) rec + seg->start;
     if (seg->null_bit)
-      *key++= test(rec[seg->null_pos] & seg->null_bit);
+      *key++= MY_TEST(rec[seg->null_pos] & seg->null_bit);
     if (cs->mbmaxlen > 1)
     {
       char_length= my_charpos(cs, pos, pos + seg->length,
@@ -597,7 +597,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
     uint char_length;
     if (seg->null_bit)
     {
-      if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
+      if (!(*key++= 1 - MY_TEST(rec[seg->null_pos] & seg->null_bit)))
         continue;
     }
     if (seg->flag & HA_SWAP_KEY)
@@ -608,7 +608,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       {
 	float nr;
 	float4get(nr, pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
  	  memset(key, 0, length);
@@ -620,7 +620,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       {
 	double nr;
 	float8get(nr, pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
  	  memset(key, 0, length);
 	  key+= length;

@@ -116,7 +116,7 @@ drop table t1;
 create table t1 (btn char(10) not null, key using BTREE (btn)) engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "i%";
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where btn like "h%";
 explain select * from t1 where btn like "a%";
 explain select * from t1 where btn like "b%";

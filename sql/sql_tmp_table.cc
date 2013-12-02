@@ -70,10 +70,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     new_field->flags|= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
-    if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
-        org_field->type() == MYSQL_TYPE_VARCHAR)
-      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
-    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+    if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
@@ -486,7 +483,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
               (int) distinct, (int) save_sum_fields,
-              (ulong) rows_limit,test(group)));
+              (ulong) rows_limit, MY_TEST(group)));
 
   thd->inc_status_created_tmp_tables();
 
@@ -763,6 +760,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         string_count++;
         string_total_length+= new_field->pack_length();
       }
+      // In order to reduce footprint ask SE to pack variable-length fields.
+      if (new_field->type() == MYSQL_TYPE_VAR_STRING ||
+          new_field->type() == MYSQL_TYPE_VARCHAR)
+        table->s->db_create_options|= HA_OPTION_PACK_RECORD;
 
       if (item->marker == 4 && item->maybe_null)
       {
@@ -1018,7 +1019,7 @@ update_hidden:
     table->group=group;				/* Table is grouped by key */
     param->group_buff=group_buff;
     share->keys=1;
-    share->uniques= test(using_unique_constraint);
+    share->uniques= MY_TEST(using_unique_constraint);
     table->key_info= share->key_info= keyinfo;
     keyinfo->key_part= key_part_info;
     keyinfo->flags=HA_NOSAME;
@@ -1040,7 +1041,7 @@ update_hidden:
       {
 	cur_group->buff=(char*) group_buff;
 	cur_group->field= field->new_key_field(thd->mem_root, table,
-                                               group_buff + test(maybe_null));
+                                               group_buff + MY_TEST(maybe_null));
 
 	if (!cur_group->field)
 	  goto err; /* purecov: inspected */
@@ -1088,7 +1089,7 @@ update_hidden:
     null_pack_length-=hidden_null_pack_length;
     keyinfo->user_defined_key_parts= 
       ((field_count-param->hidden_field_count) +
-       (share->uniques ? test(null_pack_length) : 0));
+       (share->uniques ? MY_TEST(null_pack_length) : 0));
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     table->distinct= 1;
     share->keys= 1;
@@ -1412,7 +1413,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   {
     DBUG_PRINT("info",("Creating group key in temporary table"));
     share->keys=1;
-    share->uniques= test(using_unique_constraint);
+    share->uniques= MY_TEST(using_unique_constraint);
     table->key_info= table->s->key_info= keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->actual_flags= keyinfo->flags= HA_NOSAME;
