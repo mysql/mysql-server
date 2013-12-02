@@ -2033,6 +2033,10 @@ longlong Item_extract::val_int()
     return 0;
   neg= ltime.neg ? -1 : 1;
 
+  DBUG_ASSERT(ltime.time_type != MYSQL_TIMESTAMP_TIME ||  ltime.day == 0);
+  if (ltime.time_type == MYSQL_TIMESTAMP_TIME)
+    time_to_daytime_interval(&ltime);
+
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;

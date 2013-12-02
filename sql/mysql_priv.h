@@ -2527,6 +2527,7 @@ bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
                            ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          MYSQL_TIME *l_time, ulong flags);
+void time_to_daytime_interval(MYSQL_TIME *l_time);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
