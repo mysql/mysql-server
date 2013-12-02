@@ -1001,6 +1001,10 @@ inline uint32 Binlog_sender::calc_buffer_size(uint32 current_size,
                                               uint32 min_size,
                                               float factor)
 {
+  /*
+     Even if this overflows and new_size wraps around, the min_size will
+     always be returned - it is a safety net.
+   */
   uint32 new_size= static_cast<uint32>(current_size * factor);
 
   return ALIGN_SIZE(std::max(new_size, min_size));
