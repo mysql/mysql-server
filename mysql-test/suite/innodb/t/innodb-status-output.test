@@ -1,6 +1,8 @@
 --source include/have_innodb.inc
 # This restarts the server and waits a long time for output.
 --source include/big_test.inc
+# Embedded server does not support restarting.
+--source include/not_embedded.inc
 
 # Test the deprecation messages and connection to the flags.
 CREATE TABLE innodb_monitor(a SERIAL) ENGINE=InnoDB;
