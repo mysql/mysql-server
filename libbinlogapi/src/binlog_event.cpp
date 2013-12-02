@@ -172,8 +172,9 @@ Log_event_header::Log_event_header(const char* buf,
   type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
   assert (type_code < ENUM_END_EVENT);
   //TODO:Modify server_id in Log_event based on unmasked_server_id defined here
-  unmasked_server_id= uint4korr(buf + SERVER_ID_OFFSET);
 
+  memcpy(&unmasked_server_id, buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
+  unmasked_server_id= le32toh(unmasked_server_id);
   /**
     The first 13 bytes in the header is as follows:
       +============================================+
@@ -188,8 +189,10 @@ Log_event_header::Log_event_header(const char* buf,
       | data_written    EVENT_LEN_OFFSET(9)  : 4   |
       +============================================+
    */
-  data_written= uint4korr(buf+ EVENT_LEN_OFFSET);
-  log_pos= uint4korr(buf+ LOG_POS_OFFSET);
+  memcpy(&data_written, buf + EVENT_LEN_OFFSET, 4);/* we want to copy 4 bytes */
+  data_written= le32toh(data_written);
+
+  log_pos= uint4korr(buf + LOG_POS_OFFSET);
 
   switch (description_event->binlog_version)
   {
@@ -242,9 +245,10 @@ Log_event_header::Log_event_header(const char* buf,
 
   default:
     if (description_event->binlog_version != 3)
-      log_pos= uint4korr(buf+ LOG_POS_OFFSET);
+      log_pos= uint4korr(buf + LOG_POS_OFFSET);
 
-    flags= uint2korr(buf + FLAGS_OFFSET);
+    memcpy(&flags, buf + FLAGS_OFFSET, sizeof(flags));
+    flags= le16toh(flags);
 
      if ((buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
          (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
@@ -483,12 +487,14 @@ Start_event_v3::Start_event_v3(const char* buf,
    description_event->server_version)
 {
   buf+= description_event->common_header_len;
-  binlog_version= uint2korr(buf + ST_BINLOG_VER_OFFSET);
+  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, sizeof(binlog_version));
+  binlog_version= le16toh(binlog_version);
   memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
         ST_SERVER_VER_LEN);
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN - 1]= 0;
-  created= uint4korr(buf+ST_CREATED_OFFSET);;
+  memcpy(&created, buf + ST_CREATED_OFFSET, sizeof(created));
+  created= le32toh(created);
   dont_set_created= 1;
 }
 
@@ -1164,9 +1170,10 @@ Rand_event::Rand_event(const char* buf,
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
     description_event->post_header_len[RAND_EVENT-1];
-
-  seed1= uint8korr(buf+RAND_SEED1_OFFSET);
-  seed2= uint8korr(buf+RAND_SEED2_OFFSET);
+  memcpy(&seed1, buf+ RAND_SEED1_OFFSET, sizeof(seed1));
+  seed1= le64toh(seed1);
+  memcpy(&seed2, buf+ RAND_SEED2_OFFSET, sizeof(seed2));
+  seed2= le64toh(seed2);
 }
 
 User_var_event::
@@ -1182,7 +1189,8 @@ User_var_event(const char* buf, unsigned int event_len,
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
 
-  name_len= uint4korr(buf);
+  memcpy(&name_len, buf, sizeof(name_len));
+  name_len= le32toh(name_len);
   name= (char *) buf + UV_NAME_LEN_SIZE;
 
   /*
@@ -1224,9 +1232,12 @@ User_var_event(const char* buf, unsigned int event_len,
     }
 
     type= (Value_type) buf[UV_VAL_IS_NULL];
-    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
-    val_len= uint4korr((buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-                     UV_CHARSET_NUMBER_SIZE));
+     memcpy(&charset_number, buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE,
+            sizeof(charset_number));
+    charset_number= le32toh(charset_number);
+    memcpy(&val_len, (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+           UV_CHARSET_NUMBER_SIZE), sizeof(val_len));
+    val_len= le32toh(val_len);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
 
@@ -1356,8 +1367,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 
   // SIDNO is only generated if needed, in get_sidno().
   gtid_info_struct.rpl_gtid_sidno= -1;
-
-  gtid_info_struct.rpl_gtid_gno= uint8korr(ptr_buffer);
+  memcpy(&(gtid_info_struct.rpl_gtid_gno), ptr_buffer, sizeof(gtid_info_struct.rpl_gtid_gno));
+  gtid_info_struct.rpl_gtid_gno= le64toh(gtid_info_struct.rpl_gtid_gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
     /* fetch the commit timestamp */
   if (
@@ -1366,7 +1377,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
       *ptr_buffer == G_COMMIT_TS)
   {
     ptr_buffer++;
-    commit_seq_no= (int64)uint8korr(ptr_buffer);
+    memcpy(&commit_seq_no, ptr_buffer, sizeof(commit_seq_no));
+    commit_seq_no= (int64)le64toh(commit_seq_no);
     ptr_buffer+= COMMIT_SEQ_LEN;
   }
   else
@@ -1399,7 +1411,9 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   m_message= NULL;
   m_message_length= 0;
   //TODO: replace uint*korr with le*toh
-  int incident_number= uint2korr(buf + common_header_len);
+  int incident_number;//= uint2korr(buf + common_header_len);
+  memcpy(&incident_number, buf + common_header_len, 2);
+  incident_number= le16toh(incident_number);
   if (incident_number >= INCIDENT_COUNT ||
       incident_number <= INCIDENT_NONE)
   {
