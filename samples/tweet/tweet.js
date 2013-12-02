@@ -187,6 +187,17 @@ function extractTags(message) {
   return tags;
 }
 
+/* Takes query and params; builds an equal condition on each param.
+*/
+function buildQueryEqual(query, params) {
+  var field;
+  for(field in params) {
+    if(params.hasOwnProperty(field) && query[field]) { 
+      query.where(query[field].eq(query.param(field)));
+    }
+  }
+};
+
 
 ////////////////////////////////
 // BASIC OPERATIONS
@@ -208,6 +219,8 @@ function Operation() {
   this.result       = {};    // Result object to be returned to the user
   this.data         = {};    // HTTP POST data
   this.isServer     = false; // True only for the start-HTTP-server operation
+  this.queryClass   = null;  // Mapped class to use in creating a query
+  this.queryParams  = null;  // Parameters to use for query
 
   /* Functions closed over self */
   var self = this;
@@ -228,8 +241,22 @@ function Operation() {
     self.responder.setError(error);
     self.responder.close();  
   };
-}
 
+  this.buildQuery = buildQueryEqual; 
+
+  this.onQueryResults = function(error, results) { 
+    if(error) { self.onError(error); } 
+    else      { self.setResult(results); self.onComplete(); }
+  };
+
+  this.buildQueryAndPresentResults = function(session) {
+    function onCreateQuery(query) {
+      self.buildQuery(query, self.queryParams);
+      query.execute(self.queryParams, self.onQueryResults);
+    }
+    session.createQuery(self.queryClass).then(onCreateQuery, self.onError);
+  };
+}
 
 // Each Operation constructor takes (params, data), where "params" is an array
 // of URL or command-line parameters.  "data" is the HTTP POST data.
@@ -405,32 +432,13 @@ function FollowOperation(params, data) {
 FollowOperation.signature = [ "put", "follow", "<user_follower> <user_followed>"];
 
 
-/* Takes query and params; builds an equal condition on each param.
-   Returns the promise from query.execute()
-*/
-function buildQueryEq(query, qparams) {
-  var field;
-  for(field in qparams) {
-    if(qparams.hasOwnProperty(field) && query[field]) { 
-      query.where(query[field].eq(query.param(field)));
-    }
-  }
-  return query.execute(qparams);
-}
-
-
 /* Who follows a user?
 */
 function FollowersOperation(params, data) {
   Operation.call(this);  
-  var queryParams =  {"followed" : params[0]};
-
-  this.run = function(session) {
-    session.createQuery(Follow).
-      then(function(query) {return buildQueryEq(query, queryParams); }).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
-  };
+  this.queryClass = Follow;
+  this.queryParams =  {"followed" : params[0]};
+  this.run = this.buildQueryAndPresentResults;
 }
 FollowersOperation.signature = [ "get", "followers", "<user_name>" ];
 
@@ -439,14 +447,9 @@ FollowersOperation.signature = [ "get", "followers", "<user_name>" ];
 */
 function FollowingOperation(params, data) {
   Operation.call(this);  
-  var queryParams = { "follower" : params[0] };
-
-  this.run = function(session) {
-   session.createQuery(Follow).
-      then(function (query) { return buildQueryEq(query, queryParams); }).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
-  };
+  this.queryClass = Follow;
+  this.queryParams = { "follower" : params[0] };
+  this.run = this.buildQueryAndPresentResults;
 }
 FollowingOperation.signature = [ "get", "following" , "<user_name>" ];
 
@@ -456,20 +459,12 @@ FollowingOperation.signature = [ "get", "following" , "<user_name>" ];
 function RecentTweetsOperation(params, data) {
   Operation.call(this);
   var limit = params && params[0] ? Number(params[0]) : 20;
-  var queryParams =  {"zero" : 0, "order" : "desc", "limit" : limit};
-  
-  function buildQuery(query) {
-    /* use id > 0 to coerce a descending index scan on id */
+  this.queryClass = Tweet; // use id > 0 to coerce a descending index scan on id
+  this.queryParams =  {"zero" : 0, "order" : "desc", "limit" : limit};
+  this.buildQuery = function(query, params) {
     query.where(query.id.gt(query.param("zero")));
-    return query.execute(queryParams);
-  }
-
-  this.run = function(session) {
-    session.createQuery(Tweet).
-      then(buildQuery).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
   };
+  this.run = this.buildQueryAndPresentResults;
 }
 RecentTweetsOperation.signature = [ "get", "tweets-recent" , "<count>" ];
 
@@ -478,24 +473,16 @@ RecentTweetsOperation.signature = [ "get", "tweets-recent" , "<count>" ];
 */
 function TweetsByUserOperation(params, data) {
   Operation.call(this);
-
-  this.run = function(session) {
-    function buildQuery(query) {
-      return buildQueryEq(query, 
-        {"author" : params[0] , "order" : "desc" , "limit" : 20 });
-    }
-    session.createQuery(Tweet).
-      then(buildQuery).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
-  };
+  this.queryClass = Tweet;
+  this.queryParams = {"author" : params[0] , "order" : "desc" , "limit" : 20 };
+  this.run = this.buildQueryAndPresentResults;
 }
 TweetsByUserOperation.signature = [ "get" , "tweets-by" , "<user_name>" ];
 
 
 /* Common callback for @user and #hashtag queries 
 */
-function fetchTweetsInBatch(scanResults, session) {
+function fetchTweetsInBatch(operation, scanResults) {
   var batch, r;
   var resultData = [];
 
@@ -503,7 +490,7 @@ function fetchTweetsInBatch(scanResults, session) {
     if(tweet && ! e) resultData.push(tweet);
   }
   
-  batch = session.createBatch();
+  batch = operation.session.createBatch();
   if(scanResults.length) {
     r = scanResults.shift();
     while(r) {
@@ -511,25 +498,35 @@ function fetchTweetsInBatch(scanResults, session) {
       r = scanResults.shift();
     }
   }
-  return batch.execute();
+  batch.execute(function(error) {
+    if(error) { operation.onError(error); }
+    else      { operation.setResult(resultData); operation.onComplete(); }
+  });
 }
 
+/* Call fetchTweetsInBatch() closed over operation
+*/
+function fetchTweets(operation) {
+  return function(error, results) {
+    if(error) {
+      operation.onError(error);
+    } else {
+      fetchTweetsInBatch(operation, results);
+    }
+  }
+}
 
 /* Last 20 tweets @user
 */
 function TweetsAtUserOperation(params, data) {
   Operation.call(this);
+  var self = this;
   var tag = params[0];
   if(tag.charAt(0) == "@") {    tag = tag.substring(1);   }
-  var queryParams = {"at_user" : tag, "order" : "desc" , "limit" : 20 };
-  
-  this.run = function(session) {
-    session.createQuery(Mention).
-      then(function(query) { return buildQueryEq(query, queryParams); }).
-      then(function(results) { return fetchTweetsInBatch(results, session); }).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
-  };
+  this.queryClass = Mention;
+  this.queryParams = {"at_user" : tag, "order" : "desc" , "limit" : 20 };
+  this.onQueryResults = fetchTweets(this);
+  this.run = this.buildQueryAndPresentResults; 
 }
 TweetsAtUserOperation.signature = [ "get" , "tweets-at" , "<user_name>" ];
 
@@ -538,20 +535,13 @@ TweetsAtUserOperation.signature = [ "get" , "tweets-at" , "<user_name>" ];
 */
 function TweetsByHashtagOperation(params, data) {
   Operation.call(this);
-  
-  this.run = function(session) {
-    var tag = params[0];
-    if(tag.charAt(0) == "#") {    tag = tag.substring(1);   }
-    var qp = {"hashtag" : tag, "order" : "desc" , "limit" : 20 };
-    function buildQuery(query) {
-      return buildQueryEq(query, qp);
-    }
-    session.createQuery(HashtagEntry).
-      then(buildQuery).
-      then(function(results) { return fetchTweetsInBatch(results, session); }).
-      then(this.setResult).
-      then(this.onComplete, this.onError);
-  };
+  var self = this;
+  var tag = params[0];
+  if(tag.charAt(0) == "#") {    tag = tag.substring(1);   }
+  this.queryClass = HashtagEntry;
+  this.queryParams = {"hashtag" : tag, "order" : "desc" , "limit" : 20 };
+  this.onQueryResults = fetchTweets(this);  
+  this.run = this.buildQueryAndPresentResults; 
 }
 TweetsByHashtagOperation.signature = [ "get" , "tweets-about", "<hashtag>" ];
 
@@ -589,7 +579,7 @@ function RunWebServerOperation(cli_params, cli_data) {
     
     request.setEncoding('utf8');
     function gatherData(chunk) {    data += chunk;    }
-    request.on('data', gatherData);  
+    request.on('data', gatherData);
     request.on('end', runOperation);
   }
   
