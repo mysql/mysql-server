@@ -165,12 +165,4 @@ DROP TABLE t2;
 DROP TABLE IF EXISTS t1;
 DROP DATABASE wl6797;
 
-# Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
-# FOR ERROR CASES
-
-grant all privileges on *.* to  'user_wl6797'@'localhost';
-ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
-mysqltest: At line 1: reset connection failed: You must SET PASSWORD before executing this statement
-DROP USER user_wl6797@localhost;
-
 End of tests
