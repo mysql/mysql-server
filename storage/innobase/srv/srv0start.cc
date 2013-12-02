@@ -203,7 +203,8 @@ srv_file_check_mode(
 
 		/* Note: stat.rw_perm is only valid of files */
 
-		if (stat.type == OS_FILE_TYPE_FILE) {
+		if (stat.type == OS_FILE_TYPE_FILE
+		    || stat.type == OS_FILE_TYPE_BLOCK) {
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
