@@ -335,10 +335,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->db_type = DB_TYPE_TOKUDB;
 #elif defined(TOKU_USE_DB_TYPE_UNKNOWN) && TOKU_USE_DB_TYPE_UNKNOWN
     tokudb_hton->db_type = DB_TYPE_UNKNOWN;
-#elif defined(TOKU_USE_OTHER_DB_TYPE) && TOKU_USE_OTHER_DB_TYPE
-    // extended keys is triggered off of the db_type, so tokudb adds another type so that extended keys works
-    tokudb_hton->db_type = DB_TYPE_UNKNOWN;
-    tokudb_hton->other_db_type = DB_TYPE_TOKUDB;
 #else
 #error
 #endif
