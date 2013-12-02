@@ -930,8 +930,6 @@ end:
     scheduler= NULL;
   }
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(NULL);
 
   DBUG_RETURN(res);
 }

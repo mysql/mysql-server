@@ -848,7 +848,7 @@ TruncateLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Index id "IB_ID_FMT " not found",
+				"Index id " IB_ID_FMT " not found",
 				index.m_id);
 		}
 	}
@@ -1147,6 +1147,12 @@ row_truncate_complete(
 	TruncateLogger*		&logger,
 	dberr_t			err)
 {
+        if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+                /* We need to set the memcached sync back to 0, unblock
+                memcached operationse. */
+                table->memcached_sync_count = 0;
+        }
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	DEBUG_SYNC_C("ib_trunc_table_trunc_completing");
@@ -1711,6 +1717,25 @@ row_truncate_table_for_mysql(
 		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, logger, err));
 	}
+
+	/* Check if memcached DML is running on this table. if is, we don't
+	allow truncate this table. */
+	if (table->memcached_sync_count != 0) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Cannot truncate table ", stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs(" by DROP+CREATE\n"
+		      "InnoDB: because there are memcached operations"
+		      " running on it.\n",
+		      stderr);
+		err = DB_ERROR;
+		trx_rollback_to_savepoint(trx, NULL);
+		return(row_truncate_complete(table, trx, flags, logger, err));
+	} else {
+                /* We need to set this counter to -1 for blocking
+                memcached operations. */
+		table->memcached_sync_count = DICT_TABLE_IN_DDL;
+        }
 
 	/* Remove all locks except the table-level X lock. */
 	lock_remove_all_on_table(table, FALSE);

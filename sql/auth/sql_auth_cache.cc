@@ -1314,9 +1314,10 @@ my_bool acl_init(bool dont_read_acl_tables)
     by zeros at startup.
   */
   return_val= acl_reload(thd);
+
+  thd->release_resources();
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
+
   DBUG_RETURN(return_val);
 }
 
@@ -1982,10 +1983,12 @@ my_bool grant_init()
     DBUG_RETURN(1);                             /* purecov: deadcode */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+
   return_val=  grant_reload(thd);
+
+  thd->release_resources();
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
+
   DBUG_RETURN(return_val);
 }
 

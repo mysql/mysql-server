@@ -15,8 +15,6 @@
 
 #include "vio_priv.h"
 
-#ifdef _WIN32
-
 static size_t wait_overlapped_result(Vio *vio, int timeout)
 {
   size_t ret= (size_t) -1;
@@ -117,6 +115,3 @@ int vio_shutdown_pipe(Vio *vio)
 
   DBUG_RETURN(ret);
 }
-
-#endif
-

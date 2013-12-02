@@ -1217,6 +1217,16 @@ loop:
 		return;
 	}
 
+#ifdef _WIN32
+	/* write requests during fil_flush() might not be good for Windows */
+	if (log_sys->n_pending_flushes > 0
+	    || !os_event_is_set(log_sys->flush_event)) {
+		log_mutex_exit();
+		os_event_wait(log_sys->flush_event);
+		goto loop;
+	}
+#endif /* _WIN32 */
+
 	/* If it is a write call we should just go ahead and do it
 	as we checked that write_lsn is not where we'd like it to
 	be. If we have to flush as well then we check if there is a

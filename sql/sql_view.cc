@@ -1140,9 +1140,9 @@ err:
    parent_lex)
    @param  parent_select
  */
-static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
-                                           SELECT_LEX *removed_select,
-                                           SELECT_LEX *parent_select)
+void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                    SELECT_LEX *removed_select,
+                                    SELECT_LEX *parent_select)
 {
   List_iterator_fast<TABLE_LIST> ti(join_list);
   TABLE_LIST *tbl;

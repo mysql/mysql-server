@@ -2452,7 +2452,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
   
-  if (!isfinite(nr)) // Handle infinity as special case
+  if (!my_isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return TYPE_WARN_OUT_OF_RANGE;
@@ -4596,7 +4596,7 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val)
 
 bool Field_real::truncate(double *nr, double max_value)
 {
-  if (isnan(*nr))
+  if (my_isnan(*nr))
   {
     *nr= 0;
     set_null();
