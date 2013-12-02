@@ -2360,7 +2360,7 @@ public:
   const char *name;
   unsigned int name_len;
   char *val;
-  unsigned long val_len;
+  uint32_t val_len;
   Value_type type;
   unsigned int charset_number;
   bool is_null;

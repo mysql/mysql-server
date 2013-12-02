@@ -15,7 +15,6 @@ if(GTEST_FOUND)
   message(STATUS "Tests from subdirectory 'tests' added")
   enable_testing(true)
   include_directories(${GTEST_INCLUDE_DIRS})
-  add_subdirectory(tests)
 endif(GTEST_FOUND)
 
 INCLUDE_DIRECTORIES(
