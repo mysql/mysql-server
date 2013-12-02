@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H 
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h>                /* for uint typedefs */
+#include "my_base.h"
 
 typedef struct st_join_table JOIN_TAB;
 class handler;
@@ -54,7 +55,13 @@ struct READ_RECORD
   SQL_SELECT *select;
   uint cache_records;
   uint ref_length,struct_length,reclength,rec_cache_size,error_offset;
-  uint index;
+
+  /**
+    Counting records when reading result from filesort().
+    Used when filesort leaves the result in the filesort buffer.
+   */
+  ha_rows unpack_counter;
+
   uchar *ref_pos;				/* pointer to form->refpos */
   uchar *record;
   uchar *rec_buf;                /* to read field values  after filesort */

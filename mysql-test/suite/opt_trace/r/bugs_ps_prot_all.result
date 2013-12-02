@@ -1968,7 +1968,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 3,
-                          "cost": 5.8074,
+                          "cost": 5.8075,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
@@ -1998,7 +1998,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "rows": 3,
-                              "cost": 13.009,
+                              "cost": 13.01,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
@@ -2094,7 +2094,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 3,
-                          "cost": 5.8074,
+                          "cost": 5.8075,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
@@ -2124,7 +2124,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "rows": 3,
-                              "cost": 13.009,
+                              "cost": 13.01,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
@@ -2275,12 +2275,12 @@ ON table2 .col_int_key = table1 .col_int_key
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "cost_for_plan": 26.236,
+                        "cost_for_plan": 26.237,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 43.836,
+                            "cost": 43.837,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -2493,12 +2493,12 @@ ON table2 .col_int_key = table1 .col_int_key
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "cost_for_plan": 26.236,
+                        "cost_for_plan": 26.237,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 43.836,
+                            "cost": 43.837,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true

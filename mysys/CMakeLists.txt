@@ -25,20 +25,26 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_compress.c my_copy.c  my_create.c my_delete.c
 				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
 				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
-				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
 				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
 				string.c thr_alarm.c thr_lock.c thr_mutex.c
-				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
+				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_getncpus.c
 				my_rdtsc.c psi_noop.c my_syslog.c)
 
 IF (WIN32)
- SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
+  LIST(APPEND MYSYS_SOURCES
+    my_conio.c
+    my_wincond.c
+    my_windac.c
+    my_winerr.c
+    my_winfile.c
+    my_winthread.c
+  )
 ENDIF()
 
 IF(HAVE_ALARM)

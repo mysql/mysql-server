@@ -49,7 +49,6 @@ SET(SQL_EMBEDDED_SOURCES
   lib_sql.cc 
   libmysqld.c
   ${GEN_SOURCES}
-  ${MYSYS_LIBWRAP_SOURCE}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -60,8 +59,8 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql-common/pack.c
   ../sql/binlog.cc 
   ../sql/event_parse_data.cc
-  ../sql/hash_filo.cc
   ../sql/log_event.cc
+  ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc
   ../sql/rpl_injector.cc
   ../sql/rpl_record.cc
@@ -97,7 +96,7 @@ ENDIF()
 SET(LIBS 
   dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS}
   sql_embedded
 )

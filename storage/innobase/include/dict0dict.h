@@ -608,14 +608,6 @@ dict_table_get_col_name(
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
-Prints a table data. */
-
-void
-dict_table_print(
-/*=============*/
-	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
 Outputs info on foreign keys of a table. */
 
 void
@@ -1837,6 +1829,17 @@ dict_index_node_ptr_max_size(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((warn_unused_result, pure));
+/*****************************************************************//**
+Get index by first field of the index
+@return index which is having first field matches
+with the field present in field_index position of table */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_index_on_first_col(
+/*==============================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			col_index);	/*!< in: position of column
+						in table */
 
 #endif /* !UNIV_HOTBACKUP */
 

@@ -1784,13 +1784,7 @@ end:
   delete thd;
   if (org_thd)
     org_thd->store_globals();			/* purecov: inspected */
-  else
-  {
-    /* Remember that we don't have a THD */
-    my_pthread_set_THR_THD(0);
-    my_pthread_set_THR_MALLOC(0);
-  }
-  
+
   default_tz= default_tz_name ? global_system_variables.time_zone
                               : my_tz_SYSTEM;
 

@@ -3305,7 +3305,7 @@ i_s_fts_index_cache_fill_one_index(
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
 		/* Convert word from index charset to system_charset_info */
-		if (index_charset != system_charset_info) {
+		if (index_charset->cset != system_charset_info->cset) {
 			conv_str.f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str.f_str),
 				uint32(conv_str.f_len), system_charset_info,
@@ -3515,6 +3515,7 @@ i_s_fts_index_table_fill_selected(
 	que_t*			graph;
 	dberr_t			error;
 	fts_fetch_t		fetch;
+	char			table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -3535,6 +3536,8 @@ i_s_fts_index_table_fill_selected(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, fts_get_suffix(selected),
 			     FTS_INDEX_TABLE, index);
+	fts_get_table_name(&fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		&fts_table, info,
@@ -3542,7 +3545,7 @@ i_s_fts_index_table_fill_selected(
 		"DECLARE CURSOR c IS"
 		" SELECT word, doc_count, first_doc_id, last_doc_id, "
 		"ilist\n"
-		" FROM %s WHERE word >= :word;\n"
+		" FROM $table_name WHERE word >= :word;\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -3661,7 +3664,7 @@ i_s_fts_index_table_fill_one_fetch(
 		word->text.f_str[word->text.f_len] = 0;
 
 		/* Convert word from index charset to system_charset_info */
-		if (index_charset != system_charset_info) {
+		if (index_charset->cset != system_charset_info->cset) {
 			conv_str->f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str->f_str),
 				uint32(conv_str->f_len), system_charset_info,

@@ -300,6 +300,7 @@ TEST_F(ItemTest, ItemEqual)
 {
   // Bug#13720201 VALGRIND: VARIOUS BLOCKS OF BYTES DEFINITELY LOST
   Mock_field_timestamp mft;
+  mft.table->const_table= true;
   mft.make_readable();
   // foo is longer than STRING_BUFFER_USUAL_SIZE used by cmp_item_sort_string.
   const char foo[]=

@@ -190,7 +190,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			6
+#define DICT_TF2_BITS			7
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -213,6 +213,9 @@ use its own tablespace instead of the system tablespace. */
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32
 
+/** This bit is set if all aux table names (both common tables and
+index tables) of a FTS table are in HEX format. */
+#define DICT_TF2_FTS_AUX_HEX_NAME	64
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\
@@ -728,6 +731,11 @@ generate a specific template for it. */
 typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
 	table_lock_list_t;
 
+/* This flag is for sync SQL DDL and memcached DML.
+if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
+the table, DML from memcached will be blocked. */
+#define DICT_TABLE_IN_DDL -1
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t{
@@ -843,6 +851,14 @@ struct dict_table_t{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+#define DICT_TABLE_IN_USED      -1
+	lint		memcached_sync_count;
+				/*!< count of how many handles are opened
+				to this table from memcached; DDL on the
+				table is NOT allowed until this count
+				goes to zero. If it's -1, means there's DDL
+		                on the table, DML from memcached will be
+				blocked. */
 	ib_time_t	stats_last_recalc;
 				/*!< Timestamp of last recalc of the stats */
 	ib_uint32_t	stat_persistent;

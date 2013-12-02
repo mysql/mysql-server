@@ -3845,6 +3845,7 @@ ib_table_truncate(
 	ib_err_t        trunc_err;
 	ib_trx_t        ib_trx = NULL;
 	ib_crsr_t       ib_crsr = NULL;
+	ib_ulint_t	memcached_sync = 0;
 
 	ib_trx = ib_trx_begin(IB_TRX_SERIALIZABLE, true, false);
 
@@ -3858,6 +3859,13 @@ ib_table_truncate(
 						     (trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
+	}
+
+	/* Remember the memcached_sync_count and set it to 0, so the
+	truncate can be executed. */
+	if (table != NULL && err == DB_SUCCESS) {
+		memcached_sync = table->memcached_sync_count;
+		table->memcached_sync_count = 0;
 	}
 
 	dict_mutex_exit_for_mysql();
@@ -3883,6 +3891,15 @@ ib_table_truncate(
 	} else {
 		err = ib_trx_rollback(ib_trx);
 		ut_a(err == DB_SUCCESS);
+	}
+
+	/* Set the memcached_sync_count back. */
+	if (table != NULL && memcached_sync != 0) {
+		dict_mutex_enter_for_mysql();
+
+		table->memcached_sync_count = memcached_sync;
+
+		dict_mutex_exit_for_mysql();
 	}
 
         return(trunc_err);
@@ -3959,4 +3976,52 @@ ib_ut_strerr(
 	ib_err_t	num)	/*!< in: error number */
 {
 	return(ut_strerr(num));
+}
+
+/*****************************************************************//**
+Increase/decrease the memcached sync count of table to sync memcached
+DML with SQL DDLs.
+@return DB_SUCCESS or error number */
+
+ib_err_t
+ib_cursor_set_memcached_sync(
+/*=========================*/
+	ib_crsr_t	ib_crsr,	/*!< in: cursor */
+	ib_bool_t	flag)		/*!< in: true for increase */
+{
+	const ib_cursor_t*      cursor = (const ib_cursor_t*) ib_crsr;
+	row_prebuilt_t*         prebuilt = cursor->prebuilt;
+	dict_table_t*           table = prebuilt->table;
+	ib_err_t                err = DB_SUCCESS;
+
+	if (table != NULL) {
+                /* If memcached_sync_count is -1, means table is
+                doing DDL, we just return error. */
+                if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+                        return(DB_ERROR);
+                }
+
+		if (flag) {
+#ifdef HAVE_ATOMIC_BUILTINS
+			os_atomic_increment_lint(&table->memcached_sync_count, 1);
+#else
+		        dict_mutex_enter_for_mysql();
+                        ++table->memcached_sync_count;
+                        dict_mutex_exit_for_mysql();
+#endif
+		} else {
+#ifdef HAVE_ATOMIC_BUILTINS
+			os_atomic_decrement_lint(&table->memcached_sync_count, 1);
+#else
+		        dict_mutex_enter_for_mysql();
+                        --table->memcached_sync_count;
+                        dict_mutex_exit_for_mysql();
+#endif
+		        ut_a(table->memcached_sync_count >= 0);
+		}
+	} else {
+		err = DB_TABLE_NOT_FOUND;
+	}
+
+	return(err);
 }

@@ -70,6 +70,9 @@ struct srv_stats_t {
 	/** Number of physical writes to the log performed */
 	ulint_ctr_1_t		log_writes;
 
+	/** Amount of data padded for log write ahead */
+	ulint_ctr_1_t		log_padded;
+
 	/** Amount of data written to the log files in bytes */
 	lsn_ctr_1_t		os_log_written;
 
@@ -246,6 +249,7 @@ extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+extern ulong	srv_log_write_ahead_size;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -340,15 +344,9 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern ibool	srv_print_innodb_monitor;
-extern ibool	srv_print_innodb_lock_monitor;
-extern ibool	srv_print_innodb_tablespace_monitor;
+extern my_bool	srv_print_innodb_monitor;
+extern my_bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
-#define DEPRECATED_MSG_INNODB_TABLE_MONITOR \
-	"Using innodb_table_monitor is deprecated and it may be removed " \
-	"in future releases. Please use the InnoDB INFORMATION_SCHEMA " \
-	"tables instead, see " REFMAN "innodb-i_s-tables.html"
-extern ibool	srv_print_innodb_table_monitor;
 
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;

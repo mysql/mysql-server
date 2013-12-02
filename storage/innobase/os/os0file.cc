@@ -2749,7 +2749,7 @@ try_again:
 	}
 
 	fprintf(stderr,
-		"InnoDB: Error: tried to read "ULINTPF" bytes at offset "
+		"InnoDB: Error: tried to read " ULINTPF " bytes at offset "
 		UINT64PF"\n"
 		"InnoDB: Was only able to read %ld.\n",
 		n, offset, (lint) ret);
@@ -3115,7 +3115,7 @@ retry:
 
 		fprintf(stderr,
 			" InnoDB: Error: Write to file %s failed"
-			" at offset "UINT64PF".\n"
+			" at offset " UINT64PF ".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
 			"InnoDB: Operating system error number %lu.\n"
@@ -3310,30 +3310,41 @@ os_file_get_status(
 
 		return(DB_FAIL);
 
-	} else if (S_ISDIR(statinfo.st_mode)) {
+	}
+
+	switch (statinfo.st_mode & S_IFMT) {
+	case S_IFDIR:
 		stat_info->type = OS_FILE_TYPE_DIR;
-	} else if (S_ISLNK(statinfo.st_mode)) {
+		break;
+	case S_IFLNK:
 		stat_info->type = OS_FILE_TYPE_LINK;
-	} else if (S_ISREG(statinfo.st_mode)) {
+		break;
+	case S_IFBLK:
+		stat_info->type = OS_FILE_TYPE_BLOCK;
+		break;
+	case S_IFREG:
 		stat_info->type = OS_FILE_TYPE_FILE;
-
-		if (check_rw_perm) {
-			int	fh;
-			int	access;
-
-			access = !srv_read_only_mode ? O_RDWR : O_RDONLY;
-
-			fh = ::open(path, access, os_innodb_umask);
-
-			if (fh == -1) {
-				stat_info->rw_perm = false;
-			} else {
-				stat_info->rw_perm = true;
-				close(fh);
-			}
-		}
-	} else {
+		break;
+	default:
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+
+	if (check_rw_perm && (stat_info->type == OS_FILE_TYPE_FILE
+			      || stat_info->type == OS_FILE_TYPE_BLOCK)) {
+		int	fh;
+		int	access;
+
+		access = !srv_read_only_mode ? O_RDWR : O_RDONLY;
+
+		fh = ::open(path, access, os_innodb_umask);
+
+		if (fh == -1) {
+			stat_info->rw_perm = false;
+		} else {
+			stat_info->rw_perm = true;
+			close(fh);
+		}
 	}
 
 #endif /* _WIN_ */

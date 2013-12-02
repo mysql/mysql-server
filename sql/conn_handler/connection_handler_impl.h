@@ -19,6 +19,7 @@
 #define CONNECTION_HANDLER_IMPL_INCLUDED
 
 #include "my_global.h"           // uint
+#include "my_pthread.h"          // mysql_mutex_t
 #include "connection_handler.h"  // Connection_handler
 #include <list>
 
@@ -46,38 +47,30 @@ class Per_thread_connection_handler : public Connection_handler
 
   /**
     List of pending channel info objects to be picked by idle
-    threads. Protected by LOCK_thread_count.
+    threads. Protected by LOCK_thread_cache.
   */
   static std::list<Channel_info*> *waiting_channel_info_list;
 
+  static mysql_mutex_t LOCK_thread_cache;
+  static mysql_cond_t COND_thread_cache;
+  static mysql_cond_t COND_flush_thread_cache;
+
 public:
   // Status variables related to Per_thread_connection_handler
-  static ulong blocked_pthread_count;    // Protected by LOCK_thread_count
+  static ulong blocked_pthread_count;    // Protected by LOCK_thread_cache.
   static ulong slow_launch_threads;
   // System variable
   static ulong max_blocked_pthreads;
 
-  static void allocate_waiting_channel_info_list()
-  {
-    waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
-    DBUG_ASSERT(waiting_channel_info_list != NULL);
-  }
-
-  static void deallocate_waiting_channel_info_list()
-  {
-    if (waiting_channel_info_list != NULL)
-    {
-      delete waiting_channel_info_list;
-      waiting_channel_info_list= NULL;
-    }
-  }
+  static void init();
+  static void destroy();
 
   /**
     Wake blocked pthreads and wait until they have terminated.
   */
   static void kill_blocked_pthreads();
 
-  /*
+  /**
     Block until a new connection arrives.
   */
   static Channel_info* block_until_new_connection();

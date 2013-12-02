@@ -1,7 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This is a Myisam engine specific testcase
+# Hence MTR starts mysqld with MyISAM as default
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Single table specific update/delete tests (mysql_update and mysql_delete)
@@ -154,7 +154,7 @@ FLUSH STATUS;
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
---replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
@@ -162,7 +162,7 @@ DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
---replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 DROP TABLE t2;
 
@@ -381,7 +381,7 @@ FLUSH STATUS;
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
---replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
@@ -389,7 +389,7 @@ UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
---replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 DROP TABLE t2;

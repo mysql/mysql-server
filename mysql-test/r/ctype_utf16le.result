@@ -134,11 +134,15 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	43	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
 explain select * from t1 where a like concat('abc','%');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	43	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
 select * from t1 where a like "abc%";
 a
 abc
@@ -366,8 +370,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word	bar
 a	0
@@ -377,8 +383,10 @@ aardvara	0
 aardvark	0
 aardvarz	0
 EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	258	NULL	6	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT word FROM t1 ORDER by word;
 word
 a
@@ -404,8 +412,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY WORD;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	258	NULL	6	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word
 a
@@ -432,8 +442,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word	bar
 a	2
@@ -443,8 +455,10 @@ aardvara	5
 aardvark	4
 aardvarz	6
 EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT word FROM t1 ORDER BY word;
 word
 a
@@ -686,6 +700,21 @@ HEX(a)	HEX(WEIGHT_STRING(a))
 00D884DF	010384
 C0DB00DC	100000
 DROP TABLE IF EXISTS t1;
+#
+# BUG#16691598 - ORDER BY LOWER(COLUMN) PRODUCES 
+#                OUT-OF-ORDER RESULTS
+#
+CREATE TABLE  t1 SELECT ('a a') as n;
+INSERT INTO t1 VALUES('a b');
+SELECT * FROM t1 ORDER BY LOWER(n) ASC;
+n
+a a
+a b
+SELECT * FROM t1 ORDER BY LOWER(n) DESC;
+n
+a b
+a a
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf16le_bin
@@ -770,8 +799,10 @@ INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2020, 10));
 INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2021, 10));
 # make sure "index read" is used
 explain SELECT HEX(a) FROM t1 ORDER BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	40	NULL	3	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	40	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `HEX(a)` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT HEX(a) FROM t1 ORDER BY a;
 HEX(a)
 1F201F201F201F201F201F201F201F201F201F20

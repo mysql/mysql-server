@@ -16,21 +16,21 @@ struct st_mysql_lex_string
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
 extern struct thd_alloc_service_st {
-  void *(*thd_alloc_func)(void*, unsigned int);
-  void *(*thd_calloc_func)(void*, unsigned int);
+  void *(*thd_alloc_func)(void*, size_t);
+  void *(*thd_calloc_func)(void*, size_t);
   char *(*thd_strdup_func)(void*, const char *);
-  char *(*thd_strmake_func)(void*, const char *, unsigned int);
-  void *(*thd_memdup_func)(void*, const void*, unsigned int);
+  char *(*thd_strmake_func)(void*, const char *, size_t);
+  void *(*thd_memdup_func)(void*, const void*, size_t);
   MYSQL_LEX_STRING *(*thd_make_lex_string_func)(void*, MYSQL_LEX_STRING *,
-                                        const char *, unsigned int, int);
+                                        const char *, size_t, int);
 } *thd_alloc_service;
-void *thd_alloc(void* thd, unsigned int size);
-void *thd_calloc(void* thd, unsigned int size);
+void *thd_alloc(void* thd, size_t size);
+void *thd_calloc(void* thd, size_t size);
 char *thd_strdup(void* thd, const char *str);
-char *thd_strmake(void* thd, const char *str, unsigned int size);
-void *thd_memdup(void* thd, const void* str, unsigned int size);
+char *thd_strmake(void* thd, const char *str, size_t size);
+void *thd_memdup(void* thd, const void* str, size_t size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
+                                      const char *str, size_t size,
                                       int allocate_lex_string);
 #include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
@@ -217,6 +217,7 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
+void thd_mark_transaction_to_rollback(void* thd, int all);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_binlog_pos(const void* thd,

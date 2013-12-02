@@ -1,4 +1,6 @@
 
+--source include/no_valgrind_without_big.inc
+
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 

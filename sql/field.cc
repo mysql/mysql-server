@@ -1967,7 +1967,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return test(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
 }
 
 
@@ -2452,7 +2452,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
   
-  if (!isfinite(nr)) // Handle infinity as special case
+  if (!my_isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return TYPE_WARN_OUT_OF_RANGE;
@@ -4596,7 +4596,7 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val)
 
 bool Field_real::truncate(double *nr, double max_value)
 {
-  if (isnan(*nr))
+  if (my_isnan(*nr))
   {
     *nr= 0;
     set_null();
@@ -5240,7 +5240,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
 
 
 bool
-Field_temporal_with_date::convert_str_to_TIME(const char *str, uint len,
+Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
                                               const CHARSET_INFO *cs,
                                               MYSQL_TIME *ltime,
                                               MYSQL_TIME_STATUS *status)
@@ -5760,7 +5760,7 @@ type_conversion_status Field_timestampf::validate_stored_val(THD *thd)
 
 
 bool
-Field_time_common::convert_str_to_TIME(const char *str, uint len,
+Field_time_common::convert_str_to_TIME(const char *str, size_t len,
                                        const CHARSET_INFO *cs,
                                        MYSQL_TIME *ltime,
                                        MYSQL_TIME_STATUS *status)
@@ -7170,9 +7170,10 @@ uint Field_string::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_string::max_packed_col_length(uint max_length)
+uint Field_string::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -7570,11 +7571,6 @@ uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
   return (uint) *data_ptr + 1;
 }
 
-
-uint Field_varstring::max_packed_col_length(uint max_length)
-{
-  return (max_length > 255 ? 2 : 1)+max_length;
-}
 
 uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
 {
@@ -8317,9 +8313,12 @@ uint Field_blob::packed_col_length(const uchar *data_ptr, uint length)
 }
 
 
-uint Field_blob::max_packed_col_length(uint max_length)
+uint Field_blob::max_packed_col_length()
 {
-  return (max_length > 255 ? 2 : 1)+max_length;
+  // We do not use addon fields for blobs.
+  DBUG_ASSERT(false);
+  const uint max_length= pack_length();
+  return (max_length > 255 ? 2 : 1) + max_length;
 }
 
 
@@ -9659,7 +9658,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + test(length & 7);
+      key_length= pack_length + MY_TEST(length & 7);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
@@ -9810,11 +9809,12 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     TRUE  on error.
 */
 
-bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
-                        char *fld_length, char *fld_decimals,
-                        uint fld_type_modifier, Item *fld_default_value,
-                        Item *fld_on_update_value, LEX_STRING *fld_comment,
-                        char *fld_change, List<String> *fld_interval_list,
+bool Create_field::init(THD *thd, const char *fld_name,
+                        enum_field_types fld_type, const char *fld_length,
+                        const char *fld_decimals, uint fld_type_modifier,
+                        Item *fld_default_value, Item *fld_on_update_value,
+                        LEX_STRING *fld_comment, const char *fld_change,
+                        List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type)
 {
   uint sign_len, allowed_type_modifier= 0;

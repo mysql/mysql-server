@@ -98,7 +98,7 @@ ulong events_statements_history_per_thread= 0;
 uint statement_stack_max= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
-/** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
+/** Number of statements lost. @sa STATEMENT_STACK_SIZE. */
 ulong statement_lost= 0;
 /** Size of connection attribute storage per thread */
 ulong session_connect_attrs_size_per_thread;
@@ -109,6 +109,8 @@ ulong metadata_lock_max;
 ulong metadata_lock_lost;
 /** True when @c metadata_lock_array is full. */
 bool metadata_lock_full;
+/** Number of EVENTS_TRANSACTIONS_HISTORY records per thread. */
+ulong events_transactions_history_per_thread= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -178,17 +180,23 @@ static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
 static uint thread_instr_class_waits_sizing= 0;
 static uint thread_instr_class_stages_sizing= 0;
 static uint thread_instr_class_statements_sizing= 0;
+static uint thread_instr_class_transactions_sizing= 0;
 static uint thread_instr_class_memory_sizing= 0;
 static PFS_single_stat *thread_instr_class_waits_array= NULL;
 static PFS_stage_stat *thread_instr_class_stages_array= NULL;
 static PFS_statement_stat *thread_instr_class_statements_array= NULL;
+static PFS_transaction_stat *thread_instr_class_transactions_array= NULL;
 static PFS_memory_stat *thread_instr_class_memory_array= NULL;
 
 static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
 static PFS_events_statements *thread_statements_history_array= NULL;
 static PFS_events_statements *thread_statements_stack_array= NULL;
+static PFS_events_transactions *thread_transactions_history_array= NULL;
 static char *thread_session_connect_attrs_array= NULL;
+
+PFS_single_stat *thread_instr_class_waits_array_start= NULL;
+PFS_single_stat *thread_instr_class_waits_array_end= NULL;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -206,6 +214,7 @@ int init_instruments(const PFS_global_param *param)
   uint thread_stages_history_sizing;
   uint thread_statements_history_sizing;
   uint thread_statements_stack_sizing;
+  uint thread_transactions_history_sizing;
   uint thread_session_connect_attrs_sizing;
   uint index;
 
@@ -258,11 +267,19 @@ int init_instruments(const PFS_global_param *param)
   statement_stack_max= param->m_statement_stack_sizing;
   thread_statements_stack_sizing= param->m_thread_sizing * statement_stack_max;
 
+  events_transactions_history_per_thread= param->m_events_transactions_history_sizing;
+  thread_transactions_history_sizing= param->m_thread_sizing
+    * events_transactions_history_per_thread;
+
   thread_instr_class_stages_sizing= param->m_thread_sizing
     * param->m_stage_class_sizing;
 
   thread_instr_class_statements_sizing= param->m_thread_sizing
     * param->m_statement_class_sizing;
+
+  /* Transaction class is global with fixed size, no m_transaction_sizing */
+  thread_instr_class_transactions_sizing= param->m_thread_sizing
+    * transaction_class_max;
 
   thread_instr_class_memory_sizing= param->m_thread_sizing
     * param->m_memory_class_sizing;
@@ -285,9 +302,11 @@ int init_instruments(const PFS_global_param *param)
   thread_stages_history_array= NULL;
   thread_statements_history_array= NULL;
   thread_statements_stack_array= NULL;
+  thread_transactions_history_array= NULL;
   thread_instr_class_waits_array= NULL;
   thread_instr_class_stages_array= NULL;
   thread_instr_class_statements_array= NULL;
+  thread_instr_class_transactions_array= NULL;
   thread_instr_class_memory_array= NULL;
   thread_internal_id_counter.m_u64= 0;
 
@@ -371,6 +390,9 @@ int init_instruments(const PFS_global_param *param)
     if (unlikely(thread_instr_class_waits_array == NULL))
       return 1;
 
+    thread_instr_class_waits_array_start= &thread_instr_class_waits_array[0];
+    thread_instr_class_waits_array_end= &thread_instr_class_waits_array[thread_instr_class_waits_sizing];
+
     for (index= 0; index < thread_instr_class_waits_sizing; index++)
       thread_instr_class_waits_array[index].reset();
   }
@@ -426,6 +448,27 @@ int init_instruments(const PFS_global_param *param)
       thread_instr_class_statements_array[index].reset();
   }
 
+  if (thread_transactions_history_sizing > 0)
+  {
+    thread_transactions_history_array=
+      PFS_MALLOC_ARRAY(thread_transactions_history_sizing, PFS_events_transactions,
+                       MYF(MY_ZEROFILL));
+    if (unlikely(thread_transactions_history_array == NULL))
+      return 1;
+  }
+
+  if (thread_instr_class_transactions_sizing > 0)
+  {
+    thread_instr_class_transactions_array=
+      PFS_MALLOC_ARRAY(thread_instr_class_transactions_sizing,
+                       PFS_transaction_stat, MYF(MY_ZEROFILL));
+    if (unlikely(thread_instr_class_transactions_array == NULL))
+      return 1;
+
+    for (index= 0; index < thread_instr_class_transactions_sizing; index++)
+      thread_instr_class_transactions_array[index].reset();
+  }
+
   if (thread_instr_class_memory_sizing > 0)
   {
     thread_instr_class_memory_array=
@@ -462,6 +505,10 @@ int init_instruments(const PFS_global_param *param)
       &thread_statements_stack_array[index * statement_stack_max];
     thread_array[index].m_instr_class_statements_stats=
       &thread_instr_class_statements_array[index * statement_class_max];
+    thread_array[index].m_transactions_history=
+      &thread_transactions_history_array[index * events_transactions_history_per_thread];
+    thread_array[index].m_instr_class_transactions_stats=
+      &thread_instr_class_transactions_array[index * transaction_class_max];
     thread_array[index].m_instr_class_memory_stats=
       &thread_instr_class_memory_array[index * memory_class_max];
     thread_array[index].m_session_connect_attrs=
@@ -545,6 +592,8 @@ void cleanup_instruments(void)
   thread_statements_history_array= NULL;
   pfs_free(thread_statements_stack_array);
   thread_statements_stack_array= NULL;
+  pfs_free(thread_transactions_history_array);
+  thread_transactions_history_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
   pfs_free(thread_instr_class_stages_array);
@@ -553,6 +602,8 @@ void cleanup_instruments(void)
   thread_instr_class_statements_array= NULL;
   pfs_free(thread_instr_class_memory_array);
   thread_instr_class_memory_array= NULL;
+  pfs_free(thread_instr_class_transactions_array);
+  thread_instr_class_transactions_array= NULL;
   pfs_free(global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
@@ -620,6 +671,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_mutex *pfs;
+  pfs_dirty_state dirty_state;
 
   if (mutex_full)
   {
@@ -656,22 +708,19 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % mutex_max;
     pfs= mutex_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_identity= identity;
-        pfs->m_class= klass;
-        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-        pfs->m_timed= klass->m_timed;
-        pfs->m_mutex_stat.reset();
-        pfs->m_owner= NULL;
-        pfs->m_last_locked= 0;
-        pfs->m_lock.dirty_to_allocated();
-        if (klass->is_singleton())
-          klass->m_singleton= pfs;
-        return pfs;
-      }
+      pfs->m_identity= identity;
+      pfs->m_class= klass;
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+      pfs->m_mutex_stat.reset();
+      pfs->m_owner= NULL;
+      pfs->m_last_locked= 0;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      if (klass->is_singleton())
+        klass->m_singleton= pfs;
+      return pfs;
     }
   }
 
@@ -718,6 +767,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_rwlock *pfs;
+  pfs_dirty_state dirty_state;
 
   if (rwlock_full)
   {
@@ -731,24 +781,21 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % rwlock_max;
     pfs= rwlock_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_identity= identity;
-        pfs->m_class= klass;
-        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-        pfs->m_timed= klass->m_timed;
-        pfs->m_rwlock_stat.reset();
-        pfs->m_lock.dirty_to_allocated();
-        pfs->m_writer= NULL;
-        pfs->m_readers= 0;
-        pfs->m_last_written= 0;
-        pfs->m_last_read= 0;
-        if (klass->is_singleton())
-          klass->m_singleton= pfs;
-        return pfs;
-      }
+      pfs->m_identity= identity;
+      pfs->m_class= klass;
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+      pfs->m_rwlock_stat.reset();
+      pfs->m_writer= NULL;
+      pfs->m_readers= 0;
+      pfs->m_last_written= 0;
+      pfs->m_last_read= 0;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      if (klass->is_singleton())
+        klass->m_singleton= pfs;
+      return pfs;
     }
   }
 
@@ -787,6 +834,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_cond *pfs;
+  pfs_dirty_state dirty_state;
 
   if (cond_full)
   {
@@ -800,22 +848,19 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % cond_max;
     pfs= cond_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_identity= identity;
-        pfs->m_class= klass;
-        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-        pfs->m_timed= klass->m_timed;
-        pfs->m_cond_stat.m_signal_count= 0;
-        pfs->m_cond_stat.m_broadcast_count= 0;
-        pfs->m_wait_stat.reset();
-        pfs->m_lock.dirty_to_allocated();
-        if (klass->is_singleton())
-          klass->m_singleton= pfs;
-        return pfs;
-      }
+      pfs->m_identity= identity;
+      pfs->m_class= klass;
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+      pfs->m_cond_stat.m_signal_count= 0;
+      pfs->m_cond_stat.m_broadcast_count= 0;
+      pfs->m_wait_stat.reset();
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      if (klass->is_singleton())
+        klass->m_singleton= pfs;
+      return pfs;
     }
   }
 
@@ -919,6 +964,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   uint index;
   uint attempts= 0;
   PFS_thread *pfs;
+  pfs_dirty_state dirty_state;
 
   if (thread_full)
   {
@@ -932,76 +978,76 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % thread_max;
     pfs= thread_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_thread_internal_id=
-          PFS_atomic::add_u64(&thread_internal_id_counter.m_u64, 1);
-        pfs->m_parent_thread_internal_id= 0;
-        pfs->m_processlist_id= processlist_id;
-        pfs->m_event_id= 1;
-        pfs->m_stmt_lock.set_allocated();
-        pfs->m_session_lock.set_allocated();
-        pfs->m_enabled= true;
-        pfs->m_aggregate_on_disconnect= flag_global_instrumentation && flag_thread_instrumentation;
-        pfs->m_class= klass;
-        pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
-        pfs->m_waits_history_full= false;
-        pfs->m_waits_history_index= 0;
-        pfs->m_stages_history_full= false;
-        pfs->m_stages_history_index= 0;
-        pfs->m_statements_history_full= false;
-        pfs->m_statements_history_index= 0;
+      pfs->m_thread_internal_id=
+        PFS_atomic::add_u64(&thread_internal_id_counter.m_u64, 1);
+      pfs->m_parent_thread_internal_id= 0;
+      pfs->m_processlist_id= processlist_id;
+      pfs->m_event_id= 1;
+      pfs->m_stmt_lock.set_allocated();
+      pfs->m_session_lock.set_allocated();
+      pfs->m_enabled= true;
+      pfs->m_aggregate_on_disconnect= flag_global_instrumentation && flag_thread_instrumentation;
+      pfs->m_class= klass;
+      pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
+      pfs->m_waits_history_full= false;
+      pfs->m_waits_history_index= 0;
+      pfs->m_stages_history_full= false;
+      pfs->m_stages_history_index= 0;
+      pfs->m_statements_history_full= false;
+      pfs->m_statements_history_index= 0;
+      pfs->m_transactions_history_full= false;
+      pfs->m_transactions_history_index= 0;
 
-        pfs->reset_stats();
-        pfs->reset_session_connect_attrs();
+      pfs->reset_stats();
+      pfs->reset_session_connect_attrs();
 
-        pfs->m_filename_hash_pins= NULL;
-        pfs->m_table_share_hash_pins= NULL;
-        pfs->m_setup_actor_hash_pins= NULL;
-        pfs->m_setup_object_hash_pins= NULL;
-        pfs->m_user_hash_pins= NULL;
-        pfs->m_account_hash_pins= NULL;
-        pfs->m_host_hash_pins= NULL;
-        pfs->m_digest_hash_pins= NULL;
-        pfs->m_program_hash_pins= NULL;
+      pfs->m_filename_hash_pins= NULL;
+      pfs->m_table_share_hash_pins= NULL;
+      pfs->m_setup_actor_hash_pins= NULL;
+      pfs->m_setup_object_hash_pins= NULL;
+      pfs->m_user_hash_pins= NULL;
+      pfs->m_account_hash_pins= NULL;
+      pfs->m_host_hash_pins= NULL;
+      pfs->m_digest_hash_pins= NULL;
+      pfs->m_program_hash_pins= NULL;
 
-        pfs->m_username_length= 0;
-        pfs->m_hostname_length= 0;
-        pfs->m_dbname_length= 0;
-        pfs->m_command= 0;
-        pfs->m_start_time= 0;
-        pfs->m_stage= 0;
-        pfs->m_processlist_info[0]= '\0';
-        pfs->m_processlist_info_length= 0;
+      pfs->m_username_length= 0;
+      pfs->m_hostname_length= 0;
+      pfs->m_dbname_length= 0;
+      pfs->m_command= 0;
+      pfs->m_start_time= 0;
+      pfs->m_stage= 0;
+      pfs->m_processlist_info[0]= '\0';
+      pfs->m_processlist_info_length= 0;
 
-        pfs->m_host= NULL;
-        pfs->m_user= NULL;
-        pfs->m_account= NULL;
-        set_thread_account(pfs);
+      pfs->m_host= NULL;
+      pfs->m_user= NULL;
+      pfs->m_account= NULL;
+      set_thread_account(pfs);
 
-        /*
-          For child waits, by default,
-          - NESTING_EVENT_ID is NULL
-          - NESTING_EVENT_TYPE is NULL
-        */
-        PFS_events_waits *child_wait= & pfs->m_events_waits_stack[0];
-        child_wait->m_event_id= 0;
+      /*
+        For child waits, by default,
+        - NESTING_EVENT_ID is NULL
+        - NESTING_EVENT_TYPE is NULL
+      */
+      PFS_events_waits *child_wait= & pfs->m_events_waits_stack[0];
+      child_wait->m_event_id= 0;
 
-        /*
-          For child stages, by default,
-          - NESTING_EVENT_ID is NULL
-          - NESTING_EVENT_TYPE is NULL
-        */
-        PFS_events_stages *child_stage= & pfs->m_stage_current;
-        child_stage->m_nesting_event_id= 0;
+      /*
+        For child stages, by default,
+        - NESTING_EVENT_ID is NULL
+        - NESTING_EVENT_TYPE is NULL
+      */
+      PFS_events_stages *child_stage= & pfs->m_stage_current;
+      child_stage->m_nesting_event_id= 0;
 
-        pfs->m_events_statements_count= 0;
+      pfs->m_events_statements_count= 0;
+      pfs->m_transaction_current.m_event_id= 0;
 
-        pfs->m_lock.dirty_to_allocated();
-        return pfs;
-      }
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      return pfs;
     }
   }
 
@@ -1258,6 +1304,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   const uint retry_max= 3;
   uint index;
   uint attempts= 0;
+  pfs_dirty_state dirty_state;
 
 search:
 
@@ -1292,49 +1339,46 @@ search:
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % file_max;
     pfs= file_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_class= klass;
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+      strncpy(pfs->m_filename, normalized_filename, normalized_length);
+      pfs->m_filename[normalized_length]= '\0';
+      pfs->m_filename_length= normalized_length;
+      pfs->m_file_stat.m_open_count= 1;
+      pfs->m_file_stat.m_io_stat.reset();
+      pfs->m_identity= (const void *)pfs;
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&filename_hash, pins,
+                          &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_class= klass;
-        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-        pfs->m_timed= klass->m_timed;
-        strncpy(pfs->m_filename, normalized_filename, normalized_length);
-        pfs->m_filename[normalized_length]= '\0';
-        pfs->m_filename_length= normalized_length;
-        pfs->m_file_stat.m_open_count= 1;
-        pfs->m_file_stat.m_io_stat.reset();
-        pfs->m_identity= (const void *)pfs;
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&filename_hash, pins,
-                            &pfs);
-        if (likely(res == 0))
-        {
-          if (klass->is_singleton())
-            klass->m_singleton= pfs;
-          return pfs;
-        }
-
-        pfs->m_lock.allocated_to_free();
-
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            file_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        /* OOM in lf_hash_insert */
-        file_lost++;
-        return NULL;
+        if (klass->is_singleton())
+          klass->m_singleton= pfs;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        /* Duplicate insert by another thread */
+        if (++retry_count > retry_max)
+        {
+          /* Avoid infinite loops */
+          file_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      /* OOM in lf_hash_insert */
+      file_lost++;
+      return NULL;
     }
   }
 
@@ -1397,6 +1441,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   uint index;
   uint attempts= 0;
   PFS_table *pfs;
+  pfs_dirty_state dirty_state;
 
   if (table_full)
   {
@@ -1410,29 +1455,26 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_max;
     pfs= table_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_identity= identity;
-        pfs->m_share= share;
-        pfs->m_io_enabled= share->m_enabled &&
-          flag_global_instrumentation && global_table_io_class.m_enabled;
-        pfs->m_io_timed= share->m_timed && global_table_io_class.m_timed;
-        pfs->m_lock_enabled= share->m_enabled &&
-          flag_global_instrumentation && global_table_lock_class.m_enabled;
-        pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
-        pfs->m_has_io_stats= false;
-        pfs->m_has_lock_stats= false;
-        pfs->m_internal_lock= PFS_TL_NONE;
-        pfs->m_external_lock= PFS_TL_NONE;
-        share->inc_refcount();
-        pfs->m_table_stat.fast_reset();
-        pfs->m_thread_owner= opening_thread;
-        pfs->m_owner_event_id= opening_thread->m_event_id;
-        pfs->m_lock.dirty_to_allocated();
-        return pfs;
-      }
+      pfs->m_identity= identity;
+      pfs->m_share= share;
+      pfs->m_io_enabled= share->m_enabled &&
+        flag_global_instrumentation && global_table_io_class.m_enabled;
+      pfs->m_io_timed= share->m_timed && global_table_io_class.m_timed;
+      pfs->m_lock_enabled= share->m_enabled &&
+        flag_global_instrumentation && global_table_lock_class.m_enabled;
+      pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
+      pfs->m_has_io_stats= false;
+      pfs->m_has_lock_stats= false;
+      pfs->m_internal_lock= PFS_TL_NONE;
+      pfs->m_external_lock= PFS_TL_NONE;
+      share->inc_refcount();
+      pfs->m_table_stat.fast_reset();
+      pfs->m_thread_owner= opening_thread;
+      pfs->m_owner_event_id= opening_thread->m_event_id;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      return pfs;
     }
   }
 
@@ -1554,6 +1596,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   uint index;
   uint attempts= 0;
   PFS_socket *pfs;
+  pfs_dirty_state dirty_state;
 
   if (socket_full)
   {
@@ -1575,37 +1618,34 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % socket_max;
     pfs= socket_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_fd= fd_used;
+      /* There is no socket object, so we use the instrumentation. */
+      pfs->m_identity= pfs;
+      pfs->m_class= klass;
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+      pfs->m_idle= false;
+      pfs->m_socket_stat.reset();
+      pfs->m_thread_owner= NULL;
+
+      pfs->m_addr_len= addr_len_used;
+      if ((addr != NULL) && (addr_len_used > 0))
       {
-        pfs->m_fd= fd_used;
-        /* There is no socket object, so we use the instrumentation. */
-        pfs->m_identity= pfs;
-        pfs->m_class= klass;
-        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-        pfs->m_timed= klass->m_timed;
-        pfs->m_idle= false;
-        pfs->m_socket_stat.reset();
-        pfs->m_thread_owner= NULL;
-
         pfs->m_addr_len= addr_len_used;
-        if ((addr != NULL) && (addr_len_used > 0))
-        {
-          pfs->m_addr_len= addr_len_used;
-          memcpy(&pfs->m_sock_addr, addr, addr_len_used);
-        }
-        else
-        {
-          pfs->m_addr_len= 0;
-        }
-
-        pfs->m_lock.dirty_to_allocated();
-
-        if (klass->is_singleton())
-          klass->m_singleton= pfs;
-        return pfs;
+        memcpy(&pfs->m_sock_addr, addr, addr_len_used);
       }
+      else
+      {
+        pfs->m_addr_len= 0;
+      }
+
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+
+      if (klass->is_singleton())
+        klass->m_singleton= pfs;
+      return pfs;
     }
   }
 
@@ -1663,6 +1703,7 @@ PFS_metadata_lock* create_metadata_lock(void *identity,
   uint index;
   uint attempts= 0;
   PFS_metadata_lock *pfs;
+  pfs_dirty_state dirty_state;
 
   if (metadata_lock_full)
   {
@@ -1676,24 +1717,21 @@ PFS_metadata_lock* create_metadata_lock(void *identity,
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % metadata_lock_max;
     pfs= metadata_lock_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
-      {
-        pfs->m_identity= identity;
-        pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
-        pfs->m_timed= global_metadata_class.m_timed;
-        pfs->m_mdl_key.mdl_key_init(mdl_key);
-        pfs->m_mdl_type= mdl_type;
-        pfs->m_mdl_duration= mdl_duration;
-        pfs->m_mdl_status= mdl_status;
-        pfs->m_src_file= src_file;
-        pfs->m_src_line= src_line;
-        pfs->m_owner_thread_id= 0;
-        pfs->m_owner_event_id= 0;
-        pfs->m_lock.dirty_to_allocated();
-        return pfs;
-      }
+      pfs->m_identity= identity;
+      pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
+      pfs->m_timed= global_metadata_class.m_timed;
+      pfs->m_mdl_key.mdl_key_init(mdl_key);
+      pfs->m_mdl_type= mdl_type;
+      pfs->m_mdl_duration= mdl_duration;
+      pfs->m_mdl_status= mdl_status;
+      pfs->m_src_file= src_file;
+      pfs->m_src_line= src_line;
+      pfs->m_owner_thread_id= 0;
+      pfs->m_owner_event_id= 0;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      return pfs;
     }
   }
 
@@ -1921,6 +1959,35 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   }
 }
 
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array_1,
+                                PFS_transaction_stat *to_array_2)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array_1 != NULL);
+  DBUG_ASSERT(to_array_2 != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array_1->aggregate(from_array);
+    to_array_2->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
                           PFS_memory_stat *to_array)
@@ -2019,6 +2086,10 @@ void aggregate_thread(PFS_thread *thread,
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  aggregate_thread_transactions(thread, safe_account, safe_user, safe_host);
 #endif
   }
 
@@ -2217,6 +2288,70 @@ void aggregate_thread_statements(PFS_thread *thread,
   */
   aggregate_all_statements(thread->m_instr_class_statements_stats,
                            global_instr_class_statements_array);
+}
+
+void aggregate_thread_transactions(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host)
+{
+  if (likely(safe_account != NULL))
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                          safe_account->m_instr_class_transactions_stats);
+
+    return;
+  }
+
+  if ((safe_user != NULL) && (safe_host != NULL))
+  {
+    /*
+      Aggregate EVENTS_TRANSACTION_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTION_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTION_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_user->m_instr_class_transactions_stats,
+                               &global_transaction_stat);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
+    */
+    aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                               safe_host->m_instr_class_transactions_stats);
+    return;
+  }
+
+  /*
+    Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+    to EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME.
+  */
+  aggregate_all_transactions(thread->m_instr_class_transactions_stats,
+                             &global_transaction_stat);
 }
 
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
@@ -2506,7 +2641,7 @@ void update_instruments_derived_flags()
   update_table_derived_flags();
   update_socket_derived_flags();
   update_metadata_derived_flags();
-  /* nothing for stages and statements (no instances) */
+  /* nothing for stages, statements and transactions (no instances) */
 }
 
 /** @} */

@@ -5,6 +5,8 @@ set timer_name='NANOSECOND' where name="stage";
 update performance_schema.setup_timers
 set timer_name='NANOSECOND' where name="statement";
 update performance_schema.setup_timers
+set timer_name='MICROSECOND' where name="transaction";
+update performance_schema.setup_timers
 set timer_name='MICROSECOND' where name="idle";
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
@@ -12,6 +14,7 @@ idle	MICROSECOND
 wait	CYCLE
 stage	NANOSECOND
 statement	NANOSECOND
+transaction	MICROSECOND
 select * from performance_schema.setup_timers
 where name='Wait';
 NAME	TIMER_NAME
@@ -34,6 +37,7 @@ idle	MILLISECOND
 wait	MILLISECOND
 stage	MILLISECOND
 statement	MILLISECOND
+transaction	MILLISECOND
 update performance_schema.setup_timers
 set timer_name='CYCLE';
 delete from performance_schema.setup_timers;
@@ -52,6 +56,8 @@ set timer_name='NANOSECOND' where name="stage";
 update performance_schema.setup_timers
 set timer_name='NANOSECOND' where name="statement";
 update performance_schema.setup_timers
+set timer_name='MICROSECOND' where name="transaction";
+update performance_schema.setup_timers
 set timer_name='MICROSECOND' where name="idle";
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
@@ -59,3 +65,4 @@ idle	MICROSECOND
 wait	CYCLE
 stage	NANOSECOND
 statement	NANOSECOND
+transaction	MICROSECOND

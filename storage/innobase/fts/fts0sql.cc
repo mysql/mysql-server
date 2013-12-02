@@ -35,8 +35,7 @@ Created 2007-03-27 Sunny Bains
 #include "fts0vlc.ic"
 #endif
 
-/** SQL statements for creating the ancillary FTS tables. %s must be replaced
-with the indexed table's id. */
+/** SQL statements for creating the ancillary FTS tables. */
 
 /** Preamble to all SQL statements. */
 static const char* fts_sql_begin=
@@ -61,21 +60,28 @@ fts_get_table_id(
 					long */
 {
 	int		len;
+	bool		hex_name = DICT_TF2_FLAG_IS_SET(fts_table->table,
+						DICT_TF2_FTS_AUX_HEX_NAME);
+
+	ut_a(fts_table->table != NULL);
 
 	switch (fts_table->type) {
 	case FTS_COMMON_TABLE:
-		len = fts_write_object_id(fts_table->table_id, table_id);
+		len = fts_write_object_id(fts_table->table_id, table_id,
+					  hex_name);
 		break;
 
 	case FTS_INDEX_TABLE:
 
-		len = fts_write_object_id(fts_table->table_id, table_id);
+		len = fts_write_object_id(fts_table->table_id, table_id,
+					  hex_name);
 
 		table_id[len] = '_';
 		++len;
 		table_id += len;
 
-		len += fts_write_object_id(fts_table->index_id, table_id);
+		len += fts_write_object_id(fts_table->index_id, table_id,
+					   hex_name);
 		break;
 
 	default:
@@ -129,39 +135,34 @@ fts_get_table_name_prefix(
 }
 
 /******************************************************************//**
-Construct the name of an ancillary FTS table.
-@return own: table name, must be freed with ut_free() */
+Construct the name of an ancillary FTS table for the given table.
+Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
+for param 'table_name'. */
 
-char*
+void
 fts_get_table_name(
 /*===============*/
-	const fts_table_t*	fts_table)
+	const fts_table_t*	fts_table,
 					/*!< in: Auxiliary table type */
+	char*			table_name)
+					/*!< in/out: aux table name */
 {
 	int		len;
-	char*		name;
-	int		name_len;
 	char*		prefix_name;
 
 	prefix_name = fts_get_table_name_prefix(fts_table);
 
-	name_len = (int) strlen(prefix_name) + 1
-		 + (int) strlen(fts_table->suffix) + 1;
-
-	name = static_cast<char*>(ut_malloc(name_len));
-
-	len = sprintf(name, "%s_%s", prefix_name, fts_table->suffix);
+	len = sprintf(table_name, "%s_%s", prefix_name, fts_table->suffix);
 
 	ut_a(len > 0);
-	ut_a(len == name_len - 1);
+	ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix)
+	     == static_cast<uint>(len));
 
 	ut_free(prefix_name);
-
-	return(name);
 }
 
 /******************************************************************//**
-Parse an SQL string. %s is replaced with the table's id.
+Parse an SQL string.
 @return query graph */
 
 que_t*
@@ -173,26 +174,11 @@ fts_parse_sql(
 {
 	char*		str;
 	que_t*		graph;
-	char*		str_tmp;
 	ibool		dict_locked;
 
-	if (fts_table != NULL) {
-		char*	table_name;
+	str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
 
-		table_name = fts_get_table_name(fts_table);
-		str_tmp = ut_strreplace(sql, "%s", table_name);
-		ut_free(table_name);
-	} else {
-		ulint	sql_len = strlen(sql) + 1;
-
-		str_tmp = static_cast<char*>(ut_malloc(sql_len));
-		strcpy(str_tmp, sql);
-	}
-
-	str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
-	ut_free(str_tmp);
-
-	dict_locked = (fts_table && fts_table->table
+	dict_locked = (fts_table && fts_table->table->fts
 		       && (fts_table->table->fts->fts_status
 			   & TABLE_DICT_LOCKED));
 
@@ -216,7 +202,7 @@ fts_parse_sql(
 }
 
 /******************************************************************//**
-Parse an SQL string. %s is replaced with the table's id.
+Parse an SQL string.
 @return query graph */
 
 que_t*
@@ -228,26 +214,12 @@ fts_parse_sql_no_dict_lock(
 {
 	char*		str;
 	que_t*		graph;
-	char*		str_tmp = NULL;
 
 #ifdef UNIV_DEBUG
 	ut_ad(mutex_own(&dict_sys->mutex));
 #endif
 
-	if (fts_table != NULL) {
-		char*		table_name;
-
-		table_name = fts_get_table_name(fts_table);
-		str_tmp = ut_strreplace(sql, "%s", table_name);
-		ut_free(table_name);
-	}
-
-	if (str_tmp != NULL) {
-		str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
-		ut_free(str_tmp);
-	} else {
-		str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
-	}
+	str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
 
 	//fprintf(stderr, "%s\n", str);
 

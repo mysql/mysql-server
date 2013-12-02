@@ -170,16 +170,14 @@ bool Explain_format_traditional::flush_entry()
   if (push(&items, column_buffer.col_id, nil) ||
       push_select_type(&items) ||
       push(&items, column_buffer.col_table_name, nil) ||
-      (current_thd->lex->describe & DESCRIBE_PARTITIONS &&
-       push(&items, column_buffer.col_partitions, nil)) ||
+      push(&items, column_buffer.col_partitions, nil) ||
       push(&items, column_buffer.col_join_type, nil) ||
       push(&items, column_buffer.col_possible_keys, nil) ||
       push(&items, column_buffer.col_key, nil) ||
       push(&items, column_buffer.col_key_len, nil) ||
       push(&items, column_buffer.col_ref, nil) ||
       push(&items, column_buffer.col_rows, nil) ||
-      (current_thd->lex->describe & DESCRIBE_EXTENDED &&
-       push(&items, column_buffer.col_filtered, nil)))
+      push(&items, column_buffer.col_filtered, nil))
     return true;
 
   if (column_buffer.col_message.is_empty() &&

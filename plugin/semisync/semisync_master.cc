@@ -46,6 +46,7 @@ unsigned long rpl_semi_sync_master_clients          = 0;
 unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
 char rpl_semi_sync_master_wait_no_slave = 1;
+unsigned int rpl_semi_sync_master_wait_for_slave_count= 1;
 
 
 static int getWaitTime(const struct timespec& start_ts);
@@ -428,6 +429,8 @@ int ReplSemiSyncMaster::disableMaster()
     wait_file_name_inited_  = false;
     commit_file_name_inited_ = false;
 
+    ack_container_.clear();
+
     set_master_enabled(false);
     sql_print_information("Semi-sync replication disabled on the master.");
   }
@@ -489,12 +492,15 @@ void ReplSemiSyncMaster::remove_slave()
   /* Only switch off if semi-sync is enabled and is on */
   if (getMasterEnabled() && is_on())
   {
-    /* If user has chosen not to wait if no semi-sync slave available
-       and the last semi-sync slave exits, turn off semi-sync on master
-       immediately.
-     */
+
+    /*
+      If user has chosen not to wait if no enough semi-sync slave available
+      and after a slave exists, turn off semi-semi master immediately if active
+      slaves are less then required slave numbers.
+    */
     if (!rpl_semi_sync_master_wait_no_slave &&
-        rpl_semi_sync_master_clients == 0)
+        rpl_semi_sync_master_clients ==
+        rpl_semi_sync_master_wait_for_slave_count - 1)
       switch_off();
   }
   unlock();
@@ -508,30 +514,23 @@ bool ReplSemiSyncMaster::is_semi_sync_slave()
   return val;
 }
 
-int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
-                                          const char *log_file_name,
-                                          my_off_t log_file_pos,
-                                          bool skipped_event)
+void ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_name,
+                                           my_off_t log_file_pos)
 {
   const char *kWho = "ReplSemiSyncMaster::reportReplyBinlog";
   int   cmp;
   bool  can_release_threads = false;
   bool  need_copy_send_pos = true;
 
-  if (!(getMasterEnabled()))
-    return 0;
-
   function_enter(kWho);
+  mysql_mutex_assert_owner(&LOCK_binlog_);
 
-  lock();
-
-  /* This is the real check inside the mutex. */
   if (!getMasterEnabled())
     goto l_end;
 
   if (!is_on())
     /* We check to see whether we can switch semi-sync ON. */
-    try_switch_on(server_id, log_file_name, log_file_pos);
+    try_switch_on(log_file_name, log_file_pos);
 
   /* The position should increase monotonically, if there is only one
    * thread sending the binlog to the slave.
@@ -561,7 +560,8 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
 
   if (need_copy_send_pos)
   {
-    strcpy(reply_file_name_, log_file_name);
+    strncpy(reply_file_name_, log_file_name, sizeof(reply_file_name_) - 1);
+    reply_file_name_[sizeof(reply_file_name_) - 1]= '\0';
     reply_file_pos_ = log_file_pos;
     reply_file_name_inited_ = true;
 
@@ -570,14 +570,8 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
     active_tranxs_->clear_active_tranx_nodes(log_file_name, log_file_pos);
 
     if (trace_level_ & kTraceDetail)
-    {
-      if(!skipped_event)
-        sql_print_information("%s: Got reply at (%s, %lu)", kWho,
+      sql_print_information("%s: Got reply at (%s, %lu)", kWho,
                             log_file_name, (unsigned long)log_file_pos);
-      else
-        sql_print_information("%s: Transaction skipped at (%s, %lu)", kWho,
-                            log_file_name, (unsigned long)log_file_pos);
-    }
   }
 
   if (rpl_semi_sync_master_wait_sessions > 0)
@@ -598,7 +592,6 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
   }
 
  l_end:
-  unlock();
 
   if (can_release_threads)
   {
@@ -608,7 +601,7 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
     cond_broadcast();
   }
 
-  return function_exit(kWho, 0);
+  function_exit(kWho, 0);
 }
 
 int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
@@ -693,7 +686,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         if (cmp <= 0)
 	{
           /* This thd has a lower position, let's update the minimum info. */
-          strcpy(wait_file_name_, trx_wait_binlog_name);
+          strncpy(wait_file_name_, trx_wait_binlog_name, sizeof(wait_file_name_) - 1);
+          wait_file_name_[sizeof(wait_file_name_) - 1]= '\0';
           wait_file_pos_ = trx_wait_binlog_pos;
 
           rpl_semi_sync_master_wait_pos_backtraverse++;
@@ -704,7 +698,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
       else
       {
-        strcpy(wait_file_name_, trx_wait_binlog_name);
+        strncpy(wait_file_name_, trx_wait_binlog_name, sizeof(wait_file_name_) - 1);
+        wait_file_name_[sizeof(wait_file_name_) - 1]= '\0';
         wait_file_pos_ = trx_wait_binlog_pos;
         wait_file_name_inited_ = true;
 
@@ -828,9 +823,8 @@ int ReplSemiSyncMaster::switch_off()
   return function_exit(kWho, result);
 }
 
-int ReplSemiSyncMaster::try_switch_on(int server_id,
-				      const char *log_file_name,
-				      my_off_t log_file_pos)
+int ReplSemiSyncMaster::try_switch_on(const char *log_file_name,
+                                      my_off_t log_file_pos)
 {
   const char *kWho = "ReplSemiSyncMaster::try_switch_on";
   bool semi_sync_on = false;
@@ -859,10 +853,8 @@ int ReplSemiSyncMaster::try_switch_on(int server_id,
     /* Switch semi-sync replication on. */
     state_ = true;
 
-    sql_print_information("Semi-sync replication switched ON with slave (server_id: %d) "
-                          "at (%s, %lu)",
-                          server_id, log_file_name,
-                          (unsigned long)log_file_pos);
+    sql_print_information("Semi-sync replication switched ON at (%s, %lu)",
+                          log_file_name, (unsigned long)log_file_pos);
   }
 
   return function_exit(kWho, 0);
@@ -1075,8 +1067,12 @@ int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
     goto l_end;
   }
 
-  reportReplyBinlog(server_id, skipped_log_file,
-                    skipped_log_pos, true);
+  if (trace_level_ & kTraceDetail)
+    sql_print_information("%s: Transaction skipped at (%s, %lu)", kWho,
+                          skipped_log_file, (unsigned long)skipped_log_pos);
+
+  /* Treat skipped event as a received ack */
+  handleAck(server_id, skipped_log_file, skipped_log_pos);
 
  l_end:
   return function_exit(kWho, 0);
@@ -1175,10 +1171,10 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   log_file_name[log_file_len] = 0;
 
   if (trc_level & kTraceDetail)
-    sql_print_information("%s: Got reply (%s, %lu)",
-                          kWho, log_file_name, (ulong)log_file_pos);
+    sql_print_information("%s: Got reply (%d, %s, %lu)", kWho, server_id,
+                          log_file_name, (ulong)log_file_pos);
 
-  result = reportReplyBinlog(server_id, log_file_name, log_file_pos);
+  handleAck(server_id, log_file_name, log_file_pos);
 
  l_end:
   return function_exit(kWho, result);
@@ -1196,6 +1192,8 @@ int ReplSemiSyncMaster::resetMaster()
   lock();
 
   state_ = getMasterEnabled()? 1 : 0;
+
+  ack_container_.clear();
 
   wait_file_name_inited_   = false;
   reply_file_name_inited_  = false;
@@ -1233,6 +1231,122 @@ void ReplSemiSyncMaster::setExportStats()
 
   unlock();
 }
+
+int ReplSemiSyncMaster::setWaitSlaveCount(unsigned int new_value)
+{
+  const AckInfo *ackinfo= NULL;
+  int result= 0;
+
+  const char *kWho = "ReplSemiSyncMaster::updateWaitSlaves";
+  function_enter(kWho);
+
+  if (new_value == rpl_semi_sync_master_wait_for_slave_count)
+    return function_exit(kWho, 0);
+
+  lock();
+
+  result= ack_container_.resize(new_value, &ackinfo);
+  if (result == 0)
+  {
+    rpl_semi_sync_master_wait_for_slave_count= new_value;
+    if (ackinfo != NULL)
+      reportReplyBinlog(ackinfo->binlog_name, ackinfo->binlog_pos);
+  }
+
+  unlock();
+  return function_exit(kWho, result);
+}
+
+const AckInfo* AckContainer::insert(int server_id, const char *log_file_name,
+                                    my_off_t log_file_pos)
+{
+  const AckInfo *ret_ack= NULL;
+
+  const char *kWho = "AckContainer::insert";
+  function_enter(kWho);
+
+  if (!m_greatest_ack.less_than(log_file_name, log_file_pos))
+  {
+    if (trace_level_ & kTraceDetail)
+      sql_print_information("The received ack is smaller than m_greatest_ack");
+
+    goto l_end;
+  }
+
+  /* Update the slave's ack position if it is in the ack array */
+  if (updateIfExist(server_id, log_file_name, log_file_pos) < m_size)
+    goto l_end;
+
+  if (full())
+  {
+    AckInfo *min_ack;
+
+    ret_ack= &m_greatest_ack;
+
+    /* Find the minimum ack which is smaller than the inserted ack. */
+    min_ack= minAck(log_file_name, log_file_pos);
+    if (likely(min_ack == NULL))
+    {
+      m_greatest_ack.set(server_id, log_file_name, log_file_pos);
+
+      /* Remove all slaves which have minimum ack position from the ack array */
+      remove_all(log_file_name, log_file_pos);
+
+      /* Don't insert current ack into container if it is the minimum ack. */
+      goto l_end;
+    }
+    else
+    {
+      m_greatest_ack= *min_ack;
+      remove_all(m_greatest_ack.binlog_name, m_greatest_ack.binlog_pos);
+    }
+  }
+
+  m_ack_array[m_empty_slot].set(server_id, log_file_name, log_file_pos);
+
+  if (trace_level_ & kTraceDetail)
+    sql_print_information("Add the ack into slot %u", m_empty_slot);
+
+l_end:
+  function_exit(kWho, 0);
+  return ret_ack;
+}
+
+int AckContainer::resize(unsigned int size, const AckInfo **ackinfo)
+{
+  AckInfo *old_ack_array= m_ack_array;
+  unsigned int old_array_size= m_size;
+  unsigned int i;
+
+  m_size= size - 1;
+  m_ack_array= NULL;
+  if (m_size)
+  {
+    m_ack_array= (AckInfo *)
+      DBUG_EVALUATE_IF("rpl_semisync_simulate_allocate_ack_container_failure",
+                       NULL, my_malloc(0, sizeof(AckInfo) * (size - 1),
+                                       MYF(MY_ZEROFILL)));
+    if (m_ack_array == NULL)
+    {
+      m_ack_array= old_ack_array;
+      m_size= old_array_size;
+      return -1;
+    }
+  }
+
+  if (old_ack_array != NULL)
+  {
+    for (i= 0; i < old_array_size; i++)
+    {
+      const AckInfo *ack= insert(old_ack_array[i]);
+      if (ack)
+        *ackinfo= ack;
+    }
+    my_free(old_ack_array);
+  }
+  return 0;
+}
+
 
 /* Get the waiting time given the wait's staring time.
  * 

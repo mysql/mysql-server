@@ -73,7 +73,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->fix_fields(thd, arg))
+    if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg)))
       return TRUE;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;

@@ -14,7 +14,7 @@ i_perfschema.truncate_stress             # BUG#17267760 2013-08-09 Tanjot Failin
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
-rpl.rpl_spec_variables @solaris          # Bug #17337114 2013-08-20 Luis Soares failing on pb2 with timeout for 'CHECK WARNINGS'
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 rpl.rpl_parallel                         # Bug#17506885 2013-09-30 agopi Fails for all runs with MTS
-main.mysqld_safe		         # new test for mysqld_safe, experimental to check stability
+i_rpl.rpl_bgc_mts_bug16931177		 # Bug#17533438 2013-11-05 amitbha Fails frequently on mysql-trunk and weekly-trunk.
+i_rpl.rpl_check_perfschema_sql_thread_when_idle @windows   # 2013-11-18 joao.gramacho - This test may fail on windows

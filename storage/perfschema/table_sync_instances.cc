@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ int table_mutex_instances::rnd_pos(const void *pos)
 
 void table_mutex_instances::make_row(PFS_mutex *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_mutex_class *safe_class;
 
   m_row_exists= false;
@@ -289,7 +289,7 @@ int table_rwlock_instances::rnd_pos(const void *pos)
 
 void table_rwlock_instances::make_row(PFS_rwlock *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_rwlock_class *safe_class;
 
   m_row_exists= false;
@@ -455,7 +455,7 @@ int table_cond_instances::rnd_pos(const void *pos)
 
 void table_cond_instances::make_row(PFS_cond *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   PFS_cond_class *safe_class;
 
   m_row_exists= false;

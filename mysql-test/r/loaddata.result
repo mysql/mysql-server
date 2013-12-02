@@ -520,3 +520,13 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug11735141.txt' INTO TABLE t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
 End of 5.1 tests
+#
+# Bug#17834434: sql/table.h: Assertion tbl->updatable &&
+#               !tbl->multitable_view failed
+#
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS t2;
+LOAD DATA LOCAL INFILE '' REPLACE INTO TABLE v1;
+ERROR HY000: The target table v1 of the LOAD is not updatable
+DROP VIEW v1;
+DROP TABLE t1;

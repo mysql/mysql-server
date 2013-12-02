@@ -1100,7 +1100,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   share->db_record_offset= 1;
   /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
+  share->db_low_byte_first= MY_TEST(legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -1232,7 +1232,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                          keyinfo->comment.length);
       strpos+= 2 + keyinfo->comment.length;
     } 
-    DBUG_ASSERT(test(keyinfo->flags & HA_USES_COMMENT) == 
+    DBUG_ASSERT(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
                (keyinfo->comment.length > 0));
   }
 
@@ -2144,18 +2144,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1]= outparam->record[0];   // Safety
   }
 
-#ifdef HAVE_purify
-  /*
-    We need this because when we read var-length rows, we are not updating
-    bytes after end of varchar
-  */
-  if (records > 1)
-  {
-    memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
-    memcpy(outparam->record[1], share->default_values, share->null_bytes);
-  }
-#endif
-
   if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
                                           (uint) ((share->fields+1)*
                                                   sizeof(Field*)))))
@@ -2384,9 +2372,9 @@ partititon_err:
   else if (outparam->file)
   {
     handler::Table_flags flags= outparam->file->ha_table_flags();
-    outparam->no_replicate= ! test(flags & (HA_BINLOG_STMT_CAPABLE
-                                            | HA_BINLOG_ROW_CAPABLE))
-                            || test(flags & HA_HAS_OWN_BINLOGGING);
+    outparam->no_replicate= ! MY_TEST(flags & (HA_BINLOG_STMT_CAPABLE
+                                               | HA_BINLOG_ROW_CAPABLE))
+                            || MY_TEST(flags & HA_HAS_OWN_BINLOGGING);
   }
   else
   {
@@ -2940,7 +2928,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     /* header */
     fileinfo[0]=(uchar) 254;
     fileinfo[1]= 1;
-    fileinfo[2]= FRM_VER+3+ test(create_info->varchar);
+    fileinfo[2]= FRM_VER+3+ MY_TEST(create_info->varchar);
 
     fileinfo[3]= (uchar) ha_legacy_type(
           ha_checktype(thd,ha_legacy_type(create_info->db_type),0,0));
@@ -2960,7 +2948,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     */
     for (i= 0; i < keys; i++)
     {
-      DBUG_ASSERT(test(key_info[i].flags & HA_USES_COMMENT) == 
+      DBUG_ASSERT(MY_TEST(key_info[i].flags & HA_USES_COMMENT) ==
                  (key_info[i].comment.length > 0));
       if (key_info[i].flags & HA_USES_COMMENT)
         key_comment_total_bytes += 2 + key_info[i].comment.length;
@@ -3846,14 +3834,12 @@ void TABLE_LIST::set_underlying_merge()
 
     if (!multitable_view)
     {
-      table= merge_underlying_list->table;
       /*
         If underlying view is not updatable and current view
         is a single table view
       */
       if (!merge_underlying_list->updatable)
         updatable= false;
-      schema_table= merge_underlying_list->schema_table;
     }
   }
 }
@@ -4193,34 +4179,6 @@ void TABLE_LIST::hide_view_error(THD *thd)
   }
 }
 
-
-/*
-  Find underlying base tables (TABLE_LIST) which represent given
-  table_to_find (TABLE)
-
-  SYNOPSIS
-    TABLE_LIST::find_underlying_table()
-    table_to_find table to find
-
-  RETURN
-    0  table is not found
-    found table reference
-*/
-
-TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
-{
-  /* is this real table and table which we are looking for? */
-  if (table == table_to_find && merge_underlying_list == 0)
-    return this;
-
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-  {
-    TABLE_LIST *result;
-    if ((result= tbl->find_underlying_table(table_to_find)))
-      return result;
-  }
-  return 0;
-}
 
 /*
   cleanup items belonged to view fields translation table

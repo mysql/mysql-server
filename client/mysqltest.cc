@@ -5507,6 +5507,9 @@ void do_connect(struct st_command *command)
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  my_bool save_opt_use_ssl= opt_use_ssl;
+#endif
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -5641,23 +5644,22 @@ void do_connect(struct st_command *command)
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
     con_ssl= 1;
-#endif
 
-  if (con_ssl)
+  opt_use_ssl= con_ssl;
+
+  if (opt_use_ssl)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-#if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &opt_ssl_verify_server_cert);
-#endif
-#endif
   }
+#else
+  /* keep the compiler happy about con_ssl */
+  con_ssl = con_ssl ? TRUE : FALSE;
+#endif
+  SSL_SET_OPTIONS(&con_slot->mysql);
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  opt_use_ssl= save_opt_use_ssl;
+#endif
 
   if (con_pipe)
   {
@@ -8764,22 +8766,16 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #endif
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
   {
-    mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-#if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &opt_ssl_verify_server_cert);
-#endif
   }
 #endif
+  SSL_SET_OPTIONS(&con->mysql);
+
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)

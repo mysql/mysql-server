@@ -28,8 +28,7 @@
 #include "strfunc.h"      // find_set_from_flags, find_set
 #include "sql_parse.h"    // check_global_access
 #include "sql_table.h"  // reassign_keycache_tables
-#include "sql_time.h"   // date_time_format_copy,
-                        // date_time_format_make
+#include "sql_time.h"   // date_time_format_copy
 #include "derror.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "auth_common.h"  // SUPER_ACL
@@ -567,7 +566,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->is_error())))
+  if (!(error= MY_TEST(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))

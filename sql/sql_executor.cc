@@ -716,6 +716,13 @@ return_zero_rows(JOIN *join, List<Item> &fields)
 
   join->join_free();
 
+  /* Update results for FOUND_ROWS */
+  if (!join->send_row_on_empty_set())
+  {
+    join->thd->set_examined_row_count(0);
+    join->thd->limit_found_rows= 0;
+  }
+
   if (!(join->result->send_result_set_metadata(fields,
                                                Protocol::SEND_NUM_ROWS | 
                                                Protocol::SEND_EOF)))
@@ -746,9 +753,6 @@ return_zero_rows(JOIN *join, List<Item> &fields)
     if (!send_error)
       join->result->send_eof();                 // Should be safe
   }
-  /* Update results for FOUND_ROWS */
-  join->thd->set_examined_row_count(0);
-  join->thd->limit_found_rows= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1455,7 +1459,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 
   if (condition)
   {
-    found= test(condition->val_int());
+    found= MY_TEST(condition->val_int());
 
     if (join->thd->killed)
     {
@@ -1869,7 +1873,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
     DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
-    if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
+    if ((table->null_row= MY_TEST((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
   if (!table->null_row)
@@ -2531,7 +2535,6 @@ join_read_first(JOIN_TAB *tab)
     table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.table=table;
-  tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
 
@@ -2571,7 +2574,6 @@ join_read_last(JOIN_TAB *tab)
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
-  tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->use_order())))
@@ -2826,8 +2828,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  if (table->sort.record_pointers ||
-	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
+	  if (table->sort.has_filesort_result())
 	  {
 	    /* Using filesort */
 	    join->send_records= table->sort.found_records;
