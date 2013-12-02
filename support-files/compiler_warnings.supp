@@ -161,6 +161,11 @@ include/pwdbased\.hpp: comparison of unsigned expression
 .*auth_pam\.c : initialization from incompatible pointer type : 100-200
 
 #
+# jemalloc
+#
+jemalloc/src/jemalloc\.c: always_inline function might not be inlinable
+
+#
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*

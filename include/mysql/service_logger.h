@@ -80,7 +80,7 @@ extern struct logger_service_st {
 #define logger_rotate(log) (logger_service->rotate(log))
 #define logger_vprintf(log, fmt, argptr) (logger_service->\
     vprintf(log, fmt, argptr))
-#define logger_printf logger_service->printf
+#define logger_printf (*logger_service->printf)
 #define logger_write(log, buffer, size) \
   (logger_service->write(log, buffer, size))
 #else

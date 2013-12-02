@@ -1862,6 +1862,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     uint UNINIT_VAR(row_count), real_row_count, empty_space, page_type, bitmap_pattern;
     uint bitmap_for_page;
 
+    LINT_INIT(empty_space);
+
     if (_ma_killed_ptr(param))
     {
       _ma_scan_end_block_record(info);
