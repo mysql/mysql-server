@@ -266,7 +266,7 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
 #define MAX_DATE_PARTS 8
 
 my_bool
-str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
+str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
                 ulonglong flags, MYSQL_TIME_STATUS *status)
 {
   uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
@@ -280,7 +280,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
-  DBUG_PRINT("ENTER",("str: %.*s",length,str));
+  DBUG_PRINT("ENTER", ("str: %.*s", (int)length, str));
 
   LINT_INIT(field_length);
 
@@ -622,7 +622,7 @@ err:
      1  error
 */
 
-my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
+my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
                     MYSQL_TIME_STATUS *status)
 {
   ulong date[5];

@@ -1,10 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This is a Myisam engine specific testcase
+# Hence MTR starts mysqld with MyISAM as default
 --source include/force_myisam_default.inc
-
-#Want to skip this test from daily Valgrind execution
+--source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
+
 #
 # A simple test of the greedy query optimization algorithm and the switches that
 # control the optimizationprocess.
@@ -608,58 +607,58 @@ WHERE t100.I=t10.I
 #####
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before 'cross' ALL(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i;
 --source include/check_qep.inc
 
 #####
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before ALL(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/check_qep.inc
 
 #####
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before ALL(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/check_qep.inc
 
 
@@ -702,58 +701,58 @@ WHERE t100.K=t10.I
 ## Expect this QEP, cost & #handler_read
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before 'cross' ALL(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i;
 --source include/check_qep.inc
 
 #####
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before REF(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I
-  AND Y.I=t10.I;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i
+  AND y.i=t10.i;
 --source include/check_qep.inc
 
 #####
 # Expected QEP: 'join EQ_REF(X) on X.K=t10.I' before REF(Y)
 let $query=
-SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/expect_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT COUNT(*) FROM t10,t10000 x,t10000 y
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/check_qep.inc
 
 let $query=
-SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
-WHERE X.K=t10.I
-  AND Y.I=X.K;
+SELECT COUNT(*) FROM t10,t10000 y,t10000 x
+WHERE x.k=t10.i
+  AND y.i=x.k;
 --source include/check_qep.inc
 
 ########
@@ -786,14 +785,14 @@ let $analyze = ANALYZE TABLE t100;
 let $i= 1;
 while ($i < 62)
 {
-  let $create= CREATE TABLE T$i $tabledef;
+  let $create= CREATE TABLE t$i $tabledef;
   eval $create;
 
   let $insert =
-  INSERT INTO T$i(I,A) SELECT X.K,X.K FROM t100 AS X, t100 AS Y WHERE X.K < 20 AND Y.K <= $i;
+  INSERT INTO t$i(I,A) SELECT X.K,X.K FROM t100 AS X, t100 AS Y WHERE X.K < 20 AND Y.K <= $i;
   eval $insert;
 
-  let $analyze = $analyze, T$i;
+  let $analyze = $analyze, t$i;
   inc $i;
 }
 eval $analyze;
@@ -841,11 +840,11 @@ while ($depth<4)
   ## Prepare of QEP without timeout is heavily dependent
   ## on maintaining correctly '#rows-sorted' plan
   ##
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i < 61)
   {
-    let $query= $query JOIN T$i ON T$i.I=X.I;
+    let $query= $query JOIN t$i ON t$i.I=x.I;
     inc $i;
 
     select @@optimizer_prune_level;
@@ -856,26 +855,26 @@ while ($depth<4)
   ## Test pruning of joined table scans (ALL) 
   ## with multiple instances of same table.
   ## (All instances being equally expensive)
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i <= 56)
   {
-    let $t= T$i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $t= t$i;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
-    let $query= $query JOIN $t as T$i ON T$i.I=X.I;
+    let $query= $query JOIN $t as t$i ON t$i.I=x.I;
     inc $i;
 
     select @@optimizer_prune_level;
@@ -885,17 +884,17 @@ while ($depth<4)
 
   ## A mix of 25% EQ_REF / 75% ALL joins
   ##
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i < 60)
   {
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
 
     eval EXPLAIN $query;
@@ -903,17 +902,17 @@ while ($depth<4)
 
   ## A mix of 50% EQ_REF / 50% ALL joins
   ##
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i < 60)
   {
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
 
     eval EXPLAIN $query;
@@ -921,17 +920,17 @@ while ($depth<4)
 
   ## A mix of 75% EQ_REF / 25% ALL joins
   ##
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i < 60)
   {
-    let $query= $query JOIN T$i ON T$i.I = X.I;
+    let $query= $query JOIN t$i ON t$i.I = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
-    let $query= $query JOIN T$i ON T$i.K = X.I;
+    let $query= $query JOIN t$i ON t$i.K = x.I;
     inc $i;
 
     eval EXPLAIN $query;
@@ -939,11 +938,11 @@ while ($depth<4)
 
   ## 100% EQ_REF joins
   ##
-  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $query= SELECT COUNT(*) FROM t1 AS x;
   let $i= 1;
   while ($i < 61)
   {
-    let $query= $query JOIN T$i ON T$i.K=X.I;
+    let $query= $query JOIN t$i ON t$i.K=x.I;
     inc $i;
 
     eval EXPLAIN $query;
@@ -954,7 +953,7 @@ let $drop = DROP TABLE t100;
 let $i= 1;
 while ($i < 62)
 {
-  let $drop = $drop, T$i;
+  let $drop = $drop, t$i;
   inc $i;
 }
 eval $drop;

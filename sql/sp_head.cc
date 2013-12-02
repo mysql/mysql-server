@@ -24,7 +24,6 @@
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
-#include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"
@@ -38,7 +37,6 @@
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
-#include "global_threads.h"
 
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
@@ -262,6 +260,7 @@ sp_head::sp_head(enum_sp_type type)
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
   m_root_parsing_ctx(NULL),
+  m_instructions(&main_mem_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -269,6 +268,8 @@ sp_head::sp_head(enum_sp_type type)
   m_first_instance= this;
   m_first_free_instance= this;
   m_last_cached_sp= this;
+
+  m_instructions.reserve(32);
 
   m_return_field_def.charset = NULL;
 
@@ -1212,9 +1213,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    mysql_mutex_lock(&LOCK_thread_count);
-    q= global_query_id;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_rdlock(&global_query_id_lock);
+    q= my_atomic_load64(&global_query_id); 
+    my_atomic_rwlock_rdunlock(&global_query_id_lock);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1782,7 +1783,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
   */
   instr->mem_root= get_persistent_mem_root();
 
-  return m_instructions.append(instr);
+  return m_instructions.push_back(instr);
 }
 
 
@@ -1807,7 +1808,7 @@ void sp_head::optimize()
     {
       if (src != dst)
       {
-        m_instructions.set(dst, i);
+        m_instructions[dst]= i;
 
         /* Move the instruction and update prev. jumps */
         sp_branch_instr *ibp;
@@ -1822,7 +1823,7 @@ void sp_head::optimize()
     }
   }
 
-  m_instructions.elements(dst);
+  m_instructions.resize(dst);
   bp.empty();
 }
 

@@ -53,7 +53,6 @@ Created 10/25/1995 Heikki Tuuri
 # include "os0event.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
-static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0space.h"
 #include <set>
@@ -308,8 +307,13 @@ struct fil_system_t {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+#ifdef UNIV_HOTBACKUP
+static ulint	srv_data_read;
+static ulint	srv_data_written;
+#endif /* UNIV_HOTBACKUP */
+
 /** Determine if (i) is a user tablespace id or not. */
-# define fil_is_user_tablespace_id(i) 		\
+# define fil_is_user_tablespace_id(i)		\
 	(((i) > srv_undo_tablespaces_open)	\
 	 && ((i) != srv_tmp_space.space_id()))
 
@@ -773,7 +777,7 @@ fil_node_open_file(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The size of single-table "
 				"tablespace file %s, is "
-				"only "UINT64PF", should "
+				"only " UINT64PF ", should "
 				"be at least %lu!",
 				node->name,
 				size_bytes,
@@ -1859,13 +1863,9 @@ fil_write_flushed_lsn_to_data_files(
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no)	/*!< in: latest archived log file number */
 {
-	fil_space_t*	space;
-	fil_node_t*	node;
-	dberr_t		err;
-
 	mutex_enter(&fil_system->mutex);
 
-	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL;
 	     space = UT_LIST_GET_NEXT(space_list, space)) {
 
@@ -1879,9 +1879,11 @@ fil_write_flushed_lsn_to_data_files(
 		    && !fil_is_user_tablespace_id(space->id)) {
 			ulint	sum_of_sizes = 0;
 
-			for (node = UT_LIST_GET_FIRST(space->chain);
+			for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 			     node != NULL;
 			     node = UT_LIST_GET_NEXT(chain, node)) {
+
+				dberr_t		err;
 
 				mutex_exit(&fil_system->mutex);
 
@@ -2123,7 +2125,7 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint		type,		/*!< in: MLOG_FILE_CREATE,
+	mlog_id_t	type,		/*!< in: MLOG_FILE_CREATE,
 					MLOG_FILE_CREATE2,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
@@ -2155,6 +2157,7 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(
 		type, space_id, log_flags, log_ptr, mtr);
+
 	if (type == MLOG_FILE_CREATE2) {
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;
@@ -2539,27 +2542,21 @@ fil_op_log_parse_or_replay(
 		break;
 
 	case MLOG_FILE_RENAME:
-		/* We do the rename based on space id, not old file name;
-		this should guarantee that after the log replay each .ibd file
-		has the correct name for the latest log sequence number; the
-		proof is left as an exercise :) */
+		/* In order to replay the rename, the following must hold:
+		* The new name is not already used.
+		* A tablespace is open in memory with the old name.
+		* The space ID for that tablepace matches this log entry.
+		This will prevent unintended renames during recovery. */
 
-		if (fil_tablespace_exists_in_mem(space_id)) {
+		if (fil_get_space_id_for_table(new_name) == ULINT_UNDEFINED
+		    && space_id == fil_get_space_id_for_table(name)) {
 			/* Create the database directory for the new name, if
 			it does not exist yet */
 			fil_create_directory_for_tablename(new_name);
 
-			/* Rename the table if there is not yet a tablespace
-			with the same name */
-
-			if (fil_get_space_id_for_table(new_name)
-			    == ULINT_UNDEFINED) {
-				/* We do not care about the old name, that
-				is why we pass NULL as the first argument. */
-				if (!fil_rename_tablespace(NULL, space_id,
-							   new_name, NULL)) {
-					ut_error;
-				}
+			if (!fil_rename_tablespace(name, space_id,
+						   new_name, NULL)) {
+				ut_error;
 			}
 		}
 
@@ -4432,6 +4429,7 @@ fil_load_single_table_tablespace(
 		if (!remote.success) {
 			os_file_close(remote.file);
 			ut_free(remote.filepath);
+			remote.filepath = NULL;
 		}
 	}
 

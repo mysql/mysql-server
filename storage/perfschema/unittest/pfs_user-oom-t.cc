@@ -65,6 +65,7 @@ void test_oom()
   stub_alloc_fails_after_count= 1000;
 
   init_event_name_sizing(& param);
+  register_global_classes();
   rc= init_stage_class(param.m_stage_class_sizing);
   ok(rc == 0, "init stage class");
   rc= init_statement_class(param.m_statement_class_sizing);
@@ -90,6 +91,11 @@ void test_oom()
   stub_alloc_fails_after_count= 4;
   rc= init_user(& param);
   ok(rc == 1, "oom (user statements)");
+  cleanup_user();
+
+  stub_alloc_fails_after_count= 5;
+  rc= init_user(& param);
+  ok(rc == 1, "oom (user transactions)");
   cleanup_user();
 
   cleanup_statement_class();

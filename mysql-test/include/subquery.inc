@@ -3208,7 +3208,7 @@ CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
 
 --echo # should have eq_ref for t1, unless subquery materialization is used
---replace_column 1 x 2 x 5 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 6 x 7 x 8 x 9 x 10 x 12 x
 EXPLAIN
 SELECT * FROM t2 outr
 WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
@@ -3259,7 +3259,7 @@ select a, oref, a in (select max(ie)
 # This must have a trigcond
 explain extended
 select a, oref, a in (select max(ie) 
-  from t1 where oref=t2.oref group by grp) Z from t2;
+  from t1 where oref=t2.oref group by grp) z from t2;
 
 # This must not have a trigcond:
 explain extended
@@ -3302,7 +3302,7 @@ select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 # The next explain shows "using index" but that is just incorrect display
 # (there is a bug filed about this).
 explain extended 
-select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+select oref, a, a in (select a from t1 where oref=t2.oref) z from t2;
 
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
@@ -3353,7 +3353,7 @@ from t3;
 # This must have trigcond in WHERE and HAVING:
 explain extended
 select a, oref, 
-       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z 
 from t3;
 
 drop table t1, t2, t3;
@@ -3381,7 +3381,7 @@ from t3;
 --echo This must show a trig_cond:
 explain extended
 select a, oref, 
-       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z 
 from t3;
 drop table t1,t2,t3;
 
@@ -3409,7 +3409,7 @@ select a, oref,
 --echo This must show a trig_cond:
 explain extended
 select a, oref, 
-       a in (select count(*) from t1 group by grp having grp=t2.oref) Z from t2;
+       a in (select count(*) from t1 group by grp having grp=t2.oref) z from t2;
 
 drop table t1, t2;
 
@@ -3436,18 +3436,18 @@ create table t1 (a int, b int, c int, key(a,b));
 insert into t1 select 2*A, 2*A, 100 from t3;
 
 # First test index subquery engine
-explain extended select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) Z from t2;
-select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) Z from t2;
+explain extended select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
+select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
 
 # Then check that we do turn off 'ref' scans in the subquery
 create table t4 (x int);
 insert into t4 select A.a + 10*B.a from t1 A, t1 B;
 explain extended 
   select a,b, oref, 
-         (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
+         (a,b) in (select a,b from t1,t4 where c=t2.oref) z 
   from t2;
 select a,b, oref, 
-       (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
+       (a,b) in (select a,b from t1,t4 where c=t2.oref) z 
 from t2;
 
 drop table t1,t2,t3,t4;
@@ -3486,7 +3486,7 @@ insert into t1 values ('new1', 1234, 10, NULL);
 # new1, 10, 10, NULL,
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
 explain extended
-select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
+select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2 where a=10 and b=10; 
 drop table t1, t2;
 
 # Now test different column types:
@@ -3558,9 +3558,9 @@ oref=t2.oref group by grp having min(ie) > 1);
 #
 alter table t1 add index idx(ie);
 
-explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
-select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
 --sorted_result
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref); 
@@ -3571,9 +3571,9 @@ select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 alter table t1 drop index idx;
 alter table t1 add index idx(oref,ie);
 
-explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
-select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref); 
 
@@ -3582,12 +3582,12 @@ select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 explain 
 select oref, a, 
        a in (select min(ie) from t1 where oref=t2.oref 
-             group by grp having min(ie) > 1) Z 
+             group by grp having min(ie) > 1) z 
 from t2;
 
 select oref, a, 
        a in (select min(ie) from t1 where oref=t2.oref 
-             group by grp having min(ie) > 1) Z 
+             group by grp having min(ie) > 1) z 
 from t2;
 
 select oref, a from t2 where a in (select min(ie) from t1 where oref=t2.oref 
@@ -3645,9 +3645,9 @@ select oref, a, b from t2 where
 
 alter table t1 add index idx(ie1,ie2);
 
-explain select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
+explain select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 
-select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
+select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 
 --sorted_result
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref); 
@@ -3655,7 +3655,7 @@ select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.o
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 
 explain extended 
-select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
+select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 
 drop table t1,t2;
 
@@ -3680,9 +3680,9 @@ insert into t2 values
   ('aa', 1),
   ('bb', NULL);
 
-explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
-select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
+select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 
 --sorted_result
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
@@ -3690,9 +3690,9 @@ select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 
 explain 
-select oref, a, a in (select min(ie) from t1 where oref=t2.oref group by grp) Z from t2;
+select oref, a, a in (select min(ie) from t1 where oref=t2.oref group by grp) z from t2;
 
-select oref, a, a in (select min(ie) from t1 where oref=t2.oref group by grp) Z from t2;
+select oref, a, a in (select min(ie) from t1 where oref=t2.oref group by grp) z from t2;
 
 drop table t1,t2;
 

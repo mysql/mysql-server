@@ -47,6 +47,7 @@ struct PFS_file;
 struct PFS_table;
 struct PFS_stage_class;
 struct PFS_statement_class;
+struct PFS_transaction_class;
 struct PFS_socket;
 struct PFS_connection_slice;
 
@@ -388,6 +389,54 @@ public:
 private:
   void visit_connection_slice(PFS_connection_slice *pfs);
 };
+
+/**
+  A concrete connection visitor that aggregates
+  transaction statistics for a given event_name.
+*/
+class PFS_connection_transaction_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_transaction_visitor(PFS_transaction_class *klass);
+  virtual ~PFS_connection_transaction_visitor();
+  virtual void visit_global();
+  virtual void visit_host(PFS_host *pfs);
+  virtual void visit_account(PFS_account *pfs);
+  virtual void visit_user(PFS_user *pfs);
+  virtual void visit_thread(PFS_thread *pfs);
+
+  /** EVENT_NAME instrument index. */
+  uint m_index;
+  /** Statement statistic collected. */
+  PFS_transaction_stat m_stat;
+};
+
+/** Disabled pending code review */
+#if 0
+/**
+  A concrete connection visitor that aggregates
+  transaction statistics for all events.
+*/
+class PFS_connection_all_transaction_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_all_transaction_visitor();
+  virtual ~PFS_connection_all_transaction_visitor();
+  virtual void visit_global();
+  virtual void visit_host(PFS_host *pfs);
+  virtual void visit_account(PFS_account *pfs);
+  virtual void visit_user(PFS_user *pfs);
+  virtual void visit_thread(PFS_thread *pfs);
+
+  /** Statement statistic collected. */
+  PFS_transaction_stat m_stat;
+
+private:
+  void visit_connection_slice(PFS_connection_slice *pfs);
+};
+#endif
 
 /**
   A concrete connection visitor that aggregates

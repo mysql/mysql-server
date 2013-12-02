@@ -104,7 +104,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, 0, sql_command, host, external_user, ip);
+                       clientcs, static_cast<ha_rows>(0),
+                       sql_command, host, external_user, ip);
   }
 #endif
 }
@@ -130,7 +131,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
     time_t time= my_time(0);
-    uint msglen= msg ? strlen(msg) : 0;
+    size_t msglen= msg ? strlen(msg) : 0;
     uint userlen;
     const char *user;
     char user_buff[MAX_USER_HOST_SIZE];

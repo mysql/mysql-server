@@ -100,7 +100,7 @@ explain extended select * from t1 where a in (select t10.pk from t10, t12 where 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --replace_result a A b B
 explain extended
-select * from t1 left join (t2 A, t2 B) on ( A.a= t1.a and B.a in (select pk from t10));
+select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
@@ -379,8 +379,8 @@ create table t1(a int);
 insert into t1 values (0),(1);
 
 explain 
-select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
-select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
+select (select max(y.a) from t1 y where a in (select a from t1 z) and a < x.a) as subq from t1 x;
+select (select max(y.a) from t1 y where a in (select a from t1 z) and a < x.a) as subq from t1 x;
 
 drop table t1;
 
@@ -448,17 +448,17 @@ set @@max_heap_table_size= 16384;
 --echo # and optimizer_join_cache_level equals 1 and 0, respectively.
 --echo # Finally execute a test that does not overflow the heap table.
 explain
-select count(*) from t0 A, t0 B, t0 C
-where C.a in (select a from t1 D);
+select count(*) from t0 a, t0 b, t0 c
+where c.a in (select a from t1 d);
 flush status;
-select count(*) from t0 A, t0 B, t0 C
-where C.a in (select a from t1 D);
+select count(*) from t0 a, t0 b, t0 c
+where c.a in (select a from t1 d);
 show status like 'Created_tmp_disk_tables';
 
 set @@max_heap_table_size= @save_max_heap_table_size;
 flush status;
-select count(*) from t0 A, t0 B, t0 C
-where C.a in (select a from t1 D);
+select count(*) from t0 a, t0 b, t0 c
+where c.a in (select a from t1 d);
 show status like 'Created_tmp_disk_tables';
 
 drop table t0, t1;
@@ -511,11 +511,11 @@ explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t
 #
 # Verify that straight_join modifier in parent or child prevents flattening
 #
-explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
-explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
-explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
-explain select straight_join * from t2 X, t2 Y 
-where X.a in (select straight_join A.a from t1 A, t1 B);
+explain select straight_join * from t1 a, t1 b where a.a in (select a from t2);
+explain select * from t2 where a in (select straight_join a.a from t1 a, t1 b);
+explain select * from t2 where a in (select straight_join a.a from t1 a, t1 b);
+explain select straight_join * from t2 x, t2 y 
+where x.a in (select straight_join a.a from t1 a, t1 b);
 
 #
 # SJ-Materialization scan + first table being system const table
@@ -583,7 +583,7 @@ create table t1 as select a as a, a as b, a as c from t0 where a < 3;
 create table t2 as select a as a, a as b from t0 where a < 3;
 insert into t2 select * from t2;
 
-explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
+explain select * from t1 where (a,b,c) in (select x.a, y.a, z.a from t2 x, t2 y, t2 z where x.b=33);
 
 drop table t0,t1,t2;
 
@@ -611,11 +611,11 @@ insert into t2 values (3, 'duplicate ok', 'duplicate ok');
 insert into t2 values (19, 'duplicate ok', 'duplicate ok');
 
 explain select 
- a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 --sorted_result
 select 
- a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 
 explain select 
@@ -631,11 +631,11 @@ insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 
 explain select 
- a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 --sorted_result
 select 
- a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 
 explain select 
@@ -1712,12 +1712,6 @@ DROP TABLE t0;
 
 --echo # End of bug#46556
 
-
-# The following test case fails when executed with subquery materialization
-# (Bug#54281).  Hence, skip it if semijoin=off and materialization=on
-if (`select (locate('materialization', @@optimizer_switch) = 0) OR locate('semijoin=on', @@optimizer_switch) + locate('materialization=off', @@optimizer_switch) > 0`) 
-{
-
 --echo
 --echo Bug#48834: Procedure with view + subquery + semijoin=on 
 --echo            crashes on second call.
@@ -1756,8 +1750,6 @@ DROP VIEW v1,v2;
 DROP PROCEDURE p1;
 
 --echo # End of BUG#48834
-}
-
 
 --echo #
 --echo # Bug#46692 "Crash occurring on queries with nested FROM subqueries 
@@ -2328,57 +2320,57 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#45191: Incorrectly initialized semi-join led to a wrong result.
 --echo #
-CREATE TABLE STAFF (EMPNUM   CHAR(3) NOT NULL,
+CREATE TABLE staff (EMPNUM   CHAR(3) NOT NULL,
     EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15));
 
-CREATE TABLE PROJ (PNUM CHAR(3) NOT NULL,
+CREATE TABLE proj (PNUM CHAR(3) NOT NULL,
     PNAME    CHAR(20), PTYPE CHAR(6),
     BUDGET   DECIMAL(9),
     CITY     CHAR(15));
 
-CREATE TABLE WORKS (EMPNUM CHAR(3) NOT NULL,
+CREATE TABLE works (EMPNUM CHAR(3) NOT NULL,
     PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5));
-INSERT INTO STAFF VALUES ('E1','Alice',12,'Deale');
-INSERT INTO STAFF VALUES ('E2','Betty',10,'Vienna');
-INSERT INTO STAFF VALUES ('E3','Carmen',13,'Vienna');
-INSERT INTO STAFF VALUES ('E4','Don',12,'Deale');
-INSERT INTO STAFF VALUES ('E5','Ed',13,'Akron');
+INSERT INTO staff VALUES ('E1','Alice',12,'Deale');
+INSERT INTO staff VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO staff VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO staff VALUES ('E4','Don',12,'Deale');
+INSERT INTO staff VALUES ('E5','Ed',13,'Akron');
 
-INSERT INTO PROJ VALUES  ('P1','MXSS','Design',10000,'Deale');
-INSERT INTO PROJ VALUES  ('P2','CALM','Code',30000,'Vienna');
-INSERT INTO PROJ VALUES  ('P3','SDP','Test',30000,'Tampa');
-INSERT INTO PROJ VALUES  ('P4','SDP','Design',20000,'Deale');
-INSERT INTO PROJ VALUES  ('P5','IRM','Test',10000,'Vienna');
-INSERT INTO PROJ VALUES  ('P6','PAYR','Design',50000,'Deale');
+INSERT INTO proj VALUES  ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO proj VALUES  ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO proj VALUES  ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO proj VALUES  ('P4','SDP','Design',20000,'Deale');
+INSERT INTO proj VALUES  ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO proj VALUES  ('P6','PAYR','Design',50000,'Deale');
 
-INSERT INTO WORKS VALUES  ('E1','P1',40);
-INSERT INTO WORKS VALUES  ('E1','P2',20);
-INSERT INTO WORKS VALUES  ('E1','P3',80);
-INSERT INTO WORKS VALUES  ('E1','P4',20);
-INSERT INTO WORKS VALUES  ('E1','P5',12);
-INSERT INTO WORKS VALUES  ('E1','P6',12);
-INSERT INTO WORKS VALUES  ('E2','P1',40);
-INSERT INTO WORKS VALUES  ('E2','P2',80);
-INSERT INTO WORKS VALUES  ('E3','P2',20);
-INSERT INTO WORKS VALUES  ('E4','P2',20);
-INSERT INTO WORKS VALUES  ('E4','P4',40);
-INSERT INTO WORKS VALUES  ('E4','P5',80);
+INSERT INTO works VALUES  ('E1','P1',40);
+INSERT INTO works VALUES  ('E1','P2',20);
+INSERT INTO works VALUES  ('E1','P3',80);
+INSERT INTO works VALUES  ('E1','P4',20);
+INSERT INTO works VALUES  ('E1','P5',12);
+INSERT INTO works VALUES  ('E1','P6',12);
+INSERT INTO works VALUES  ('E2','P1',40);
+INSERT INTO works VALUES  ('E2','P2',80);
+INSERT INTO works VALUES  ('E3','P2',20);
+INSERT INTO works VALUES  ('E4','P2',20);
+INSERT INTO works VALUES  ('E4','P4',40);
+INSERT INTO works VALUES  ('E4','P5',80);
 
 explain SELECT EMPNUM, EMPNAME
-FROM STAFF
+FROM staff
 WHERE EMPNUM IN
-  (SELECT EMPNUM  FROM WORKS
+  (SELECT EMPNUM  FROM works
    WHERE PNUM IN
-     (SELECT PNUM  FROM PROJ));
+     (SELECT PNUM  FROM proj));
 
 SELECT EMPNUM, EMPNAME
-FROM STAFF
+FROM staff
 WHERE EMPNUM IN
-  (SELECT EMPNUM  FROM WORKS
+  (SELECT EMPNUM  FROM works
    WHERE PNUM IN
-     (SELECT PNUM  FROM PROJ));
+     (SELECT PNUM  FROM proj));
 
-drop table STAFF,WORKS,PROJ;
+drop table staff,works,proj;
 
 --echo # End of bug#45191
 
@@ -5057,9 +5049,9 @@ WHERE
   IN
   (
     SELECT
-      SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+      sq2_alias2.col_varchar_nokey, sq2_alias1.col_varchar_key
     FROM
-      t1 AS SQ2_alias1, t1 AS SQ2_alias2
+      t1 AS sq2_alias1, t1 AS sq2_alias2
   )
 ;
 
@@ -5217,10 +5209,10 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES ('k','k');
 
-let $query=SELECT GP1.id
-FROM t1 AS GP1 JOIN t3 AS GP2
-     ON GP2.col_varchar_key <> GP1.col_varchar_nokey
-WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+let $query=SELECT gp1.id
+FROM t1 AS gp1 JOIN t3 AS gp2
+     ON gp2.col_varchar_key <> gp1.col_varchar_nokey
+WHERE (gp1.col_varchar_nokey, gp1.col_varchar_nokey)
       IN (
            SELECT col_varchar_nokey, col_varchar_nokey
            FROM t1

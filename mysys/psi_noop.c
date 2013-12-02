@@ -588,6 +588,73 @@ static void end_statement_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
+static PSI_transaction_locker*
+get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
+                                   const void *xid NNN,
+                                   const ulonglong *trxid NNN,
+                                   int isolation_level NNN,
+                                   my_bool read_only NNN,
+                                   my_bool autocommit NNN)
+{
+  return NULL;
+}
+
+static void start_transaction_noop(PSI_transaction_locker *locker NNN,
+                                   const char *src_file NNN, uint src_line NNN)
+{
+  return;
+}
+
+static void set_transaction_xid_noop(PSI_transaction_locker *locker NNN,
+                                     const void *xid NNN,
+                                     int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_xa_state_noop(PSI_transaction_locker *locker NNN,
+                                          int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_gtid_noop(PSI_transaction_locker *locker NNN,
+                                      const void *sid NNN,
+                                      const void *gtid_spec NNN)
+{
+  return;
+}
+
+static void set_transaction_trxid_noop(PSI_transaction_locker *locker NNN,
+                                       const ulonglong *trxid NNN)
+{
+  return;
+}
+
+static void inc_transaction_savepoints_noop(PSI_transaction_locker *locker NNN,
+                                            ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_rollback_to_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                       ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                   ulong count NNN)
+{
+  return;
+}
+
+static void end_transaction_noop(PSI_transaction_locker *locker NNN,
+                                 my_bool commit NNN)
+{
+  return;
+}
+
 static PSI_socket_locker*
 start_socket_wait_noop(PSI_socket_locker_state *state NNN,
                        PSI_socket *socket NNN,
@@ -835,6 +902,16 @@ static PSI PSI_noop=
   set_statement_no_index_used_noop,
   set_statement_no_good_index_used_noop,
   end_statement_noop,
+  get_thread_transaction_locker_noop,
+  start_transaction_noop,
+  set_transaction_xid_noop,
+  set_transaction_xa_state_noop,
+  set_transaction_gtid_noop,
+  set_transaction_trxid_noop,
+  inc_transaction_savepoints_noop,
+  inc_transaction_rollback_to_savepoint_noop,
+  inc_transaction_release_savepoint_noop,
+  end_transaction_noop,
   start_socket_wait_noop,
   end_socket_wait_noop,
   set_socket_state_noop,

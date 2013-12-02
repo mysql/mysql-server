@@ -25,6 +25,7 @@
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
 #include "sp_pcontext.h"                        // sp_pcontext
+#include "mem_root_array.h"
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -748,10 +749,10 @@ public:
   { return m_flags & MODIFIES_DATA; }
 
   uint instructions()
-  { return m_instructions.elements(); }
+  { return m_instructions.size(); }
 
   sp_instr *last_instruction()
-  { return *m_instructions.back(); }
+  { return m_instructions.back(); }
 
   /**
     Reset LEX-object during parsing, before we parse a sub statement.
@@ -838,7 +839,7 @@ public:
   */
   sp_instr *get_instr(uint i)
   {
-    return (i < (uint) m_instructions.elements()) ? m_instructions.at(i) : NULL;
+    return (i < (uint) m_instructions.size()) ? m_instructions.at(i) : NULL;
   }
 
   /**
@@ -884,9 +885,9 @@ public:
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
 
-    return test(m_flags &
-		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
-                 HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
+    return MY_TEST(m_flags &
+                   (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
+                    HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
   }
 
 #ifndef DBUG_OFF
@@ -977,7 +978,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Dynamic_array<sp_instr *> m_instructions;
+  Mem_root_array<sp_instr *, true> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this

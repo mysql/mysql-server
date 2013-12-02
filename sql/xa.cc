@@ -20,6 +20,8 @@
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "log.h"                // tc_log
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 
 static mysql_mutex_t LOCK_xid_cache;
 static HASH xid_cache;
@@ -31,7 +33,6 @@ const char *XID_STATE::xa_state_names[]={
 /* for recover() handlerton call */
 static const int MIN_XID_LIST_SIZE= 128;
 static const int MAX_XID_LIST_SIZE= 1024*128;
-
 
 /***************************************************************************
   Handling of XA id caching
@@ -438,7 +439,7 @@ bool trans_xa_commit(THD *thd)
            thd->lex->xa_opt == XA_ONE_PHASE)
   {
     int r= ha_commit_trans(thd, true);
-    if ((res= test(r)))
+    if ((res= MY_TEST(r)))
       my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
   }
   else if (xid_state->has_state(XID_STATE::XA_PREPARED) &&
@@ -468,12 +469,23 @@ bool trans_xa_commit(THD *thd)
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
-        res= test(tc_log->commit(thd, /* all */ true));
+        res= MY_TEST(tc_log->commit(thd, /* all */ true));
       else
-        res= test(ha_commit_low(thd, /* all */ true));
+        res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+      else
+      {
+        /*
+          Since we don't call ha_commit_trans() for prepared transactions,
+          we need to explicitly mark the transaction as committed.
+        */
+        MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+        thd->m_transaction_psi= NULL;
+      }
+#endif
     }
   }
   else
@@ -489,7 +501,8 @@ bool trans_xa_commit(THD *thd)
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(xid_state);
   xid_state->set_state(XID_STATE::XA_NOTR);
-
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
 }
 
@@ -529,7 +542,8 @@ bool trans_xa_rollback(THD *thd)
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(xid_state);
   xid_state->set_state(XID_STATE::XA_NOTR);
-
+  /* The transaction should be marked as complete in P_S. */
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
 }
 
@@ -546,7 +560,11 @@ bool trans_xa_start(THD *thd)
     if (not_equal)
       my_error(ER_XAER_NOTA, MYF(0));
     else
+    {
       xid_state->set_state(XID_STATE::XA_ACTIVE);
+      MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                  (int)thd->transaction.xid_state.get_state());
+    }
     DBUG_RETURN(not_equal);
   }
 
@@ -560,6 +578,9 @@ bool trans_xa_start(THD *thd)
   else if (!trans_begin(thd))
   {
     xid_state->start_normal_xa(thd->lex->xid);
+    MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
+                              (const void *)thd->transaction.xid_state.get_xid(),
+                              (int)thd->transaction.xid_state.get_state());
     if (xid_cache_insert(xid_state))
     {
       xid_state->reset();
@@ -585,7 +606,16 @@ bool trans_xa_end(THD *thd)
   else if (!xid_state->has_same_xid(thd->lex->xid))
     my_error(ER_XAER_NOTA, MYF(0));
   else if (!xid_state->xa_trans_rolled_back())
+  {
     xid_state->set_state(XID_STATE::XA_IDLE);
+    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                   (int)thd->transaction.xid_state.get_state());
+  }
+  else
+  {
+    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                   (int)thd->transaction.xid_state.get_state());
+  }
 
   DBUG_RETURN(thd->is_error() ||
               !xid_state->has_state(XID_STATE::XA_IDLE));
@@ -605,10 +635,16 @@ bool trans_xa_prepare(THD *thd)
   {
     xid_cache_delete(xid_state);
     xid_state->set_state(XID_STATE::XA_NOTR);
+    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                   (int)thd->transaction.xid_state.get_state());
     my_error(ER_XA_RBROLLBACK, MYF(0));
   }
   else
+  {
     xid_state->set_state(XID_STATE::XA_PREPARED);
+    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                   (int)thd->transaction.xid_state.get_state());
+  }
 
   DBUG_RETURN(thd->is_error() ||
               !xid_state->has_state(XID_STATE::XA_PREPARED));

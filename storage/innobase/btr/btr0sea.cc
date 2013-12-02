@@ -42,6 +42,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "ha0ha.h"
+#include "srv0mon.h"
 #include "sync0sync.h"
 
 /** Flag: has the search system been enabled?

@@ -323,30 +323,20 @@ fts_query_add_word_for_parser(
 
 		/* Set operator */
                 oper_node = fts_query_get_oper_node(info, state);
+		if (oper_node != NULL) {  
+			node = fts_ast_create_node_list(state, oper_node);
+			fts_ast_add_node(cur_node, node);
+			node->go_up = true;
+			node->up_node = cur_node;
+			cur_node = node;
+		}
 
 		if (info->quot) {
 			/* Phrase node */
-			if (oper_node) {
-				node = fts_ast_create_node_list(state, oper_node);
-				fts_ast_add_node(cur_node, node);
-				node->go_up = true;
-				node->up_node = cur_node;
-				cur_node = node;
-			}
-
 			node = fts_ast_create_node_phrase_list(state);
 		} else {
 			/* Subexp list node */
-			if (oper_node) {
-				node = fts_ast_create_node_subexp_list(state, oper_node);
-				fts_ast_add_node(cur_node, node);
-				node->go_up = true;
-				node->up_node = cur_node;
-				cur_node = node;
-			}
-
-			/* Create list node */
-			node = fts_ast_create_node_list(state, NULL);
+			node = fts_ast_create_node_subexp_list(state, NULL);
 		}
 
 		fts_ast_add_node(cur_node, node);
@@ -360,7 +350,7 @@ fts_query_add_word_for_parser(
 	case FT_TOKEN_RIGHT_PAREN:
 		info->quot = 0;
 
-		if (cur_node->up_node) {
+		if (cur_node->up_node != NULL) {
 			cur_node = cur_node->up_node;
 
 			if (cur_node->go_up) {

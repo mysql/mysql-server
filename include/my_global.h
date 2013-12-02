@@ -304,7 +304,7 @@ typedef unsigned short ushort;
 #endif
 
 #define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
-#define test(a)		((a) ? 1 : 0)
+#define MY_TEST(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
@@ -592,25 +592,28 @@ inline unsigned long long my_double2ulonglong(double d)
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
-#ifndef isfinite
-#ifdef HAVE_FINITE
-#define isfinite(x) finite(x)
-#else
-#define finite(x) (1.0 / fabs(x) > 0.0)
-#endif /* HAVE_FINITE */
-#endif /* isfinite */
-
 #include <math.h>
-C_MODE_START
-extern double my_double_isnan(double x);
-C_MODE_END
 
-#ifdef HAVE_ISINF
-/* System-provided isinf() is available and safe to use */
-#define my_isinf(X) isinf(X)
-#else /* !HAVE_ISINF */
-#define my_isinf(X) (!finite(X) && !isnan(X))
-#endif
+#if (__cplusplus >= 201103L)
+  /* For C++11 use the new std functions rather than C99 macros. */
+  #include <cmath>
+  #define my_isfinite(X) std::isfinite(X)
+  #define my_isnan(X) std::isnan(X)
+  #define my_isinf(X) std::isinf(X)
+#else
+  #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
+    #define my_isfinite(X) isfinite(X)
+  #else
+    #define my_isfinite(X) finite(X)
+  #endif
+  #define my_isnan(X) isnan(X)
+  #ifdef HAVE_ISINF
+    /* System-provided isinf() is available and safe to use */
+    #define my_isinf(X) isinf(X)
+  #else /* !HAVE_ISINF */
+    #define my_isinf(X) (!my_isfinite(X) && !my_isnan(X))
+  #endif
+#endif /* __cplusplus >= 201103L */
 
 /* Define missing math constants. */
 #ifndef M_PI

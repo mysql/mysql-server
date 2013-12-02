@@ -1,4 +1,4 @@
---echo #
+
 --echo # Bug#36981 - "innodb crash when selecting for update"
 --echo #
 
@@ -945,12 +945,12 @@ let query=
 SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
-( SELECT STRAIGHT_JOIN SUBQUERY_t1.pk
-  FROM t1 AS SUBQUERY_t1
-    JOIN t2 AS SUBQUERY_t2
-    ON SUBQUERY_t2.i1 = SUBQUERY_t1.pk
-  WHERE SUBQUERY_t1.i1 > 0
-    OR SUBQUERY_t2.c1 = 'a'
+( SELECT STRAIGHT_JOIN subquery_t1.pk
+  FROM t1 AS subquery_t1
+    JOIN t2 AS subquery_t2
+    ON subquery_t2.i1 = subquery_t1.pk
+  WHERE subquery_t1.i1 > 0
+    OR subquery_t2.c1 = 'a'
 );
 
 eval EXPLAIN $query;

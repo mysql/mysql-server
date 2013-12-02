@@ -151,8 +151,8 @@ public:
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
   void count_only_length(Item **item, uint nitems);
-  void count_real_length();
-  void count_decimal_length();
+  void count_real_length(Item **item, uint nitems);
+  void count_decimal_length(Item **item, uint nitems);
   void count_datetime_length(Item **item, uint nitems);
   bool count_string_result_length(enum_field_types field_type,
                                   Item **item, uint nitems);
@@ -228,7 +228,7 @@ public:
                      void * arg, traverse_order order);
   inline double fix_result(double value)
   {
-    if (isfinite(value))
+    if (my_isfinite(value))
       return value;
     null_value=1;
     return 0.0;
@@ -262,7 +262,7 @@ public:
   */
   inline double check_float_overflow(double value)
   {
-    return isfinite(value) ? value : raise_float_overflow();
+    return my_isfinite(value) ? value : raise_float_overflow();
   }
   /**
     Throw an error if the input BIGINT value represented by the

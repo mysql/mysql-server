@@ -178,6 +178,6 @@ y	CONCAT('"', c, '"')
 0000	"qwer"
 2012	"2012qwer"
 DROP TABLE t1;
-SET @@global.default_storage_engine = MyISAM;
-SET @@session.default_storage_engine = MyISAM;
+SET @@global.default_storage_engine = InnoDB;
+SET @@session.default_storage_engine = InnoDB;
 # 

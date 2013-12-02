@@ -556,6 +556,16 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-statements-history-long 
  Default startup value for the
  events_statements_history_long consumer.
+ --performance-schema-consumer-events-transactions-current 
+ Default startup value for the events_transactions_current
+ consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
+ --performance-schema-consumer-events-transactions-history 
+ Default startup value for the events_transactions_history
+ consumer.
+ --performance-schema-consumer-events-transactions-history-long 
+ Default startup value for the
+ events_transactions_history_long consumer.
  --performance-schema-consumer-events-waits-current 
  Default startup value for the events_waits_current
  consumer.
@@ -590,6 +600,12 @@ The following options may be given as the first argument:
  to disable, -1 for automated sizing.
  --performance-schema-events-statements-history-size=# 
  Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
+ Use 0 to disable, -1 for automated sizing.
+ --performance-schema-events-transactions-history-long-size=# 
+ Number of rows in EVENTS_TRANSACTIONS_HISTORY_LONG. Use 0
+ to disable, -1 for automated sizing.
+ --performance-schema-events-transactions-history-size=# 
+ Number of rows per thread in EVENTS_TRANSACTIONS_HISTORY.
  Use 0 to disable, -1 for automated sizing.
  --performance-schema-events-waits-history-long-size=# 
  Number of rows in EVENTS_WAITS_HISTORY_LONG. Use 0 to
@@ -1178,6 +1194,9 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history FALSE
 performance-schema-consumer-events-statements-history-long FALSE
+performance-schema-consumer-events-transactions-current TRUE
+performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
@@ -1189,6 +1208,8 @@ performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
 performance-schema-events-statements-history-size -1
+performance-schema-events-transactions-history-long-size -1
+performance-schema-events-transactions-history-size -1
 performance-schema-events-waits-history-long-size -1
 performance-schema-events-waits-history-size -1
 performance-schema-hosts-size -1

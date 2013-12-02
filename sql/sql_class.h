@@ -162,8 +162,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
-extern bool volatile shutdown_in_progress;
-
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
 extern "C" char **thd_query(MYSQL_THD thd);
 
@@ -638,9 +636,6 @@ typedef struct system_status_var
 */
 
 #define last_system_status_var questions
-
-void mark_transaction_to_rollback(THD *thd, bool all);
-
 
 /**
   Get collation by name, send error to client on failure.
@@ -2240,7 +2235,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
-  const char *m_trans_fixed_log_file;
+  char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2519,6 +2514,15 @@ public:
     }
     return first_successful_insert_id_in_prev_stmt;
   }
+  inline void reset_first_successful_insert_id()
+  {
+    arg_of_last_insert_id_function= FALSE;
+    first_successful_insert_id_in_prev_stmt= 0;
+    first_successful_insert_id_in_cur_stmt= 0;
+    first_successful_insert_id_in_prev_stmt_for_binlog= 0;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+  }
+
   /*
     Used by Intvar_log_event::do_apply_event() and by "SET INSERT_ID=#"
     (mysqlbinlog). We'll soon add a variant which can take many intervals in
@@ -2530,6 +2534,9 @@ public:
     auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
   }
 
+  /**
+    Stores the result of the FOUND_ROWS() function.
+  */
   ulonglong  limit_found_rows;
 
 private:
@@ -2654,6 +2661,14 @@ public:
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
+
+  /** Current transaction instrumentation. */
+  PSI_transaction_locker *m_transaction_psi;
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /** Current transaction instrumentation state. */
+  PSI_transaction_locker_state m_transaction_state;
+#endif /* HAVE_PSI_TRANSACTION_INTERFACE */
+
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
 #ifdef HAVE_PSI_IDLE_INTERFACE
@@ -2739,11 +2754,10 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
-      MEM_ROOT *log_file_mem_root= &main_mem_root;
       if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
-      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
-                                          file + dirname_length(file));
+        m_trans_fixed_log_file= (char*) alloc_root(&main_mem_root, FN_REFLEN+1);
+      DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
+      strcpy(m_trans_fixed_log_file, m_trans_log_file);
     }
     else
     {
@@ -2973,13 +2987,11 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thread_count,
+    We want to minimize the time we hold LOCK_thd_count,
     so when destroying a global thread, do:
 
     thd->release_resources()
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->remove_thd();
     delete thd;
    */
   ~THD();
@@ -3126,8 +3138,8 @@ public:
   }
   inline bool is_strict_mode() const
   {
-    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                      MODE_STRICT_ALL_TABLES));
+    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                         MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -3286,7 +3298,7 @@ public:
   }
 
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
-                              const char* str, uint length,
+                              const char* str, size_t length,
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
@@ -3456,7 +3468,7 @@ public:
     int err= killed_errno();
     if (err && !get_stmt_da()->is_set())
     {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+      if ((err == KILL_CONNECTION) && !abort_loop)
         err = KILL_QUERY;
       /*
         KILL is fatal because:
@@ -3585,6 +3597,13 @@ public:
     gtids, owned_gtid.sidno==-1.
   */
   Gtid owned_gtid;
+
+  /**
+    For convenience, this contains the SID component of the GTID
+    stored in owned_gtid.
+  */
+  rpl_sid owned_sid;
+
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
     then this member variable contains the subset of those GTIDs that
@@ -3603,6 +3622,7 @@ public:
 #endif
     }
     owned_gtid.sidno= 0;
+    owned_sid.clear();
   }
 
   /**
@@ -3905,6 +3925,8 @@ public:
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
 
+  void mark_transaction_to_rollback(bool all);
+
 #ifndef DBUG_OFF
 private:
   int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
@@ -4040,11 +4062,11 @@ my_eof(THD *thd)
 
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
-                     LEX_STRING *lex_str, const char* str, uint length,
+                     LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
 
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
-                                   const char *src, uint src_len)
+                                   const char *src, size_t src_len)
 {
   return make_lex_string_root(root, dst, src, src_len, false);
 }
@@ -4100,6 +4122,23 @@ public:
   ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
+  /**
+    Change wrapped select_result.
+
+    Replace the wrapped result object with new_result and call
+    prepare() and prepare2() on new_result.
+
+    This base class implementation doesn't wrap other select_results.
+
+    @param new_result The new result object to wrap around
+
+    @retval false Success
+    @retval true  Error
+  */
+  virtual bool change_result(select_result *new_result)
+  {
+    return false;
+  }
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     unit= u;
@@ -4539,9 +4578,19 @@ public:
 
   select_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  /**
+    Do prepare() and prepare2() if they have been postponed until
+    column type information is computed (used by select_union_direct).
+
+    @param types Column types
+
+    @return false on success, true on failure
+  */
+  virtual bool postponed_prepare(List<Item> &types)
+  { return false; }
   bool send_data(List<Item> &items);
   bool send_eof();
-  bool flush();
+  virtual bool flush();
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
@@ -4549,6 +4598,104 @@ public:
                            bool create_table);
   friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
+
+
+/**
+  UNION result that is passed directly to the receiving select_result
+  without filling a temporary table.
+
+  Function calls are forwarded to the wrapped select_result, but some
+  functions are expected to be called only once for each query, so
+  they are only executed for the first SELECT in the union (execept
+  for send_eof(), which is executed only for the last SELECT).
+
+  This select_result is used when a UNION is not DISTINCT and doesn't
+  have a global ORDER BY clause. @see st_select_lex_unit::prepare().
+*/
+class select_union_direct :public select_union
+{
+private:
+  /// Result object that receives all rows
+  select_result *result;
+  /// The last SELECT_LEX of the union
+  SELECT_LEX *last_select_lex;
+
+  /// Wrapped result has received metadata
+  bool done_send_result_set_metadata;
+  /// Wrapped result has initialized tables
+  bool done_initialize_tables;
+
+  /// Accumulated limit_found_rows
+  ulonglong limit_found_rows;
+
+  /// Number of rows offset
+  ha_rows offset;
+  /// Number of rows limit + offset, @see select_union_direct::send_data()
+  ha_rows limit;
+
+public:
+  select_union_direct(select_result *result, SELECT_LEX *last_select_lex)
+    :result(result), last_select_lex(last_select_lex),
+    done_send_result_set_metadata(false), done_initialize_tables(false),
+    limit_found_rows(0)
+  {}
+  bool change_result(select_result *new_result);
+  uint field_count(List<Item> &fields) const
+  {
+    // Only called for top-level select_results, usually select_send
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return 0; /* purecov: inspected */
+  }
+  bool postponed_prepare(List<Item> &types);
+  bool send_result_set_metadata(List<Item> &list, uint flags);
+  bool send_data(List<Item> &items);
+  bool initialize_tables (JOIN *join= NULL);
+  void send_error(uint errcode, const char *err)
+  {
+    result->send_error(errcode, err); /* purecov: inspected */
+  }
+  bool send_eof();
+  bool flush() { return false; }
+  bool check_simple_select() const
+  {
+    // Only called for top-level select_results, usually select_send
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return false; /* purecov: inspected */
+  }
+  void abort_result_set()
+  {
+    result->abort_result_set(); /* purecov: inspected */
+  }
+  void cleanup()
+  {
+    /*
+      Only called for top-level select_results, usually select_send,
+      and for the results of subquery engines
+      (select_<something>_subselect).
+    */
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void set_thd(THD *thd_arg)
+  {
+    /*
+      Only called for top-level select_results, usually select_send,
+      and for the results of subquery engines
+      (select_<something>_subselect).
+    */
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void reset_offset_limit_cnt()
+  {
+    // EXPLAIN should never output to a select_union_direct
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void begin_dataset()
+  {
+    // Only called for sp_cursor::Select_fetch_into_spvars
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+};
+
 
 /* Base subselect interface class */
 class select_subselect :public select_result_interceptor
@@ -4664,7 +4811,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
-  bool is_derived_table() const { return test(sel); }
+  bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
     db.str= db_name; db.length= (uint) strlen(db_name);
@@ -4823,8 +4970,8 @@ public:
   static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
-    uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
-               (name.length() + 1) + extra_size;
+    size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+                 (name.length() + 1) + extra_size;
     if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
                                              size, MYF(MY_WME |
                                                        ME_FATALERROR))))
@@ -4856,17 +5003,26 @@ public:
 
 class multi_delete :public select_result_interceptor
 {
-  TABLE_LIST *delete_tables, *table_being_deleted;
+  TABLE_LIST *delete_tables;
+  /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
+  /// Pointers to table objects matching tempfiles
+  TABLE **tables;
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
+  /// Map of all tables to delete rows from
+  table_map delete_table_map;
+  /// Map of tables to delete from immediately
+  table_map delete_immediate;
+  // Map of transactional tables to be deleted from
+  table_map transactional_table_map;
+  /// Map of non-transactional tables to be deleted from
+  table_map non_transactional_table_map;
+  /// True if some delete operation has been performed (immediate or delayed)
   bool do_delete;
-  /* True if at least one table we delete from is transactional */
-  bool transactional_tables;
-  /* True if at least one table we delete from is not transactional */
-  bool normal_tables;
-  bool delete_while_scanning;
+  /// True if some actual delete operation against non-transactional table done
+  bool non_transactional_deleted;
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
@@ -5110,7 +5266,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
-void mark_transaction_to_rollback(THD *thd, bool all);
 
 /* Inline functions */
 

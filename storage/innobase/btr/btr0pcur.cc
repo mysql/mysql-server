@@ -125,7 +125,6 @@ btr_pcur_store_position(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (page_is_empty(page)) {
 		/* It must be an empty index tree; NOTE that in this case
@@ -232,8 +231,7 @@ btr_pcur_restore_position_func(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
 	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
 	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
@@ -272,6 +270,7 @@ btr_pcur_restore_position_func(
 					    cursor->modify_clock,
 					    file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+			cursor->latch_mode = latch_mode;
 
 			buf_block_dbg_add_level(
 				btr_pcur_get_block(cursor),
@@ -283,9 +282,6 @@ btr_pcur_restore_position_func(
 				const rec_t*	rec;
 				const ulint*	offsets1;
 				const ulint*	offsets2;
-#endif /* UNIV_DEBUG */
-				cursor->latch_mode = latch_mode;
-#ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
 
 				heap = mem_heap_create(256);
@@ -306,7 +302,10 @@ btr_pcur_restore_position_func(
 			/* This is the same record as stored,
 			may need to be adjusted for BTR_PCUR_BEFORE/AFTER,
 			depending on search mode and direction. */
-			cursor->pos_state = BTR_PCUR_IS_POSITIONED_OPTIMISTIC;
+			if (btr_pcur_is_on_user_rec(cursor)) {
+				cursor->pos_state
+					= BTR_PCUR_IS_POSITIONED_OPTIMISTIC;
+			}
 			return(FALSE);
 		}
 	}

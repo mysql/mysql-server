@@ -238,7 +238,7 @@ btr_height_get(
         height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
 
         /* Release the S latch on the root page. */
-        mtr_memo_release(mtr, root_block, MTR_MEMO_PAGE_S_FIX);
+        mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_d(sync_check_unlock(&root_block->lock));
@@ -299,12 +299,12 @@ btr_root_adjust_on_import(
 	ulint		zip_size	= dict_table_zip_size(table);
 	ulint		root_page_no	= dict_index_get_page(index);
 
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
+			return(DB_CORRUPTION););
+
 	mtr_start(&mtr);
 
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
-			return(DB_CORRUPTION););
 
 	block = btr_block_get(
 		space_id, zip_size, root_page_no, RW_X_LATCH, index, &mtr);
@@ -1161,7 +1161,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	ulint			logging_mode)	/*!< in: mtr logging mode */
+	mtr_log_t		logging_mode)	/*!< in: mtr logging mode */
 {
 	ibool	finished;
 	page_t*	root;
@@ -1278,7 +1278,6 @@ btr_page_reorganize_low(
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
-	ulint		log_mode;
 	ulint		data_size1;
 	ulint		data_size2;
 	ulint		max_ins_size1;
@@ -1296,7 +1295,7 @@ btr_page_reorganize_low(
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
 	/* Turn logging off */
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+	mtr_log_t	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
@@ -1434,8 +1433,8 @@ func_exit:
 
 #ifndef UNIV_HOTBACKUP
 	if (success) {
-		byte	type;
-		byte*	log_ptr;
+		mlog_id_t	type;
+		byte*		log_ptr;
 
 		/* Write the log record */
 		if (page_zip) {
@@ -2518,8 +2517,9 @@ insert_empty:
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
 
-		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
-				 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
+		mtr->memo_release(
+			dict_index_get_lock(cursor->index),
+			MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
 
 		/* NOTE: We cannot release root block latch here, because it
 		has segment header and already modified in most of cases.*/
@@ -2809,9 +2809,10 @@ UNIV_INLINE
 void
 btr_set_min_rec_mark_log(
 /*=====================*/
-	rec_t*	rec,	/*!< in: record */
-	byte	type,	/*!< in: MLOG_COMP_REC_MIN_MARK or MLOG_REC_MIN_MARK */
-	mtr_t*	mtr)	/*!< in: mtr */
+	rec_t*		rec,	/*!< in: record */
+	mlog_id_t	type,	/*!< in: MLOG_COMP_REC_MIN_MARK or
+				MLOG_REC_MIN_MARK */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	mlog_write_initial_log_record(rec, type, mtr);
 
@@ -3718,7 +3719,7 @@ btr_print_index(
 
 	mtr_commit(&mtr);
 
-	btr_validate_index(index, 0, false);
+	ut_ad(btr_validate_index(index, 0, false));
 }
 #endif /* UNIV_BTR_PRINT */
 
@@ -4319,22 +4320,25 @@ loop:
 				     page_get_supremum_rec(father_page)));
 			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
 		} else {
-			const rec_t*	right_node_ptr
-				= page_rec_get_next(node_ptr);
+			const rec_t*	right_node_ptr;
+
+			right_node_ptr = page_rec_get_next(node_ptr);
 
 			if (!lockout && rightmost_child) {
+
 				/* To obey latch order of tree blocks,
 				we should release the right_block once to
 				obtain lock of the uncle block. */
 				mtr_release_block_at_savepoint(
 					&mtr, savepoint, right_block);
-				btr_block_get(space, zip_size,
-					      parent_right_page_no,
-					      RW_SX_LATCH, index, &mtr);
-				right_block = btr_block_get(space, zip_size,
-							    right_page_no,
-							    RW_SX_LATCH, index,
-							    &mtr);
+
+				btr_block_get(
+					space, zip_size, parent_right_page_no,
+					RW_SX_LATCH, index, &mtr);
+
+				right_block = btr_block_get(
+					space, zip_size, right_page_no,
+					RW_SX_LATCH, index, &mtr);
 			}
 
 			btr_cur_position(
@@ -4343,8 +4347,10 @@ loop:
 						buf_block_get_frame(
 							right_block))),
 				right_block, &right_node_cur);
+
 			offsets = btr_page_get_father_node_ptr_for_validate(
 					offsets, heap, &right_node_cur, &mtr);
+
 			if (right_node_ptr
 			    != page_get_supremum_rec(father_page)) {
 
