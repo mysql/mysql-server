@@ -919,9 +919,12 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
   uint32 cur_buffer_used= m_packet.length();
   uint32 needed_buffer_size= cur_buffer_used + extra_size;
 
-  DBUG_ASSERT(extra_size <= (PACKET_MAX_SIZE - cur_buffer_size));
-  if (extra_size > (PACKET_MAX_SIZE - cur_buffer_size))
-    /* Not enough memory: requesting packet to be bigger than the max allowed. */
+  DBUG_ASSERT(extra_size <= (PACKET_MAX_SIZE - cur_buffer_used));
+  if (extra_size > (PACKET_MAX_SIZE - cur_buffer_used))
+    /*
+       Not enough memory: requesting packet to be bigger than the max
+       allowed - PACKET_MAX_SIZE.
+    */
     DBUG_RETURN(true);
 
   /*
