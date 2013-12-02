@@ -8122,12 +8122,6 @@ ha_innobase::position(
 	}
 }
 
-/* limit innodb monitor access to users with PROCESS privilege.
-See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
-#define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
-	(row_is_magic_monitor_table(table_name) \
-	 && check_global_access(thd, PROCESS_ACL))
-
 /*****************************************************************//**
 Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
@@ -8240,16 +8234,6 @@ create_table_def(
 			"InnoDB: Table Name or Database Name is too long");
 
 		DBUG_RETURN(ER_TABLE_NAME);
-	}
-
-	/* table_name must contain '/'. Later in the code we assert if it
-	does not */
-	if (strcmp(strchr(table_name, '/') + 1,
-		   "innodb_table_monitor") == 0) {
-		push_warning(
-			thd, Sql_condition::SL_WARNING,
-			HA_ERR_WRONG_COMMAND,
-			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
 
 	n_cols = form->s->fields;
@@ -9324,10 +9308,6 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
-	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
-	}
-
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -9778,8 +9758,6 @@ ha_innobase::delete_table(
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
-	} else if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
 	parent_trx = check_trx_exists(thd);
@@ -15220,6 +15198,26 @@ innodb_log_write_ahead_size_update(
 	srv_log_write_ahead_size = val;
 }
 
+/** Update innodb_status_output or innodb_status_output_locks,
+which control InnoDB "status monitor" output to the error log.
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_status_output_update(
+	THD*				thd __attribute__((unused)),
+	struct st_mysql_sys_var*	var __attribute__((unused)),
+	void*				var_ptr __attribute__((unused)),
+	const void*			save __attribute__((unused)))
+{
+	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
+	/* The lock timeout monitor thread also takes care of this
+	output. */
+	os_event_set(lock_sys->timeout_event);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
 	{NullS, NullS, SHOW_LONG}
@@ -15974,6 +15972,15 @@ static MYSQL_SYSVAR_STR(monitor_reset_all, innobase_reset_all_monitor_counter,
   innodb_monitor_validate,
   innodb_reset_all_monitor_update, NULL);
 
+static MYSQL_SYSVAR_BOOL(status_output, srv_print_innodb_monitor,
+  PLUGIN_VAR_OPCMDARG, "Enable InnoDB monitor output to the error log.",
+  NULL, innodb_status_output_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(status_output_locks, srv_print_innodb_lock_monitor,
+  PLUGIN_VAR_OPCMDARG, "Enable InnoDB lock monitor output to the error log."
+  " Requires innodb_status_output=ON.",
+  NULL, innodb_status_output_update, FALSE);
+
 static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   PLUGIN_VAR_OPCMDARG,
   "Print all deadlocks to MySQL error log (off by default)",
@@ -16156,6 +16163,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_hash_locks),
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+  MYSQL_SYSVAR(status_output),
+  MYSQL_SYSVAR(status_output_locks),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
