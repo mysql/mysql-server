@@ -1225,9 +1225,9 @@ public:
     DBUG_ENTER("Binlog_sender::peek_event_header");
     my_off_t old_pos= my_b_safe_tell(log_cache);
     if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     my_b_seek(log_cache, old_pos); // rewind
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
   /*
