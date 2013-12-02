@@ -343,13 +343,14 @@ THD *thd_get_current_thd()
 }
 
 /**
-  Set pthread key THR_THD
+  Reset thread globals associated.
 
   @param thd     THD object
 */
-void set_pthread_THR_THD(THD* thd)
+void reset_thread_globals(THD* thd)
 {
-  my_pthread_set_THR_THD(thd);
+  thd->restore_globals();
+  thd->set_mysys_var(NULL);
 }
 
 extern "C"
