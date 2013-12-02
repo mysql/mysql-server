@@ -8827,7 +8827,6 @@ bool change_master(THD* thd, Master_info* mi)
     saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
     (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
-  //TODO: fix the comment below
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -8838,7 +8837,7 @@ bool change_master(THD* thd, Master_info* mi)
     Notice that the rli table is available exclusively as slave is not
     running.
   */
-  if (!mi->rli->slave_running);
+  if (!mi->rli->slave_running)
     if ((ret= mi->rli->flush_info(true)))
       my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
   mysql_cond_broadcast(&mi->data_cond);
