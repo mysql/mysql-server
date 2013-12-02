@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -381,7 +381,8 @@ enum os_file_type_t {
 	OS_FILE_TYPE_UNKNOWN = 0,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
-	OS_FILE_TYPE_LINK			/* symbolic link */
+	OS_FILE_TYPE_LINK,			/* symbolic link */
+	OS_FILE_TYPE_BLOCK			/* block device */
 };
 
 /* Maximum path string length in bytes when referring to tables with in the
