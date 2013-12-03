@@ -1094,7 +1094,6 @@ cleanup:
 static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* txn) {
     int error = 0;
     DBT key;
-    pthread_mutex_lock(&tokudb_meta_mutex);
     memset((void *)&key, 0, sizeof(key));
     key.data = (void *)name;
     key.size = strlen(name) + 1;
@@ -1116,7 +1115,6 @@ static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* 
         error = 0;
     }
 
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 
@@ -6951,6 +6949,8 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
     return ROW_TYPE_DEFAULT;
 }
 
+volatile int tokudb_create_wait = 0;
+
 //
 // Creates a new table
 // Parameters:
@@ -6963,6 +6963,7 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
 //
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
     TOKUDB_DBUG_ENTER("ha_tokudb::create %p %s", this, name);
+    while (tokudb_create_wait) sleep(1);
     int error;
     DB *status_block = NULL;
     uint version;
@@ -6975,8 +6976,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     THD* thd = ha_thd();
     bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     memset(&kc_info, 0, sizeof(kc_info));
-
-    pthread_mutex_lock(&tokudb_meta_mutex);
 
     trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
 
@@ -7105,7 +7104,6 @@ cleanup:
         }
     }
     tokudb_my_free(newname);
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7201,7 +7199,6 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     DBT curr_val;
     memset(&curr_key, 0, sizeof(curr_key));
     memset(&curr_val, 0, sizeof(curr_val));
-    pthread_mutex_lock(&tokudb_meta_mutex);
 
     DB_TXN *parent_txn = NULL;
     tokudb_trx_data *trx = NULL;
@@ -7292,7 +7289,6 @@ cleanup:
             commit_txn(txn, 0);
         }
     }
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 
