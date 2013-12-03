@@ -5832,6 +5832,17 @@ dict_table_check_for_dup_indexes(
 }
 #endif /* UNIV_DEBUG */
 
+/** Auxiliary macro used inside dict_table_schema_check(). */
+#define CREATE_TYPES_NAMES() \
+	dtype_sql_name((unsigned) req_schema->columns[i].mtype, \
+		       (unsigned) req_schema->columns[i].prtype_mask, \
+		       (unsigned) req_schema->columns[i].len, \
+		       req_type, sizeof(req_type)); \
+	dtype_sql_name(table->cols[j].mtype, \
+		       table->cols[j].prtype, \
+		       table->cols[j].len, \
+		       actual_type, sizeof(actual_type))
+
 /*********************************************************************//**
 Checks whether a table exists and whether it has the given structure.
 The table must have the same number of columns with the same names and
@@ -5851,6 +5862,8 @@ dict_table_schema_check(
 	size_t			errstr_sz)	/*!< in: errstr size */
 {
 	char		buf[MAX_FULL_NAME_LEN];
+	char		req_type[64];
+	char		actual_type[64];
 	dict_table_t*	table;
 	ulint		i;
 
@@ -5902,9 +5915,6 @@ dict_table_schema_check(
 	for (i = 0; i < req_schema->n_cols; i++) {
 		ulint	j;
 
-		char	req_type[64];
-		char	actual_type[64];
-
 		/* check if i'th column is the same in both arrays */
 		if (innobase_strcasecmp(req_schema->columns[i].name,
 			       dict_table_get_col_name(table, i)) == 0) {
@@ -5946,18 +5956,10 @@ dict_table_schema_check(
 		/* we found a column with the same name on j'th position,
 		compare column types and flags */
 
-		dtype_sql_name((unsigned) req_schema->columns[i].mtype,
-			       (unsigned) req_schema->columns[i].prtype_mask,
-			       (unsigned) req_schema->columns[i].len,
-			       req_type, sizeof(req_type));
-
-		dtype_sql_name(table->cols[j].mtype,
-			       table->cols[j].prtype,
-			       table->cols[j].len,
-			       actual_type, sizeof(actual_type));
-
 		/* check length for exact match */
 		if (req_schema->columns[i].len != table->cols[j].len) {
+
+			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s "
@@ -5972,6 +5974,8 @@ dict_table_schema_check(
 
 		/* check mtype for exact match */
 		if (req_schema->columns[i].mtype != table->cols[j].mtype) {
+
+			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s "
@@ -5989,6 +5993,8 @@ dict_table_schema_check(
 		    && (table->cols[j].prtype
 			& req_schema->columns[i].prtype_mask)
 		       != req_schema->columns[i].prtype_mask) {
+
+			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s "
