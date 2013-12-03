@@ -51,7 +51,7 @@ function github_clone() {
 
 git_tag=
 mysql=mysql
-mysql_tree=5.5.30
+mysql_tree=mysql-5.5.34
 jemalloc=jemalloc
 jemalloc_tree=3.3.1
 ftengine=ft-engine
@@ -77,20 +77,20 @@ while [ $# -ne 0 ] ; do
 done
 
 # setup environment variables
-install_dir=$PWD/$mysql-install
+build_dir=$PWD/build
+mkdir $build_dir
+if [ $? != 0 ] ; then exit 1; fi
+install_dir=$PWD/install
 mkdir $install_dir
 if [ $? != 0 ] ; then exit 1; fi
 
 # checkout the fractal tree
 github_clone $ftindex $ftindex_tree
-github_clone $jemalloc $jemalloc_tree
-pushd $ftindex/third_party
-if [ $? != 0 ] ; then exit 1; fi
-ln -s ../../$jemalloc $jemalloc
-if [ $? != 0 ] ; then exit 1; fi
-popd
 
-# checkout mysql'
+# checkout jemalloc
+github_clone $jemalloc $jemalloc_tree
+
+# checkout mysql
 github_clone $mysql $mysql_tree
 
 # checkout the community backup
@@ -122,11 +122,21 @@ if [ $? != 0 ] ; then exit 1; fi
 ln ../../$ftengine/scripts/tokufilecheck.py
 if [ $? != 0 ] ; then exit 1; fi
 popd
+if [[ $mysql =~ mariadb ]] ; then
+    pushd $mysql/extra
+    if [ $? != 0 ] ; then exit 1; fi
+    ln -s ../../$jemalloc $jemalloc
+    if [ $? != 0 ] ; then exit 1; fi
+    popd
+else
+    pushd $ftindex/third_party
+    if [ $? != 0 ] ; then exit 1; fi
+    ln -s ../../$jemalloc $jemalloc
+    if [ $? != 0 ] ; then exit 1; fi
+    popd
+fi
 
-# build in the mysql directory
-mkdir $mysql/build.debug
-if [ $? != 0 ] ; then exit 1; fi
-pushd $mysql/build.debug
+pushd $build_dir
 if [ $? != 0 ] ; then exit 1; fi
 extra_cmake_options="-DCMAKE_LINK_DEPENDS_NO_SHARED=ON"
 if (( $cmake_valgrind )) ; then
@@ -135,7 +145,7 @@ fi
 if (( $cmake_debug_paranoid )) ; then
     extra_cmake_options+=" -DTOKU_DEBUG_PARANOID=ON"
 fi
-CC=$cc CXX=$cxx cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options
+CC=$cc CXX=$cxx cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options ../$mysql
 if [ $? != 0 ] ; then exit 1; fi
 make -j4 install
 if [ $? != 0 ] ; then exit 1; fi
