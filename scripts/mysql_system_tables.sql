@@ -2017,7 +2017,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE EVENTS_STATEMENTS_SUMMARY_BY_ROUTINE
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
@@ -2034,6 +2034,50 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
   "MIN_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
   "AVG_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
   "MAX_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "SUM_LOCK_TIME bigint(20) unsigned NOT NULL,"
+  "SUM_ERRORS bigint(20) unsigned NOT NULL,"
+  "SUM_WARNINGS bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_SENT bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_EXAMINED bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_ROWS bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,"
+  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE PREPARED_STATEMENT_INSTANCES
+--
+
+SET @cmd="CREATE TABLE performance_schema.prepared_statement_instances("
+  "OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,"
+  "SQL_TEXT longtext NOT NULL,"
+  "OWNER_THREAD_ID bigint(20) unsigned NOT NULL,"
+  "OWNER_EVENT_ID bigint(20) unsigned NOT NULL,"
+  "OWNER_OBJECT_TYPE enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER') DEFAULT NULL,"
+  "OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,"
+  "OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,"
+  "TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "COUNT_EXECUTE bigint(20) unsigned NOT NULL,"
+  "SUM_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "MIN_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "AVG_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "MAX_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
   "SUM_LOCK_TIME bigint(20) unsigned NOT NULL,"
   "SUM_ERRORS bigint(20) unsigned NOT NULL,"
   "SUM_WARNINGS bigint(20) unsigned NOT NULL,"

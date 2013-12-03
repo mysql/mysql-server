@@ -94,6 +94,8 @@
 #include "table_replication_execute_status_by_coordinator.h"
 #include "table_replication_execute_status_by_worker.h"
 
+#include "table_prepared_stmt_instances.h"
+
 #include "table_md_locks.h"
 #include "table_table_handles.h"
 
@@ -199,6 +201,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_replication_execute_status::m_share,
   &table_replication_execute_status_by_coordinator::m_share,
   &table_replication_execute_status_by_worker::m_share,
+
+  &table_prepared_stmt_instances::m_share,
   NULL
 };
 
