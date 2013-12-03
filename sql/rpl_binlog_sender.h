@@ -409,7 +409,7 @@ private:
    *
    * @param packet  The buffer to shrink.
    */
-  inline void shrink_packet();
+  inline bool shrink_packet();
 
   /*
    * Helper function to recalculate a new size for the buffer.
@@ -418,9 +418,11 @@ private:
    * @param min_size The resulting buffer size, needs to be at least as large
    *                 as this parameter states.
    * @param factor The multiplier factor on the baseline.
-   * @return The new size.
+   * @param new_val[out] The placeholder where the new value will be stored.
+   * @return True in case 
    */
-  inline uint32 calc_buffer_size(uint32 current_size, uint32 min_size, float factor);
+  inline bool calc_buffer_size(uint32 current_size, uint32 min_size, 
+                               float factor, uint32 *new_val);
 };
 
 #endif // HAVE_REPLICATION

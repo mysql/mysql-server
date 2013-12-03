@@ -852,9 +852,7 @@ inline int Binlog_sender::send_packet()
   }
 
   /* Shrink the packet if needed. */
-  shrink_packet();
-
-  return 0;
+  return shrink_packet() ? 1 : 0;
 }
 
 inline int Binlog_sender::send_packet_and_flush()
@@ -919,7 +917,6 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
   uint32 cur_buffer_used= m_packet.length();
   uint32 needed_buffer_size= cur_buffer_used + extra_size;
 
-  DBUG_ASSERT(extra_size <= (PACKET_MAX_SIZE - cur_buffer_used));
   if (extra_size > (PACKET_MAX_SIZE - cur_buffer_used))
     /*
        Not enough memory: requesting packet to be bigger than the max
@@ -927,15 +924,13 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
     */
     DBUG_RETURN(true);
 
-  /*
-    Grow the buffer if needed.
-  */
+  /* Grow the buffer if needed. */
   if (needed_buffer_size > cur_buffer_size)
   {
-    /* calculates the new, larger, buffer size. */
-    uint32 new_buffer_size= calc_buffer_size(cur_buffer_size,
-                                             needed_buffer_size,
-                                             PACKET_GROW_FACTOR);
+    uint32 new_buffer_size;
+    if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
+                         PACKET_GROW_FACTOR, &new_buffer_size))
+      DBUG_RETURN(true);
 
     if (m_packet.realloc(new_buffer_size))
       DBUG_RETURN(true);
@@ -944,16 +939,18 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
      Calculates the new, smaller buffer, size to use the next time
      one wants to shrink the buffer.
     */
-    m_new_shrink_size= calc_buffer_size(m_new_shrink_size,
-                                        PACKET_MIN_SIZE,
-                                        PACKET_SHRINK_FACTOR);
+    if (calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
+                         PACKET_SHRINK_FACTOR, &m_new_shrink_size))
+      DBUG_RETURN(true);
   }
 
   DBUG_RETURN(false);
 }
 
-inline void Binlog_sender::shrink_packet()
+inline bool Binlog_sender::shrink_packet()
 {
+  DBUG_ENTER("Binlog_sender::shrink_packet");
+  bool res= false;
   uint32 cur_buffer_size= m_packet.alloced_length();
   uint32 buffer_used= m_packet.length();
 
@@ -984,9 +981,8 @@ inline void Binlog_sender::shrink_packet()
            Calculates the new, smaller buffer, size to use the next time
            one wants to shrink the buffer.
          */
-        m_new_shrink_size= calc_buffer_size(m_new_shrink_size,
-                                            PACKET_MIN_SIZE,
-                                            PACKET_SHRINK_FACTOR);
+        res= calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
+                              PACKET_SHRINK_FACTOR, &m_new_shrink_size);
 
         /* Reset the counter. */
         m_half_buffer_size_req_counter= 0;
@@ -995,22 +991,39 @@ inline void Binlog_sender::shrink_packet()
     else
       m_half_buffer_size_req_counter= 0;
   }
-
-  DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
-  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+#ifndef DBUG_OFF
+  if (res == false)
+  {
+    DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
+    DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+  }
+#endif
+  DBUG_RETURN(res);
 }
 
-inline uint32 Binlog_sender::calc_buffer_size(uint32 current_size,
-                                              uint32 min_size,
-                                              float factor)
+inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
+                                            uint32 min_size,
+                                            float factor,
+                                            uint32 *new_val)
 {
-  /*
-     Even if this overflows and new_size wraps around, the min_size will
-     always be returned - it is a safety net.
-   */
-  uint32 new_size= static_cast<uint32>(current_size * factor);
+  /* Check that a sane minimum buffer size was requested.  */
+  if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
+    return true;
 
-  return ALIGN_SIZE(std::max(new_size, min_size));
+  /*
+     Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and 
+     new_size wraps around, the min_size will always be returned,
+     i.e., it is a safety net.
+
+     Also, cap new_size to PACKET_MAX_SIZE (in case 
+     PACKET_MAX_SIZE < UINT_MAX32).
+   */
+  uint32 new_size= std::min(PACKET_MAX_SIZE,
+                            static_cast<uint32>(current_size * factor));
+
+  *new_val= ALIGN_SIZE(std::max(new_size, min_size));
+
+  return false;
 }
 
 #endif // HAVE_REPLICATION
