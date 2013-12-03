@@ -691,6 +691,37 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static PSI_prepared_stmt_locker*
+start_prepare_stmt_noop(PSI_prepared_stmt_locker_state *state NNN,
+                        char *name NNN, int length NNN)
+{
+  return NULL;
+}
+
+static void end_prepare_stmt_noop(PSI_prepared_stmt_locker *locker NNN)
+{
+  return;
+}
+
+static PSI_prepared_stmt_locker*
+start_prepared_stmt_execute_noop(PSI_prepared_stmt_locker_state *state NNN,
+                                 char *name NNN, int length NNN)
+{
+  return NULL;
+}
+
+static void end_prepared_stmt_execute_noop(PSI_prepared_stmt_locker *locker NNN)
+{
+  return;
+}
+
+static PSI_prepared_stmt_locker*
+deallocate_prepared_stmt_noop(PSI_prepared_stmt_locker_state *state NNN,
+                              char *name NNN, int length NNN)
+{
+  return NULL;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *locker NNN)
 {
@@ -917,6 +948,11 @@ static PSI PSI_noop=
   set_socket_state_noop,
   set_socket_info_noop,
   set_socket_thread_owner_noop,
+  start_prepare_stmt_noop,
+  end_prepare_stmt_noop,
+  start_prepared_stmt_execute_noop,
+  end_prepared_stmt_execute_noop,
+  deallocate_prepared_stmt_noop,
   digest_start_noop,
   digest_add_token_noop,
   set_thread_connect_attrs_noop,

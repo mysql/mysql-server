@@ -207,6 +207,8 @@ struct PFS_global_param
   long m_digest_sizing;
   /** Maximum number of programs to be captured */
   long m_program_sizing;
+  /** Maximum number of prepared statements to be captured */
+  long m_prepared_stmt_sizing;
   /** Maximum number of rows per thread in table EVENTS_TRANSACTIONS_HISTORY. */
   long m_events_transactions_history_sizing;
   /** Maximum number of rows in table EVENTS_TRANSACTIONS_HISTORY_LONG. */

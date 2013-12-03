@@ -43,6 +43,7 @@
 #include "mdl.h" /* mdl_key_init */
 #include "pfs_digest.h"
 #include "pfs_program.h"
+#include "pfs_prepared_stmt.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -5887,6 +5888,129 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
 }
 
+PSI_prepared_stmt_locker*
+pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
+                                char *sql_text, int sql_text_length)
+{
+  DBUG_ASSERT(state != NULL);
+
+  if (! flag_global_instrumentation)
+    return NULL;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+  }
+
+  state->m_flags= 0;
+
+  if(1)//if timed)
+  {
+    state->m_flags|= STATE_FLAG_TIMED;
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
+                                                  & state->m_timer);
+  }
+
+  strncpy(state->m_ps_data.sql_text, sql_text, sql_text_length);
+  state->m_ps_data.sql_text_length= sql_text_length;
+
+  return reinterpret_cast<PSI_prepared_stmt_locker*> (state);
+}
+
+void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
+{
+  PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  PSI_prepared_stmt_data *ps_data= reinterpret_cast<PSI_prepared_stmt_data*>(&state->m_ps_data);
+  DBUG_ASSERT(ps_data != NULL);
+  
+  /* An instrumented thread is required, for LF_PINS. */
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return;
+  PFS_prepared_stmt *pfs_ps= find_or_create_prepared_stmt(pfs_thread,
+                                                          ps_data, true);
+  if(pfs_ps == NULL)
+    return;
+
+  ulonglong timer_end;
+  ulonglong wait_time;
+  PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_stat;
+
+  if (state->m_flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+
+    /* Now use this timer_end and wait_time for timing information. */
+    stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    stat->aggregate_counted();
+  }
+
+  return;
+}
+
+PSI_prepared_stmt_locker*
+pfs_start_prepared_stmt_execute_v1(PSI_prepared_stmt_locker_state *state,
+                                   char *sql_text, int sql_text_length)
+{
+  return pfs_start_prepare_stmt_v1(state, sql_text, sql_text_length);
+}
+
+void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
+{
+  PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  PSI_prepared_stmt_data *ps_data= reinterpret_cast<PSI_prepared_stmt_data*>(&state->m_ps_data);
+  DBUG_ASSERT(ps_data != NULL);
+  
+  /* An instrumented thread is required, for LF_PINS. */
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return;
+  PFS_prepared_stmt *pfs_ps= find_or_create_prepared_stmt(pfs_thread,
+                                                          ps_data, false);
+  if(pfs_ps == NULL)
+    return;
+
+  ulonglong timer_end;
+  ulonglong wait_time;
+  PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_execute_stat;
+
+  if (state->m_flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+
+    /* Now use this timer_end and wait_time for timing information. */
+    stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    stat->aggregate_counted();
+  }
+
+  return;
+}
+
+PSI_prepared_stmt_locker*
+pfs_deallocate_prepared_stmt_v1(PSI_prepared_stmt_locker_state *state,
+                                char *sql_text, int sql_text_length)
+{
+  /* Mayank TODO. */
+  return NULL;
+}
+
+
 /**
   Implementation of the thread attribute connection interface
   @sa PSI_v1::set_thread_connect_attr.
@@ -6405,6 +6529,11 @@ PSI_v1 PFS_v1=
   pfs_set_socket_state_v1,
   pfs_set_socket_info_v1,
   pfs_set_socket_thread_owner_v1,
+  pfs_start_prepare_stmt_v1,
+  pfs_end_prepare_stmt_v1,
+  pfs_start_prepared_stmt_execute_v1,
+  pfs_end_prepared_stmt_execute_v1,
+  pfs_deallocate_prepared_stmt_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1,

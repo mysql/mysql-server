@@ -33,8 +33,6 @@
 
 /** EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM circular buffer. */
 PFS_program *program_array= NULL;
-/** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM. */
-bool flag_programs= true;
 
 /** Max size of the program array. */
 ulong program_max= 0;
