@@ -1019,8 +1019,8 @@ inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
      PACKET_MAX_SIZE < UINT_MAX32).
    */
   uint32 new_size= static_cast<uint32>(
-    std::min(static_cast<float>(PACKET_MAX_SIZE), 
-             current_size * factor));
+    std::min(static_cast<double>(PACKET_MAX_SIZE),
+             static_cast<double>(current_size * factor)));
 
   *new_val= ALIGN_SIZE(std::max(new_size, min_size));
 
