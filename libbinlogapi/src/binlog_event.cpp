@@ -492,8 +492,8 @@ Start_event_v3::Start_event_v3(const char* buf,
         ST_SERVER_VER_LEN);
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN - 1]= 0;
-  memcpy(&created, buf + ST_CREATED_OFFSET, sizeof(created));
-  created= le32toh(created);
+  memcpy(&created, buf + ST_CREATED_OFFSET, 4);
+  created= le64toh(created);
   dont_set_created= 1;
 }
 
