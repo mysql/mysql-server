@@ -173,7 +173,6 @@ DB_ENV *db_env;
 DB* metadata_db;
 HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
-pthread_mutex_t tokudb_meta_mutex;
 
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static my_bool tokudb_gdb_on_fatal;
@@ -315,7 +314,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton = (handlerton *) p;
 
     pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST);
-    pthread_mutex_init(&tokudb_meta_mutex, MY_MUTEX_INIT_FAST);
     (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
 
     tokudb_hton->state = SHOW_OPTION_YES;
@@ -567,7 +565,6 @@ static int tokudb_done_func(void *p) {
     toku_global_status_rows = NULL;
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
-    pthread_mutex_destroy(&tokudb_meta_mutex);
 #if defined(_WIN64)
     toku_ydb_destroy();
 #endif
