@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,13 +34,13 @@ then
     sprocs="oj_schema_mod copydb alter_engine oj_schema_mod_ndb analyze_db"
 fi
 
-$mysql_exe -e "drop database if exists ${myisam_db};"
+$mysql_exe -e "drop database if exists ${innodb_db};"
 $mysql_exe -e "drop database if exists ${ndb_db};"
-$mysql_exe -e "create database ${myisam_db} ${charset_spec};"
+$mysql_exe -e "create database ${innodb_db} ${charset_spec};"
 $mysql_exe -e "create database ${ndb_db} ${charset_spec}"
 
 # Call RANDGEN
-${gendata} --dsn="$dsn:database=${myisam_db}" --spec ${data}
+${gendata} --dsn="$dsn:database=${innodb_db}" --spec ${data}
 
 for i in $sprocs
 do
@@ -51,10 +51,10 @@ for i in $sprocs
 do
     if [ "$i" = "oj_schema_mod" ]
     then
-	$mysql_exe ${ndb_db} -e "call $i('${myisam_db}');"
+	$mysql_exe ${ndb_db} -e "call $i('${innodb_db}');"
     elif [ "$i" = "copydb" ]
     then
-	$mysql_exe ${ndb_db} -e "call copydb('${ndb_db}', '${myisam_db}');"
+	$mysql_exe ${ndb_db} -e "call copydb('${ndb_db}', '${innodb_db}');"
     elif [ "$i" = "alter_engine" ]
     then
 	$mysql_exe ${ndb_db} -e "call $i('${ndb_db}', 'ndb');"
