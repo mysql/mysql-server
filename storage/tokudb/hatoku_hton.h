@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 extern handlerton *tokudb_hton;
 
 extern DB_ENV *db_env;
-extern DB *metadata_db;
 
 enum srv_row_format_enum {
     SRV_ROW_FORMAT_UNCOMPRESSED = 0,
