@@ -5745,7 +5745,7 @@ com_resetconnection(String *buffer __attribute__((unused)),
   {
     if (status.batch)
       return 0;
-    return put_info("Unsupported command.\n",INFO_ERROR);
+    return put_error(&mysql);
   }
   return error;
 }
