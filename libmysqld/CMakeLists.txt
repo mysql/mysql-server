@@ -83,6 +83,7 @@ SET(SQL_EMBEDDED_SOURCES
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
+TARGET_LINK_LIBRARIES(sql_embedded binlogapi_static)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
