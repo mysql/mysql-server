@@ -1441,28 +1441,25 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
-/**********************************************************************//**
-Lock the appropriate latch to protect a given table's statistics.
-table->id is used to pick the corresponding latch from a global array of
-latches. */
+
+/** Lock the appropriate latch to protect a given table's statistics.
+@param[in]	table		table whose stats to lock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_lock(
-/*==================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Unlock the latch that has been locked by dict_table_stats_lock() */
+	dict_table_t*	table,
+	ulint		latch_mode);
+
+/** Unlock the latch that has been locked by dict_table_stats_lock().
+@param[in]	table		table whose stats to unlock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_unlock(
-/*====================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	ulint		latch_mode);
+
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */
