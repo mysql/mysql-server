@@ -502,7 +502,6 @@ extern PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 extern PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 extern PSI_memory_key key_memory_ignored_db;
 extern PSI_memory_key key_memory_SLAVE_INFO;
-extern PSI_memory_key key_memory_log_event;
 extern PSI_memory_key key_memory_log_event_old;
 extern PSI_memory_key key_memory_HASH_ROW_ENTRY;
 extern PSI_memory_key key_memory_table_def_memory;
