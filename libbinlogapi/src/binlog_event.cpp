@@ -189,8 +189,7 @@ Log_event_header::Log_event_header(const char* buf,
       | data_written    EVENT_LEN_OFFSET(9)  : 4   |
       +============================================+
    */
-  memcpy(&data_written, buf + EVENT_LEN_OFFSET, 4);/* we want to copy 4 bytes */
-  data_written= le32toh(data_written);
+  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
 
   log_pos= uint4korr(buf + LOG_POS_OFFSET);
 
@@ -1344,6 +1343,8 @@ Rows_query_event::~Rows_query_event()
 
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
+ : Binary_log_event(&buffer, description_event->binlog_version,
+                    description_event->server_version)
 {
    uint8_t const common_header_len= description_event->common_header_len;
 
@@ -1378,7 +1379,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   {
     ptr_buffer++;
     memcpy(&commit_seq_no, ptr_buffer, sizeof(commit_seq_no));
-    commit_seq_no= (int64)le64toh(commit_seq_no);
+    commit_seq_no= (int64_t)le64toh(commit_seq_no);
     ptr_buffer+= COMMIT_SEQ_LEN;
   }
   else
@@ -1410,8 +1411,7 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
   m_message= NULL;
   m_message_length= 0;
-  //TODO: replace uint*korr with le*toh
-  int incident_number;//= uint2korr(buf + common_header_len);
+  int incident_number;
   memcpy(&incident_number, buf + common_header_len, 2);
   incident_number= le16toh(incident_number);
   if (incident_number >= INCIDENT_COUNT ||
