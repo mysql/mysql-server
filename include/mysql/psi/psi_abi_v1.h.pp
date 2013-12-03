@@ -43,6 +43,14 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
+struct PSI_prepared_stmt_locker;
+typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker;
+struct PSI_prepared_stmt_data
+{
+  char sql_text[80];
+  int sql_text_length;
+};
+typedef struct PSI_prepared_stmt_data PSI_prepared_stmt_data;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 struct PSI_statement_locker;
@@ -290,6 +298,15 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
+struct PSI_prepared_stmt_locker_state
+{
+  uint m_flags;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  PSI_prepared_stmt_data m_ps_data;
+};
+typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
 struct PSI_metadata_locker_state_v1
 {
   uint m_flags;
@@ -622,6 +639,16 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      const struct sockaddr *addr,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
+typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+typedef void (*end_prepare_stmt_v1_t)
+  (PSI_prepared_stmt_locker *locker);
+typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+typedef void (*end_prepared_stmt_execute_v1_t)
+  (PSI_prepared_stmt_locker *locker);
+typedef PSI_prepared_stmt_locker* (*deallocate_prepared_stmt_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
@@ -765,6 +792,11 @@ struct PSI_v1
   set_socket_state_v1_t set_socket_state;
   set_socket_info_v1_t set_socket_info;
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  start_prepare_stmt_v1_t start_prepare_stmt;
+  end_prepare_stmt_v1_t end_prepare_stmt;
+  start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
+  end_prepared_stmt_execute_v1_t end_prepared_stmt_execute;
+  deallocate_prepared_stmt_v1_t deallocate_prepared_stmt;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;

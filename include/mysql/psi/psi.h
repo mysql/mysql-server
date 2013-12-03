@@ -136,6 +136,27 @@ struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
 
 /**
+  Interface for an instrumented prepared statement.
+  This is an opaque structure.
+*/
+struct PSI_prepared_stmt_locker;
+typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker; 
+
+/**
+  Interface for an instrumented prepared statement data.
+  These buffers will used to hold Prepared Statement information temoprarily
+  when it is being prepared and will be copied to prepared_stmt_array finally.
+*/
+struct PSI_prepared_stmt_data
+{
+  char sql_text[80];
+  int sql_text_length;
+  /* Mayank TODO: Add more elements. */
+};
+typedef struct PSI_prepared_stmt_data PSI_prepared_stmt_data;
+
+
+/**
   Interface for an instrumented table operation.
   This is an opaque structure.
 */
@@ -375,6 +396,15 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 */
 #ifndef DISABLE_PSI_SP
 #define HAVE_PSI_SP_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_PS
+  Compiling option to disable the prepared statement instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+#ifndef DISABLE_PSI_PS
+#define HAVE_PSI_PS_INTERFACE
 #endif
 
 /**
@@ -1078,6 +1108,29 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
+
+/**
+  State data storage for @c start_prepare_stmt.
+  This structure provide temporary storage to a digest locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+*/
+struct PSI_prepared_stmt_locker_state
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Prepared statement data. */
+  PSI_prepared_stmt_data m_ps_data;
+};
+typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
 
 /**
   State data storage for @c start_metadata_wait_v1_t.
@@ -2231,6 +2284,42 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
+  Record a prepare statement instrumentation start event.
+  @param current thread.
+*/
+typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+
+/**
+  Record a prepare statement instrumentation end event.
+  @param current thread.
+*/
+typedef void (*end_prepare_stmt_v1_t)
+  (PSI_prepared_stmt_locker *locker);
+
+/**
+  Record a prepared statement execute start event.
+  @param current thread.
+*/
+typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+
+/**
+  Record a prepared statement execute end event.
+  @param current thread.
+*/
+typedef void (*end_prepared_stmt_execute_v1_t)
+  (PSI_prepared_stmt_locker *locker);
+
+typedef PSI_prepared_stmt_locker* (*deallocate_prepared_stmt_v1_t)
+  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+
+/*
+typedef void (*reprepare_statement_v1_t)
+  (PSI_prepared_statement *ps);
+*/
+
+/**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
@@ -2526,6 +2615,11 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  start_prepare_stmt_v1_t start_prepare_stmt;
+  end_prepare_stmt_v1_t end_prepare_stmt;
+  start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
+  end_prepared_stmt_execute_v1_t end_prepared_stmt_execute;
+  deallocate_prepared_stmt_v1_t deallocate_prepared_stmt;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */

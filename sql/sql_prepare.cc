@@ -116,6 +116,7 @@ When one supplies long data for a placeholder:
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
 #include "transaction.h"                        // trans_rollback_implicit
+#include "mysql/psi/mysql_ps.h"
 
 #include <algorithm>
 using std::max;
@@ -2488,6 +2489,15 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt_locker_state state;
+  PSI_prepared_stmt_locker *locker;
+  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
+    PS instrumentation. */
+  locker= MYSQL_START_PS(&state, 
+                         (char*)query, query_len);
+#endif
+
   if (stmt->prepare(query, query_len))
   {
     /* Statement map deletes the statement on erase */
@@ -2495,6 +2505,10 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
   else
     my_ok(thd, 0L, 0L, "Statement prepared");
+
+#ifdef HAVE_PSI_PS_INTERFACE
+  MYSQL_END_PS(locker);
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -2770,7 +2784,21 @@ void mysql_sql_stmt_execute(THD *thd)
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt_locker_state state;
+  PSI_prepared_stmt_locker *locker;
+  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
+    PS instrumentation. */
+  locker= MYSQL_START_PS_EXECUTE(&state, 
+                                 (char*)stmt->query_string.str(),
+                                 stmt->query_string.length());
+#endif
+
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
+
+#ifdef HAVE_PSI_PS_INTERFACE
+  MYSQL_END_PS_EXECUTE(locker);
+#endif
 
   DBUG_VOID_RETURN;
 }

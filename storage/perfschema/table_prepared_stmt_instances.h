@@ -1,0 +1,94 @@
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#ifndef TABLE_PREPARED_STMT_INSTANCES
+#define TABLE_PREPARED_STMT_INSTANCES
+
+/**
+  @file storage/perfschema/table_prepared_stmt_instances.h
+  Table PREPARED_STATEMENT_INSTANCE(declarations).
+*/
+
+#include "table_helper.h"
+#include "pfs_prepared_stmt.h"
+
+/**
+  @addtogroup Performance_schema_tables
+  @{
+*/
+
+/**
+  A row of table
+  PERFORMANCE_SCHEMA.PREPARED_STATEMENT_INSTANCES.
+*/
+struct row_prepared_stmt_instances
+{
+  /** Column SQL_TEXT. */
+  char m_sql_text[COL_INFO_SIZE];
+  int m_sql_text_length;
+
+  /** Columns TIMER_PREPARE. */
+  PFS_statement_stat_row m_prepared_stmt_stat;
+
+  /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
+  PFS_statement_stat_row m_prepared_stmt_execute_stat;
+};
+
+/** Table PERFORMANCE_SCHEMA.PREPARED_STATEMENT_INSTANCES. */
+class table_prepared_stmt_instances : public PFS_engine_table
+{
+public:
+  /** Table share */
+  static PFS_engine_table_share m_share;
+  static PFS_engine_table* create();
+  static int delete_all_rows();
+
+  virtual int rnd_next();
+  virtual int rnd_pos(const void *pos);
+  virtual void reset_position(void);
+
+protected:
+  virtual int read_row_values(TABLE *table,
+                              unsigned char *buf,
+                              Field **fields,
+                              bool read_all);
+
+  table_prepared_stmt_instances();
+
+public:
+  ~table_prepared_stmt_instances()
+  {}
+
+protected:
+  void make_row(PFS_prepared_stmt*);
+
+private:
+  /** Table share lock. */
+  static THR_LOCK m_table_lock;
+  /** Fields definition. */
+  static TABLE_FIELD_DEF m_field_def;
+
+  /** Current row. */
+  row_prepared_stmt_instances m_row;
+  /** True is the current row exists. */
+  bool m_row_exists;
+  /** Current position. */
+  PFS_simple_index m_pos;
+  /** Next position. */
+  PFS_simple_index m_next_pos;
+};
+
+/** @} */
+#endif
