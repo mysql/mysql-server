@@ -67,6 +67,3 @@ perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --skip-test-list=collection/disabled-weekly.list
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --suite=rpl,binlog  -mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --skip-test-list=collection/disabled-weekly.list
 
-#Run with Query Cache Enabled
-
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
