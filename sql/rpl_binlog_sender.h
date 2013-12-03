@@ -419,9 +419,9 @@ private:
    *                 as this parameter states.
    * @param factor The multiplier factor on the baseline.
    * @param new_val[out] The placeholder where the new value will be stored.
-   * @return True in case 
+   * @return true in case of an error.
    */
-  inline bool calc_buffer_size(uint32 current_size, uint32 min_size, 
+  inline bool calc_buffer_size(uint32 current_size, uint32 min_size,
                                float factor, uint32 *new_val);
 };
 
