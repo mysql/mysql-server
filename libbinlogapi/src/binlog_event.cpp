@@ -1411,8 +1411,8 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
   m_message= NULL;
   m_message_length= 0;
-  int incident_number;
-  memcpy(&incident_number, buf + common_header_len, 2);
+  uint16_t incident_number;
+  memcpy(&incident_number, buf + common_header_len, sizeof(incident_number));
   incident_number= le16toh(incident_number);
   if (incident_number >= INCIDENT_COUNT ||
       incident_number <= INCIDENT_NONE)
