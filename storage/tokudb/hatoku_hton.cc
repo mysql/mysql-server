@@ -170,7 +170,6 @@ const char *ha_tokudb_ext = ".tokudb";
 char *tokudb_data_dir;
 ulong tokudb_debug;
 DB_ENV *db_env;
-DB* metadata_db;
 HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 
@@ -309,7 +308,6 @@ static int tokudb_init_func(void *p) {
     assert(r == 0);
 
     db_env = NULL;
-    metadata_db = NULL;
 
     tokudb_hton = (handlerton *) p;
 
@@ -504,35 +502,6 @@ static int tokudb_init_func(void *p) {
         toku_global_status_rows = (TOKU_ENGINE_STATUS_ROW_S*)tokudb_my_malloc(sizeof(*toku_global_status_rows)*toku_global_status_max_rows, mem_flags);
     }
 
-    r = db_create(&metadata_db, db_env, 0);
-    if (r) {
-        DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
-        goto error;
-    }
-    
-
-    r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
-    if (r) {
-        if (r != ENOENT) {
-            sql_print_error("Got error %d when trying to open metadata_db", r);
-            goto error;
-        }
-        r = metadata_db->close(metadata_db,0);
-        assert(r == 0);
-        r = db_create(&metadata_db, db_env, 0);
-        if (r) {
-            DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
-            goto error;
-        }
-
-        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
-        if (r) {
-            goto error;
-        }
-    }
-
-
-
     tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
     //3938: succeeded, set the init status flag and unlock
@@ -541,10 +510,6 @@ static int tokudb_init_func(void *p) {
     DBUG_RETURN(false);
 
 error:
-    if (metadata_db) {
-        int rr = metadata_db->close(metadata_db, 0);
-        assert(rr==0);
-    }
     if (db_env) {
         int rr= db_env->close(db_env, 0);
         assert(rr==0);
@@ -586,10 +551,6 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     rw_wrlock(&tokudb_hton_initialized_lock);
     assert(tokudb_hton_initialized);
 
-    if (metadata_db) {
-        int r = metadata_db->close(metadata_db, 0);
-        assert(r == 0);
-    }
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
