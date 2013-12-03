@@ -1011,11 +1011,11 @@ inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
     return true;
 
   /*
-     Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and 
+     Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and
      new_size wraps around, the min_size will always be returned,
      i.e., it is a safety net.
 
-     Also, cap new_size to PACKET_MAX_SIZE (in case 
+     Also, cap new_size to PACKET_MAX_SIZE (in case
      PACKET_MAX_SIZE < UINT_MAX32).
    */
   uint32 new_size= std::min(PACKET_MAX_SIZE,
