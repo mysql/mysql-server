@@ -465,8 +465,10 @@ os_file_get_last_error_low(
 		return(OS_FILE_INSUFFICIENT_RESOURCE);
 	} else if (err == ERROR_OPERATION_ABORTED) {
 		return(OS_FILE_OPERATION_ABORTED);
+	} else if (err == ERROR_ACCESS_DENIED) {
+		return(OS_FILE_ACCESS_VIOLATION);
 	} else {
-		return(100 + err);
+		return(OS_FILE_ERROR_MAX + err);
 	}
 #else
 	int err = errno;
@@ -540,8 +542,10 @@ os_file_get_last_error_low(
 			return(OS_FILE_AIO_INTERRUPTED);
 		}
 		break;
+	case EACCES:
+		return(OS_FILE_ACCESS_VIOLATION);
 	}
-	return(100 + err);
+	return(OS_FILE_ERROR_MAX + err);
 #endif
 }
 
@@ -619,6 +623,7 @@ os_file_handle_error_cond_exit(
 
 	case OS_FILE_PATH_ERROR:
 	case OS_FILE_ALREADY_EXISTS:
+	case OS_FILE_ACCESS_VIOLATION:
 
 		return(FALSE);
 
