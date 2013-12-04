@@ -1565,10 +1565,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  const CSET_STRING query_backup= thd->query_string;
-  thd->set_query(table->s->table_name.str,
-                 (uint) table->s->table_name.length, system_charset_info);
-
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
@@ -1580,7 +1576,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 

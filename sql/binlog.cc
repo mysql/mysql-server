@@ -7764,11 +7764,11 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
   binlog_cache_data *cache_data=
     cache_mngr->get_binlog_cache_data(is_transactional);
 
-  if (binlog_rows_query && this->query())
+  if (binlog_rows_query && this->query().str)
   {
     /* Write the Rows_query_log_event into binlog before the table map */
     Rows_query_log_event
-      rows_query_ev(this, this->query(), this->query_length());
+      rows_query_ev(this, this->query().str, this->query().length);
     if ((error= cache_data->write_event(this, &rows_query_ev)))
       DBUG_RETURN(error);
   }
@@ -8044,7 +8044,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
 int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
-  DBUG_PRINT("info", ("query: %s", query()));
+  DBUG_PRINT("info", ("query: %s", query().str));
   DBUG_PRINT("info", ("variables.binlog_format: %lu",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
@@ -9127,7 +9127,7 @@ static void reset_binlog_unsafe_suppression()
   Auxiliary function to print warning in the error log.
 */
 static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
-                                 char* query)
+                                        const char* query)
 {
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -9149,7 +9149,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   TODO: Remove this function and implement a general service for all warnings
   that would prevent flooding the error log. => switch to log_throttle class?
 */
-static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
+static void do_unsafe_limit_checkout(char* buf, int unsafe_type, const char* query)
 {
   ulonglong now;
   DBUG_ENTER("do_unsafe_limit_checkout");
@@ -9264,9 +9264,9 @@ void THD::issue_unsafe_warnings()
       if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
-          do_unsafe_limit_checkout( buf, unsafe_type, query());
+          do_unsafe_limit_checkout( buf, unsafe_type, query().str);
         else //cases other than LIMIT unsafety
-          print_unsafe_warning_to_log(unsafe_type, buf, query());
+          print_unsafe_warning_to_log(unsafe_type, buf, query().str);
       }
     }
   }
@@ -9346,8 +9346,8 @@ Logical_clock::~Logical_clock()
   @retval nonzero If there is a failure when writing the query (e.g.,
   write failure), then the error code is returned.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
-                      ulong query_len, bool is_trans, bool direct, 
+int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
+                      size_t query_len, bool is_trans, bool direct,
                       bool suppress_use, int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
