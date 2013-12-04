@@ -73,13 +73,12 @@ const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
 bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
-bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
+bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
-bool alloc_query(THD *thd, const char *packet, uint packet_length);
-void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 Parser_state *parser_state);
+bool alloc_query(THD *thd, const char *packet, size_t packet_length);
+void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
 void create_select_for_variable(const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);

@@ -198,8 +198,8 @@ void struct_slave_connection::reset()
 */
 
 bool Lex_input_stream::init(THD *thd,
-			    char* buff,
-			    unsigned int length)
+			    const char* buff,
+			    size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -228,14 +228,25 @@ bool Lex_input_stream::init(THD *thd,
 */
 
 void
-Lex_input_stream::reset(char *buffer, unsigned int length)
+Lex_input_stream::reset(const char *buffer, size_t length)
 {
   yylineno= 1;
   yytoklen= 0;
   yylval= NULL;
   lookahead_token= -1;
   lookahead_yylval= NULL;
-  m_ptr= buffer;
+  /*
+    Lex_input_stream modifies the query string in one special case (sic!).
+    yyUnput() modifises the string when patching version comments.
+    This is done to prevent newer slaves from executing a different
+    statement than older masters.
+
+    For now, cast away const here. This means that e.g. SHOW PROCESSLIST
+    can see partially patched query strings. It would be better if we
+    could replicate the query string as is and have the slave take the
+    master version into account.
+  */
+  m_ptr= const_cast<char*>(buffer);
   m_tok_start= NULL;
   m_tok_end= NULL;
   m_end_of_query= buffer + length;
