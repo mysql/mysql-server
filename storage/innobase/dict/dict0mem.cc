@@ -99,7 +99,7 @@ dict_mem_table_create(
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
 
 	table->stats_latch = new rw_lock_t;
-	rw_lock_create(dict_table_stats_latch_key, table->stats_latch,
+	rw_lock_create(dict_table_stats_key, table->stats_latch,
 		       SYNC_INDEX_TREE);
 
 #ifndef UNIV_HOTBACKUP
