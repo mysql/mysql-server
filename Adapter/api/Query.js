@@ -172,7 +172,7 @@ QueryDomainType.prototype.inspect = function() {
   return "[[API Query on table: " + mynode.dbTableHandler.dbTable.name + 
     ", type: " + mynode.queryType + ", predicate: " + 
     util.inspect(mynode.predicate) + "]]\n";
-}
+};
 
 QueryDomainType.prototype.not = function(queryPredicate) {
   return new QueryNot(queryPredicate);

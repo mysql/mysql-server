@@ -41,7 +41,7 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
 SessionFactory.prototype.inspect = function() {
   return "[[API SessionFactory with key:" + this.key + ", " + 
   this.mappings.length + " mappings, " + this.sessions.length + " sessions.]]\n";
-}
+};
 
 //openSession(Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool

@@ -38,7 +38,13 @@ function Promise() {
   // until then is called, this is an empty promise with no performance impact
 }
 
-/** Fulfill or reject the original promise.
+function emptyFulfilledCallback(result) {
+  return result;
+}
+function emptyRejectedCallback(err) {
+  throw err;
+}
+/** Fulfill or reject the original promise via "The Promise Resolution Procedure".
  * original_promise is the Promise from this implementation on which "then" was called
  * new_promise is the Promise from this implementation returned by "then"
  * if the fulfilled or rejected callback provided by "then" returns a promise, wire the new_result (thenable)
@@ -50,8 +56,12 @@ function Promise() {
 var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result) {
   var new_result;
   try {
+    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected before');
     new_result = fulfilled_or_rejected_callback.call(undefined, result);
-    if (typeof new_result !== 'undefined') {
+    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected after', new_result);
+    var new_result_type = typeof new_result;
+    if ((new_result_type === 'object' && new_result_type != null) | new_result_type === 'function') { 
+      // 2.3.3 if result is an object or function
       // 2.3 The Promise Resolution Procedure
       // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
       if (new_result === original_promise) {
@@ -77,12 +87,14 @@ var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rej
           then.call(new_result,
             // 2.3.3.3.1 If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).
             function(result) {
+            udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred fulfill callback', new_result);
               if (!new_promise.resolved) {
                 new_promise.fulfill(result);
               }
             },
             // 2.3.3.3.2 If/when rejectPromise is called with a reason r, reject promise with r.
             function(err) {
+              udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred reject callback', new_result);
               if (!new_promise.resolved) {
                 new_promise.reject(err);
               }
@@ -114,6 +126,7 @@ var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rej
 
 Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
   var self = this;
+  if (!self) udebug.log_detail('Promise.then called with no this');
   // create a new promise to return from the "then" method
   var new_promise = new Promise();
   if (typeof self.fulfilled_callbacks === 'undefined') {
@@ -122,17 +135,21 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
     self.progress_callbacks = [];
   }
   if (self.resolved) {
+    var resolved_result;
+    udebug.log_detail(this.name, 'UserContext.Promise.then resolved; err:', self.err);
     if (self.err) {
       // this promise was already rejected
+      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) rejected_callback', rejected_callback);
       global.setImmediate(function() {
-        rejected_callback.call(undefined, self.err);
-        new_promise.reject(self.err);
+        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling rejected_callback', fulfilled_callback);
+        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, self.err);
       });
     } else {
       // this promise was already fulfilled, possibly with a null or undefined result
+      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) fulfilled_callback', fulfilled_callback);
       global.setImmediate(function() {
-        fulfilled_callback.call(undefined, self.result);
-        new_promise.fulfill(self.result);
+        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling fulfilled_callback', fulfilled_callback);
+        thenPromiseFulfilledOrRejected(self, fulfilled_callback, new_promise, self.result);
       });
     }
     return new_promise;
@@ -140,6 +157,7 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   // create a closure for each fulfilled_callback
   // the closure is a function that when called, calls setImmediate to call the fulfilled_callback with the result
   if (typeof fulfilled_callback === 'function') {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with fulfilled_callback', fulfilled_callback);
     // the following function closes (this, fulfilled_callback, new_promise)
     // and is called asynchronously when this promise is fulfilled
     this.fulfilled_callbacks.push(function(result) {
@@ -148,11 +166,12 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
       });
     });
   } else {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with no fulfilled_callback');
     // create a dummy function for a missing fulfilled callback per 2.2.7.3 
     // If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value.
     this.fulfilled_callbacks.push(function(result) {
       global.setImmediate(function() {
-        new_promise.fulfill(result);
+        thenPromiseFulfilledOrRejected(self, emptyFulfilledCallback, new_promise, result);
       });
     });
   }
@@ -160,17 +179,19 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   // create a closure for each rejected_callback
   // the closure is a function that when called, calls setImmediate to call the rejected_callback with the error
   if (typeof rejected_callback === 'function') {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with rejected_callback', rejected_callback);
     this.rejected_callbacks.push(function(err) {
       global.setImmediate(function() {
         thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, err);
       });
     });
   } else {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with no rejected_callback');
     // create a dummy function for a missing rejected callback per 2.2.7.4 
     // If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason.
     this.rejected_callbacks.push(function(err) {
       global.setImmediate(function() {
-        new_promise.reject(err);
+        thenPromiseFulfilledOrRejected(self, emptyRejectedCallback, new_promise, err);
       });
     });
   }
@@ -183,9 +204,13 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
 };
 
 Promise.prototype.fulfill = function(result) {
+  var name = this?this.name: 'no this';
+  udebug.log_detail(new Error(name, 'Promise.fulfill').stack);
   if (this.resolved) {
     throw new Error('Fatal User Exception: fulfill called after fulfill or reject');
   }
+  udebug.log_detail(name, 'Promise.fulfill with result', result, 'fulfilled_callbacks length:', 
+      this.fulfilled_callbacks?  this.fulfilled_callbacks.length: 0);
   this.resolved = true;
   this.result = result;
   var fulfilled_callback;
@@ -202,6 +227,9 @@ Promise.prototype.reject = function(err) {
   if (this.resolved) {
     throw new Error('Fatal User Exception: reject called after fulfill or reject');
   }
+  var name = this?this.name: 'no this';
+  udebug.log_detail(name, 'Promise.reject with err', err, 'rejected_callbacks length:', 
+      this.rejected_callbacks?  this.rejected_callbacks.length: 0);
   this.resolved = true;
   this.err = err;
   var rejected_callback;
@@ -212,6 +240,7 @@ Promise.prototype.reject = function(err) {
       rejected_callback(err);
     }
   }
+//  throw err;
 };
 
 /** Create a function to manage the context of a user's asynchronous call.
@@ -1515,7 +1544,6 @@ exports.UserContext.prototype.closeSession = function() {
  * throw the error.
  */
 exports.UserContext.prototype.applyCallback = function(err, result) {
-  var promise_result = result || null;
   if (arguments.length !== this.returned_parameter_count) {
     throw new Error(
         'Fatal internal exception: wrong parameter count ' + arguments.length +' for UserContext applyCallback' + 
@@ -1527,7 +1555,7 @@ exports.UserContext.prototype.applyCallback = function(err, result) {
     this.promise.reject(err);
   } else {
     udebug.log_detail('UserContext.applyCallback.fulfill', result);
-    this.promise.fulfill(promise_result);
+    this.promise.fulfill(result);
   }
   if (typeof(this.user_callback) === 'undefined') {
     udebug.log_detail('UserContext.applyCallback with no user_callback.');
@@ -1543,3 +1571,5 @@ exports.UserContext.prototype.applyCallback = function(err, result) {
   }
   this.user_callback.apply(null, args);
 };
+
+exports.Promise = Promise;

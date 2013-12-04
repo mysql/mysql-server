@@ -19,6 +19,7 @@
  */
 
 "use strict";
+/*global fail_openSession */
 
 var good_properties = global.test_conn_properties;
 
@@ -388,7 +389,9 @@ t_23f.run = function() {
   }
   
   function reportSuccess(result) {
-    test.errorIfNotNull('t_23f result of session.close should be null but is ' + result, result);
+    if (result) {
+    test.appendErrorMessage('t_23f result of session.close should be null or undefined but is ' + result, result);
+    }
     test.failOnError();
   }
   
@@ -438,6 +441,111 @@ t_23r.run = function() {
   p3 = p2.then(reportSuccess, reportFailure);
 };
 tests.push(t_23r);
+
+/** Transaction state tests.
+ * Helpers is a closure of testCase and session. Methods of Helpers are called with no 'this'
+ * and they use the original parameters passed.
+ */
+function createHelpers(testCase, session, errorMatch) {
+  return {
+    begin : function() {
+      var result = session.currentTransaction().begin();
+      return result;
+    },
+    commit : function() {
+      return session.currentTransaction().commit();
+    },
+    activeBeginFails : function(err) {
+      // check for the right err
+      testCase.errorIfNull('activeBeginFails: ' + err.message,
+          err.message.match('Active cannot begin'));
+      throw err;
+    },
+    rollback : function() {
+      return session.currentTransaction().rollback();
+    },
+    setRollbackOnly : function() {
+      session.currentTransaction().setRollbackOnly();
+    },
+    errorReportSuccess : function() {
+      testCase.fail('must return an error but did not.');
+    },
+    correctlyReportFailure : function(err) {
+      if (errorMatch) {
+        testCase.errorIfNull('wrong error ' + err + '; should match ' + errorMatch,
+            err.message.match(errorMatch.message));
+      }
+      testCase.failOnError();
+    }
+  };
+};
+
+var testIdleCommit = new harness.ConcurrentTest('Idle commit must fail');
+testIdleCommit.run = function() {
+  var testCase = this;
+  mynode.openSession(good_properties, null, function(err, session) {
+    if (err) throw err;
+    var helpers = createHelpers(testCase, session, 'Idle cannot commit');
+    helpers.commit().
+      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+  });
+};
+tests.push(testIdleCommit);
+
+var testIdleRollback = new harness.ConcurrentTest('Idle rollback must fail');
+testIdleRollback.run = function() {
+  var testCase = this;
+  mynode.openSession(good_properties, null, function(err, session) {
+    if (err) throw err;
+    var helpers = createHelpers(testCase, session, 'Idle cannot rollback');
+    helpers.rollback().
+      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+  });
+};
+tests.push(testIdleRollback);
+
+var testActiveBegin = new harness.ConcurrentTest('Active begin must fail');
+testActiveBegin.run = function() {
+  var testCase = this;
+  mynode.openSession(good_properties, null, function(err, session) {
+    if (err) throw err;
+    var helpers = createHelpers(testCase, session, 'Active cannot begin');
+    var p1 = helpers.begin();
+      var p2 = p1.then(helpers.begin);
+      p2.name = 'p2';
+      var p3 = p2.then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      p3.name = 'p3';
+  });
+};
+tests.push(testActiveBegin);
+
+var testRollbackOnlyBegin = new harness.ConcurrentTest('RollbackOnly begin must fail');
+testRollbackOnlyBegin.run = function() {
+  var testCase = this;
+  mynode.openSession(good_properties, null, function(err, session) {
+    if (err) throw err;
+    var helpers = createHelpers(testCase, session, 'RollbackOnly cannot begin');
+    helpers.begin().
+      then(helpers.setRollbackOnly).
+      then(helpers.begin).
+      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+  });
+};
+tests.push(testRollbackOnlyBegin);
+
+var testRollbackOnlyCommit = new harness.ConcurrentTest('RollbackOnly commit must fail');
+testRollbackOnlyCommit.run = function() {
+  var testCase = this;
+  mynode.openSession(good_properties, null, function(err, session) {
+    if (err) throw err;
+    var helpers = createHelpers(testCase, session, 'RollbackOnly cannot commit');
+    helpers.begin().
+      then(helpers.setRollbackOnly).
+      then(helpers.commit).
+      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+  });
+};
+tests.push(testRollbackOnlyCommit);
 
 // need to test "then" when the promise has already been fulfilled or rejected
 
