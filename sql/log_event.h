@@ -1210,6 +1210,48 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
+  /*
+   This function will read the common header into the buffer and
+   rewind the IO_CACHE back to the beginning of the event.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[in/out]     header The buffer where to read the common header. This
+                      buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
+
+   @returns           false on success, true otherwise.
+  */
+  inline static bool peek_event_header(char *header, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Binlog_sender::peek_event_header");
+    my_off_t old_pos= my_b_safe_tell(log_cache);
+    if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
+      DBUG_RETURN(true);
+    my_b_seek(log_cache, old_pos); // rewind
+    DBUG_RETURN(false);
+  }
+
+  /*
+   This static function will read the event length from the common
+   header that is on the IO_CACHE. Note that the IO_CACHE read position
+   will not be updated.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[out]        length A pointer to the memory position where to store
+                      the length value.
+
+   @returns           false on success, true otherwise.
+  */
+
+  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Binlog_sender::peek_event_length");
+    char header[LOG_EVENT_MINIMAL_HEADER_LEN];
+    if (peek_event_header(header, log_cache))
+      DBUG_RETURN(true);
+    *length= uint4korr(header + EVENT_LEN_OFFSET);
+    DBUG_RETURN(false);
+  }
+
   /**
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
