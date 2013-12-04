@@ -237,6 +237,8 @@ search:
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
         /* Do the assignments. */
+        memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
+        pfs->m_key.m_key_length= key.m_key_length;
         strncpy(pfs->m_sqltext, ps_data->sql_text, ps_data->sql_text_length);
         pfs->m_sqltext_length= ps_data->sql_text_length;
         /* Mayank TODO: Add code to do more assignment. */
