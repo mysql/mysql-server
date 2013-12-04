@@ -4674,7 +4674,7 @@ finish:
     {
       sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
                       "for query '%.*s'", leaked - total_leaked_bytes,
-                      static_cast<int>(thd->query_length()), thd->query());
+                      static_cast<int>(thd->query().length), thd->query().str);
     }
     total_leaked_bytes= leaked;
   }
