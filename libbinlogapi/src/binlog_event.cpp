@@ -494,7 +494,7 @@ Start_event_v3::Start_event_v3(const char* buf,
   server_version[ST_SERVER_VER_LEN - 1]= 0;
   created= 0;
   memcpy(&created, buf + ST_CREATED_OFFSET, 4);
-  created= le32toh(created);
+  created= le64toh(created);
   dont_set_created= 1;
 }
 
