@@ -25,6 +25,9 @@
 #include "sql_error.h"
 #include "binlog.h"
 #include "log_event.h"
+#include <algorithm>
+using std::max;
+using std::min;
 
 /**
   The major logic of dump thread is implemented in this class. It sends
@@ -35,12 +38,13 @@ class Binlog_sender
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
               Gtid_set *exclude_gtids)
-    : m_thd(thd), m_start_file(start_file), m_start_pos(start_pos),
-    m_exclude_gtid(exclude_gtids),
+    : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
-    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0)
+    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE)
   {}
 
   ~Binlog_sender() {}
@@ -52,6 +56,7 @@ public:
   void run();
 private:
   THD *m_thd;
+  String& m_packet;
 
   /* Requested start binlog file and position */
   const char *m_start_file;
@@ -91,6 +96,60 @@ private:
   char m_last_file_buf[FN_REFLEN];
   const char *m_last_file;
   my_off_t m_last_pos;
+
+  /*
+    Needed to be able to evaluate if buffer needs to be resized (shrunk).
+  */
+  ushort m_half_buffer_size_req_counter;
+
+  /*
+   * The size of the buffer next time we shrink it.
+   * This variable is updated once everytime we shrink or grow the buffer.
+   */
+  uint32 m_new_shrink_size;
+
+  /*
+     Max size of the buffer is 4GB (UINT_MAX32). It is UINT_MAX32 since the
+     threshold is set to (@c Log_event::read_log_event):
+
+       max(max_allowed_packet,
+           opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)
+
+     - opt_binlog_rows_event_max_size is defined as an unsigned long,
+       thence in theory row events can be bigger than UINT_MAX32.
+
+     - max_allowed_packet is set to MAX_MAX_ALLOWED_PACKET which is in
+       turn defined as 1GB (i.e., 1024*1024*1024). (@c Binlog_sender::init()).
+
+     Therefore, anything bigger than UINT_MAX32 is not loadable into the
+     packet, thus we set the limit to 4GB (which is the value for UINT_MAX32,
+     @c PACKET_MAXIMUM_SIZE).
+
+   */
+  const static uint32 PACKET_MAX_SIZE;
+
+  /*
+   * After these consecutive times using less than half of the buffer
+   * the buffer is shrunk.
+   */
+  const static ushort PACKET_SHRINK_COUNTER_THRESHOLD;
+
+  /**
+   * The minimum size of the buffer.
+   */
+  const static uint32 PACKET_MIN_SIZE;
+
+  /**
+   * How much to grow the buffer each time we need to accommodate more bytes
+   * than it currently can hold.
+   */
+  const static float PACKET_GROW_FACTOR;
+
+  /**
+   * The dual of PACKET_GROW_FACTOR. How much to shrink the buffer each time
+   * it is deemed to being underused.
+   */
+  const static float PACKET_SHRINK_FACTOR;
 
   /*
     It initializes the context, checks if the dump request is valid and
@@ -177,8 +236,7 @@ private:
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int fake_rotate_event(String *packet, const char *next_log_file,
-                        my_off_t log_pos);
+  int fake_rotate_event(const char *next_log_file, my_off_t log_pos);
 
   /**
      When starting to dump a binlog file, Format_description_log_event
@@ -187,14 +245,12 @@ private:
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] packet         The buffer used to store the event.
      @param[in] log_cache      IO_CACHE of the binlog will be dumpped
      @param[in] clear_log_pos  If clears end_pos field in the event.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(String *packet, IO_CACHE *log,
-                                    bool clear_log_pos);
+  int send_format_description_event(IO_CACHE *log, bool clear_log_pos);
   /**
      It sends a heartbeat to the client.
 
@@ -203,7 +259,7 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_heartbeat_event(String* packet, my_off_t log_pos);
+  int send_heartbeat_event(my_off_t log_pos);
 
   /**
      It reads a event from binlog file.
@@ -242,12 +298,10 @@ private:
 
   inline void calc_event_checksum(uchar *event_ptr, uint32 event_len);
   inline int flush_net();
-  inline int send_packet(String *packet);
-  inline int send_packet_and_flush(String *packet);
-  inline int before_send_hook(String *packet, const char *log_file,
-                              my_off_t log_pos);
-  inline int after_send_hook(String *packet, const char *log_file,
-                             my_off_t log_pos);
+  inline int send_packet();
+  inline int send_packet_and_flush();
+  inline int before_send_hook(const char *log_file, my_off_t log_pos);
+  inline int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
     Reset thread transmit packet buffer for event sending
 
@@ -256,8 +310,13 @@ private:
 
     @param[inout] packet  The buffer where a event will be stored.
     @param[in] flags      The flag used in reset_transmit hook.
+    @param[in] event_len  If the caller already knows the event length, then
+                          it can pass this value so that reset_transmit_packet
+                          already reallocates the buffer if needed. Otherwise,
+                          if event_len is 0, then the caller needs to extend
+                          the buffer itself.
   */
-  inline int reset_transmit_packet(String *packet, ushort flags);
+  inline int reset_transmit_packet(ushort flags, uint32 event_len= 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -321,6 +380,49 @@ private:
     strcpy(m_last_file_buf, log_file);
     m_last_file= m_last_file_buf;
   }
+
+  /**
+   * This function SHALL grow the buffer of the packet if needed.
+   *
+   * If the buffer used for the packet is large enough to accommodate
+   * the requested extra bytes, then this function does not do anything.
+   *
+   * On the other hand, if the requested size is bigger than the available
+   * free bytes in the buffer, the buffer is extended by a constant factor
+   * (@c PACKET_GROW_FACTOR).
+   *
+   * @param packet  The buffer to resize if needed.
+   * @param extra_size  The size in bytes that the caller wants to add to the buffer.
+   * @return true if an error occurred, false otherwise.
+   */
+  inline bool grow_packet(uint32 extra_size);
+
+  /**
+   * This function SHALL shrink the size of the buffer used.
+   *
+   * If less than half of the buffer was used in the last N
+   * (@c PACKET_SHRINK_COUNTER_THRESHOLD) consecutive times this function
+   * was called, then the buffer gets shrunk by a constant factor
+   * (@c PACKET_SHRINK_FACTOR).
+   *
+   * The buffer is never shrunk less than a minimum size (@c PACKET_MIN_SIZE).
+   *
+   * @param packet  The buffer to shrink.
+   */
+  inline bool shrink_packet();
+
+  /*
+   * Helper function to recalculate a new size for the buffer.
+   *
+   * @param current_size The baseline (for instance, the current buffer size).
+   * @param min_size The resulting buffer size, needs to be at least as large
+   *                 as this parameter states.
+   * @param factor The multiplier factor on the baseline.
+   * @param new_val[out] The placeholder where the new value will be stored.
+   * @return true in case of an error.
+   */
+  inline bool calc_buffer_size(uint32 current_size, uint32 min_size,
+                               float factor, uint32 *new_val);
 };
 
 #endif // HAVE_REPLICATION
