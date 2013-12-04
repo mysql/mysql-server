@@ -500,16 +500,6 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
   return 0;
 }
 
-static int smart_dbt_metacallback (DBT const *key, DBT  const *row, void *context) {
-    DBT* val = (DBT *)context;
-    val->data = tokudb_my_malloc(row->size, MYF(MY_WME|MY_ZEROFILL));
-    if (val->data == NULL) return ENOMEM;
-    memcpy(val->data, row->data, row->size);
-    val->size = row->size;
-    return 0;
-}
-
-
 static int
 smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
@@ -989,135 +979,6 @@ static uchar* pack_toku_field_blob(
         memcpy(to_tokudb + len_bytes, data_ptr, length);
     }
     return (to_tokudb + len_bytes + length);
-}
-
-
-static int add_table_to_metadata(const char *name, TABLE* table, DB_TXN* txn) {
-    int error = 0;
-    DBT key;
-    DBT val;
-    uchar hidden_primary_key = (table->s->primary_key >= MAX_KEY);
-    assert(txn);
-    
-    memset((void *)&key, 0, sizeof(key));
-    memset((void *)&val, 0, sizeof(val));
-    key.data = (void *)name;
-    key.size = strlen(name) + 1;
-    val.data = &hidden_primary_key;
-    val.size = sizeof(hidden_primary_key);
-    error = metadata_db->put(
-        metadata_db,
-        txn,
-        &key,
-        &val,
-        0
-        );
-    return error;
-}
-
-static int drop_table_from_metadata(const char *name, DB_TXN* txn) {
-    int error = 0;
-    DBT key;
-    DBT data;
-    assert(txn);
-    memset((void *)&key, 0, sizeof(key));
-    memset((void *)&data, 0, sizeof(data));
-    key.data = (void *)name;
-    key.size = strlen(name) + 1;
-    error = metadata_db->del(
-        metadata_db, 
-        txn, 
-        &key , 
-        DB_DELETE_ANY
-        );
-    return error;
-}
-
-static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* txn) {
-    int error = 0;
-    DBT from_key;
-    DBT to_key;
-    DBT val;
-    assert(txn);
-    
-    memset((void *)&from_key, 0, sizeof(from_key));
-    memset((void *)&to_key, 0, sizeof(to_key));
-    memset((void *)&val, 0, sizeof(val));
-    from_key.data = (void *)from;
-    from_key.size = strlen(from) + 1;
-    to_key.data = (void *)to;
-    to_key.size = strlen(to) + 1;
-    
-    error = metadata_db->getf_set(
-        metadata_db, 
-        txn, 
-        0, 
-        &from_key, 
-        smart_dbt_metacallback, 
-        &val
-        );
-
-    if (error) {
-        goto cleanup;
-    }
-
-    error = metadata_db->put(
-        metadata_db,
-        txn,
-        &to_key,
-        &val,
-        0
-        );
-    if (error) {
-        goto cleanup;
-    }
-
-    error = metadata_db->del(
-        metadata_db, 
-        txn, 
-        &from_key, 
-        DB_DELETE_ANY
-        );
-    if (error) {
-        goto cleanup;
-    }
-
-    error = 0;
-
-cleanup:
-    tokudb_my_free(val.data);
-
-    return error;
-}
-
-
-static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* txn) {
-    int error = 0;
-    DBT key;
-    pthread_mutex_lock(&tokudb_meta_mutex);
-    memset((void *)&key, 0, sizeof(key));
-    key.data = (void *)name;
-    key.size = strlen(name) + 1;
-    
-    error = metadata_db->getf_set(
-        metadata_db, 
-        txn, 
-        0, 
-        &key, 
-        smart_dbt_do_nothing, 
-        NULL
-        );
-
-    if (error == 0) {
-        *table_found = true;
-    }
-    else if (error == DB_NOTFOUND){
-        *table_found = false;
-        error = 0;
-    }
-
-    pthread_mutex_unlock(&tokudb_meta_mutex);
-    return error;
 }
 
 static int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
@@ -1709,7 +1570,6 @@ int ha_tokudb::initialize_share(
 {
     int error = 0;
     uint64_t num_rows = 0;
-    bool table_exists;
     DB_TXN* txn = NULL;
     bool do_commit = false;
     THD* thd = ha_thd();
@@ -1725,18 +1585,6 @@ int ha_tokudb::initialize_share(
     }
 
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
-
-    table_exists = true;
-    error = check_table_in_metadata(name, &table_exists, txn);
-
-    if (error) {
-        goto exit;
-    }
-    if (!table_exists) {
-        sql_print_error("table %s does not exist in metadata, was it moved from someplace else? Not opening table", name);
-        error = HA_ADMIN_FAILED;
-        goto exit;
-    }
 
     error = get_status(txn);
     if (error) {
@@ -6951,6 +6799,8 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
     return ROW_TYPE_DEFAULT;
 }
 
+volatile int tokudb_create_wait = 0;
+
 //
 // Creates a new table
 // Parameters:
@@ -6963,6 +6813,7 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
 //
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
     TOKUDB_DBUG_ENTER("ha_tokudb::create %p %s", this, name);
+    while (tokudb_create_wait) sleep(1);
     int error;
     DB *status_block = NULL;
     uint version;
@@ -6975,8 +6826,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     THD* thd = ha_thd();
     bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     memset(&kc_info, 0, sizeof(kc_info));
-
-    pthread_mutex_lock(&tokudb_meta_mutex);
 
     trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
 
@@ -7086,9 +6935,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         }
     }
 
-    error = add_table_to_metadata(name, form, txn);
-    if (error) { goto cleanup; }
-
     error = 0;
 cleanup:
     if (status_block != NULL) {
@@ -7105,7 +6951,6 @@ cleanup:
         }
     }
     tokudb_my_free(newname);
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7201,7 +7046,6 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     DBT curr_val;
     memset(&curr_key, 0, sizeof(curr_key));
     memset(&curr_val, 0, sizeof(curr_val));
-    pthread_mutex_lock(&tokudb_meta_mutex);
 
     DB_TXN *parent_txn = NULL;
     tokudb_trx_data *trx = NULL;
@@ -7211,17 +7055,6 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     }
 
     error = txn_begin(db_env, parent_txn, &txn, 0, thd);
-    if (error) { goto cleanup; }
-
-    //
-    // modify metadata db
-    //
-    if (is_delete) {
-        error = drop_table_from_metadata(from_name, txn);
-    }
-    else {
-        error = rename_table_in_metadata(from_name, to_name, txn);
-    }
     if (error) { goto cleanup; }
 
     //
@@ -7292,7 +7125,6 @@ cleanup:
             commit_txn(txn, 0);
         }
     }
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 

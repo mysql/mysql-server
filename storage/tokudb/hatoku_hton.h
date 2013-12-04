@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 extern handlerton *tokudb_hton;
 
 extern DB_ENV *db_env;
-extern DB *metadata_db;
 
 enum srv_row_format_enum {
     SRV_ROW_FORMAT_UNCOMPRESSED = 0,
@@ -379,7 +378,6 @@ static uint64_t tokudb_get_loader_memory_size_callback(void) {
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
-extern pthread_mutex_t tokudb_meta_mutex;
 extern uint32_t tokudb_write_status_frequency;
 extern uint32_t tokudb_read_status_frequency;
 
