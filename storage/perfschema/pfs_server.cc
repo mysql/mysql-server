@@ -193,6 +193,7 @@ static void cleanup_performance_schema(void)
   cleanup_host_hash();
   cleanup_user_hash();
   cleanup_program_hash();
+  cleanup_prepared_stmt_hash();
   cleanup_table_share_hash();
   cleanup_file_hash();
   cleanup_digest_hash();

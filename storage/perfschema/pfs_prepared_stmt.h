@@ -29,7 +29,7 @@
 #define OBJECT_NAME_LENGTH NAME_LEN                                             
 #define SCHEMA_NAME_LENGTH NAME_LEN
 
-extern LF_HASH ps_hash;
+extern LF_HASH prepared_stmt_hash;
 extern ulong prepared_stmt_max;
 extern ulong prepared_stmt_lost;
 
