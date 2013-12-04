@@ -2234,8 +2234,6 @@ private:
 class Delete_file_log_event: public Log_event, public Delete_file_event
 {
 public:
-  uint file_id;
-  const char* db; /* see comment in Append_block_log_event */
 
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
