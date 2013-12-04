@@ -465,5 +465,19 @@ t1.val=t3.val
 ;
 ERROR 42S22: Unknown column 'v.val' in 'field list'
 drop table t1, t2;
+#
+# MDEV-5353: server crash on subselect if WHERE applied to some
+# result field
+#
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.b;
+a	b
+100	200
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.a;
+a	b
+100	200
 # End of 5.3 tests
 set optimizer_switch=@save_derived_optimizer_switch;
