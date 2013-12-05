@@ -59,7 +59,7 @@ IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 ELSE()
   SET(Platform x86)
   SET(PlatformProgramFilesFolder ProgramFilesFolder)
-  SET(Win64)
+  SET(Win64 " Win64='no'")
 ENDIF()
 
 SET(ENV{VS_UNICODE_OUTPUT})
