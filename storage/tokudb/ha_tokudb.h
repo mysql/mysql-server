@@ -127,6 +127,10 @@ typedef struct hot_optimize_context {
 //
 class TOKUDB_SHARE {
 public:
+    void init(void);
+    void destroy(void);
+
+public:
     char *table_name;
     uint table_name_length, use_count;
     pthread_mutex_t mutex;
@@ -184,6 +188,10 @@ public:
     bool replace_into_fast;
     rw_lock_t num_DBs_lock;
     uint32_t num_DBs;
+
+    pthread_cond_t m_openclose_cond;
+    enum { CLOSED, OPENING, OPENED, CLOSING, ERROR } m_state;
+    int m_error;
 };
 
 typedef struct st_filter_key_part_info {
@@ -443,10 +451,7 @@ private:
     int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
     bool can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk);
-    int initialize_share(
-        const char* name,
-        int mode
-        );
+    int initialize_share(const char* name, int mode);
 
     void set_query_columns(uint keynr);
     int prelock_range (const key_range *start_key, const key_range *end_key);
@@ -599,10 +604,10 @@ public:
     int get_status(DB_TXN* trans);
     void init_hidden_prim_key_info();
     inline void get_auto_primary_key(uchar * to) {
-        pthread_mutex_lock(&share->mutex);
+        tokudb_pthread_mutex_lock(&share->mutex);
         share->auto_ident++;
         hpk_num_to_char(to, share->auto_ident);
-        pthread_mutex_unlock(&share->mutex);
+        tokudb_pthread_mutex_unlock(&share->mutex);
     }
     virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
     bool is_optimize_blocking();

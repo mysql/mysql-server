@@ -443,4 +443,44 @@ static inline void* tokudb_my_multi_malloc(myf myFlags, ...) {
   return start;
 }
 
+static inline void tokudb_pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
+    int r = pthread_mutex_init(mutex, attr);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_mutex_destroy(pthread_mutex_t *mutex) {
+    int r = pthread_mutex_destroy(mutex);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_mutex_lock(pthread_mutex_t *mutex) {
+    int r = pthread_mutex_lock(mutex);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_mutex_unlock(pthread_mutex_t *mutex) {
+    int r = pthread_mutex_unlock(mutex);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
+    int r = pthread_cond_init(cond, attr);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_cond_destroy(pthread_cond_t *cond) {
+    int r = pthread_cond_destroy(cond);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
+    int r = pthread_cond_wait(cond, mutex);
+    assert(r == 0);
+}
+
+static inline void tokudb_pthread_cond_broadcast(pthread_cond_t *cond) {
+    int r = pthread_cond_broadcast(cond);
+    assert(r == 0);
+}
+
 #endif
