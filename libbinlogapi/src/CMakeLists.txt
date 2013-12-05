@@ -3,7 +3,7 @@
 set(replication_sources
   field_iterator.cpp row_of_fields.cpp rows_event.cpp
   binary_log.cpp protocol.cpp value.cpp binlog_event.cpp
-  bapi_utility.cpp utilities.cpp)
+  utilities.cpp)
 
 # Configure for building static library
 add_library(binlogapi_static STATIC ${replication_sources})

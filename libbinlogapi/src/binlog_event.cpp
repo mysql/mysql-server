@@ -33,7 +33,9 @@ const unsigned long checksum_version_product=
 namespace binary_log_debug
 {
   bool debug_query_mts_corrupt_db_names= false;
+  bool debug_checksum_test= false;
 }
+
 
 /*
   Explicit instantiation to unsigned int of template available_buffer
@@ -97,7 +99,6 @@ const char *get_event_type_str(Log_event_type type)
 }
 
 
-/*this method was previously defined in log_event.cc */
 /**
    The method returns the checksum algorithm used to checksum the binary log.
    For MySQL server versions < 5.6, the algorithm is undefined. For the higher
@@ -111,7 +112,8 @@ const char *get_event_type_str(Log_event_type type)
             checksum-unaware (effectively no checksum) and the actuall
             [1-254] range alg descriptor.
 */
-enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len)
+enum_binlog_checksum_alg
+Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
 {
   enum_binlog_checksum_alg ret;
   char version[ST_SERVER_VER_LEN];
@@ -273,6 +275,85 @@ Log_event_header::Log_event_header(const char* buf,
 
 
 /**
+   Tests the checksum algorithm used for the binary log, and asserts in case
+   if the checksum algorithm is invalid
+   @param   event_buf        point to the buffer containing serialized event
+   @param   event_len       length of the event accounting possible
+                             checksum alg
+   @param   alg             checksum algorithm used for the binary log
+
+   @return  TRUE            if test fails
+            FALSE           as success
+*/
+bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
+                                           unsigned long event_len,
+                                           enum_binlog_checksum_alg alg)
+{
+  bool res= false;
+  unsigned short flags= 0; // to store in FD's buffer flags orig value
+
+  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
+  {
+    uint32_t incoming;
+    uint32_t computed;
+
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+    {
+    #ifndef DBUG_OFF
+      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
+                             BINLOG_CHECKSUM_ALG_DESC_LEN];
+    #endif
+      /*
+        FD event is checksummed and therefore verified w/o
+        the binlog-in-use flag.
+      */
+      memcpy(&flags, event_buf + FLAGS_OFFSET, sizeof(flags));
+      flags= le16toh(flags);
+      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
+        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+    #ifndef DBUG_OFF
+      /*
+         The only algorithm currently is CRC32. Zero indicates
+         the binlog file is checksum-free *except* the FD-event.
+      */
+      assert(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
+      assert(alg == BINLOG_CHECKSUM_ALG_CRC32);
+    #endif
+      /*
+        Complile time guard to watch over  the max number of alg
+      */
+      do_compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+    }
+    memcpy(&incoming,
+           event_buf + event_len - BINLOG_CHECKSUM_LEN, sizeof(incoming));
+    incoming= le32toh(incoming);
+
+    computed= checksum_crc32(0L, NULL, 0);
+    /* checksum the event content but not the checksum part itself */
+    computed= binary_log::checksum_crc32(computed,
+                                         (const unsigned char*) event_buf,
+                                         event_len - BINLOG_CHECKSUM_LEN);
+
+    if (flags != 0)
+    {
+      /* restoring the orig value of flags of FD */
+    #ifndef DBUG_OFF
+      assert(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+    #endif
+      event_buf[FLAGS_OFFSET]= flags;
+    }
+
+    res= !(computed == incoming);
+  }
+#ifndef DBUG_OFF
+  if (binary_log_debug::debug_checksum_test)
+    return true;
+#endif
+  return res;
+}
+
+
+/**
   This ctor will create a new object of Log_event_header, and initialize
   the variable m_header, which in turn will be used to initialize Log_event's
   member common_header.
@@ -283,18 +364,12 @@ Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
 {
   Format_description_event *des= new Format_description_event(binlog_version,
                                                               server_version);
-  m_header= new Log_event_header(*buf, des);
+  m_header= Log_event_header(*buf, des);
+  m_footer= Log_event_footer();
   // remove the comments when all the events are moved to libbinlogapi
   // (*buf)+= des->common_header_len;
   delete des;
   des= NULL;
-}
-Binary_log_event::~Binary_log_event()
-{
-  //This comment should be removed in the independent version
-  // now the memory is deallocated in Log_event's desctructor
-  //if(m_header)
-    //delete m_header;
 }
 
 /**
@@ -328,9 +403,9 @@ Start_event_v3::Start_event_v3()
                                 5.0.
   @param server_ver             a string containing the server version.
 */
-Format_description_event::Format_description_event(uint8_t binlog_ver,
-                                                   const char* server_ver)
-  :Start_event_v3(), event_type_permutation(0)
+Format_description_event::
+Format_description_event(uint8_t binlog_ver, const char* server_ver)
+: Start_event_v3(), event_type_permutation(0)
 {
   binlog_version= binlog_ver;
   switch (binlog_ver) {
@@ -447,7 +522,6 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     break;
   }
   calc_server_version_split();
-  checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 }
 
 /**
@@ -533,14 +607,14 @@ Start_event_v3::Start_event_v3(const char* buf,
 Format_description_event::
 Format_description_event(const char* buf, unsigned int event_len,
                          const Format_description_event* description_event)
-  :Start_event_v3(buf, description_event), event_type_permutation(0)
+ :Start_event_v3(buf, description_event), event_type_permutation(0)
 {
   unsigned long ver_calc;
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len= buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
     return; /* sanity check */
   number_of_event_types=
-    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
+   event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
    post_header_len= (uint8_t*) bapi_memdup((unsigned char*)buf +
                                            ST_COMMON_HEADER_LEN_OFFSET + 1,
                                            number_of_event_types *
@@ -555,13 +629,14 @@ Format_description_event(const char* buf, unsigned int event_len,
       checksum_version_product) must have
       number_of_event_types == LOG_EVENT_TYPES.
     */
-    DBUG_ASSERT(ver_calc != checksum_version_product ||
+    assert(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
-    checksum_alg= (enum_binlog_checksum_alg) post_header_len[number_of_event_types];
+    this->footer()->checksum_alg= (enum_binlog_checksum_alg)
+                                  post_header_len[number_of_event_types];
   }
   else
   {
-    checksum_alg=  BINLOG_CHECKSUM_ALG_UNDEF;
+    this->footer()->checksum_alg=  BINLOG_CHECKSUM_ALG_UNDEF;
   }
 
   /*
@@ -1261,17 +1336,16 @@ User_var_event(const char* buf, unsigned int event_len,
   unsigned int bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-
     assert((bytes_read == header()->data_written -
                  (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
+                  ((const_cast<Format_description_event*>(description_event))->footer()->checksum_alg ==
                    BINLOG_CHECKSUM_ALG_OFF)) ?
 
  0 : BINLOG_CHECKSUM_LEN)
                 ||
                 (bytes_read == header()->data_written -1 -
                  (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
+                  ((const_cast<Format_description_event*>(description_event))->footer()->checksum_alg ==
                    BINLOG_CHECKSUM_ALG_OFF)) ?
                  0 : BINLOG_CHECKSUM_LEN));
 #endif
@@ -1295,8 +1369,7 @@ err:
 Rows_query_event::
 Rows_query_event(const char *buf, unsigned int event_len,
                  const Format_description_event *descr_event)
- : Binary_log_event(&buf, descr_event->binlog_version,
-                    descr_event->server_version)
+ : Ignorable_event(buf, descr_event)
 {
   uint8_t const common_header_len=
     descr_event->common_header_len;
@@ -1406,6 +1479,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 */
 Incident_event::Incident_event(const char *buf, unsigned int event_len,
                                const Format_description_event *descr_event)
+: Binary_log_event(&buf, descr_event->binlog_version,
+                   descr_event->server_version)
 {
   uint8_t const common_header_len= descr_event->common_header_len;
   uint8_t const post_header_len= descr_event->post_header_len[INCIDENT_EVENT-1];

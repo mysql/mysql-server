@@ -1266,12 +1266,13 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
   : Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING),
+              Log_event::EVENT_NORMAL_LOGGING, this->header(),
+              this->footer()),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0)
 #ifdef HAVE_REPLICATION
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
@@ -1318,9 +1319,9 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_log_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
+  : Log_event(this->header(), this->footer(), true),
+    Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
-    Log_event(buf, description_event),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -2575,9 +2576,7 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
 Write_rows_log_event_old::
 Write_rows_log_event_old(const char *buf, uint event_len,
                          const Format_description_log_event *description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version),
-  Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT, description_event)
+ :Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT, description_event)
 {
 }
 #endif
@@ -2708,9 +2707,7 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
 Delete_rows_log_event_old::
 Delete_rows_log_event_old(const char *buf, uint event_len,
                           const Format_description_log_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version),
-    Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
+   :Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)
 {
