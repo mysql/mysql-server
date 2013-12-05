@@ -30,6 +30,7 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/CallbackSignal.hpp>
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -104,6 +105,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_END_LCP_CONF, &Lgman::execEND_LCP_CONF);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
+  addRecSignal(GSN_CALLBACK_ACK, &Lgman::execCALLBACK_ACK);
 
   m_last_lsn = 1;
   m_logfile_group_hash.setSize(10);
@@ -1521,7 +1523,8 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     removed= true;
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
-    sendCallbackConf(signal, block, callback, logfile_group_id);
+    sendCallbackConf(signal, block, callback, logfile_group_id,
+                     LgmanContinueB::PROCESS_LOG_SYNC_WAITERS, 0);
     
     list.releaseFirst(/* waiter */);
   }
@@ -1912,7 +1915,8 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
     ptr.p->m_callback_buffer_words += sz;
-    sendCallbackConf(signal, block, callback, logfile_group_id);
+    sendCallbackConf(signal, block, callback, logfile_group_id,
+                     LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS, 0);
 
     list.releaseFirst(/* waiter */);
   }
@@ -1921,15 +1925,44 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   {
     jam();
     ptr.p->m_state |= Logfile_group::LG_WAITERS_THREAD;
-    signal->theData[0] = LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS;
-    signal->theData[1] = ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    // continue via CALLBACK_ACK
   }
   else
   {
     jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_WAITERS_THREAD;
   }
+}
+
+void
+Lgman::execCALLBACK_ACK(Signal* signal)
+{
+  BlockReference senderRef = signal->getSendersBlockRef();
+  BlockNumber senderBlock = refToMain(senderRef);
+
+  const CallbackAck* ack = (const CallbackAck*)signal->getDataPtr();
+  Uint32 logfile_group_id = ack->senderData;
+  Uint32 callbackInfo = ack->callbackInfo;
+
+  Ptr<Logfile_group> ptr;
+  ndbrequire(m_logfile_group_hash.find(ptr, logfile_group_id));
+
+  // using ContinueB as convenience
+
+  switch (callbackInfo) {
+  case LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS:
+    jam();
+    ndbrequire(senderBlock == DBTUP);
+    break;
+  // no PROCESS_LOG_SYNC_WAITERS yet (or ever)
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  signal->theData[0] = callbackInfo;
+  signal->theData[1] = ptr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 #define REALLY_SLOW_FS 0
