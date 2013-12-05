@@ -165,6 +165,8 @@ public:
   uint last_errno;
   uint flags;
   char last_error[MYSQL_ERRMSG_SIZE];
+  /* Performance Schema interface for a prepared statement. */
+  PSI_prepared_stmt_share* m_ps_share;
 #ifndef EMBEDDED_LIBRARY
   bool (*set_params)(Prepared_statement *st, uchar *data, uchar *data_end,
                      uchar *read_pos, String *expanded_query);
@@ -2494,8 +2496,8 @@ void mysql_sql_stmt_prepare(THD *thd)
   PSI_prepared_stmt_locker *locker;
   /* Mayank TODO: Pass more parameters like owner thread etc. required for 
     PS instrumentation. */
-  locker= MYSQL_START_PS(&state, 
-                         (char*)query, query_len);
+  stmt->m_ps_share= MYSQL_GET_PS_SHARE((char*)query, query_len);
+  locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
 #endif
 
   if (stmt->prepare(query, query_len))
@@ -2789,9 +2791,7 @@ void mysql_sql_stmt_execute(THD *thd)
   PSI_prepared_stmt_locker *locker;
   /* Mayank TODO: Pass more parameters like owner thread etc. required for 
     PS instrumentation. */
-  locker= MYSQL_START_PS_EXECUTE(&state, 
-                                 (char*)stmt->query_string.str(),
-                                 stmt->query_string.length());
+  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_ps_share);
 #endif
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
