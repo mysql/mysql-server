@@ -28,18 +28,22 @@
 #endif    
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  #define MYSQL_START_PS(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
-    inline_mysql_start_prepare_stmt(PS_STATE, SQLTEXT, SQLTEXT_LENGTH)
-  #define MYSQL_START_PS_EXECUTE(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
-    inline_mysql_start_prepared_stmt_execute(PS_STATE, SQLTEXT, SQLTEXT_LENGTH)
+  #define MYSQL_GET_PS_SHARE(SQLTEXT, SQLTEXT_LENGTH) \
+    inline_mysql_get_prepared_stmt_share(SQLTEXT, SQLTEXT_LENGTH)
+  #define MYSQL_START_PS(PS_STATE, PS_SHARE) \
+    inline_mysql_start_prepare_stmt(PS_STATE, PS_SHARE)
+  #define MYSQL_START_PS_EXECUTE(PS_STATE, PS_SHARE) \
+    inline_mysql_start_prepared_stmt_execute(PS_STATE,PS_SHARE) 
   #define MYSQL_DEALLOCATE_PS(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
     inline_mysql_deallocate_prepared_stmt(PS_STATE, SQLTEXT, SQLTEXT_LENGTH)
 #else
-  #define MYSQL_START_PS(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
+  #define MYSQL_GET_PS_SHARE(SQLTEXT, SQLTEXT_LENGTH) \
     do {} while (0)
-  #define MYSQL_START_PS_EXECUTE(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
+  #define MYSQL_START_PS(PS_STATE, PS_SHARE) \
     do {} while (0)
-  #define MYSQL_DEALLOCATE_PS(PS_STATE, SQLTEXT, SQLTEXT_LENGTH) \
+  #define MYSQL_START_PS_EXECUTE(PS_STATE, PS_SHARE) \
+    do {} while (0)
+  #define MYSQL_DEALLOCATE_PS(PS_STATE, PS_SHARE) \
     do {} while (0)
 #endif
 
@@ -57,11 +61,17 @@
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
+static inline struct PSI_prepared_stmt_share*
+inline_mysql_get_prepared_stmt_share(char *sqltext, int sqltext_length)
+{
+  return PSI_PS_CALL(get_prepared_stmt_share)(sqltext, sqltext_length);
+}
+
 static inline struct PSI_prepared_stmt_locker*
 inline_mysql_start_prepare_stmt(PSI_prepared_stmt_locker_state *state,
-                                 char *sqltext, int sqltext_length)
+                                PSI_prepared_stmt_share* ps_share)
 {
-  return PSI_PS_CALL(start_prepare_stmt)(state, sqltext, sqltext_length);
+  return PSI_PS_CALL(start_prepare_stmt)(state, ps_share);
 }
 
 static inline void 
@@ -73,9 +83,9 @@ inline_mysql_end_prepare_stmt(PSI_prepared_stmt_locker *locker)
 
 static inline struct PSI_prepared_stmt_locker*
 inline_mysql_start_prepared_stmt_execute(PSI_prepared_stmt_locker_state *state,
-                                         char *sqltext, int sqltext_length)
+                                         PSI_prepared_stmt_share* ps_share)
 {
-  return PSI_PS_CALL(start_prepared_stmt_execute)(state, sqltext, sqltext_length);
+  return PSI_PS_CALL(start_prepared_stmt_execute)(state, ps_share);
 }
 
 static inline void 

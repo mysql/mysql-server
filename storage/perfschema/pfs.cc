@@ -5888,9 +5888,22 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
 }
 
+PSI_prepared_stmt_share*
+pfs_get_prepare_stmt_share_v1(char *sql_text, int sql_text_length)
+{
+  /* An instrumented thread is required, for LF_PINS. */
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
+  PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(pfs_thread,
+                                      sql_text, sql_text_length);
+  return reinterpret_cast<PSI_prepared_stmt_share*>(pfs);
+}
+
 PSI_prepared_stmt_locker*
 pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
-                                char *sql_text, int sql_text_length)
+                          PSI_prepared_stmt_share* ps_share)
 {
   DBUG_ASSERT(state != NULL);
 
@@ -5915,8 +5928,7 @@ pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
                                                   & state->m_timer);
   }
 
-  strncpy(state->m_ps_data.sql_text, sql_text, sql_text_length);
-  state->m_ps_data.sql_text_length= sql_text_length;
+  state->m_ps_share= ps_share;
 
   return reinterpret_cast<PSI_prepared_stmt_locker*> (state);
 }
@@ -5926,15 +5938,7 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PSI_prepared_stmt_data *ps_data= reinterpret_cast<PSI_prepared_stmt_data*>(&state->m_ps_data);
-  DBUG_ASSERT(ps_data != NULL);
-  
-  /* An instrumented thread is required, for LF_PINS. */
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
-  if (unlikely(pfs_thread == NULL))
-    return;
-  PFS_prepared_stmt *pfs_ps= find_or_create_prepared_stmt(pfs_thread,
-                                                          ps_data, true);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_ps_share);
   if(pfs_ps == NULL)
     return;
 
@@ -5960,9 +5964,9 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
 
 PSI_prepared_stmt_locker*
 pfs_start_prepared_stmt_execute_v1(PSI_prepared_stmt_locker_state *state,
-                                   char *sql_text, int sql_text_length)
+                                   PSI_prepared_stmt_share* ps_share)
 {
-  return pfs_start_prepare_stmt_v1(state, sql_text, sql_text_length);
+  return pfs_start_prepare_stmt_v1(state, ps_share);
 }
 
 void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
@@ -5970,15 +5974,7 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PSI_prepared_stmt_data *ps_data= reinterpret_cast<PSI_prepared_stmt_data*>(&state->m_ps_data);
-  DBUG_ASSERT(ps_data != NULL);
-  
-  /* An instrumented thread is required, for LF_PINS. */
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
-  if (unlikely(pfs_thread == NULL))
-    return;
-  PFS_prepared_stmt *pfs_ps= find_or_create_prepared_stmt(pfs_thread,
-                                                          ps_data, false);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_ps_share);
   if(pfs_ps == NULL)
     return;
 
@@ -6529,6 +6525,7 @@ PSI_v1 PFS_v1=
   pfs_set_socket_state_v1,
   pfs_set_socket_info_v1,
   pfs_set_socket_thread_owner_v1,
+  pfs_get_prepare_stmt_share_v1,
   pfs_start_prepare_stmt_v1,
   pfs_end_prepare_stmt_v1,
   pfs_start_prepared_stmt_execute_v1,

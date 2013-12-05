@@ -129,13 +129,13 @@ void cleanup_prepared_stmt_hash(void)
 }
 
 static void set_prepared_stmt_key(PFS_prepared_stmt_key *key,
-                                  PSI_prepared_stmt_data* ps_data)
+                                  char* sqltext, uint sqltext_length)
 {
   char *ptr= &key->m_hash_key[0];
-  if(ps_data->sql_text_length != 0)
+  if(sqltext_length != 0)
   {
-    memcpy(ptr, ps_data->sql_text, ps_data->sql_text_length);
-    ptr+= ps_data->sql_text_length;
+    memcpy(ptr, sqltext, sqltext_length);
+    ptr+= sqltext_length;
   }
   ptr[0]= 0;
   ptr++;
@@ -179,8 +179,7 @@ static LF_PINS* get_prepared_stmt_hash_pins(PFS_thread *thread)
 
 PFS_prepared_stmt*
 find_or_create_prepared_stmt(PFS_thread *thread,
-                             PSI_prepared_stmt_data* ps_data,
-                             my_bool is_create)
+                             char* sqltext, uint sqltext_length)
 {
   if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
     return NULL;
@@ -191,7 +190,7 @@ find_or_create_prepared_stmt(PFS_thread *thread,
  
   /* Prepare prepared statement key */
   PFS_prepared_stmt_key key;
-  set_prepared_stmt_key(&key, ps_data);
+  set_prepared_stmt_key(&key, sqltext, sqltext_length);
   
   PFS_prepared_stmt **entry;
   PFS_prepared_stmt *pfs= NULL;
@@ -217,9 +216,6 @@ search:
   
   lf_hash_search_unpin(pins);
  
-  if (!is_create)
-    return NULL;
-
   if(prepared_stmt_full)
   {
     prepared_stmt_lost++;
@@ -239,8 +235,8 @@ search:
         /* Do the assignments. */
         memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
         pfs->m_key.m_key_length= key.m_key_length;
-        strncpy(pfs->m_sqltext, ps_data->sql_text, ps_data->sql_text_length);
-        pfs->m_sqltext_length= ps_data->sql_text_length;
+        strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+        pfs->m_sqltext_length= sqltext_length;
         /* Mayank TODO: Add code to do more assignment. */
       
         /* Insert this record. */
