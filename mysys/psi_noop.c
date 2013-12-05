@@ -691,9 +691,15 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static PSI_prepared_stmt_share*
+get_prepare_stmt_share_noop(char *name NNN, int length NNN)
+{
+  return NULL;
+}
+
 static PSI_prepared_stmt_locker*
 start_prepare_stmt_noop(PSI_prepared_stmt_locker_state *state NNN,
-                        char *name NNN, int length NNN)
+                        PSI_prepared_stmt_share *share NNN)
 {
   return NULL;
 }
@@ -705,7 +711,7 @@ static void end_prepare_stmt_noop(PSI_prepared_stmt_locker *locker NNN)
 
 static PSI_prepared_stmt_locker*
 start_prepared_stmt_execute_noop(PSI_prepared_stmt_locker_state *state NNN,
-                                 char *name NNN, int length NNN)
+                                 PSI_prepared_stmt_share *share NNN)
 {
   return NULL;
 }
@@ -948,6 +954,7 @@ static PSI PSI_noop=
   set_socket_state_noop,
   set_socket_info_noop,
   set_socket_thread_owner_noop,
+  get_prepare_stmt_share_noop,
   start_prepare_stmt_noop,
   end_prepare_stmt_noop,
   start_prepared_stmt_execute_noop,

@@ -142,19 +142,8 @@ typedef struct PSI_socket PSI_socket;
 struct PSI_prepared_stmt_locker;
 typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker; 
 
-/**
-  Interface for an instrumented prepared statement data.
-  These buffers will used to hold Prepared Statement information temoprarily
-  when it is being prepared and will be copied to prepared_stmt_array finally.
-*/
-struct PSI_prepared_stmt_data
-{
-  char sql_text[80];
-  int sql_text_length;
-  /* Mayank TODO: Add more elements. */
-};
-typedef struct PSI_prepared_stmt_data PSI_prepared_stmt_data;
-
+struct PSI_prepared_stmt_share;
+typedef struct PSI_prepared_stmt_share PSI_prepared_stmt_share;
 
 /**
   Interface for an instrumented table operation.
@@ -1128,7 +1117,7 @@ struct PSI_prepared_stmt_locker_state
   /** Timer function. */
   ulonglong (*m_timer)(void);
   /** Prepared statement data. */
-  PSI_prepared_stmt_data m_ps_data;
+  PSI_prepared_stmt_share* m_ps_share;
 };
 typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
 
@@ -2284,11 +2273,18 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
+  Get a prepare statement share.
+  @param current thread.
+*/
+typedef PSI_prepared_stmt_share* (*get_prepared_stmt_share_v1_t)
+  (char *name, int length);
+
+/**
   Record a prepare statement instrumentation start event.
   @param current thread.
 */
 typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt_share* ps_share);
 
 /**
   Record a prepare statement instrumentation end event.
@@ -2302,7 +2298,7 @@ typedef void (*end_prepare_stmt_v1_t)
   @param current thread.
 */
 typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt_share* ps_share);
 
 /**
   Record a prepared statement execute end event.
@@ -2615,6 +2611,7 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  get_prepared_stmt_share_v1_t get_prepared_stmt_share;
   start_prepare_stmt_v1_t start_prepare_stmt;
   end_prepare_stmt_v1_t end_prepare_stmt;
   start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
