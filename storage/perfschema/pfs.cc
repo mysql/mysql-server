@@ -5998,12 +5998,19 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
   return;
 }
 
-PSI_prepared_stmt_locker*
-pfs_deallocate_prepared_stmt_v1(PSI_prepared_stmt_locker_state *state,
-                                char *sql_text, int sql_text_length)
+
+void pfs_deallocate_prepared_stmt_v1(PSI_prepared_stmt_share* ps_share)
 {
-  /* Mayank TODO. */
-  return NULL;
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(ps_share); 
+  if(pfs_ps == NULL)
+    return;
+
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return;
+
+  delete_prepared_stmt(pfs_thread, pfs_ps);
+  return;
 }
 
 
