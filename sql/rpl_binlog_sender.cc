@@ -24,7 +24,6 @@
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
 #endif
-using binary_log::get_checksum_alg;
 using binary_log::checksum_crc32;
 void Binlog_sender::init()
 {
@@ -370,7 +369,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
   case GTID_LOG_EVENT:
     {
       Format_description_log_event fd_ev(BINLOG_VERSION);
-      fd_ev.checksum_alg= m_event_checksum_alg;
+      fd_ev.common_footer->checksum_alg= m_event_checksum_alg;
       const Format_description_event *des_ev;
       des_ev= new Format_description_event(fd_ev.binlog_version, fd_ev.server_version);
       Gtid_log_event gtid_ev((const char *)event_ptr, event_checksum_on() ?
@@ -648,7 +647,8 @@ int Binlog_sender::send_format_description_event(String *packet,
     DBUG_RETURN(1);
   }
 
-  m_event_checksum_alg= get_checksum_alg((const char *)event_ptr, event_len);
+  m_event_checksum_alg=
+        Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
   DBUG_ASSERT(m_event_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END ||
               m_event_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF);

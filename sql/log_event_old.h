@@ -53,7 +53,7 @@
   created any more, except when reading a relay log created by an old
   server.
 */
-class Old_rows_log_event : public Log_event
+class Old_rows_log_event : public Log_event, public Binary_log_event
 {
   /********** BEGIN CUT & PASTE FROM Rows_log_event **********/
 public:

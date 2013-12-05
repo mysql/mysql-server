@@ -45,14 +45,14 @@ unsigned long STDCALL get_field_length(unsigned char **packet)
   if (*pos == 252)
   {
     (*packet)+= 3;
-    memcpy(&temp, pos + 1, 2); 
+    memcpy(&temp, pos + 1, 2);
     temp= le32toh(temp);
     return (unsigned long)temp;
   }
   if (*pos == 253)
   {
     (*packet)+= 4;
-    memcpy(&temp, pos + 1, 3); 
+    memcpy(&temp, pos + 1, 3);
     temp= le32toh(temp);
     return (unsigned long)temp;
   }

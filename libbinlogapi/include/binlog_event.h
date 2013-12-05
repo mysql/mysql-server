@@ -573,9 +573,6 @@ char *bapi_stpcpy(char *dst, const char *src);
   bapi_strmake() returns pointer to closing null
 */
 char *bapi_strmake(char *dst, const char *src, size_t length);
-enum_binlog_checksum_alg get_checksum_alg(const char* buf, unsigned long len);
-bool event_checksum_test(unsigned char* buf, unsigned long event_len,
-                         enum_binlog_checksum_alg alg);
 
 #define LOG_EVENT_HEADER_SIZE 20
 
@@ -634,6 +631,57 @@ struct sql_ex_data_info
   Log_event_header
 */
 class Format_description_event;
+
+/**
+  @class Log_event_footer
+
+  The footer, in the current version of the MySQL server, only contains
+  the checksum algorithm descriptor. The descriptor is contained in the
+  FDE of the binary log. This is common for all the events contained in
+  that binary log, and defines the algorithm used to checksum
+  the events contained in the binlog.
+
+ @note checksum *value* is not stored in the event. On master's side, it
+       is calculated before writing into the binary log, depending on the
+       updated event data. On the slave, the checksum value is retrieved
+       from a particular offset and checked for corruption, by computing
+       a new value. It is not required after that. Therefore, it is not
+       required to store the value in the instance as a class member.
+*/
+class Log_event_footer
+{
+public:
+
+  enum_binlog_checksum_alg
+  static get_checksum_alg(const char* buf, unsigned long len);
+
+  bool static event_checksum_test(unsigned char* buf,
+                                  unsigned long event_len,
+                                  enum_binlog_checksum_alg alg);
+
+  /* Constructors */
+  Log_event_footer() : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  {
+  }
+
+  Log_event_footer(enum_binlog_checksum_alg checksum_alg_arg)
+  : checksum_alg(checksum_alg_arg)
+  {
+  }
+
+  /**
+     Master side:
+     The value is set by caller of FD(Format Description) constructor
+     In the FD case it's propagated into the last byte
+     of post_header_len[].
+     Slave side:
+     On the slave side the value is assigned from post_header_len[last]
+     of the last seen FD event.
+     TODO: Revisit this comment when encoder is moved in libbinlogapi
+  */
+  enum_binlog_checksum_alg checksum_alg;
+};
+
 class Log_event_header
 {
 public:
@@ -748,7 +796,7 @@ public:
     ROWS_HEADER_LEN_V2= 10
   }; // end enum_post_header_length
 
-  Binary_log_event(): m_header(NULL)
+  Binary_log_event()
   {
       /*
         An event length of 0 indicates that the header isn't initialized
@@ -756,10 +804,9 @@ public:
       //m_header.event_length= 0;
       //m_header.type_code=    0;
   }
-  Binary_log_event(Log_event_header *header): m_header(header) {}
+
   Binary_log_event(const char **buf, uint16_t binlog_version,
                    const char *server_version);
-
   // TODO: Uncomment when the dependency of log_event on this class in removed
   /**
     Returns short information about the event
@@ -768,48 +815,33 @@ public:
   /**
     Returns detailed information about the event
   */
-  // virtual void print_long_info(std::ostream& info);
-  virtual ~Binary_log_event();
+  //virtual void print_long_info(std::ostream& info);
+  virtual ~Binary_log_event() {};
 
-  //TODO: Revisit this comment when encoder is moved in libbinlogapi
-  /**
-     Master side:
-     The value is set by caller of FD(Format Description) constructor
-     In the FD case it's propagated into the last byte
-     of post_header_len[].
-     Slave side:
-     On the slave side the value is assigned from post_header_len[last]
-     of the last seen FD event.
-  */
-  enum_binlog_checksum_alg checksum_alg;
   /**
    * Helper method
    */
   enum Log_event_type get_event_type() const
   {
-    return (enum Log_event_type) m_header->type_code;
+    return (enum Log_event_type) m_header.type_code;
   }
-    virtual Log_event_type get_type_code()= 0;
-    virtual bool is_valid() const= 0;
+
+  virtual Log_event_type get_type_code()= 0;
+  virtual bool is_valid() const= 0;
   /**
    * Return a pointer to the header of the log event
    */
-  Log_event_header *header() { return m_header; }
+  Log_event_header *header() { return &m_header; }
+  /**
+   * Return a pointer to the footer of the log event
+   */
+  Log_event_footer *footer() { return &m_footer; }
 
 private:
-  Log_event_header *m_header;
+  Log_event_header m_header;
+  Log_event_footer m_footer;
 };
 
-class Unknown_event: public Binary_log_event
-{
-public:
-    Unknown_event(Log_event_header *header) : Binary_log_event(header) {}
-
-    bool is_valid() const { return 1; }
-    Log_event_type get_type_code() { return UNKNOWN_EVENT;}
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
-};
 
 /**
   @class Query_event
@@ -1194,7 +1226,7 @@ public:
 
 */
 
-class Query_event: public virtual Binary_log_event
+class Query_event: public Binary_log_event
 {
 public:
   /* query event post-header */
@@ -1554,7 +1586,7 @@ public:
 
   </table>
 */
-class Rotate_event: public virtual Binary_log_event
+class Rotate_event: public Binary_log_event
 {
 public:
   const char* new_log_ident;
@@ -1642,7 +1674,7 @@ public:
   @section Start_log_event_v3_binary_format Binary Format
 */
 
-class Start_event_v3: public  virtual Binary_log_event
+class Start_event_v3: public Binary_log_event
  {
  public:
 /*
@@ -1770,7 +1802,8 @@ public:
      mapping is done using event_type_permutation
     */
     const uint8_t *event_type_permutation;
-    Format_description_event(uint8_t binlog_ver, const char* server_ver);
+    Format_description_event(uint8_t binlog_ver,
+                             const char* server_ver);
     Format_description_event(const char* buf, unsigned int event_len,
                              const Format_description_event *description_event);
 
@@ -1799,7 +1832,7 @@ public:
   the Common-Header.
 */
 
-class Stop_event: public virtual Binary_log_event
+class Stop_event: public Binary_log_event
 {
 public:
   Stop_event() : Binary_log_event()
@@ -2020,7 +2053,7 @@ public:
   This event type is understood by current versions, but only
   generated by MySQL 3.23 and earlier.
 */
-class Load_event: public virtual Binary_log_event
+class Load_event: public Binary_log_event
 {
 protected:
  int copy_load_event(const char *buf, unsigned long event_len,
@@ -2178,7 +2211,7 @@ public:
 
   @section Delete_file_event_binary_format Binary Format
 */
-class Delete_file_event: public virtual Binary_log_event
+class Delete_file_event: public Binary_log_event
 {
 protected:
   // Required by Delete_file_log_event(THD* ..)
@@ -2214,7 +2247,7 @@ public:
 
   @section Delete_file_event_binary_format Binary Format
 */
-class Execute_load_event: public virtual Binary_log_event
+class Execute_load_event: public Binary_log_event
 {
 protected:
   //TODO: Remove if not required, used by Execute_load_log_event(THD* ...)
@@ -2249,7 +2282,7 @@ public:
   @section Append_block_event_binary_format Binary Format
 */
 
-class Append_block_event: public virtual Binary_log_event
+class Append_block_event: public Binary_log_event
 {
 protected:
   /**
@@ -2318,7 +2351,7 @@ public:
 
 
 //TODO: Add comments for this class
-class User_var_event: public virtual Binary_log_event
+class User_var_event: public Binary_log_event
 {
 public:
   enum Value_type {
@@ -2402,7 +2435,7 @@ public:
   LOG_EVENT_IGNORABLE_F as argument to the Log_event constructor.
 */
 
-class Ignorable_event: public virtual Binary_log_event
+class Ignorable_event: public Binary_log_event
 {
 public:
   Ignorable_event(const char *buf, const Format_description_event *descr_event)
@@ -2496,7 +2529,7 @@ protected:
   </table>
   @section Int_var_event_binary_format Binary Format
 */
-class Int_var_event: public virtual Binary_log_event
+class Int_var_event: public Binary_log_event
 {
 public:
     unsigned char  type;
@@ -2596,7 +2629,7 @@ public:
 
   @section Incident_event_binary_format Binary Format
 */
-class Incident_event: public virtual Binary_log_event
+class Incident_event: public Binary_log_event
 {
 public:
   Incident_event(Incident incident)
@@ -2624,7 +2657,7 @@ protected:
 
   @section Xid_log_event_binary_format Binary Format
 */
-class Xid_event: public virtual Binary_log_event
+class Xid_event: public Binary_log_event
 {
 public:
     Xid_event() {}
@@ -2673,7 +2706,7 @@ public:
   </table>
   @section Rand_event_binary_format Binary Format
 */
-class Rand_event: public virtual Binary_log_event
+class Rand_event: public Binary_log_event
 {
   public:
   unsigned long long seed1;
@@ -2806,7 +2839,7 @@ struct gtid_info
 
   @section Gtid_event_binary_format Binary Format
 */
-class Gtid_event: public virtual  Binary_log_event
+class Gtid_event: public Binary_log_event
 {
 public:
   int64_t commit_seq_no;
@@ -2859,7 +2892,7 @@ protected:
   </table>
   @section Previous_gtids_event_binary_format Binary Format
 */
-class Previous_gtids_event : public virtual Binary_log_event
+class Previous_gtids_event : public Binary_log_event
 {
 public:
   Previous_gtids_event(const char *buf, unsigned int event_len,
@@ -2887,7 +2920,7 @@ protected:
   instance carries correspond to the last event master has sent from
   its binlog.
 */
-class Heartbeat_event: public virtual Binary_log_event
+class Heartbeat_event: public Binary_log_event
 {
 public:
   Heartbeat_event(const char* buf, unsigned int event_len,
@@ -2901,6 +2934,22 @@ protected:
   unsigned int ident_len;
 };
 
-} // end namespace binary_log
+/**
+  @class Unknown_event
+*/
+class Unknown_event: public Binary_log_event
+{
+public:
+    Unknown_event() {}
+    Unknown_event(const char* buf,
+                  const Format_description_event *description_event)
+   : Binary_log_event(&buf,
+                      description_event->binlog_version,
+                      description_event->server_version) {}
 
+    Log_event_type get_type_code() { return UNKNOWN_EVENT;}
+    void print_event_info(std::ostream& info);
+    void print_long_info(std::ostream& info);
+};
+} // end namespace binary_log
 #endif	/* BINLOG_EVENT_INCLUDED */

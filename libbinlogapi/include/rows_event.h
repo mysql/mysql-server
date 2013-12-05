@@ -381,7 +381,7 @@ namespace binary_log
 
   </table>
 */
-class Table_map_event: public virtual Binary_log_event
+class Table_map_event: public Binary_log_event
 {
 public:
   /* Constants */

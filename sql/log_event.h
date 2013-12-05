@@ -595,9 +595,7 @@ typedef struct st_print_event_info
   - Strings are stored in various formats.  The format of each string
   is documented separately.
 */
-
-//TODO the dependency on Binary_log_event will be removed in future
-class Log_event : public virtual Binary_log_event
+class Log_event
 {
 public:
   /**
@@ -716,12 +714,18 @@ public:
     data represent the Worker progress status.
   */
   ulong mts_group_idx;
+
   /**
    The Log_event_header class contains the variable present
    in the common header
   */
-
   binary_log::Log_event_header *common_header;
+
+  /**
+   The Log_event_header class contains the variable present
+   in the common footer
+  */
+  binary_log::Log_event_footer *common_footer;
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
     Additionally the member serves to tag deferred (IRU) events to avoid
@@ -737,15 +741,17 @@ public:
 #ifdef MYSQL_SERVER
   THD* thd;
   /**
-     Partition info associate with event to deliver to MTS event applier 
+     Partition info associate with event to deliver to MTS event applier
   */
   db_worker_hash_entry *mts_assigned_partitions[MAX_DBS_IN_EVENT_MTS];
 
-  Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
+  Log_event(Log_event_header *header, Log_event_footer *footer,
+            enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING);
   Log_event(THD* thd_arg, uint16 flags_arg,
             enum_event_cache_type cache_type_arg,
-            enum_event_logging_type logging_type_arg);
+            enum_event_logging_type logging_type_arg,
+            Log_event_header *header, Log_event_footer *footer);
   /*
     read_log_event() functions read an event from a binlog or relay
     log; used by SHOW BINLOG EVENTS, the binlog_dump thread on the
@@ -816,12 +822,14 @@ public:
     return thd ? thd->db : 0;
   }
 #else // ifdef MYSQL_SERVER
-  Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
+  Log_event(Log_event_header *header, Log_event_footer *footer,
+            enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0),  event_cache_type(cache_type_arg),
-    event_logging_type(logging_type_arg), common_header(0)
+    event_logging_type(logging_type_arg), common_header(0), common_footer(0)
   {
-    common_header= new Log_event_header();
+    common_header= header;
+    common_footer= footer;
   }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
@@ -910,18 +918,18 @@ public:
     Binary_log_event.
      Once all the events are moved, this parameter would be removed.
   */
-  Log_event(Log_event_header *header, bool flag_moved= false);
+  Log_event(Log_event_header *header,
+            Log_event_footer *footer, bool flag_moved);
   /*
      This ctor is added in the process of fixing valgrind faliure it will be
      removed after all the events are moved to libbinlogapi
-  */
   Log_event(const char *buf, const Format_description_log_event *description_event);
+  */
   virtual ~Log_event()
   {
     free_temp_buf();
-    if (common_header)
-      delete common_header;
     common_header= 0;
+    common_footer= 0;
   }
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
@@ -1276,20 +1284,18 @@ protected:
 
   The inheritance structure is as follows:
 
-                Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
+            Binary_log_event
+                   ^
+                   |
+                   |
             Query_event  Log_event
                    \       /
-                    \     /
+         <<virtual>>\     /
                      \   /
                 Query_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 */
-class Query_log_event: public Log_event, public virtual Query_event
+class Query_log_event: public virtual Query_event, public Log_event
 {
   const char* user;
   const char* host;
@@ -1454,19 +1460,17 @@ public:        /* !!! Public in this patch to allow old usage */
   as follows:
 
                 Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
+                   ^
+                   |
+                   |
              Load_event  Log_event
                    \       /
-                    \     /
+         <<virtual>>\     /
                      \   /
                  Load_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 */
-class Load_log_event: public Log_event, public virtual Load_event
+class Load_log_event: public virtual Load_event, public Log_event
 {
 private:
 protected:
@@ -1562,16 +1566,14 @@ public:        /* !!! Public in this patch to allow old usage */
   The inheritance structure in the current design for the classes is
   as follows:
                   Binary_log_event
-                           /   \
-              <<virtual>> /     \ <<virtual>>
-                         /       \
-              Start_event_v3   Log_event
+                        ^
+                        |
+                        |
+                Start_event_v3   Log_event
                          \       /
-                          \     /
+               <<virtual>>\     /
                            \   /
                        Start_log_event_v3
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
   @section Start_log_event_v3_binary_format Binary Format
 */
 class Start_log_event_v3: public virtual Start_event_v3, public Log_event
@@ -1583,7 +1585,9 @@ public:
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
-  Start_log_event_v3() {}
+  Start_log_event_v3()
+  : Log_event(this->header(), this->footer())
+  {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
@@ -1627,28 +1631,26 @@ protected:
   This is the subclass of Format_description_event
   The inheritance structure in the current design for the classes is
   as follows:
-                  Binary_log_event
-                        /  \
-                       /    \
-               <<vir>>/      \ <<vir>>
-                     /        \
-               Log_event   Start_event_v3
-                   \             /\
-                    \           /  \
-                     \  <<vir>>/    \ <<vir>>
-                      \       /      \
-                       \     /        \
-                        \   /          \
+                         Binary_log_event
+                                 ^
+                                 |
+                                 |
+                                 |
+                Log_event  Start_event_v3
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
                 Start_log_event_v3   Format_description_event
-                         \             /
-                          \           /
-                           \         /
-                            \       /
-                             \     /
-                              \   /
-                   Format_description_log_event
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                                  \/
+                       Format_description_log_event
   @section Format_description_log_event_binary_format Binary Format
 */
 
@@ -1712,7 +1714,7 @@ protected:
   of the variables LAST_INSERT_ID or INSERT_ID. This class is used
   by the lave for applying the event.
 */
-class Intvar_log_event: public Log_event, public Int_var_event
+class Intvar_log_event: public Int_var_event, public Log_event
 {
 public:
 
@@ -1720,8 +1722,11 @@ public:
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
                    enum_event_cache_type cache_type_arg,
                    enum_event_logging_type logging_type_arg)
-    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
-     Int_var_event(type_arg, val_arg) { }
+   :Int_var_event(type_arg, val_arg),
+    Log_event(thd_arg, 0, cache_type_arg,
+              logging_type_arg, this->header(), this->footer())
+   {
+   }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1760,23 +1765,21 @@ private:
   which are stored internally as two 64-bit numbers.
   The inheritance structure in the current design for the classes is
   as follows:
-              Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
+        Binary_log_event
+               ^
+               |
+               |
            Rand_event  Log_event
-                   \       /
-                    \     /
-                     \   /
-                 Rand_log_event
+                \       /
+                 \     /
+                  \   /
+              Rand_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-  @section Rand_log_event_binary_format Binary Format  
+  @section Rand_log_event_binary_format Binary Format
 
 */
 
-class Rand_log_event: public Log_event, public Rand_event
+class Rand_log_event: public Rand_event, public Log_event
 {
  public:
 
@@ -1784,8 +1787,11 @@ class Rand_log_event: public Log_event, public Rand_event
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
                  enum_event_cache_type cache_type_arg,
                  enum_event_logging_type logging_type_arg)
-    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
-     Rand_event(seed1_arg, seed2_arg) { }
+    :Rand_event(seed1_arg, seed2_arg),
+     Log_event(thd_arg, 0, cache_type_arg,
+               logging_type_arg, this->header(), this->footer())
+     {
+     }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1819,25 +1825,22 @@ private:
   more tables of an XA-capable storage engine
   The inheritance structure in the current design for the classes is
   as follows:
-
-                Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
+        Binary_log_event
+               ^
+               |
+               |
            Xid_event  Log_event
-                   \       /
-                    \     /
-                     \   /
-                 Xid_log_event
+                \       /
+                 \     /
+                  \   /
+               Xid_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 */
 #ifdef MYSQL_CLIENT
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
-class Xid_log_event: public Log_event, public Xid_event
+class Xid_log_event: public Xid_event, public Log_event
 {
  public:
 
@@ -1845,7 +1848,7 @@ class Xid_log_event: public Log_event, public Xid_event
   Xid_log_event(THD* thd_arg, my_xid x)
   : Log_event(thd_arg, 0,
               Log_event::EVENT_TRANSACTIONAL_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING)
+              Log_event::EVENT_NORMAL_LOGGING, this->header(), this->footer())
   {
     xid= x;
   }
@@ -1882,22 +1885,20 @@ private:
   written before the Query_log_event, to set the user variable.
   The inheritance structure in the current design for the classes is
   as follows:
-                Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
-           User_var_event  Log_event
-                   \       /
-                    \     /
-                     \   /
-                 User_var_log_event
+        Binary_log_event
+               ^
+               |
+               |
+      User_var_event  Log_event
+                \       /
+                 \     /
+                  \   /
+            User_var_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
   @section User_var_log_event_binary_format Binary Format
 */
 
-class User_var_log_event: public Log_event, public User_var_event
+class User_var_log_event: public User_var_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -1908,9 +1909,10 @@ public:
 		     uint charset_number_arg, uchar flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
-     User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
+    :User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
                     (Value_type)type_arg, charset_number_arg, flags_arg),
+     Log_event(thd_arg, 0, cache_type_arg,
+               logging_type_arg, this->header(), this->footer()),
      deferred(false)
     { }
   int pack_info(Protocol* protocol);
@@ -1951,11 +1953,11 @@ private:
   @class Stop_log_event
 
 */
-class Stop_log_event: public Log_event, public Stop_event
+class Stop_log_event: public Stop_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
-  Stop_log_event() :Log_event()
+  Stop_log_event() :Log_event(this->header(), this->footer())
   {}
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1963,8 +1965,8 @@ public:
 
   Stop_log_event(const char* buf,
                  const Format_description_event *description_event):
-  Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version), Log_event(this->header())
+  Stop_event(buf, description_event),
+  Log_event(this->header(), this->footer(), true)
   {}
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
@@ -1999,21 +2001,18 @@ private:
   The inheritance structure in the current design for the classes is
   as follows:
 
-                Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
+        Binary_log_event
+               ^
+               |
+               |
            Rotate_event  Log_event
-                   \       /
-                    \     /
-                     \   /
-                 Rotate_log_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
+                \       /
+                 \     /
+                  \   /
+             Rotate_log_event
 */
 
-class Rotate_log_event: public Log_event, public Rotate_event
+class Rotate_log_event: public Rotate_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -2060,28 +2059,28 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-              B_l:Load_event  Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-              B_l:C_F_E  Load_log_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-              Create_file_log_event
+                         Binary_log_event
+                                 ^
+                                 |
+                                 |
+                                 |
+                Log_event   B_l:Load_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+                Load_log_event     B_l:C_F_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                       Create_file_log_event
 
   B_l: Namespace Binary_log
   C_F_E: class Create_file_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 
   @section Create_file_log_event_binary_format Binary Format
 */
@@ -2143,29 +2142,24 @@ private:
 
   The inheritance structure is as follows
 
-
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-                  B_l:A_B_E  Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                Append_block_log_event
+        Binary_log_event
+               ^
+               |
+               |
+           B_l:A_B_E  Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+           Append_block_log_event
 
   B_l: Namespace Binary_log
   A_B_E: class Append_block_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
   @section Append_block_log_event_binary_format Binary Format
 */
-class Append_block_log_event: public Log_event,
-                              public virtual Append_block_event
+class Append_block_log_event: public virtual Append_block_event,
+                              public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -2210,28 +2204,23 @@ private:
 
   The inheritance structure is as follows
 
-
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-                  B_l:D_F_E  Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                  Delete_file_log_event
+        Binary_log_event
+               ^
+               |
+               |
+          B_l:D_F_E  Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+           Delete_file_log_event
 
   B_l: Namespace Binary_log
   D_F_E: class Delete_file_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
   @section Delete_file_log_event_binary_format Binary Format
 */
-class Delete_file_log_event: public Log_event, public Delete_file_event
+class Delete_file_log_event: public Delete_file_event, public Log_event
 {
 public:
 
@@ -2276,27 +2265,24 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-                  B_l:E_L_E  Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                   Execute_load_log_event
+        Binary_log_event
+               ^
+               |
+               |
+           B_l:E_L_E  Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+            Execute_load_log_event
 
   B_l: Namespace Binary_log
   E_L_E: class Execute_load_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
   @section Delete_file_log_event_binary_format Binary Format
 */
 
-class Execute_load_log_event: public Log_event, public Execute_load_event
+class Execute_load_log_event: public Execute_load_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -2345,29 +2331,29 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-                  B_l:A_B_E   Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-            B_l:B_L_Q_E Append_block_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-          Begin_load_query_log_event
+                          Binary_log_event
+                                  ^
+                                  |
+                                  |
+                                  |
+                Log_event   B_l:A_B_E
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+             Append_block_log_event  B_l:B_L_Q_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                       Begin_load_query_log_event
 
   B_l: Namespace Binary_log
   A_B_E: class Append_block_event
   B_L_Q_E: Begin_load_query_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 
   @section Begin_load_query_log_event_binary_format Binary Format
 */
@@ -2405,29 +2391,28 @@ private:
 
   The inheritance structure is as follows:
 
-
-                    Binary_log_event
-                          /   \
-                         /     \
-               (1) <<v>>/       \<<v>>(2)
-                       /         \
-              B_l:Query_event  Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-             B_l:E_L_Q_E Query_log_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-          Execute_load_query_log_event
+                          Binary_log_event
+                                  ^
+                                  |
+                                  |
+                                  |
+                Log_event   B_l:Query_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+                  Query_log_event  B_l:E_L_Q_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                    Execute_load_query_log_event
 
   B_l: Namespace Binary_log
   E_L_Q_E: class Execute_load_query
-
-  TODO: Remove virtual inheritance (1) and link (2)  once all the events
-        are implemented in libbinlogapi
 
   @section Execute_load_query_log_event_binary_format Binary Format
 */
@@ -2478,7 +2463,7 @@ private:
 
   @section Unknown_log_event_binary_format Binary Format
 */
-class Unknown_log_event: public Log_event
+class Unknown_log_event: public Unknown_event , public Log_event
 {
 public:
   /*
@@ -2487,8 +2472,9 @@ public:
     event's header (the unique ID for example).
   */
   Unknown_log_event(const char* buf,
-                    const Format_description_log_event *description_event):
-    Log_event(buf, description_event)
+                    const Format_description_event *description_event)
+  : Unknown_event(buf, description_event),
+    Log_event(this->header(), this->footer(), true)
   {}
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2812,7 +2798,7 @@ char *str_to_hex(char *to, const char *from, uint len);
 
   </table>
 */
-class Table_map_log_event : public Log_event, public Table_map_event
+class Table_map_log_event : public Table_map_event, public Log_event
 {
 public:
   /* Constants */
@@ -2950,22 +2936,19 @@ private:
   The inheritance structure in the current design for the classes is
   as follows:
 
-                Binary_log_event
-                     /   \
-        <<virtual>> /     \ <<virtual>>
-                   /       \
-             Rows_event  Log_event
-                   \       /
-                    \     /
-                     \   /
-                 Rows_log_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
+        Binary_log_event
+               ^
+               |
+               |
+         Rows_event  Log_event
+                \       /
+                 \     /
+                  \   /
+              Rows_log_event
 
   @section Rows_log_event_binary_format Binary Format
 */
-class Rows_log_event : public Log_event, public virtual Rows_event
+class Rows_log_event : public virtual Rows_event, public Log_event
 {
 public:
   typedef uint16 flag_set;
@@ -3394,30 +3377,29 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-              B_l:Rows_event  Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-              B_l:W_R_E  Rows_log_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-              Write_rows_log_event
+                         Binary_log_event
+                                  ^
+                                  |
+                                  | <<vir>>
+                                  |
+                Log_event   B_l:Rows_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+                  Rows_log_event    B_l:W_R_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                                  \/
+                        Write_rows_log_event
 
   B_l: Namespace Binary_log
   W_R_E: class Write_rows_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
-
 
   @section Write_rows_log_event_binary_format Binary Format
 */
@@ -3484,28 +3466,30 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-              B_l:Rows_event  Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-              B_l:U_R_E  Rows_log_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-              Update_rows_log_event
+                         Binary_log_event
+                                  ^
+                                  |
+                                  | <<vir>>
+                                  |
+                Log_event   B_l:Rows_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+                  Rows_log_event    B_l:U_R_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                                  \/
+                        Update_rows_log_event
+
 
   B_l: Namespace Binary_log
   U_R_E: class Update_rows_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 
   @section Update_rows_log_event_binary_format Binary Format
 */
@@ -3592,28 +3576,29 @@ protected:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                   <<v>>/       \<<v>>
-                       /         \
-              B_l:Rows_event  Log_event
-                     /  \        /
-               <<v>>/    \<<v>> /
-                   /      \    /
-                  /        \  /
-              B_l:D_R_E  Rows_log_event
-                  \        /
-                   \      /
-                    \    /
-                     \  /
-              Delete_rows_log_event
+                         Binary_log_event
+                                  ^
+                                  |
+                                  | <<vir>>
+                                  |
+                Log_event   B_l:Rows_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+                  Rows_log_event    B_l:D_R_E
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                                  \/
+                        Delete_rows_log_event
 
   B_l: Namespace Binary_log
   D_R_E: class Delete_rows_event
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 
   @section Delete_rows_log_event_binary_format Binary Format
 */
@@ -3679,31 +3664,30 @@ protected:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                 <<vir>>/       \<<vir>>
-                       /         \
-         B_l:Incident_event     Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                   Incident_log_event
+        Binary_log_event
+               ^
+               |
+               |
+     B_l:Incident_event     Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+             Incident_log_event
 
   B_l: Namespace Binary_log
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
   @section Incident_log_event_binary_format Binary Format
 */
-class Incident_log_event : public Log_event, public Incident_event {
+class Incident_log_event : public Incident_event , public Log_event{
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
-    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING), Incident_event(incident)
+    : Incident_event(incident),
+      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+                Log_event::EVENT_NO_CACHE,
+                Log_event::EVENT_IMMEDIATE_LOGGING,
+                this->header(), this->footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -3712,9 +3696,11 @@ public:
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+    : Incident_event(incident),
+      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
                 Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING), Incident_event(incident)
+                Log_event::EVENT_IMMEDIATE_LOGGING,
+                this->header(), this->footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -3778,31 +3764,27 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                 <<vir>>/       \<<vir>>
-                       /         \
-         B_l:Ignorable_event     Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                   Ignorable_log_event
+        Binary_log_event
+               ^
+               |
+               |
+ B_l:Ignorable_event     Log_event
+                \         /
+                 \       /
+       <<virtual>>\     /
+                   \   /
+             Ignorable_log_event
 
   B_l: Namespace Binary_log
-
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
 
 **/
 class Ignorable_log_event : public virtual Ignorable_event, public Log_event {
 public:
 #ifndef MYSQL_CLIENT
   Ignorable_log_event(THD *thd_arg)
-      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, 
+      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
                   Log_event::EVENT_STMT_CACHE,
-                  Log_event::EVENT_NORMAL_LOGGING)
+                  Log_event::EVENT_NORMAL_LOGGING, this->header(), this->footer())
   {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
     DBUG_VOID_RETURN;
@@ -3836,29 +3818,28 @@ public:
 
   The inheritance structure in the current design for the classes is
   as follows:
-                  Binary_log_event
-                        /  \
-                       /    \
-               <<vir>>/      \ <<vir>>
-                     /        \
-               Log_event   Ignorable_event
-                   \             /\
-                    \           /  \
-                     \  <<vir>>/    \ <<vir>>
-                      \       /      \
-                       \     /        \
-                        \   /          \
-                Ignorable_log_event   Rows_query_event
-                         \             /
-                          \           /
-                           \         /
-                            \       /
-                             \     /
-                              \   /
-                      Rows_query_log_event
+                         Binary_log_event
+                                  ^
+                                  |
+                                  |
+                                  |
+                Log_event   B_l:Ignorable_event
+                     ^            /\
+                     |           /  \
+                     |   <<vir>>/    \ <<vir>>
+                     |         /      \
+                     |        /        \
+                     |       /          \
+              Ignorable_log_event    B_l:Rows_query_event
+                             \          /
+                              \        /
+                               \      /
+                                \    /
+                                 \  /
+                                  \/
+                       Rows_query_log_event
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
+  B_l : namespace binary_log
   @section Rows_query_log_event_binary_format Binary Format
 */
 class Rows_query_log_event : public Ignorable_log_event, public Rows_query_event{
@@ -3930,7 +3911,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   TODO: This class, can therefore be removed from this file, after is_valid()
         and get_type_code() are moved as member variables in binlogapi library.
  ****************************************************************************/
-class Heartbeat_log_event: public Log_event, public Heartbeat_event
+class Heartbeat_log_event: public Heartbeat_event, public Log_event
 {
 public:
   Heartbeat_log_event(const char* buf, uint event_len,
@@ -3969,25 +3950,21 @@ extern TYPELIB binlog_checksum_typelib;
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                 <<vir>>/       \<<vir>>
-                       /         \
-            B_l:Gtid_event   Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                      Gtid_log_event
+        Binary_log_event
+               ^
+               |
+               |
+         B_l:Gtid_event   Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+               Gtid_log_event
 
   B_l: Namespace Binary_log
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
 */
-class Gtid_log_event : public Log_event, public Gtid_event
+class Gtid_log_event : public Gtid_event, public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT
@@ -4135,25 +4112,21 @@ private:
 
   The inheritance structure is as follows
 
-                    Binary_log_event
-                          /   \
-                         /     \
-                 <<vir>>/       \<<vir>>
-                       /         \
-     B_l:Previous_gtids_event   Log_event
-                       \         /
-                        \       /
-                         \     /
-                          \   /
-                   Previous_gtids_log_event
+        Binary_log_event
+               ^
+               |
+               |
+B_l:Previous_gtids_event   Log_event
+                \         /
+                 \       /
+                  \     /
+                   \   /
+         Previous_gtids_log_event
 
   B_l: Namespace Binary_log
 
-  TODO: Remove virtual inheritance once all the events are implemented in
-        libbinlogapi
-
 */
-class Previous_gtids_log_event : public Log_event, public Previous_gtids_event
+class Previous_gtids_log_event : public Previous_gtids_event, public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT

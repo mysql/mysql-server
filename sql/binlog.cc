@@ -2395,7 +2395,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          opt_master_verify_checksum)); )
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
-        description_event->checksum_alg= ev->checksum_alg;
+        description_event->common_footer->checksum_alg=
+                           ev->common_footer->checksum_alg;
 
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))
@@ -3512,13 +3513,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         relay_log_checksum_alg=
                            (enum_binlog_checksum_alg)binlog_checksum_options;
     }
-    s.checksum_alg= relay_log_checksum_alg;
+    (s.common_footer)->checksum_alg= relay_log_checksum_alg;
   }
   else
     /* binlog */
-    s.checksum_alg= (enum_binlog_checksum_alg)binlog_checksum_options;
+    (s.common_footer)->checksum_alg=
+                       (enum_binlog_checksum_alg)binlog_checksum_options;
 
-  DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT((s.common_footer)->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
     goto err;
   s.dont_set_created= null_created_arg;
@@ -3542,7 +3544,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
     if (need_sid_lock)
       global_sid_lock->unlock();
-    prev_gtids_ev.checksum_alg= s.checksum_alg;
+    (prev_gtids_ev.common_footer)->checksum_alg=
+                                   (s.common_footer)->checksum_alg;
     if (prev_gtids_ev.write(&log_file))
       goto err;
     bytes_written+= (prev_gtids_ev.common_header)->data_written;
@@ -5148,12 +5151,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     */
     Rotate_log_event r(new_name+dirname_length(new_name), 0, LOG_EVENT_OFFSET,
                        is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
-    /* 
+    /*
       The current relay-log's closing Rotate event must have checksum
       value computed with an algorithm of the last relay-logged FD event.
     */
     if (is_relay_log)
-      r.checksum_alg= relay_log_checksum_alg;
+      (r.common_footer)->checksum_alg= relay_log_checksum_alg;
     DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
     if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
        (error= r.write(&log_file)))
@@ -6344,7 +6347,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       */
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
-        s.checksum_alg= is_relay_log ?
+        s.common_footer->checksum_alg= is_relay_log ?
           relay_log_checksum_alg : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);

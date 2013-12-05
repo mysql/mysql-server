@@ -64,7 +64,6 @@
 using std::min;
 using std::max;
 using binary_log::checksum_crc32;
-using binary_log::get_checksum_alg;
 using binary_log::Log_event_header;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -1853,18 +1852,18 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 
     After the warm-up sequence IO gets to "normal" checksum verification mode
     to use RL.A in 
-    
+
     {queue_event(E_m): verifies(E_m, RL.A)}
 
     until it has received a new FD_m.
   */
-  mi->get_mi_description_event()->checksum_alg=
+  mi->get_mi_description_event()->common_footer->checksum_alg=
     mi->rli->relay_log.relay_log_checksum_alg;
 
-  DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg !=
+  DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg !=
               BINLOG_CHECKSUM_ALG_UNDEF);
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
-              BINLOG_CHECKSUM_ALG_UNDEF); 
+              BINLOG_CHECKSUM_ALG_UNDEF);
 
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -2432,8 +2431,9 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                                                0, rli->ign_master_log_pos_end,
                                                Rotate_log_event::DUP_NAME);
     if (mi->get_mi_description_event() != NULL)
-      ev->checksum_alg= mi->get_mi_description_event()->checksum_alg;
-    
+      ev->common_footer->checksum_alg=
+                   mi->get_mi_description_event()->common_footer->checksum_alg;
+
     rli->ign_master_log_name_end[0]= 0;
     /* can unlock before writing as slave SQL thd will soon see our Rotate */
     mysql_mutex_unlock(log_lock);
@@ -4954,7 +4954,8 @@ int mts_recovery_groups(Relay_log_info *rli)
         {
           if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
           {
-            p_fdle->checksum_alg= ev->checksum_alg;
+            p_fdle->common_footer->checksum_alg=
+                                   ev->common_footer->checksum_alg;
             checksum_detected= TRUE;
           }
           delete ev;
@@ -4978,7 +4979,7 @@ int mts_recovery_groups(Relay_log_info *rli)
         DBUG_ASSERT(ev->is_valid());
 
         if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
-          p_fdle->checksum_alg= ev->checksum_alg;
+          p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
 
         if (ev->get_type_code() == ROTATE_EVENT ||
             ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
@@ -6176,11 +6177,12 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   Format_description_log_event *old_fdle= mi->get_mi_description_event();
   if (old_fdle->binlog_version >= 4)
   {
-    DBUG_ASSERT(old_fdle->checksum_alg ==
+    DBUG_ASSERT(old_fdle->common_footer->checksum_alg ==
                 mi->rli->relay_log.relay_log_checksum_alg);
     Format_description_log_event *new_fdle= new
       Format_description_log_event(3);
-    new_fdle->checksum_alg= mi->rli->relay_log.relay_log_checksum_alg;
+    new_fdle->common_footer->checksum_alg=
+                             mi->rli->relay_log.relay_log_checksum_alg;
     mi->set_mi_description_event(new_fdle);
   }
   /*
@@ -6446,14 +6448,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   */
   if (event_type == FORMAT_DESCRIPTION_EVENT)
   {
-    checksum_alg= get_checksum_alg(buf, event_len);
+    checksum_alg= Log_event_footer::get_checksum_alg(buf, event_len);
   }
   else if (event_type == START_EVENT_V3)
   {
     // checksum behaviour is similar to the pre-checksum FD handling
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
     mysql_mutex_lock(&mi->data_lock);
-    mi->get_mi_description_event()->checksum_alg=
+    mi->get_mi_description_event()->common_footer->checksum_alg=
       mi->rli->relay_log.relay_log_checksum_alg= checksum_alg=
       BINLOG_CHECKSUM_ALG_OFF;
     mysql_mutex_unlock(&mi->data_lock);
@@ -6481,7 +6483,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   Format_description_event *des_ev= NULL;
   binary_log_debug::debug_checksum_test=
                DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-  if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
+  if (Log_event_footer::event_checksum_test((uchar *) buf,
+                                            event_len, checksum_alg))
   {
     error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
     unlock_data_lock= FALSE;
@@ -6558,7 +6561,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-      DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg ==
+      DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
                   mi->rli->relay_log.relay_log_checksum_alg);
       /* the first one */
       DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
@@ -6578,7 +6581,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         int4store(&rot_buf[EVENT_LEN_OFFSET],
                   uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-        DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg ==
+        DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
                     mi->rli->relay_log.relay_log_checksum_alg);
         /* the first one */
         DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
@@ -6615,12 +6618,12 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
-    if (new_fdle->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
-      new_fdle->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+    if (new_fdle->common_footer->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
+      new_fdle->common_footer->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
     mi->set_mi_description_event(new_fdle);
 
     /* installing new value of checksum Alg for relay log */
-    mi->rli->relay_log.relay_log_checksum_alg= new_fdle->checksum_alg;
+    mi->rli->relay_log.relay_log_checksum_alg= new_fdle->common_footer->checksum_alg;
 
     /*
        Though this does some conversion to the slave's format, this will
