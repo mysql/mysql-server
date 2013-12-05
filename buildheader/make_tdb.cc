@@ -207,6 +207,7 @@ enum {
         TOKUDB_BAD_CHECKSUM            = -100015,
         TOKUDB_HUGE_PAGES_ENABLED      = -100016,
         TOKUDB_OUT_OF_RANGE            = -100017,
+        TOKUDB_INTERRUPTED             = -100018,
         DONTUSE_I_JUST_PUT_THIS_HERE_SO_I_COULD_HAVE_A_COMMA_AFTER_EACH_ITEM
 };
 
@@ -359,6 +360,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_BAD_CHECKSUM);
     dodefine(TOKUDB_HUGE_PAGES_ENABLED);
     dodefine(TOKUDB_OUT_OF_RANGE);
+    dodefine(TOKUDB_INTERRUPTED);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
@@ -602,6 +604,7 @@ static void print_dbc_struct (void) {
 	"int (*c_getf_set_range)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
+    "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*), void *)",
 	"void (*c_remove_restriction)(DBC*)",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);

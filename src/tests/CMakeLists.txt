@@ -257,6 +257,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_bulk_fetch
       test_compression_methods
       test_cmp_descriptor
+      test_cursor_interrupt
       test_cursor_with_read_txn
       test_db_change_pagesize
       test_db_change_xxx

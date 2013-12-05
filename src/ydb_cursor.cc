@@ -740,6 +740,11 @@ c_remove_restriction(DBC *dbc) {
     toku_ft_cursor_remove_restriction(dbc_struct_i(dbc)->c);
 }
 
+static void
+c_set_check_interrupt_callback(DBC* dbc, bool (*interrupt_callback)(void*), void *extra) {
+    toku_ft_cursor_set_check_interrupt_cb(dbc_struct_i(dbc)->c, interrupt_callback, extra);
+}
+
 int
 toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
     //This function exists for legacy (test compatibility) purposes/parity with bdb.
@@ -833,6 +838,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_getf_set_range_reverse);
     SCRS(c_set_bounds);
     SCRS(c_remove_restriction);
+    SCRS(c_set_check_interrupt_callback);
 #undef SCRS
 
     result->c_get = toku_c_get;

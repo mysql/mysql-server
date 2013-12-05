@@ -114,6 +114,8 @@ PATENT RIGHTS GRANT:
 // When lock_only is true, the callback only does optional lock tree locking.
 typedef int(*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
+typedef bool(*FT_CHECK_INTERRUPT_CALLBACK)(void* extra);
+
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 
 // effect: changes the descriptor for the ft of the given handle.
@@ -258,6 +260,7 @@ void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
 // the cursor duing a one query.
 void toku_ft_cursor_set_temporary(FT_CURSOR);
 void toku_ft_cursor_remove_restriction(FT_CURSOR);
+void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra);
 int toku_ft_cursor_is_leaf_mode(FT_CURSOR);
 void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool, int);
 
