@@ -721,11 +721,10 @@ static void end_prepared_stmt_execute_noop(PSI_prepared_stmt_locker *locker NNN)
   return;
 }
 
-static PSI_prepared_stmt_locker*
-deallocate_prepared_stmt_noop(PSI_prepared_stmt_locker_state *state NNN,
-                              char *name NNN, int length NNN)
+void
+deallocate_prepared_stmt_noop(PSI_prepared_stmt_share *share NNN)
 {
-  return NULL;
+  return;
 }
 
 static struct PSI_digest_locker*

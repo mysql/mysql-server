@@ -2307,8 +2307,8 @@ typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
 typedef void (*end_prepared_stmt_execute_v1_t)
   (PSI_prepared_stmt_locker *locker);
 
-typedef PSI_prepared_stmt_locker* (*deallocate_prepared_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, char *name, int length);
+typedef void (*deallocate_prepared_stmt_v1_t)
+  (PSI_prepared_stmt_share *share);
 
 /*
 typedef void (*reprepare_statement_v1_t)

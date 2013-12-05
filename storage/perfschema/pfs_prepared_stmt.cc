@@ -271,3 +271,16 @@ search:
   prepared_stmt_full= true;
   return NULL;
 }
+
+void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps)
+{
+  LF_PINS *pins= get_prepared_stmt_hash_pins(thread);
+  if (unlikely(pins == NULL))
+    return;
+
+  lf_hash_delete(&prepared_stmt_hash, pins,
+                 pfs_ps->m_key.m_hash_key, pfs_ps->m_key.m_key_length);
+
+  pfs_ps->m_lock.allocated_to_free();
+  return;
+}

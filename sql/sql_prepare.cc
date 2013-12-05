@@ -2993,6 +2993,9 @@ void mysql_sql_stmt_close(THD *thd)
   else
   {
     stmt->deallocate();
+#ifdef HAVE_PSI_PS_INTERFACE
+    MYSQL_DEALLOCATE_PS(stmt->m_ps_share);
+#endif
     my_ok(thd);
   }
 }

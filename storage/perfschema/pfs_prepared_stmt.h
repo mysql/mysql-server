@@ -100,4 +100,5 @@ void reset_prepared_stmt_instances();
 PFS_prepared_stmt*
 find_or_create_prepared_stmt(PFS_thread *thread,
                              char* sqltext, uint sqltext_length);
+void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps);
 #endif
