@@ -3981,6 +3981,95 @@ select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 connection ddl;
 drop table t1;
 
+########################
+# Bug#17845161  'CORRUPT KEY IN TC, UNABLE TO XFRM'
+# 
+# Created an incorrect lookup key when a varchar()
+# in the key was NULL
+
+connection ddl;
+CREATE TABLE t1 (
+  id int NOT NULL AUTO_INCREMENT,
+  t2_id int,
+  PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t2 (
+  id int NOT NULL AUTO_INCREMENT,
+  t3_id varchar(20) DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t3 (
+  id varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t4 (
+  pk int NOT NULL,
+  id varchar(20) NOT NULL,
+  PRIMARY KEY (pk),
+  UNIQUE KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+
+connection spj;
+INSERT INTO t1 VALUES (20, NULL);
+INSERT INTO t1 VALUES (23, 24);
+
+INSERT INTO t2 VALUES (24, NULL);
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 20;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 20;
+
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 23;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 23;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+ WHERE t1.id = 23;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+ WHERE t1.id = 23;
+
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+SELECT *
+  FROM t1
+       LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+
+connection ddl;
+DROP TABLE t1,t2,t3,t4;
+
 #######################################
 # Some tests for nested left joins.
 

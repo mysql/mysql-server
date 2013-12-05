@@ -5572,6 +5572,104 @@ a	b	c	d	a	b	c	d
 aaa	1	aaa	1	aaa	1	aaa	1
 drop table t1;
 CREATE TABLE t1 (
+id int NOT NULL AUTO_INCREMENT,
+t2_id int,
+PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+id int NOT NULL AUTO_INCREMENT,
+t3_id varchar(20) DEFAULT NULL,
+PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (
+id varchar(20) NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t4 (
+pk int NOT NULL,
+id varchar(20) NOT NULL,
+PRIMARY KEY (pk),
+UNIQUE KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (20, NULL);
+INSERT INTO t1 VALUES (23, 24);
+INSERT INTO t2 VALUES (24, NULL);
+EXPLAIN EXTENDED
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+WHERE t1.id = 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Parent of 3 pushed join@1; Using where with pushed condition (`test`.`t1`.`t2_id` is not null)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2_id	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	22	test.t2.t3_id	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`t2_id` AS `t2_id`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`t3_id` AS `t3_id`,`test`.`t3`.`id` AS `id` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`id` = `test`.`t2`.`t3_id`)) where ((`test`.`t2`.`id` = `test`.`t1`.`t2_id`) and (`test`.`t1`.`id` = 20))
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+WHERE t1.id = 20;
+id	t2_id	id	t3_id	id
+EXPLAIN EXTENDED
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+WHERE t1.id = 23;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Parent of 3 pushed join@1; Using where with pushed condition (`test`.`t1`.`t2_id` is not null)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2_id	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	22	test.t2.t3_id	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`t2_id` AS `t2_id`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`t3_id` AS `t3_id`,`test`.`t3`.`id` AS `id` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`id` = `test`.`t2`.`t3_id`)) where ((`test`.`t2`.`id` = `test`.`t1`.`t2_id`) and (`test`.`t1`.`id` = 23))
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+WHERE t1.id = 23;
+id	t2_id	id	t3_id	id
+23	24	24	NULL	NULL
+EXPLAIN EXTENDED
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+WHERE t1.id = 23;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Parent of 3 pushed join@1; Using where with pushed condition (`test`.`t1`.`t2_id` is not null)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2_id	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t4	eq_ref	id	id	22	test.t2.t3_id	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`t2_id` AS `t2_id`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`t3_id` AS `t3_id`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`id` AS `id` from `test`.`t1` join `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`id` = `test`.`t2`.`t3_id`)) where ((`test`.`t2`.`id` = `test`.`t1`.`t2_id`) and (`test`.`t1`.`id` = 23))
+SELECT *
+FROM t1
+INNER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+WHERE t1.id = 23;
+id	t2_id	id	t3_id	pk	id
+23	24	24	NULL	NULL	NULL
+EXPLAIN EXTENDED
+SELECT *
+FROM t1
+LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2_id	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2_id	1	100.00	Child of 't1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`t2_id` AS `t2_id`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`t3_id` AS `t3_id`,`test`.`t3`.`id` AS `id`,`test`.`t3`.`t3_id` AS `t3_id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`t2_id`)) left join `test`.`t2` `t3` on((`test`.`t3`.`id` = `test`.`t1`.`t2_id`)) where 1
+SELECT *
+FROM t1
+LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+id	t2_id	id	t3_id	id	t3_id
+20	NULL	NULL	NULL	NULL	NULL
+23	24	24	NULL	24	NULL
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (
 a int NOT NULL,
 b int NOT NULL,
 c int NOT NULL,
@@ -6089,11 +6187,11 @@ and spj_counts_at_end.counter_name not in
 'SCAN_BATCHES_RETURNED');
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
-LOCAL_TABLE_SCANS_SENT	304
+LOCAL_TABLE_SCANS_SENT	306
 PRUNED_RANGE_SCANS_RECEIVED	27
 RANGE_SCANS_RECEIVED	740
-READS_RECEIVED	50
-TABLE_SCANS_RECEIVED	304
+READS_RECEIVED	53
+TABLE_SCANS_RECEIVED	306
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 select new.variable_name, new.variable_value - old.variable_value
@@ -6103,9 +6201,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	8
-NDB_PUSHED_QUERIES_DEFINED	428
+NDB_PUSHED_QUERIES_DEFINED	436
 NDB_PUSHED_QUERIES_DROPPED	8
-NDB_PUSHED_QUERIES_EXECUTED	569
+NDB_PUSHED_QUERIES_EXECUTED	573
 NDB_SORTED_SCAN_COUNT	13
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
