@@ -5656,6 +5656,120 @@ runBug16944817(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+int
+runBug16766493(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  char* tabname = strdup(ctx->getTab()->getName());
+  int result = NDBT_OK;
+  ndb_srand(getpid());
+  NdbRestarter restarter;
+  (void)pDic->dropTable(tabname); // replace table
+
+  do
+  {
+    NdbDictionary::Table tab;
+    tab.setName(tabname);
+    tab.setTablespaceName("DEFAULT-TS");
+    { NdbDictionary::Column c;
+      c.setName("A");
+      c.setType(NdbDictionary::Column::Unsigned);
+      c.setPrimaryKey(true);
+      tab.addColumn(c);
+    }
+    /*
+     * Want big DD column which does not fit evenly into 32k UNDO
+     * buffer i.e. produces big NOOP entries.  The bug was reported
+     * in 7.2 for longblob where part size is 13948.  This will do.
+     */
+    { NdbDictionary::Column c;
+      c.setName("B");
+      c.setType(NdbDictionary::Column::Char);
+      c.setLength(13948);
+      c.setNullable(false);
+      c.setStorageType(NdbDictionary::Column::StorageTypeDisk);
+      tab.addColumn(c);
+    }
+    { NdbDictionary::Column c; // for hugo
+      c.setName("C");
+      c.setType(NdbDictionary::Column::Unsigned);
+      c.setNullable(false);
+      tab.addColumn(c);
+    }
+
+    CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    const NdbDictionary::Table* pTab;
+    CHK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
+    HugoTransactions trans(*pTab);
+
+    if (loops <= 1)
+      g_err << "note: test is not useful for loops=" << loops << endl;
+    for (int loop = 0; loop < loops; loop++)
+    {
+      g_info << "loop: " << loop << endl;
+      CHK2(trans.loadTable(pNdb, records) == 0, trans.getNdbError());
+      if (loop + 1 == loops)
+        break; // leave rows for verify
+      while (1)
+      {
+        g_info << "clear table" << endl;
+#if 0
+        if (trans.clearTable(pNdb, records) == 0)
+          break;
+#else // nicer for debugging
+        if (trans.pkDelRecords(pNdb, records, records) == 0)
+          break;
+#endif
+        const NdbError& err = trans.getNdbError();
+        // hugo does not return error code on max tries
+        CHK2(err.code == 0, err);
+#if 0 // can cause ndbrequire in exec_lcp_frag_ord
+        int lcp = 7099;
+        CHK2(restarter.dumpStateAllNodes(&lcp, 1) == 0, "-");
+#endif
+        const int timeout = 5;
+        CHK2(restarter.waitClusterStarted(timeout) == 0, "-");
+        g_info << "assume UNDO overloaded..." << endl;
+        NdbSleep_MilliSleep(1000);
+      }
+      CHK2(result == NDBT_OK, "-");
+    }
+    CHK2(result == NDBT_OK, "-");
+
+    g_info << "verify records" << endl;
+    CHK2(trans.scanReadRecords(pNdb, records) == 0, trans.getNdbError());
+
+    // test that restart works
+    g_info << "restart" << endl;
+    const bool initial = false;
+    const bool nostart = true;
+    CHK2(restarter.restartAll(initial, nostart) == 0, "-");
+    CHK2(restarter.waitClusterNoStart() == 0, "-");
+    g_info << "nostart done" << endl;
+    CHK2(restarter.startAll() == 0, "-");
+    CHK2(restarter.waitClusterStarted() == 0, "-");
+    g_info << "restart done" << endl;
+
+    g_info << "verify records" << endl;
+    CHK2(trans.scanReadRecords(pNdb, records) == 0, trans.getNdbError());
+  } while (0);
+
+  if (result!=NDBT_OK) abort();
+  free(tabname);
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -6251,6 +6365,10 @@ TESTCASE("NodeFailGCPOpen",
   STEP(runPkUpdateUntilStopped);
   STEP(runNodeFailGCPOpen);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug16766493", "")
+{
+  INITIALIZER(runBug16766493);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);
