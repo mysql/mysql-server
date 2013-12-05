@@ -1888,6 +1888,19 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   }
 }
 
+/*
+ * Overloaded UNDO buffer creates waiters for buffer space.
+ * As in direct return from Logfile_client::get_log_buffer()
+ * the FREE_BUFFER_MARGIN allows for a possible NOOP entry
+ * when the logged entry does not fit on current page.
+ *
+ * In non-MT case the entry is added in same time-slice.
+ * In MT case callback is via signals.  Here the problem is
+ * that we cannot account for multiple NOOP entries created
+ * in non-deterministic order.  So we serialize processing
+ * to one entry at a time via CALLBACK_ACK signals.  This all
+ * happens in memory at commit and should not have major impact.
+ */
 void
 Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
