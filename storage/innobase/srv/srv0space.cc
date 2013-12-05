@@ -651,7 +651,7 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
-		const char* check_msg = fil_read_first_page(
+		const char*	check_msg = fil_read_first_page(
 			it->m_handle, !check_tablespace_attributes,
 			&flags, &space, min_flushed_lsn, max_flushed_lsn);
 
