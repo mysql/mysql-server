@@ -1952,7 +1952,7 @@ Lgman::execCALLBACK_ACK(Signal* signal)
   switch (callbackInfo) {
   case LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS:
     jam();
-    ndbrequire(senderBlock == DBTUP);
+    ndbrequire(senderBlock == DBTUP || senderBlock == LGMAN);
     break;
   // no PROCESS_LOG_SYNC_WAITERS yet (or ever)
   default:
