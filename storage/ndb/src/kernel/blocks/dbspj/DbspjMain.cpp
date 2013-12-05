@@ -3361,6 +3361,80 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
  * END - MODULE GENERIC
  */
 
+void
+Dbspj::common_execTRANSID_AI(Signal* signal,
+                             Ptr<Request> requestPtr,
+                             Ptr<TreeNode> treeNodePtr,
+                             const RowPtr & rowRef)
+{
+  jam();
+
+  if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
+  {
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+    Dependency_map::ConstDataBufferIterator it;
+
+    /**
+     * Activate child operations in two steps:
+     * 1) Any child operations requiring T_EXEC_SEQUENTIAL are
+     *    prepared for exec by appending rowRefs to the deferred
+     *    list.
+     * 2) Start executing non-T_EXEC_SEQUENTIAL child operations.
+     */
+    for (list.first(it); !it.isNull(); list.next(it))
+    {
+      Ptr<TreeNode> childPtr;
+      m_treenode_pool.getPtr(childPtr, * it.data);
+
+      if (childPtr.p->m_bits & TreeNode::T_EXEC_SEQUENTIAL)
+      {
+        jam();
+        DEBUG("T_EXEC_SEQUENTIAL --> child exec deferred");
+
+        /**
+         * Append correlation values of deferred child operations
+         * to a list / fifo. Upon resume, we will then be able to 
+         * relocate all parent rows for which to resume operations.
+         */
+        LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+        Local_pattern_store correlations(pool, childPtr.p->m_deferred.m_correlations);
+        if (!correlations.append(&rowRef.m_src_correlation, 1))
+        {
+          jam();
+          abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
+          return;
+        }
+
+        // As there are pending deferred operations we are not complete
+        requestPtr.p->m_completed_nodes.clear(childPtr.p->m_node_no);
+      }
+    }
+
+    for (list.first(it); !it.isNull(); list.next(it))
+    {
+      Ptr<TreeNode> childPtr;
+      m_treenode_pool.getPtr(childPtr, * it.data);
+      if ((childPtr.p->m_bits & TreeNode::T_EXEC_SEQUENTIAL) == 0)
+      {
+        jam();
+        ndbrequire(childPtr.p->m_info!=0 && childPtr.p->m_info->m_parent_row!=0);
+
+        (this->*(childPtr.p->m_info->m_parent_row))(signal,
+                                                    requestPtr, childPtr, rowRef);
+
+        /* Recheck RS_ABORTING as child operation might have aborted */
+        if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
+        {
+          jam();
+          return;
+        }
+      }
+    }
+  }
+}
+
+
 /**
  * MODULE LOOKUP
  */
@@ -3825,19 +3899,7 @@ Dbspj::lookup_send(Signal* signal,
        * Send TCKEYCONF with DirtyReadBit + Tnode,
        *   so that API can discover if Tnode died while waiting for result
        */
-      Uint32 resultRef = req->variableData[0];
-      Uint32 resultData = req->variableData[1];
-
-      TcKeyConf* conf = (TcKeyConf*)signal->getDataPtrSend();
-      conf->apiConnectPtr = RNIL; // lookup transaction from operations...
-      conf->confInfo = 0;
-      TcKeyConf::setNoOfOperations(conf->confInfo, 1);
-      conf->transId1 = requestPtr.p->m_transId[0];
-      conf->transId2 = requestPtr.p->m_transId[1];
-      conf->operations[0].apiOperationPtr = resultData;
-      conf->operations[0].attrInfoLen = TcKeyConf::DirtyReadBit | Tnode;
-      Uint32 sigLen = TcKeyConf::StaticLength + TcKeyConf::OperationLength;
-      sendTCKEYCONF(signal, sigLen, resultRef, requestPtr.p->m_senderRef);
+      lookup_sendLeafCONF(signal, requestPtr, treeNodePtr, Tnode);
     }
     return;
   }
@@ -3846,7 +3908,7 @@ Dbspj::lookup_send(Signal* signal,
   ndbrequire(err);
   jam();
   abort(signal, requestPtr, err);
-}
+} //Dbspj::lookup_send
 
 void
 Dbspj::lookup_execTRANSID_AI(Signal* signal,
@@ -3857,26 +3919,9 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
   jam();
 
   Uint32 Tnode = refToNode(signal->getSendersBlockRef());
-
-  {
-    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-    Dependency_map::ConstDataBufferIterator it;
-
-    for (list.first(it); !it.isNull(); list.next(it))
-    {
-      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
-      {
-        jam();
-        Ptr<TreeNode> childPtr;
-        m_treenode_pool.getPtr(childPtr, * it.data);
-        ndbrequire(childPtr.p->m_info!=0 && childPtr.p->m_info->m_parent_row!=0);
-        (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                    requestPtr, childPtr,rowRef);
-      }
-    }
-  }
   ndbrequire(!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()));
+
+  common_execTRANSID_AI(signal, requestPtr, treeNodePtr, rowRef);
 
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= 1);
   requestPtr.p->m_lookup_node_data[Tnode] -= 1;
@@ -3927,58 +3972,8 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
       if (requestPtr.p->isLookup())
       {
         jam();
-
-        /* CONF/REF not requested for lookup-Leaf: */
-        ndbrequire(!treeNodePtr.p->isLeaf());
-
-        /**
-         * Return back to api...
-         *   NOTE: assume that signal is tampered with
-         */
-        Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
-        Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
-        TcKeyRef* ref = (TcKeyRef*)signal->getDataPtr();
-        ref->connectPtr = resultData;
-        ref->transId[0] = requestPtr.p->m_transId[0];
-        ref->transId[1] = requestPtr.p->m_transId[1];
-        ref->errorCode = errCode;
-        ref->errorData = 0;
-
-        sendTCKEYREF(signal, resultRef, requestPtr.p->m_senderRef);
-
-        if (treeNodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
-        {
-          /**
-           * If this is a "leaf" unique index lookup
-           *   emit extra TCKEYCONF as would have been done with ordinary
-           *   operation
-           */
-          LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-          Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-          Dependency_map::ConstDataBufferIterator it;
-          ndbrequire(list.first(it));
-          ndbrequire(list.getSize() == 1); // should only be 1 child
-          Ptr<TreeNode> childPtr;
-          m_treenode_pool.getPtr(childPtr, * it.data);
-          if (childPtr.p->m_bits & TreeNode::T_LEAF)
-          {
-            jam();
-            Uint32 resultRef = childPtr.p->m_lookup_data.m_api_resultRef;
-            Uint32 resultData = childPtr.p->m_lookup_data.m_api_resultData;
-            TcKeyConf* conf = (TcKeyConf*)signal->getDataPtr();
-            conf->apiConnectPtr = RNIL;
-            conf->confInfo = 0;
-            conf->gci_hi = 0;
-            TcKeyConf::setNoOfOperations(conf->confInfo, 1);
-            conf->transId1 = requestPtr.p->m_transId[0];
-            conf->transId2 = requestPtr.p->m_transId[1];
-            conf->operations[0].apiOperationPtr = resultData;
-            conf->operations[0].attrInfoLen =
-              TcKeyConf::DirtyReadBit |getOwnNodeId();
-            sendTCKEYCONF(signal, TcKeyConf::StaticLength + 2, resultRef, requestPtr.p->m_senderRef);
-          }
-        }
-      } // isLookup()
+        lookup_stop_branch(signal, requestPtr, treeNodePtr, errCode);
+      }
       break;
 
     default: // 'Hard error' : abort query
@@ -4016,6 +4011,121 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   checkBatchComplete(signal, requestPtr, cnt);
 }
+
+/**
+ * lookup_stop_branch() will send required signals to the API
+ * to inform that the query branch starting with 'treeNodePtr'
+ * will not be executed due to 'errCode'.
+ *
+ * NOTE: 'errCode'is expected to be a 'soft error', like
+ *       'row not found', and is *not* intended to abort
+ *       entire query.
+ */
+void
+Dbspj::lookup_stop_branch(Signal* signal,
+                          Ptr<Request> requestPtr,
+                          Ptr<TreeNode> treeNodePtr,
+                          Uint32 errCode)
+{
+  ndbassert(requestPtr.p->isLookup());
+  DEBUG("::lookup_stop_branch"
+     << ", node: " << treeNodePtr.p->m_node_no
+  );
+
+  /**
+   * If this is a "leaf" node, either on its own, or
+   * indirectly through an unique index lookup:
+   * Ordinary operation would have emited extra TCKEYCONF 
+   * required for nodefail handling.
+   * (In case of nodefails during final leaf REQs).
+   * As API cant, or at least does not try to, tell whether 
+   * leaf operation is REFed by SPJ or LQH, we still have to
+   * send this extra CONF as required by protocoll.
+   */
+  if (treeNodePtr.p->isLeaf())
+  {
+    jam();
+    DEBUG("  Leaf-lookup: sending extra 'CONF' for nodefail handling");
+    lookup_sendLeafCONF(signal, requestPtr, treeNodePtr, getOwnNodeId());
+  }
+
+  else if (treeNodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
+  {
+    /**
+     * UNIQUE_INDEX lookups are represented with an additional
+     * child which does the lookup from UQ-index into the table
+     * itself. Has to check this child for being 'leaf'.
+     */
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+    Dependency_map::ConstDataBufferIterator it;
+    ndbrequire(list.first(it));
+    ndbrequire(list.getSize() == 1); // should only be 1 child
+    Ptr<TreeNode> childPtr;
+    m_treenode_pool.getPtr(childPtr, * it.data);
+    if (childPtr.p->m_bits & TreeNode::T_LEAF)
+    {
+      jam();
+      DEBUG("  UNUQUE_INDEX-Leaf-lookup: sending extra 'CONF' "
+            "for nodefail handling");
+      lookup_sendLeafCONF(signal, requestPtr, childPtr, getOwnNodeId());
+    }
+  }
+
+  /**
+   * Then produce the REF(errCode) which terminates this
+   * tree branch.
+   */
+  Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
+  Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
+  TcKeyRef* ref = (TcKeyRef*)signal->getDataPtr();
+  ref->connectPtr = resultData;
+  ref->transId[0] = requestPtr.p->m_transId[0];
+  ref->transId[1] = requestPtr.p->m_transId[1];
+  ref->errorCode = errCode;
+  ref->errorData = 0;
+
+  DEBUG("  send TCKEYREF");
+  sendTCKEYREF(signal, resultRef, requestPtr.p->m_senderRef);
+}
+
+/**
+ * Lookup leafs in lookup requests will not receive CONF/REF
+ * back to SPJ when LQH request has completed. Instead we
+ * will cleanup() the request when the last leafnode KEYREQ
+ * has been sent. If any of the REQuested datanodes fails 
+ * after this, SPJ will not detect this and be able to
+ * send appropriate signals to the API to awake it from the
+ * 'wait' state.
+ * To get around this, we instead send an extra CONF 
+ * to the API which inform is about which 'node' it should
+ * expect a result from. API can then discover if this
+ * 'node' died while waiting for results.
+ */
+void
+Dbspj::lookup_sendLeafCONF(Signal* signal,
+                           Ptr<Request> requestPtr,
+                           Ptr<TreeNode> treeNodePtr,
+                           Uint32 node)
+{
+  ndbassert(treeNodePtr.p->isLeaf());
+
+  const Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
+  const Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
+  TcKeyConf* const conf = (TcKeyConf*)signal->getDataPtr();
+  conf->apiConnectPtr = RNIL;
+  conf->confInfo = 0;
+  conf->gci_hi = 0;
+  TcKeyConf::setNoOfOperations(conf->confInfo, 1);
+  conf->transId1 = requestPtr.p->m_transId[0];
+  conf->transId2 = requestPtr.p->m_transId[1];
+  conf->operations[0].apiOperationPtr = resultData;
+  conf->operations[0].attrInfoLen =
+    TcKeyConf::DirtyReadBit | node;
+  const Uint32 sigLen = TcKeyConf::StaticLength + TcKeyConf::OperationLength;
+  sendTCKEYCONF(signal, sigLen, resultRef, requestPtr.p->m_senderRef);
+}
+
 
 void
 Dbspj::lookup_execLQHKEYCONF(Signal* signal,
@@ -4072,30 +4182,7 @@ Dbspj::lookup_parent_row(Signal* signal,
   DEBUG("::lookup_parent_row"
      << ", node: " << treeNodePtr.p->m_node_no);
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_EXEC_SEQUENTIAL)
-  {
-    jam();
-    DEBUG("T_EXEC_SEQUENTIAL --> exec deferred");
-
-    /**
-     * Append correlation values of deferred parent row operations
-     * to a list / fifo. Upon resume, we will then be able to 
-     * relocate all parent rows for which to resume operations.
-     */
-    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_pattern_store correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
-    if (!correlations.append(&rowRef.m_src_correlation, 1))
-    {
-      jam();
-      abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
-      return;
-    }
-
-    // As there are pending deferred operations we are not complete
-    requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
-    return;
-  }
-
+  ndbassert((treeNodePtr.p->m_bits & TreeNode::T_EXEC_SEQUENTIAL) == 0);
   lookup_row(signal, requestPtr, treeNodePtr, rowRef);
 } // Dbspj::lookup_parent_row()
 
@@ -4228,72 +4315,50 @@ Dbspj::lookup_row(Signal* signal,
 
       if (keyIsNull)
       {
-        jam();
-        DEBUG("Key contain NULL values");
         /**
          * When the key contains NULL values, an EQ-match is impossible!
          * Entire lookup request can therefore be eliminate as it is known
          * to be REFused with errorCode = 626 (Row not found).
-         * Scan request can elliminate these child LQHKEYREQs if REFs 
-         * are not needed in order to handle TN_RESUME_REF.
+         *
+         * Scan requests can simply ignore these child LQHKEYREQs
+         * as REFs are not needed, either by the API protocoll,
+         * or in order to handle TN_RESUME_REF.
+         *
+         * Lookup requests has to send the same KEYREFs as would have
+         * been produced by LQH. 
          */
-        if (requestPtr.p->isScan() &&
-            (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF) == 0)
+        jam();
+        DEBUG("Key contain NULL values: Ignore impossible KEYREQ");
+        releaseSection(ptrI);
+        ptrI = RNIL;
+
+        /* Send KEYREF(errCode=626) as required by lookup request protocol */
+        if (requestPtr.p->isLookup())
         {
-          /**
-           * Scan request: We can simply ignore lookup operation:
-           * As rowCount in SCANCONF will not include this KEYREQ,
-           * we dont have to send a KEYREF either.
-           */
           jam();
-          DEBUG("..Ignore impossible KEYREQ");
-          releaseSection(ptrI);
-          return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
+          lookup_stop_branch(signal, requestPtr, treeNodePtr, 626);
         }
-        else  // isLookup() or 'need TN_RESUME_REF'
+
+        /**
+         * Another TreeNode awaited completion of this treeNode
+         * or sub-branch before it could resume its operation.
+         */
+        if ((treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF))
         {
-          /**
-           * Ignored lookup request need a faked KEYREF for the lookup operation.
-           * Furthermore, if this is a leaf treeNode, a KEYCONF is also
-           * expected by the API.
-           *
-           * TODO: Not implemented yet as we believe
-           *       elimination of NULL key access for scan request
-           *       will have the most performance impact.
-           */
           jam();
+          DEBUG("handling TN_RESUME_REF");
+          ndbassert(treeNodePtr.p->m_resumePtrI != RNIL);
+          Ptr<TreeNode> resumeTreeNodePtr;
+          m_treenode_pool.getPtr(resumeTreeNodePtr, treeNodePtr.p->m_resumePtrI);
+          lookup_resume(signal, requestPtr, resumeTreeNodePtr);
         }
+
+        return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
       } // keyIsNull
 
-      /**
-       * NOTE:
-       *    The logic below contradicts 'keyIsNull' logic above and should
-       *    be removed.
-       *    However, it's likely that scanIndex should have similar
-       *    logic as 'Null as wildcard' may make sense for a range bound.
-       * NOTE2:
-       *    Until 'keyIsNull' also cause bailout for request->isLookup()
-       *    createEmptySection *is* require to avoid crash due to empty keys.
-       */
-      if (ptrI == RNIL)  // TODO: remove when keyIsNull is completely handled
-      {
-        jam();
-        /**
-         * We constructed a null-key...construct a zero-length key (even if we don't support it *now*)
-         *
-         *   (we actually did prior to joining mysql where null was treated as any other
-         *   value in a key). But mysql treats null in unique key as *wildcard*
-         *   which we don't support so well...and do nasty tricks in handler
-         *
-         * NOTE: should be *after* check for error
-         */
-        err = createEmptySection(ptrI);
-        if (unlikely(err != 0))
-          break;
-      }
-
+      ndbassert(ptrI != RNIL);
       treeNodePtr.p->m_send.m_keyInfoPtrI = ptrI;
-    }
+    } //T_KEYINFO_CONSTRUCTED
 
     BuildKeyReq tmp;
     err = computeHash(signal, tmp, tableId, treeNodePtr.p->m_send.m_keyInfoPtrI);
@@ -5012,24 +5077,8 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
   jam();
   treeNodePtr.p->m_scanfrag_data.m_rows_received++;
 
-  {
-    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-    Dependency_map::ConstDataBufferIterator it;
+  common_execTRANSID_AI(signal, requestPtr, treeNodePtr, rowRef);
 
-    for (list.first(it); !it.isNull(); list.next(it))
-    {
-      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
-      {
-        jam();
-        Ptr<TreeNode> childPtr;
-        m_treenode_pool.getPtr(childPtr, * it.data);
-        ndbrequire(childPtr.p->m_info!=0 && childPtr.p->m_info->m_parent_row!=0);
-        (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                    requestPtr, childPtr,rowRef);
-      }
-    }
-  }
   ndbassert(treeNodePtr.p->m_resumePtrI == RNIL);
 
   if (treeNodePtr.p->m_scanfrag_data.m_rows_received ==
@@ -6064,7 +6113,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       list.first(fragPtr);
     }
 
-    bool hasNull;
+    bool hasNull = false;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
       jam();
@@ -6634,24 +6683,7 @@ Dbspj::scanIndex_execTRANSID_AI(Signal* signal,
 {
   jam();
 
-  {
-    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-    Dependency_map::ConstDataBufferIterator it;
-
-    for (list.first(it); !it.isNull(); list.next(it))
-    {
-      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
-      {
-        jam();
-        Ptr<TreeNode> childPtr;
-        m_treenode_pool.getPtr(childPtr, * it.data);
-        ndbrequire(childPtr.p->m_info != 0&&childPtr.p->m_info->m_parent_row!=0);
-        (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                    requestPtr, childPtr,rowRef);
-      }
-    }
-  }
+  common_execTRANSID_AI(signal, requestPtr, treeNodePtr, rowRef);
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
   data.m_rows_received++;
@@ -7908,22 +7940,6 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
     return 0;
   }
 #endif
-}
-
-Uint32
-Dbspj::createEmptySection(Uint32 & dst)
-{
-  Uint32 tmp;
-  SegmentedSectionPtr ptr;
-  if (likely(import(ptr, &tmp, 0)))
-  {
-    jam();
-    dst = ptr.i;
-    return 0;
-  }
-
-  jam();
-  return DbspjErr::OutOfSectionMemory;
 }
 
 /**
