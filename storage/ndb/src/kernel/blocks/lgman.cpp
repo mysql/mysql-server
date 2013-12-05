@@ -1547,7 +1547,7 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
   page=m_shared_page_pool.getPtr(ptr.p->m_pos[PRODUCER].m_current_pos.m_ptr_i);
   
   Uint32 total_free= ptr.p->m_free_buffer_words;
-  assert(total_free >= sz);
+  ndbrequire(total_free >= sz);
   Uint32 pos= ptr.p->m_pos[PRODUCER].m_current_pos.m_idx;
   Uint32 free= File_formats::UNDO_PAGE_WORDS - pos;
 
