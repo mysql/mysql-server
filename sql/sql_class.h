@@ -35,6 +35,7 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 #include "dur_prop.h"
+#include "prealloced_array.h"
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -1304,22 +1305,26 @@ private:
 
     @sa check_and_update_table_version()
   */
-  Dynamic_array<Reprepare_observer *> m_reprepare_observers;
+  Prealloced_array<Reprepare_observer *, 4> m_reprepare_observers;
 
 public:
   Reprepare_observer *get_reprepare_observer() const
   {
     return
-      m_reprepare_observers.elements() > 0 ?
-      *m_reprepare_observers.back() :
+      m_reprepare_observers.size() > 0 ?
+      m_reprepare_observers.back() :
       NULL;
   }
 
   void push_reprepare_observer(Reprepare_observer *o)
-  { m_reprepare_observers.append(o); }
+  { m_reprepare_observers.push_back(o); }
 
   Reprepare_observer *pop_reprepare_observer()
-  { return m_reprepare_observers.pop(); }
+  {
+    Reprepare_observer *retval= m_reprepare_observers.back();
+    m_reprepare_observers.pop_back();
+    return retval;
+  }
 
   void reset_reprepare_observers()
   { m_reprepare_observers.clear(); }
@@ -1407,7 +1412,8 @@ public:
      operations which open/lock/close tables (e.g. open_table()) one has to
      call init_open_tables_state().
   */
-  Open_tables_state() : state_flags(0U) { }
+  Open_tables_state()
+    : m_reprepare_observers(PSI_INSTRUMENT_ME), state_flags(0U) { }
 
   void set_open_tables_state(Open_tables_state *state);
 
