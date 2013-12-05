@@ -8,7 +8,6 @@ SET (REPLICATION_SOURCES
      protocol.cpp
      value.cpp
      binlog_event.cpp
-     bapi_utility.cpp
      utilities.cpp)
 
 
