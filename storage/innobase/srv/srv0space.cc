@@ -660,33 +660,37 @@ Tablespace::read_lsn_and_check_flags(
 
 		it->m_handle = os_file_t(~0);
 
-		/* The first file of the system tablespace must have space
-		ID = TRX_SYS_SPACE.  The FSP_SPACE_ID field in files greater
-		than ibdata1 are unreliable. */
-
-		ut_a(!check_tablespace_attributes || space == TRX_SYS_SPACE);
-
 		/* Check the flags for the first system tablespace file only. */
 
-		if (check_tablespace_attributes && check_msg) {
+		if (!check_tablespace_attributes) {
+			continue;
+		}
+
+		if (check_msg != NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%s in %sData file \"%s\"",
+				"%s in %s \"%s\"",
 				check_msg,
-				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				((m_space_id == TRX_SYS_SPACE)
+				 ? "data file" : "temp-data file"),
 				it->m_filename);
 			return(DB_ERROR);
 		}
 
+		/* The first file of the system tablespace has the correct
+		space ID. The FSP_SPACE_ID field in files greater than
+		ibdata1 are unreliable. */
+		ut_a(space == m_space_id);
+
 		const page_size_t	page_size(flags);
 
-		if (check_tablespace_attributes
-		    && !page_size.equals_to(univ_page_size)) {
+		if (!page_size.equals_to(univ_page_size)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%sData file \"%s\" uses page size %lu, "
+				"%s \"%s\" uses page size %lu, "
 				"but the start-up parameter is "
 				"--innodb-page-size=%lu",
-				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				((m_space_id == TRX_SYS_SPACE)
+				 ? "data file" : "temp-data file"),
 				it->m_filename,
 				page_size.physical(),
 				univ_page_size.physical());
