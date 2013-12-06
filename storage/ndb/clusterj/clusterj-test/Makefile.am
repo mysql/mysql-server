@@ -123,6 +123,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/TimeAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsSqlTimestampTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsUtilDateTypesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/TransactionErrorSetPartitionKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TransactionStateTest.java \
   $(clusterj_test_src)/testsuite/clusterj/UpdateTest.java \
   $(clusterj_test_src)/testsuite/clusterj/VarbinaryPKTest.java \
