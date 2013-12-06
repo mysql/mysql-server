@@ -118,7 +118,7 @@ buf_read_page_low(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t 		tablespace_version)
+	ib_int64_t		tablespace_version)
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
@@ -818,24 +818,19 @@ buf_read_ibuf_merge_pages(
 	}
 }
 
-/********************************************************************//**
-Issues read requests for pages which recovery wants to read in. */
-
+/** Issues read requests for pages which recovery wants to read in.
+@param[in]	sync		TRUE if the caller wants this function to wait
+for the highest address page to get read in, before this function returns
+@param[in]	space		space id
+@param[in]	page_nos	array of page numbers to read, with the
+highest page number the last in the array
+@param[in]	n_stored	number of page numbers in the array */
 void
 buf_read_recv_pages(
-/*================*/
-	ibool		sync,		/*!< in: TRUE if the caller
-					wants this function to wait
-					for the highest address page
-					to get read in, before this
-					function returns */
-	ulint		space,		/*!< in: space id */
-	const ulint*	page_nos,	/*!< in: array of page numbers
-					to read, with the highest page
-					number the last in the
-					array */
-	ulint		n_stored)	/*!< in: number of page numbers
-					in the array */
+	ibool		sync,
+	ulint		space,
+	const ulint*	page_nos,
+	ulint		n_stored)
 {
 	ib_int64_t		tablespace_version;
 	ulint			count;

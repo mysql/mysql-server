@@ -5098,7 +5098,7 @@ ibuf_check_bitmap_on_import(
 	every page_size pages. For example if page_size is 16 KiB, then the
 	two bitmap pages repeat every 16 KiB * 16384 = 256 MiB. In the loop
 	below page_no is measured in number of pages since the beginning of
-	the space, like usually. */
+	the space, as usual. */
 
 	for (page_no = 0; page_no < size; page_no += page_size.physical()) {
 		mtr_t	mtr;

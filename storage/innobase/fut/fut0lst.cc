@@ -165,7 +165,6 @@ flst_add_first(
 
 			ut_ad(found);
 
-
 			first_node = fut_get_ptr(space, page_size, first_addr,
 						 RW_SX_LATCH, mtr);
 		}

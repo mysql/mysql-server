@@ -544,19 +544,20 @@ buf_load()
 	/* Avoid calling the expensive fil_space_get_page_size() for each
 	page within the same tablespace. dump[] is sorted by (space, page),
 	so all pages from a given tablespace are consecutive. */
-	ulint		page_size_is_for_space = BUF_DUMP_SPACE(dump[0]);
+	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
 	bool		found;
 	page_size_t	page_size(fil_space_get_page_size(
-					page_size_is_for_space, &found));
+					cur_space_id, &found));
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		const ulint	space = BUF_DUMP_SPACE(dump[i]);
+		/* space_id for this iteration of the loop */
+		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
 
-		if (space != page_size_is_for_space) {
-			page_size.copy_from(
-				fil_space_get_page_size(space, &found));
-			page_size_is_for_space = space;
+		if (this_space_id != cur_space_id) {
+			page_size.copy_from(fil_space_get_page_size(
+					this_space_id, &found));
+			cur_space_id = this_space_id;
 		}
 
 		if (!found) {
@@ -564,7 +565,7 @@ buf_load()
 		}
 
 		buf_read_page_background(
-			page_id_t(space, BUF_DUMP_PAGE(dump[i])),
+			page_id_t(this_space_id, BUF_DUMP_PAGE(dump[i])),
 			page_size, true);
 
 		if (i % 64 == 63) {
