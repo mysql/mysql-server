@@ -3814,9 +3814,10 @@ fil_create_new_single_table_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not write the first page to tablespace "
 			"'%s'", path);
-
-		err = DB_ERROR;
-		goto error_exit_2;
+		os_file_close(file);
+		os_file_delete(innodb_data_file_key, path);
+		ut_free(path);
+		return(DB_ERROR);
 	}
 
 	success = os_file_flush(file);
@@ -3824,15 +3825,20 @@ fil_create_new_single_table_tablespace(
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File flush of tablespace '%s' failed", path);
-		err = DB_ERROR;
-		goto error_exit_2;
+		os_file_close(file);
+		os_file_delete(innodb_data_file_key, path);
+		ut_free(path);
+		return(DB_ERROR);
 	}
 
 	if (has_data_dir) {
 		/* Now that the IBD file is created, make the ISL file. */
 		err = fil_create_link_file(tablename, path);
 		if (err != DB_SUCCESS) {
-			goto error_exit_2;
+			os_file_close(file);
+			os_file_delete(innodb_data_file_key, path);
+			ut_free(path);
+			return(err);
 		}
 	}
 
@@ -3871,7 +3877,7 @@ error_exit_1:
 	if (has_data_dir && err != DB_SUCCESS) {
 		fil_delete_link_file(tablename);
 	}
-error_exit_2:
+
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
 		os_file_delete(innodb_data_file_key, path);
@@ -5775,23 +5781,12 @@ fil_io(
 		ulint	size_shift;
 
 		switch (page_size.physical()) {
-		case 1024:
-			size_shift = 10;
-			break;
-		case 2048:
-			size_shift = 11;
-			break;
-		case 4096:
-			size_shift = 12;
-			break;
-		case 8192:
-			size_shift = 13;
-			break;
-		case 16384:
-			size_shift = 14;
-			break;
-		default:
-			ut_error;
+		case 1024: size_shift = 10; break;
+		case 2048: size_shift = 11; break;
+		case 4096: size_shift = 12; break;
+		case 8192: size_shift = 13; break;
+		case 16384: size_shift = 14; break;
+		default: ut_error;
 		}
 
 		offset = ((os_offset_t) cur_page_no << size_shift)
@@ -6332,10 +6327,6 @@ fil_iterate(
 		if (callback.get_page_size().is_compressed()) {
 			page_zip_des_init(&block->page.zip);
 			page_zip_set_size(&block->page.zip, iter.page_size);
-
-			block->page.id = page_id_t(
-				block->page.id.space(),
-				block->page.id.page_no());
 
 			block->page.size.copy_from(
 				page_size_t(iter.page_size,

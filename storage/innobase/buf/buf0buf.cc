@@ -5446,6 +5446,7 @@ buf_page_init_for_backup_restore(
 {
 	block->page.state = BUF_BLOCK_FILE_PAGE;
 	block->page.id = page_id;
+	block->page.size.copy_from(page_size);
 
 	page_zip_des_init(&block->page.zip);
 
