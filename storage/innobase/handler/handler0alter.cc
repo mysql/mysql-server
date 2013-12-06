@@ -2683,7 +2683,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd)->str);
+			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -6088,7 +6088,7 @@ foreign_fail:
 					" returned %u for %s",
 					(unsigned) error,
 					thd_query_string(user_thd)
-					->str);
+					.str);
 				ut_ad(0);
 			} else {
 				if (!commit_cache_norebuild(
