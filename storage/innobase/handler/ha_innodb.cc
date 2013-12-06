@@ -3102,19 +3102,18 @@ innobase_change_buffering_inited_ok:
 	    != 8*1024*1024L /* the default */ ) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Using innodb_additional_mem_pool_size is DEPRECATED. "
-			"This option may be removed in future releases, "
-			"together with the option innodb_use_sys_malloc "
-			"and with the InnoDB's internal memory "
-			"allocator.");
+			"Using innodb_additional_mem_pool_size is DEPRECATED."
+			" This option may be removed in future releases,"
+			" together with the option innodb_use_sys_malloc"
+			" and with the InnoDB's internal memory allocator.");
 	}
 
 	if (!srv_use_sys_malloc ) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Setting innodb_use_sys_malloc to FALSE is DEPRECATED. "
-			"This option may be removed in future releases, "
-			"together with the InnoDB's internal memory "
-			"allocator.");
+			"Setting innodb_use_sys_malloc to FALSE is DEPRECATED."
+			" This option may be removed in future releases,"
+			" together with the InnoDB's internal memory"
+			" allocator.");
 	}
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
@@ -3125,10 +3124,9 @@ innobase_change_buffering_inited_ok:
 
 	if (!innobase_use_checksums) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Setting innodb_checksums to OFF is DEPRECATED. "
-			"This option may be removed in future releases. "
-			"You should set innodb_checksum_algorithm=NONE "
-			"instead.");
+			"Setting innodb_checksums to OFF is DEPRECATED."
+			" This option may be removed in future releases. You"
+			" should set innodb_checksum_algorithm=NONE instead.");
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
 
@@ -4211,17 +4209,17 @@ test_ut_format_name()
 		ut_a(ret == buf);
 
 		if (strcmp(buf, test_data[i].expected) == 0) {
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"ut_format_name(%s, %s, buf, %lu), "
-				"expected %s, OK\n",
+				"expected %s, OK",
 				test_data[i].name,
 				test_data[i].is_table ? "TRUE" : "FALSE",
 				test_data[i].buf_size,
 				test_data[i].expected);
 		} else {
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"ut_format_name(%s, %s, buf, %lu), "
-				"expected %s, ERROR: got %s\n",
+				"expected %s, ERROR: got %s",
 				test_data[i].name,
 				test_data[i].is_table ? "TRUE" : "FALSE",
 				test_data[i].buf_size,
@@ -4473,9 +4471,8 @@ ha_innobase::innobase_initialize_autoinc()
 		updates to the table. */
 		auto_inc = 0;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
-				"column name\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Unable to determine the AUTOINC column name");
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -4523,20 +4520,17 @@ ha_innobase::innobase_initialize_autoinc()
 			break;
 		}
 		case DB_RECORD_NOT_FOUND:
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
-				"dictionaries are out of sync.\n"
-				"InnoDB: Unable to find the AUTOINC column "
-				"%s in the InnoDB table %s.\n"
-				"InnoDB: We set the next AUTOINC column "
-				"value to 0,\n"
-				"InnoDB: in effect disabling the AUTOINC "
-				"next value generation.\n"
-				"InnoDB: You can either set the next "
-				"AUTOINC value explicitly using ALTER TABLE\n"
-				"InnoDB: or fix the data dictionary by "
-				"recreating the table.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"MySQL and InnoDB data dictionaries are out of"
+				" sync. Unable to find the AUTOINC column %s in"
+				" the InnoDB table %s. We set the next AUTOINC"
+				" column value to 0, in effect disabling the"
+				" AUTOINC next value generation.",
 				col_name, index->table->name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"You can either set the next AUTOINC value "
+				" explicitly using ALTER TABLE or fix the data"
+				" dictionary by recreating the table.");
 
 			/* This will disable the AUTOINC generation. */
 			auto_inc = 0;
@@ -6228,7 +6222,7 @@ ha_innobase::write_row(
 	} else if (prebuilt->trx != trx) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"The transaction object for the table handle is"
-			"at %p, but for the current thread it is at %p",
+			" at %p, but for the current thread it is at %p",
 			(const void*) prebuilt->trx, (const void*) trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
@@ -6677,34 +6671,32 @@ calc_row_difference(
 			Doc ID must also be updated. Otherwise, return
 			error */
 			if (changes_fts_column && !changes_fts_doc_col) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr, " InnoDB: A new Doc ID"
-					" must be supplied while updating"
-					" FTS indexed columns.\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"A new Doc ID must be supplied while"
+					" updating FTS indexed columns.");
 				return(DB_FTS_INVALID_DOCID);
 			}
 
 			/* Doc ID must monotonically increase */
 			ut_ad(innodb_table->fts->cache);
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
-				fprintf(stderr,
-					"InnoDB: FTS Doc ID must be larger than"
-					" " IB_ID_FMT " for table",
-					innodb_table->fts->cache->next_doc_id
-					- 1);
-				ut_print_name(stderr, trx,
-					      TRUE, innodb_table->name);
-				putc('\n', stderr);
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"FTS Doc ID must be larger than"
+					" " IB_ID_FMT " for table %s",
+					innodb_table->fts->cache->next_doc_id - 1,
+					ut_get_name(
+						trx, TRUE,
+						innodb_table->name).c_str());
 
 				return(DB_FTS_INVALID_DOCID);
 			} else if ((doc_id
 				    - prebuilt->table->fts->cache->next_doc_id)
 				   >= FTS_DOC_ID_MAX_STEP) {
-				fprintf(stderr,
-					"InnoDB: Doc ID " UINT64PF " is too"
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
 					" Doc ID used " UINT64PF " cannot"
-					" exceed or equal to %d\n",
+					" exceed or equal to %d",
 					doc_id,
 					prebuilt->table->fts->cache->next_doc_id - 1,
 					FTS_DOC_ID_MAX_STEP);
@@ -7344,7 +7336,7 @@ ha_innobase::innobase_get_index(
 
 	if (!index) {
 		sql_print_error(
-			"InnoDB could not find key n:o %u with name %s "
+			"InnoDB could not find key no %u with name %s "
 			"from dict cache for table %s",
 			keynr, key ? key->name : "NULL",
 			prebuilt->table->name);
@@ -7793,13 +7785,13 @@ ha_innobase::ft_init_ext(
 	uint			num_errors;
 
 	if (fts_enable_diag_print) {
-		fprintf(stderr, "keynr=%u, '%.*s'\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "keynr=%u, '%.*s'",
 			keynr, (int) key->length(), (byte*) key->ptr());
 
 		if (flags & FT_BOOL) {
-			fprintf(stderr, "BOOL search\n");
+			ib_logf(IB_LOG_LEVEL_INFO, "BOOL search");
 		} else {
-			fprintf(stderr, "NL search\n");
+			ib_logf(IB_LOG_LEVEL_INFO, "NL search");
 		}
 	}
 
@@ -8076,7 +8068,7 @@ next_record:
 void
 ha_innobase::ft_end()
 {
-	fprintf(stderr, "ft_end()\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "ft_end()");
 
 	rnd_end();
 }
@@ -10114,8 +10106,7 @@ ha_innobase::rename_table(
 					      errstr, sizeof(errstr));
 
 		if (ret != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: %s\n", errstr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", errstr);
 
 			push_warning(thd, Sql_condition::SL_WARNING,
 				     ER_LOCK_WAIT_TIMEOUT, errstr);
@@ -12838,9 +12829,9 @@ ha_innobase::innobase_peek_autoinc(void)
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
 	if (auto_inc == 0) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: AUTOINC next value generation "
-			"is disabled for '%s'\n", innodb_table->name);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"AUTOINC next value generation "
+			"is disabled for '%s'", innodb_table->name);
 	}
 
 	dict_table_autoinc_unlock(innodb_table);
@@ -13844,10 +13835,9 @@ innodb_file_format_max_update(
 
 	/* Update the max format id in the system tablespace. */
 	if (trx_sys_file_format_max_set(format_id, format_name_out)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" [Info] InnoDB: the file format in the system "
-			"tablespace is now set to %s.\n", *format_name_out);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The file format in the system"
+			" tablespace is now set to %s.", *format_name_out);
 	}
 }
 
@@ -14143,19 +14133,16 @@ innodb_stats_sample_pages_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-#define STATS_SAMPLE_PAGES_DEPRECATED_MSG \
-	"Using innodb_stats_sample_pages is deprecated and " \
-	"the variable may be removed in future releases. " \
-	"Please use innodb_stats_transient_sample_pages " \
-	"instead."
+
+const char*	STATS_SAMPLE_PAGES_DEPRECATED_MSG =
+	"Using innodb_stats_sample_pages is deprecated and"
+	" the variable may be removed in future releases."
+	" Please use innodb_stats_transient_sample_pages instead.";
 
 	push_warning(thd, Sql_condition::SL_WARNING,
 		     HA_ERR_WRONG_COMMAND, STATS_SAMPLE_PAGES_DEPRECATED_MSG);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Warning: %s\n",
-		STATS_SAMPLE_PAGES_DEPRECATED_MSG);
+	ib_logf(IB_LOG_LEVEL_WARN, "%s", STATS_SAMPLE_PAGES_DEPRECATED_MSG);
 
 	srv_stats_transient_sample_pages =
 		*static_cast<const unsigned long long*>(save);
@@ -16504,6 +16491,8 @@ ib_errf(
 	free(str);
 }
 
+const char*	BUG_REPORT_MSG =
+			"Submit a detailed bug report to http://bugs.mysql.com";
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: " */
 

@@ -780,8 +780,8 @@ fsp_header_get_space_id(
 
 	if (id != fsp_id) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Space id in fsp header %lu,but in the page header "
-			"%lu", fsp_id, id);
+			"Space id in fsp header %lu,but in the page header %lu",
+			fsp_id, id);
 
 		return(ULINT_UNDEFINED);
 	}
@@ -942,11 +942,9 @@ fsp_try_extend_data_file(
 		error requires server restart. */
 		if (!srv_sys_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"InnoDB: Error: Data file(s) ran"
-				" out of space."
-				"Please add another data file or"
-				" use \'autoextend\' for the last"
-				" data file.");
+				"Data file(s) ran out of space. Please add"
+				" another data file or use 'autoextend'"
+				" for the last data file.");
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -961,7 +959,7 @@ fsp_try_extend_data_file(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Temp-Data file(s) ran out of space."
 				" Please add another temp-data file or"
-				" use \'autoextend\' for the last data file");
+				" use 'autoextend' for the last data file");
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -1472,11 +1470,10 @@ fsp_alloc_free_page(
 
 		ut_a(!Tablespace::is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
-			fprintf(stderr,
-				"InnoDB: Error: trying to extend a"
-				" single-table tablespace %lu\n"
-				"InnoDB: by single page(s) though the"
-				" space size %lu. Page no %lu.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to extend a single-table tablespace"
+				" %lu, by single page(s) though the space size"
+				" %lu. Page no %lu.",
 				(ulong) space, (ulong) space_size,
 				(ulong) page_no);
 			return(NULL);
@@ -1521,9 +1518,9 @@ fsp_free_page(
 	state = xdes_get_state(descr, mtr);
 
 	if (state != XDES_FREE_FRAG && state != XDES_FULL_FRAG) {
-		fprintf(stderr,
-			"InnoDB: Error: File space extent descriptor"
-			" of page %lu has state %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File space extent descriptor of"
+			" page %lu has state %lu",
 			(ulong) page,
 			(ulong) state);
 		fputs("InnoDB: Dump of descriptor: ", stderr);
@@ -1546,10 +1543,9 @@ fsp_free_page(
 	if (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
 			     page % FSP_EXTENT_SIZE, mtr)) {
 
-		fprintf(stderr,
-			"InnoDB: Error: File space extent descriptor"
-			" of page %lu says it is free\n"
-			"InnoDB: Dump of descriptor: ", (ulong) page);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File space extent descriptor of page %lu says it is"
+			" free. Dump of descriptor: ", (ulong) page);
 		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
 		/* Crash in debug version, so that we get a core dump
@@ -2610,11 +2606,11 @@ take_hinted_page:
 			tablespace whose size is still < 64 pages */
 
 			if (ret_page >= FSP_EXTENT_SIZE) {
-				fprintf(stderr,
-					"InnoDB: Error (2): trying to extend"
-					" a single-table tablespace %lu\n"
-					"InnoDB: by single page(s) though"
-					" the space size %lu. Page no %lu.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error (2): trying to extend"
+					" a single-table tablespace %lu"
+					" by single page(s) though"
+					" the space size %lu. Page no %lu.",
 					(ulong) space, (ulong) space_size,
 					(ulong) ret_page);
 				ut_ad(!has_done_reservation);
@@ -3148,7 +3144,7 @@ fseg_free_page_low(
 		ut_print_buf(stderr, descr, 40);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Fatal Error! InnoDB is trying to free page %lu"
+			"InnoDB is trying to free page %lu"
 			" though it is already marked as free in the"
 			" tablespace! The tablespace free space info is"
 			" corrupt. You may need to dump your tables and"
@@ -3200,12 +3196,10 @@ crash:
 		ut_print_buf(stderr, seg_inode, 40);
 		putc('\n', stderr);
 
-		fprintf(stderr,
-			"InnoDB: Serious error: InnoDB is trying to"
-			" free space %lu page %lu,\n"
-			"InnoDB: which does not belong to"
-			" segment %llu but belongs\n"
-			"InnoDB: to segment %llu.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"InnoDB is trying to free space %lu page %lu,"
+			" which does not belong to segment %llu but belongs"
+			" to segment %llu.",
 			(ulong) space, (ulong) page,
 			(ullint) descr_id,
 			(ullint) seg_id);
@@ -3442,7 +3436,8 @@ fseg_free_step(
 	inode = fseg_inode_try_get(header, space, zip_size, mtr);
 
 	if (UNIV_UNLIKELY(inode == NULL)) {
-		fprintf(stderr, "double free of inode from %u:%u\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Double free of inode from %u:%u",
 			(unsigned) space, (unsigned) header_page);
 		return(TRUE);
 	}
@@ -3767,11 +3762,10 @@ fseg_print_low(
 	n_not_full = flst_get_len(inode + FSEG_NOT_FULL, mtr);
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
-	fprintf(stderr,
-		"SEGMENT id %llu space %lu; page %lu;"
-		" res %lu used %lu; full ext %lu\n"
-		"fragm pages %lu; free extents %lu;"
-		" not full extents %lu: pages %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"SEGMENT id %llu space %lu; page %lu; res %lu used %lu;"
+		" full ext %lu; fragm pages %lu; free extents %lu;"
+		" not full extents %lu: pages %lu",
 		(ullint) seg_id,
 		(ulong) space, (ulong) page_no,
 		(ulong) reserved, (ulong) used, (ulong) n_full,

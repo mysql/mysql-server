@@ -345,8 +345,8 @@ fts_get_charset(ulint prtype)
 		return(cs);
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unable to find charset-collation %u", cs_num);
+	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
+		cs_num);
 	return(NULL);
 }
 
@@ -556,17 +556,16 @@ fts_load_user_stopword(
 
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading user stopword table. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading user"
+					" stopword table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error '%s' "
-					"while reading user stopword table.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error '%s' while reading user"
+					" stopword table.",
 					ut_strerr(error));
 				ret = FALSE;
 				break;
@@ -2530,11 +2529,11 @@ fts_get_max_cache_size(
 
 		if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: FTS max cache size "
-				" (%lu) out of range. Minimum value is "
-				"%luMB and the maximum values is %luMB, "
-				"setting cache size to upper limit\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"FTS max cache size "
+				" (%lu) out of range. Minimum value is"
+				" %luMB and the maximum values is %luMB,"
+				" setting cache size to upper limit",
 				cache_size_in_mb,
 				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
 				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
@@ -2544,11 +2543,10 @@ fts_get_max_cache_size(
 		} else if  (cache_size_in_mb
 			    < FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: FTS max cache size "
-				" (%lu) out of range. Minimum value is "
-				"%luMB and the maximum values is %luMB, "
-				"setting cache size to lower limit\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"FTS max cache size (%lu) out of range. Minimum"
+				" value is %luMB and the maximum values is"
+				" %luMB, setting cache size to lower limit",
 				cache_size_in_mb,
 				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
 				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
@@ -2556,9 +2554,9 @@ fts_get_max_cache_size(
 			cache_size_in_mb = FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB;
 		}
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: Error: (%lu) reading max cache "
-			"config value from config table\n", error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%lu) reading max cache"
+			" config value from config table", error);
 	}
 
 	ut_free(value.f_str);
@@ -2598,9 +2596,9 @@ fts_get_total_word_count(
 		value.f_str[value.f_len] = 0;
 		*total = strtoul((char*) value.f_str, NULL, 10);
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) reading total words "
-			"value from config table\n", ut_strerr(error));
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%s) reading total words value from config table",
+			ut_strerr(error));
 	}
 
 	ut_free(value.f_str);
@@ -2772,9 +2770,8 @@ func_exit:
 	} else {
 		*doc_id = 0;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) "
-			"while getting next doc id.\n", ut_strerr(error));
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while getting next doc id.",
+			ut_strerr(error));
 
 		fts_sql_rollback(trx);
 
@@ -4043,10 +4040,9 @@ fts_sync_write_words(
 		}
 
 		if (error != DB_SUCCESS && !print_error) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error (%s) writing "
-				"word node to FTS auxiliary index "
-				"table.\n", ut_strerr(error));
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(%s) writing word node to FTS auxiliary index"
+				" table.", ut_strerr(error));
 
 			print_error = TRUE;
 		}
@@ -4134,17 +4130,16 @@ fts_sync_write_doc_stat(
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout writing to FTS doc_id. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout writing to"
+					" FTS doc_id. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while writing to FTS doc_id.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while writing to FTS doc_id.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -4290,17 +4285,16 @@ fts_is_word_in_index(
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading FTS index. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading"
+					" FTS index. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading FTS index.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading FTS index.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -4356,8 +4350,8 @@ fts_sync_index(
 	trx->op_info = "doing SYNC index";
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"SYNC words: %ld", rbt_size(index_cache->words));
+		ib_logf(IB_LOG_LEVEL_INFO, "SYNC words: %ld",
+			rbt_size(index_cache->words));
 	}
 
 	ut_ad(rbt_validate(index_cache->words));
@@ -4423,8 +4417,7 @@ fts_sync_commit(
 
 		fts_sql_rollback(trx);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) during SYNC.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) during SYNC.",
 			ut_strerr(error));
 	}
 
@@ -5056,17 +5049,15 @@ fts_get_rows_count(
 		} else {
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading FTS table. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading"
+					" FTS table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading FTS table.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading FTS table.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -5456,9 +5447,9 @@ fts_wait_for_background_thread_to_start(
 		}
 
 		if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Error the background thread "
-				"for the FTS table %s refuses to start\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The background thread"
+				" for the FTS table %s refuses to start",
 				table->name);
 
 			count = 0;
@@ -6332,8 +6323,8 @@ fts_rename_one_aux_table_to_hex_format(
 
 	if (error != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Failed to rename aux table \'%s\' to "
-			"new format \'%s\'. ",
+			"Failed to rename aux table \'%s\' to"
+			" new format \'%s\'. ",
 			aux_table->name, new_name);
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -6407,9 +6398,9 @@ fts_rename_aux_tables_to_hex_format(
 			dict_table_close(table, TRUE, FALSE);
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to rename one aux table %s "
-				"Will revert all successful rename "
-				"operations.", aux_table->name);
+				"Failed to rename one aux table %s Will revert"
+				" all successful rename operations.",
+				aux_table->name);
 
 			fts_sql_rollback(trx);
 			break;
@@ -6935,8 +6926,8 @@ fts_valid_stopword_table(
 	table = dict_table_get_low(stopword_table_name);
 
 	if (!table) {
-		fprintf(stderr,
-			"InnoDB: user stopword table %s does not exist.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"User stopword table %s does not exist.",
 			stopword_table_name);
 
 		return(NULL);
@@ -6946,10 +6937,10 @@ fts_valid_stopword_table(
 		col_name = dict_table_get_col_name(table, 0);
 
 		if (ut_strcmp(col_name, "value")) {
-			fprintf(stderr,
-				"InnoDB: invalid column name for stopword "
-				"table %s. Its first column must be named as "
-				"'value'.\n", stopword_table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Invalid column name for stopword table %s. Its"
+				" first column must be named as 'value'.",
+				stopword_table_name);
 
 			return(NULL);
 		}
@@ -6958,10 +6949,10 @@ fts_valid_stopword_table(
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {
-			fprintf(stderr,
-				"InnoDB: invalid column type for stopword "
-				"table %s. Its first column must be of "
-				"varchar type\n", stopword_table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Invalid column type for stopword table %s. Its"
+				" first column must be of varchar type",
+				stopword_table_name);
 
 			return(NULL);
 		}
