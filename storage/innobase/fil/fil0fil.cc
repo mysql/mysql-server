@@ -1934,6 +1934,10 @@ fil_check_first_page(
 	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
 	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 
+	if (!fsp_flags_is_valid(flags)) {
+		return("invalid tablespace flags");
+	}
+
 	const page_size_t	page_size(flags);
 
 	if (univ_page_size.logical() != page_size.logical()) {
