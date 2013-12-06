@@ -1290,10 +1290,11 @@ page_zip_compress(
 	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
-		fprintf(stderr, "compress %p %p %lu %lu %lu\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "compress %p %p %lu %lu %lu",
 			(void*) page_zip, (void*) page,
 			(ibool) page_is_leaf(page),
 			n_fields, n_dense);
+
 	}
 	if (UNIV_UNLIKELY(page_zip_compress_log)) {
 		/* Create a log file for every compression attempt. */

@@ -963,12 +963,10 @@ dict_table_open_on_name(
 				mutex_exit(&dict_sys->mutex);
 			}
 
-			ut_print_timestamp(stderr);
-
-			fprintf(stderr, "  InnoDB: table ");
-			ut_print_name(stderr, NULL, TRUE, table->name);
-			fprintf(stderr, "is corrupted. Please drop the table "
-				"and recreate\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Table %s is corrupted. Please drop the table"
+				" and recreate",
+				ut_get_name(NULL, TRUE, table->name).c_str());
 
 			DBUG_RETURN(NULL);
 		}
@@ -1396,8 +1394,8 @@ dict_table_rename_in_cache(
 		} );
 	if (table2) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot rename table '%s' to '%s' since the "
-			"dictionary cache already contains '%s'.",
+			"Cannot rename table '%s' to '%s' since the"
+			" dictionary cache already contains '%s'.",
 			old_name, new_name, new_name);
 		return(DB_ERROR);
 	}
@@ -1441,14 +1439,10 @@ dict_table_rename_in_cache(
 		char*	new_path = NULL;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: trying to rename a"
-			      " TEMPORARY TABLE ", stderr);
-			ut_print_name(stderr, NULL, TRUE, old_name);
-			fputs(" (", stderr);
-			ut_print_filename(stderr,
-					  table->dir_path_of_temp_table);
-			fputs(" )\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to rename a TEMPORARY TABLE %s ( %s )",
+				ut_get_name(NULL, TRUE, old_name).c_str(),
+				table->dir_path_of_temp_table);
 			return(DB_ERROR);
 
 		} else if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -2545,16 +2539,12 @@ dict_index_remove_from_cache_low(
 
 		if (retries % 500 == 0) {
 			/* No luck after 5 seconds of wait. */
-			fprintf(stderr, "InnoDB: Error: Waited for"
-				" %lu secs for hash index"
-				" ref_count (%lu) to drop"
-				" to 0.\n"
-				"index: \"%s\""
-				" table: \"%s\"\n",
-				retries/100,
-				ref_count,
-				index->name,
-				table->name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Waited for %lu secs for hash index"
+				" ref_count (%lu) to drop to 0."
+				" index: \"%s\" table: \"%s\"",
+				retries/100, ref_count,
+				index->name, table->name);
 		}
 
 		/* To avoid a hang here we commit suicide if the
@@ -2629,11 +2619,12 @@ dict_index_find_cols(
 
 #ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
-		fputs("InnoDB: Error: no matching column for ", stderr);
-		ut_print_name(stderr, NULL, FALSE, field->name);
-		fputs(" in ", stderr);
-		dict_index_name_print(stderr, NULL, index);
-		fputs("!\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"No matching column for %s"
+			" in index %s of %s of table!",
+			ut_get_name(NULL, FALSE, field->name).c_str(),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str());
 #endif /* UNIV_DEBUG */
 		return(FALSE);
 
@@ -4209,9 +4200,8 @@ dict_create_foreign_constraints_low(
 	ptr = dict_scan_table_name(cs, ptr, &table_to_alter, name,
 				   &success, heap, &referenced_table_name);
 	if (!success) {
-		fprintf(stderr,
-			"InnoDB: Error: could not find"
-			" the table being ALTERED in:\n%s\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Could not find the table being ALTERED in: %s",
 			sql_string);
 
 		return(DB_ERROR);

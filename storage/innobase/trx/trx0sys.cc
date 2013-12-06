@@ -285,9 +285,9 @@ trx_sys_print_mysql_binlog_offset(void)
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
 		  + TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
 
-	fprintf(stderr,
-		"InnoDB: Last MySQL binlog file position %lu %lu,"
-		" file name %s\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Last MySQL binlog file position %lu %lu,"
+		" file name %s",
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
 		trx_sys_mysql_bin_log_name);
 
@@ -318,10 +318,9 @@ trx_sys_print_mysql_master_log_pos(void)
 		return;
 	}
 
-	fprintf(stderr,
-		"InnoDB: In a MySQL replication slave the last"
-		" master binlog file\n"
-		"InnoDB: position %lu %lu, file name %s\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"In a MySQL replication slave the last master binlog file"
+		" position %lu %lu, file name %s",
 		(ulong) mach_read_from_4(sys_header
 					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
 					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
@@ -568,14 +567,13 @@ trx_sys_init_at_db_start(void)
 			rows_to_undo = rows_to_undo / 1000000;
 		}
 
-		fprintf(stderr,
-			"InnoDB: %lu transaction(s) which must be"
-			" rolled back or cleaned up\n"
-			"InnoDB: in total %lu%s row operations to undo\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"%lu transaction(s) which must be rolled back or"
+			" cleaned up in total %lu%s row operations to undo",
 			(ulong) UT_LIST_GET_LEN(trx_sys->rw_trx_list),
 			(ulong) rows_to_undo, unit);
 
-		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "Trx id counter is " TRX_ID_FMT "",
 			trx_sys->max_trx_id);
 	}
 
@@ -1008,9 +1006,9 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"ibbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s\n",
+			" file name %s",
 			(ulong) mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
 				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
@@ -1057,13 +1055,10 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read system tablespace "
-			"file format,\n"
-			"  ibbackup: but could not open the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read system tablespace"
+			" file format, but could not open the tablespace"
+			" file %s!", pathname);
 		return(FALSE);
 	}
 
@@ -1076,13 +1071,10 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read system tablespace "
-			"file format,\n"
-			"  ibbackup: but failed to read the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read system tablespace"
+			" file format, but failed to read the tablespace"
+			" file %s!", pathname);
 
 		os_file_close(file);
 		return(FALSE);
@@ -1137,13 +1129,10 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read per-table "
-			"tablespace format,\n"
-			"  ibbackup: but could not open the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read per-table tablespace"
+			" format, but could not open the tablespace file %s!",
+			pathname);
 
 		return(FALSE);
 	}
@@ -1156,13 +1145,10 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to per-table data file "
-			"format,\n"
-			"  ibbackup: but failed to read the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to per-table data file format,"
+			" but failed to read the tablespace file %s!",
+			pathname);
 
 		os_file_close(file);
 		return(FALSE);

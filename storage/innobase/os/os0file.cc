@@ -397,63 +397,58 @@ os_file_get_last_error_low(
 		&& err != ERROR_DISK_FULL
 		&& err != ERROR_FILE_EXISTS)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Operating system error number %lu"
-			" in a file operation.\n", (ulong) err);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Operating system error number %lu"
+			" in a file operation.", (ulong) err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
-			fprintf(stderr,
-				"InnoDB: The error means the system"
-				" cannot find the path specified.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means the system"
+				" cannot find the path specified.");
 
 			if (srv_is_being_started) {
-				fprintf(stderr,
-					"InnoDB: If you are installing InnoDB,"
-					" remember that you must create\n"
-					"InnoDB: directories yourself, InnoDB"
-					" does not create them.\n");
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"If you are installing InnoDB,"
+					" remember that you must create"
+					" directories yourself, InnoDB"
+					" does not create them.");
 			}
 		} else if (err == ERROR_ACCESS_DENIED) {
-			fprintf(stderr,
-				"InnoDB: The error means mysqld does not have"
-				" the access rights to\n"
-				"InnoDB: the directory. It may also be"
-				" you have created a subdirectory\n"
-				"InnoDB: of the same name as a data file.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means mysqld does not have"
+				" the access rights to"
+				" the directory. It may also be"
+				" you have created a subdirectory"
+				" of the same name as a data file.");
 		} else if (err == ERROR_SHARING_VIOLATION
 			   || err == ERROR_LOCK_VIOLATION) {
-			fprintf(stderr,
-				"InnoDB: The error means that another program"
-				" is using InnoDB's files.\n"
-				"InnoDB: This might be a backup or antivirus"
-				" software or another instance\n"
-				"InnoDB: of MySQL."
-				" Please close it to get rid of this error.\n");
+				ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means that another program"
+				" is using InnoDB's files."
+				" This might be a backup or antivirus"
+				" software or another instance"
+				" of MySQL."
+				" Please close it to get rid of this error.");
 		} else if (err == ERROR_WORKING_SET_QUOTA
 			   || err == ERROR_NO_SYSTEM_RESOURCES) {
-			fprintf(stderr,
-				"InnoDB: The error means that there are no"
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means that there are no"
 				" sufficient system resources or quota to"
-				" complete the operation.\n");
+				" complete the operation.");
 		} else if (err == ERROR_OPERATION_ABORTED) {
-			fprintf(stderr,
-				"InnoDB: The error means that the I/O"
-				" operation has been aborted\n"
-				"InnoDB: because of either a thread exit"
-				" or an application request.\n"
-				"InnoDB: Retry attempt is made.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means that the I/O"
+				" operation has been aborted"
+				" because of either a thread exit"
+				" or an application request."
+				" Retry attempt is made.");
 		} else {
-			fprintf(stderr,
-				"InnoDB: Some operating system error numbers"
-				" are described at\n"
-				"InnoDB: "
-				REFMAN
-				"operating-system-error-codes.html\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Some operating system error numbers"
+				" are described at" REFMAN
+				" operating-system-error-codes.html");
 		}
 	}
-
-	fflush(stderr);
 
 	if (err == ERROR_FILE_NOT_FOUND) {
 		return(OS_FILE_NOT_FOUND);
@@ -483,47 +478,39 @@ os_file_get_last_error_low(
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Operating system error number %d"
-			" in a file operation.\n", err);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Operating system error number %d"
+			" in a file operation.", err);
 
 		if (err == ENOENT) {
-			fprintf(stderr,
-				"InnoDB: The error means the system"
-				" cannot find the path specified.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means the system"
+				" cannot find the path specified.");
 
 			if (srv_is_being_started) {
-				fprintf(stderr,
-					"InnoDB: If you are installing InnoDB,"
-					" remember that you must create\n"
-					"InnoDB: directories yourself, InnoDB"
-					" does not create them.\n");
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"If you are installing InnoDB,"
+					" remember that you must create"
+					" directories yourself, InnoDB"
+					" does not create them.");
 			}
 		} else if (err == EACCES) {
-			fprintf(stderr,
-				"InnoDB: The error means mysqld does not have"
-				" the access rights to\n"
-				"InnoDB: the directory.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The error means mysqld does not have"
+				" the access rights to the directory.");
 		} else {
 			if (strerror(err) != NULL) {
-				fprintf(stderr,
-					"InnoDB: Error number %d"
-					" means '%s'.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error number %d means '%s'.",
 					err, strerror(err));
 			}
 
-
-			fprintf(stderr,
-				"InnoDB: Some operating system"
-				" error numbers are described at\n"
-				"InnoDB: "
-				REFMAN
-				"operating-system-error-codes.html\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Some operating system error numbers are"
+				" described at " REFMAN ""
+				" operating-system-error-codes.html");
 		}
 	}
-
-	fflush(stderr);
 
 	switch (err) {
 	case ENOSPC:
@@ -603,20 +590,14 @@ os_file_handle_error_cond_exit(
 		on_error_silent setting. */
 
 		if (name) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Encountered a problem with"
-				" file %s\n", name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Encountered a problem with file %s", name);
 		}
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Disk is full. Try to clean the disk"
-			" to free space.\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Disk is full. Try to clean the disk to free space.");
 
 		os_has_said_disk_full = true;
-
-		fflush(stderr);
 
 		return(false);
 
@@ -731,9 +712,9 @@ os_file_lock(
 
 		if (errno == EAGAIN || errno == EACCES) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Check that you do not already have "
-				"another mysqld process using the "
-				"same InnoDB data or log files.");
+				"Check that you do not already have"
+				" another mysqld process using the"
+				" same InnoDB data or log files.");
 		}
 
 		return(-1);
@@ -780,10 +761,8 @@ os_file_create_tmpfile(void)
 	}
 
 	if (!file) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: unable to create temporary file;"
-			" errno: %d\n", errno);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to create temporary file; errno: %d", errno);
 		if (fd >= 0) {
 			close(fd);
 		}
@@ -974,8 +953,8 @@ next_file:
 	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
 	if (ret != 0) {
-		fprintf(stderr,
-			"InnoDB: cannot read directory %s, error %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot read directory %s, error %lu",
 			dirname, (ulong) ret);
 
 		return(-1);
@@ -1154,8 +1133,7 @@ os_file_create_simple_func(
 		if (!*success) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'",
-				name);
+				"Unable to create subdirectories '%s'", name);
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1246,8 +1224,7 @@ os_file_create_simple_func(
 		if (!*success) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'",
-				name);
+				"Unable to create subdirectories '%s'", name);
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1920,10 +1897,9 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		fprintf(stderr,
-			"InnoDB: Warning: cannot delete file %s\n"
-			"InnoDB: Are you running ibbackup"
-			" to back up the file?\n", name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot delete file %s. Are you running ibbackup"
+			" to back up the file?", name);
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -2142,7 +2118,7 @@ os_file_set_size(
 
 	if (size >= (os_offset_t) 100 << 20) {
 
-		fprintf(stderr, "InnoDB: Progress in MB:");
+		ib_logf(IB_LOG_LEVEL_INFO, "Progress in MB:");
 	}
 
 	while (current_size < size) {
@@ -2276,10 +2252,9 @@ os_file_fsync(
 
 			if (failures % 100 == 0) {
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: fsync(): "
-					"No locks available; retrying\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"fsync(): No locks available;"
+					" retrying");
 			}
 
 			os_thread_sleep(200000 /* 0.2 sec */);
@@ -2419,14 +2394,14 @@ os_file_io(
 			/* For partial read/write scenario */
 			if(type == OS_FILE_READ) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"InnoDB: %lu bytes should have"
+					"%lu bytes should have"
 					" been read. Only %lu bytes"
 					" read. Retrying again to read"
 					" the remaining bytes.",
 					(ulong) n,(ulong) n_bytes);
 			} else {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"InnoDB: %lu bytes should have"
+					"%lu bytes should have"
 					" been written. Only %lu bytes"
 					" written. Retrying again to "
 					" write the remaining bytes.",
@@ -2472,8 +2447,7 @@ os_file_pread(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File read at offset > 4 GB");
+		ib_logf(IB_LOG_LEVEL_ERROR, "File read at offset > 4 GB");
 	}
 
 	os_n_file_reads++;
@@ -2753,10 +2727,9 @@ try_again:
 		return(true);
 	}
 
-	fprintf(stderr,
-		"InnoDB: Error: tried to read " ULINTPF " bytes at offset "
-		UINT64PF"\n"
-		"InnoDB: Was only able to read %ld.\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Tried to read " ULINTPF " bytes at offset"
+		" " UINT64PF " was only able to read %ld.",
 		n, offset, (lint) ret);
 #endif /* _WIN32 */
 #ifdef _WIN32
@@ -3019,17 +2992,13 @@ retry:
 		mutex_exit(&os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			" InnoDB: Error: File pointer positioning to"
-			" file %s failed at\n"
-			"InnoDB: offset %llu. Operating system"
-			" error number %lu.\n"
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File pointer positioning to"
+			" file %s failed at offset %llu."
+			" Operating system error number %lu."
+			" Some operating system error numbers"
+			" are described at"
+			REFMAN "operating-system-error-codes.html",
 			name, offset, (ulong) GetLastError());
 
 		return(false);
@@ -3073,32 +3042,28 @@ retry:
 
 		err = (ulint) GetLastError();
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			" InnoDB: Error: Write to file %s failed"
-			" at offset %llu.\n"
-			"InnoDB: %lu bytes should have been written,"
-			" only %lu were written.\n"
-			"InnoDB: Operating system error number %lu.\n"
-			"InnoDB: Check that your OS and file system"
-			" support files of this size.\n"
-			"InnoDB: Check also that the disk is not full"
-			" or a disk quota exceeded.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Write to file %s failed at offset %llu."
+			" %lu bytes should have been written,"
+			" only %lu were written."
+			" Operating system error number %lu."
+			" Check that your OS and file system"
+			" support files of this size."
+			" Check also that the disk is not full"
+			" or a disk quota exceeded.",
 			name, offset,
 			(ulong) n, (ulong) len, (ulong) err);
 
 		if (strerror((int) err) != NULL) {
-			fprintf(stderr,
-				"InnoDB: Error number %lu means '%s'.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Error number %lu means '%s'.",
 				(ulong) err, strerror((int) err));
 		}
 
-		fprintf(stderr,
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Some operating system error numbers"
+			" are described at"
+			REFMAN "operating-system-error-codes.html");
 
 		os_has_said_disk_full = true;
 	}
@@ -3116,31 +3081,27 @@ retry:
 
 	if (!os_has_said_disk_full) {
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			" InnoDB: Error: Write to file %s failed"
-			" at offset " UINT64PF ".\n"
-			"InnoDB: %lu bytes should have been written,"
-			" only %ld were written.\n"
-			"InnoDB: Operating system error number %lu.\n"
-			"InnoDB: Check that your OS and file system"
-			" support files of this size.\n"
-			"InnoDB: Check also that the disk is not full"
-			" or a disk quota exceeded.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Write to file %s failed at offset "UINT64PF"."
+			" %lu bytes should have been written,"
+			" only %ld were written."
+			" Operating system error number %lu."
+			" Check that your OS and file system"
+			" support files of this size."
+			" Check also that the disk is not full"
+			" or a disk quota exceeded.",
 			name, offset, n, (lint) ret,
 			(ulint) errno);
 		if (strerror(errno) != NULL) {
-			fprintf(stderr,
-				"InnoDB: Error number %d means '%s'.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Error number %d means '%s'.",
 				errno, strerror(errno));
 		}
 
-		fprintf(stderr,
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Some operating system error numbers"
+			" are described at" REFMAN ""
+			" operating-system-error-codes.html");
 
 		os_has_said_disk_full = true;
 	}
@@ -3656,9 +3617,8 @@ retry:
 	ret = io_setup(max_events, io_ctx);
 	if (ret == 0) {
 #if defined(UNIV_AIO_DEBUG)
-		fprintf(stderr,
-			"InnoDB: Linux native AIO:"
-			" initialized io_ctx for segment\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Linux native AIO: initialized io_ctx for segment");
 #endif
 		/* Success. Return now. */
 		return(true);
@@ -3670,53 +3630,46 @@ retry:
 	case -EAGAIN:
 		if (retries == 0) {
 			/* First time around. */
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Warning: io_setup() failed"
-				" with EAGAIN. Will make %d attempts"
-				" before giving up.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"io_setup() failed with EAGAIN."
+				" Will make %d attempts before giving up.",
 				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
 		}
 
 		if (retries < OS_AIO_IO_SETUP_RETRY_ATTEMPTS) {
 			++retries;
-			fprintf(stderr,
-				"InnoDB: Warning: io_setup() attempt"
-				" %lu failed.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"io_setup() attempt %lu failed.",
 				retries);
 			os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
 			goto retry;
 		}
 
 		/* Have tried enough. Better call it a day. */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: io_setup() failed"
-			" with EAGAIN after %d attempts.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"io_setup() failed with EAGAIN after %d attempts.",
 			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
 		break;
 
 	case -ENOSYS:
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: Linux Native AIO interface"
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Linux Native AIO interface"
 			" is not supported on this platform. Please"
 			" check your OS documentation and install"
-			" appropriate binary of InnoDB.\n");
+			" appropriate binary of InnoDB.");
 
 		break;
 
 	default:
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: Linux Native AIO setup"
-			" returned following error[%d]\n", -ret);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Linux Native AIO setup"
+			" returned following error[%d]", -ret);
 		break;
 	}
 
-	fprintf(stderr,
-		"InnoDB: You can disable Linux Native AIO by"
-		" setting innodb_use_native_aio = 0 in my.cnf\n");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"You can disable Linux Native AIO by"
+		" setting innodb_use_native_aio = 0 in my.cnf");
 	return(false);
 }
 
@@ -4626,8 +4579,8 @@ os_aio_linux_dispatch(
 	ret = io_submit(array->aio_ctx[io_ctx_index], 1, &iocb);
 
 #if defined(UNIV_AIO_DEBUG)
-	fprintf(stderr,
-		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]",
 		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
 		array->aio_ctx[io_ctx_index], (ulong) io_ctx_index);
 #endif
@@ -5111,9 +5064,9 @@ retry:
 			ut_a(slot->is_reserved);
 
 #if defined(UNIV_AIO_DEBUG)
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"io_getevents[%c]: slot[%p] ctx[%p]"
-				" seg[%lu]\n",
+				" seg[%lu]",
 				(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
 				slot, io_ctx, segment);
 #endif
@@ -5157,9 +5110,8 @@ retry:
 	}
 
 	/* All other errors should cause a trap for now. */
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unexpected ret_code[%d] from io_getevents()!",	ret);
+		"Unexpected ret_code[%d] from io_getevents()!", ret);
 }
 
 /**********************************************************************//**
