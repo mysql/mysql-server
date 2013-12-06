@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,11 +104,15 @@ typedef struct st_mysql_methods
 } MYSQL_METHODS;
 
 #define simple_command(mysql, command, arg, length, skip_check) \
-  (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
-                                        0, arg, length, skip_check, NULL)
+  ((mysql)->methods \
+    ? (*(mysql)->methods->advanced_command)(mysql, command, 0, \
+                                            0, arg, length, skip_check, NULL) \
+    : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 #define stmt_command(mysql, command, arg, length, stmt) \
-  (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
-                                        0, arg, length, 1, stmt)
+  ((mysql)->methods \
+    ? (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
+                                           0, arg, length, 1, stmt) \
+    : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 
 extern CHARSET_INFO *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,
