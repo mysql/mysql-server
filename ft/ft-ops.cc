@@ -4039,6 +4039,12 @@ void toku_ft_cursor_remove_restriction(FT_CURSOR ftcursor) {
     ftcursor->direction = 0;
 }
 
+void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra) {
+    ftcursor->interrupt_cb = cb;
+    ftcursor->interrupt_cb_extra = extra;
+}
+
+
 void
 toku_ft_cursor_set_temporary(FT_CURSOR ftcursor) {
     ftcursor->is_temporary = true;
@@ -4812,12 +4818,20 @@ ok: ;
             switch (search->direction) {
             case FT_SEARCH_LEFT:
                 idx++;
-                if (idx >= bn->data_buffer.omt_size())
+                if (idx >= bn->data_buffer.omt_size()) {
+                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
+                        return TOKUDB_INTERRUPTED;
+                    }
                     return DB_NOTFOUND;
+                }
                 break;
             case FT_SEARCH_RIGHT:
-                if (idx == 0)
+                if (idx == 0) {
+                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
+                        return TOKUDB_INTERRUPTED;
+                    }
                     return DB_NOTFOUND;
+                }
                 idx--;
                 break;
             default:
