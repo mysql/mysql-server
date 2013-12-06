@@ -13562,7 +13562,7 @@ param_marker:
               MYSQL_YYABORT;
             }
             item= new (thd->mem_root) Item_param((uint) (@1.raw_start -
-                                                         thd->query()));
+                                                         thd->query().str));
             if (!($$= item) || lex->param_list.push_back(item))
             {
               my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));

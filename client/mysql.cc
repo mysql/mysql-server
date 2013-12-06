@@ -201,7 +201,7 @@ static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
-static uint delimiter_length= 1;
+static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -5745,7 +5745,7 @@ com_resetconnection(String *buffer __attribute__((unused)),
   {
     if (status.batch)
       return 0;
-    return put_info("Unsupported command.\n",INFO_ERROR);
+    return put_error(&mysql);
   }
   return error;
 }

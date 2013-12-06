@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #--disable_abort_on_error
 #
 # Simple test for the partition storage engine
@@ -47,6 +42,7 @@ SELECT a,b,HEX(b) FROM t1 ORDER BY a, b;
 SELECT * FROM t1 WHERE b = 9223372036854775808;
 SELECT * FROM t1 WHERE b = 18446744073709551612;
 SELECT * FROM t1 WHERE b = 18446744073709551615;
+analyze table t1;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 9223372036854775808;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551612;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551615;
@@ -85,6 +81,7 @@ select * from t1 where a > 2 and a < 4;
 select * from t1 where a > 3 and a <= 6;
 select * from t1 where a > 5;
 select * from t1 where a >= 1 and a <= 5;
+analyze table t1;
 explain partitions select * from t1 where a < 0;
 explain partitions select * from t1 where a is null or (a >= 5 and a <= 7); 
 explain partitions select * from t1 where a is null;
@@ -168,7 +165,7 @@ drop table t1;
 #
 # Bug# 15968 - crash when INSERT with f1 = -1 into partition by hash(f1)
 #
-CREATE TABLE t1 (f1 INTEGER, f2 char(20)) ENGINE = 'MYISAM' PARTITION BY HASH(f1) PARTITIONS 2;
+CREATE TABLE t1 (f1 INTEGER, f2 char(20)) PARTITION BY HASH(f1) PARTITIONS 2;
 INSERT INTO t1 SET f1 = 0 - 1, f2 = '#######';
 select * from t1;
 drop table t1;
@@ -191,7 +188,6 @@ DROP TABLE t1;
 create table t1 (c1 int DEFAULT NULL,
                  c2 varchar (30) DEFAULT NULL,
                  c3 date DEFAULT NULL)
-engine = myisam
 partition by hash (to_days(c3))
 partitions 12;
 

@@ -1,5 +1,7 @@
-# This is a Myisam engine specific testcase
+# This tests Bug#16986 Deadlock condition with MyISAM tables
+# All tests are required to run with Myisam.
 # Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 

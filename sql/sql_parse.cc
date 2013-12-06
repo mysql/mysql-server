@@ -828,7 +828,8 @@ bool do_command(THD *thd)
 
   DBUG_ASSERT(packet_length);
 
-  return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
+  return_value= dispatch_command(command, thd, packet+1,
+                                 static_cast<size_t>(packet_length-1));
 
 out:
   /* The statement instrumentation must be closed in all cases. */
@@ -931,13 +932,14 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
         COM_QUIT/COM_SHUTDOWN
 */
 bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, uint packet_length)
+		      char* packet, size_t packet_length)
 {
   NET *net= &thd->net;
   bool error= 0;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   DBUG_ENTER("dispatch_command");
-  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d",
+                     static_cast<int>(packet_length), packet, command));
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -1117,29 +1119,30 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(thd->query(), thd->thread_id,
+    MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
-    char *packet_end= thd->query() + thd->query_length();
+    const char *packet_end= thd->query().str + thd->query().length;
 
     if (opt_general_log_raw)
-      query_logger.general_log_write(thd, command, thd->query(),
-                                     thd->query_length());
+      query_logger.general_log_write(thd, command, thd->query().str,
+                                     thd->query().length);
 
-    DBUG_PRINT("query",("%-.4096s",thd->query()));
+    DBUG_PRINT("query",("%-.4096s", thd->query().str));
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.set_query_source(thd->query(), thd->query_length());
+    thd->profiling.set_query_source(thd->query().str, thd->query().length);
 #endif
 
-    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
+                             thd->query().length);
 
     Parser_state parser_state;
-    if (parser_state.init(thd, thd->query(), thd->query_length()))
+    if (parser_state.init(thd, thd->query().str, thd->query().length))
       break;
 
-    mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+    mysql_parse(thd, &parser_state);
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
@@ -1147,7 +1150,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /*
         Multiple queries exits, execute them individually
       */
-      char *beginning_of_next_stmt= (char*) parser_state.m_lip.found_semicolon;
+      const char *beginning_of_next_stmt= parser_state.m_lip.found_semicolon;
 
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
@@ -1159,7 +1162,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                           thd->get_stmt_da()->mysql_errno() : 0,
                           command_name[command].str);
 
-      ulong length= (ulong)(packet_end - beginning_of_next_stmt);
+      size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
 
@@ -1192,7 +1195,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
 /* DTRACE begin */
-      MYSQL_QUERY_START(beginning_of_next_stmt, thd->thread_id,
+      MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
+                        thd->thread_id,
                         (char *) (thd->db ? thd->db : ""),
                         &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
@@ -1205,8 +1209,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       THD_STAGE_INFO(thd, stage_init);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
-      thd->set_query_and_id(beginning_of_next_stmt, length,
-                            thd->charset(), next_query_id());
+      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
       /*
         Count each statement from the client.
       */
@@ -1214,7 +1217,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       parser_state.reset(beginning_of_next_stmt, length);
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      mysql_parse(thd, beginning_of_next_stmt, length, &parser_state);
+      mysql_parse(thd, &parser_state);
     }
 
     DBUG_PRINT("info",("query ready"));
@@ -1288,7 +1291,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    uint query_length= (uint) (packet_end - packet); // Don't count end \0
+    size_t query_length=
+      static_cast<size_t>(packet_end - packet); // Don't count end \0
     if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
       break;
     thd->set_query(fields, query_length);
@@ -1729,9 +1733,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     TRUE  error;  In this case thd->fatal_error is set
 */
 
-bool alloc_query(THD *thd, const char *packet, uint packet_length)
+bool alloc_query(THD *thd, const char *packet, size_t packet_length)
 {
-  char *query;
   /* Remove garbage at start and end of query */
   while (packet_length > 0 && my_isspace(thd->charset(), packet[0]))
   {
@@ -1745,30 +1748,13 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache 
 
-    The query buffer layout is:
-       buffer :==
-            <statement>   The input statement(s)
-            '\0'          Terminating null char  (1 byte)
-            <length>      Length of following current database name (size_t)
-            <db_name>     Name of current database
-            <flags>       Flags struct
-  */
-  if (! (query= (char*) thd->memdup_w_gap(packet,
-                                          packet_length,
-                                          1 + sizeof(size_t) + thd->db_length +
-                                          QUERY_CACHE_FLAGS_SIZE)))
-      return TRUE;
+  char *query= static_cast<char*>(thd->alloc(packet_length + 1));
+  if (!query)
+    return TRUE;
+  memcpy(query, packet, packet_length);
   query[packet_length]= '\0';
-  /*
-    Space to hold the name of the current database is allocated.  We
-    also store this length, in case current database is changed during
-    execution.  We might need to reallocate the 'query' buffer
-  */
-  char *len_pos = (query + packet_length + 1);
-  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
-    
+
   thd->set_query(query, packet_length);
   thd->rewritten_query.free();                 // free here lest PS break
 
@@ -2173,7 +2159,7 @@ mysql_execute_command(THD *thd)
   thd->status_var.com_stat[lex->sql_command]++;
 
   Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
-                      thd->query(), thd->query_length(), NULL,
+                      thd->query().str, thd->query().length, NULL,
                       thd->variables.character_set_client);
 
   Opt_trace_object trace_command(&thd->opt_trace);
@@ -2971,7 +2957,7 @@ end_with_restore_list:
 
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
-    MYSQL_UPDATE_START(thd->query());
+    MYSQL_UPDATE_START(const_cast<char*>(thd->query().str));
 
     // Need to open to check for multi-update
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
@@ -3053,7 +3039,7 @@ end_with_restore_list:
 #endif
     {
       multi_update *result_obj;
-      MYSQL_MULTI_UPDATE_START(thd->query());
+      MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
       res= mysql_multi_update(thd, all_tables,
                               &select_lex->item_list,
                               &lex->value_list,
@@ -3126,7 +3112,7 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
-    MYSQL_INSERT_START(thd->query());
+    MYSQL_INSERT_START(const_cast<char*>(thd->query().str));
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3184,7 +3170,7 @@ end_with_restore_list:
 
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
-      MYSQL_INSERT_SELECT_START(thd->query());
+      MYSQL_INSERT_SELECT_START(const_cast<char*>(thd->query().str));
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;
@@ -3230,7 +3216,7 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
-    MYSQL_DELETE_START(thd->query());
+    MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options);
@@ -3257,7 +3243,7 @@ end_with_restore_list:
     if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
       break;
 
-    MYSQL_MULTI_DELETE_START(thd->query());
+    MYSQL_MULTI_DELETE_START(const_cast<char*>(thd->query().str));
     if ((res= mysql_multi_delete_prepare(thd, &del_table_count)))
     {
       MYSQL_MULTI_DELETE_DONE(1, 0);
@@ -3865,7 +3851,7 @@ end_with_restore_list:
       if (write_to_binlog > 0)  // we should write
       { 
         if (!lex->no_write_to_binlog)
-          res= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, false, thd->query().str, thd->query().length);
       } else if (write_to_binlog < 0) 
       {
         /* 
@@ -4345,7 +4331,7 @@ end_with_restore_list:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, true, thd->query().str, thd->query().length);
 	  push_warning_printf(thd, Sql_condition::SL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
@@ -4690,7 +4676,7 @@ finish:
     {
       sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
                       "for query '%.*s'", leaked - total_leaked_bytes,
-                      static_cast<int>(thd->query_length()), thd->query());
+                      static_cast<int>(thd->query().length), thd->query().str);
     }
     total_leaked_bytes= leaked;
   }
@@ -4992,12 +4978,11 @@ void mysql_init_multi_delete(LEX *lex)
                                the next query in the query text.
 */
 
-void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 Parser_state *parser_state)
+void mysql_parse(THD *thd, Parser_state *parser_state)
 {
   int error __attribute__((unused));
   DBUG_ENTER("mysql_parse");
-  DBUG_PRINT("mysql_parse", ("query: '%s'", rawbuf));
+  DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
@@ -5020,7 +5005,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
-  if (query_cache.send_result_to_client(thd, rawbuf, length) <= 0)
+  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
 
@@ -5028,8 +5013,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
     size_t      qlen= found_semicolon
-                      ? (found_semicolon - thd->query())
-                      : thd->query_length();
+                      ? (found_semicolon - thd->query().str)
+                      : thd->query().length;
 
     if (!err)
     {
@@ -5066,7 +5051,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                          thd->rewritten_query.c_ptr_safe(),
                                          thd->rewritten_query.length());
         else
-          query_logger.general_log_write(thd, COM_QUERY, thd->query(), qlen);
+          query_logger.general_log_write(thd, COM_QUERY,
+                                         thd->query().str, qlen);
       }
     }
 
@@ -5094,13 +5080,11 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             and Query_log_event::print() would give ';;' output).
             This also helps display only the current query in SHOW
             PROCESSLIST.
-            Note that we don't need LOCK_thd_count to modify query_length.
           */
-          if (found_semicolon && (ulong) (found_semicolon - thd->query()))
-            thd->set_query_inner(thd->query(),
-                                 (uint32) (found_semicolon -
-                                           thd->query() - 1),
-                                 thd->charset());
+          if (found_semicolon && (ulong) (found_semicolon - thd->query().str))
+            thd->set_query(thd->query().str,
+                           static_cast<size_t>(found_semicolon -
+                                               thd->query().str - 1));
           /* Actually execute the query */
           if (found_semicolon)
           {
@@ -5108,7 +5092,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(thd->query(),
+          MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
                                  &thd->security_ctx->priv_user[0],
@@ -5173,8 +5157,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  sql_statement_info[SQLCOM_SELECT].m_key);
     if (!opt_general_log_raw)
-      query_logger.general_log_write(thd, COM_QUERY, thd->query(),
-                                     thd->query_length());
+      query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
+                                     thd->query().length);
     parser_state->m_lip.found_semicolon= NULL;
   }
 
@@ -5193,7 +5177,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     1	can be ignored
 */
 
-bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
+bool mysql_test_parse_for_slave(THD *thd)
 {
   LEX *lex= thd->lex;
   bool error= 0;
@@ -5201,7 +5185,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
-  if (!(error= parser_state.init(thd, rawbuf, length)))
+  if (!(error= parser_state.init(thd, thd->query().str, thd->query().length)))
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
@@ -6641,7 +6625,7 @@ bool parse_sql(THD *thd,
   DBUG_ASSERT(thd->m_parser_state == NULL);
   DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
 
-  MYSQL_QUERY_PARSE_START(thd->query());
+  MYSQL_QUERY_PARSE_START(const_cast<char*>(thd->query().str));
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
