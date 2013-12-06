@@ -34,6 +34,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
 ALTER TABLE t1 REPAIR PARTITION p0;
 Table	Op	Msg_type	Msg_text

@@ -42,7 +42,7 @@ i
 # Connection 2
 # Alter table, abort after prepare
 set session debug="+d,abort_copy_table";
-ALTER TABLE tbl_with_partitions ADD COLUMN f INT;
+ALTER TABLE tbl_with_partitions ADD COLUMN f INT, ALGORITHM=COPY;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Connection 1
 # Try accessing the table after Alter aborted.

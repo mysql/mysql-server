@@ -396,6 +396,11 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
+	/* This private object "t" is not shared with other threads, so
+	we do not need the stats_latch. The lock/unlock routines will do
+	nothing if stats_latch is NULL. */
+	t->stats_latch = NULL;
+
 	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
 	for (index = dict_table_get_first_index(table);
@@ -706,8 +711,7 @@ dict_stats_copy(
 	dst->stat_initialized = TRUE;
 }
 
-/*********************************************************************//**
-Duplicate the stats of a table and its indexes.
+/** Duplicate the stats of a table and its indexes.
 This function creates a dummy dict_table_t object and copies the input
 table's stats into it. The returned table object is not in the dictionary
 cache and cannot be accessed by any other threads. In addition to the
@@ -726,12 +730,12 @@ dict_index_t::stat_index_size
 dict_index_t::stat_n_leaf_pages
 The returned object should be freed with dict_stats_snapshot_free()
 when no longer needed.
+@param[in]	table	table whose stats to copy
 @return incomplete table object */
 static
 dict_table_t*
 dict_stats_snapshot_create(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table whose stats to copy */
+	dict_table_t*	table)
 {
 	mutex_enter(&dict_sys->mutex);
 
@@ -2167,16 +2171,15 @@ dict_stats_save_index_stat(
 }
 
 /** Save the table's statistics into the persistent statistics storage.
-@param[in] table_orig table whose stats to save
-@param[in] only_for_index if this is non-NULL, then stats for indexes
-that are not equal to it will not be saved, if NULL, then all
-indexes' stats are saved
+@param[in]	table_orig	table whose stats to save
+@param[in]	only_for_index	if this is non-NULL, then stats for indexes
+that are not equal to it will not be saved, if NULL, then all indexes' stats
+are saved
 @return DB_SUCCESS or error code */
 static
 dberr_t
 dict_stats_save(
-/*============*/
-	const dict_table_t*	table_orig,
+	dict_table_t*		table_orig,
 	const index_id_t*	only_for_index)
 {
 	pars_info_t*	pinfo;

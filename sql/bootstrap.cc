@@ -104,28 +104,31 @@ static void handle_bootstrap_impl(THD *thd)
       break;
     }
 
-    char *query= (char *) thd->memdup_w_gap(buffer, length + 1,
-                                            thd->db_length + 1 +
-                                            QUERY_CACHE_FLAGS_SIZE);
-    size_t db_len= 0;
-    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
-    thd->set_query_and_id(query, length, thd->charset(), next_query_id());
-    DBUG_PRINT("query",("%-.4096s",thd->query()));
+    char *query= static_cast<char*>(thd->alloc(length + 1));
+    if (query == NULL)
+    {
+      bootstrap_error= 1;
+      break;
+    }
+    memcpy(query, buffer, length);
+    query[length]= '\0';
+    thd->set_query_and_id(query, length, next_query_id());
+    DBUG_PRINT("query",("%-.4096s",thd->query().str));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query(), length);
+    thd->profiling.set_query_source(thd->query().str, thd->query().length);
 #endif
 
     thd->set_time();
     Parser_state parser_state;
-    if (parser_state.init(thd, thd->query(), length))
+    if (parser_state.init(thd, thd->query().str, thd->query().length))
     {
       thd->protocol->end_statement();
       bootstrap_error= 1;
       break;
     }
 
-    mysql_parse(thd, thd->query(), length, &parser_state);
+    mysql_parse(thd, &parser_state);
 
     bootstrap_error= thd->is_error();
     thd->protocol->end_statement();

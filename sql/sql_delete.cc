@@ -563,7 +563,7 @@ cleanup:
         delete specific rows which we might log row-based.
       */
       int log_result= thd->binlog_query(query_type,
-                                        thd->query(), thd->query_length(),
+                                        thd->query().str, thd->query().length,
                                         transactional_table, FALSE, FALSE,
                                         errcode);
 
@@ -1052,7 +1052,7 @@ void multi_delete::abort_result_set()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
-                               thd->query(), thd->query_length(),
+                               thd->query().str, thd->query().length,
                                transactional_table_map != 0, FALSE, FALSE,
                                errcode);
     }
@@ -1237,7 +1237,7 @@ bool multi_delete::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_table_map != 0, FALSE, FALSE,
                             errcode) &&
           !non_transactional_table_map)
