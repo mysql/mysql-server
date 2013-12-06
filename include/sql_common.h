@@ -77,9 +77,9 @@ typedef struct st_mysql_methods
   my_bool (*advanced_command)(MYSQL *mysql,
 			      enum enum_server_command command,
 			      const unsigned char *header,
-			      unsigned long header_length,
+			      size_t header_length,
 			      const unsigned char *arg,
-			      unsigned long arg_length,
+			      size_t arg_length,
 			      my_bool skip_check,
                               MYSQL_STMT *stmt);
   MYSQL_DATA *(*read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
@@ -122,8 +122,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const unsigned char *header, ulong header_length,
-		     const unsigned char *arg, ulong arg_length,
+		     const unsigned char *header, size_t header_length,
+		     const unsigned char *arg, size_t arg_length,
                      my_bool skip_check, MYSQL_STMT *stmt);
 unsigned long cli_safe_read(MYSQL *mysql);
 void net_clear_error(NET *net);

@@ -176,7 +176,7 @@ public:
   inline bool is_in_use() { return flags & (uint) IS_IN_USE; }
   inline bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
-  bool prepare(const char *packet, uint packet_length);
+  bool prepare(const char *packet, size_t packet_length);
   bool execute_loop(String *expanded_query,
                     bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
@@ -2208,7 +2208,7 @@ static bool init_param_array(Prepared_statement *stmt)
     to the client, otherwise an error message is set in THD.
 */
 
-void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
+void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 {
   Protocol *save_protocol= thd->protocol;
   Prepared_statement *stmt;
@@ -2584,7 +2584,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
     client, otherwise an error message is set in THD.
 */
 
-void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
+void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id;
@@ -2692,7 +2692,7 @@ void mysql_sql_stmt_execute(THD *thd)
   @param packet_length      Length of packet
 */
 
-void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
+void mysqld_stmt_fetch(THD *thd, char *packet, size_t packet_length)
 {
   /* assume there is always place for 8-16 bytes */
   ulong stmt_id;
@@ -2763,7 +2763,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   @param packet_length      length of data in packet
 */
 
-void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length)
+void mysqld_stmt_reset(THD *thd, char *packet, size_t packet_length)
 {
   ulong stmt_id;
   Prepared_statement *stmt;
@@ -2814,7 +2814,7 @@ void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length)
     we don't send any reply to this command.
 */
 
-void mysqld_stmt_close(THD *thd, char *packet, uint packet_length)
+void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
 {
   /* There is always space for 4 bytes in packet buffer */
   ulong stmt_id;
@@ -2892,7 +2892,7 @@ void mysql_sql_stmt_close(THD *thd)
   @param packet_length      Length of string (including end \\0)
 */
 
-void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
+void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
 {
   ulong stmt_id;
   uint param_number;
@@ -3273,7 +3273,7 @@ Prepared_statement::set_db(const char *db_arg, uint db_length_arg)
     thd->mem_root contains unused memory allocated during validation.
 */
 
-bool Prepared_statement::prepare(const char *packet, uint packet_len)
+bool Prepared_statement::prepare(const char *packet, size_t packet_len)
 {
   bool error;
   Statement stmt_backup;

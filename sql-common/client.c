@@ -750,8 +750,8 @@ void free_rows(MYSQL_DATA *cur)
 
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const uchar *header, ulong header_length,
-		     const uchar *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, size_t header_length,
+		     const uchar *arg, size_t arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt)
 {
   NET *net= &mysql->net;
@@ -4475,7 +4475,7 @@ get_info:
 */
 
 int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, ulong length)
+mysql_send_query(MYSQL* mysql, const char* query, size_t length)
 {
   DBUG_ENTER("mysql_send_query");
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
@@ -4483,7 +4483,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, ulong length)
+mysql_real_query(MYSQL *mysql, const char *query, size_t length)
 {
   int retval;
   DBUG_ENTER("mysql_real_query");

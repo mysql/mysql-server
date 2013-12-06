@@ -400,9 +400,9 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
 int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
-					 unsigned long length);
+					 size_t length);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
-					unsigned long length);
+					size_t length);
 MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 
@@ -558,7 +558,7 @@ enum enum_mysql_stmt_state
 
 typedef struct st_mysql_bind
 {
-  unsigned long	*length;          /* output length pointer */
+  size_t	*length;          /* output length pointer */
   my_bool       *is_null;	  /* Pointer to null indicator */
   void		*buffer;	  /* buffer to get/put data */
   /* set this if you want to track data truncations happened during fetch */
@@ -570,7 +570,7 @@ typedef struct st_mysql_bind
   void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
 		      unsigned char **row);
   /* output buffer length, must be set when fetching str/binary */
-  unsigned long buffer_length;
+  size_t        buffer_length;
   unsigned long offset;           /* offset position for char/binary fetch */
   unsigned long	length_value;     /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
@@ -659,7 +659,7 @@ enum enum_stmt_attr_type
 
 MYSQL_STMT * STDCALL mysql_stmt_init(MYSQL *mysql);
 int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
-                               unsigned long length);
+                               size_t length);
 int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind_arg, 
@@ -681,7 +681,7 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, 
                                           unsigned int param_number,
                                           const char *data, 
-                                          unsigned long length);
+                                          size_t length);
 MYSQL_RES *STDCALL mysql_stmt_result_metadata(MYSQL_STMT *stmt);
 MYSQL_RES *STDCALL mysql_stmt_param_metadata(MYSQL_STMT *stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
