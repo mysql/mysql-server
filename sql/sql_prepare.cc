@@ -2324,11 +2324,27 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 
   thd->protocol= &thd->protocol_binary;
 
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt_locker_state state;
+  PSI_prepared_stmt_locker *locker;
+  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
+    PS instrumentation. */
+  stmt->m_ps_share= MYSQL_GET_PS_SHARE((char*)packet, packet_length);
+  locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
+#endif
+
   if (stmt->prepare(packet, packet_length))
   {
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
+    /* Mayank TODO: Do we need to delete this stmt stats from PS table. */
   }
+#ifdef HAVE_PSI_PS_INTERFACE
+  else
+  {
+    MYSQL_END_PS(locker); 
+  }
+#endif
 
   thd->protocol= save_protocol;
 
@@ -2731,7 +2747,19 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
   thd->protocol= &thd->protocol_binary;
+
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt_locker_state state;
+  PSI_prepared_stmt_locker *locker;
+  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_ps_share);
+#endif
+
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
+
+#ifdef HAVE_PSI_PS_INTERFACE
+  MYSQL_END_PS_EXECUTE(locker);
+#endif
+
   thd->protocol= save_protocol;
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2789,8 +2817,6 @@ void mysql_sql_stmt_execute(THD *thd)
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt_locker_state state;
   PSI_prepared_stmt_locker *locker;
-  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
-    PS instrumentation. */
   locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_ps_share);
 #endif
 
@@ -2960,6 +2986,9 @@ void mysqld_stmt_close(THD *thd, char *packet, uint packet_length)
   */
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
+#ifdef HAVE_PSI_PS_INTERFACE
+    MYSQL_DEALLOCATE_PS(stmt->m_ps_share);
+#endif
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
