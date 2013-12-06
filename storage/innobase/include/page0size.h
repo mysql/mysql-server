@@ -115,6 +115,9 @@ private:
 	buf_page_t::frame (currently also always equal to univ_page_size
 	(--innodb-page-size=)). */
 
+	/* XXX perf test if this makes any difference and use the faster
+	one if it does. */
+#if 1
 	/** Physical page size. */
 	unsigned	m_physical:PAGE_SIZE_T_SIZE_BITS;
 
@@ -123,6 +126,16 @@ private:
 
 	/** Flag designating whether the page/tablespace is compressed. */
 	unsigned	m_is_compressed:1;
+#else
+	/** Physical page size. */
+	ulint	m_physical;
+
+	/** Logical page size. */
+	ulint	m_logical;
+
+	/** Flag designating whether the page/tablespace is compressed. */
+	bool	m_is_compressed;
+#endif
 };
 
 extern page_size_t	univ_page_size;
