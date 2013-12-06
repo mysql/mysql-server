@@ -415,8 +415,8 @@ public:
 				ret = false;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open truncate log file %s. "
-				"If server crashes before truncate log is"
+				"Failed to open truncate log file %s."
+				" If server crashes before truncate log is"
 				" removed make sure it is manually removed"
 				" before restarting server",
 				m_log_file_name);

@@ -309,12 +309,10 @@ mem_pool_fill_free_list(
 
 	if (area == NULL) {
 		if (UT_LIST_GET_LEN(pool->free_list[i + 1]) > 0) {
-			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: Error: mem pool free list %lu"
-				" length is %lu\n"
-				"InnoDB: though the list is empty!\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Mem pool free list %lu"
+				" length is %lu though the list is empty!",
 				(ulong) i + 1,
 				(ulong)
 				UT_LIST_GET_LEN(pool->free_list[i + 1]));

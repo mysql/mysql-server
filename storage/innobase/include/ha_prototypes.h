@@ -436,6 +436,7 @@ ib_senderrf(
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
 
+extern const char*	BUG_REPORT_MSG;
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".
 Wrapper around sql_print_information() */

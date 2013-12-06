@@ -430,10 +430,10 @@ trx_rollback_to_savepoint_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
-		ut_print_name(stderr, trx, FALSE, savep->name);
-		fputs(" though it is not started\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Transaction has a savepoint %s"
+			" though it is not started",
+			ut_get_name(trx, FALSE, savep->name).c_str());
 		return(DB_ERROR);
 	case TRX_STATE_ACTIVE:
 		return(trx_rollback_to_savepoint_for_mysql_low(
@@ -603,7 +603,6 @@ trx_rollback_active(
 		unit = "M";
 	}
 
-	ut_print_timestamp(stderr);
 	trx_id = trx->id;
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
@@ -696,8 +695,8 @@ trx_rollback_resurrected(
 	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		trx_sys_mutex_exit();
-		fprintf(stderr,
-			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Cleaning up trx with id " TRX_ID_FMT "",
 			trx->id);
 		trx_cleanup_at_db_startup(trx);
 		trx_free_resurrected(trx);
@@ -742,9 +741,9 @@ trx_rollback_or_clean_recovered(
 	}
 
 	if (all) {
-		fprintf(stderr,
-			"InnoDB: Starting in background the rollback"
-			" of uncommitted transactions\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Starting in background the rollback"
+			" of uncommitted transactions");
 	}
 
 	/* Note: For XA recovered transactions, we rely on MySQL to
@@ -781,10 +780,9 @@ trx_rollback_or_clean_recovered(
 	} while (trx != NULL);
 
 	if (all) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Rollback of non-prepared"
-			" transactions completed\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Rollback of non-prepared"
+			" transactions completed");
 	}
 }
 

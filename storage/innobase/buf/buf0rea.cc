@@ -357,7 +357,7 @@ read_ahead:
 				tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"random readahead trying to access"
+					"Random readahead trying to access"
 					" page %u:%u in nonexisting or"
 					" being-dropped tablespace",
 					unsigned(space), unsigned(i));
@@ -416,7 +416,7 @@ buf_read_page(
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"trying to read page %u:%u in nonexisting or"
+			"Trying to read page %u:%u in nonexisting or"
 			" being-dropped tablespace",
 			unsigned(space), unsigned(offset));
 	}
@@ -720,7 +720,7 @@ buf_read_ahead_linear(
 				space, zip_size, FALSE, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"linear readahead trying to access"
+					"Linear readahead trying to access"
 					" page %u:%u in nonexisting or"
 					" being-dropped tablespace",
 					unsigned(space), unsigned(i));
