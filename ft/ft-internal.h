@@ -787,6 +787,8 @@ struct ft_cursor {
     int out_of_range_error;
     int direction;
     TOKUTXN ttxn;
+    FT_CHECK_INTERRUPT_CALLBACK interrupt_cb;
+    void *interrupt_cb_extra;
 };
 
 //
