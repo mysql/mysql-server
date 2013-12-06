@@ -828,7 +828,8 @@ bool do_command(THD *thd)
 
   DBUG_ASSERT(packet_length);
 
-  return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
+  return_value= dispatch_command(command, thd, packet+1,
+                                 static_cast<size_t>(packet_length-1));
 
 out:
   /* The statement instrumentation must be closed in all cases. */
@@ -931,13 +932,14 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
         COM_QUIT/COM_SHUTDOWN
 */
 bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, uint packet_length)
+		      char* packet, size_t packet_length)
 {
   NET *net= &thd->net;
   bool error= 0;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   DBUG_ENTER("dispatch_command");
-  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d",
+                     static_cast<int>(packet_length), packet, command));
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
