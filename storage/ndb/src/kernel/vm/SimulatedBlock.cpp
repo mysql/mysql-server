@@ -2075,7 +2075,9 @@ SimulatedBlock::getCallbackEntry(Uint32 ci)
 
 void
 SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
-                                 CallbackPtr& cptr, Uint32 returnCode)
+                                 CallbackPtr& cptr,
+                                 Uint32 senderData, Uint32 callbackInfo,
+                                 Uint32 returnCode)
 {
   Uint32 blockNo = blockToMain(fullBlockNo);
   Uint32 instanceNo = blockToInstance(fullBlockNo);
@@ -2083,9 +2085,6 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
   ndbrequire(b != 0);
 
   const CallbackEntry& ce = b->getCallbackEntry(cptr.m_callbackIndex);
-
-  // wl4391_todo add as arg if this is not enough
-  Uint32 senderData = returnCode;
 
   if (!isNdbMtLqh()) {
     Callback c;
@@ -2097,6 +2096,7 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
       jam();
       CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
       ack->senderData = senderData;
+      ack->callbackInfo = callbackInfo;
       EXECUTE_DIRECT(number(), GSN_CALLBACK_ACK,
                      signal, CallbackAck::SignalLength);
     }
@@ -2106,6 +2106,7 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
     conf->senderRef = reference();
     conf->callbackIndex = cptr.m_callbackIndex;
     conf->callbackData = cptr.m_callbackData;
+    conf->callbackInfo = callbackInfo;
     conf->returnCode = returnCode;
 
     if (ce.m_flags & CALLBACK_DIRECT) {
@@ -2129,20 +2130,25 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
 
   Uint32 senderData = conf->senderData;
   Uint32 senderRef = conf->senderRef;
+  Uint32 callbackIndex = conf->callbackIndex;
+  Uint32 callbackData = conf->callbackData;
+  Uint32 callbackInfo = conf->callbackInfo;
+  Uint32 returnCode = conf->returnCode;
 
   ndbrequire(m_callbackTableAddr != 0);
-  const CallbackEntry& ce = getCallbackEntry(conf->callbackIndex);
+  const CallbackEntry& ce = getCallbackEntry(callbackIndex);
   CallbackFunction function = ce.m_function;
 
   Callback callback;
   callback.m_callbackFunction = function;
-  callback.m_callbackData = conf->callbackData;
-  execute(signal, callback, conf->returnCode);
+  callback.m_callbackData = callbackData;
+  execute(signal, callback, returnCode);
 
   if (ce.m_flags & CALLBACK_ACK) {
     jam();
     CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
     ack->senderData = senderData;
+    ack->callbackInfo = callbackInfo;
     sendSignal(senderRef, GSN_CALLBACK_ACK,
                signal, CallbackAck::SignalLength, JBB);
   }
