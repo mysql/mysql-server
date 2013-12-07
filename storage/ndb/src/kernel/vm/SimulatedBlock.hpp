@@ -962,7 +962,9 @@ protected:
   void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
   const CallbackEntry& getCallbackEntry(Uint32 ci);
   void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
-                        CallbackPtr& cptr, Uint32 returnCode);
+                        CallbackPtr& cptr,
+                        Uint32 senderData, Uint32 callbackInfo,
+                        Uint32 returnCode);
   void execCALLBACK_CONF(Signal* signal);
 
   // Variable for storing inserted errors, see pc.H
