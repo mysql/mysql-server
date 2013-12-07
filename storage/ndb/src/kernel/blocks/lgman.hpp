@@ -76,6 +76,7 @@ protected:
   void execEND_LCP_CONF(Signal*);
 
   void execGET_TABINFOREQ(Signal*);
+  void execCALLBACK_ACK(Signal*);
 
   void sendGET_TABINFOREF(Signal* signal,
 			  GetTabInfoReq * req,
