@@ -644,6 +644,14 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
     assert(r == 0);
 }
 
+static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
+    LIST *e;
+    while ((e = trx->handlers)) {
+        ha_tokudb *handler = (ha_tokudb *) e->data;
+        handler->cleanup_txn(txn);
+    }
+}
+
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_commit");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
@@ -657,6 +665,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
+        tokudb_cleanup_handlers(trx, this_txn);
         commit_txn_with_progress(this_txn, syncflag, thd);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_after", DBUG_SUICIDE(););
@@ -683,6 +692,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("rollback %u %p\n", all, this_txn);
         }
+        tokudb_cleanup_handlers(trx, this_txn);
         abort_txn_with_progress(this_txn, thd);
         if (this_txn == trx->sp_level) {
             trx->sp_level = 0;

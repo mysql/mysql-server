@@ -1240,6 +1240,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     prelocked_right_range_size = 0;
     tokudb_active_index = MAX_KEY;
     invalidate_icp();
+    trx_handler_list.data = this;
 }
 
 ha_tokudb::~ha_tokudb() {
@@ -4436,6 +4437,7 @@ cleanup:
             int r = cursor->c_close(cursor);
             assert(r==0);
             cursor = NULL;
+            remove_from_trx_handler_list();
         }
     }
     return error;
@@ -4480,6 +4482,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
         DBUG_PRINT("note", ("Closing active cursor"));
         int r = cursor->c_close(cursor);
         assert(r==0);
+        remove_from_trx_handler_list();
     }
     active_index = keynr;
 
@@ -4517,6 +4520,8 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     }
     memset((void *) &last_key, 0, sizeof(last_key));
 
+    add_to_trx_handler_list();
+
     if (thd_sql_command(thd) == SQLCOM_SELECT) {
         set_query_columns(keynr);
         unpack_entire_row = false;
@@ -4542,6 +4547,7 @@ int ha_tokudb::index_end() {
         int r = cursor->c_close(cursor);
         assert(r==0);
         cursor = NULL;
+        remove_from_trx_handler_list();
         last_cursor_error = 0;
     }
     active_index = tokudb_active_index = MAX_KEY;
@@ -5546,7 +5552,7 @@ int ha_tokudb::rnd_end() {
 //      error otherwise
 //
 int ha_tokudb::rnd_next(uchar * buf) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
+    TOKUDB_DBUG_ENTER("ha_tokudb::rnd_next");
     ha_statistic_increment(&SSV::ha_read_rnd_next_count);
     int error = get_next(buf, 1, NULL);
     TOKUDB_DBUG_RETURN(error);
@@ -5706,6 +5712,7 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
             int r = cursor->c_close(cursor);
             assert(r==0);
             cursor = NULL;
+            remove_from_trx_handler_list();
         }
         goto cleanup; 
     }
@@ -8252,6 +8259,25 @@ Item* ha_tokudb::idx_cond_push(uint keyno_arg, Item* idx_cond_arg) {
     toku_pushed_idx_cond_keyno = keyno_arg;
     toku_pushed_idx_cond = idx_cond_arg;
     return idx_cond_arg;
+}
+
+void ha_tokudb::cleanup_txn(DB_TXN *txn) {
+    if (transaction == txn && cursor) {
+        int r = cursor->c_close(cursor);
+        assert(r == 0);
+        cursor = NULL;
+        remove_from_trx_handler_list();
+    }
+}
+
+void ha_tokudb::add_to_trx_handler_list() {
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    trx->handlers = list_add(trx->handlers, &trx_handler_list);
+}
+
+void ha_tokudb::remove_from_trx_handler_list() {
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    trx->handlers = list_delete(trx->handlers, &trx_handler_list);
 }
 
 // table admin 
