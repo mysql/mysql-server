@@ -342,12 +342,12 @@ close_table:
 			}
 
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: table ");
-			ut_print_name(stderr, node->trx, TRUE,
-				      node->table->name);
-			fprintf(stderr, " has no indexes, "
-				"ignoring the table\n");
+			std::string	str = ut_get_name(node->trx, TRUE,
+							  node->table->name);
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Table %s has no indexes, ignoring the table",
+				str.c_str());
 			goto close_table;
 		}
 	}

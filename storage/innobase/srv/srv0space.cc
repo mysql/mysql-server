@@ -349,12 +349,9 @@ Tablespace::get_sum_of_sizes() const
 		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"File size must be < 4 GB "
-				"with this MySQL binary.");
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Operating system combination, in some "
-				"OS's < 2 GB");
+				"File size must be < 4 GB with this MySQL"
+				" binary. Operating system combination, in some"
+				" OS's < 2 GB");
 
 			return(ULINT_UNDEFINED);
 		}

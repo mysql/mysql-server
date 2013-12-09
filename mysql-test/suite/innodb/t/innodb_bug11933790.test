@@ -5,7 +5,7 @@
 
 -- source include/have_innodb.inc
 
-call mtr.add_suppression("InnoDB: Error while trying to save table statistics for table .+bug11933790.*: Lock wait timeout");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot save table statistics for table \"test\"\.\"bug11933790\": Lock wait timeout");
 
 # we are only interested that the below commands do not crash the server
 -- disable_query_log

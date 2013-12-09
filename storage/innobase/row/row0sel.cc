@@ -2201,8 +2201,7 @@ fetch_step(
 	sel_node->common.parent = node;
 
 	if (sel_node->state == SEL_NODE_CLOSED) {
-		fprintf(stderr,
-			"InnoDB: Error: fetch called on a closed cursor\n");
+		ib_logf(IB_LOG_LEVEL_ERROR, "fetch called on a closed cursor");
 
 		thr_get_trx(thr)->error_state = DB_ERROR;
 
@@ -2230,7 +2229,7 @@ row_fetch_print(
 
 	UT_NOT_USED(user_arg);
 
-	fprintf(stderr, "row_fetch_print: row %p\n", row);
+	ib_logf(IB_LOG_LEVEL_INFO, "row_fetch_print: row %p", row);
 
 	for (exp = node->select_list;
 	     exp != 0;
@@ -2496,19 +2495,15 @@ row_sel_convert_mysql_key_to_innobase(
 			trick to calculate LIKE 'abc%' type queries there
 			should never be partial-field prefixes in searches. */
 
-			ut_print_timestamp(stderr);
-
-			fputs("  InnoDB: Warning: using a partial-field"
-			      " key prefix in search.\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
-			fprintf(stderr, ". Last data field length %lu bytes,\n"
-				"InnoDB: key ptr now exceeds"
-				" key end by %lu bytes.\n"
-				"InnoDB: Key value in the MySQL format:\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Using a partial-field key prefix in search,"
+				" index %s of table %s. Last data field length"
+				" %lu bytes, key ptr now exceeds key end by %lu"
+				" bytes. Key value in the MySQL format:",
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(trx, TRUE, index->table_name).c_str(),
 				(ulong) data_field_len,
 				(ulong) (key_ptr - key_end));
-			fflush(stderr);
 			ut_print_buf(stderr, original_key_ptr, key_len);
 			putc('\n', stderr);
 
@@ -3732,12 +3727,11 @@ row_search_for_mysql(
 		return(DB_CORRUPTION);
 
 	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to free a corrupt\n"
-			"InnoDB: table handle. Magic n %lu, table name ",
-			(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to free a corrupt"
+			" table handle. Magic n %lu, table name %s",
+			(ulong) prebuilt->magic_n,
+			ut_get_name(trx, TRUE, prebuilt->table->name).c_str());
 
 		mem_analyze_corruption(prebuilt);
 		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
@@ -4269,27 +4263,25 @@ rec_loop:
 
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
-			ut_print_timestamp(stderr);
 			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			fprintf(stderr,
-				"\nInnoDB: rec address %p,"
-				" buf block fix count %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Rec address %p,"
+				" buf block fix count %lu",
 				(void*) rec, (ulong)
 				btr_cur_get_block(btr_pcur_get_btr_cur(pcur))
 				->page.buf_fix_count);
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s. Run CHECK"
+				" TABLE. You may need to restore from a backup,"
+				" or dump + drop + reimport the table.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". Run CHECK TABLE. You may need to\n"
-			      "InnoDB: restore from a backup, or"
-			      " dump + drop + reimport the table.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(
+					trx, TRUE, index->table_name).c_str());
 			ut_ad(0);
 			err = DB_CORRUPTION;
 

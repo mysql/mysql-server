@@ -229,8 +229,8 @@ ibuf_count_check(
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
 		" and breaks crash recovery."
-		"\nInnoDB: space_id=" UINT32PF ", should be 0<=space_id<%lu"
-		"\nInnoDB: page_no=" UINT32PF ", should be 0<=page_no<%lu",
+		" space_id=" UINT32PF ", should be 0<=space_id<%lu."
+		" page_no=" UINT32PF ", should be 0<=page_no<%lu",
 		page_id.space(), (ulint) IBUF_COUNT_N_SPACES,
 		page_id.page_no(), (ulint) IBUF_COUNT_N_PAGES);
 }
@@ -3701,11 +3701,11 @@ fail_exit:
 func_exit:
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	if (err == DB_SUCCESS) {
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Incrementing ibuf count of space " UINT32PF " page "
-			UINT32PF "\n"
-			"from %lu by 1\n", page_id.space(), page_id.page_no(),
-			ibuf_count_get(page_id));
+			UINT32PF " from %lu by 1",
+			page_id.space(), page_id.page_no(),
+			ibuf_count_get(space, page_no));
 
 		ibuf_count_set(page_id, ibuf_count_get(page_id) + 1);
 	}
@@ -3932,11 +3932,9 @@ ibuf_insert_to_index_page_low(
 
 	page = buf_block_get_frame(block);
 
-	ut_print_timestamp(stderr);
-
-	fprintf(stderr,
-		"  InnoDB: Error: Insert buffer insert fails;"
-		" page free %lu, dtuple size %lu\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Insert buffer insert fails;"
+		" page free %lu, dtuple size %lu",
 		(ulong) page_get_max_insert_size(page, 1),
 		(ulong) rec_get_converted_size(index, entry, 0));
 	fputs("InnoDB: Cannot insert index record ", stderr);
@@ -3951,14 +3949,13 @@ ibuf_insert_to_index_page_low(
 		bitmap_page, block->page.id, block->page.size,
 		IBUF_BITMAP_FREE, mtr);
 
-	fprintf(stderr,
-		"InnoDB: space " UINT32PF ", page " UINT32PF
-		", size %lu, bitmap bits %lu\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"space " UINT32PF ", page " UINT32PF
+		", size %lu, bitmap bits %lu",
 		block->page.id.space(), block->page.id.page_no(),
 		block->page.size.physical(), (ulong) old_bits);
+	ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 
-	fputs("InnoDB: Submit a detailed bug report"
-	      " to http://bugs.mysql.com\n", stderr);
 	ut_ad(0);
 	DBUG_RETURN(NULL);
 }
@@ -3996,42 +3993,36 @@ ibuf_insert_to_index_page(
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {
-		fputs("InnoDB: Trying to insert a record from"
-		      " the insert buffer to an index page\n"
-		      "InnoDB: but the 'compact' flag does not match!\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to insert a record from the insert buffer to an"
+			" index page but the 'compact' flag does not match!");
 		goto dump;
 	}
 
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
 	if (page_rec_is_supremum(rec)) {
-		fputs("InnoDB: Trying to insert a record from"
-		      " the insert buffer to an index page\n"
-		      "InnoDB: but the index page is empty!\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to insert a record from the insert buffer to an"
+			" index page but the index page is empty!");
 		goto dump;
 	}
 
 	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
 			  != dtuple_get_n_fields(entry))) {
-		fputs("InnoDB: Trying to insert a record from"
-		      " the insert buffer to an index page\n"
-		      "InnoDB: but the number of fields does not match!\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to insert a record from the insert buffer to an"
+			" index page but the number of fields does not match!");
 dump:
 		buf_page_print(page, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
 		dtuple_print(stderr, entry);
 		ut_ad(0);
 
-		fputs("InnoDB: The table where where"
-		      " this index record belongs\n"
-		      "InnoDB: is now probably corrupt."
-		      " Please run CHECK TABLE on\n"
-		      "InnoDB: your tables.\n"
-		      "InnoDB: Submit a detailed bug report to"
-		      " http://bugs.mysql.com!\n", stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The table where where this index record belongs is now"
+			" probably corrupt. Please run CHECK TABLE on your"
+			" tables. %s", BUG_REPORT_MSG);
 
 		DBUG_VOID_RETURN;
 	}
@@ -4195,22 +4186,21 @@ ibuf_set_del_mark(
 		const buf_block_t*	block
 			= page_cur_get_block(&page_cur);
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: unable to find a record to delete-mark\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to find a record to delete-mark");
 		fputs("InnoDB: tuple ", stderr);
 		dtuple_print(stderr, entry);
 		fputs("\n"
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, page_cur_get_rec(&page_cur), index);
-		fprintf(stderr, "\nspace " UINT32PF " offset " UINT32PF
-			" (%u records, index id %llu)\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"space " UINT32PF " page_no " UINT32PF
+			" (" ULINTPF " records, index id " UINT64PF ").",
 			block->page.id.space(),
 			block->page.id.page_no(),
-			(unsigned) page_get_n_recs(page),
-			(ulonglong) btr_page_get_index_id(page));
+			page_get_n_recs(page),
+			btr_page_get_index_id(page));
+		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 		ut_ad(0);
 	}
 }
@@ -4258,9 +4248,7 @@ ibuf_delete(
 			 & rec_get_info_bits(rec, page_is_comp(page)))) {
 			/* Refuse to purge the last record or a
 			record that has not been marked for deletion. */
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: unable to purge a record\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Unable to purge a record");
 			fputs("InnoDB: tuple ", stderr);
 			dtuple_print(stderr, entry);
 			fputs("\n"
@@ -4339,13 +4327,12 @@ ibuf_restore_pos(
 		entry.  Do not complain. */
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 	} else {
-		fprintf(stderr,
-			"InnoDB: ERROR: Submit the output to"
-			" http://bugs.mysql.com\n"
-			"InnoDB: ibuf cursor restoration fails!\n"
-			"InnoDB: ibuf record inserted to page %lu:%lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibuf cursor restoration fails!."
+			" ibuf record inserted to page %lu:%lu",
 			(ulong) space, (ulong) page_no);
-		fflush(stderr);
+
+		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 
 		rec_print_old(stderr, btr_pcur_get_rec(pcur));
 		rec_print_old(stderr, pcur->old_rec);
@@ -4427,9 +4414,9 @@ ibuf_delete_rec(
 		}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
-		fprintf(stderr,
-			"Decrementing ibuf count of space %lu page %lu\n"
-			"from %lu by 1\n", space, page_no,
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Decrementing ibuf count of space %lu page %lu "
+			"from %lu by 1", space, page_no,
 			ibuf_count_get(page_id));
 		ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
 #endif
@@ -4620,7 +4607,7 @@ ibuf_merge_or_delete_for_page(
 
 			ibuf_mtr_start(&mtr);
 
-			fputs("  InnoDB: Dump of the ibuf bitmap page:\n",
+			fputs("\nInnoDB: Dump of the ibuf bitmap page:\n",
 			      stderr);
 
 			ut_ad(page_size != NULL);
@@ -4637,24 +4624,20 @@ ibuf_merge_or_delete_for_page(
 			buf_page_print(block->frame, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			fprintf(stderr,
-				"InnoDB: Error: corruption in the tablespace."
-				" Bitmap shows insert\n"
-				"InnoDB: buffer records to page n:o " UINT32PF
-				" though the page\n"
-				"InnoDB: type is %lu, which is"
-				" not an index leaf page!\n"
-				"InnoDB: We try to resolve the problem"
-				" by skipping the insert buffer\n"
-				"InnoDB: merge for this page."
-				" Please run CHECK TABLE on your tables\n"
-				"InnoDB: to determine if they are corrupt"
-				" after this.\n\n"
-				"InnoDB: Please submit a detailed bug report"
-				" to http://bugs.mysql.com\n\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Corruption in the tablespace. Bitmap shows"
+				" insert buffer records to page no " UINT32PF
+				" though the page type is " ULINTPF ", which"
+				" is not an index leaf page. We try to resolve"
+				" the problem by skipping the insert buffer"
+				" merge for this page. Please run CHECK TABLE"
+				" on your tables to determine if they are"
+				" corrupt after this.",
 				page_id.page_no(),
-				(ulong)
 				fil_page_get_type(block->frame));
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Please submit a detailed bug"
+				" report to http://bugs.mysql.com");
 			ut_ad(0);
 		}
 	}

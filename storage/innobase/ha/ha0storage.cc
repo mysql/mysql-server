@@ -170,13 +170,14 @@ test_ha_storage()
 
 		if (p != stored[i]) {
 
-			fprintf(stderr, "ha_storage_put() returned %p "
-				"instead of %p, i=%d\n", p, stored[i], i);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"ha_storage_put() returned %p"
+				" instead of %p, i=%d", p, stored[i], i);
 			return;
 		}
 	}
 
-	fprintf(stderr, "all ok\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "all ok");
 
 	ha_storage_free(storage);
 }
