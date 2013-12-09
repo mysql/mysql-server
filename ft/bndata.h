@@ -250,5 +250,7 @@ private:
 
     klpair_omt_t m_buffer;                     // pointers to individual leaf entries
     struct mempool m_buffer_mempool;  // storage for all leaf entries
+
+    friend class bndata_bugfix_test;
 };
 
