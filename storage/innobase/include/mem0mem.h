@@ -366,8 +366,10 @@ mem_validate_all_blocks(void);
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
 	ulint	magic_n;/* magic number for debugging */
+#ifdef UNIV_DEBUG
 	char	file_name[8];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */
+#endif /* UNIV_DEBUG */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
 			the list this is the base node of the list of blocks;
 			in subsequent blocks this is undefined */
