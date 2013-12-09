@@ -216,8 +216,11 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     }
     
     tokudb_my_free(kc_info->field_lengths);
+    kc_info->field_lengths = NULL;
     tokudb_my_free(kc_info->length_bytes);
+    kc_info->length_bytes = NULL;
     tokudb_my_free(kc_info->blob_fields);
+    kc_info->blob_fields = NULL;
 }
 
 void TOKUDB_SHARE::init(void) {
@@ -265,11 +268,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         share->table_name = tmp_name;
         strmov(share->table_name, table_name);
 
-        error = allocate_key_and_col_info(table_share, &share->kc_info);
-        if (error) {
-            goto exit;
-        }
-
         error = my_hash_insert(&tokudb_open_tables, (uchar *) share);
         if (error) {
             free_key_and_col_info(&share->kc_info);
@@ -314,19 +312,21 @@ static int free_share(TOKUDB_SHARE * share) {
             }
         }
 
-        free_key_and_col_info(&share->kc_info);
-
         error = tokudb::close_status(&share->status_block);
         assert(error == 0);
+
+        free_key_and_col_info(&share->kc_info);
 
         tokudb_pthread_mutex_lock(&tokudb_mutex);
         tokudb_pthread_mutex_lock(&share->mutex);
         share->m_state = TOKUDB_SHARE::CLOSED;
         if (share->use_count > 0) {
+            fprintf(stderr, "%ld %s:%u free_share %p %d\n", syscall(186), __FILE__, __LINE__, share, share->use_count);
             tokudb_pthread_cond_broadcast(&share->m_openclose_cond);
             tokudb_pthread_mutex_unlock(&share->mutex);
             tokudb_pthread_mutex_unlock(&tokudb_mutex);
         } else {
+
             my_hash_delete(&tokudb_open_tables, (uchar *) share);
             
             tokudb_pthread_mutex_unlock(&share->mutex);
@@ -1818,7 +1818,10 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         share->m_state = TOKUDB_SHARE::OPENING;
         tokudb_pthread_mutex_unlock(&share->mutex);
 
-        ret_val = initialize_share(name, mode);
+        ret_val = allocate_key_and_col_info(table_share, &share->kc_info);
+        if (ret_val == 0) {
+            ret_val = initialize_share(name, mode);
+        }
 
         tokudb_pthread_mutex_lock(&share->mutex);
         if (ret_val == 0) {
