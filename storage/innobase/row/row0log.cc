@@ -2246,8 +2246,9 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		fprintf(stderr, "InnoDB: unexpected end of temporary file"
-			" for table %s\n", index->table_name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unexpected end of temporary file"
+			" for table %s", index->table_name);
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2301,8 +2302,9 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for table %s\n", index->table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for table %s", index->table_name);
 			goto corruption;
 		}
 
@@ -3071,7 +3073,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"unexpected end of temporary file for index %s",
+			"Unexpected end of temporary file for index %s",
 			index->name + 1);
 corruption:
 		error = DB_CORRUPTION;
@@ -3122,8 +3124,9 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for index %s\n", index->name + 1);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for index %s", index->name + 1);
 			goto corruption;
 		}
 

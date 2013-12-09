@@ -507,25 +507,25 @@ buf_page_is_corrupted(
 		if (log_peek_lsn(&current_lsn)
 		    && current_lsn
 		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
-			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				" InnoDB: Error: page %lu log sequence number"
-				" " LSN_PF "\n"
-				"InnoDB: is in the future! Current system "
-				"log sequence number " LSN_PF ".\n"
-				"InnoDB: Your database may be corrupt or "
-				"you may have copied the InnoDB\n"
-				"InnoDB: tablespace but not the InnoDB "
-				"log files. See\n"
-				"InnoDB: " REFMAN
-				"forcing-innodb-recovery.html\n"
-				"InnoDB: for more information.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Page %lu log sequence number"
+				" " LSN_PF "., "
+				"is in the future! Current system "
+				"log sequence number " LSN_PF ".",
 				(ulong) mach_read_from_4(
 					read_buf + FIL_PAGE_OFFSET),
 				(lsn_t) mach_read_from_8(
 					read_buf + FIL_PAGE_LSN),
 				current_lsn);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Your database may be corrupt or"
+				" you may have copied the InnoDB"
+				" tablespace but not the InnoDB"
+				" log files. See " REFMAN ""
+				" forcing-innodb-recovery.html"
+				" for more information.");
+
 		}
 	}
 #endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
@@ -856,15 +856,15 @@ buf_page_print(
 		/* Print compressed page. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Compressed page type (" ULINTPF "); "
-			"stored checksum in field1 " ULINTPF "; "
-			"calculated checksums for field1: "
-			"%s " UINT32PF ", "
-			"%s " UINT32PF ", "
-			"%s " UINT32PF "; "
-			"page LSN " LSN_PF "; "
-			"page number (if stored to page already) " ULINTPF "; "
-			"space id (if stored to page already) " ULINTPF "\n",
+			" InnoDB: Compressed page type (" ULINTPF ");"
+			" stored checksum in field1 " ULINTPF ";"
+			" calculated checksums for field1:"
+			" %s " UINT32PF ","
+			" %s " UINT32PF ","
+			" %s " UINT32PF ";"
+			" page LSN " LSN_PF ";"
+			" page number (if stored to page already) " ULINTPF ";"
+			" space id (if stored to page already) " ULINTPF "\n",
 			fil_page_get_type(read_buf),
 			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 			buf_checksum_algorithm_name(
@@ -885,24 +885,24 @@ buf_page_print(
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: uncompressed page, "
-			"stored checksum in field1 " ULINTPF ", "
-			"calculated checksums for field1: "
-			"%s " UINT32PF ", "
-			"%s " ULINTPF ", "
-			"%s " ULINTPF ", "
+		fprintf(stderr, " InnoDB: uncompressed page,"
+			" stored checksum in field1 " ULINTPF ","
+			" calculated checksums for field1:"
+			" %s " UINT32PF ","
+			" %s " ULINTPF ","
+			" %s " ULINTPF ","
 
-			"stored checksum in field2 " ULINTPF ", "
-			"calculated checksums for field2: "
-			"%s " UINT32PF ", "
-			"%s " ULINTPF ", "
-			"%s " ULINTPF ", "
+			" stored checksum in field2 " ULINTPF ","
+			" calculated checksums for field2:"
+			" %s " UINT32PF ","
+			" %s " ULINTPF ","
+			" %s " ULINTPF ","
 
-			"page LSN " ULINTPF " " ULINTPF ", "
-			"low 4 bytes of LSN at page end " ULINTPF ", "
-			"page number (if stored to page already) " ULINTPF ", "
-			"space id (if created with >= MySQL-4.1.1 "
-			"and stored already) %lu\n",
+			" page LSN " ULINTPF " " ULINTPF ","
+			" low 4 bytes of LSN at page end " ULINTPF ","
+			" page number (if stored to page already) " ULINTPF ","
+			" space id (if created with >= MySQL-4.1.1"
+			" and stored already) %lu\n",
 			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32),
 			buf_calc_page_crc32(read_buf),
@@ -2328,9 +2328,8 @@ buf_zip_decompress(
 
 	if (UNIV_UNLIKELY(check && !page_zip_verify_checksum(frame, size))) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: compressed page checksum mismatch"
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Compressed page checksum mismatch"
 			" (space %u page %u): stored: %lu, crc32: "
 			UINT32PF " innodb: " UINT32PF ", none: " UINT32PF "\n",
 			block->page.id.space(), block->page.id.page_no(),
@@ -2351,10 +2350,11 @@ buf_zip_decompress(
 			return(TRUE);
 		}
 
-		fprintf(stderr,
-			"InnoDB: unable to decompress space %lu page %lu\n",
-			(ulong) block->page.id.space(),
-			(ulong) block->page.id.page_no());
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to decompress space " UINT32PF
+			" page " UINT32PF,
+			block->page.id.space(),
+			block->page.id.page_no());
 		return(FALSE);
 
 	case FIL_PAGE_TYPE_ALLOCATED:
@@ -2369,10 +2369,8 @@ buf_zip_decompress(
 		return(TRUE);
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: unknown compressed page"
-		" type %lu\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Unknown compressed page type %lu",
 		fil_page_get_type(frame));
 	return(FALSE);
 }
@@ -2738,7 +2736,7 @@ loop:
 				" be that the table has been corrupted."
 				" You can try to fix this problem by using"
 				" innodb_force_recovery."
-				" Please see reference manual for more"
+				" Please see " REFMAN " for more"
 				" details.   Aborting...",
 				page_id.space(), page_id.page_no(),
 				BUF_PAGE_READ_MAX_RETRIES);
@@ -2995,9 +2993,9 @@ wait_until_unfixed:
 				goto loop;
 			}
 
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"innodb_change_buffering_debug evict "
-				UINT32PF " " UINT32PF "\n",
+				UINT32PF " " UINT32PF,
 				page_id.space(), page_id.page_no());
 			return(NULL);
 		}
@@ -3005,9 +3003,9 @@ wait_until_unfixed:
 		buf_page_mutex_enter(block);
 
 		if (buf_flush_page_try(buf_pool, block)) {
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"innodb_change_buffering_debug flush "
-				UINT32PF " " UINT32PF "\n",
+				UINT32PF " " UINT32PF,
 				page_id.space(), page_id.page_no());
 			guess = block;
 			goto loop;
@@ -3502,8 +3500,8 @@ buf_page_init(
 		block->page.buf_fix_count += (unsigned) buf_fix_count;
 		buf_pool_watch_remove(buf_pool, hash_page);
 	} else {
-		fprintf(stderr,
-			"InnoDB: Error: page " UINT32PF " " UINT32PF
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page " UINT32PF " " UINT32PF
 			" already found in the hash table: %p, %p\n",
 			page_id.space(),
 			page_id.page_no(),
@@ -4137,11 +4135,9 @@ buf_page_io_complete(
 		if (bpage->id.space() == TRX_SYS_SPACE
 		    && buf_dblwr_page_inside(bpage->id.page_no())) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Error: reading page " UINT32PF "\n"
-				"InnoDB: which is in the"
-				" doublewrite buffer!\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Reading page " UINT32PF ", which is in the"
+				" doublewrite buffer!",
 				bpage->id.page_no());
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
@@ -4153,12 +4149,10 @@ buf_page_io_complete(
 			page may contain garbage in MySQL < 4.1.1,
 			which only supported bpage->space == 0. */
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Error: space id and page n:o"
-				" stored in the page\n"
-				"InnoDB: read in are %lu:%lu,"
-				" should be " UINT32PF ":" UINT32PF "!\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Space id and page no stored in the page,"
+				" read in are %lu:%lu, "
+				"should be " UINT32PF ":" UINT32PF,
 				(ulong) read_space_id, (ulong) read_page_no,
 				bpage->id.space(),
 				bpage->id.page_no());
@@ -4181,41 +4175,30 @@ buf_page_io_complete(
 				goto page_not_corrupt;
 				;);
 corrupt:
-			fprintf(stderr,
-				"InnoDB: Database page corruption on disk"
-				" or a failed\n"
-				"InnoDB: file read of page " UINT32PF ".\n"
-				"InnoDB: You may have to recover"
-				" from a backup.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Database page corruption on disk"
+				" or a failed file read of page " UINT32PF "."
+				" You may have to recover from a backup.",
 				bpage->id.page_no());
 			buf_page_print(frame, bpage->size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			fprintf(stderr,
-				"InnoDB: Database page corruption on disk"
-				" or a failed\n"
-				"InnoDB: file read of page " UINT32PF ".\n"
-				"InnoDB: You may have to recover"
-				" from a backup.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Database page corruption on disk"
+				" or a failed file read of page " UINT32PF "."
+				" You may have to recover from a backup.",
 				bpage->id.page_no());
-			fputs("InnoDB: It is also possible that"
-			      " your operating\n"
-			      "InnoDB: system has corrupted its"
-			      " own file cache\n"
-			      "InnoDB: and rebooting your computer"
-			      " removes the\n"
-			      "InnoDB: error.\n"
-			      "InnoDB: If the corrupt page is an index page\n"
-			      "InnoDB: you can also try to"
-			      " fix the corruption\n"
-			      "InnoDB: by dumping, dropping,"
-			      " and reimporting\n"
-			      "InnoDB: the corrupt table."
-			      " You can use CHECK\n"
-			      "InnoDB: TABLE to scan your"
-			      " table for corruption.\n"
-			      "InnoDB: See also "
-			      REFMAN "forcing-innodb-recovery.html\n"
-			      "InnoDB: about forcing recovery.\n", stderr);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"It is also possible that your operating"
+				" system has corrupted its own file cache and"
+				" rebooting your computer removes the error."
+				" If the corrupt page is an index page."
+				" You can also try to fix the corruption"
+				" by dumping, dropping, and reimporting"
+				" the corrupt table. You can use CHECK"
+				" TABLE to scan your table for corruption."
+				" See also" REFMAN ""
+				" forcing-innodb-recovery.html"
+				" about forcing recovery.");
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE
@@ -4730,16 +4713,13 @@ buf_print_instance(
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
 
-	fprintf(stderr,
-		"buf_pool size %lu\n"
-		"database pages %lu\n"
-		"free pages %lu\n"
-		"modified database pages %lu\n"
-		"n pending decompressions %lu\n"
-		"n pending reads %lu\n"
-		"n pending flush LRU %lu list %lu single page %lu\n"
-		"pages made young %lu, not young %lu\n"
-		"pages read %lu, created %lu, written %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"buf_pool size %lu, database pages %lu,"
+		" free pages %lu, modified database pages %lu,"
+		" n pending decompressions %lu, n pending reads %lu,"
+		" n pending flush LRU %lu list %lu single page %lu,"
+		" pages made young %lu, not young %lu,"
+		" pages read %lu, created %lu, written %lu",
 		(ulong) size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
@@ -4801,17 +4781,21 @@ buf_print_instance(
 	for (i = 0; i < n_found; i++) {
 		index = dict_index_get_if_in_cache(index_ids[i]);
 
-		fprintf(stderr,
-			"Block count for index %llu in buffer is about %lu",
-			(ullint) index_ids[i],
-			(ulong) counts[i]);
-
-		if (index) {
-			putc(' ', stderr);
-			dict_index_name_print(stderr, NULL, index);
+		if (!index) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Block count for index %llu in buffer is"
+				" about %lu",
+				(ullint) index_ids[i],
+				(ulong) counts[i]);
+		} else {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Block count for index %llu in buffer is"
+				" about %lu, index %s of table %s",
+				(ullint) index_ids[i],
+				(ulong) counts[i],
+				ut_get_name(NULL, FALSE, index->name).c_str(),
+				ut_get_name(NULL, TRUE, index->table_name).c_str());
 		}
-
-		putc('\n', stderr);
 	}
 
 	ut_free(index_ids);

@@ -509,26 +509,23 @@ buf_dblwr_init_or_restore_pages(
 
 			if (buf_page_is_corrupted(true, read_buf, page_size)) {
 
-				fprintf(stderr,
-					"InnoDB: Warning: database page"
-					" corruption or a failed\n"
-					"InnoDB: file read of"
-					" space %lu page %lu.\n"
-					"InnoDB: Trying to recover it from"
-					" the doublewrite buffer.\n",
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Database page corruption or a failed"
+					" file read of space %lu page %lu."
+					" Trying to recover it from the"
+					" doublewrite buffer.",
 					(ulong) space_id, (ulong) page_no);
 
 				if (buf_page_is_corrupted(true, page,
 							  page_size)) {
-					fprintf(stderr,
-						"InnoDB: Dump of the page:\n");
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Dump of the page:");
 					buf_page_print(
 						read_buf, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
-					fprintf(stderr,
-						"InnoDB: Dump of"
-						" corresponding page"
-						" in doublewrite buffer:\n");
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Dump of corresponding page"
+						" in doublewrite buffer:");
 					buf_page_print(
 						page, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
@@ -671,13 +668,12 @@ buf_dblwr_check_page_lsn(
 			   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
 		   4)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: ERROR: The page to be written"
-			" seems corrupt!\n"
-			"InnoDB: The low 4 bytes of LSN fields do not match "
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The page to be written"
+			" seems corrupt!. "
+			"The low 4 bytes of LSN fields do not match "
 			"(" ULINTPF " != " ULINTPF ")!"
-			" Noticed in the buffer pool.\n",
+			" Noticed in the buffer pool.",
 			mach_read_from_4(
 				page + FIL_PAGE_LSN + 4),
 			mach_read_from_4(

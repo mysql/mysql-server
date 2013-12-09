@@ -248,8 +248,7 @@ dict_stats_persistent_storage_check(
 	}
 
 	if (ret != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: %s\n", errstr);
+		ib_logf(IB_LOG_LEVEL_ERROR, "%s", errstr);
 		return(false);
 	}
 	/* else */
@@ -861,9 +860,9 @@ dict_stats_update_transient(
 		/* Table definition is corrupt */
 
 		char	buf[MAX_FULL_NAME_LEN];
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: table %s has no indexes. "
-			"Cannot calculate statistics.\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Table %s has no indexes."
+			" Cannot calculate statistics.",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table);
 		return;
@@ -2155,10 +2154,9 @@ dict_stats_save_index_stat(
 	if (ret != DB_SUCCESS) {
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Cannot save index statistics for table "
-			"%s, index %s, stat name \"%s\": %s\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot save index statistics for table"
+			" %s, index %s, stat name \"%s\": %s",
 			ut_format_name(index->table->name, TRUE,
 				       buf_table, sizeof(buf_table)),
 			ut_format_name(index->name, FALSE,
@@ -2236,10 +2234,8 @@ dict_stats_save(
 
 	if (ret != DB_SUCCESS) {
 		char	buf[MAX_FULL_NAME_LEN];
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Cannot save table statistics for table "
-			"%s: %s\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot save table statistics for table %s: %s",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
 			ut_strerr(ret));
 		goto end;
@@ -2594,15 +2590,11 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Ignoring strange row from "
-				"%s WHERE "
-				"database_name = '%s' AND "
-				"table_name = '%s' AND "
-				"index_name = '%s' AND "
-				"stat_name = '%.*s'; because stat_name "
-				"is malformed\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Ignoring strange row from %s WHERE"
+				" database_name = '%s' AND table_name = '%s'"
+				" AND index_name = '%s' AND stat_name = '%.*s';"
+				" because stat_name is malformed",
 				INDEX_STATS_NAME_PRINT,
 				db_utf8,
 				table_utf8,
@@ -2627,16 +2619,12 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Ignoring strange row from "
-				"%s WHERE "
-				"database_name = '%s' AND "
-				"table_name = '%s' AND "
-				"index_name = '%s' AND "
-				"stat_name = '%.*s'; because stat_name is "
-				"out of range, the index has %lu unique "
-				"columns\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Ignoring strange row from %s WHERE"
+				" database_name = '%s' AND table_name = '%s'"
+				" AND index_name = '%s' AND stat_name = '%.*s';"
+				" because stat_name is out of range, the index"
+				" has %lu unique columns",
 				INDEX_STATS_NAME_PRINT,
 				db_utf8,
 				table_utf8,
@@ -2824,12 +2812,12 @@ dict_stats_update_for_index(
 		storage is not present or is corrupted */
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Recalculation of persistent statistics "
-			"requested for table %s index %s but the required "
-			"persistent statistics storage is not present or is "
-			"corrupted. Using transient stats instead.\n",
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Recalculation of persistent statistics"
+			" requested for table %s index %s but the required"
+			" persistent statistics storage is not present or is"
+			" corrupted. Using transient stats instead.",
 			ut_format_name(index->table->name, TRUE,
 				       buf_table, sizeof(buf_table)),
 			ut_format_name(index->name, FALSE,
@@ -2863,11 +2851,10 @@ dict_stats_update(
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: cannot calculate statistics for table %s "
-			"because the .ibd file is missing. For help, please "
-			"refer to " REFMAN "innodb-troubleshooting.html\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot calculate statistics for table %s"
+			" because the .ibd file is missing. For help, please"
+			" refer to " REFMAN "innodb-troubleshooting.html",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
@@ -2918,12 +2905,11 @@ dict_stats_update(
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Recalculation of persistent statistics "
-			"requested for table %s but the required persistent "
-			"statistics storage is not present or is corrupted. "
-			"Using transient stats instead.\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Recalculation of persistent statistics"
+			" requested for table %s but the required persistent"
+			" statistics storage is not present or is corrupted."
+			" Using transient stats instead.",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 
 		goto transient;
@@ -2968,13 +2954,11 @@ dict_stats_update(
 			/* persistent statistics storage does not exist
 			or is corrupted, calculate the transient stats */
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error: Fetch of persistent "
-				"statistics requested for table %s but the "
-				"required system tables %s and %s are not "
-				"present or have unexpected structure. "
-				"Using transient stats instead.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Fetch of persistent statistics requested for"
+				" table %s but the required system tables %s"
+				" and %s are not present or have unexpected"
+				" structure. Using transient stats instead.",
 				ut_format_name(table->name, TRUE,
 					       buf, sizeof(buf)),
 				TABLE_STATS_NAME_PRINT,
@@ -3029,17 +3013,16 @@ dict_stats_update(
 			}
 
 			ut_format_name(table->name, TRUE, buf, sizeof(buf));
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Trying to use table %s which has "
-				"persistent statistics enabled, but auto "
-				"recalculation turned off and the statistics "
-				"do not exist in %s and %s. Please either run "
-				"\"ANALYZE TABLE %s;\" manually or enable the "
-				"auto recalculation with "
-				"\"ALTER TABLE %s STATS_AUTO_RECALC=1;\". "
-				"InnoDB will now use transient statistics for "
-				"%s.\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Trying to use table %s which has persistent"
+				" statistics enabled, but auto recalculation"
+				" turned off and the statistics do not exist in"
+				" %s and %s. Please either run"
+				" \"ANALYZE TABLE %s;\" manually or enable the"
+				" auto recalculation with"
+				" \"ALTER TABLE %s STATS_AUTO_RECALC=1;\"."
+				" InnoDB will now use transient statistics for"
+				" %s.",
 				buf, TABLE_STATS_NAME, INDEX_STATS_NAME, buf,
 				buf, buf);
 
@@ -3047,12 +3030,10 @@ dict_stats_update(
 		default:
 
 			dict_stats_table_clone_free(t);
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error fetching persistent statistics "
-				"for table %s from %s and %s: %s. "
-				"Using transient stats method instead.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Error fetching persistent statistics"
+				" for table %s from %s and %s: %s."
+				" Using transient stats method instead.",
 				ut_format_name(table->name, TRUE, buf,
 					       sizeof(buf)),
 				TABLE_STATS_NAME,

@@ -723,7 +723,7 @@ row_merge_read(
 
 	if (UNIV_UNLIKELY(!success)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"failed to read merge block at " UINT64PF, ofs);
+			"Failed to read merge block at " UINT64PF, ofs);
 	}
 
 	DBUG_RETURN(success);

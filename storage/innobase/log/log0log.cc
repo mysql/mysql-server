@@ -264,8 +264,8 @@ log_reserve_and_open(
 		/* log_buffer is too small. try to extend instead of crash. */
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"The transaction log size is too large"
-			" for innodb_log_buffer_size (%lu >= %lu / 2). "
-			"Trying to extend it.",
+			" for innodb_log_buffer_size (%lu >= %lu / 2)."
+			" Trying to extend it.",
 			len, LOG_BUFFER_SIZE);
 
 		log_buffer_extend((len + 1) * 2);
@@ -723,7 +723,7 @@ failure:
 
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot continue operation.  ib_logfiles are too"
+			"Cannot continue operation. ib_logfiles are too"
 			" small for innodb_thread_concurrency %lu. The"
 			" combined size of ib_logfiles should be bigger than"
 			" 200 kB * innodb_thread_concurrency. To get mysqld"
@@ -731,7 +731,7 @@ failure:
 			" my.cnf to a lower value, for example, to 8. After"
 			" an ERROR-FREE shutdown of mysqld you can adjust"
 			" the size of ib_logfiles, as explained in " REFMAN
-			"adding-and-removing.html.",
+			" adding-and-removing.html.",
 			(ulong) srv_thread_concurrency);
 	}
 

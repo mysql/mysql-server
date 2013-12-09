@@ -117,7 +117,7 @@ dfield_check_typed_no_assert(
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"data field type %lu, len %lu",
+			"Data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 		return(FALSE);
@@ -139,8 +139,8 @@ dtuple_check_typed_no_assert(
 	ulint		i;
 
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
-		fprintf(stderr,
-			"InnoDB: Error: index entry has %lu fields\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Index entry has %lu fields",
 			(ulong) dtuple_get_n_fields(tuple));
 dump:
 		fputs("InnoDB: Tuple contents: ", stderr);
@@ -177,7 +177,7 @@ dfield_check_typed(
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"data field type %lu, len %lu",
+			"Data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 	}
@@ -622,8 +622,8 @@ dtuple_convert_big_rec(
 	size = rec_get_converted_size(index, entry, *n_ext);
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
-		fprintf(stderr,
-			"InnoDB: Warning: tuple size very big: %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Tuple size very big: %lu",
 			(ulong) size);
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, entry);

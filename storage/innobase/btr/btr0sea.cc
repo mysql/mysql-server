@@ -1188,12 +1188,10 @@ cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Corruption of adaptive hash index."
-			" After dropping\n"
-			"InnoDB: the hash index to a page of %s,"
-			" still %lu hash nodes remain.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Corruption of adaptive hash index."
+			" After dropping, the hash index to a page of %s,"
+			" still %lu hash nodes remain.",
 			index->name, (ulong) block->n_pointers);
 		rw_lock_x_unlock(&btr_search_latch);
 
@@ -1762,9 +1760,11 @@ check_next_rec:
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 			/*
-			fputs("Hash insert for ", stderr);
-			dict_index_name_print(stderr, index);
-			fprintf(stderr, " fold %lu\n", ins_fold);
+			ib_logf(IB_LOG_LEVEL_INFO, "Hash insert for"
+				" index %s of table %s fold %lu",
+				ut_get_name(NULL, FALSE, index->name).c_str(),
+				ut_get_name(NULL, TRUE, index->table_name).c_str(),
+				ins_fold);
 			*/
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);
@@ -1881,14 +1881,12 @@ btr_search_validate(void)
 				const page_t*	page = block->frame;
 
 				ok = FALSE;
-				ut_print_timestamp(stderr);
 
-				fprintf(stderr,
-					"  InnoDB: Error in an adaptive hash"
-					" index pointer to page %lu\n"
-					"InnoDB: ptr mem address %p"
-					" index id %llu,"
-					" node fold %lu, rec fold %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error in an adaptive hash"
+					" index pointer to page %lu,"
+					" ptr mem address %p, index id %llu,"
+					" node fold %lu, rec fold %lu",
 					(ulong) page_get_page_no(page),
 					node->data,
 					(ullint) page_index_id,

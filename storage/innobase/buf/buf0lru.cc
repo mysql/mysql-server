@@ -1176,20 +1176,15 @@ buf_LRU_check_size_of_non_data_objects(
 			heaps or the adaptive hash index. This may be a memory
 			leak! */
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: WARNING: over 67 percent of"
-				" the buffer pool is occupied by\n"
-				"InnoDB: lock heaps or the adaptive"
-				" hash index! Check that your\n"
-				"InnoDB: transactions do not set too many"
-				" row locks.\n"
-				"InnoDB: Your buffer pool size is %lu MB."
-				" Maybe you should make\n"
-				"InnoDB: the buffer pool bigger?\n"
-				"InnoDB: Starting the InnoDB Monitor to print"
-				" diagnostics, including\n"
-				"InnoDB: lock heap and hash index sizes.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Over 67 percent of the buffer pool is occupied"
+				" by lock heaps or the adaptive hash index!"
+				" Check that your transactions do not set too"
+				" many row locks. Your buffer pool size is %lu"
+				" MB. Maybe you should make the buffer pool"
+				" bigger?. Starting the InnoDB Monitor to print"
+				" diagnostics, including lock heap and hash"
+				" index sizes.",
 				(ulong) (buf_pool->curr_size
 					 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
@@ -2268,17 +2263,17 @@ buf_LRU_block_remove_hashed(
 	hashed_bpage = buf_page_hash_get_low(buf_pool, bpage->id);
 
 	if (bpage != hashed_bpage) {
-		fprintf(stderr,
-			"InnoDB: Error: page " UINT32PF " " UINT32PF
-			" not found in the hash table\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page " UINT32PF " " UINT32PF
+			" not found in the hash table",
 			bpage->id.space(),
 			bpage->id.page_no());
 
 		if (hashed_bpage) {
-			fprintf(stderr,
-				"InnoDB: In hash table we find block"
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"In hash table we find block"
 				" %p of " UINT32PF " " UINT32PF
-				" which is not %p\n",
+				" which is not %p",
 				(const void*) hashed_bpage,
 				hashed_bpage->id.space(),
 				hashed_bpage->id.page_no(),

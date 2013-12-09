@@ -1662,9 +1662,9 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS "
-			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.",
+			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS"
+			" has failed with error %lu. Tablespace is full."
+			" Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_ad(err == DB_OUT_OF_FILE_SPACE
@@ -1749,9 +1749,9 @@ dict_foreign_eval_sql(
 	}
 
 	if (error != DB_SUCCESS) {
-		fprintf(stderr,
-			"InnoDB: Foreign key constraint creation failed:\n"
-			"InnoDB: internal error number %lu\n", (ulong) error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Foreign key constraint creation failed:"
+			" internal error number %lu", (ulong) error);
 
 		mutex_enter(&dict_foreign_err_mutex);
 		ut_print_timestamp(ef);
@@ -1889,9 +1889,9 @@ dict_create_add_foreigns_to_dictionary(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
-		fprintf(stderr,
-			"InnoDB: table SYS_FOREIGN not found"
-			" in internal data dictionary\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table SYS_FOREIGN not found"
+			" in internal data dictionary");
 
 		return(DB_ERROR);
 	}
@@ -2008,9 +2008,9 @@ dict_create_or_check_sys_tablespace(void)
 
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Creation of SYS_TABLESPACES and SYS_DATAFILES "
-			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.",
+			"Creation of SYS_TABLESPACES and SYS_DATAFILES"
+			" has failed with error %lu. Tablespace is full."
+			" Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
