@@ -2030,7 +2030,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   DBUG_PRINT("enter",("type: %d  buffer: 0x%lx  length: %lu  is_null: %d",
 		      param->buffer_type,
 		      (long) (param->buffer ? param->buffer : NullS),
-                      *param->length, *param->is_null));
+                      (ulong) *param->length, *param->is_null));
 
   if (*param->is_null)
     store_param_null(net, param);
@@ -2955,7 +2955,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   DBUG_ENTER("mysql_stmt_send_long_data");
   DBUG_ASSERT(stmt != 0);
   DBUG_PRINT("enter",("param no: %d  data: 0x%lx, length : %ld",
-		      param_number, (long) data, length));
+		      param_number, (long) data, (ulong) length));
 
   /*
     We only need to check for stmt->param_count, if it's not null

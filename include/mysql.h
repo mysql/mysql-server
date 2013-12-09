@@ -575,7 +575,7 @@ typedef struct st_mysql_bind
   /* output buffer length, must be set when fetching str/binary */
   size_t        buffer_length;
   unsigned long offset;           /* offset position for char/binary fetch */
-  unsigned long	length_value;     /* Used if length is 0 */
+  size_t        length_value;     /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
   unsigned int  pack_length;	  /* Internal length for packed data */
   enum enum_field_types buffer_type;	/* buffer type */
