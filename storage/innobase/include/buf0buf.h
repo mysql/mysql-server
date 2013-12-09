@@ -220,6 +220,8 @@ private:
 
 	mutable ulint	m_fold;
 
+	/* Disable implicit copying. */
+	void operator=(const page_id_t&);
 public:
 
 	page_id_t(ulint space, ulint page_no)
@@ -249,6 +251,26 @@ public:
 		}
 
 		return(m_fold);
+	}
+
+	inline void copy_from(const page_id_t& src)
+	{
+		m_space = src.space();
+		m_page_no = src.page_no();
+		m_fold = src.fold();
+	}
+
+	inline void reset(ib_uint32_t space, ib_uint32_t page_no)
+	{
+		m_space = space;
+		m_page_no = page_no;
+		m_fold = ULINT_UNDEFINED;
+	}
+
+	inline void set_page_no(ib_uint32_t page_no)
+	{
+		m_page_no = page_no;
+		m_fold = ULINT_UNDEFINED;
 	}
 
 	inline bool operator==(const page_id_t& a) const

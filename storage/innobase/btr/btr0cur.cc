@@ -1141,7 +1141,7 @@ retry_page_get:
 
 			lock_intention = BTR_INTENTION_BOTH;
 
-			page_id = page_id_t(space, dict_index_get_page(index));
+			page_id.reset(space, dict_index_get_page(index));
 			up_match = 0;
 			low_match = 0;
 			height = ULINT_UNDEFINED;
@@ -1295,7 +1295,7 @@ retry_page_get:
 				ulint	idx = n_blocks
 					- (leftmost_from_level - 1);
 
-				page_id = page_id_t(
+				page_id.reset(
 					space,
 					tree_blocks[idx]->page.id.page_no());
 
@@ -1326,7 +1326,7 @@ retry_page_get:
 		}
 
 		/* Go to the child node */
-		page_id = page_id_t(
+		page_id.reset(
 			space,
 			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
@@ -1719,8 +1719,7 @@ btr_cur_open_at_index_side_func(
 
 			lock_intention = BTR_INTENTION_BOTH;
 
-			page_id = page_id_t(page_id.space(),
-					    dict_index_get_page(index));
+			page_id.set_page_no(dict_index_get_page(index));
 
 			height = ULINT_UNDEFINED;
 
@@ -1772,8 +1771,7 @@ btr_cur_open_at_index_side_func(
 		}
 
 		/* Go to the child node */
-		page_id = page_id_t(
-			page_id.space(),
+		page_id.set_page_no(
 			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
 		n_blocks++;
@@ -1981,8 +1979,7 @@ btr_cur_open_at_rnd_pos_func(
 
 			lock_intention = BTR_INTENTION_BOTH;
 
-			page_id = page_id_t(page_id.space(),
-					    dict_index_get_page(index));
+			page_id.set_page_no(dict_index_get_page(index));
 
 			height = ULINT_UNDEFINED;
 
@@ -2034,8 +2031,7 @@ btr_cur_open_at_rnd_pos_func(
 		}
 
 		/* Go to the child node */
-		page_id = page_id_t(
-			page_id.space(),
+		page_id.set_page_no(
 			btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
 		n_blocks++;
@@ -4588,8 +4584,7 @@ btr_estimate_n_rows_in_range_on_level(
 			n_rows += page_get_n_recs(page);
 		}
 
-		page_id = page_id_t(page_id.space(),
-				    btr_page_get_next(page, &mtr));
+		page_id.set_page_no(btr_page_get_next(page, &mtr));
 
 		mtr_commit(&mtr);
 

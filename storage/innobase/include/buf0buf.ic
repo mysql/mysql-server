@@ -410,7 +410,7 @@ buf_block_set_file_page(
 	const page_id_t&	page_id)
 {
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-	block->page.id = page_id;
+	block->page.id.copy_from(page_id);
 }
 
 /*********************************************************************//**
