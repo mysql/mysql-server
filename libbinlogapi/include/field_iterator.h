@@ -90,7 +90,7 @@ uint32_t Row_event_iterator<Iterator_value_type>::
             nullbits.begin());
 
   field_offset += m_row_event->n_bits_len;
-  for (unsigned col_no= 0; col_no < m_table_map->m_coltype.size(); ++col_no)
+  for (unsigned col_no= 0; col_no < m_table_map->m_colcnt; ++col_no)
   {
     ++row_field_col_index;
     unsigned int type= m_table_map->m_coltype[col_no] & 0xFF;
@@ -161,7 +161,7 @@ Row_event_iterator< Iterator_value_type >&
               (m_field_offset + m_row_event->n_bits_len),
               nullbits.begin());
     m_field_offset += m_row_event->n_bits_len;
-    for (unsigned col_no= 0; col_no < m_table_map->m_coltype.size(); ++col_no)
+    for (unsigned col_no= 0; col_no < m_table_map->m_colcnt; ++col_no)
     {
       ++row_field_col_index;
       binary_log::Value val((enum_field_types)m_table_map->m_coltype[col_no],

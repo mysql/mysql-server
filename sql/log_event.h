@@ -2856,7 +2856,8 @@ public:
 #ifdef MYSQL_CLIENT
   table_def *create_table_def()
   {
-    return new table_def(&m_coltype[0], m_colcnt, &m_field_metadata[0],
+    DBUG_ASSERT(m_colcnt > 0);
+    return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
@@ -2867,10 +2868,11 @@ public:
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const
   {
-    return (m_null_bits != NULL);
+    return (m_null_bits != NULL &&
+            m_field_metadata != NULL && m_coltype != NULL);
   }
 
-  virtual int get_data_size() { return (uint) m_data_size; } 
+  virtual int get_data_size() { return (uint) m_data_size; }
 #ifdef MYSQL_SERVER
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);

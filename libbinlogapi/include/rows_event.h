@@ -394,7 +394,10 @@ public:
   typedef uint16_t flag_set;
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
-  Table_map_event(unsigned long colcnt) : m_colcnt(colcnt) {}
+  Table_map_event(unsigned long colcnt)
+  : m_colcnt(colcnt), m_field_metadata_size(0), m_field_metadata(0)
+  {
+  }
 
   virtual ~Table_map_event();
 
@@ -411,16 +414,16 @@ public:
   std::string m_tblnam;
   size_t m_tbllen;
   unsigned long m_colcnt;
-  std::vector<uint8_t> m_coltype;
+  unsigned char* m_coltype;
   /*
     The size of field metadata buffer set by calling save_field_metadata()
   */
   unsigned long  m_field_metadata_size;
-  std::vector<uint8_t> m_field_metadata;        // field metadata
+  unsigned char* m_field_metadata;        // field metadata
   unsigned char* m_null_bits;
 
   Table_map_event()
-  : m_null_bits(0)
+  :m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
   {
   }
   /*
@@ -561,7 +564,8 @@ public:
   };
 
   Rows_event()
-  : m_table_id(0), m_width(0), m_extra_row_data(0)
+  : m_table_id(0), m_width(0), m_extra_row_data(0),
+    columns_before_image(0), columns_after_image(0), row(0)
   {
   }
 
