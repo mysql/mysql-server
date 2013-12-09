@@ -58,6 +58,7 @@ ENDIF()
 SET(SIGNAL_WITH_VIO_SHUTDOWN 1)
 
 # Always enable -Wall for gnu C/C++
+# Remember to strip off these in scripts/CMakeLists.txt
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
 ENDIF()
@@ -65,6 +66,7 @@ IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
 
+# Remember to strip off these in scripts/CMakeLists.txt
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS
     "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
