@@ -626,9 +626,7 @@ lock_report_trx_id_insanity(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
 {
-	ut_print_timestamp(stderr);
-	fputs("  InnoDB: Error: transaction id associated with record\n",
-	      stderr);
+	ib_logf(IB_LOG_LEVEL_ERROR, "Transaction id associated with record");
 	rec_print_new(stderr, rec, offsets);
 	fputs("InnoDB: in ", stderr);
 	dict_index_name_print(stderr, NULL, index);
@@ -2084,15 +2082,12 @@ lock_rec_enqueue_waiting(
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: a record lock wait happens"
-		      " in a dictionary operation!\n"
-		      "InnoDB: ", stderr);
-		dict_index_name_print(stderr, trx, index);
-		fputs(".\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"A record lock wait happens in a dictionary operation!."
+			" index %s of table %s. %s",
+			ut_get_name(trx, FALSE, index->name).c_str(),
+			ut_get_name(trx, TRUE, index->table_name).c_str(),
+			BUG_REPORT_MSG);
 		ut_ad(0);
 	}
 
@@ -2571,9 +2566,8 @@ lock_grant(
 		dict_table_t*	table = lock->un_member.tab_lock.table;
 
 		if (UNIV_UNLIKELY(table->autoinc_trx == lock->trx)) {
-			fprintf(stderr,
-				"InnoDB: Error: trx already had"
-				" an AUTO-INC lock!\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Transaction already had an AUTO-INC lock!");
 		} else {
 			table->autoinc_trx = lock->trx;
 
@@ -3922,15 +3916,11 @@ lock_table_enqueue_waiting(
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: a table lock wait happens"
-		      " in a dictionary operation!\n"
-		      "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(".\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"A table lock wait happens in a dictionary operation!."
+			" Table name %s. %s",
+			ut_get_name(trx, TRUE, table->name).c_str(),
+			BUG_REPORT_MSG);
 		ut_ad(0);
 	}
 
@@ -4247,13 +4237,10 @@ lock_rec_unlock(
 	trx_mutex_exit(trx);
 
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Error: unlock row could not"
-		" find a %lu mode lock on the record\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Unlock row could not find a %lu mode lock on the record",
 		(ulong) lock_mode);
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: current statement: %.*s\n",
+	ib_logf(IB_LOG_LEVEL_ERROR, "Current statement: %.*s",
 		(int) stmt_len, stmt);
 
 	return;
@@ -7047,7 +7034,7 @@ DeadlockChecker::start_print()
 
 	if (srv_print_all_deadlocks) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"transactions deadlock detected, dumping detailed "
+			"Transactions deadlock detected, dumping detailed "
 			"information.");
 	}
 }

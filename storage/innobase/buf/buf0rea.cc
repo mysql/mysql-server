@@ -354,7 +354,7 @@ read_ahead:
 				tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"random readahead trying to access"
+					"Random readahead trying to access"
 					" page %u:%u in nonexisting or"
 					" being-dropped tablespace",
 					(unsigned) cur_page_id.space(),

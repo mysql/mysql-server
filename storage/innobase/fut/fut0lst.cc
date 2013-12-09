@@ -593,9 +593,9 @@ flst_print(
 
 	len = flst_get_len(base, mtr);
 
-	fprintf(stderr,
-		"FILE-BASED LIST:\n"
-		"Base node in space %lu page %lu byte offset %lu; len %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"FILE-BASED LIST: Base node in space %lu;"
+		" page %lu; byte offset %lu; len %lu",
 		(ulong) page_get_space_id(frame),
 		(ulong) page_get_page_no(frame),
 		(ulong) page_offset(base), (ulong) len);

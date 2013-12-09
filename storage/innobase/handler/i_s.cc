@@ -1294,10 +1294,9 @@ trx_i_s_common_fill_table(
 
 	if (trx_i_s_cache_is_truncated(cache)) {
 
-		/* XXX show warning to user if possible */
-		fprintf(stderr, "Warning: data in %s truncated due to "
-			"memory limit of %d bytes\n", table_name,
-			TRX_I_S_MEM_LIMIT);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Data in %s truncated due to memory limit of %d bytes",
+			table_name, TRX_I_S_MEM_LIMIT);
 	}
 
 	ret = 0;
@@ -1329,14 +1328,12 @@ trx_i_s_common_fill_table(
 		}
 
 	} else {
-
-		/* huh! what happened!? */
-		fprintf(stderr,
-			"InnoDB: trx_i_s_common_fill_table() was "
-			"called to fill unknown table: %s.\n"
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"trx_i_s_common_fill_table() was "
+			"called to fill unknown table: %s. "
 			"This function only knows how to fill "
 			"innodb_trx, innodb_locks and "
-			"innodb_lock_waits tables.\n", table_name);
+			"innodb_lock_waits tables.", table_name);
 
 		ret = 1;
 	}
@@ -3567,17 +3564,15 @@ i_s_fts_index_table_fill_selected(
 		} else {
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: "
-					"lock wait timeout reading "
-					"FTS index.  Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading"
+					" FTS index. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: %d "
-				"while reading FTS index.\n", error);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%d while reading FTS index.", error);
 				break;
 			}
 		}
