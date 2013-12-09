@@ -29,10 +29,10 @@ Created 6/8/1994 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-# define mem_heap_create_block(heap, n, type, line, file_name)		\
+# define mem_heap_create_block(heap, n, type, file_name, line)		\
 	mem_heap_create_block_func(heap, n, file_name, line, type)
 #else /* UNIV_DEBUG */
-# define mem_heap_create_block(heap, n, type, line, file_name)		\
+# define mem_heap_create_block(heap, n, type, file_name, line)		\
 	mem_heap_create_block_func(heap, n, type)
 #endif /* UNIV_DEBUG */
 /***************************************************************//**
