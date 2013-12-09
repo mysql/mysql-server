@@ -746,6 +746,8 @@ SELECT i FROM t1 ORDER BY i;
 --source include/wait_until_connected_again.inc
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
+--rmdir $MYSQL_TMP_DIR/alt_dir/testdb_wl6445
+--rmdir $MYSQL_TMP_DIR/alt_dir
 --disable_query_log
 eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
