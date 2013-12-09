@@ -1448,16 +1448,16 @@ static void test_prepare()
     if (!opt_silent)
     {
       fprintf(stdout, "\n");
-      fprintf(stdout, "\n\t tiny   : %d (%lu)", tiny_data, length[0]);
-      fprintf(stdout, "\n\t short  : %d (%lu)", small_data, length[3]);
-      fprintf(stdout, "\n\t int    : %d (%lu)", int_data, length[2]);
+      fprintf(stdout, "\n\t tiny   : %d (%lu)", tiny_data, (ulong)length[0]);
+      fprintf(stdout, "\n\t short  : %d (%lu)", small_data, (ulong)length[3]);
+      fprintf(stdout, "\n\t int    : %d (%lu)", int_data, (ulong)length[2]);
       fprintf(stdout, "\n\t big    : %s (%lu)", llstr(big_data, llbuf),
-              length[4]);
+              (ulong)length[4]);
 
-      fprintf(stdout, "\n\t float  : %f (%lu)", real_data, length[5]);
-      fprintf(stdout, "\n\t double : %f (%lu)", double_data, length[6]);
+      fprintf(stdout, "\n\t float  : %f (%lu)", real_data, (ulong)length[5]);
+      fprintf(stdout, "\n\t double : %f (%lu)", double_data, (ulong)length[6]);
 
-      fprintf(stdout, "\n\t str    : %s (%lu)", str_data, length[1]);
+      fprintf(stdout, "\n\t str    : %s (%lu)", str_data, (ulong)length[1]);
     }
 
     DIE_UNLESS(tiny_data == o_tiny_data);
@@ -2153,21 +2153,21 @@ static uint query_cache_hits(MYSQL *conn)
   check_execute(stmt, rc);                                        \
   if (!opt_silent)                                                \
     fprintf(stdout, "\n row 1: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
+            r_str_data, (ulong)r_str_length);                     \
   DIE_UNLESS((r_int_data == i1) && (r_str_length == l1) &&        \
              (strcmp(r_str_data, s1) == 0));                      \
   rc= mysql_stmt_fetch(stmt);                                     \
   check_execute(stmt, rc);                                        \
   if (!opt_silent)                                                \
     fprintf(stdout, "\n row 2: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
+            r_str_data, (ulong)r_str_length);                     \
   DIE_UNLESS((r_int_data == i2) && (r_str_length == l2) &&        \
              (strcmp(r_str_data, s2) == 0));                      \
   rc= mysql_stmt_fetch(stmt);                                     \
   check_execute(stmt, rc);                                        \
   if (!opt_silent)                                                \
     fprintf(stdout, "\n row 3: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
+            r_str_data, (ulong)r_str_length);                     \
   DIE_UNLESS((r_int_data == i3) && (r_str_length == l3) &&        \
              (strcmp(r_str_data, s3) == 0));                      \
   rc= mysql_stmt_fetch(stmt);                                     \
@@ -3542,7 +3542,7 @@ static void test_bind_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 1: %d, %s(%lu)", nData, szData, length1);
+    fprintf(stdout, "\n row 1: %d, %s(%lu)", nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 10);
   DIE_UNLESS(strcmp(szData, "venu") == 0);
   DIE_UNLESS(length1 == 4);
@@ -3551,7 +3551,7 @@ static void test_bind_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 2: %d, %s(%lu)", nData, szData, length1);
+    fprintf(stdout, "\n row 2: %d, %s(%lu)", nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 20);
   DIE_UNLESS(strcmp(szData, "MySQL") == 0);
   DIE_UNLESS(length1 == 5);
@@ -3560,7 +3560,7 @@ static void test_bind_result()
   check_execute(stmt, rc);
 
   if (!opt_silent && is_null[0])
-    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, length1);
+    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, (ulong)length1);
   DIE_UNLESS(is_null[0]);
   DIE_UNLESS(strcmp(szData, "monty") == 0);
   DIE_UNLESS(length1 == 5);
@@ -3668,10 +3668,10 @@ static void test_bind_result_ext()
     fprintf(stdout, "\n data (float)  : %f", f_data);
     fprintf(stdout, "\n data (double) : %f", d_data);
 
-    fprintf(stdout, "\n data (str)    : %s(%lu)", szData, szLength);
+    fprintf(stdout, "\n data (str)    : %s(%lu)", szData, (ulong)szLength);
 
     bData[bLength]= '\0';                         /* bData is binary */
-    fprintf(stdout, "\n data (bin)    : %s(%lu)", bData, bLength);
+    fprintf(stdout, "\n data (bin)    : %s(%lu)", bData, (ulong)bLength);
   }
 
   DIE_UNLESS(t_data == 19);
@@ -3792,16 +3792,16 @@ static void test_bind_result_ext1()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n data (tiny)   : %s(%lu)", t_data, length[0]);
-    fprintf(stdout, "\n data (short)  : %f(%lu)", s_data, length[1]);
-    fprintf(stdout, "\n data (int)    : %d(%lu)", i_data, length[2]);
-    fprintf(stdout, "\n data (big)    : %d(%lu)", b_data, length[3]);
+    fprintf(stdout, "\n data (tiny)   : %s(%lu)", t_data, (ulong)length[0]);
+    fprintf(stdout, "\n data (short)  : %f(%lu)", s_data, (ulong)length[1]);
+    fprintf(stdout, "\n data (int)    : %d(%lu)", i_data, (ulong)length[2]);
+    fprintf(stdout, "\n data (big)    : %d(%lu)", b_data, (ulong)length[3]);
 
-    fprintf(stdout, "\n data (float)  : %d(%lu)", f_data, length[4]);
-    fprintf(stdout, "\n data (double) : %s(%lu)", d_data, length[5]);
+    fprintf(stdout, "\n data (float)  : %d(%lu)", f_data, (ulong)length[4]);
+    fprintf(stdout, "\n data (double) : %s(%lu)", d_data, (ulong)length[5]);
 
-    fprintf(stdout, "\n data (bin)    : %ld(%lu)", bData, length[6]);
-    fprintf(stdout, "\n data (str)    : %g(%lu)", szData, length[7]);
+    fprintf(stdout, "\n data (bin)    : %ld(%lu)", bData, (ulong)length[6]);
+    fprintf(stdout, "\n data (str)    : %g(%lu)", szData, (ulong)length[7]);
   }
 
   DIE_UNLESS(strcmp(t_data, "120") == 0);
@@ -3930,13 +3930,13 @@ static void bind_fetch(int row_count)
     if (!opt_silent)
     {
       fprintf(stdout, "\n");
-      fprintf(stdout, "\n tiny     : %ld(%lu)", (ulong) i8_data, length[0]);
-      fprintf(stdout, "\n short    : %ld(%lu)", (ulong) i16_data, length[1]);
-      fprintf(stdout, "\n int      : %ld(%lu)", (ulong) i32_data, length[2]);
-      fprintf(stdout, "\n longlong : %ld(%lu)", (ulong) i64_data, length[3]);
-      fprintf(stdout, "\n float    : %f(%lu)",  f_data,  length[4]);
-      fprintf(stdout, "\n double   : %g(%lu)",  d_data,  length[5]);
-      fprintf(stdout, "\n char     : %s(%lu)",  s_data,  length[6]);
+      fprintf(stdout, "\n tiny     : %ld(%lu)", (ulong) i8_data, (ulong)length[0]);
+      fprintf(stdout, "\n short    : %ld(%lu)", (ulong) i16_data, (ulong)length[1]);
+      fprintf(stdout, "\n int      : %ld(%lu)", (ulong) i32_data, (ulong)length[2]);
+      fprintf(stdout, "\n longlong : %ld(%lu)", (ulong) i64_data, (ulong)length[3]);
+      fprintf(stdout, "\n float    : %f(%lu)",  f_data,  (ulong)length[4]);
+      fprintf(stdout, "\n double   : %g(%lu)",  d_data,  (ulong)length[5]);
+      fprintf(stdout, "\n char     : %s(%lu)",  s_data,  (ulong)length[6]);
     }
     rc= 10+row_count;
 
@@ -4087,13 +4087,13 @@ static void test_fetch_date()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n date   : %s(%lu)", date, d_length);
-    fprintf(stdout, "\n time   : %s(%lu)", my_time, t_length);
-    fprintf(stdout, "\n ts     : %s(%lu)", ts, ts_length);
-    fprintf(stdout, "\n year   : %d(%lu)", year, y_length);
-    fprintf(stdout, "\n dt     : %s(%lu)", dt,  dt_length);
-    fprintf(stdout, "\n ts(4)  : %s(%lu)", ts_4, ts4_length);
-    fprintf(stdout, "\n ts(6)  : %s(%lu)", ts_6, ts6_length);
+    fprintf(stdout, "\n date   : %s(%lu)", date, (ulong)d_length);
+    fprintf(stdout, "\n time   : %s(%lu)", my_time, (long)t_length);
+    fprintf(stdout, "\n ts     : %s(%lu)", ts, (ulong)ts_length);
+    fprintf(stdout, "\n year   : %d(%lu)", year, (ulong)y_length);
+    fprintf(stdout, "\n dt     : %s(%lu)", dt,  (ulong)dt_length);
+    fprintf(stdout, "\n ts(4)  : %s(%lu)", ts_4, (ulong)ts4_length);
+    fprintf(stdout, "\n ts(6)  : %s(%lu)", ts_6, (ulong)ts6_length);
   }
 
   DIE_UNLESS(strcmp(date, "2002-01-02") == 0);
@@ -5057,8 +5057,8 @@ static void test_multi_stmt()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, length[0]);
-    fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
+    fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, (ulong)length[0]);
+    fprintf(stdout, "\n str_data: %s(%lu)", name, (ulong)length[1]);
   }
   DIE_UNLESS(id == 10);
   DIE_UNLESS(strcmp(name, "mysql") == 0);
@@ -5090,8 +5090,8 @@ static void test_multi_stmt()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, length[0]);
-    fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
+    fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, (ulong)length[0]);
+    fprintf(stdout, "\n str_data: %s(%lu)", name, (ulong)length[1]);
   }
   DIE_UNLESS(id == 10);
   DIE_UNLESS(strcmp(name, "updated") == 0);
@@ -5587,7 +5587,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, length1);
+    fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 10);
   DIE_UNLESS(strcmp(szData, "venu") == 0);
   DIE_UNLESS(length1 == 4);
@@ -5596,7 +5596,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, length1);
+    fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 20);
   DIE_UNLESS(strcmp(szData, "mysql") == 0);
   DIE_UNLESS(length1 == 5);
@@ -5606,7 +5606,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent && is_null[0])
-    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, length1);
+    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, (ulong)length1);
   DIE_UNLESS(is_null[0]);
   DIE_UNLESS(strcmp(szData, "monty") == 0);
   DIE_UNLESS(length1 == 5);
@@ -5624,7 +5624,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, length1);
+    fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 10);
   DIE_UNLESS(strcmp(szData, "venu") == 0);
   DIE_UNLESS(length1 == 4);
@@ -5633,7 +5633,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, length1);
+    fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, (ulong)length1);
   DIE_UNLESS(nData == 20);
   DIE_UNLESS(strcmp(szData, "mysql") == 0);
   DIE_UNLESS(length1 == 5);
@@ -5643,7 +5643,7 @@ static void test_store_result()
   check_execute(stmt, rc);
 
   if (!opt_silent && is_null[0])
-    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, length1);
+    fprintf(stdout, "\n row 3: NULL, %s(%lu)", szData, (ulong)length1);
   DIE_UNLESS(is_null[0]);
   DIE_UNLESS(strcmp(szData, "monty") == 0);
   DIE_UNLESS(length1 == 5);
@@ -6496,7 +6496,7 @@ static void test_buffers()
   DIE_UNLESS(rc == MYSQL_DATA_TRUNCATED);
   DIE_UNLESS(my_bind[0].error_value);
   if (!opt_silent)
-    fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+    fprintf(stdout, "\n data: %s (%lu)", buffer, (long)length);
   DIE_UNLESS(buffer[0] == 'M');
   DIE_UNLESS(buffer[1] == 'X');
   DIE_UNLESS(length == 5);
@@ -6508,7 +6508,7 @@ static void test_buffers()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+    fprintf(stdout, "\n data: %s (%lu)", buffer, (long)length);
   DIE_UNLESS(strncmp(buffer, "Database", 8) == 0);
   DIE_UNLESS(length == 8);
 
@@ -6519,7 +6519,7 @@ static void test_buffers()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+    fprintf(stdout, "\n data: %s (%lu)", buffer, (long)length);
   DIE_UNLESS(strcmp(buffer, "Open-Source") == 0);
   DIE_UNLESS(length == 11);
 
@@ -6531,7 +6531,7 @@ static void test_buffers()
   DIE_UNLESS(rc == MYSQL_DATA_TRUNCATED);
   DIE_UNLESS(my_bind[0].error_value);
   if (!opt_silent)
-    fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+    fprintf(stdout, "\n data: %s (%lu)", buffer, (long)length);
   DIE_UNLESS(strncmp(buffer, "Popula", 6) == 0);
   DIE_UNLESS(length == 7);
 
@@ -6763,11 +6763,11 @@ static void test_ushort_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n ushort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, l_length);
+    fprintf(stdout, "\n ushort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == 35999);
@@ -6850,11 +6850,11 @@ static void test_sshort_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
+    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == -5999);
@@ -6936,11 +6936,11 @@ static void test_stiny_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
+    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s  (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == -128);
@@ -8014,7 +8014,7 @@ static void test_logs()
   if (!opt_silent)
   {
     fprintf(stdout, "id    : %d\n", id);
-    fprintf(stdout, "name  : %s(%ld)\n", data, length);
+    fprintf(stdout, "name  : %s(%ld)\n", data, (long)length);
   }
 
   DIE_UNLESS(id == 9876);
@@ -8025,7 +8025,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 1);
   DIE_UNLESS(strcmp(data, "'") == 0);
@@ -8034,7 +8034,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 1);
   DIE_UNLESS(strcmp(data, "\"") == 0);
@@ -8043,7 +8043,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 7);
   DIE_UNLESS(strcmp(data, "my\'sql\'") == 0);
@@ -8052,7 +8052,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 7);
   /*DIE_UNLESS(strcmp(data, "my\"sql\"") == 0); */
@@ -8290,19 +8290,19 @@ static void test_fetch_offset()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 1: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "abcd", 4) == 0 && length == 10);
 
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 5);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 1: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "fg", 2) == 0 && length == 10);
 
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 9);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 0: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "j", 1) == 0 && length == 10);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8391,14 +8391,14 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "venu", 4) == 0 && l2 == 4);
 
   c2[0]= '\0'; l2= 0;
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strcmp(c2, "venu") == 0 && l2 == 4);
 
   c1= 0;
@@ -8411,7 +8411,7 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l1);
   DIE_UNLESS(c1 == 1 && l1 == 4);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8430,14 +8430,14 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "mysq", 4) == 0 && l2 == 5);
 
   c2[0]= '\0'; l2= 0;
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %si(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %si(%ld)", c2, (long)l2);
   DIE_UNLESS(strcmp(c2, "mysql") == 0 && l2 == 5);
 
   c1= 0;
@@ -8450,7 +8450,7 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l1);
   DIE_UNLESS(c1 == 2 && l1 == 4);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8660,7 +8660,7 @@ static void test_free_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 0: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "1", 1) == 0 && l2 == 1);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8676,7 +8676,7 @@ static void test_free_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l2);
   DIE_UNLESS(c1 == 2 && l2 == 4);
 
   rc= mysql_query(mysql, "drop table test_free_result");
@@ -8745,7 +8745,7 @@ static void test_free_store_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "1", 1) == 0 && l2 == 1);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8761,7 +8761,7 @@ static void test_free_store_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l2);
   DIE_UNLESS(c1 == 2 && l2 == 4);
 
   rc= mysql_stmt_free_result(stmt);
@@ -11218,7 +11218,7 @@ static void test_view_2where()
   int rc, i;
   MYSQL_BIND      my_bind[8];
   char            parms[8][100];
-  ulong           length[8];
+  size_t          length[8];
   const char *query=
     "select relid, report, handle, log_group, username, variant, type, "
     "version, erfdat, erftime, erfname, aedat, aetime, aename, dependvars, "
@@ -11301,7 +11301,7 @@ static void test_view_star()
   int rc, i;
   MYSQL_BIND      my_bind[8];
   char            parms[8][100];
-  ulong           length[8];
+  size_t          length[8];
   const char *query= "SELECT * FROM vt1 WHERE a IN (?,?)";
 
   myheader("test_view_star");
@@ -11355,7 +11355,7 @@ static void test_view_insert()
   int rc, i;
   MYSQL_BIND      my_bind[1];
   int             my_val = 0;
-  ulong           my_length = 0L;
+  size_t          my_length = 0L;
   long            my_null = 0L;
   const char *query=
     "insert into v1 values (?)";
@@ -11933,7 +11933,7 @@ static void test_bug6049()
   MYSQL_ROW row;
   const char *stmt_text;
   char buffer[30];
-  ulong length;
+  size_t length;
   int rc;
 
   myheader("test_bug6049");
@@ -11990,7 +11990,7 @@ static void test_bug6058()
   MYSQL_ROW row;
   const char *stmt_text;
   char buffer[30];
-  ulong length;
+  size_t length;
   int rc;
 
   myheader("test_bug6058");
