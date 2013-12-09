@@ -565,7 +565,7 @@ typedef struct st_mysql_bind
         unsigned char **row);
   size_t buffer_length;
   unsigned long offset;
-  unsigned long length_value;
+  size_t length_value;
   unsigned int param_number;
   unsigned int pack_length;
   enum enum_field_types buffer_type;

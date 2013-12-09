@@ -7227,7 +7227,8 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     my_bind[i].length= &length[i];
 
     DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %lu",
-			i, my_bind[i].buffer_type, my_bind[i].buffer_length));
+			i, my_bind[i].buffer_type,
+                        static_cast<ulong>(my_bind[i].buffer_length)));
   }
 
   if (mysql_stmt_bind_result(stmt, my_bind))
