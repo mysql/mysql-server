@@ -8737,14 +8737,15 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
   {
     size_t const block_size= 1024;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
-    my_ptrdiff_t const new_alloc= 
+    my_ptrdiff_t const new_alloc=
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    // Allocate one extra byte, in case we have to do uint3korr!
-    row.resize((uint)new_alloc + 1);
+    if (new_alloc)
+      // Allocate one extra byte, in case we have to do uint3korr!
+      row.resize((uint)new_alloc + 1);
 
     /* If the memory moved, we need to move the pointers */
-    if (&row[0] != m_rows_buf)
+    if (new_alloc && &row[0] != m_rows_buf)
     {
       m_rows_buf= &row[0];
       m_rows_cur= m_rows_buf + cur_size;
@@ -10872,7 +10873,7 @@ int Table_map_log_event::save_field_metadata()
 {
   DBUG_ENTER("Table_map_log_event::save_field_metadata");
   int index= 0;
-  for (std::vector<uint16_t>::size_type i= 0; i < m_table->s->fields ; i++)
+  for (unsigned int i= 0; i < m_table->s->fields ; i++)
   {
     DBUG_PRINT("debug", ("field_type: %d", m_coltype[i]));
     index+= m_table->s->field[i]->save_field_metadata(&m_field_metadata[index]);
@@ -10934,10 +10935,11 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
   m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
-  /* m_coltype is a vector, whose size is determined by m_colcnt */
-  m_coltype.reserve(m_colcnt);
-  // Adding values to the vector
-  for (std::vector<uint8_t>::size_type i= 0; i < m_table->s->fields; ++i)
+  m_coltype= (uchar *)my_malloc(key_memory_log_event,
+                                m_colcnt, MYF(MY_WME));
+
+  DBUG_ASSERT(m_colcnt == m_table->s->fields);
+  for (unsigned int i= 0; i < m_table->s->fields; ++i)
     m_coltype[i]= m_table->field[i]->binlog_type();
 
 
@@ -10956,13 +10958,9 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   m_null_bits= (uchar *)my_malloc(key_memory_log_event,
                                   num_null_bytes, MYF(MY_WME));
 
-  /*
-     Field metadata is a vector. We allocate memory to the vector here and
-     initialize it with 0.
-  */
-  m_field_metadata.reserve(m_colcnt * 2);
-  for (uint i= 0; i < m_field_metadata.size(); i++)
-    m_field_metadata[i]= 0;
+  m_field_metadata= (uchar*)my_malloc(key_memory_log_event,
+                                      (m_colcnt * 2), MYF(MY_WME));
+  memset(m_field_metadata, 0, (m_colcnt * 2));
 
   /*
     Create an array for the field metadata and store it.
@@ -11027,6 +11025,11 @@ Table_map_log_event::~Table_map_log_event()
   {
     my_free(m_null_bits);
     m_null_bits= NULL;
+  }
+  if(m_field_metadata)
+  {
+    my_free(m_field_metadata);
+    m_field_metadata= NULL;
   }
 }
 
@@ -11192,9 +11195,10 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       table_def destructor explicitly.
     */
     new (&table_list->m_tabledef)
-      table_def(&m_coltype[0], m_colcnt,
-                &m_field_metadata[0], m_field_metadata_size,
-                m_null_bits, m_flags);
+        table_def(m_coltype, m_colcnt,
+                  m_field_metadata, m_field_metadata_size,
+                  m_null_bits, m_flags);
+
     table_list->m_tabledef_valid= TRUE;
     table_list->m_conv_table= NULL;
     table_list->open_type= OT_BASE_ONLY;
@@ -11316,10 +11320,10 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
                                  (const uchar*)m_tblnam.c_str(),
                                   m_tbllen+1) ||
           wrapper_my_b_safe_write(file, cbuf, (size_t) (cbuf_end - cbuf)) ||
-          wrapper_my_b_safe_write(file, &m_coltype[0], m_colcnt) ||
+          wrapper_my_b_safe_write(file, m_coltype, m_colcnt) ||
           wrapper_my_b_safe_write(file, mbuf, (size_t) (mbuf_end - mbuf)) ||
           wrapper_my_b_safe_write(file,
-                                  &m_field_metadata[0], m_field_metadata_size),
+                                  m_field_metadata, m_field_metadata_size),
           wrapper_my_b_safe_write(file, m_null_bits, (m_colcnt + 7) / 8));
  }
 #endif

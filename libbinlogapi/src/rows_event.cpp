@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 namespace binary_log
 {
 /* Get the length of next field. Change parameter to point at fieldstart */
-unsigned long STDCALL get_field_length(unsigned char **packet)
+unsigned long get_field_length(unsigned char **packet)
 {
   unsigned char *pos= (unsigned char *)*packet;
   uint32_t temp= 0;
@@ -73,7 +73,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
                      description_event->server_version),
     m_table_id(0), m_flags(0), m_data_size(0),
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
-    m_colcnt(0), m_field_metadata_size(0), m_null_bits(0)
+    m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0)
 {
   unsigned int bytes_read= 0;
   uint8_t common_header_len= description_event->common_header_len;
@@ -121,18 +121,11 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   unsigned char *ptr_after_colcnt= (uchar*) ptr_colcnt;
   m_colcnt= get_field_length(&ptr_after_colcnt);
 
-  m_coltype.reserve(m_colcnt);
-
+  m_coltype= (unsigned char*)bapi_malloc(m_colcnt);
   m_dbnam= std::string((const char*)ptr_dblen  + 1, m_dblen + 1);
   m_tblnam= std::string((const char*)ptr_tbllen  + 1, m_tbllen + 1);
 
-  unsigned char *ch;
-  ch= ptr_after_colcnt;
-  for(unsigned long i= 0; i < m_colcnt; i++)
-  {
-    m_coltype.push_back(*ch);
-    ch++;
-  }
+  memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
 
   ptr_after_colcnt= ptr_after_colcnt + m_colcnt;
   bytes_read= (unsigned int) (ptr_after_colcnt - (unsigned char *)buf);
@@ -144,13 +137,8 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
     unsigned int num_null_bytes= (m_colcnt + 7) / 8;
 
     m_null_bits= (unsigned char*)bapi_malloc(num_null_bytes);
-    m_field_metadata.reserve(m_field_metadata_size);
-    ch= ptr_after_colcnt;
-    for(unsigned long i= 0; i < m_field_metadata_size; i++)
-    {
-      m_field_metadata.push_back(*ch);
-      ch++;
-    }
+    m_field_metadata= (unsigned char*)bapi_malloc(m_field_metadata_size);
+    memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
     ptr_after_colcnt= (unsigned char*)ptr_after_colcnt + m_field_metadata_size;
     memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
   }
@@ -163,6 +151,17 @@ Table_map_event::~Table_map_event()
     bapi_free(m_null_bits);
     m_null_bits= NULL;
   }
+  if (m_field_metadata)
+  {
+    bapi_free(m_field_metadata);
+    m_field_metadata= NULL;
+  }
+   if (m_coltype)
+  {
+    bapi_free(m_coltype);
+    m_coltype= NULL;
+  }
+
 }
 
 void Table_map_event::print_event_info(std::ostream& info)
@@ -181,10 +180,9 @@ void Table_map_event::print_long_info(std::ostream& info)
     TODO: Column types are stored as integers. To be
     replaced by string representation of types.
   */
-  std::vector<uint8_t>::iterator it;
-  for (it= m_coltype.begin(); it != m_coltype.end(); ++it)
+  for (unsigned int i= 0; i < m_colcnt; i++)
   {
-    info << "\t" << (int)*it;
+    info << "\t" << (int)m_coltype[i];
   }
   info << "\n";
   this->print_event_info(info);
@@ -198,7 +196,8 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                        const Format_description_event *description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
-    m_table_id(0), m_width(0), m_extra_row_data(0)
+    m_table_id(0), m_width(0), m_extra_row_data(0),
+    columns_before_image(0), columns_after_image(0), row(0)
 {
   uint8_t const common_header_len= description_event->common_header_len;
   Log_event_type event_type= (Log_event_type) buf[EVENT_TYPE_OFFSET];
