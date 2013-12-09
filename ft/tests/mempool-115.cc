@@ -86,80 +86,111 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#ifndef UTIL_MEMPOOL_H
-#define UTIL_MEMPOOL_H
+#include "test.h"
+#include "bndata.h"
 
-/* a memory pool is a contiguous region of memory that supports single
-   allocations from the pool.  these allocated regions are never recycled.
-   when the memory pool no longer has free space, the allocated chunks
-   must be relocated by the application to a new memory pool. */
-
-#include <stddef.h>
-
-struct mempool;
-
-  // TODO 4050 Hide mempool struct internals from callers
-
-struct mempool {
-    void *base;           /* the base address of the memory */
-    size_t free_offset;      /* the offset of the memory pool free space */
-    size_t size;             /* the size of the memory */
-    size_t frag_size;        /* the size of the fragmented memory */
-};
-
-/* This is a constructor to be used when the memory for the mempool struct has been
- * allocated by the caller, but no memory has yet been allocatd for the data.
- */
-void toku_mempool_zero(struct mempool *mp);
-
-/* initialize the memory pool with the base address and size of a
-   contiguous chunk of memory */
-void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_t size);
-
-/* allocate memory and construct mempool
- */
-void toku_mempool_construct(struct mempool *mp, size_t data_size);
-
-/* destroy the memory pool */
-void toku_mempool_destroy(struct mempool *mp);
-
-/* get the base address of the memory pool */
-void *toku_mempool_get_base(struct mempool *mp);
-
-/* get the size of the memory pool */
-size_t toku_mempool_get_size(struct mempool *mp);
-
-/* get the amount of fragmented (wasted) space in the memory pool */
-size_t toku_mempool_get_frag_size(struct mempool *mp);
-
-/* get the amount of space that is holding useful data */
-size_t toku_mempool_get_used_space(struct mempool *mp);
-
-/* get the amount of space that is available for new data */
-size_t toku_mempool_get_free_space(struct mempool *mp);
-
-/* get the amount of space that has been allocated for use (wasted or not) */
-size_t toku_mempool_get_allocated_space(struct mempool *mp);
-
-/* allocate a chunk of memory from the memory pool suitably aligned */
-void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
-
-/* free a previously allocated chunk of memory.  the free only updates
-   a count of the amount of free space in the memory pool.  the memory
-   pool does not keep track of the locations of the free chunks */
-void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size);
-
-/* verify that a memory range is contained within a mempool */
-static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size) {
-    return (mp->base <= vp) && ((char *)vp + size <= (char *)mp->base + mp->size);
+static void
+le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const char *val, int valsize)
+{
+    LEAFENTRY r = NULL;
+    uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    bn->get_space_for_insert(
+        idx, 
+        key,
+        keysize,
+        size_needed,
+        &r
+        );
+    resource_assert(r);
+    r->type = LE_CLEAN;
+    r->u.clean.vallen = valsize;
+    memcpy(r->u.clean.val, val, valsize);
 }
 
-/* get memory footprint */
-size_t toku_mempool_footprint(struct mempool *mp);
+static void
+le_overwrite(bn_data* bn, uint32_t idx, const  char *key, int keysize, const char *val, int valsize) {
+    LEAFENTRY r = NULL;
+    uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    bn->get_space_for_overwrite(
+        idx, 
+        key,
+        keysize,
+        size_needed, // old_le_size
+        size_needed,
+        &r
+        );
+    resource_assert(r);
+    r->type = LE_CLEAN;
+    r->u.clean.vallen = valsize;
+    memcpy(r->u.clean.val, val, valsize);
+}
 
-void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp);
 
-#endif // UTIL_MEMPOOL_H
+class bndata_bugfix_test {
+public:
+    void
+    run_test(void) {
+        //    struct ft_handle source_ft;
+        struct ftnode sn;
+    
+        // just copy this code from a previous test
+        // don't care what it does, just want to get a node up and running
+        sn.flags = 0x11223344;
+        sn.thisnodename.b = 20;
+        sn.layout_version = FT_LAYOUT_VERSION;
+        sn.layout_version_original = FT_LAYOUT_VERSION;
+        sn.height = 0;
+        sn.n_children = 2;
+        sn.dirty = 1;
+        sn.oldest_referenced_xid_known = TXNID_NONE;
+        MALLOC_N(sn.n_children, sn.bp);
+        MALLOC_N(1, sn.childkeys);
+        toku_memdup_dbt(&sn.childkeys[0], "b", 2);
+        sn.totalchildkeylens = 2;
+        BP_STATE(&sn,0) = PT_AVAIL;
+        BP_STATE(&sn,1) = PT_AVAIL;
+        set_BLB(&sn, 0, toku_create_empty_bn());
+        set_BLB(&sn, 1, toku_create_empty_bn());
+        le_add_to_bn(BLB_DATA(&sn, 0), 0, "a", 2, "aval", 5);
+        le_add_to_bn(BLB_DATA(&sn, 0), 1, "b", 2, "bval", 5);
+        le_add_to_bn(BLB_DATA(&sn, 1), 0, "x", 2, "xval", 5);
+    
+    
+    
+        // now this is the test. If I keep getting space for overwrite
+        // like crazy, it should expose the bug
+        bn_data* bnd = BLB_DATA(&sn, 0);
+        size_t old_size = bnd->m_buffer_mempool.size;
+        if (verbose) printf("frag size: %" PRIu64 "\n", bnd->m_buffer_mempool.frag_size);
+        if (verbose) printf("size: %" PRIu64 "\n", bnd->m_buffer_mempool.size);
+        for (uint32_t i = 0; i < 1000000; i++) {
+            le_overwrite(bnd, 0, "a", 2, "aval", 5);
+        }
+        if (verbose) printf("frag size: %" PRIu64 "\n", bnd->m_buffer_mempool.frag_size);
+        if (verbose) printf("size: %" PRIu64 "\n", bnd->m_buffer_mempool.size);
+        size_t new_size = bnd->m_buffer_mempool.size;
+        // just a crude test to make sure we did not grow unbounded.
+        // if this assert ever fails, revisit the code and see what is going
+        // on. It may be that some algorithm has changed.
+        assert(new_size < 5*old_size);
+    
+    
+        for (int i = 0; i < sn.n_children-1; ++i) {
+            toku_free(sn.childkeys[i].data);
+        }
+        for (int i = 0; i < sn.n_children; i++) {
+            destroy_basement_node(BLB(&sn, i));
+        }
+        toku_free(sn.bp);
+        toku_free(sn.childkeys);
+    }
+};
+
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
+    bndata_bugfix_test t;
+    t.run_test();
+    return 0;
+}
