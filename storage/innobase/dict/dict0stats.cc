@@ -1467,9 +1467,8 @@ dict_stats_analyze_index_below_cur(
 
 		/* we have a non-boring record in rec, descend below it */
 
-		page_id = page_id_t(page_id.space(),
-				    btr_node_ptr_get_child_page_no(
-					    rec, offsets_rec));
+		page_id.set_page_no(
+			btr_node_ptr_get_child_page_no(rec, offsets_rec));
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */

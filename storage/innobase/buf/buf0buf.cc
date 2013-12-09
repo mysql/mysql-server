@@ -1896,7 +1896,7 @@ page_found:
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
 			bpage->state = BUF_BLOCK_ZIP_PAGE;
-			bpage->id = page_id;
+			bpage->id.copy_from(page_id);
 			bpage->buf_fix_count = 1;
 
 			ut_d(bpage->in_page_hash = TRUE);
@@ -3526,7 +3526,7 @@ buf_page_init(
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    page_id.fold(), &block->page);
 
-	block->page.id = page_id;
+	block->page.id.copy_from(page_id);
 	block->page.size.copy_from(page_size);
 
 	if (page_size.is_compressed()) {
@@ -3727,7 +3727,7 @@ err_exit:
 		buf_page_init_low(bpage);
 
 		bpage->state = BUF_BLOCK_ZIP_PAGE;
-		bpage->id = page_id;
+		bpage->id.copy_from(page_id);
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
