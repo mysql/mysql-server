@@ -1,13 +1,13 @@
 #*******************************************************************
 # This testcase is to test the funcitionality of wl#6344
-# When the innodb_compression_level=0 create a table with page size  
-# 1K and load data  
-# When the innodb_compression_level=9 create a table with page size  
-# 1K and load data 
+# When the innodb_compression_level=0 create a table with page size
+# 1K and load data
+# When the innodb_compression_level=9 create a table with page size
+# 1K and load data
 # compare the size of the both tables.
-# The size of the table when compression level=0 should be 
-# greater than the 
-# the size of the table when compression level=9 
+# The size of the table when compression level=0 should be
+# greater than the
+# the size of the table when compression level=9
 #*******************************************************************
 --source include/have_innodb.inc
 
@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS tab6;
 --echo #set the other madatory flags before test starts
 SET GLOBAL Innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
-
+let $innodb_compression_level = `SELECT @@global.innodb_compression_level`;
 
 --echo #set the compression level=0  (No compress)
 SET global innodb_compression_level=0;
@@ -131,7 +131,9 @@ DROP TABLE tab5;
 DROP TABLE tab6;
 
 --echo #reset back the compression_level to default.
-SET global innodb_compression_level=6;
+--disable_query_log
+eval SET GLOBAL innodb_compression_level=$innodb_compression_level;
+--enable_query_log
 SET GLOBAL innodb_file_format='Antelope';
 
 

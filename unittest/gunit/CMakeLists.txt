@@ -201,6 +201,7 @@ CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 ENDIF()
+CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
@@ -350,6 +351,14 @@ ELSE()
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()
   
+  # See comments about __builtin_memcmp in the source file.
+  IF(HAVE_NO_BUILTIN_MEMCMP)
+    SET_SOURCE_FILES_PROPERTIES(
+      filesort_compare-t.cc
+      PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+  )
+  ENDIF()
+
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)

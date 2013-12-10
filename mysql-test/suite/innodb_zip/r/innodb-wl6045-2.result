@@ -1,8 +1,5 @@
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
-SELECT @@innodb_compression_level;
-@@innodb_compression_level
-6
 SET GLOBAL innodb_compression_level=0;
 SELECT @@innodb_compression_level;
 @@innodb_compression_level

@@ -620,6 +620,7 @@ private:
 #endif
      m_ctx(ctx_arg),
      m_lock(NULL),
+     m_is_fast_path(false),
      m_psi(NULL)
   {}
 
@@ -653,6 +654,14 @@ private:
     Pointer to the lock object for this lock ticket. Externally accessible.
   */
   MDL_lock *m_lock;
+
+  /**
+    Indicates that ticket corresponds to lock acquired using "fast path"
+    algorithm. Particularly this means that it was not included into
+    MDL_lock::m_granted bitmap/list and instead is accounted for by
+    MDL_lock::m_fast_path_locks_granted_counter
+  */
+  bool m_is_fast_path;
 
   PSI_metadata_lock *m_psi;
 
@@ -812,11 +821,22 @@ public:
             will see the new value eventually.
     */
     m_needs_thr_lock_abort= needs_thr_lock_abort;
+
+    if (m_needs_thr_lock_abort)
+    {
+      /*
+        For MDL_object_lock::notify_conflicting_locks() to work properly
+        all context requiring thr_lock aborts should not have any "fast
+        path" locks.
+      */
+      materialize_fast_path_locks();
+    }
   }
   bool get_needs_thr_lock_abort() const
   {
     return m_needs_thr_lock_abort;
   }
+
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -915,6 +935,7 @@ private:
   void release_lock(enum_mdl_duration duration, MDL_ticket *ticket);
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
+  void materialize_fast_path_locks();
 
 public:
   void find_deadlock();
@@ -924,6 +945,18 @@ public:
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
   void will_wait_for(MDL_wait_for_subgraph *waiting_for_arg)
   {
+    /*
+      Before starting wait for any resource we need to materialize
+      all "fast path" tickets belonging to this thread. Otherwise
+      locks acquired which are represented by these tickets won't
+      be present in wait-for graph and could cause missed deadlocks.
+
+      It is OK for context which doesn't wait for any resource to
+      have "fast path" tickets, as such context can't participate
+      in any deadlock.
+    */
+    materialize_fast_path_locks();
+
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for=  waiting_for_arg;
     mysql_prlock_unlock(&m_LOCK_waiting_for);

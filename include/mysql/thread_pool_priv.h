@@ -167,8 +167,8 @@ void end_connection(THD *thd);
 void thd_release_resources(THD *thd);
 /* Destroy THD object */
 void destroy_thd(THD *thd);
-/* Set pthread key THR_THD */
-void set_pthread_THR_THD(THD *thd);
+/* Reset thread globals */
+void reset_thread_globals(THD *thd);
 
 /*
   max_connections is needed to calculate the maximum number of threads

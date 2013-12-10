@@ -752,8 +752,8 @@ select * from t1 force index (b) where b < 10 ORDER BY b DESC;
 a	b
 6	6
 4	5
-2	4
 30	4
+2	4
 3	3
 35	2
 7	1

@@ -391,7 +391,7 @@ os_event::timed_wait(
 	default:
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"pthread_cond_timedwait() returned: "
-			"%d: abstime={%lu,%lu}\n",
+			"%d: abstime={%lu,%lu}",
 			ret, (ulong) abstime->tv_sec,
 			(ulong) abstime->tv_nsec);
 		ut_error;

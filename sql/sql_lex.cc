@@ -198,8 +198,8 @@ void struct_slave_connection::reset()
 */
 
 bool Lex_input_stream::init(THD *thd,
-			    char* buff,
-			    unsigned int length)
+			    const char* buff,
+			    size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -228,14 +228,25 @@ bool Lex_input_stream::init(THD *thd,
 */
 
 void
-Lex_input_stream::reset(char *buffer, unsigned int length)
+Lex_input_stream::reset(const char *buffer, size_t length)
 {
   yylineno= 1;
   yytoklen= 0;
   yylval= NULL;
   lookahead_token= -1;
   lookahead_yylval= NULL;
-  m_ptr= buffer;
+  /*
+    Lex_input_stream modifies the query string in one special case (sic!).
+    yyUnput() modifises the string when patching version comments.
+    This is done to prevent newer slaves from executing a different
+    statement than older masters.
+
+    For now, cast away const here. This means that e.g. SHOW PROCESSLIST
+    can see partially patched query strings. It would be better if we
+    could replicate the query string as is and have the slave take the
+    master version into account.
+  */
+  m_ptr= const_cast<char*>(buffer);
   m_tok_start= NULL;
   m_tok_end= NULL;
   m_end_of_query= buffer + length;
@@ -1724,28 +1735,29 @@ static int lex_one_token(void *arg, void *yythd)
         lip->yySkip();
         lip->yySkip();
 
-        /*
-          The special comment format is very strict:
-          '/' '*' '!', followed by exactly
-          1 digit (major), 2 digits (minor), then 2 digits (dot).
-          32302 -> 3.23.02
-          50032 -> 5.0.32
-          50114 -> 5.1.14
-        */
-        char version_str[6];
-        version_str[0]= lip->yyPeekn(0);
-        version_str[1]= lip->yyPeekn(1);
-        version_str[2]= lip->yyPeekn(2);
-        version_str[3]= lip->yyPeekn(3);
-        version_str[4]= lip->yyPeekn(4);
-        version_str[5]= 0;
-        if (  my_isdigit(cs, version_str[0])
-           && my_isdigit(cs, version_str[1])
-           && my_isdigit(cs, version_str[2])
-           && my_isdigit(cs, version_str[3])
-           && my_isdigit(cs, version_str[4])
-           )
+        if (!lip->eof(4)
+            && my_isdigit(cs, lip->yyPeekn(0))
+            && my_isdigit(cs, lip->yyPeekn(1))
+            && my_isdigit(cs, lip->yyPeekn(2))
+            && my_isdigit(cs, lip->yyPeekn(3))
+            && my_isdigit(cs, lip->yyPeekn(4))
+            )
         {
+          /*
+            The special comment format is very strict:
+            '/' '*' '!', followed by exactly
+            1 digit (major), 2 digits (minor), then 2 digits (dot).
+            32302 -> 3.23.02
+            50032 -> 5.0.32
+            50114 -> 5.1.14
+          */
+          char version_str[6];
+          version_str[0]= lip->yyPeekn(0);
+          version_str[1]= lip->yyPeekn(1);
+          version_str[2]= lip->yyPeekn(2);
+          version_str[3]= lip->yyPeekn(3);
+          version_str[4]= lip->yyPeekn(4);
+          version_str[5]= 0;
           ulong version;
           version=strtol(version_str, NULL, 10);
 
