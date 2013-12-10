@@ -1445,16 +1445,18 @@ private:
     struct
     {
       Uint32 m_gci;
-      Uint32 m_counter;
-      Uint32 m_max_lag;
+      Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
+      Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
     } m_gcp_save;
 
     struct
     {
       Uint64 m_gci;
-      Uint32 m_counter;
-      Uint32 m_max_lag;
+      Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
+      Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
     } m_micro_gcp;
+
+    NDB_TICKS m_last_check; //Time GCP monitor last checked
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/
