@@ -5889,7 +5889,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 }
 
 PSI_prepared_stmt_share*
-pfs_get_prepare_stmt_share_v1(PSI_statement_locker *locker, 
+pfs_get_prepare_stmt_share_v1(void *identity, PSI_statement_locker *locker, 
                               char *sql_text, int sql_text_length)
 {
   PFS_events_statements *pfs_stmt= NULL;
@@ -5905,7 +5905,8 @@ pfs_get_prepare_stmt_share_v1(PSI_statement_locker *locker,
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
-  PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(pfs_thread,
+  PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(identity,
+                                                       pfs_thread,
                                                        pfs_stmt,
                                                        sql_text,
                                                        sql_text_length);
@@ -5957,7 +5958,7 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   ulonglong wait_time;
   PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_stat;
 
-  if (state->m_flags & STATE_FLAG_TIMED)
+  if (1)//state->m_flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
@@ -5993,7 +5994,7 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
   ulonglong wait_time;
   PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_execute_stat;
 
-  if (state->m_flags & STATE_FLAG_TIMED)
+  if (1)//state->m_flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
