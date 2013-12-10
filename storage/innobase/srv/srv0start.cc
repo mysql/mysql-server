@@ -1501,6 +1501,15 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
 
+        ib_logf(IB_LOG_LEVEL_INFO,
+                "Using %s to ref count buffer pool pages",
+#ifdef PAGE_ATOMIC_REF_COUNT
+                "atomics"
+#else
+                "mutexes"
+#endif /* PAGE_ATOMIC_REF_COUNT */
+                );
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1526,6 +1535,16 @@ innobase_start_or_create_for_mysql(void)
 	}
 # endif /* F_FULLFSYNC */
 #endif /* HAVE_DARWIN_THREADS */
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Using %s to ref count buffer pool pages",
+#ifdef PAGE_ATOMIC_REF_COUNT
+		"atomics"
+#else
+		"mutexes"
+#endif /* PAGE_ATOMIC_REF_COUNT */
+	);
+
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ut_print_timestamp(stderr);

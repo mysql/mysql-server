@@ -342,15 +342,16 @@ buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
 {
-	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
 		ut_error;
 		return(NULL);
 	case BUF_BLOCK_ZIP_PAGE:
-	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_ZIP_DIRTY: {
+		buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+
 		return(&buf_pool->zip_mutex);
+		}
 	default:
 		return(&((buf_block_t*) bpage)->mutex);
 	}
@@ -620,10 +621,11 @@ buf_page_set_accessed(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-#endif
+#endif /* UNIV_DEBUG */
+
 	ut_a(buf_page_in_file(bpage));
 
-	if (!bpage->access_time) {
+	if (bpage->access_time == 0) {
 		/* Make this the time of the first access. */
 		bpage->access_time = ut_time_ms();
 	}
@@ -1000,6 +1002,25 @@ buf_block_get_modify_clock(
 Increments the bufferfix count. */
 UNIV_INLINE
 void
+buf_block_fix(
+/*===========*/
+	buf_block_t*	block)	/*!< in/out: block to bufferfix */
+{
+#ifdef PAGE_ATOMIC_REF_COUNT
+	os_atomic_increment_uint32(&block->page.buf_fix_count, 1);
+#else
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(&block->page);
+
+	mutex_enter(block_mutex);
+	++block->page.buf_fix_count;
+	mutex_exit(block_mutex);
+#endif /* PAGE_ATOMIC_REF_COUNT */
+}
+
+/*******************************************************************//**
+Increments the bufferfix count. */
+UNIV_INLINE
+void
 buf_block_buf_fix_inc_func(
 /*=======================*/
 #ifdef UNIV_SYNC_DEBUG
@@ -1014,9 +1035,35 @@ buf_block_buf_fix_inc_func(
 	ret = rw_lock_s_lock_nowait(&(block->debug_latch), file, line);
 	ut_a(ret);
 #endif /* UNIV_SYNC_DEBUG */
+
+#ifdef PAGE_ATOMIC_REF_COUNT
+	os_atomic_increment_uint32(&block->page.buf_fix_count, 1);
+#else
 	ut_ad(mutex_own(&block->mutex));
 
-	block->page.buf_fix_count++;
+	++block->page.buf_fix_count;
+#endif /* PAGE_ATOMIC_REF_COUNT */
+}
+
+/*******************************************************************//**
+Decrements the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_unfix(
+/*============*/
+	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
+{
+	ut_ad(block->page.buf_fix_count > 0);
+
+#ifdef PAGE_ATOMIC_REF_COUNT
+	os_atomic_decrement_uint32(&block->page.buf_fix_count, 1);
+#else
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(&block->page);
+
+	mutex_enter(block_mutex);
+	--block->page.buf_fix_count;
+	mutex_exit(block_mutex);
+#endif /* PAGE_ATOMIC_REF_COUNT */
 }
 
 /*******************************************************************//**
@@ -1027,9 +1074,16 @@ buf_block_buf_fix_dec(
 /*==================*/
 	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
 {
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(block->page.buf_fix_count > 0);
 
-	block->page.buf_fix_count--;
+#ifdef PAGE_ATOMIC_REF_COUNT
+	os_atomic_decrement_uint32(&block->page.buf_fix_count, 1);
+#else
+	mutex_enter(&block->mutex);
+	--block->page.buf_fix_count;
+	mutex_exit(&block->mutex);
+#endif /* PAGE_ATOMIC_REF_COUNT */
+
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&block->debug_latch);
 #endif
@@ -1288,27 +1342,20 @@ buf_page_release_zip(
 	buf_page_t*	bpage)		/*!< in: buffer block */
 {
 	buf_block_t*	block;
-	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
-	ut_ad(bpage);
-	ut_a(bpage->buf_fix_count > 0);
+	block = (buf_block_t*) bpage;
 
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_PAGE:
-	case BUF_BLOCK_ZIP_DIRTY:
-		mutex_enter(&buf_pool->zip_mutex);
-		bpage->buf_fix_count--;
-		mutex_exit(&buf_pool->zip_mutex);
-		return;
 	case BUF_BLOCK_FILE_PAGE:
-		block = (buf_block_t*) bpage;
-		mutex_enter(&block->mutex);
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&block->debug_latch);
-#endif
-		bpage->buf_fix_count--;
-		mutex_exit(&block->mutex);
+#endif /* UNUV_SYNC_DEBUG */
+		/* Fall through */
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+		buf_block_unfix(block);
 		return;
+
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -1331,25 +1378,18 @@ buf_page_release(
 	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
 {
-	ut_ad(block);
-
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->page.buf_fix_count > 0);
-
-	mutex_enter(&block->mutex);
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
-	block->page.buf_fix_count--;
-
-	mutex_exit(&block->mutex);
-
 	if (rw_latch == RW_S_LATCH) {
 		rw_lock_s_unlock(&(block->lock));
 	} else if (rw_latch == RW_X_LATCH) {
 		rw_lock_x_unlock(&(block->lock));
 	}
+
+	buf_block_unfix(block);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1367,6 +1407,7 @@ buf_block_dbg_add_level(
 {
 	sync_thread_add_level(&block->lock, level, FALSE);
 }
+
 #endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Acquire mutex on all buffer pool instances. */
