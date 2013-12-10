@@ -217,6 +217,9 @@ void Dbtc::execCONTINUEB(Signal* signal)
   UintR Tdata0 = signal->theData[1];
   UintR Tdata1 = signal->theData[2];
   UintR Tdata2 = signal->theData[3];
+  UintR Tdata3 = signal->theData[4];
+  UintR Tdata4 = signal->theData[5];
+  UintR Tdata5 = signal->theData[6];
   switch (tcase) {
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
@@ -374,6 +377,51 @@ void Dbtc::execCONTINUEB(Signal* signal)
     startFragScansLab(signal, Tdata0, handle, Tdata1);
     return;
   }
+#ifdef ERROR_INSERT
+  case TcContinueB::ZDEBUG_DELAYED_ABORT:
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Received CONTINUEB:ZDEBUG_DELAYED_ABORT");
+    warningEvent("%s", buf);
+
+    jam();
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    apiConnectptr.p->returncode = Tdata3;
+    apiConnectptr.p->returnsignal = (Dbtc::ReturnSignal)Tdata4;
+    SET_ERROR_INSERT_VALUE(Tdata5);
+    abort010Lab(signal);
+    break;
+  }
+  case TcContinueB::ZDEBUG_DELAY_TCROLLBACKREP:
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Received CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
+    warningEvent("%s", buf);
+
+    jam();
+    if (ERROR_INSERTED(8101))
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+    }
+    else
+    {
+      TcRollbackRep * const tcRollbackRep = 
+        (TcRollbackRep *) signal->getDataPtr();
+      Uint32 blockRef = Tdata5;
+      
+      tcRollbackRep->connectPtr = Tdata0;
+      tcRollbackRep->transId[0] = Tdata1;
+      tcRollbackRep->transId[1] = Tdata2;
+      tcRollbackRep->returnCode = Tdata3;
+      tcRollbackRep->errorData = Tdata4;
+      sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
+                 TcRollbackRep::SignalLength, JBB);
+    }
+    break;
+  }
+#endif
   default:
     ndbrequire(false);
   }//switch
@@ -13462,6 +13510,26 @@ void Dbtc::releaseAbortResources(Signal* signal)
     case RS_TCROLLBACKREP:{
       jam();
       ok = true;
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8101))
+      {
+        char buf[128];
+        BaseString::snprintf(buf, sizeof(buf), "Sending CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
+        warningEvent("%s", buf);
+
+        jam();
+        signal->theData[0] = TcContinueB::ZDEBUG_DELAY_TCROLLBACKREP;
+        signal->theData[1] = apiConnectptr.p->ndbapiConnect;
+        signal->theData[2] = apiConnectptr.p->transid[0];
+        signal->theData[3] = apiConnectptr.p->transid[1];
+        signal->theData[4] = apiConnectptr.p->returncode;
+        signal->theData[5] = apiConnectptr.p->errorData;
+        signal->theData[6] = blockRef;
+        
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
+        break;
+      }
+#endif      
       TcRollbackRep * const tcRollbackRep = 
 	(TcRollbackRep *) signal->getDataPtr();
       
@@ -15530,25 +15598,71 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   ApiConnectRecord * const regApiPtr = transPtr.p;  
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
-  /**
-   * NOTE this if-statement is incorrect,
-   * see bug#50648
-   *
-   * The correct if is 
-   *
+
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(8100))
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8100, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    warningEvent("%s", buf);
+    
+    if (startFlag == 1)
+    {
+      jam();
+      /*
+        Phase 1:
+        Abort the transaction by simulating a fake node failure.
+        Don't send any TCROLLBACKREP until in next TCINDXREQ call
+        to simulate a slow signal still in the air.
+      */
+      Signal s = *signal;
+      signal->theData[0] = TcContinueB::ZDEBUG_DELAYED_ABORT;
+      signal->theData[1] = transPtr.i;
+      signal->theData[2] = regApiPtr->transid[0];
+      signal->theData[3] = regApiPtr->transid[1];
+      signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
+      signal->theData[5] = RS_TCROLLBACKREP;
+      signal->theData[6] = 8101;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+      *signal = s;
+    }
+  }
+  else if (ERROR_INSERTED(8101))
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8101, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    warningEvent("%s", buf);
+
+    jam();
+    /*
+      Phase 2:
+      Transaction has been aborted by a fake node failure,
+      but the API hasn't been informed yet. Force the state
+      into waiting for pending signals.
+    */
+    if (regApiPtr->returncode != ZNODEFAIL_BEFORE_COMMIT ||
+        regApiPtr->apiConnectstate != CS_ABORTING ||
+        regApiPtr->abortState != AS_IDLE)
+    {
+      /*
+        We are waiting for abort to complete, but have not reached
+        the transaction state we want to test. Try again.
+      */
+      jam();
+      sendSignalWithDelay(reference(), GSN_TCINDXREQ, signal, 100,
+                          TcKeyReq::StaticLength, &handle);
+      return;
+    }
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+#endif
+
    if (startFlag == 1 &&
        (regApiPtr->apiConnectstate == CS_CONNECTED ||
         (regApiPtr->apiConnectstate == CS_STARTED && 
          regApiPtr->firstTcConnect == RNIL) ||
         (regApiPtr->apiConnectstate == CS_ABORTING && 
          regApiPtr->abortState == AS_IDLE)))
-   */
-  if (((startFlag == 1) &&
-       (regApiPtr->apiConnectstate == CS_CONNECTED ||
-        (regApiPtr->apiConnectstate == CS_STARTED && 
-         regApiPtr->firstTcConnect == RNIL))) ||
-      (regApiPtr->apiConnectstate == CS_ABORTING && 
-       regApiPtr->abortState == AS_IDLE))
   {
     jam();
     // This is a newly started transaction, clean-up from any
@@ -15558,7 +15672,18 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->apiConnectstate = CS_STARTED;
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
-  }//if
+  }//if (startFlag == 1 && ...
+  else if (regApiPtr->apiConnectstate == CS_ABORTING)
+  {
+    jam();
+    /*
+      Transaction has been aborted and we have to do error
+      handling, but since when we read the index table
+      the generated TCKEYREQ will do the proper error
+      handling. Any received TCKEYREF will be forwarded
+      to the original sender as a TCINDXREF.
+     */
+  }//if (regApiPtr->apiConnectstate == CS_ABORTING)
 
   if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
       getNodeState().getSingleUserApi() !=
