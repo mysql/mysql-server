@@ -66,8 +66,8 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   enum_object_type m_owner_object_type;                                               
 
   /** Column OBJECT_OWNER_SCHEMA. */
-  char m_owner_schema_name[SCHEMA_NAME_LENGTH];
-  uint m_owner_schema_name_length;
+  char m_owner_object_schema[SCHEMA_NAME_LENGTH];
+  uint m_owner_object_schema_length;
 
   /** Column OBJECT_OWNER_NAME. */
   char m_owner_object_name[OBJECT_NAME_LENGTH];
@@ -79,10 +79,10 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   PFS_prepared_stmt_key m_key;
 
   /** Prepared stmt stat. */
-  PFS_statement_stat m_prepared_stmt_stat;
+  PFS_statement_stat m_prepared_stmt_execute_stat;
 
   /** Prepared stmt stat. */
-  PFS_statement_stat m_prepared_stmt_execute_stat;
+  PFS_statement_stat m_prepared_stmt_stat;
 
   /** Reset data for this record. */                                            
   void reset_data(); 
@@ -99,6 +99,7 @@ void reset_prepared_stmt_instances();
 
 PFS_prepared_stmt*
 find_or_create_prepared_stmt(PFS_thread *thread,
+                             PFS_events_statements *pfs_stmt,
                              char* sqltext, uint sqltext_length);
 void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps);
 #endif

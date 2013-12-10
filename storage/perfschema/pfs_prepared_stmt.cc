@@ -179,6 +179,7 @@ static LF_PINS* get_prepared_stmt_hash_pins(PFS_thread *thread)
 
 PFS_prepared_stmt*
 find_or_create_prepared_stmt(PFS_thread *thread,
+                             PFS_events_statements *pfs_stmt,
                              char* sqltext, uint sqltext_length)
 {
   if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
@@ -190,6 +191,7 @@ find_or_create_prepared_stmt(PFS_thread *thread,
  
   /* Prepare prepared statement key */
   PFS_prepared_stmt_key key;
+  /* Mayank TODO: Add more element for key. */
   set_prepared_stmt_key(&key, sqltext, sqltext_length);
   
   PFS_prepared_stmt **entry;
@@ -237,7 +239,24 @@ search:
         pfs->m_key.m_key_length= key.m_key_length;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
         pfs->m_sqltext_length= sqltext_length;
-        /* Mayank TODO: Add code to do more assignment. */
+        pfs->m_owner_thread_id= thread->m_thread_internal_id;
+
+        DBUG_ASSERT(pfs_stmt != NULL);
+
+        /* If this statement prepare is called from a SP. */
+        if (pfs_stmt->m_schema_name_length > 0)
+        {
+          pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
+          pfs->m_owner_object_type= pfs_stmt->m_sp_type;
+          strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
+          pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
+          strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
+          pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
+        }
+        else
+        {
+          pfs->m_owner_event_id= pfs_stmt->m_event_id;
+        }
       
         /* Insert this record. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);

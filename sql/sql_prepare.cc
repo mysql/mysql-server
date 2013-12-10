@@ -2239,9 +2239,13 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt_locker_state state;
   PSI_prepared_stmt_locker *locker;
-  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
-    PS instrumentation. */
-  stmt->m_ps_share= MYSQL_GET_PS_SHARE((char*)packet, packet_length);
+
+  /* If this prepare statement is called from a SP. */
+  if (thd->m_sp_statement_psi)
+    stmt->m_ps_share= MYSQL_GET_PS_SHARE(thd->m_sp_statement_psi, (char*)packet, packet_length);
+  else
+    stmt->m_ps_share= MYSQL_GET_PS_SHARE(thd->m_statement_psi, (char*)packet, packet_length);
+   
   locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
 #endif
 
@@ -2422,9 +2426,13 @@ void mysql_sql_stmt_prepare(THD *thd)
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt_locker_state state;
   PSI_prepared_stmt_locker *locker;
-  /* Mayank TODO: Pass more parameters like owner thread etc. required for 
-    PS instrumentation. */
-  stmt->m_ps_share= MYSQL_GET_PS_SHARE((char*)query, query_len);
+
+  /* If this prepare statement is called from a SP. */
+  if (thd->m_sp_statement_psi)
+    stmt->m_ps_share= MYSQL_GET_PS_SHARE(thd->m_sp_statement_psi, (char*)query, query_len);
+  else
+    stmt->m_ps_share= MYSQL_GET_PS_SHARE(thd->m_statement_psi, (char*)query, query_len);
+   
   locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
 #endif
 

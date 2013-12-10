@@ -39,6 +39,23 @@ struct row_prepared_stmt_instances
   char m_sql_text[COL_INFO_SIZE];
   int m_sql_text_length;
 
+  /** Column OWNER_THREAD_ID. */
+  ulonglong m_owner_thread_id;
+
+  /** Column OWNER_EVENT_ID. */
+  ulonglong m_owner_event_id;
+
+  /** Column OWNER_OBJECT_TYPE. */
+  enum_object_type m_owner_object_type;
+
+  /** Column OWNER_OBJECT_SCHEMA */
+  char m_owner_object_schema[SCHEMA_NAME_LENGTH];
+  int m_owner_object_schema_length;
+
+  /** Column OWNER_OBJECT_NAME */
+  char m_owner_object_name[OBJECT_NAME_LENGTH];
+  int m_owner_object_name_length;
+
   /** Columns TIMER_PREPARE. */
   PFS_statement_stat_row m_prepared_stmt_stat;
 
