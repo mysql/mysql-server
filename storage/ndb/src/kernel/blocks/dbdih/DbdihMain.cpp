@@ -1732,12 +1732,12 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     break;
   case ZNDB_SPH5:
     jam();
-    if (m_gcp_monitor.m_micro_gcp.m_max_lag > 0)
+    if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
     {
       infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
-                m_gcp_monitor.m_gcp_save.m_max_lag / 10);
+                m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
       infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
-                m_gcp_monitor.m_micro_gcp.m_max_lag / 10);
+                m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
     }
     else
     {
@@ -6093,12 +6093,12 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 
   NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
-  if (m_gcp_monitor.m_micro_gcp.m_max_lag > 0)
+  if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
   {
     infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
-              m_gcp_monitor.m_gcp_save.m_max_lag / 10);
+              m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
     infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
-              m_gcp_monitor.m_micro_gcp.m_max_lag / 10);
+              m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
   }
   else
   {
@@ -14613,33 +14613,64 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::checkGcpStopLab(Signal* signal) 
 {
-  const Uint32 cnt0 = ++m_gcp_monitor.m_gcp_save.m_counter;
-  const Uint32 cnt1 = ++m_gcp_monitor.m_micro_gcp.m_counter;
+  static const Uint32 GCPCheckPeriodMillis = 100;
+
+  // Calculate real time elapsed since last check
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const NDB_TICKS last = m_gcp_monitor.m_last_check;
+  m_gcp_monitor.m_last_check = now;
+
+  /**
+   * Avoid false GCP failures if timers misbehaves, 
+   * (timer is non-monotonic, or OS/VM bugs which there are some of)
+   * or we have scheduler problems due to being CPU starved:
+   *
+   * - If we overslept 'GCPCheckPeriodMillis', (CPU starved?) or 
+   *   timer leapt forward for other reasons (Adjusted, or OS-bug)
+   *   we never calculate an elapsed periode of more than 
+   *   the requested sleep 'GCPCheckPeriodMillis'
+   * - Else we add the real measured elapsed time to total.
+   *   (Timers may fire prior to requested 'GCPCheckPeriodMillis')
+   *
+   * Note: If timer for some reason ticked backwards such that
+   *       'now < last', NdbTick_Elapsed() will return '0' such
+   *       that this is 'absorbed'
+   */
+  Uint32 elapsed_ms = (Uint32)NdbTick_Elapsed(last,now).milliSec();
+  if (elapsed_ms > GCPCheckPeriodMillis)
+    elapsed_ms = GCPCheckPeriodMillis;
+
+  const Uint32 lag0 = (m_gcp_monitor.m_gcp_save.m_elapsed_ms  += elapsed_ms);
+  const Uint32 lag1 = (m_gcp_monitor.m_micro_gcp.m_elapsed_ms += elapsed_ms);
 
   if (m_gcp_monitor.m_gcp_save.m_gci == m_gcp_save.m_gci)
   {
     jam();
-    if (m_gcp_monitor.m_gcp_save.m_max_lag && 
-        cnt0 == m_gcp_monitor.m_gcp_save.m_max_lag)
+    if (m_gcp_monitor.m_gcp_save.m_max_lag_ms &&
+        lag0 >= m_gcp_monitor.m_gcp_save.m_max_lag_ms)
     {
       crashSystemAtGcpStop(signal, false);
       return;
     }
 
-    Uint32 threshold = 60; // seconds
-    if (cnt0 && ((cnt0 % (threshold * 10)) == 0))
+    /**
+     * Will report a warning every time lag crosses 
+     * a multiple of 'report_period_ms'
+     */
+    const Uint32 report_period_ms = 60*1000; // 60 seconds
+    if (lag0 > 0 && (lag0 % report_period_ms) < elapsed_ms)
     {
-      if (m_gcp_monitor.m_gcp_save.m_max_lag)
+      if (m_gcp_monitor.m_gcp_save.m_max_lag_ms)
       {
         warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
                      " (max lag: %us)",
-                     cnt0/10, m_gcp_monitor.m_gcp_save.m_max_lag/10);
+                     lag0/1000, m_gcp_monitor.m_gcp_save.m_max_lag_ms/1000);
       }
       else
       {
         warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
                      " (no max lag)",
-                     cnt0/10);
+                     lag0/1000);
       }
     }
   }
@@ -14647,48 +14678,53 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   {
     jam();
     m_gcp_monitor.m_gcp_save.m_gci = m_gcp_save.m_gci;
-    m_gcp_monitor.m_gcp_save.m_counter = 0;
+    m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
   }
 
   if (m_gcp_monitor.m_micro_gcp.m_gci == m_micro_gcp.m_current_gci)
   {
     jam();
-    Uint32 cmp = m_micro_gcp.m_enabled ? 
-      m_gcp_monitor.m_micro_gcp.m_max_lag :
-      m_gcp_monitor.m_gcp_save.m_max_lag;
+    const Uint32 cmp = m_micro_gcp.m_enabled ? 
+      m_gcp_monitor.m_micro_gcp.m_max_lag_ms :
+      m_gcp_monitor.m_gcp_save.m_max_lag_ms;
     
-    if (cmp && cnt1 == cmp)
+    if (cmp && lag1 >= cmp)
     {
       crashSystemAtGcpStop(signal, false);
       return;
     }
 
-    Uint32 threshold = 10; // seconds
-    if (cnt1 && ((cnt1 % (threshold * 10)) == 0))
+    /**
+     * Will report a warning every time lag crosses 
+     * a multiple of 'report_period_ms'
+     */
+    const Uint32 report_period_ms = 10*1000; // 10 seconds
+    if (lag1 > 0 && (lag1 % report_period_ms) < elapsed_ms)
     {
-      if (m_gcp_monitor.m_micro_gcp.m_max_lag)
+      if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms)
       {
         warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
                      " (max lag: %u)",
-                     cnt1/10, m_gcp_monitor.m_micro_gcp.m_max_lag/10);
+                     lag1/1000, m_gcp_monitor.m_micro_gcp.m_max_lag_ms/1000);
       }
       else
       {
         warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
                      " (no max lag)",
-                     cnt1/10);
+                     lag1/1000);
       }
     }
   }
   else
   {
     jam();
-    m_gcp_monitor.m_micro_gcp.m_counter = 0;
+    m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
     m_gcp_monitor.m_micro_gcp.m_gci = m_micro_gcp.m_current_gci;
   }
   
   signal->theData[0] = DihContinueB::ZCHECK_GCP_STOP;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                      GCPCheckPeriodMillis, 1);
   return;
 }//Dbdih::checkGcpStopLab()
 
@@ -14698,12 +14734,12 @@ Dbdih::dumpGcpStop()
   ndbout_c("c_nodeStartMaster.blockGcp: %u %u",
            c_nodeStartMaster.blockGcp,
            c_nodeStartMaster.startNode);
-  ndbout_c("m_gcp_save.m_counter: %u m_gcp_save.m_max_lag: %u",
-           m_gcp_monitor.m_gcp_save.m_counter, 
-           m_gcp_monitor.m_gcp_save.m_max_lag);
-  ndbout_c("m_micro_gcp.m_counter: %u m_micro_gcp.m_max_lag: %u",
-           m_gcp_monitor.m_micro_gcp.m_counter, 
-           m_gcp_monitor.m_micro_gcp.m_max_lag);
+  ndbout_c("m_gcp_save.m_elapsed: %u(ms) m_gcp_save.m_max_lag: %u(ms)",
+           m_gcp_monitor.m_gcp_save.m_elapsed_ms, 
+           m_gcp_monitor.m_gcp_save.m_max_lag_ms);
+  ndbout_c("m_micro_gcp.m_elapsed: %u(ms) m_micro_gcp.m_max_lag: %u(ms)",
+           m_gcp_monitor.m_micro_gcp.m_elapsed_ms, 
+           m_gcp_monitor.m_micro_gcp.m_max_lag_ms);
   
   
   ndbout_c("m_gcp_save.m_state: %u", m_gcp_save.m_state);
@@ -14750,10 +14786,10 @@ Dbdih::dumpGcpStop()
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
   dumpGcpStop();
-  Uint32 save_counter = m_gcp_monitor.m_gcp_save.m_counter;
-  Uint32 micro_counter = m_gcp_monitor.m_micro_gcp.m_counter;
-  m_gcp_monitor.m_gcp_save.m_counter = 0;
-  m_gcp_monitor.m_micro_gcp.m_counter = 0;
+  const Uint32 save_elapsed = m_gcp_monitor.m_gcp_save.m_elapsed_ms;
+  const Uint32 micro_elapsed = m_gcp_monitor.m_micro_gcp.m_elapsed_ms;
+  m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
+  m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
 
   if (local)
     goto dolocal;
@@ -14776,7 +14812,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     return;
   }
 
-  if (save_counter == m_gcp_monitor.m_gcp_save.m_max_lag)
+  if (save_elapsed >= m_gcp_monitor.m_gcp_save.m_max_lag_ms)
   {
     switch(m_gcp_save.m_master.m_state){
     case GcpSave::GCP_SAVE_IDLE:
@@ -14840,7 +14876,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     }
   }
 
-  if (micro_counter == m_gcp_monitor.m_micro_gcp.m_max_lag)
+  if (micro_elapsed >= m_gcp_monitor.m_micro_gcp.m_max_lag_ms)
   {
     switch(m_micro_gcp.m_master.m_state){
     case MicroGcp::M_GCP_IDLE:
@@ -15658,8 +15694,8 @@ void Dbdih::initCommonData()
     { // Set time-between global checkpoint timeout
       Uint32 tmp = 120000;     // No config, hard code 2 minutes
       tmp += max_failure_time; //
-      m_gcp_monitor.m_gcp_save.m_max_lag = 
-        (m_gcp_save.m_master.m_time_between_gcp + tmp) / 100;
+      m_gcp_monitor.m_gcp_save.m_max_lag_ms = 
+        (m_gcp_save.m_master.m_time_between_gcp + tmp);
     }
 
     { // Set time-between epochs timeout
@@ -15669,14 +15705,14 @@ void Dbdih::initCommonData()
       {
         jam();
         tmp += max_failure_time;
-        m_gcp_monitor.m_micro_gcp.m_max_lag = 
-          (m_micro_gcp.m_master.m_time_between_gcp + tmp) / 100;
+        m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 
+          (m_micro_gcp.m_master.m_time_between_gcp + tmp);
       }
       else
       {
         jam();
-        m_gcp_monitor.m_gcp_save.m_max_lag = 0;
-        m_gcp_monitor.m_micro_gcp.m_max_lag = 0;
+        m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
+        m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
       }
     }
   }
@@ -17572,9 +17608,10 @@ Dbdih::startGcpMonitor(Signal* signal)
 {
   jam();
   m_gcp_monitor.m_gcp_save.m_gci = m_gcp_save.m_gci;
-  m_gcp_monitor.m_gcp_save.m_counter = 0;
+  m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
   m_gcp_monitor.m_micro_gcp.m_gci = m_micro_gcp.m_current_gci;
-  m_gcp_monitor.m_micro_gcp.m_counter = 0;
+  m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
+  m_gcp_monitor.m_last_check = NdbTick_getCurrentTicks();
 
   signal->theData[0] = DihContinueB::ZCHECK_GCP_STOP;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
