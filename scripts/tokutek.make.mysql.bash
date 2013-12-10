@@ -12,7 +12,7 @@ function copy_to_s3() {
     local ts=$(date +%s)
     local ymd=$(date +%Y%m%d -d @$ts)
     local exitcode=0; local r=0
-    for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
+    for f in $(find . -maxdepth 1 \( -name $mysql_distro-$mysql_version'*.tar.gz*' -o -name $mysql_distro-$mysql_version'*.rpm*' \) ) ; do
         f=$(basename $f)
         echo `date` s3put $s3_build_bucket $f
         s3put $s3_build_bucket $f $f
@@ -30,7 +30,7 @@ function copy_to_s3() {
         if [ $r != 0 ] ; then 
             exitcode=1
         else
-            for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
+            for f in $(find . -maxdepth 1 \( -name $mysql_distro-$mysql_version'*.tar.gz*' -o -name $mysql_distro-$mysql_version'*.rpm*' \) ) ; do
                 f=$(basename $f)
                 echo `date` s3copykey $git_tag $f
                 s3copykey $git_tag $f $s3_build_bucket $f
@@ -85,7 +85,7 @@ bash -x $HOME/github/ft-engine/scripts/make.mysql.bash $make_args
 if [ $? != 0 ] ; then exitcode=1; fi
 
 # generate md5 sums
-for f in $(find $mysql_distro/build.* -maxdepth 1 \( -name '*.tar.gz' -o -name '*.rpm' \) ) ; do
+for f in $(find $mysql_distro-$mysql_version/build.* -maxdepth 1 \( -name '*.tar.gz' -o -name '*.rpm' \) ) ; do
     newf=$(basename $f)
     ln $f $newf
     if [ $? != 0 ] ; then exitcode=1; fi
