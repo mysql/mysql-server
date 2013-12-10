@@ -594,33 +594,31 @@ buf_block_buf_fix_inc_func(
 	buf_block_t*	block)	/*!< in/out: block to bufferfix */
 	__attribute__((nonnull));
 
-/*******************************************************************//**
-Increments the bufferfix count. */
+/** Increments the bufferfix count.
+@param[in,out]	block	block to bufferfix */
 UNIV_INLINE
 void
 buf_block_fix(
-/*===========*/
-	buf_block_t*	block);	/*!< in/out: block to bufferfix */
+	buf_block_t*	block);
 
-/*******************************************************************//**
-Increments the bufferfix count. */
+/** Decrements the bufferfix count.
+@param[in,out]	block	block to bufferunfix */
 UNIV_INLINE
 void
 buf_block_unfix(
-/*===========*/
-	buf_block_t*	block);	/*!< in/out: block to bufferfix */
+	buf_block_t*	block);
 
 # ifdef UNIV_SYNC_DEBUG
 /** Increments the bufferfix count.
-@param b in/out: block to bufferfix
-@param f in: file name where requested
-@param l in: line number where requested */
+@param[in,out]	b	block to bufferfix
+@param[in]	f	file name where requested
+@param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
 # else /* UNIV_SYNC_DEBUG */
 /** Increments the bufferfix count.
-@param b in/out: block to bufferfix
-@param f in: file name where requested
-@param l in: line number where requested */
+@param[in,out]	b	block to bufferfix
+@param[in]	f	file name where requested
+@param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
 # endif /* UNIV_SYNC_DEBUG */
 #else /* !UNIV_HOTBACKUP */

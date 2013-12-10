@@ -1435,7 +1435,7 @@ trx_purge_run(void)
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
-	switch(purge_sys->state) {
+	switch (purge_sys->state) {
 	case PURGE_STATE_INIT:
 	case PURGE_STATE_EXIT:
 	case PURGE_STATE_DISABLED:
