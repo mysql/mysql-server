@@ -2277,7 +2277,7 @@ typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
   @param current thread.
 */
 typedef PSI_prepared_stmt_share* (*get_prepared_stmt_share_v1_t)
-  (PSI_statement_locker *locker, char *name, int length);
+  (void *identity, PSI_statement_locker *locker, char *name, int length);
 
 /**
   Record a prepare statement instrumentation start event.
