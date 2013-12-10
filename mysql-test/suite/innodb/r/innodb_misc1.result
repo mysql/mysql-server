@@ -1,3 +1,5 @@
+call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: in RENAME TABLE table `test`.`t1`");
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 create table t1 (v varchar(16384)) engine=innodb;

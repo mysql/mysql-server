@@ -68,8 +68,9 @@ btr_corruption_report(
 	const buf_block_t*	block,	/*!< in: corrupted block */
 	const dict_index_t*	index)	/*!< in: index tree */
 {
-	fprintf(stderr, "InnoDB: flag mismatch in space %u page %u"
-		" index %s of table %s\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Flag mismatch in space %u page %u"
+		" index %s of table %s",
 		(unsigned) buf_block_get_space(block),
 		(unsigned) buf_block_get_page_no(block),
 		index->name, index->table_name);
@@ -895,15 +896,15 @@ btr_page_get_father_node_ptr_func(
 		buf_page_print(page_align(node_ptr), 0,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, TRUE, index->table_name);
-		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, FALSE, index->name);
-		fprintf(stderr, ",\n"
-			"InnoDB: father ptr page no %lu, child page no %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Corruption of an index tree: table %s index %s,"
+			" father ptr page no %lu, child page no %lu",
+			ut_get_name(NULL, TRUE, index->table_name).c_str(),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
 			(ulong) page_no);
+
 		print_rec = page_rec_get_next(
 			page_get_infimum_rec(page_align(user_rec)));
 		offsets = rec_get_offsets(print_rec, index,
@@ -917,7 +918,7 @@ btr_page_get_father_node_ptr_func(
 			"You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
 			" database startup, see " REFMAN
-			"forcing-innodb-recovery.html about forcing"
+			" forcing-innodb-recovery.html about forcing"
 			" recovery. Then dump + drop + reimport.");
 	}
 
@@ -1398,16 +1399,13 @@ btr_page_reorganize_low(
 		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 		buf_page_print(temp_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-		fprintf(stderr,
-			"InnoDB: Error: page old data size %lu"
-			" new data size %lu\n"
-			"InnoDB: Error: page old max ins size %lu"
-			" new max ins size %lu\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page old data size %lu new data size %lu,"
+			" page old max ins size %lu new max ins size %lu",
 			(unsigned long) data_size1, (unsigned long) data_size2,
 			(unsigned long) max_ins_size1,
 			(unsigned long) max_ins_size2);
+		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 		ut_ad(0);
 	} else {
 		success = true;
@@ -1758,7 +1756,7 @@ btr_root_raise_and_insert(
 	/* We play safe and reset the free bits for the new page */
 
 #if 0
-	fprintf(stderr, "Root raise new page no %lu\n", new_page_no);
+	ib_logf(IB_LOG_LEVEL_INFO, "Root raise new page no %lu", new_page_no);
 #endif
 
 	if (!dict_index_is_clust(index)
@@ -2681,8 +2679,8 @@ insert_failed:
 			ibuf_reset_free_bits(block);
 		}
 
-		/* fprintf(stderr, "Split second round %lu\n",
-		page_get_page_no(page)); */
+		/* ib_logf(IB_LOG_LEVEL_INFO, "Split second round %lu",
+			   page_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2
 		      || buf_block_get_page_zip(insert_block));
@@ -2704,7 +2702,8 @@ func_exit:
 	}
 
 #if 0
-	fprintf(stderr, "Split and insert done %lu %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Split and insert done %lu %lu",
 		buf_block_get_page_no(left_block),
 		buf_block_get_page_no(right_block));
 #endif
@@ -3647,7 +3646,9 @@ btr_print_recursive(
 	mtr_t		mtr2;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX));
-	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"NODE ON LEVEL %lu page number %lu",
 		(ulong) btr_page_get_level(page, mtr),
 		(ulong) buf_block_get_page_no(block));
 
@@ -3778,9 +3779,10 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	fputs("InnoDB: Record in ", stderr);
-	dict_index_name_print(stderr, NULL, index);
-	fprintf(stderr, ", page %lu, at offset %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Record in index %s of table %s, page %lu, at offset %lu",
+		ut_get_name(NULL, FALSE, index->name).c_str(),
+		ut_get_name(NULL, TRUE, index->table_name).c_str(),
 		page_get_page_no(page), (ulint) page_offset(rec));
 }
 
@@ -3819,7 +3821,7 @@ btr_index_rec_validate(
 
 	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
-		fprintf(stderr, "InnoDB: compact flag=%lu, should be %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "Compact flag=%lu, should be %lu",
 			(ulong) !!page_is_comp(page),
 			(ulong) dict_table_is_comp(index->table));
 
@@ -3830,7 +3832,8 @@ btr_index_rec_validate(
 
 	if (!page_is_comp(page) && rec_get_n_fields_old(rec) != n) {
 		btr_index_rec_validate_report(page, rec, index);
-		fprintf(stderr, "InnoDB: has %lu fields, should have %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Has %lu fields, should have %lu",
 			(ulong) rec_get_n_fields_old(rec), (ulong) n);
 
 		if (dump_on_error) {
@@ -3866,9 +3869,8 @@ btr_index_rec_validate(
 			> dict_index_get_nth_field(index, i)->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
-			fprintf(stderr,
-				"InnoDB: field %lu len is %lu,"
-				" should be %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Field %lu len is %lu, should be %lu",
 				(ulong) i, (ulong) len, (ulong) fixed_size);
 
 			if (dump_on_error) {
@@ -3960,13 +3962,22 @@ btr_validate_report1(
 	ulint			level,	/*!< in: B-tree level */
 	const buf_block_t*	block)	/*!< in: index page */
 {
-	fprintf(stderr, "InnoDB: Error in page %lu of ",
-		buf_block_get_page_no(block));
-	dict_index_name_print(stderr, NULL, index);
-	if (level) {
-		fprintf(stderr, ", index tree level %lu", level);
+	if (!level) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In page %lu of index %s of table %s",
+			buf_block_get_page_no(block),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str());
+	} else {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In page %lu of index %s of table %s,"
+			" index tree level %lu",
+			buf_block_get_page_no(block),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE,
+			index->table_name).c_str(),
+			level);
 	}
-	putc('\n', stderr);
 }
 
 /************************************************************//**
@@ -3980,14 +3991,23 @@ btr_validate_report2(
 	const buf_block_t*	block1,	/*!< in: first index page */
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
-	fprintf(stderr, "InnoDB: Error in pages %lu and %lu of ",
-		buf_block_get_page_no(block1),
-		buf_block_get_page_no(block2));
-	dict_index_name_print(stderr, NULL, index);
-	if (level) {
-		fprintf(stderr, ", index tree level %lu", level);
+	if (!level) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In pages %lu and %lu of index %s of table %s",
+			buf_block_get_page_no(block1),
+			buf_block_get_page_no(block2),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str());
+	} else {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In pages %lu and %lu of index %s of table %s, "
+			"index tree level %lu",
+			buf_block_get_page_no(block1),
+			buf_block_get_page_no(block2),
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str(),
+			level);
 	}
-	putc('\n', stderr);
 }
 
 /************************************************************//**
@@ -4069,7 +4089,7 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			ib_logf(IB_LOG_LEVEL_WARN, "page is free");
+			ib_logf(IB_LOG_LEVEL_WARN, "Page is free");
 
 			ret = false;
 		}
@@ -4296,9 +4316,9 @@ loop:
 				buf_page_print(page, 0,
 					       BUF_PAGE_PRINT_NO_CRASH);
 
-				fputs("InnoDB: Error: node ptrs differ"
-				      " on levels > 0\n"
-				      "InnoDB: node ptr ", stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Node ptrs differ on levels > 0");
+				fputs("InnoDB: node ptr ",stderr);
 				rec_print_new(stderr, node_ptr, offsets);
 				fputs("InnoDB: first rec ", stderr);
 				rec_print(stderr, first_rec, index);

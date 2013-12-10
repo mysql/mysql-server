@@ -133,8 +133,7 @@ ut_usectime(
 
 		if (ret == -1) {
 			errno_gettimeofday = errno;
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: gettimeofday(): %s\n",
+			ib_logf(IB_LOG_LEVEL_ERROR, "gettimeofday(): %s",
 				strerror(errno_gettimeofday));
 			os_thread_sleep(100000);  /* 0.1 sec */
 			errno = errno_gettimeofday;
@@ -505,32 +504,63 @@ ut_2_power_up(
 	return(res);
 }
 
-/**********************************************************************//**
-Outputs a NUL-terminated file name, quoted with apostrophes. */
-
-void
-ut_print_filename(
-/*==============*/
-	FILE*		f,	/*!< in: output stream */
-	const char*	name)	/*!< in: name to print */
-{
-	putc('\'', f);
-	for (;;) {
-		int	c = *name++;
-		switch (c) {
-		case 0:
-			goto done;
-		case '\'':
-			putc(c, f);
-			/* fall through */
-		default:
-			putc(c, f);
-		}
-	}
-done:
-	putc('\'', f);
-}
 #ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
+Get  a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	table_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_name(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name)
+{
+	return(ut_get_namel(trx, table_id, name, strlen(name)));
+}
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+Use ut_get_name() as wrapper function, instead of calling this function
+directly.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	tables_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @param		[in]	namelen		length of name.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_namel(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name,
+	ulint		namelen)
+{
+	/* 2 * NAME_LEN for database and table name,
+	and some slack for the #mysql50# prefix and quotes */
+	static char	buf[3 * NAME_LEN];
+	const char*	bufend;
+
+	bufend = innobase_convert_name(buf, sizeof buf,
+				       name, namelen,
+				       trx ? trx->mysql_thd : NULL,
+				       table_id);
+	std::string str(buf, 0, bufend - buf);
+	return (str);
+}
+
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be

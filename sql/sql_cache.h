@@ -24,6 +24,7 @@ struct TABLE_LIST;
 class Time_zone;
 struct LEX;
 struct TABLE;
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_changed_table_list CHANGED_TABLE_LIST;
 typedef ulonglong sql_mode_t;
 
@@ -428,9 +429,7 @@ protected:
     If query is cacheable return number tables in query
     (query without tables not cached)
   */
-  TABLE_COUNTER_TYPE is_cacheable(THD *thd, size_t query_len,
-                                  const char *query,
-                                  LEX *lex, TABLE_LIST *tables_used,
+  TABLE_COUNTER_TYPE is_cacheable(THD *thd, LEX *lex, TABLE_LIST *tables_used,
                                   uint8 *tables_type);
   TABLE_COUNTER_TYPE process_and_count_tables(THD *thd,
                                               TABLE_LIST *tables_used,
@@ -463,7 +462,7 @@ protected:
     Check if the query is in the cache and if this is true send the
     data to client.
   */
-  int send_result_to_client(THD *thd, char *query, uint query_length);
+  int send_result_to_client(THD *thd, const LEX_CSTRING &sql);
 
   /* Remove all queries that use the given table */
   void invalidate_single(THD* thd, TABLE_LIST *table_used,

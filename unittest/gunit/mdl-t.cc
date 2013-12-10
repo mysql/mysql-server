@@ -175,7 +175,8 @@ public:
 
     if (m_ignore_notify)
       return false;
-    m_release_locks->notify();
+    if (m_release_locks)
+      m_release_locks->notify();
     return true;
   }
 
@@ -238,9 +239,12 @@ void MDL_thread::run()
               is_lock_owner(MDL_key::TABLE, db_name, m_table_name, m_mdl_type));
 
   // Tell the main thread that we have grabbed our locks.
-  m_lock_grabbed->notify();
+  if (m_lock_grabbed)
+    m_lock_grabbed->notify();
+
   // Hold on to locks until we are told to release them
-  m_release_locks->wait_for_notification();
+  if (m_release_locks)
+    m_release_locks->wait_for_notification();
 
   m_mdl_context.release_transactional_locks();
 
@@ -1600,6 +1604,693 @@ TEST_F(MDLTest, HogLockTest5)
   mdl_thread6.join();
 
   max_write_lock_count= org_max_write_lock_count;
+}
+
+
+/*
+  Verifies that pending "obtrusive" lock correctly blocks later
+  "unobtrusive" lock, which can't use "fast path" in this case.
+
+  Also verifies that release of "fast path" "unobtrusive" lock
+  unblocks waiting "obtrusive" lock and release of "obtrusive" lock
+  unblocks pending "unobtrusive" lock.
+*/
+
+TEST_F(MDLTest, ConcurrentSharedExclusiveShared)
+{
+  Notification first_shared_grabbed;
+  Notification first_shared_release;
+  Notification exclusive_blocked;
+  Notification exclusive_grabbed;
+  Notification exclusive_release;
+  Notification second_shared_grabbed;
+  Notification second_shared_blocked;
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
+                         &first_shared_release, NULL, NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &exclusive_grabbed,
+                         &exclusive_release, &exclusive_blocked, NULL);
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &second_shared_grabbed, NULL,
+                         &second_shared_blocked, NULL);
+
+  /* Start thread which will acquire S lock. */
+  mdl_thread1.ignore_notify();
+  mdl_thread1.start();
+  first_shared_grabbed.wait_for_notification();
+
+  /* Start thread which will try to acquire X lock and will block. */
+  mdl_thread2.start();
+  exclusive_blocked.wait_for_notification();
+
+  /*
+    Start thread which will try to acquire another S lock.
+    It should not use "fast path" because of pending X lock
+    and should be blocked.
+  */
+  mdl_thread3.start();
+  second_shared_blocked.wait_for_notification();
+
+  /*
+    Unblock 2nd thread by releasing the first S lock.
+    Here S lock acquiring on "fast path" should unblock
+    pending "obtrusive" - X lock.
+  */
+  first_shared_release.notify();
+  exclusive_grabbed.wait_for_notification();
+
+  /*
+    Release X lock and thus unblock the second S lock.
+    This tests that release of X lock which uses "slow path"
+    unblocks pending locks.
+  */
+  exclusive_release.notify();
+  second_shared_grabbed.wait_for_notification();
+
+  /* Wrap-up. */
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+}
+
+
+/*
+  Verify that active X lock will block incoming X lock.
+  This also covers general situation when "obtrusive" lock is
+  acquired when other "obtrusive" lock is active.
+  Also covers case when release of "obtrusive" lock
+  unblocks another "obtrusive" lock.
+*/
+
+TEST_F(MDLTest, ConcurrentExclusiveExclusive)
+{
+  Notification first_exclusive_grabbed;
+  Notification first_exclusive_release;
+  Notification second_exclusive_blocked;
+  Notification second_exclusive_grabbed;
+  MDL_thread mdl_thread1(table_name1, MDL_EXCLUSIVE, &first_exclusive_grabbed,
+                         &first_exclusive_release, NULL, NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &second_exclusive_grabbed,
+                         NULL, &second_exclusive_blocked, NULL);
+
+  /* Start thread which will acquire X lock. */
+  mdl_thread1.ignore_notify();
+  mdl_thread1.start();
+  first_exclusive_grabbed.wait_for_notification();
+
+  /* Start thread which will try to acquire X lock and will block. */
+  mdl_thread2.start();
+  second_exclusive_blocked.wait_for_notification();
+
+  /* Releasing the first lock. This should unblock the second X request.*/
+  first_exclusive_release.notify();
+  second_exclusive_grabbed.wait_for_notification();
+
+  /* Wrap-up. */
+  mdl_thread1.join();
+  mdl_thread2.join();
+}
+
+
+/*
+  Verify that during rescheduling we correctly handle
+  situation when still there are conflicting "fast path"
+  lock (i.e. test that MDL_lock::can_grant_lock() correctly
+  works in this case).
+*/
+
+TEST_F(MDLTest, ConcurrentSharedSharedExclusive)
+{
+  Notification first_shared_grabbed;
+  Notification first_shared_release;
+  Notification second_shared_grabbed;
+  Notification second_shared_release;
+  Notification exclusive_blocked;
+  Notification exclusive_grabbed;
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
+                         &first_shared_release, NULL, NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_shared_grabbed,
+                         &second_shared_release, NULL, NULL);
+  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &exclusive_grabbed,
+                         NULL, &exclusive_blocked, NULL);
+
+  /* Start two threads which will acquire S locks. */
+  mdl_thread1.ignore_notify();
+  mdl_thread1.start();
+  first_shared_grabbed.wait_for_notification();
+
+  mdl_thread2.ignore_notify();
+  mdl_thread2.start();
+  second_shared_grabbed.wait_for_notification();
+
+  /* Start 3rd thread which will try to acquire X lock and will block. */
+  mdl_thread3.start();
+  exclusive_blocked.wait_for_notification();
+
+  /* Release one S lock. */
+  first_shared_release.notify();
+
+  /*
+    Rescheduling which happens in this case should still see that X lock
+    is waiting.
+  */
+  EXPECT_FALSE((mdl_thread3.get_mdl_context()).
+               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
+                             MDL_EXCLUSIVE));
+
+  /* Release the second S lock to unblock request for X lock. */
+  second_shared_release.notify();
+
+  /* Wrap-up. */
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+}
+
+
+/*
+  Verify that we correctly handle situation when one thread tries
+  consequitively to acquire locks which conflict with each other
+  (this is again to check that MDL_lock::can_grant_lock() handles
+  such situations correctly).
+*/
+
+TEST_F(MDLTest, SelfConflict)
+{
+  /* The first scenario: "unobtrusive" lock first, then "obtrusive". */
+
+  /* Acquire S lock, it will be acquired using "fast path" algorithm. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Acquire global IX lock to be able acquire X lock later. */
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+  /*
+    Acquire X lock on the same table. MDL subsystem should be able to detect
+    that conflicting S lock belongs to the same context even though it was
+    was acquired using "fast path".
+  */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  m_mdl_context.release_transactional_locks();
+
+  /*
+    The second scenario: "obtrusive" lock first then "unobtrusive".
+
+    Let us try to acquire global S lock.
+  */
+  MDL_REQUEST_INIT(&m_global_request,
+                   MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+  /*
+    Now let us acquire IX lock. Note that S lock is not exactly stronger
+    than IX lock, so IX lock can't be acquired using find_ticket()
+    optimization.
+  */
+  MDL_REQUEST_INIT(&m_global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+  m_mdl_context.release_transactional_locks();
+}
+
+
+/*
+  Verifies that we correctly account for "fast path" locks in
+  clone_ticket() operation.
+*/
+
+TEST_F(MDLTest, CloneSharedExclusive)
+{
+  MDL_ticket *initial_ticket;
+  Notification lock_blocked;
+  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, NULL,
+                        NULL, &lock_blocked, NULL);
+
+  /* Acquire SHARED lock, it will be acquired using "fast path" algorithm. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /*
+    Save initial ticket and create its clone.
+    This operation should correctly update MDL_lock's "fast path"
+    counter.
+  */
+  initial_ticket= m_request.ticket;
+  EXPECT_FALSE(m_mdl_context.clone_ticket(&m_request));
+
+  /* Release the original lock. This will decrement "fast path" counter. */
+  m_mdl_context.release_lock(initial_ticket);
+
+  /*
+    Now try to acquire EXCLUSIVE lock. This request should be blocked
+    because "fast path" counter is non-zero.
+  */
+  mdl_thread.start();
+  lock_blocked.wait_for_notification();
+
+  /* Release remaining SHARED lock to unblock request for EXCLUSIVE lock. */
+  m_mdl_context.release_lock(m_request.ticket);
+
+  mdl_thread.join();
+}
+
+
+/*
+  Verifies that we correctly account for "obtrusive" locks in
+  clone_ticket() operation.
+*/
+
+TEST_F(MDLTest, CloneExclusiveShared)
+{
+  MDL_ticket *initial_ticket;
+  Notification lock_blocked;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, NULL,
+                        NULL, &lock_blocked, NULL);
+
+  /* Acquire EXCLUSIVE lock, counter of "obtrusive" locks is increased. */
+  MDL_REQUEST_INIT(&m_global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
+                   MDL_EXPLICIT);
+
+  m_request_list.push_front(&m_request);
+  m_request_list.push_front(&m_global_request);
+
+  EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
+
+  /*
+    Save initial ticket and create its clone.
+    This operation should correctly increase counter of "obtrusive" locks.
+  */
+  initial_ticket= m_request.ticket;
+  EXPECT_FALSE(m_mdl_context.clone_ticket(&m_request));
+
+  /*
+    Release the original lock. This will decrement count of "obtrusive" locks.
+  */
+  m_mdl_context.release_lock(initial_ticket);
+
+  /*
+    Now try to acquire SHARED lock. This request should be blocked
+    because "obtrusive" counter still should be non-zero.
+  */
+  mdl_thread.start();
+  lock_blocked.wait_for_notification();
+
+  /* Release remaining EXCLUSIVE lock to unblock request for SHARED lock. */
+  m_mdl_context.release_lock(m_request.ticket);
+  m_mdl_context.release_lock(m_global_request.ticket);
+
+  mdl_thread.join();
+}
+
+
+/**
+  Verify that we correctly notify owners of "unobtrusive" locks when "obtrusive"
+  locks are acquired, even though the former can be initially acquired
+  using "fast path".
+*/
+
+TEST_F(MDLTest, NotifyScenarios)
+{
+  /*
+    The first scenario: Check that notification works properly if for
+                        "unobtrusive" lock owner set_needs_thr_lock_abort(true)
+                        was called after lock acquisition.
+  */
+  Notification first_shared_grabbed, first_shared_release;
+  Notification first_shared_released, first_exclusive_grabbed;
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
+                         &first_shared_release, NULL, &first_shared_released);
+  MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &first_exclusive_grabbed,
+                         NULL, NULL, NULL);
+
+  /* Acquire S lock which will be granted using "fast path". */
+  mdl_thread1.start();
+  first_shared_grabbed.wait_for_notification();
+
+  /*
+    In order for notification to work properly for such locks
+    context should be marked as requiring lock abort.
+  */
+  mdl_thread1.get_mdl_context().set_needs_thr_lock_abort(true);
+
+
+  /*
+    Now try to acquire X lock. This attemptshould notify owner of S lock.
+    In our unit test such notification causes S lock release, so X lock
+    should be successfully granted after that.
+  */
+  mdl_thread2.start();
+  first_shared_released.wait_for_notification();
+  first_exclusive_grabbed.wait_for_notification();
+
+  /* Wrap-up of the first scenario. */
+  mdl_thread1.join();
+  mdl_thread2.join();
+
+  /*
+    The second scenario: Check the same works fine when
+                         set_needs_thr_lock_abort(true) was called before
+                         lock acquisition.
+  */
+  Notification second_shared_grabbed, second_shared_release;
+  Notification second_shared_released, second_exclusive_grabbed;
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &second_shared_grabbed,
+                         &second_shared_release, NULL, &second_shared_released);
+  MDL_thread mdl_thread4(table_name1, MDL_EXCLUSIVE, &second_exclusive_grabbed,
+                         NULL, NULL, NULL);
+
+  /*
+    In order for notification to work properly context should be marked
+    as requiring lock abort.
+  */
+  mdl_thread3.get_mdl_context().set_needs_thr_lock_abort(true);
+  /* Acquire S lock which will be granted using "fast path". */
+  mdl_thread3.start();
+  second_shared_grabbed.wait_for_notification();
+
+  /*
+    Now try to acquire X lock. This attemptshould notify owner of S lock.
+    In our unit test such notification causes S lock release, so X lock
+    should be successfully granted after that.
+  */
+  mdl_thread4.start();
+  second_shared_released.wait_for_notification();
+  second_exclusive_grabbed.wait_for_notification();
+
+  /* Wrap-up of the second scenario. */
+  mdl_thread3.join();
+  mdl_thread4.join();
+}
+
+
+/*
+  Verify that upgrade to "obtrusive" lock doesn't leave any wrong traces
+  in MDL subsystem.
+*/
+
+TEST_F(MDLTest, UpgradeScenarios)
+{
+  /*
+    The first scenario: Upgrade to X lock and then its release, should not
+                        leave traces blocking further S locks.
+  */
+
+  /* Acquire S lock to be upgraded. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Acquire IX lock to be able to upgrade. */
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+
+  /* Upgrade S lock to X lock. */
+  EXPECT_FALSE(m_mdl_context.
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
+
+  /*
+    Ensure that there is pending S lock, so release of X lock won't destroy
+    MDL_lock object.
+  */
+  Notification first_blocked;
+  Notification first_release;
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, NULL, &first_release,
+                         &first_blocked, NULL);
+  mdl_thread1.start();
+  first_blocked.wait_for_notification();
+
+  /*
+    Now release IX and X locks.
+    The latter should clear "obtrusive" locks counter so it should be
+    possible to acquire S lock using "fast path" after that.
+  */
+  m_mdl_context.release_transactional_locks();
+
+  /* Check that we can acquire S lock. */
+  Notification second_grabbed;
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_grabbed, NULL,
+                         NULL, NULL);
+  mdl_thread2.start();
+  second_grabbed.wait_for_notification();
+
+  /* Wrap-up of the first scenario. */
+  first_release.notify();
+  mdl_thread1.join();
+  mdl_thread2.join();
+
+  /*
+    The second scenario: Upgrade from S to X, should not block further X
+                         requests if upgraded lock is released.
+  */
+
+  /* Acquire S lock to be upgraded. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Acquire IX lock to be able to upgrade. */
+  MDL_REQUEST_INIT(&m_global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+
+  /* Upgrade S lock to X lock. */
+  EXPECT_FALSE(m_mdl_context.
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
+
+  /*
+    Try to acquire X lock, it will block.
+  */
+  Notification third_blocked;
+  Notification third_grabbed;
+  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &third_grabbed, NULL,
+                         &third_blocked, NULL);
+  mdl_thread3.start();
+  third_blocked.wait_for_notification();
+
+  /*
+    Now release IX and X locks. Upgrade should not leave any traces
+    from original S lock (e.g. no "fast path" counter), so this should
+    unblock pending X lock.
+  */
+  m_mdl_context.release_transactional_locks();
+  third_grabbed.wait_for_notification();
+
+  /* Wrap-up of the second scenario. */
+  mdl_thread3.join();
+
+  /*
+    The third scenario: After upgrade from SU to X lock and release of the
+                        latter there should not be traces preventing "fast
+                        path" acquisition of S lock. Main difference from
+                        the first scenario is that we upgrade from "obtrusive"
+                        lock, so different path is triggered.
+  */
+  /* Acquire SU lock to be upgraded. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Acquire IX lock to be able to upgrade. */
+  MDL_REQUEST_INIT(&m_global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+
+  /* Upgrade SU lock to X lock. */
+  EXPECT_FALSE(m_mdl_context.
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
+
+  /*
+    Ensure that there is pending S lock, so release of X lock won't destroy
+    MDL_lock object.
+  */
+  Notification fourth_blocked;
+  Notification fourth_release;
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED, NULL, &fourth_release,
+                         &fourth_blocked, NULL);
+  mdl_thread4.start();
+  fourth_blocked.wait_for_notification();
+
+  /*
+    Now release IX and X locks.
+    The latter should clear "obtrusive" locks counter so it should be
+    possible to acquire S lock using "fast path" after that.
+  */
+  m_mdl_context.release_transactional_locks();
+
+  /* Check that we can acquire S lock. */
+  Notification fifth_grabbed;
+  MDL_thread mdl_thread5(table_name1, MDL_SHARED, &fifth_grabbed, NULL,
+                         NULL, NULL);
+  mdl_thread5.start();
+  fifth_grabbed.wait_for_notification();
+
+  /* Wrap-up of the third scenario. */
+  fourth_release.notify();
+  mdl_thread4.join();
+  mdl_thread5.join();
+}
+
+
+/**
+  Verify that MDL subsystem can correctly handle deadlock
+  in which one of participated locks was initially granted
+  using "fast path".
+*/
+
+TEST_F(MDLTest, Deadlock)
+{
+  Notification lock_blocked;
+  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, NULL,
+                        NULL, &lock_blocked, NULL);
+
+  /* Acquire SR lock which will be granted using "fast path". */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_READ,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Now try to request X lock. This will blocked. */
+  mdl_thread.start();
+  lock_blocked.wait_for_notification();
+
+  /*
+    Try to acquire SW lock.
+    Because of pending X lock this will lead to deadlock.
+
+    Which should be correctly detected and reported even though SR
+    lock was originally granted using "fast path".
+  */
+  expected_error= ER_LOCK_DEADLOCK;
+
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_WRITE,
+                   MDL_TRANSACTION);
+  EXPECT_TRUE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Wrap-up. */
+  m_mdl_context.release_transactional_locks();
+  mdl_thread.join();
+}
+
+
+/**
+  Verify that downgrade correctly handles "obtrusive" locks by decrementing
+  "obtrusive"-lock counter when necessary.
+*/
+
+TEST_F(MDLTest, DowngradeShared)
+{
+  Notification lock_grabbed;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed,
+                        NULL, NULL, NULL);
+
+  /* Acquire global IX lock first to satisfy MDL asserts. */
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+
+  /* Acquire "obtrusive" X lock. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /* Downgrade lock to S lock. */
+  m_request.ticket->downgrade_lock(MDL_SHARED);
+
+  /*
+    It should be possible to acquire S lock now in another thread since
+    downgrade operation should decrement counter of "obtrusive" locks.
+  */
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  /* Wrap-up. */
+  m_mdl_context.release_transactional_locks();
+  mdl_thread.join();
+}
+
+
+/**
+  Verify that rescheduling of "obtrusive" lock correctly handles
+  "obtrusive" lock counter and further attempts to acquire "unobtrusive"
+  locks are not blocked.
+*/
+
+TEST_F(MDLTest, RescheduleSharedNoWrite)
+{
+  Notification shared_grabbed;
+  Notification shared_release;
+  Notification first_shared_write_grabbed;
+  Notification first_shared_write_release;
+  Notification shared_no_write_grabbed;
+  Notification shared_no_write_blocked;
+  Notification second_shared_write_grabbed;
+
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, &shared_grabbed,
+                         &shared_release, NULL, NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED_WRITE,
+                         &first_shared_write_grabbed,
+                         &first_shared_write_release,
+                         NULL, NULL);
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED_NO_WRITE,
+                         &shared_no_write_grabbed, NULL,
+                         &shared_no_write_blocked, NULL);
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE,
+                         &second_shared_write_grabbed, NULL, NULL, NULL);
+
+
+  /* Start thread which will acquire S lock. */
+  mdl_thread1.ignore_notify();
+  mdl_thread1.start();
+  shared_grabbed.wait_for_notification();
+
+  /* Start thread which will acquire SW lock. */
+  mdl_thread2.ignore_notify();
+  mdl_thread2.start();
+  first_shared_write_grabbed.wait_for_notification();
+
+  /* Now start thread which will try to acquire SNW lock and will block. */
+  mdl_thread3.start();
+  shared_no_write_blocked.wait_for_notification();
+
+  /*
+    Now we will release the first SW lock. This should schedule SNW lock.
+    In the process or rescheduling counter of waiting and granted "obtrusive"
+    locks should stay the same. So release of SNW, which happens after that,
+    will allow to acquire more SW locks.
+  */
+  first_shared_write_release.notify();
+
+
+  /* It should be possible to acquire SW lock without problems now. */
+  mdl_thread4.start();
+  second_shared_write_grabbed.wait_for_notification();
+
+  /* Wrap-up. */
+  shared_release.notify();
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+  mdl_thread4.join();
 }
 
 

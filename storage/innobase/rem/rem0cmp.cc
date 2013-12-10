@@ -282,7 +282,7 @@ cmp_whole_field(
 	case DATA_GEOMETRY:
 		if (prtype & DATA_BINARY_TYPE) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"comparing a binary BLOB"
+				"Comparing a binary BLOB"
 				" using a character set collation!");
 			ut_ad(0);
 		}
@@ -293,7 +293,7 @@ cmp_whole_field(
 					  a, a_length, b, b_length));
 	default:
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"unknown data type number %lu",
+			"Unknown data type number %lu",
 			(ulong) mtype);
 	}
 

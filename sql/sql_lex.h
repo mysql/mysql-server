@@ -1946,9 +1946,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length);
+  bool init(THD *thd, const char *buff, size_t length);
 
-  void reset(char *buff, unsigned int length);
+  void reset(const char *buff, size_t length);
 
   /**
     Set the echo mode.
@@ -2943,7 +2943,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length)
+  bool init(THD *thd, const char *buff, size_t length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2951,7 +2951,7 @@ public:
   ~Parser_state()
   {}
 
-  void reset(char *found_semicolon, unsigned int length)
+  void reset(const char *found_semicolon, size_t length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();
