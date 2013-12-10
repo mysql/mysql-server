@@ -234,6 +234,13 @@ WatchDog::run()
   Uint32 theIntervalCheck[MAX_WATCHED_THREADS];
   Uint32 elapsed[MAX_WATCHED_THREADS];
 
+  if (!NdbTick_IsMonotonic())
+  {
+    g_eventLogger->warning("A monotonic timer was not available on this platform.");
+    g_eventLogger->warning("Adjusting system time manually, or otherwise (e.g. NTP), "
+              "may cause false watchdog alarms, temporary freeze, or node shutdown.");
+  }
+
   last_ticks = NdbTick_getCurrentTicks();
 
   // WatchDog for the single threaded NDB
@@ -246,7 +253,15 @@ WatchDog::run()
       break;
 
     now = NdbTick_getCurrentTicks();
-    if (NdbTick_Elapsed(last_ticks, now).milliSec() > sleep_time*2)
+
+    if (NdbTick_Compare(now, last_ticks) < 0)
+    {
+      g_eventLogger->warning("Watchdog: Time ticked backwards %llu ms.",
+                             NdbTick_Elapsed(now, last_ticks).milliSec());
+      assert(!NdbTick_IsMonotonic());
+    }
+    // Print warnings if sleeping much longer than expected
+    else if (NdbTick_Elapsed(last_ticks, now).milliSec() > sleep_time*2)
     {
       struct tms my_tms;
       if (times(&my_tms) != (clock_t)-1)

@@ -61,6 +61,13 @@ public:
 
 
 /**
+ * Returns whether the 'ticks' are provided by a monotonic timer.
+ * Must be called after NdbTick_Init()
+ */
+bool
+NdbTick_IsMonotonic();
+
+/**
  * Returns number of 'ticks' since some 
  * platforms dependent epoch start.
  */
@@ -160,7 +167,7 @@ NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end)
 {
   assert(NdbTick_IsValid(start));
   assert(NdbTick_IsValid(end));
-  assert(end.t >= start.t);
+  assert(end.t >= start.t || !NdbTick_IsMonotonic());
 
   /**
    * Even if asserted above, we protect agains backward leaping
