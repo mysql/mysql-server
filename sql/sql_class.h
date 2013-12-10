@@ -2642,6 +2642,7 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
+  PSI_statement_locker *m_sp_statement_psi;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;

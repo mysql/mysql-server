@@ -5889,15 +5889,26 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 }
 
 PSI_prepared_stmt_share*
-pfs_get_prepare_stmt_share_v1(char *sql_text, int sql_text_length)
+pfs_get_prepare_stmt_share_v1(PSI_statement_locker *locker, 
+                              char *sql_text, int sql_text_length)
 {
+  PFS_events_statements *pfs_stmt= NULL;
+
+  if (locker)
+  {
+    PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+    pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+  }
+
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
   PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(pfs_thread,
-                                      sql_text, sql_text_length);
+                                                       pfs_stmt,
+                                                       sql_text,
+                                                       sql_text_length);
   return reinterpret_cast<PSI_prepared_stmt_share*>(pfs);
 }
 
