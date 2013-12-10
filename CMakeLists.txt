@@ -350,9 +350,6 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
-OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
-MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
-
 #
 # Options related to client-side protocol tracing
 #

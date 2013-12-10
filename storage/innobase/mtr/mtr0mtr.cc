@@ -124,18 +124,12 @@ memo_slot_release(mtr_memo_slot_t* slot)
 	case MTR_MEMO_PAGE_S_FIX:
 	case MTR_MEMO_PAGE_SX_FIX:
 	case MTR_MEMO_PAGE_X_FIX: {
+
 		buf_block_t*	block;
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
-		mutex_enter(&block->mutex);
-
-		ut_a(block->page.buf_fix_count > 0);
-
-		--block->page.buf_fix_count;
-
-		mutex_exit(&block->mutex);
-
+		buf_block_unfix(block);
 		buf_page_release_latch(block, slot->type);
 		break;
 	}
@@ -173,15 +167,7 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 	case MTR_MEMO_PAGE_S_FIX:
 	case MTR_MEMO_PAGE_X_FIX:
 	case MTR_MEMO_PAGE_SX_FIX: {
-		buf_block_t*	block;
-
-		block = reinterpret_cast<buf_block_t*>(slot->object);
-
-		mutex_enter(&block->mutex);
-
-		--block->page.buf_fix_count;
-
-		mutex_exit(&block->mutex);
+		buf_block_unfix(reinterpret_cast<buf_block_t*>(slot->object));
 		break;
 	}
 
