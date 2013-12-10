@@ -1004,7 +1004,7 @@ get_next_redo_rseg(
 	bool look_for_rollover = false;
 #endif /* UNIV_DEBUG */
 
-	for(;;) {
+	for (;;) {
 		rseg = trx_sys->rseg_array[slot];
 
 #ifdef UNIV_DEBUG
@@ -1062,7 +1062,7 @@ get_next_noredo_rseg(
 		slot = (slot + 1) % max_undo_logs;
 	}
 
-	for(;;) {
+	for (;;) {
 		rseg = trx_sys->rseg_array[slot];
 
 		slot = (slot + 1) % max_undo_logs;

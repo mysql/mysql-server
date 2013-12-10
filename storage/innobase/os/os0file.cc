@@ -2392,7 +2392,7 @@ os_file_io(
 			return(bytes_returned);
 		} else if (n_bytes > 0 && (ulint) n_bytes < n) {
 			/* For partial read/write scenario */
-			if(type == OS_FILE_READ) {
+			if (type == OS_FILE_READ) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"%lu bytes should have"
 					" been read. Only %lu bytes"
@@ -2878,7 +2878,7 @@ error_handling:
 
 	if (retry) {
 #ifndef _WIN32
-		if(ret > 0 && (ulint) ret < n) {
+		if (ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += ret;
 			n -= (ulint) ret;

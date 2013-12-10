@@ -2661,12 +2661,12 @@ buf_debug_execute_is_force_flush()
 }
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-/**
-Wait for the block to be read in.
-@param block	The block to check */
+/** Wait for the block to be read in.
+@param[in]	block	The block to check */
 static
 void
-buf_wait_for_read(buf_block_t* block)
+buf_wait_for_read(
+	buf_block_t*	block)
 {
 	/* Note: For the PAGE_ATOMIC_REF_COUNT case:
 
@@ -2898,7 +2898,7 @@ got_block:
 		}
 	}
 
-	switch(buf_block_get_state(fix_block)) {
+	switch (buf_block_get_state(fix_block)) {
 		buf_page_t*	bpage;
 
 	case BUF_BLOCK_FILE_PAGE:
