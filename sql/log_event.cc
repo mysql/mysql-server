@@ -12263,7 +12263,8 @@ Ignorable_log_event::print(FILE *file,
 Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
                                            const Format_description_event
                                            *descr_event)
-  :Ignorable_log_event(buf, descr_event),
+  :Ignorable_event(buf, descr_event),
+   Ignorable_log_event(buf, descr_event),
    Rows_query_event(buf, event_len, descr_event)
 {
 }
