@@ -636,7 +636,7 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef PSI_prepared_stmt_share* (*get_prepared_stmt_share_v1_t)
-  (PSI_statement_locker *locker, char *name, int length);
+  (void *identity, PSI_statement_locker *locker, char *name, int length);
 typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
   (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt_share* ps_share);
 typedef void (*end_prepare_stmt_v1_t)

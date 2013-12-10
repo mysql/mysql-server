@@ -178,7 +178,8 @@ static LF_PINS* get_prepared_stmt_hash_pins(PFS_thread *thread)
 }
 
 PFS_prepared_stmt*
-find_or_create_prepared_stmt(PFS_thread *thread,
+find_or_create_prepared_stmt(void *identity,
+                             PFS_thread *thread,
                              PFS_events_statements *pfs_stmt,
                              char* sqltext, uint sqltext_length)
 {
@@ -237,6 +238,7 @@ search:
         /* Do the assignments. */
         memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
         pfs->m_key.m_key_length= key.m_key_length;
+        pfs->m_identity= identity;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
         pfs->m_sqltext_length= sqltext_length;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
