@@ -47,6 +47,10 @@ private:
     
     DelayTCKEYCONF = 18,
     ZNF_CHECK_TRANSACTIONS = 19
+#ifdef ERROR_INSERT
+    ,ZDEBUG_DELAYED_ABORT                  = 22
+    ,ZDEBUG_DELAY_TCROLLBACKREP            = 23
+#endif
   };
 };
 

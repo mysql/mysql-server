@@ -367,6 +367,12 @@ ABORT OF TCKEYREQ
 8078 : Activate error insert 8079 on receiving API_FAILREQ
 8079 : Crash if TCKEYREQ received from failed api
 
+DBTC TCINDXREQ TESTING
+----------------------
+
+8100: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 1 (set by test case). Will block TCROLLBACKREP.
+
+8101: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 2 (set internally). Will release TCROLLBACKREP.
 
 CMVMI
 -----
