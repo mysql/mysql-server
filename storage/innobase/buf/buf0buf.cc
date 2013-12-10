@@ -2951,7 +2951,7 @@ got_block:
 		buf_page_mutex_enter(block);
 		mutex_enter(&buf_pool->zip_mutex);
 
-		ut_ad(block->page.buf_fix_count > 0);
+		ut_ad(fix_block->page.buf_fix_count > 0);
 
 #ifdef PAGE_ATOMIC_REF_COUNT
 		os_atomic_decrement_uint32(&fix_block->page.buf_fix_count, 1);
