@@ -27,6 +27,8 @@
 #define NANOSEC_PER_MICROSEC  1000
 
 Uint64 NdbDuration::tick_frequency = 0;
+static bool isMontonic = true;
+static bool isInited = false;
 
 
 #ifdef HAVE_CLOCK_GETTIME
@@ -35,6 +37,8 @@ static clockid_t NdbTick_clk_id;
 
 void NdbTick_Init()
 {
+  isInited = true;
+
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tick_time;
 
@@ -56,17 +60,9 @@ void NdbTick_Init()
 #endif
 
   /**
-   * Fall through:
-   * Warn that monotonic timer is not available,
-   * fallback to use CLOCK_REALTIME.
+   * Fall through: Fallback to use CLOCK_REALTIME.
    */
-  fprintf(stderr, "Failed to use clock_gettime(CLOCK_MONOTONIC..)"
-                  ", errno= %u, fallback to CLOCK_REALTIME\n",
-                   errno);
-  fprintf(stderr, "BEWARE: Adjusting system time may result in "
-                  "unexpected behaviour, stop any NTP services!\n");
-  fflush(stderr);
-
+  isMontonic = false;
   NdbTick_clk_id = CLOCK_REALTIME;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
@@ -103,6 +99,7 @@ void NdbTick_Init()
     abort();
   }
   NdbDuration::tick_frequency = (Uint64)(perf_frequency.QuadPart);
+  assert(NdbDuration::tick_frequency != 0);
 
 #else
   /* Considder to deprecate platforms not supporting monotonic counters */
@@ -112,16 +109,20 @@ void NdbTick_Init()
   NdbDuration::tick_frequency = MICROSEC_PER_SEC;
 
   /* gettimeofday() is not guaranteed to be monotonic */
-  fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
-	           "this platform. (Using 'gettimeofday()').");
-  fprintf(stderr, "BEWARE: Adjusting system time may result in "
-                  "unexpected behaviour, stop any NTP services!\n");
-  fflush(stderr);
+  isMontonic = false;
 #endif
+}
+
+bool NdbTick_IsMonotonic()
+{
+  assert(isInited);
+  return isMontonic;
 }
 
 const NDB_TICKS NdbTick_getCurrentTicks(void)
 {
+  assert(isInited);
+
 #if defined(HAVE_CLOCK_GETTIME)
   struct timespec tick_time;
   const int res = clock_gettime(NdbTick_clk_id, &tick_time);
@@ -166,6 +167,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
    */
   assert(res!=0);
   const Uint64 val = (Uint64)(t_cnt.QuadPart);
+  assert(val != 0);
 
 #else
   struct timeval tick_time;
@@ -193,6 +195,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 
 const NDB_TICKS NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms)
 {
+  assert(isInited);
   assert(NdbTick_IsValid(ticks));
   assert(NdbDuration::tick_frequency >= MILLISEC_PER_SEC);
   ticks.t += (ms * (NdbDuration::tick_frequency/MILLISEC_PER_SEC));
