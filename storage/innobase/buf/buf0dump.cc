@@ -555,9 +555,14 @@ buf_load()
 		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
 
 		if (this_space_id != cur_space_id) {
-			page_size.copy_from(fil_space_get_page_size(
-					this_space_id, &found));
 			cur_space_id = this_space_id;
+
+			const page_size_t	cur_page_size(
+				fil_space_get_page_size(cur_space_id, &found));
+
+			if (found) {
+				page_size.copy_from(cur_page_size);
+			}
 		}
 
 		if (!found) {
