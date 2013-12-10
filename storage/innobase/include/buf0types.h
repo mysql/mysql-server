@@ -26,6 +26,10 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
+#if defined(INNODB_PAGE_ATOMIC_REF_COUNT) && defined(HAVE_ATOMIC_BUILTINS)
+#define PAGE_ATOMIC_REF_COUNT
+#endif /* INNODB_PAGE_ATOMIC_REF_COUNT && HAVE_ATOMIC_BUILTINS */
+
 /** Buffer page (uncompressed or compressed) */
 struct buf_page_t;
 /** Buffer block for which an uncompressed page exists */
