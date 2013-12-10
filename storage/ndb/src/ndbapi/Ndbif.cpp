@@ -1106,7 +1106,7 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     ndbout << endl << flush;
 #ifdef VM_TRACE
     printState("completedTransaction abort");
-    abort();
+    //abort();
 #endif
   }//if
 }//Ndb::completedTransaction()
