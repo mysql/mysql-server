@@ -97,10 +97,11 @@ fi
 
 # download all the mysql source
 if [ ! -d $mysql_distro ] ; then
-    github_download Tokutek/$mysql_repo $(git_tree $git_tag $mysql_tree) $mysql_distro
+    github_download Tokutek/$mysql_repo $(git_tree $git_tag $mysql_tree) $mysql_distro-$mysql_version
 fi
 
-cd $mysql_distro
+cd $mysql_distro-$mysql_version
+if [ $? != 0 ] ; then exit 1; fi
 
 # install the backup source
 if [ ! -d toku_backup ] ; then
@@ -128,7 +129,9 @@ if [ ! -d storage/tokudb/ft-index ] ; then
     github_download Tokutek/ft-index $(git_tree $git_tag $ftindex_tree) storage/tokudb/ft-index
 fi
 
-if [ ! -d storage/tokudb/ft-index/third_party/jemalloc ] ; then
+if [[ $mysql_distro =~ ^mariadb ]] ; then
+    github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) extra/jemalloc
+elif [ ! -d storage/tokudb/ft-index/third_party/jemalloc ] ; then
     github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) storage/tokudb/ft-index/third_party/jemalloc
 fi
 
