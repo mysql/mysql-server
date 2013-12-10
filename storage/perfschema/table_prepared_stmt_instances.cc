@@ -291,10 +291,25 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
 
   prepared_stmt->m_lock.begin_optimistic_lock(&lock);
 
+  m_row.m_owner_thread_id= prepared_stmt->m_owner_thread_id;
+  m_row.m_owner_event_id= prepared_stmt->m_owner_event_id;
+
   m_row.m_sql_text_length= prepared_stmt->m_sqltext_length;
   if(m_row.m_sql_text_length > 0)
     memcpy(m_row.m_sql_text, prepared_stmt->m_sqltext,
            m_row.m_sql_text_length);
+
+  m_row.m_owner_object_type= prepared_stmt->m_owner_object_type;
+
+  m_row.m_owner_object_name_length= prepared_stmt->m_owner_object_name_length;
+  if(m_row.m_owner_object_name_length > 0)
+    memcpy(m_row.m_owner_object_name, prepared_stmt->m_owner_object_name,
+           m_row.m_owner_object_name_length);
+
+  m_row.m_owner_object_schema_length= prepared_stmt->m_owner_object_schema_length;
+  if(m_row.m_owner_object_schema_length > 0)
+    memcpy(m_row.m_owner_object_schema, prepared_stmt->m_owner_object_schema,
+           m_row.m_owner_object_schema_length);
 
   /*Mayank TODO : Add code to copy remaining statistics values. */
 
@@ -338,12 +353,38 @@ int table_prepared_stmt_instances
         else
           f->set_null();
         break;
-      case 0: /* Mayank TODO, OBJECT_INSTANCE_BEGIN */
       case 2: /* Mayank TODO, OWNER_THREAD_ID */
+        set_field_ulonglong(f, m_row.m_owner_thread_id);
+        break;
+      case 0: /* Mayank TODO, OBJECT_INSTANCE_BEGIN */
+        f->set_null();
+        break;
       case 3: /* Mayank TODO, OWNER_EVENT_ID */
+        if(m_row.m_owner_event_id > 0)
+          set_field_ulonglong(f, m_row.m_owner_event_id);
+        else
+          f->set_null();
+        break;
       case 4: /* Mayank TODO, OWNER_OBJECT_TYPE */
+        if(m_row.m_owner_object_type != 0)
+          set_field_enum(f, m_row.m_owner_object_type); 
+        else
+          f->set_null();
+        break;
       case 5: /* Mayank TODO, OWNER_OBJECT_SCHEMA */
+        if(m_row.m_owner_object_schema_length > 0)
+          set_field_varchar_utf8(f, m_row.m_owner_object_schema,
+                                 m_row.m_owner_object_schema_length);
+        else
+          f->set_null();
+        break;
       case 6: /* Mayank TODO, OWNER_OBJECT_NAME */
+        if(m_row.m_owner_object_name_length > 0)
+          set_field_varchar_utf8(f, m_row.m_owner_object_name,
+                                 m_row.m_owner_object_name_length);
+        else
+          f->set_null();
+        break;
       case 7: /* Mayank TODO, TIMER_PREPARE */
         f->set_null();
         break;
