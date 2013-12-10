@@ -16411,7 +16411,7 @@ ib_senderrf(
 
 	l = Sql_condition::SL_NOTE;
 
-	switch(level) {
+	switch (level) {
 	case IB_LOG_LEVEL_INFO:
 		break;
 	case IB_LOG_LEVEL_WARN:
@@ -16523,7 +16523,7 @@ ib_logf(
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
-	switch(level) {
+	switch (level) {
 	case IB_LOG_LEVEL_INFO:
 		sql_print_information("InnoDB: %s", str);
 		break;

@@ -6307,7 +6307,7 @@ dict_index_zip_pad_update(
 
 	ut_ad(total > 0);
 
-	if(zip_threshold == 0) {
+	if (zip_threshold == 0) {
 		/* User has just disabled the padding. */
 		return;
 	}

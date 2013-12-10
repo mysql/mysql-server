@@ -2646,7 +2646,7 @@ fil_check_pending_io(
 	ut_ad(mutex_own(&fil_system->mutex));
 	ut_a(space->n_pending_ops == 0);
 
-	switch(operation) {
+	switch (operation) {
 	case FIL_OPERATION_DELETE:
 	case FIL_OPERATION_CLOSE:
 		break;

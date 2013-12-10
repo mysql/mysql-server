@@ -2787,7 +2787,7 @@ row_ins_sec_index_entry_low(
 			LOCK_GAP, btr_cur_get_block(&cursor), rec,
 			index, offsets, thr);
 
-		switch(err) {
+		switch (err) {
 		case DB_SUCCESS:
 		case DB_SUCCESS_LOCKED_REC:
 			if (thr_get_trx(thr)->error_state != DB_DUPLICATE_KEY) {
@@ -3259,7 +3259,7 @@ row_ins(
 		if (node->index->type != DICT_FTS) {
 			err = row_ins_index_entry_step(node, thr);
 
-			switch(err) {
+			switch (err) {
 			case DB_SUCCESS:
 				break;
 			case DB_DUPLICATE_KEY:

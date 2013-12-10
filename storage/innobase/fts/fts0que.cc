@@ -2209,7 +2209,7 @@ fts_query_find_term(
 			"CLOSE c;");
 	}
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, *graph);
 
 		if (error == DB_SUCCESS) {
@@ -2330,7 +2330,7 @@ fts_query_total_docs_containing_term(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
@@ -2414,7 +2414,7 @@ fts_query_terms_in_document(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {

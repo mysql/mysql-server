@@ -2226,7 +2226,7 @@ dict_load_table(
 	if (!result) {
 		result = dict_load_table_one(name, cached, ignore_err,
 					     fk_list);
-		while(!fk_list.empty()) {
+		while (!fk_list.empty()) {
 			dict_table_t*	f_table;
 
 			const char* for_table  = fk_list.front();

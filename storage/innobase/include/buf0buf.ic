@@ -1005,13 +1005,12 @@ buf_block_get_modify_clock(
 	return(block->modify_clock);
 }
 
-/*******************************************************************//**
-Increments the bufferfix count. */
+/** Increments the bufferfix count.
+@param[in,out]	block	block to bufferfix */
 UNIV_INLINE
 void
 buf_block_fix(
-/*===========*/
-	buf_block_t*	block)	/*!< in/out: block to bufferfix */
+	buf_block_t*	block)
 {
 #ifdef PAGE_ATOMIC_REF_COUNT
 	os_atomic_increment_uint32(&block->page.buf_fix_count, 1);
@@ -1052,13 +1051,12 @@ buf_block_buf_fix_inc_func(
 #endif /* PAGE_ATOMIC_REF_COUNT */
 }
 
-/*******************************************************************//**
-Decrements the bufferfix count. */
+/** Decrements the bufferfix count.
+@param[in,out]	block	block to bufferunfix */
 UNIV_INLINE
 void
 buf_block_unfix(
-/*============*/
-	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
+	buf_block_t*	block)
 {
 	ut_ad(block->page.buf_fix_count > 0);
 
