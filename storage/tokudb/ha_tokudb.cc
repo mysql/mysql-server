@@ -308,6 +308,8 @@ static int free_share(TOKUDB_SHARE * share) {
                 if (error) {
                     result = error;
                 }
+                if (share->key_file[i] == share->file)
+                    share->file = NULL;
                 share->key_file[i] = NULL;
             }
         }
@@ -321,7 +323,6 @@ static int free_share(TOKUDB_SHARE * share) {
         tokudb_pthread_mutex_lock(&share->mutex);
         share->m_state = TOKUDB_SHARE::CLOSED;
         if (share->use_count > 0) {
-            fprintf(stderr, "%ld %s:%u free_share %p %d\n", syscall(186), __FILE__, __LINE__, share, share->use_count);
             tokudb_pthread_cond_broadcast(&share->m_openclose_cond);
             tokudb_pthread_mutex_unlock(&share->mutex);
             tokudb_pthread_mutex_unlock(&tokudb_mutex);
@@ -1600,6 +1601,7 @@ int ha_tokudb::initialize_share(
     }
 
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
+    share->m_initialize_count++;
 
     error = get_status(txn);
     if (error) {
