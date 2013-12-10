@@ -401,6 +401,13 @@ DBLQH LONG SIGNAL TESTING
 5051: Send short LQHKEYREQ to next replica
 5052: Fail to store KeyInfo from TUP in long section
 
+DBTC TCINDXREQ TESTING
+----------------------
+
+8100: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 1 (set by test case). Will block TCROLLBACKREP.
+
+8101: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 2 (set internally). Will release TCROLLBACKREP.
+
 CMVMI
 -----
 9000 Set RestartOnErrorInsert to restart -n
