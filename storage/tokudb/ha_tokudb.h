@@ -192,6 +192,7 @@ public:
     pthread_cond_t m_openclose_cond;
     enum { CLOSED, OPENING, OPENED, CLOSING, ERROR } m_state;
     int m_error;
+    int m_initialize_count;
 };
 
 typedef struct st_filter_key_part_info {
