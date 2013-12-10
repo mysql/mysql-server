@@ -122,7 +122,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -131,7 +131,7 @@ int ha_blackhole::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -150,7 +150,7 @@ int ha_blackhole::rnd_next(uchar *buf)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -241,7 +241,7 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -259,7 +259,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_idx");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -276,7 +276,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_last");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;

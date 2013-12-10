@@ -77,6 +77,8 @@ char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
 LEX_STRING NULL_STR=  { NULL, 0 };
+LEX_CSTRING EMPTY_CSTR= { "", 0 };
+LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -343,13 +345,14 @@ THD *thd_get_current_thd()
 }
 
 /**
-  Set pthread key THR_THD
+  Reset thread globals associated.
 
   @param thd     THD object
 */
-void set_pthread_THR_THD(THD* thd)
+void reset_thread_globals(THD* thd)
 {
-  my_pthread_set_THR_THD(thd);
+  thd->restore_globals();
+  thd->set_mysys_var(NULL);
 }
 
 extern "C"
@@ -724,13 +727,13 @@ void thd_inc_row_count(THD *thd)
 */
 
 extern "C"
-char *thd_security_context(THD *thd, char *buffer, unsigned int length,
-                           unsigned int max_query_len)
+char *thd_security_context(THD *thd, char *buffer, size_t length,
+                           size_t max_query_len)
 {
   String str(buffer, length, &my_charset_latin1);
   Security_context *sctx= &thd->main_security_ctx;
   char header[256];
-  int len;
+  size_t len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
     being modified concurrently. This is acceptable for proc_info since its
@@ -774,14 +777,14 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  if (thd->query())
+  if (thd->query().str)
   {
     if (max_query_len < 1)
-      len= thd->query_length();
+      len= thd->query().length;
     else
-      len= min(thd->query_length(), max_query_len);
+      len= min(thd->query().length, max_query_len);
     str.append('\n');
-    str.append(thd->query(), len);
+    str.append(thd->query().str, len);
   }
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -794,7 +797,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     was reallocated to a larger buffer to be able to fit.
   */
   DBUG_ASSERT(buffer != NULL);
-  length= min(str.length(), length-1);
+  length= min(static_cast<size_t>(str.length()), length-1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
   buffer[length]= '\0';
@@ -844,9 +847,7 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state)
 
   this->state_flags= state->state_flags;
 
-  this->reset_reprepare_observers();
-  for (int i= 0; i < state->m_reprepare_observers.elements(); ++i)
-    this->push_reprepare_observer(state->m_reprepare_observers.at(i));
+  this->m_reprepare_observers= state->m_reprepare_observers;
 }
 
 
@@ -3333,6 +3334,7 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   db_length(0)
 {
   name.str= NULL;
+  m_query_string= NULL_CSTR;
 }
 
 
@@ -3347,25 +3349,28 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  query_string=   stmt->query_string;
+  set_query_inner(stmt->query());
 }
 
 
-void
-Statement::set_n_backup_statement(Statement *stmt, Statement *backup)
+void THD::set_n_backup_statement(Statement *stmt, Statement *backup)
 {
   DBUG_ENTER("Statement::set_n_backup_statement");
+  mysql_mutex_lock(&LOCK_thd_data);
   backup->set_statement(this);
   set_statement(stmt);
+  mysql_mutex_unlock(&LOCK_thd_data);
   DBUG_VOID_RETURN;
 }
 
 
-void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
+void THD::restore_backup_statement(Statement *stmt, Statement *backup)
 {
   DBUG_ENTER("Statement::restore_backup_statement");
+  mysql_mutex_lock(&LOCK_thd_data);
   stmt->set_statement(this);
   set_statement(backup);
+  mysql_mutex_unlock(&LOCK_thd_data);
   DBUG_VOID_RETURN;
 }
 
@@ -3963,23 +3968,14 @@ extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 }
 
 /**
-  OBSOLETE : there's no way to ensure the string is null terminated.
-  Use thd_query_string instead()
-*/
-extern "C" char **thd_query(MYSQL_THD thd)
-{
-  return (&thd->query_string.string.str);
-}
-
-/**
   Get the current query string for the thread.
 
   @param The MySQL internal thread pointer
   @return query string and length. May be non-null-terminated.
 */
-extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
+extern "C" LEX_CSTRING thd_query_string (MYSQL_THD thd)
 {
-  return(&thd->query_string.string);
+  return thd->query();
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -4264,14 +4260,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   DBUG_VOID_RETURN;
 }
 
-
-void THD::set_statement(Statement *stmt)
-{
-  mysql_mutex_lock(&LOCK_thd_data);
-  Statement::set_statement(stmt);
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
-
 void THD::set_sent_row_count(ha_rows count)
 {
   m_sent_row_count= count;
@@ -4411,27 +4399,34 @@ void THD::set_command(enum enum_server_command command)
 
 /** Assign a new value to thd->query.  */
 
-void THD::set_query(const CSET_STRING &string_arg)
+void THD::set_query(const LEX_CSTRING& query_arg)
 {
+  DBUG_ASSERT(this == current_thd);
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(string_arg);
+  Statement::set_query_inner(query_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_info)(query(), query_length());
+  PSI_THREAD_CALL(set_thread_info)(query_arg.str, query_arg.length);
 #endif
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
 
-void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
-                           const CHARSET_INFO *cs,
+void THD::set_query_and_id(const char *query_arg,
+                           size_t query_length_arg,
                            query_id_t new_query_id)
 {
+  DBUG_ASSERT(this == current_thd);
+  LEX_CSTRING tmp= { query_arg, query_length_arg };
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(query_arg, query_length_arg, cs);
+  Statement::set_query_inner(tmp);
   query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+#endif
 }
 
 /** Assign a new value to thd->query_id.  */

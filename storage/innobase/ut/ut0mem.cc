@@ -324,7 +324,7 @@ ut_free_all_mem(void)
 
 	if (ut_total_allocated_memory != 0) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"after shutdown total allocated memory is %lu",
+			"After shutdown total allocated memory is %lu",
 			(ulong) ut_total_allocated_memory);
 	}
 

@@ -193,7 +193,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
   DBUG_PRINT("enter", ("query: '%-.4096s', no_lock_queue: %d",
-                       *thd_query(thd), no_lock_queue));
+                       thd_query_string(thd).str, no_lock_queue));
   if (thd_ndb->global_schema_lock_count)
   {
     if (thd_ndb->global_schema_lock_trans)

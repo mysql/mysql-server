@@ -201,66 +201,6 @@ loop:
 }
 
 /********************************************************************//**
-Prints to the standard output information on all tables found in the data
-dictionary system table. */
-
-void
-dict_print(void)
-/*============*/
-{
-	dict_table_t*	table;
-	btr_pcur_t	pcur;
-	const rec_t*	rec;
-	mem_heap_t*	heap;
-	mtr_t		mtr;
-
-	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
-	monitor printout */
-
-	os_increment_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-
-	heap = mem_heap_create(1000);
-	mutex_enter(&(dict_sys->mutex));
-	mtr_start(&mtr);
-
-	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
-
-	while (rec) {
-		const char* err_msg;
-
-		err_msg = static_cast<const char*>(
-			dict_process_sys_tables_rec_and_mtr_commit(
-				heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE,
-				&mtr));
-
-		if (!err_msg) {
-			dict_table_print(table);
-		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: %s\n", err_msg);
-		}
-
-		mem_heap_empty(heap);
-
-		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
-	}
-
-	mtr_commit(&mtr);
-	mutex_exit(&(dict_sys->mutex));
-	mem_heap_free(heap);
-
-	/* Restore the fatal semaphore wait timeout */
-	os_decrement_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-}
-
-/********************************************************************//**
 This function gets the next system table record as it scans the table.
 @return the next record if found, NULL if end of scan */
 static
@@ -924,13 +864,13 @@ dict_update_filepath(
 		/* We just updated SYS_DATAFILES due to the contents in
 		a link file.  Make a note that we did this. */
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB data dictionary table SYS_DATAFILES "
-			"for tablespace ID %lu was updated to use file %s.",
+			"The InnoDB data dictionary table SYS_DATAFILES"
+			" for tablespace ID %lu was updated to use file %s.",
 			(ulong) space_id, filepath);
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Problem updating InnoDB data dictionary table "
-			"SYS_DATAFILES for tablespace ID %lu to file %s.",
+			"Problem updating InnoDB data dictionary table"
+			" SYS_DATAFILES for tablespace ID %lu to file %s.",
 			(ulong) space_id, filepath);
 	}
 
@@ -1630,7 +1570,7 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -1846,9 +1786,9 @@ dict_load_indexes(
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Cannot load table %s "
-					"because it has no indexes in "
-					"InnoDB internal data dictionary.",
+					"Cannot load table %s"
+					" because it has no indexes in"
+					" InnoDB internal data dictionary.",
 					table->name);
 				error = DB_CORRUPTION;
 				goto func_exit;
@@ -1888,12 +1828,12 @@ dict_load_indexes(
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to load the "
-					"clustered index for table %s "
-					"because of the following error: %s. "
-					"Refusing to load the rest of the "
-					"indexes (if any) and the whole table "
-					"altogether.", table->name, err_msg);
+					"Failed to load the"
+					" clustered index for table %s"
+					" because of the following error: %s."
+					" Refusing to load the rest of the"
+					" indexes (if any) and the whole table"
+					" altogether.", table->name, err_msg);
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -1903,7 +1843,7 @@ dict_load_indexes(
 			/* Skip delete-marked records. */
 			goto next_rec;
 		} else if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
 			if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
 				goto next_rec;
 			}
@@ -1963,10 +1903,9 @@ dict_load_indexes(
 			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
-			fprintf(stderr,
-				"InnoDB: Error: trying to load index %s"
-				" for table %s\n"
-				"InnoDB: but the index tree has been freed!\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to load index %s for table %s,"
+				" but the index tree has been freed!",
 				index->name, table->name);
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
@@ -1981,9 +1920,9 @@ dict_load_indexes(
 				dict_set_corrupted_index_cache_only(
 					index, table);
 
-				fprintf(stderr,
-					"InnoDB: Index is corrupt but forcing"
-					" load into data dictionary\n");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Index is corrupt but forcing"
+					" load into data dictionary");
 			} else {
 corrupted:
 				dict_mem_index_free(index);
@@ -1993,13 +1932,12 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			fputs("InnoDB: Error: trying to load index ",
-			      stderr);
-			ut_print_name(stderr, NULL, FALSE, index->name);
-			fputs(" for table ", stderr);
-			ut_print_name(stderr, NULL, TRUE, table->name);
-			fputs("\nInnoDB: but the first index"
-			      " is not clustered!\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to load index %s for table %s,"
+				" but the first index is not clustered!",
+				ut_get_name(NULL, FALSE, index->name).c_str(),
+				ut_get_name(NULL, TRUE, table->name).c_str());
+
 
 			goto corrupted;
 		} else if (dict_is_sys_table(table->id)
@@ -2147,13 +2085,10 @@ err_len:
 		ut_ad(len == 4); /* this was checked earlier */
 		flags = mach_read_from_4(field);
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_filename(stderr, name);
-		fprintf(stderr, "\n"
-			"InnoDB: in InnoDB data dictionary"
-			" has unknown type %lx.\n",
-			(ulong) flags);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s in InnoDB data dictionary"
+			" has unknown type %lx.",
+			name, (ulong) flags);
 		return("incorrect flags in SYS_TABLES");
 	}
 
@@ -2163,13 +2098,10 @@ err_len:
 		ut_ad(flags & DICT_TF_COMPACT);
 
 		if (flags2 & ~DICT_TF2_BIT_MASK) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: table ", stderr);
-			ut_print_filename(stderr, name);
-			fprintf(stderr, "\n"
-				"InnoDB: in InnoDB data dictionary"
-				" has unknown flags %lx.\n",
-				(ulong) flags2);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Table %s in InnoDB data dictionary"
+				" has unknown flags %lx.",
+				name, (ulong) flags2);
 
 			/* Clean it up and keep going */
 			flags2 &= DICT_TF2_BIT_MASK;
@@ -2412,8 +2344,7 @@ err_exit:
 
 	if (err_msg) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: %s\n", err_msg);
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s", err_msg);
 		goto err_exit;
 	}
 
@@ -2444,10 +2375,10 @@ err_exit:
 		} else {
 			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to find tablespace for "
-					"table %s in the cache. "
-					"Attempting to load the tablespace "
-					"with space id %lu.",
+					"Failed to find tablespace for"
+					" table %s in the cache."
+					" Attempting to load the tablespace"
+					" with space id %lu.",
 					table_name, (ulong) table->space);
 			}
 
@@ -2509,12 +2440,11 @@ err_exit:
 		/* Refuse to load the table if the table has a corrupted
 		cluster index */
 		if (!srv_load_corrupted) {
-			fprintf(stderr, "InnoDB: Error: Load table ");
-			ut_print_name(stderr, NULL, TRUE, table->name);
-			fprintf(stderr, " failed, the table has corrupted"
-					" clustered indexes. Turn on"
-					" 'innodb_force_load_corrupted'"
-					" to drop it\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Load table %s failed, the table has"
+				" corrupted clustered indexes. Turn on"
+				" 'innodb_force_load_corrupted' to drop it",
+				ut_get_name(NULL, TRUE, table->name).c_str());
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
@@ -2546,9 +2476,9 @@ err_exit:
 
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Load table '%s' failed, the table has missing "
-				"foreign key indexes. Turn off "
-				"'foreign_key_checks' and try again.",
+				"Load table '%s' failed, the table has missing"
+				" foreign key indexes. Turn off"
+				" 'foreign_key_checks' and try again.",
 				table->name);
 
 			dict_table_remove_from_cache(table);
@@ -2922,10 +2852,9 @@ dict_load_foreign(
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
-		fprintf(stderr,
-			"InnoDB: Error: cannot load foreign constraint "
-			"%s: could not find the relevant record in "
-			"SYS_FOREIGN\n", id);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot load foreign constraint %s: could not find the"
+			" relevant record in SYS_FOREIGN", id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2939,9 +2868,9 @@ dict_load_foreign(
 	/* Check if the id in record is the searched one */
 	if (len != id_len || ut_memcmp(id, field, len) != 0) {
 
-		fprintf(stderr,
-			"InnoDB: Error: cannot load foreign constraint "
-			"%s: found %.*s instead in SYS_FOREIGN\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot load foreign constraint"
+			" %s: found %.*s instead in SYS_FOREIGN",
 			id, (int) len, field);
 
 		btr_pcur_close(&pcur);
@@ -3064,9 +2993,8 @@ dict_load_foreigns(
 	if (sys_foreign == NULL) {
 		/* No foreign keys defined yet in this database */
 
-		fprintf(stderr,
-			"InnoDB: Error: no foreign key system tables"
-			" in the database\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"No foreign key system tables in the database");
 
 		DBUG_RETURN(DB_ERROR);
 	}

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 ELSE()
   SET(Platform x86)
   SET(PlatformProgramFilesFolder ProgramFilesFolder)
-  SET(Win64)
+  SET(Win64 " Win64='no'")
 ENDIF()
 
 SET(ENV{VS_UNICODE_OUTPUT})

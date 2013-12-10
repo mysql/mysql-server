@@ -999,20 +999,22 @@ trx_undo_update_rec_get_update(
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
 		if (field_no >= dict_index_get_n_fields(index)) {
-			fprintf(stderr,
-				"InnoDB: Error: trying to access"
-				" update undo rec field %lu in ",
-				(ulong) field_no);
-			dict_index_name_print(stderr, trx, index);
-			fprintf(stderr, "\n"
-				"InnoDB: but index has only %lu fields\n"
-				"InnoDB: Submit a detailed bug report"
-				" to http://bugs.mysql.com\n"
-				"InnoDB: Run also CHECK TABLE ",
-				(ulong) dict_index_get_n_fields(index));
-			ut_print_name(stderr, trx, TRUE, index->table_name);
-			fprintf(stderr, "\n"
-				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
+			std::string	str = ut_get_name(
+							  trx, TRUE,
+							  index->table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to access"
+				" update undo rec field %lu in"
+				" index %s of table %s"
+				" but index has only %lu fields"
+				" %s. Run also CHECK TABLE %s."
+				" n_fields = %lu, i = %lu, ptr %p",
+				(ulong) field_no,
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				str.c_str(),
+				(ulong) dict_index_get_n_fields(index),
+				BUG_REPORT_MSG,
+				str.c_str(),
 				(ulong) n_fields, (ulong) i, ptr);
 			ut_ad(0);
 			*upd = NULL;

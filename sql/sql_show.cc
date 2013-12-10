@@ -2097,11 +2097,11 @@ private:
   Thread_info_array *m_thread_infos;
   /* THD of connected client. */
   THD *m_client_thd;
-  ulong m_max_query_length;
+  size_t m_max_query_length;
 
 public:
   List_process_list(const char *user_value, Thread_info_array *thread_infos,
-                    THD *thd_value, ulong max_query_length) :
+                    THD *thd_value, size_t max_query_length) :
                     m_user(user_value), m_thread_infos(thread_infos),
                     m_client_thd(thd_value),
                     m_max_query_length(max_query_length)
@@ -2168,14 +2168,14 @@ public:
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     /* INFO */
-    if (inspect_thd->query())
+    if (inspect_thd->query().str)
     {
-      const size_t width= min<size_t>(m_max_query_length,
-                                      inspect_thd->query_length());
-      char *q= m_client_thd->strmake(inspect_thd->query(), width);
+      const size_t width= min(m_max_query_length,
+                              inspect_thd->query().length);
+      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
       /* Safety: in case strmake failed, we set length to 0. */
       thd_info->query_string=
-        CSET_STRING(q, q ? width : 0, inspect_thd->query_charset());
+        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -2191,8 +2191,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Item *field;
   List<Item> field_list;
   Thread_info_array thread_infos(thd->mem_root);
-  ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
-                           PROCESS_LIST_WIDTH);
+  size_t max_query_length= (verbose ? thd->variables.max_allowed_packet :
+                            PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
@@ -2347,11 +2347,12 @@ public:
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     /* INFO */
-    if (inspect_thd->query())
+    if (inspect_thd->query().str)
     {
       const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
-                                      inspect_thd->query_length());
-      table->field[7]->store(inspect_thd->query(), width, system_charset_info);
+                                      inspect_thd->query().length);
+      table->field[7]->store(inspect_thd->query().str, width,
+                             inspect_thd->charset());
       table->field[7]->set_notnull();
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);

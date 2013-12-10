@@ -1389,11 +1389,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "storing table level and column level grants in "
-                        "the privilege tables.", thd->query());
+                        "the privilege tables.", thd->query().str);
   }
   else
     result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+            write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                           transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -1402,7 +1402,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
 
@@ -1603,7 +1603,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       else
         sql_print_warning("Did not write failed '%s' into binary log while "
                           "storing routine level grants in the privilege "
-                          "tables.", thd->query());
+                          "tables.", thd->query().str);
     }
     else
     {
@@ -1613,7 +1613,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       */
       if (!thd->rewritten_query.length())
       {
-        if (write_bin_log(thd, false, thd->query(), thd->query_length(),
+        if (write_bin_log(thd, false, thd->query().str, thd->query().length,
                           transactional_tables))
           result= TRUE;
       }
@@ -1633,7 +1633,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (write_to_binlog && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1823,7 +1823,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "granting/revoking privileges in databases.",
-                        thd->query());
+                        thd->query().str);
   }
   else
   {
@@ -1835,7 +1835,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                         transactional_tables);
     else
       result= result |
-              write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+        write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
   }
 
@@ -1845,7 +1845,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   
   if (!result)
   {
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
 
@@ -3316,12 +3316,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "revoking all_privileges from a list of users.",
-                        thd->query());
+                        thd->query().str);
   }
   else
   {
     result= result |
-      write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+      write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                     transactional_tables);
   }
 
@@ -3330,7 +3330,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (!result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());

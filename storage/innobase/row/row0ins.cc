@@ -648,25 +648,24 @@ row_ins_cascade_calc_update_vec(
 							&ufield->new_val)));
 
 					if (new_doc_id <= 0) {
-						fprintf(stderr,
-							"InnoDB: FTS Doc ID "
-							"must be larger than "
-							"0 \n");
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"FTS Doc ID"
+							" must be larger than "
+							"0");
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
-						fprintf(stderr,
-						       "InnoDB: FTS Doc ID "
-						       "must be larger than "
-						       IB_ID_FMT" for table",
-						       n_doc_id -1);
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"FTS Doc ID "
+							"must be larger than "
+							IB_ID_FMT" for"
+							" table %s",
+							n_doc_id -1,
+							ut_get_name(
+								trx, TRUE,
+								table->name).c_str());
 
-						ut_print_name(stderr, trx,
-							      TRUE,
-							      table->name);
-
-						putc('\n', stderr);
 						return(ULINT_UNDEFINED);
 					}
 
@@ -698,11 +697,12 @@ row_ins_cascade_calc_update_vec(
 				fts_trx_add_op(trx, table, new_doc_id,
 					       FTS_INSERT, NULL);
 			} else {
-				fprintf(stderr, "InnoDB: FTS Doc ID must be "
-					"updated along with FTS indexed "
-					"column for table ");
-				ut_print_name(stderr, trx, TRUE, table->name);
-				putc('\n', stderr);
+				std::string	str = ut_get_name(
+							trx, TRUE, table->name);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"FTS Doc ID must be updated along with"
+					" FTS indexed column for table %s",
+					str.c_str());
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -1099,12 +1099,14 @@ row_ins_foreign_check_on_constraint(
 		    || btr_pcur_get_low_match(cascade->pcur)
 		    < dict_index_get_n_unique(clust_index)) {
 
-			fputs("InnoDB: error in cascade of a foreign key op\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"In cascade of a foreign key op"
+				" index %s of table %s",
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    index->table_name).c_str());
 
-			fputs("\n"
-			      "InnoDB: record ", stderr);
+			fputs("InnoDB: record ", stderr);
 			rec_print(stderr, rec, index);
 			fputs("\n"
 			      "InnoDB: clustered record ", stderr);

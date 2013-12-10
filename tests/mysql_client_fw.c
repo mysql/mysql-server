@@ -325,7 +325,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
  MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
- if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
+ if (stmt && mysql_stmt_prepare(stmt, query, strlen(query)))
  {
    mysql_stmt_close(stmt);
    return 0;
@@ -470,7 +470,8 @@ static void my_print_dashes(MYSQL_RES *result)
 static void my_print_result_metadata(MYSQL_RES *result)
 {
  MYSQL_FIELD  *field;
- unsigned int i, j;
+ unsigned int i;
+ size_t j;
  unsigned int field_count;
 
  mysql_field_seek(result, 0);
@@ -599,7 +600,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
  MYSQL_FIELD *field;
  MYSQL_RES   *result;
  char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
- ulong       length[MAX_RES_FIELDS];
+ size_t      length[MAX_RES_FIELDS];
  my_bool     is_null[MAX_RES_FIELDS];
  int         rc, i;
 
@@ -966,7 +967,7 @@ MYSQL_STMT *handle;
 my_bool is_open;
 MYSQL_BIND *bind_array;
 char **out_data;
-unsigned long *out_data_length;
+size_t *out_data_length;
 unsigned column_count;
 unsigned row_count;
 } Stmt_fetch;
@@ -1019,8 +1020,8 @@ const char *query_arg)
  fetch->bind_array= (MYSQL_BIND *) calloc(1, sizeof(MYSQL_BIND) *
  fetch->column_count);
  fetch->out_data= (char**) calloc(1, sizeof(char*) * fetch->column_count);
- fetch->out_data_length= (ulong*) calloc(1, sizeof(ulong) *
- fetch->column_count);
+ fetch->out_data_length= (size_t*) calloc(1, sizeof(size_t) *
+                                          fetch->column_count);
  for (i= 0; i < fetch->column_count; ++i)
  {
    fetch->out_data[i]= (char*) calloc(1, MAX_COLUMN_LENGTH);
@@ -1402,7 +1403,7 @@ int main(int argc, char **argv)
 
  /* Copy the original arguments, so it can be reused for restarting. */
  original_argc= argc;
- original_argv= malloc(argc * sizeof(char*));
+ original_argv= (char**)malloc(argc * sizeof(char*));
  if (argc && !original_argv)
  exit(1);
  for (i= 0; i < argc; i++)
@@ -1419,7 +1420,7 @@ int main(int argc, char **argv)
  /* If there are any arguments left (named tests), save them. */
  if (argc)
  {
-   tests_to_run= malloc((argc + 1) * sizeof(char*));
+   tests_to_run= (char**)malloc((argc + 1) * sizeof(char*));
    if (!tests_to_run)
    exit(1);
    for (i= 0; i < argc; i++)
