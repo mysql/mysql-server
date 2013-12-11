@@ -13,6 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(CheckCCompilerFlag)
+INCLUDE(CheckCXXCompilerFlag)
+
 IF(SIZEOF_VOIDP EQUAL 4)
   SET(32BIT 1)
 ENDIF()
@@ -60,7 +63,22 @@ IF(UNIX)
     IF(CMAKE_SYSTEM_VERSION VERSION_GREATER "5.9")
       # Link mysqld with mtmalloc on Solaris 10 and later
       SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
+    ENDIF() 
+    # Possible changes to the defaults set above for gcc/linux.
+    # Vectorized code dumps core in 32bit mode.
+    IF(CMAKE_COMPILER_IS_GNUCC AND 32BIT)
+      CHECK_C_COMPILER_FLAG("-ftree-vectorize" HAVE_C_FTREE_VECTORIZE)
+      IF(HAVE_C_FTREE_VECTORIZE)
+        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
+      ENDIF()
     ENDIF()
+    IF(CMAKE_COMPILER_IS_GNUCXX AND 32BIT)
+      CHECK_CXX_COMPILER_FLAG("-ftree-vectorize" HAVE_CXX_FTREE_VECTORIZE)
+      IF(HAVE_CXX_FTREE_VECTORIZE)
+        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
+      ENDIF()
+    ENDIF()
+
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
