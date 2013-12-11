@@ -3033,32 +3033,27 @@ row_import_read_v1(
 
 	byte*		ptr = row;
 
-	const ulint	bytes = mach_read_from_4(ptr);
-	cfg->m_page_size.copy_from(page_size_t(bytes, bytes, false));
-
+	const ulint	logical_page_size = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (!cfg->m_page_size.equals_to(univ_page_size)) {
+	if (logical_page_size != univ_page_size.logical()) {
 
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different "
 			"page size than this server. Server page size is "
-			"(physical=" ULINTPF ", logical=" ULINTPF ", "
-			"compressed=%u), whereas tablespace page size is "
-			"(physical=" ULINTPF ", logical=" ULINTPF ", "
-			"compressed=%u)",
-			univ_page_size.physical(),
+			ULINTPF ", whereas tablespace page size is " ULINTPF,
 			univ_page_size.logical(),
-			univ_page_size.is_compressed(),
-			cfg->m_page_size.physical(),
-			cfg->m_page_size.logical(),
-			cfg->m_page_size.is_compressed());
+			logical_page_size);
 
 		return(DB_ERROR);
 	}
 
 	cfg->m_flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
+
+	cfg->m_page_size.copy_from(dict_tf_get_page_size(cfg->m_flags));
+
+	ut_a(logical_page_size == cfg->m_page_size.logical());
 
 	cfg->m_n_cols = mach_read_from_4(ptr);
 

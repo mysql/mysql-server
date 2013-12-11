@@ -680,7 +680,7 @@ Tablespace::read_lsn_and_check_flags(
 
 		const page_size_t	page_size(flags);
 
-		if (!page_size.equals_to(univ_page_size)) {
+		if (page_size.logical() != univ_page_size.logical()) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"%s \"%s\" uses page size %lu, "
@@ -689,8 +689,8 @@ Tablespace::read_lsn_and_check_flags(
 				((m_space_id == TRX_SYS_SPACE)
 				 ? "data file" : "temp-data file"),
 				it->m_filename,
-				page_size.physical(),
-				univ_page_size.physical());
+				page_size.logical(),
+				univ_page_size.logical());
 
 			return(DB_ERROR);
 		}
