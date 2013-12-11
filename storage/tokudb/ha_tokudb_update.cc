@@ -549,7 +549,7 @@ static bool is_strict_mode(THD *thd) {
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     return thd->is_strict_mode();
 #else
-    return test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+    return tokudb_test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
 #endif
 }
 
@@ -837,7 +837,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
 
     rw_rdlock(&share->num_DBs_lock);
 
-    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) { // hot index in progress
+    if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
     } else {
         // send the update message    
@@ -990,7 +990,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
 
     rw_rdlock(&share->num_DBs_lock);
 
-    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) { // hot index in progress
+    if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
     } else {
         // send the upsert message

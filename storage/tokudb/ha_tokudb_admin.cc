@@ -200,7 +200,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     while (ha_tokudb_optimize_wait) sleep(1); // debug
 
     int error;
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     // each DB is its own stage. as HOT goes through each db, we'll
@@ -290,7 +290,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     if (r != 0)
         result = HA_ADMIN_INTERNAL_ERROR;
     if (result == HA_ADMIN_OK) {
-        uint32_t num_DBs = table_share->keys + test(hidden_primary_key);
+        uint32_t num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
         snprintf(write_status_msg, sizeof write_status_msg, "%s primary=%d num=%d", share->table_name, primary_key, num_DBs);
         if (tokudb_debug & TOKUDB_DEBUG_CHECK) {
             ha_tokudb_check_info(thd, table, write_status_msg);
