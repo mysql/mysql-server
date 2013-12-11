@@ -12,7 +12,7 @@
 #  - If both receiver and applier threads are stopped, relay logs should be
 #    purged.
 #  - If at least one of the receiver or applier is running, relay logs should
-#    should not be purged.
+#    not be purged.
 #
 #  ==== Related Worklog(s) And Bug(s)====
 #
@@ -53,7 +53,6 @@ CHANGE MASTER to master_delay=20;
 -- replace_regex /\.[\\\/]slave/slave/
 SELECT @index;
 
-
 --echo
 --echo We now stop the IO thread and ensure that the relaylog files
 --echo are not deleted on doing a change master with a running SQL thread.
@@ -68,12 +67,28 @@ CHANGE MASTER to master_heartbeat_period=20;
 -- replace_regex /\.[\\\/]slave/slave/
 SELECT @index;
 
+--echo
+--echo If the relay_log_file and relay_log_pos options are used, we dont purge
+--echo relaylogs.
+--echo
+
+--source include/stop_slave.inc
+# TODO: CHANGE MASTER to relay_log_pos= 20; ==> this hangs the test.
+let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+eval CHANGE MASTER TO relay_log_file='$relay_log_file';
+
+let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+eval CHANGE MASTER TO relay_log_pos= $relay_log_pos;
+
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SET @index=LOAD_FILE('$index')
+-- replace_regex /\.[\\\/]slave/slave/
+SELECT @index;
 
 --echo
 --echo With both the threads stopped, relay logs should be deleted.
 --echo
 
---source include/stop_slave.inc
 CHANGE MASTER to master_heartbeat_period=20;
 
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

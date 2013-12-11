@@ -3413,6 +3413,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter",("name: %s", log_name));
 
+  mysql_mutex_assert_owner(&LOCK_log);
+
   if (init_and_set_log_file_name(log_name, new_name))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");

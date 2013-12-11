@@ -7102,7 +7102,7 @@ ER_INNODB_UNDO_LOG_FULL
   eng "Undo Log error: %s"
 
 ER_SLAVE_IO_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first"
+  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
   eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."

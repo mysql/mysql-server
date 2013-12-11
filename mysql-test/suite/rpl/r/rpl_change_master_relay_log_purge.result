@@ -38,9 +38,21 @@ slave-relay-bin.000001
 slave-relay-bin.000002
 
 
-With both the threads stopped, relay logs should be deleted.
+If the relay_log_file and relay_log_pos options are used, we dont purge
+relaylogs.
 
 include/stop_slave.inc
+CHANGE MASTER TO relay_log_file='slave-relay-bin.000002';
+CHANGE MASTER TO relay_log_pos= 284;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
+SELECT @index;
+@index
+slave-relay-bin.000001
+slave-relay-bin.000002
+
+
+With both the threads stopped, relay logs should be deleted.
+
 CHANGE MASTER to master_heartbeat_period=20;
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
 SELECT @index;
