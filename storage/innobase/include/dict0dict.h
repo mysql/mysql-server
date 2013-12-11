@@ -1443,20 +1443,16 @@ UNIV_INTERN
 void
 dict_table_stats_lock(
 /*==================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
+	dict_table_t*	table,		/*!< in: table */
+	ulint		latch_mode);	/*!< in: RW_S_LATCH or RW_X_LATCH */
 /**********************************************************************//**
 Unlock the latch that has been locked by dict_table_stats_lock() */
 UNIV_INTERN
 void
 dict_table_stats_unlock(
 /*====================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
+	dict_table_t*	table,		/*!< in: table */
+	ulint		latch_mode);	/*!< in: RW_S_LATCH or RW_X_LATCH */
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return	TRUE if same db name */

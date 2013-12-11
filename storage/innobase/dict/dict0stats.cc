@@ -400,6 +400,11 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
+	/* This private object "t" is not shared with other threads, so
+	we do not need the stats_latch. The lock/unlock routines will do
+	nothing if stats_latch is NULL. */
+	t->stats_latch = NULL;
+
 	UT_LIST_INIT(t->indexes);
 
 	for (index = dict_table_get_first_index(table);
@@ -731,7 +736,7 @@ static
 dict_table_t*
 dict_stats_snapshot_create(
 /*=======================*/
-	const dict_table_t*	table)	/*!< in: table whose stats to copy */
+	dict_table_t*	table)	/*!< in: table whose stats to copy */
 {
 	mutex_enter(&dict_sys->mutex);
 
@@ -2182,7 +2187,7 @@ static
 dberr_t
 dict_stats_save(
 /*============*/
-	const dict_table_t*	table_orig,
+	dict_table_t*		table_orig,
 	const index_id_t*	only_for_index)
 {
 	pars_info_t*	pinfo;
