@@ -484,4 +484,7 @@ static inline void tokudb_pthread_cond_broadcast(pthread_cond_t *cond) {
     assert(r == 0);
 }
 
+// mysql 5.6.15 removed the test macro, so we define our own
+#define tokudb_test(e) ((e) ? 1 : 0)
+
 #endif
