@@ -124,9 +124,6 @@ eval change master to
 --error ER_SLAVE_MUST_STOP
 change master to master_auto_position= 1;
 
-# Re-setting auto_position=0 to continue testing position related options.
-change master to master_auto_position= 0;
-
 # Since the applier is running, using the applier options should error out.
 --error ER_SLAVE_SQL_THREAD_MUST_STOP
 eval change master to relay_log_file='$relay_log_file';
@@ -212,7 +209,7 @@ eval change master to  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_ssl_verify_server_cert= 1;
 
-# Using an  allowed error and a not allowed error should throw an error.
+# Using an allowed option and a not allowed option should throw an error.
 
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 change master to  master_delay=10, master_host= 'localhost';
