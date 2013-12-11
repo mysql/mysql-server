@@ -17,10 +17,15 @@ function usage() {
 }
 
 function github_clone() {
-    local repo=$1; local tree=$2
+    local repo=
+    if [ $# -gt 0 ] ; then repo=$1; shift; else test 0 = 1; return; fi
+    local tree=
+    if [ $# -gt 0 ] ; then tree=$1; shift; else test 0 = 1; return; fi
+    local destdir=
+    if [ $# -gt 0 ] ; then destdir=$1; shift; fi
     if [[ -z "$local_cache_dir" ]] ; then
-        git clone git@github.com:Tokutek/$repo
-        if [ $? != 0 ] ; then exit 1; fi
+        git clone git@github.com:Tokutek/$repo $destdir
+        if [ $? != 0 ] ; then test 0 = 1; return; fi
     else
         if (( "$local_cache_update" )) ; then
             pushd $local_cache_dir/$repo.git
@@ -28,13 +33,12 @@ function github_clone() {
             git fetch --all -f -p -v -t
             popd
         fi
-        git clone --reference $local_cache_dir/$repo.git git@github.com:Tokutek/$repo
-        if [ $? != 0 ] ; then exit 1; fi
+        git clone --reference $local_cache_dir/$repo.git git@github.com:Tokutek/$repo $destdir
+        if [ $? != 0 ] ; then test 0 = 1; return; fi
     fi
 
-    pushd $repo
-    if [ $? != 0 ] ; then exit 1; fi
-    if [ -z $git_tag ] ; then
+    if [ -z "$destdir" ] ; then pushd $repo; else pushd $destdir; fi
+    if [ -z "$git_tag" ] ; then
         if ! git branch | grep "\<$tree\>" > /dev/null && git branch -a | grep "remotes/origin/$tree\>" > /dev/null; then
             git checkout --track origin/$tree
         else
@@ -43,7 +47,7 @@ function github_clone() {
     else
         git checkout $git_tag
     fi
-    if [ $? != 0 ] ; then exit 1; fi
+    if [ $? != 0 ] ; then test 0 = 1; return; fi
     popd
 }
 
@@ -91,7 +95,7 @@ github_clone $ftindex $ftindex_tree
 github_clone $jemalloc $jemalloc_tree
 
 # checkout mysql
-github_clone $mysql $mysql_tree
+github_clone $mysql $mysql_tree $mysql_tree
 
 # checkout the community backup
 github_clone $backup $backup_tree
@@ -105,25 +109,25 @@ if [ $? != 0 ] ; then exit 1; fi
 ln -s ../../../$ftindex ft-index
 if [ $? != 0 ] ; then exit 1; fi
 popd
-pushd $mysql/storage
+pushd $mysql_tree/storage
 if [ $? != 0 ] ; then exit 1; fi
 ln -s ../../$ftengine/storage/tokudb tokudb
 if [ $? != 0 ] ; then exit 1; fi
 popd
-pushd $mysql
+pushd $mysql_tree
 if [ $? != 0 ] ; then exit 1; fi
 ln -s ../$backup/backup toku_backup
 if [ $? != 0 ] ; then exit 1; fi
 popd
-pushd $mysql/scripts
+pushd $mysql_tree/scripts
 if [ $? != 0 ] ; then exit 1; fi
 ln ../../$ftengine/scripts/tokustat.py
 if [ $? != 0 ] ; then exit 1; fi
 ln ../../$ftengine/scripts/tokufilecheck.py
 if [ $? != 0 ] ; then exit 1; fi
 popd
-if [[ $mysql =~ mariadb ]] ; then
-    pushd $mysql/extra
+if [[ $mysql_tree =~ mariadb ]] ; then
+    pushd $mysql_tree/extra
     if [ $? != 0 ] ; then exit 1; fi
     ln -s ../../$jemalloc $jemalloc
     if [ $? != 0 ] ; then exit 1; fi
@@ -145,7 +149,7 @@ fi
 if (( $cmake_debug_paranoid )) ; then
     extra_cmake_options+=" -DTOKU_DEBUG_PARANOID=ON"
 fi
-CC=$cc CXX=$cxx cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options ../$mysql
+CC=$cc CXX=$cxx cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options ../$mysql_tree
 if [ $? != 0 ] ; then exit 1; fi
 make -j4 install
 if [ $? != 0 ] ; then exit 1; fi
