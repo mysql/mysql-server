@@ -167,6 +167,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var connectionPool = this;
   var pooledConnection;
   stats.incr( [ "connect" ]);
+  var error;
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');
@@ -176,9 +177,13 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection.connect(function(err) {
     if (err) {
       stats.incr( [ "connections","failed" ] );
-      // add sqlstate to err
-      err.sqlstate = '08000';
-      callback(err);
+      // create a new Error with a message and this stack
+      error = new Error('Connection failed.');
+      // add cause to the error
+      error.cause = err;
+      // add sqlstate to error
+      error.sqlstate = '08000';
+      callback(error);
     } else {
       stats.incr( [ "connections","succesful" ]);
       connectionPool.pooledConnections[0] = pooledConnection;
