@@ -226,10 +226,12 @@ public:
 
 	page_id_t(ulint space, ulint page_no)
 		:
-		m_space(space),
-		m_page_no(page_no),
+		m_space(static_cast<ib_uint32_t>(space)),
+		m_page_no(static_cast<ib_uint32_t>(page_no)),
 		m_fold(ULINT_UNDEFINED)
 	{
+		ut_ad(space <= 0xFFFFFFFFU);
+		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	inline ib_uint32_t space() const
