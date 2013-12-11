@@ -400,7 +400,7 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
     dynstr_append(&query, tablename);
     dynstr_append(&query, " WRITE,");
   }
-  if (mysql_real_query(mysql, query.str, query.length-1))
+  if (mysql_real_query(mysql, query.str, (ulong)(query.length-1)))
     db_error(mysql); /* We shall countinue here, if --force was given */
 }
 
