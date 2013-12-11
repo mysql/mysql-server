@@ -10533,6 +10533,7 @@ void JOIN::cleanup(bool full)
       {
 	tab->cleanup();
       }
+      table= 0;      
     }
     else
     {
