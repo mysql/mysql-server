@@ -27,6 +27,8 @@ reset slave;
 include/start_slave.inc
 create temporary table t1 (a int);
 include/stop_slave.inc
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 reset slave;
 reset master;
 include/start_slave.inc

@@ -1139,6 +1139,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   group_master_log_name[0]= 0;
   group_master_log_pos= 0;
 
+  /*
+    Following the the relay log purge, the master_log_pos will be in sync
+    with relay_log_pos, so the flag should be cleared. Refer bug#11766010.
+  */
+
+  is_group_master_log_pos_invalid= false;
+
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
