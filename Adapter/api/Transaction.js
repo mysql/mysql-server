@@ -103,12 +103,14 @@ Idle.prototype.begin = function(session, user_arguments) {
 Idle.prototype.commit = function(session, user_arguments) {
   udebug.log('Idle commit');
   var err = new Error('Illegal state: Idle cannot commit.');
+  err.sqlstate = '25000';
   return callbackErrOrThrow(err, user_arguments);
 };
 
 Idle.prototype.rollback = function(session, user_arguments) {
   udebug.log('Idle rollback');
   var err = new Error('Illegal state: Idle cannot rollback.');
+  err.sqlstate = '25000';
   return callbackErrOrThrow(err, user_arguments);
 };
 
@@ -129,6 +131,7 @@ Idle.prototype.getRollbackOnly = function() {
 Active.prototype.begin = function(session, user_arguments) {
   udebug.log('Active begin');
   var err = new Error('Illegal state: Active cannot begin.');
+  err.sqlstate = '25000';
   return callbackErrOrThrow(err, user_arguments);
 };
 
@@ -164,12 +167,14 @@ Active.prototype.getRollbackOnly = function() {
 RollbackOnly.prototype.begin = function(session, user_arguments) {
   udebug.log('RollbackOnly begin');
   var err = new Error('Illegal state: RollbackOnly cannot begin.');
+  err.sqlstate = '25000';
   return callbackErrOrThrow(err, user_arguments);
 };
 
 RollbackOnly.prototype.commit = function(session, user_arguments) {
   udebug.log('RollbackOnly commit');
   var err = new Error('Illegal state: RollbackOnly cannot commit.');
+  err.sqlstate = '25000';
   return callbackErrOrThrow(err, user_arguments);
 };
 

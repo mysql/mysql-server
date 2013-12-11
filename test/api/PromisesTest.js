@@ -429,8 +429,13 @@ t_23r.run = function() {
   
   function reportFailure(err) {
     // make sure err is what we expect it to be
-    if (!err.message.match('.*ER_ACCESS_DENIED_ERROR.*')) {
-      test.appendErrorMessage('t_23r error value is wrong: ' + err.message);
+    if (typeof(err.message) !== 'string') {
+      test.appendErrorMessage('t_23r err.message must be a string.');
+    }
+    if (typeof(err.sqlstate) === 'string') {
+      test.errorIfNull('t_23r err.sqlstate', err.sqlstate.match('0800'));
+    } else {
+      test.appendErrorMessage('t_23r err.sqlstate must be a string.');
     }
     test.failOnError();
   }
@@ -443,10 +448,10 @@ t_23r.run = function() {
 tests.push(t_23r);
 
 /** Transaction state tests.
- * Helpers is a closure of testCase and session. Methods of Helpers are called with no 'this'
- * and they use the original parameters passed.
+ * Helpers is a closure of testCase, session, errorSqlStateMatch, and errorMessageMatch.
+ * Methods of Helpers are called with no 'this' and they use the original parameters passed.
  */
-function createHelpers(testCase, session, errorMatch) {
+function createHelpers(testCase, session, errorSqlStateMatch, errorMessageMatch) {
   return {
     begin : function() {
       var result = session.currentTransaction().begin();
@@ -470,10 +475,22 @@ function createHelpers(testCase, session, errorMatch) {
     errorReportSuccess : function() {
       testCase.fail('must return an error but did not.');
     },
-    correctlyReportFailure : function(err) {
-      if (errorMatch) {
-        testCase.errorIfNull('wrong error ' + err + '; should match ' + errorMatch,
-            err.message.match(errorMatch.message));
+    checkReportFailure : function(err) {
+      if (errorSqlStateMatch) {
+        if (typeof(err.sqlstate) === 'string') {
+          testCase.errorIfNull('wrong sqlstate: ' + err.sqlstate + '; should match ' + errorSqlStateMatch,
+              err.sqlstate.match(errorSqlStateMatch));
+        } else {
+          testCase.appendErrorMessage('err.sqlstate must be a string.');
+        }
+      }
+      if (errorMessageMatch) {
+        if (typeof(err.message) === 'string') {
+          testCase.errorIfNull('wrong err.message ' + err.message + '; should match ' + errorMessageMatch,
+              err.message.match(errorMessageMatch));
+        } else {
+          testCase.appendErrorMessage('err.message must be a string.');
+        }
       }
       testCase.failOnError();
     }
@@ -485,9 +502,9 @@ testIdleCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
-    var helpers = createHelpers(testCase, session, 'Idle cannot commit');
+    var helpers = createHelpers(testCase, session, '2500', 'Idle cannot commit');
     helpers.commit().
-      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      then(helpers.errorReportSuccess, helpers.checkReportFailure);
   });
 };
 tests.push(testIdleCommit);
@@ -497,9 +514,9 @@ testIdleRollback.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
-    var helpers = createHelpers(testCase, session, 'Idle cannot rollback');
+    var helpers = createHelpers(testCase, session, '2500', 'Idle cannot rollback');
     helpers.rollback().
-      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      then(helpers.errorReportSuccess, helpers.checkReportFailure);
   });
 };
 tests.push(testIdleRollback);
@@ -509,11 +526,11 @@ testActiveBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
-    var helpers = createHelpers(testCase, session, 'Active cannot begin');
+    var helpers = createHelpers(testCase, session, '2500', 'Active cannot begin');
     var p1 = helpers.begin();
       var p2 = p1.then(helpers.begin);
       p2.name = 'p2';
-      var p3 = p2.then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      var p3 = p2.then(helpers.errorReportSuccess, helpers.checkReportFailure);
       p3.name = 'p3';
   });
 };
@@ -524,11 +541,11 @@ testRollbackOnlyBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
-    var helpers = createHelpers(testCase, session, 'RollbackOnly cannot begin');
+    var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot begin');
     helpers.begin().
       then(helpers.setRollbackOnly).
       then(helpers.begin).
-      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      then(helpers.errorReportSuccess, helpers.checkReportFailure);
   });
 };
 tests.push(testRollbackOnlyBegin);
@@ -538,11 +555,11 @@ testRollbackOnlyCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
-    var helpers = createHelpers(testCase, session, 'RollbackOnly cannot commit');
+    var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot commit');
     helpers.begin().
       then(helpers.setRollbackOnly).
       then(helpers.commit).
-      then(helpers.errorReportSuccess, helpers.correctlyReportFailure);
+      then(helpers.errorReportSuccess, helpers.checkReportFailure);
   });
 };
 tests.push(testRollbackOnlyCommit);

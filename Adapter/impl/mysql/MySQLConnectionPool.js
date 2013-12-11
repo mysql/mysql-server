@@ -176,6 +176,8 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection.connect(function(err) {
     if (err) {
       stats.incr( [ "connections","failed" ] );
+      // add sqlstate to err
+      err.sqlstate = '08000';
       callback(err);
     } else {
       stats.incr( [ "connections","succesful" ]);
