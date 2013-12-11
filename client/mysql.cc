@@ -1383,7 +1383,6 @@ sig_handler handle_sigint(int sig)
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
   tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
-  interrupted_query= 0;
   if (in_com_source)
     aborted= 1;                                 // Abort source command
   return;
