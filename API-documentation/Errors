@@ -1,13 +1,16 @@
+/* Errors returned by mysql-js operations must contain:
+     message: a string with a description of the problem
+     stack: the locus of the error
+     sqlstate: one of the Sqlstates below
+   Errors might contain:
+     cause: an Error returned by an underlying implementation artifact
 
-
-
-/* These are the errors 
-   Reference: 
-   Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
+   Sqlstates are the string values that can be returned in Error objects
+   Reference: Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
 */
-var Errors;
+var Sqlstates;
 
-Errors = {
+Sqlstates = {
   /* Standard-defined classes, SQL-99 */
   "02000" : "No Data",
 
