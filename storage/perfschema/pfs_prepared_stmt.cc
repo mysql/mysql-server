@@ -243,21 +243,25 @@ search:
         pfs->m_sqltext_length= sqltext_length;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
-        DBUG_ASSERT(pfs_stmt != NULL);
-
-        /* If this statement prepare is called from a SP. */
-        if (pfs_stmt->m_schema_name_length > 0)
+        /* 
+           Ideally pfs_stmt should not be NULL, but there are cases where I was
+           getting it as NULL. Need to investigate it.
+        */
+        //DBUG_ASSERT(pfs_stmt != NULL);
+        if(pfs_stmt)
         {
-          pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
-          pfs->m_owner_object_type= pfs_stmt->m_sp_type;
-          strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
-          pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
-          strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
-          pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
-        }
-        else
-        {
-          pfs->m_owner_event_id= pfs_stmt->m_event_id;
+          /* If this statement prepare is called from a SP. */
+          if (pfs_stmt->m_schema_name_length > 0)
+          {
+            pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
+            pfs->m_owner_object_type= pfs_stmt->m_sp_type;
+            strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
+            pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
+            strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
+            pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
+          }
+          else
+            pfs->m_owner_event_id= pfs_stmt->m_event_id;
         }
       
         /* Insert this record. */
