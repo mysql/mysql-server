@@ -2481,16 +2481,32 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
   thd->lex->current_select->between_count++;
 
-  /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
   if (pred_level && !negated)
     return 0;
 
-  /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
   not_null_tables_cache= (args[0]->not_null_tables() |
                           (args[1]->not_null_tables() &
                            args[2]->not_null_tables()));
 
   return 0;
+}
+
+
+void Item_func_between::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
+  if (pred_level && !negated)
+    return;
+
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
+  not_null_tables_cache= args[0]->not_null_tables() |
+                         (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
 }
 
 
@@ -2936,6 +2952,15 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
   return 0;
 }
 
+
+void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func::fix_after_pullout(parent_select, removed_select);
+
+  not_null_tables_cache= (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
+}
 
 void Item_func_if::cache_type_info(Item *source)
 {
@@ -4332,24 +4357,41 @@ bool Item_func_in::nulls_in_row()
     1   got error
 */
 
-bool
-Item_func_in::fix_fields(THD *thd, Item **ref)
+bool Item_func_in::fix_fields(THD *thd, Item **ref)
 {
-  Item **arg, **arg_end;
-
   if (Item_func_opt_neg::fix_fields(thd, ref))
-    return 1;
+    return true;
 
-  /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
   if (pred_level && negated)
-    return 0;
+    return false;
 
-  /* not_null_tables_cache = union(T1(e),intersection(T1(ei))) */
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
   not_null_tables_cache= ~(table_map) 0;
-  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end; arg++)
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
     not_null_tables_cache&= (*arg)->not_null_tables();
   not_null_tables_cache|= (*args)->not_null_tables();
-  return 0;
+
+  return false;
+}
+
+
+void Item_func_in::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
+  if (pred_level && negated)
+    return;
+
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
+  not_null_tables_cache= ~(table_map) 0;
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
+    not_null_tables_cache&= (*arg)->not_null_tables();
+  not_null_tables_cache|= (*args)->not_null_tables();
 }
 
 
