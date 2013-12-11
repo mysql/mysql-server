@@ -64,7 +64,7 @@
 static inline struct PSI_prepared_stmt_share*
 inline_mysql_get_prepared_stmt_share(void *identity,
                                      PSI_statement_locker *locker,
-                                     char *sqltext, int sqltext_length)
+                                     char *sqltext, uint sqltext_length)
 {
   return PSI_PS_CALL(get_prepared_stmt_share)(identity, locker,
                                               sqltext, sqltext_length);

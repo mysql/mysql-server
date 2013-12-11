@@ -5890,7 +5890,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 
 PSI_prepared_stmt_share*
 pfs_get_prepare_stmt_share_v1(void *identity, PSI_statement_locker *locker, 
-                              char *sql_text, int sql_text_length)
+                              char *sql_text, uint sql_text_length)
 {
   PFS_events_statements *pfs_stmt= NULL;
 
@@ -5904,6 +5904,9 @@ pfs_get_prepare_stmt_share_v1(void *identity, PSI_statement_locker *locker,
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
+
+  if (sql_text_length > COL_INFO_SIZE)
+    sql_text_length= COL_INFO_SIZE;
 
   PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(identity,
                                                        pfs_thread,

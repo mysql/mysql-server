@@ -740,7 +740,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();
-
+    PSI_statement_locker *save_psi;
+ 
+    save_psi= thd->m_sp_statement_psi;
     thd->m_sp_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                    thd->db, thd->db_length,
                                                    thd->charset(),
@@ -751,6 +753,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     MYSQL_END_STATEMENT(thd->m_sp_statement_psi, thd->get_stmt_da());
+    thd->m_sp_statement_psi= save_psi;
 #endif
 
     if (i->free_list)
