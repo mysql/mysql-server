@@ -12156,6 +12156,8 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
     if (own_thd)
     {
+      // TLS variables should not point to thd anymore.
+      thd->restore_globals();
       delete thd;
     }
   } while (0);
