@@ -694,7 +694,7 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
 static PSI_prepared_stmt_share*
 get_prepare_stmt_share_noop(void *identity NNN,
                             PSI_statement_locker *locker NNN, 
-                            char *name NNN, int length NNN)
+                            char *name NNN, uint length NNN)
 {
   return NULL;
 }
