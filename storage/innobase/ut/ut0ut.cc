@@ -550,7 +550,7 @@ ut_get_namel(
 {
 	/* 2 * NAME_LEN for database and table name,
 	and some slack for the #mysql50# prefix and quotes */
-	static char	buf[3 * NAME_LEN];
+	char		buf[3 * NAME_LEN];
 	const char*	bufend;
 
 	bufend = innobase_convert_name(buf, sizeof buf,
