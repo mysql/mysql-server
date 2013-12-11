@@ -233,10 +233,10 @@ struct fts_phrase_t {
 	CHARSET_INFO*		charset;
 
 	/** Heap for word processing */
-	mem_heap_t*    		 heap;
+	mem_heap_t*		heap;
 
 	/** Row page size */
-	const page_size_t&	page_size;
+	const page_size_t	page_size;
 
 	/** Position info for proximity search verification. Records the
 	min and max position of words matched */

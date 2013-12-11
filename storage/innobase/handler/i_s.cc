@@ -6370,9 +6370,10 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(
-			(double) page_size.is_compressed()
-			? page_size.physical() : 0));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(static_cast<double>(
+				page_size.is_compressed()
+				? page_size.physical()
+				: 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8100,10 +8101,10 @@ i_s_dict_fill_sys_tablespaces(
 	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(
 			(double) univ_page_size.physical()));
 
-	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(
-			(double) (page_size.is_compressed()
-				  ? page_size.physical()
-				  : 0)));
+	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(static_cast<double>(
+				page_size.is_compressed()
+				? page_size.physical()
+				: 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
