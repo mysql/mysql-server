@@ -839,6 +839,17 @@ struct dict_table_t{
 				initialized in dict_table_add_to_cache() */
 				/** Statistics for query optimization */
 				/* @{ */
+	rw_lock_t*	stats_latch; /*!< this latch protects:
+				dict_table_t::stat_initialized
+				dict_table_t::stat_n_rows (*)
+				dict_table_t::stat_clustered_index_size
+				dict_table_t::stat_sum_of_other_index_sizes
+				dict_table_t::stat_modified_counter (*)
+				dict_table_t::indexes*::stat_n_diff_key_vals[]
+				dict_table_t::indexes*::stat_index_size
+				dict_table_t::indexes*::stat_n_leaf_pages
+				(*) those are not always protected for
+				performance reasons */
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
