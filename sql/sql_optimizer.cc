@@ -3470,7 +3470,15 @@ bool JOIN::propagate_dependencies()
   JOIN_TAB *const tab_end= join_tab + tables;
   for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    // Catch illegal cross references for outer joins
+    /*
+      Catch illegal cross references for outer joins.
+      This could happen before WL#2486 was implemented in 5.0, but should no
+      longer be possible.
+      Thus, an assert has been added should this happen again.
+      @todo Remove the error check below.
+    */
+    DBUG_ASSERT(!(tab->dependent & tab->table->map));
+
     if (tab->dependent & tab->table->map)
     {
       tables= 0;               // Don't use join->table
