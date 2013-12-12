@@ -93,8 +93,15 @@ protected:
 
   static void SetUpTestCase()
   {
+    /* Save original and install our custom error hook. */
+    m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= test_error_handler_hook;
     mdl_locks_hash_partitions= MDL_LOCKS_HASH_PARTITIONS_DEFAULT;
+  }
+
+  static void TearDownTestCase()
+  {
+    error_handler_hook= m_old_error_handler_hook;
   }
 
   void SetUp()
@@ -131,8 +138,11 @@ protected:
   MDL_request_list   m_request_list;
 private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
+
+  static void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 
+void (*MDLTest::m_old_error_handler_hook)(uint, const char *, myf);
 
 /*
   Will grab a lock on table_name of given type in the run() function.
