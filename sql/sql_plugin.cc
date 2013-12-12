@@ -2371,8 +2371,14 @@ err:
 
 #undef MYSQL_SYSVAR_NAME
 #define MYSQL_SYSVAR_NAME(name) name
-#define PLUGIN_VAR_TYPEMASK 0x007f
-#define PLUGIN_VAR_BOOKMARK_KEY (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_MEMALLOC)
+#define PLUGIN_VAR_TYPEMASK 0x7f
+#define BOOKMARK_MEMALLOC   0x80
+
+static inline char plugin_var_bookmark_key(uint flags)
+{
+  return (flags & PLUGIN_VAR_TYPEMASK) |
+         (flags & PLUGIN_VAR_MEMALLOC ? BOOKMARK_MEMALLOC : 0);
+}
 
 #define EXTRA_OPTIONS 3 /* options for: 'foo', 'plugin-foo' and NULL */
 
@@ -2752,7 +2758,7 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
   else
     memcpy(varname + 1, name, namelen + 1);
 
-  varname[0]= flags & PLUGIN_VAR_BOOKMARK_KEY;
+  varname[0]= plugin_var_bookmark_key(flags);
 
   result= (st_bookmark*) my_hash_search(&bookmark_hash,
                                         (const uchar*) varname, length - 1);
@@ -2813,7 +2819,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
   {
     result= (st_bookmark*) alloc_root(&plugin_mem_root,
                                       sizeof(struct st_bookmark) + length-1);
-    varname[0]= flags & PLUGIN_VAR_BOOKMARK_KEY;
+    varname[0]= plugin_var_bookmark_key(flags);
     memcpy(result->key, varname, length);
     result->name_len= length - 2;
     result->offset= -1;
@@ -2935,7 +2941,7 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 
       if (!(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
           !(pi= var->cast_pluginvar()) ||
-          v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_BOOKMARK_KEY))
+          v->key[0] != plugin_var_bookmark_key(pi->plugin_var->flags))
         continue;
 
       /* Here we do anything special that may be required of the data types */
@@ -3072,7 +3078,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
     DBUG_ASSERT((uint)v->offset <= vars->dynamic_variables_head);
 
     if ((v->key[0] & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
-         v->key[0] & PLUGIN_VAR_MEMALLOC)
+         v->key[0] & BOOKMARK_MEMALLOC)
     {
       char **ptr= (char**)(vars->dynamic_variables_ptr + v->offset);
       my_free(*ptr);
