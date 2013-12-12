@@ -557,8 +557,8 @@ ut_get_namel(
 				       name, namelen,
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
-	std::string str(buf, 0, bufend - buf);
-	return (str);
+	buf[bufend - buf] = '\0';
+	return(std::string(buf, 0, bufend - buf));
 }
 
 /**********************************************************************//**
