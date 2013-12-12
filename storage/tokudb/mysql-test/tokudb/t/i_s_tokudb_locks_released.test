@@ -1,3 +1,7 @@
+if (`select @@tokudb_version <= "7.1.0"`)
+{
+  --skip Not fixed in TokuDB 7.1.0 or earlier
+}
 # verify that information_schema.tokudb_locks gets populated with locks for 2 clients
 
 source include/have_tokudb.inc;

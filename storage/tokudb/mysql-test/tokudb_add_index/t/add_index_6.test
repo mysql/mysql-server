@@ -1,3 +1,8 @@
+if (`select @@tokudb_version <= "7.1.0"`)
+{
+  --skip Not fixed in TokuDB 7.1.0 or earlier
+}
+
 #--source include/have_tokudb.inc
 SET DEFAULT_STORAGE_ENGINE='tokudb';
 #
