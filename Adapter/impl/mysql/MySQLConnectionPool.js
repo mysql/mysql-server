@@ -54,6 +54,14 @@ function getDriverProperties(props) {
   driver.database = props.database;
   driver.debug = props.mysql_debug;
 
+  if (props.mysql_charset) {
+    driver.charset = props.mysql_charset;
+  } else {
+    // by default, use utf-8 multibyte for character encoding
+    driver.charset = 'UTF8MB4';
+  }
+  // allow multiple statements in one query (used to set character set)
+  driver.multipleStatements = true;
   return driver;
 }
 
@@ -240,7 +248,16 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   var pooledConnection = null;
   var connectionPool = this;
   var newDBSession = null;
+  var charset = connectionPool.driverproperties.charset;
+  var charsetQuery = 
+       'SET character_set_client=\'' + charset +
+    '\';SET character_set_connection=\'' + charset +
+    '\';SET character_set_results=\'' + charset + 
+    '\';';
 
+  function charsetComplete(err) {
+    callback(err, newDBSession);
+  }
   if (this.pooledConnections.length > 0) {
     udebug.log_detail('MySQLConnectionPool.getDBSession before found a pooledConnection for index ' + index + ' in connectionPool; ', 
         ' pooledConnections:', connectionPool.pooledConnections.length,
@@ -256,16 +273,20 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   } else {
     // create a new pooled connection
     var connected_callback = function(err) {
+      if (err) {
+        callback(err);
+      }
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
       connectionPool.openConnections[index] = pooledConnection;
       udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
           ' pooledConnections:', connectionPool.pooledConnections.length,
           ' openConnections: ', countOpenConnections(connectionPool));
       
-      callback(err, newDBSession);
+      pooledConnection.query(charsetQuery, charsetComplete);
     };
     // create a new connection
     pooledConnection = mysql.createConnection(this.driverproperties);
+    // set character set server variables
     pooledConnection.connect(connected_callback);
   }
 };
