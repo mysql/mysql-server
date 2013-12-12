@@ -275,18 +275,18 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
     var connected_callback = function(err) {
       if (err) {
         callback(err);
+        return;
       }
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
       connectionPool.openConnections[index] = pooledConnection;
       udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
           ' pooledConnections:', connectionPool.pooledConnections.length,
           ' openConnections: ', countOpenConnections(connectionPool));
-      
+      // set character set server variables      
       pooledConnection.query(charsetQuery, charsetComplete);
     };
     // create a new connection
     pooledConnection = mysql.createConnection(this.driverproperties);
-    // set character set server variables
     pooledConnection.connect(connected_callback);
   }
 };
