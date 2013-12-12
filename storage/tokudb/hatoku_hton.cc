@@ -647,6 +647,7 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
 static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
     LIST *e;
     while ((e = trx->handlers)) {
+        trx->handlers = list_delete(trx->handlers, e);
         ha_tokudb *handler = (ha_tokudb *) e->data;
         handler->cleanup_txn(txn);
     }

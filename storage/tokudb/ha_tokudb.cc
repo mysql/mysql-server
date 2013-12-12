@@ -8270,7 +8270,6 @@ void ha_tokudb::cleanup_txn(DB_TXN *txn) {
         int r = cursor->c_close(cursor);
         assert(r == 0);
         cursor = NULL;
-        remove_from_trx_handler_list();
     }
 }
 
