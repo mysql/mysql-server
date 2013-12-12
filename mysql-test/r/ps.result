@@ -3284,4 +3284,27 @@ Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 deallocate prepare st;
 drop table t1;
+#
+# Bug mdev-5410: crash at the execution of PS with subselect
+#                formed by UNION with global ORDER BY
+#
+CREATE TABLE t1 (a int DEFAULT NULL);
+INSERT INTO t1 VALUES (2), (4);
+CREATE TABLE t2 (b int DEFAULT NULL);
+INSERT INTO t2 VALUES (1), (3);
+PREPARE stmt FROM "
+SELECT c1 FROM (SELECT (SELECT a FROM t1 WHERE t1.a <= t2.b
+                        UNION ALL
+                        SELECT a FROM t1 WHERE t1.a+3<= t2.b
+                        ORDER BY a DESC) AS c1 FROM t2) t3;
+";
+EXECUTE stmt;
+c1
+NULL
+2
+EXECUTE stmt;
+c1
+NULL
+2
+DROP TABLE t1,t2;
 # End of 5.3 tests

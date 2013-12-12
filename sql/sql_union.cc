@@ -184,13 +184,15 @@ void select_union::cleanup()
   SYNOPSIS
     st_select_lex_unit::init_prepare_fake_select_lex()
     thd		- thread handler
+    first_execution - TRUE at the first execution of the union 
 
   RETURN
     options of SELECT
 */
 
 void
-st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
+st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
+                                                  bool first_execution) 
 {
   thd_arg->lex->current_select= fake_select_lex;
   fake_select_lex->table_list.link_in_list(&result_table_list,
@@ -198,7 +200,13 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg)
   fake_select_lex->context.table_list= 
     fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
-  if (!fake_select_lex->first_execution)
+  /*
+    The flag fake_select_lex->first_execution indicates whether this is
+    called at the first execution of the statement, while first_execution
+    shows whether this is called at the first execution of the union that
+    may form just a subselect.
+  */    
+  if (!fake_select_lex->first_execution && first_execution)
   {
     for (ORDER *order= global_parameters->order_list.first;
          order;
@@ -472,7 +480,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       {
         /* Validate the global parameters of this union */
 
-	init_prepare_fake_select_lex(thd);
+	init_prepare_fake_select_lex(thd, TRUE);
         /* Should be done only once (the only item_list per statement) */
         DBUG_ASSERT(fake_select_lex->join == 0);
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
@@ -612,6 +620,7 @@ bool st_select_lex_unit::exec()
   SELECT_LEX *select_cursor=first_select();
   ulonglong add_rows=0;
   ha_rows examined_rows= 0;
+  bool first_execution= !executed;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !uncacheable && !describe)
@@ -714,7 +723,7 @@ bool st_select_lex_unit::exec()
     if (!thd->is_fatal_error)				// Check if EOM
     {
       set_limit(global_parameters);
-      init_prepare_fake_select_lex(thd);
+      init_prepare_fake_select_lex(thd, first_execution);
       JOIN *join= fake_select_lex->join;
       if (!join)
       {
