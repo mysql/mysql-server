@@ -4141,8 +4141,8 @@ dump:
 				"crash_after_log_ibuf_upd_inplace",
 				log_buffer_flush_to_disk();
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Wrote log record for ibuf update in "
-					"place operation");
+					"Wrote log record for ibuf update in"
+					" place operation");
 				DBUG_SUICIDE();
 			);
 

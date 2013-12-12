@@ -135,7 +135,7 @@ page_dir_find_owner_slot(
 			}
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot find the dir slot for this record "
+				"Cannot find the dir slot for this record"
 				" on that page;");
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
@@ -2452,8 +2452,8 @@ page_validate(
 
 		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"PAGE_MAX_TRX_ID out of bounds: "
-				TRX_ID_FMT ", " TRX_ID_FMT,
+				"PAGE_MAX_TRX_ID out of bounds:"
+				" " TRX_ID_FMT ", " TRX_ID_FMT,
 				max_trx_id, sys_max_trx_id);
 			goto func_exit2;
 		}

@@ -510,9 +510,9 @@ buf_page_is_corrupted(
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Page %lu log sequence number"
-				" " LSN_PF "., "
-				"is in the future! Current system "
-				"log sequence number " LSN_PF ".",
+				" " LSN_PF
+				" is in the future! Current system"
+				" log sequence number " LSN_PF ".",
 				(ulong) mach_read_from_4(
 					read_buf + FIL_PAGE_OFFSET),
 				(lsn_t) mach_read_from_8(
@@ -566,8 +566,8 @@ buf_page_is_corrupted(
 		}
 		if (i >= UNIV_PAGE_SIZE) {
 			if (is_log_enabled) {
-				fprintf(log_file, "Page::%llu is empty and "
-					"uncorrupted\n",page_no);
+				fprintf(log_file, "Page::%llu is empty and"
+					" uncorrupted\n", page_no);
 			}
 			return(FALSE);
 		}
@@ -588,8 +588,8 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 		if (is_log_enabled) {
 			fprintf(log_file, "page::%llu; crc32 calculated = %u;"
-				" recorded checksum field1 = %lu recorded "
-				"checksum field2 =%lu\n",page_no, crc32,
+				" recorded checksum field1 = %lu recorded"
+				" checksum field2 =%lu\n", page_no, crc32,
 				checksum_field1, checksum_field2);
 		}
 #endif /* UNIV_INNOCHECKSUM */
@@ -599,12 +599,12 @@ buf_page_is_corrupted(
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 #ifdef UNIV_INNOCHECKSUM
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; old style:calculated = "
-				"%lu; recorded checksum = %lu\n",
+			fprintf(log_file, "page::%llu; old style:calculated ="
+				" %lu; recorded checksum = %lu\n",
 				page_no, buf_calc_page_old_checksum(read_buf),
 				checksum_field2);
-			fprintf(log_file, "page::%llu; new style: calculated = "
-				"%lu; recorded checksum  = %lu\n",
+			fprintf(log_file, "page::%llu; new style: calculated ="
+				" %lu; recorded checksum  = %lu\n",
 				page_no, buf_calc_page_new_checksum(read_buf),
 				checksum_field1);
 		}
@@ -620,8 +620,8 @@ buf_page_is_corrupted(
 		if (is_log_enabled) {
 			fprintf(log_file,
 				"page::%llu; none checksum: calculated"
-				" = %lu; recorded checksum_field1 = %lu "
-				"recorded checksum_field2 = %lu\n",
+				" = %lu; recorded checksum_field1 = %lu"
+				" recorded checksum_field2 = %lu\n",
 				page_no, BUF_NO_CHECKSUM_MAGIC,
 				checksum_field1, checksum_field2);
 		}
@@ -673,9 +673,9 @@ buf_page_is_corrupted(
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
 				if (is_log_enabled) {
-					fprintf(log_file, "page::%llu; old "
-						"style : calculated = %lu; "
-						"recorded = %lu\n", page_no,
+					fprintf(log_file, "page::%llu; old"
+						" style : calculated = %lu;"
+						" recorded = %lu\n", page_no,
 						buf_calc_page_old_checksum(
 							read_buf),
 						checksum_field2);
@@ -691,10 +691,10 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 						if (is_log_enabled) {
 							fprintf(log_file, "Fail"
-								"; page %llu "
-								"invalid (fails"
-								" old style "
-								"checksum)\n",
+								"; page %llu"
+								" invalid (fails"
+								" old style"
+								" checksum)\n",
 								page_no);
 						}
 #endif /* UNIV_INNOCHECKSUM */
@@ -736,8 +736,8 @@ buf_page_is_corrupted(
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
 				if (is_log_enabled) {
-					fprintf(log_file, "page::%llu; new "
-						"style: calculated = %lu; crc32"
+					fprintf(log_file, "page::%llu; new"
+						" style: calculated = %lu; crc32"
 						" = %u; recorded = %lu\n",
 						page_no,
 						buf_calc_page_new_checksum(
@@ -759,10 +759,10 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 					if (is_log_enabled) {
 						fprintf(log_file,"Fail;"
-							" page %llu "
-							"invalid (fails"
-							" innodb and "
-							"crc32 checksum\n",
+							" page %llu"
+							" invalid (fails"
+							" innodb and"
+							" crc32 checksum\n",
 							page_no);
 					}
 #endif /* UNIV_INNOCHECKSUM */
@@ -779,13 +779,13 @@ buf_page_is_corrupted(
 			|| checksum_field2 == BUF_NO_CHECKSUM_MAGIC)) {
 
 			fprintf(log_file, "page::%llu; old style:"
-				" calculated = %lu; recorded = "
-				"%lu\n", page_no,
+				" calculated = %lu; recorded ="
+				" %lu\n", page_no,
 				buf_calc_page_old_checksum(read_buf),
 				checksum_field2);
-			fprintf(log_file, "page::%llu; new style: "
-				"calculated = %lu; crc32 = %u; "
-				"recorded = %lu\n", page_no,
+			fprintf(log_file, "page::%llu; new style:"
+				" calculated = %lu; crc32 = %u;"
+				" recorded = %lu\n", page_no,
 				buf_calc_page_new_checksum(read_buf),
 				buf_calc_page_crc32(read_buf),
 				checksum_field1);
@@ -801,8 +801,8 @@ buf_page_is_corrupted(
 			    && checksum_field2 == crc32))) {
 #ifdef UNIV_INNOCHECKSUM
 			if (is_log_enabled) {
-				fprintf(log_file, "Fail; page %llu invalid "
-					"(fails crc32 checksum)\n",page_no);
+				fprintf(log_file, "Fail; page %llu invalid"
+					" (fails crc32 checksum)\n",page_no);
 			}
 #endif /* UNIV_INNOCHECKSUM */
 
@@ -883,7 +883,7 @@ buf_page_print(
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Uncompressed page, stored checksum in "
+			"Uncompressed page, stored checksum in"
 			" field1 " ULINTPF ", calculated checksums for field1:"
 			" %s " UINT32PF ", %s " ULINTPF ", %s " ULINTPF ","
 			" stored checksum in field2 " ULINTPF ", calculated"
@@ -2389,8 +2389,8 @@ buf_zip_decompress(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Compressed page checksum mismatch"
-			" (space %u page %u): stored: %lu, crc32: "
-			UINT32PF " innodb: " UINT32PF ", none: " UINT32PF "",
+			" (space %u page %u): stored: %lu, crc32:"
+			" " UINT32PF " innodb: " UINT32PF ", none: " UINT32PF,
 			block->page.space, block->page.offset,
 			mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM),
 			page_zip_calc_checksum(frame, size,
