@@ -60,7 +60,7 @@ function ValueVerifier(testCase, field, value) {
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {
     if(err) {
-      testCase.errorIfError(err);
+      testCase.fail(err.message);
     }
     else { 
       session.find(TestData, testCase.data.id, testCase.verifier.run);
