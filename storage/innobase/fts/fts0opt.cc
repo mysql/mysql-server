@@ -533,8 +533,8 @@ fts_index_fetch_nodes(
 			info,
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
-			" SELECT word, doc_count, first_doc_id, last_doc_id, "
-				"ilist\n"
+			" SELECT word, doc_count, first_doc_id, last_doc_id,"
+			" ilist\n"
 			" FROM $table_name\n"
 			" WHERE word LIKE :word\n"
 			" ORDER BY first_doc_id;\n"

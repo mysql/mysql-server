@@ -640,8 +640,8 @@ trx_rollback_active(
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Dropping table '%s', with id " UINT64PF " "
-				"in recovery",
+				"Dropping table '%s', with id " UINT64PF
+				" in recovery",
 				table->name, trx->table_id);
 
 			dict_table_close_and_drop(trx, table);

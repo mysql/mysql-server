@@ -216,9 +216,9 @@ start_again:
 		* UNIV_PAGE_SIZE);
 	if (buf_pool_get_curr_size() <  min_doublewrite_size) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must "
-			"increase your buffer pool size. Cannot continue "
-			"operation.");
+			"Cannot create doublewrite buffer: you must"
+			" increase your buffer pool size. Cannot continue"
+			" operation.");
 
 		return(false);
 	}
@@ -234,9 +234,9 @@ start_again:
 
 	if (block2 == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must "
-			"increase your tablespace size. "
-			"Cannot continue operation.");
+			"Cannot create doublewrite buffer: you must"
+			" increase your tablespace size."
+			" Cannot continue operation.");
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
@@ -253,9 +253,9 @@ start_again:
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot create doublewrite buffer: you must "
-				"increase your tablespace size. "
-				"Cannot continue operation.");
+				"Cannot create doublewrite buffer: you must"
+				" increase your tablespace size."
+				" Cannot continue operation.");
 
 			return(false);
 		}
@@ -467,10 +467,10 @@ buf_dblwr_init_or_restore_pages(
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"A page in the doublewrite buffer is "
-					"not within space bounds; space id %lu "
-					"page number %lu, page %lu in "
-					"doublewrite buf.",
+					"A page in the doublewrite buffer is"
+					" not within space bounds; space id %lu"
+					" page number %lu, page %lu in"
+					" doublewrite buf.",
 					(ulong) space_id, (ulong) page_no,
 					(ulong) i);
 			}
@@ -661,9 +661,9 @@ buf_dblwr_check_page_lsn(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"The page to be written"
-			" seems corrupt!. "
-			"The low 4 bytes of LSN fields do not match "
-			"(" ULINTPF " != " ULINTPF ")!"
+			" seems corrupt!."
+			" The low 4 bytes of LSN fields do not match"
+			" (" ULINTPF " != " ULINTPF ")!"
 			" Noticed in the buffer pool.",
 			mach_read_from_4(
 				page + FIL_PAGE_LSN + 4),

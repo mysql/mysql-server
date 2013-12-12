@@ -4000,8 +4000,8 @@ btr_validate_report2(
 			ut_get_name(NULL, TRUE, index->table_name).c_str());
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In pages %lu and %lu of index %s of table %s, "
-			"index tree level %lu",
+			"In pages %lu and %lu of index %s of table %s,"
+			" index tree level %lu",
 			buf_block_get_page_no(block1),
 			buf_block_get_page_no(block2),
 			ut_get_name(NULL, FALSE, index->name).c_str(),
@@ -4148,8 +4148,8 @@ loop:
 	} else if (btr_page_get_index_id(page) != index->id) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page index id " IB_ID_FMT " != data dictionary "
-			"index id " IB_ID_FMT,
+			"Page index id " IB_ID_FMT " != data dictionary"
+			" index id " IB_ID_FMT,
 			btr_page_get_index_id(page), index->id);
 
 		ret = false;

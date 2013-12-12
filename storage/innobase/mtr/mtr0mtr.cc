@@ -767,8 +767,8 @@ void
 mtr_t::print() const
 {
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Mini-transaction handle: memo size %lu bytes "
-		"log size %lu bytes",
+		"Mini-transaction handle: memo size %lu bytes"
+		" log size %lu bytes",
 		m_impl.m_memo.size(), get_log()->size());
 }
 

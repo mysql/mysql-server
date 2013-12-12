@@ -650,16 +650,16 @@ row_ins_cascade_calc_update_vec(
 					if (new_doc_id <= 0) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
 							"FTS Doc ID"
-							" must be larger than "
-							"0");
+							" must be larger than"
+							" 0");
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID "
-							"must be larger than "
-							IB_ID_FMT" for"
+							"FTS Doc ID"
+							" must be larger than"
+							" " IB_ID_FMT " for"
 							" table %s",
 							n_doc_id -1,
 							ut_get_name(
