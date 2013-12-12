@@ -3370,8 +3370,6 @@ int ha_tokudb::end_bulk_insert() {
     return end_bulk_insert( false );
 }
 
-volatile int ha_tokudb_is_index_unique_wait = 0; // debug
-
 int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info) {
     int error;
     DBC* tmp_cursor1 = NULL;
@@ -3516,7 +3514,6 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     error = 0;
 
 cleanup:
-    while (ha_tokudb_is_index_unique_wait) sleep(1); // debug
     if (tmp_cursor1) {
         tmp_cursor1->c_close(tmp_cursor1);
         tmp_cursor1 = NULL;
@@ -3872,8 +3869,6 @@ out:
     return error;
 }
 
-volatile int ha_tokudb_write_row_wait = 0; // debug
-
 //
 // Stores a row in the table, called when handling an INSERT query
 // Parameters:
@@ -3884,7 +3879,6 @@ volatile int ha_tokudb_write_row_wait = 0; // debug
 //
 int ha_tokudb::write_row(uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::write_row");
-    while (ha_tokudb_write_row_wait) sleep(1); // debug
 
     DBT row, prim_key;
     int error;
@@ -4459,8 +4453,6 @@ void ha_tokudb::invalidate_icp() {
     icp_went_out_of_range = false;    
 }
 
-volatile int ha_tokudb_index_init_wait = 0; // debug
-
 //
 // Initializes local cursor on DB with index keynr
 // Parameters:
@@ -4472,7 +4464,6 @@ volatile int ha_tokudb_index_init_wait = 0; // debug
 //
 int ha_tokudb::index_init(uint keynr, bool sorted) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_init %p %d", this, keynr);
-    while (ha_tokudb_index_init_wait) sleep(1); // debug
 
     int error;
     THD* thd = ha_thd(); 
@@ -5410,8 +5401,6 @@ int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-volatile int tokudb_index_first_wait = 0;
-
 //
 // Reads the first row from the active index (cursor) into buf, and advances cursor
 // Parameters:
@@ -5432,8 +5421,6 @@ int ha_tokudb::index_first(uchar * buf) {
     HANDLE_INVALID_CURSOR();
 
     ha_statistic_increment(&SSV::ha_read_first_count);
-
-    while (tokudb_index_first_wait) sleep(1);
 
     info.ha = this;
     info.buf = buf;
@@ -6837,8 +6824,6 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
     return ROW_TYPE_DEFAULT;
 }
 
-volatile int tokudb_create_wait = 0;
-
 //
 // Creates a new table
 // Parameters:
@@ -6851,7 +6836,7 @@ volatile int tokudb_create_wait = 0;
 //
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
     TOKUDB_DBUG_ENTER("ha_tokudb::create %p %s", this, name);
-    while (tokudb_create_wait) sleep(1);
+
     int error;
     DB *status_block = NULL;
     uint version;
@@ -7522,10 +7507,7 @@ bool ha_tokudb::is_auto_inc_singleton(){
     return false;
 }
 
-volatile int ha_tokudb_tokudb_add_index_wait = 0; // debug
-volatile int ha_tokudb_build_index_wait = 0;      // debug
 
-//
 // Internal function called by ha_tokudb::add_index and ha_tokudb::alter_table_phase2
 // With a transaction, drops dictionaries associated with indexes in key_num
 //
@@ -7552,8 +7534,6 @@ int ha_tokudb::tokudb_add_index(
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::tokudb_add_index");
     assert(txn);
-
-    while (ha_tokudb_tokudb_add_index_wait) sleep(1); // debug
 
     int error;
     uint curr_index = 0;
@@ -7706,8 +7686,6 @@ int ha_tokudb::tokudb_add_index(
         // incremental reports are done in the indexer's callback function.
         thd_progress_init(thd, 1);
 #endif
-
-        while (ha_tokudb_build_index_wait) sleep(1); // debug
 
         error = indexer->build(indexer);
 
@@ -7961,8 +7939,6 @@ void ha_tokudb::restore_add_index(TABLE* table_arg, uint num_of_keys, bool incre
     }
 }
 
-volatile int ha_tokudb_drop_indexes_wait = 0; // debug
-
 //
 // Internal function called by ha_tokudb::prepare_drop_index and ha_tokudb::alter_table_phase2
 // With a transaction, drops dictionaries associated with indexes in key_num
@@ -7970,8 +7946,6 @@ volatile int ha_tokudb_drop_indexes_wait = 0; // debug
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, KEY *key_info, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
     assert(txn);
-
-    while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
 
     int error = 0;
     for (uint i = 0; i < num_of_keys; i++) {
@@ -8110,12 +8084,9 @@ cleanup:
     return error;
 }
 
-volatile int ha_tokudb_truncate_wait = 0; // debug
-
 // for 5.5
 int ha_tokudb::truncate() {
     TOKUDB_DBUG_ENTER("truncate");
-    while (ha_tokudb_truncate_wait) sleep(1); // debug
     int error = delete_all_rows_internal();
     TOKUDB_DBUG_RETURN(error);
 }

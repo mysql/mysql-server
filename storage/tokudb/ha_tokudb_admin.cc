@@ -88,7 +88,6 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-volatile int ha_tokudb_analyze_wait = 0; // debug
 
 struct analyze_progress_extra {
     THD *thd;
@@ -129,7 +128,6 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::analyze");
-    while (ha_tokudb_analyze_wait) sleep(1); // debug concurrency issues
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
     DB_TXN *txn = transaction;
@@ -192,12 +190,9 @@ static int hot_poll_fun(void *extra, float progress) {
     return 0;
 }
 
-volatile int ha_tokudb_optimize_wait = 0; // debug
-
 // flatten all DB's in this table, to do so, peform hot optimize on each db
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
-    while (ha_tokudb_optimize_wait) sleep(1); // debug
 
     int error;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
@@ -266,11 +261,8 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     }
 }
 
-volatile int ha_tokudb_check_wait = 0; // debug
-
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_DBUG_ENTER("check");
-    while (ha_tokudb_check_wait) sleep(1); // debug
 
     const char *old_proc_info = thd->proc_info;
     thd_proc_info(thd, "tokudb::check");
