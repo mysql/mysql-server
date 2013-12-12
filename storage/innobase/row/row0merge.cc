@@ -298,8 +298,8 @@ row_merge_buf_add(
 
 					if (*doc_id == 0) {
 						ib_logf(IB_LOG_LEVEL_WARN,
-							"FTS Doc ID is zero. "
-							"Record Skipped");
+							"FTS Doc ID is zero."
+							" Record Skipped");
 						DBUG_RETURN(0);
 					}
 				}
@@ -2498,8 +2498,8 @@ row_merge_drop_index_dict(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_index_dict "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_index_dict"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2572,8 +2572,8 @@ row_merge_drop_indexes_dict(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_indexes_dict "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_indexes_dict"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2822,8 +2822,8 @@ row_merge_drop_temp_indexes(void)
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_temp_indexes "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_temp_indexes"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx_commit_for_mysql(trx);
@@ -2970,8 +2970,8 @@ row_merge_rename_index_to_add(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_add "
-			"failed with error %u", unsigned(err));
+			"row_merge_rename_index_to_add"
+			" failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";
@@ -3026,8 +3026,8 @@ row_merge_rename_index_to_drop(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_drop "
-			"failed with error %u", unsigned(err));
+			"row_merge_rename_index_to_drop"
+			" failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";

@@ -203,8 +203,8 @@ public:
 	void print_limits(FILE* file) const
 	{
 		fprintf(file,
-			"Trx read view will not see trx with "
-			"id >= " TRX_ID_FMT ", sees < " TRX_ID_FMT "\n",
+			"Trx read view will not see trx with"
+			" id >= " TRX_ID_FMT ", sees < " TRX_ID_FMT "\n",
 			m_low_limit_id, m_up_limit_id);
 	}
 

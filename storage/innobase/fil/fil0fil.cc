@@ -3851,23 +3851,23 @@ fil_report_bad_tablespace(
 	if (check_msg) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Error %s in file '%s',"
-			"tablespace id=%lu, flags=%lu. "
-			"Please refer to "
-			REFMAN "innodb-troubleshooting-datadict.html "
-			"for how to resolve the issue.",
+			"tablespace id=%lu, flags=%lu."
+			" Please refer to"
+			" " REFMAN "innodb-troubleshooting-datadict.html"
+			" for how to resolve the issue.",
 			check_msg, filepath,
 			(ulong) expected_id, (ulong) expected_flags);
 		return;
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"In file '%s', tablespace id and flags are %lu and %lu, "
-		"but in the InnoDB data dictionary they are %lu and %lu. "
-		"Have you moved InnoDB .ibd files around without using the "
-		"commands DISCARD TABLESPACE and IMPORT TABLESPACE? "
-		"Please refer to "
-		REFMAN "innodb-troubleshooting-datadict.html "
-		"for how to resolve the issue.",
+		"In file '%s', tablespace id and flags are %lu and %lu,"
+		" but in the InnoDB data dictionary they are %lu and %lu."
+		" Have you moved InnoDB .ibd files around without using the"
+		" commands DISCARD TABLESPACE and IMPORT TABLESPACE?"
+		" Please refer to"
+		" " REFMAN "innodb-troubleshooting-datadict.html"
+		" for how to resolve the issue.",
 		filepath, (ulong) found_id, (ulong) found_flags,
 		(ulong) expected_id, (ulong) expected_flags);
 }
@@ -4858,17 +4858,17 @@ fil_report_missing_tablespace(
 	const char*	name,			/*!< in: table name */
 	ulint		space_id)		/*!< in: table's space id */
 {
-	char index_name[MAX_FULL_NAME_LEN + 1];
+	char	index_name[MAX_FULL_NAME_LEN + 1];
 
 	innobase_format_name(index_name, sizeof(index_name), name, TRUE);
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Table %s in the InnoDB data dictionary has tablespace id %lu, "
-		"but tablespace with that id or name does not exist. Have "
-		"you deleted or moved .ibd files? This may also be a table "
-		"created with CREATE TEMPORARY TABLE whose .ibd and .frm "
-		"files MySQL automatically removed, but the table still "
-		"exists in the InnoDB internal data dictionary.",
+		"Table %s in the InnoDB data dictionary has tablespace id %lu,"
+		" but tablespace with that id or name does not exist. Have"
+		" you deleted or moved .ibd files? This may also be a table"
+		" created with CREATE TEMPORARY TABLE whose .ibd and .frm"
+		" files MySQL automatically removed, but the table still"
+		" exists in the InnoDB internal data dictionary.",
 		name, space_id);
 }
 
