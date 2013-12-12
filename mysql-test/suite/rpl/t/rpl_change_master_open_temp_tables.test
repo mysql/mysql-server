@@ -10,7 +10,9 @@
 # This test script does the following:
 
 #  - Temporary table(s) should NOT be dropped if applier is running during
-#    CHANGE MASTER. Should throw an error.
+#    CHANGE MASTER.
+#  - If there are open temporary tables and there is a CHANGE MASTER,
+#    there should be a warning.
 #  - Ensure that CHANGE MASTER is allowed if there are open temporary
 #    tables and both receiver and applier threads are stopped.
 #
@@ -25,7 +27,8 @@
 create temporary table t1(a int);
 sync_slave_with_master;
 
---source include/stop_slave_io.inc
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 change master to master_heartbeat_period= 10;
 
 --source include/stop_slave_sql.inc

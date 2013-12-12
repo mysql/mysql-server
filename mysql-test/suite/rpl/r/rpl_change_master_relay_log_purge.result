@@ -17,7 +17,7 @@ We now stop the SQL thread and ensure that the relaylog files
 are not deleted on doing a change master with a running IO thread.
 
 include/stop_slave_sql.inc
-CHANGE MASTER to master_delay=20;
+CHANGE MASTER TO MASTER_DELAY= 20;
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
 SELECT @index;
 @index
@@ -30,7 +30,7 @@ are not deleted on doing a change master with a running SQL thread.
 
 include/start_slave_sql.inc
 include/stop_slave_io.inc
-CHANGE MASTER to master_heartbeat_period=20;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
 SELECT @index;
 @index
@@ -42,8 +42,8 @@ If the relay_log_file and relay_log_pos options are used, we dont purge
 relaylogs.
 
 include/stop_slave.inc
-CHANGE MASTER TO relay_log_file='slave-relay-bin.000002';
-CHANGE MASTER TO relay_log_pos= 284;
+CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000002';
+CHANGE MASTER TO RELAY_LOG_POS= 284;
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
 SELECT @index;
 @index
@@ -53,7 +53,7 @@ slave-relay-bin.000002
 
 With both the threads stopped, relay logs should be deleted.
 
-CHANGE MASTER to master_heartbeat_period=20;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.2/data//slave-relay-bin.index');
 SELECT @index;
 @index
@@ -61,7 +61,7 @@ NULL
 
 cleanup
 
-CHANGE MASTER to master_delay=0;
-CHANGE MASTER to master_heartbeat_period=60;
+CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 60;
 include/start_slave.inc
 include/rpl_end.inc
