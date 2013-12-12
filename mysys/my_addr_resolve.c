@@ -153,6 +153,10 @@ int my_addr_resolve(void *ptr, my_addr_loc *loc)
   while (*s != ':')
     s++;
   *s++= 0;
+
+  if (strcmp(loc->file, "??") == 0)
+    return 1;
+
   loc->line= 0;
   while (isdigit(*s))
     loc->line = loc->line * 10 + (*s++ - '0');
