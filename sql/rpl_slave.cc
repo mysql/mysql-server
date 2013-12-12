@@ -8420,7 +8420,8 @@ bool change_master(THD* thd, Master_info* mi)
     receiver and applier threads. If any slave thread is running,
     we report an error.
   */
-  if (thread_mask && (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE))
+  if (thread_mask &&
+      (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED))
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     ret= true;
@@ -8598,6 +8599,19 @@ bool change_master(THD* thd, Master_info* mi)
 
   }/* end 'if (thread_mask)' */
 
+
+    /*
+      auto_position is the only option that affects both receive
+      and execute sections of replication. So, this code is kept
+      outside both if (have_receive_option) and if (have_execute_option)
+
+      Here, we check if the auto_position option was used and set the flag
+      if the slave should connect to the master and look for GTIDs.
+    */
+  if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->set_auto_position(
+      (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
+
 ////////////////////////////////////////////////////////////////////////////
 
   if (have_receive_option)
@@ -8750,9 +8764,6 @@ bool change_master(THD* thd, Master_info* mi)
     if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
       mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
 
-    if (lex_mi->sql_delay != -1)
-      mi->rli->set_sql_delay(lex_mi->sql_delay);
-
     if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
       mi->ssl_verify_server_cert=
         (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
@@ -8825,6 +8836,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (have_execute_option)
   {
     mysql_mutex_lock(&mi->rli->data_lock);
+
     if (lex_mi->relay_log_name)
     {
       need_relay_log_purge= 0;
@@ -8843,6 +8855,9 @@ bool change_master(THD* thd, Master_info* mi)
       mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
       mi->rli->is_group_master_log_pos_invalid= true;
     }
+
+    if (lex_mi->sql_delay != -1)
+      mi->rli->set_sql_delay(lex_mi->sql_delay);
 
     mysql_mutex_unlock(&mi->rli->data_lock);
   }
