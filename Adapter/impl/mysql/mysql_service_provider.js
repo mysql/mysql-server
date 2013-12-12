@@ -59,6 +59,7 @@ var MysqlDefaultConnectionProperties = {
   "mysql_port"     : 3306,
   "mysql_user"     : "root",
   "mysql_password" : "",
+  "mysql_charset"  : "UTF8MB4",
   "mysql_socket"   : null,
   "debug"          : true,
   "mysql_debug"    : false
