@@ -128,20 +128,23 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
 
 AC_DEFUN([MYSQL_CHECK_JAVA], [
 
+  AC_MSG_NOTICE([using environment variables JAVA_HOME, JDK_HOME to locate JDK])
   NDB_JAVA_PATHS="$JAVA_HOME $JDK_HOME"
   NDB_JAVA_TMP_INC="include"
   NDB_JAVA_TMP_BIN="bin"
 
   case "$host_os" in
-  darwin*)        
-    AC_CHECK_FILE([/usr/libexec/java_home],[found=yes])
-    if test X$found = Xyes
+  darwin*)
+    # some GNU M4 seem to require both, found and not-found, actions
+    AC_CHECK_FILE([/usr/libexec/java_home],[found=yes],[found=no])
+    if test X"$found" = Xyes
     then
-      # MaxOS >= 1.5
+      # MacOS >= 10.5
       NDB_JAVA_PATHS="$NDB_JAVA_PATHS `/usr/libexec/java_home`"
     else
       NDB_JAVA_TMP_INC="Headers"
       NDB_JAVA_TMP_BIN="Commands"
+      # MacOS <= 10.6
       NDB_JAVA_PATHS="$NDB_JAVA_PATHS /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK"
     fi
     ;;
@@ -151,17 +154,19 @@ AC_DEFUN([MYSQL_CHECK_JAVA], [
     NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/jdk/latest"
     ;;
   esac
+  AC_MSG_NOTICE([looking for suitable JDK in paths: $NDB_JAVA_PATHS])
 
   dnl
-  dnl Search for JAVA_HOME
+  dnl Search for suitable JDK
   dnl
 
   NDB_JAVA_INC=""
   NDB_JAVA_BIN=""
 
   for D in $NDB_JAVA_PATHS; do
-    AC_CHECK_FILE([$D/$NDB_JAVA_TMP_INC/jni.h],[found=yes])
-    if test X$found = Xyes
+    # some GNU M4 seem to require both, found and not-found, actions
+    AC_CHECK_FILE([$D/$NDB_JAVA_TMP_INC/jni.h],[found=yes],[found=no])
+    if test X"$found" = Xyes
     then
       NDB_JAVA_INC=$D/$NDB_JAVA_TMP_INC
       NDB_JAVA_BIN=$D/$NDB_JAVA_TMP_BIN
