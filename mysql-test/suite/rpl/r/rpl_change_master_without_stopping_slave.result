@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 Create a replication user to use in change master tests.
 
-grant replication slave on *.* to replssl@localhost require ssl;
+GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
 
 With both receiver and applier stopped, all CHANGE MASTER options should
 be allowed.
@@ -28,19 +28,19 @@ include/start_slave_sql.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-change master to master_auto_position= 1;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
-change master to relay_log_file='slave-relay-bin.000001';
+CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000001';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-change master to relay_log_pos=4;
+CHANGE MASTER TO RELAY_LOG_POS= 4;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-change master to master_delay=10;
+CHANGE MASTER TO MASTER_DELAY= 10;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-change master to master_retry_count= 1, relay_log_file='slave-relay-bin.000001';
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_FILE= 'slave-relay-bin.000001';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-change master to master_retry_count= 1, relay_log_pos=4;
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_POS= 4;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-change master to master_retry_count= 1, master_delay=10;
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1, MASTER_DELAY=10;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 
 With applier stopped and receiver running, we should be able to change
@@ -49,72 +49,72 @@ message.
 
 include/stop_slave_sql.inc
 include/start_slave_io.inc
-change master to relay_log_file='slave-relay-bin.000001';
-change master to relay_log_pos=4;
-change master to master_delay=10;
-change master to master_auto_position= 1;
+CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000001';
+CHANGE MASTER TO RELAY_LOG_POS= 4;
+CHANGE MASTER TO MASTER_DELAY= 10;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
-change master to master_auto_position= 0;
-change master to  master_host= 'localhost';
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE MASTER TO MASTER_HOST= 'localhost';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_user= 'replssl';
+CHANGE MASTER TO MASTER_USER= 'replssl';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_password= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_connect_retry=20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_retry_count= 1;
+CHANGE MASTER TO  MASTER_PASSWORD= '';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_CONNECT_RETRY= 20;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_heartbeat_period= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_ssl=1;
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_ssl_verify_server_cert= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_host= 'localhost';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_user= 'replssl';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_password= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_connect_retry=20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_retry_count= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_heartbeat_period= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_ssl=1;
+CHANGE MASTER TO MASTER_SSL= 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-change master to  master_delay=10, master_ssl_verify_server_cert= 1;
+CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_HOST= 'localhost';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_USER= 'replssl';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_PASSWORD= '';
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_CONNECT_RETRY= 20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_RETRY_COUNT= 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY= 10, MASTER_HEARTBEAT_PERIOD= 20;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY=10, MASTER_SSL=1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+CHANGE MASTER TO MASTER_DELAY= 10, MASTER_SSL_VERIFY_SERVER_CERT= 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 include/stop_slave.inc
 
 cleanup
 
-change master to
-master_host= '127.0.0.1',
-master_user= 'root',
-master_delay= 0,
-master_ssl=0,
-master_ssl_ca ='',
-master_ssl_cert='',
-master_ssl_key='',
-master_ssl_verify_server_cert= 0;
+CHANGE MASTER TO
+MASTER_HOST= '127.0.0.1',
+MASTER_USER= 'root',
+MASTER_DELAY= 0,
+MASTER_SSL= 0,
+MASTER_SSL_CA= '',
+MASTER_SSL_CERT= '',
+MASTER_SSL_KEY= '',
+MASTER_SSL_VERIFY_SERVER_CERT= 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-drop user replssl@localhost;
+DROP USER replssl@localhost;
 include/rpl_end.inc

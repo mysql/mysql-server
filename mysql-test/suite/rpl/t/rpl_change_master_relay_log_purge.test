@@ -46,7 +46,7 @@ SELECT @index;
 --echo
 
 --source include/stop_slave_sql.inc
-CHANGE MASTER to master_delay=20;
+CHANGE MASTER TO MASTER_DELAY= 20;
 
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
@@ -60,7 +60,7 @@ SELECT @index;
 
 --source include/start_slave_sql.inc
 --source include/stop_slave_io.inc
-CHANGE MASTER to master_heartbeat_period=20;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
@@ -73,12 +73,11 @@ SELECT @index;
 --echo
 
 --source include/stop_slave.inc
-# TODO: CHANGE MASTER to relay_log_pos= 20; ==> this hangs the test.
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
-eval CHANGE MASTER TO relay_log_file='$relay_log_file';
+eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
 let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
-eval CHANGE MASTER TO relay_log_pos= $relay_log_pos;
+eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
@@ -89,7 +88,7 @@ SELECT @index;
 --echo With both the threads stopped, relay logs should be deleted.
 --echo
 
-CHANGE MASTER to master_heartbeat_period=20;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
@@ -100,8 +99,8 @@ SELECT @index;
 --echo cleanup
 --echo
 
-CHANGE MASTER to master_delay=0;
-CHANGE MASTER to master_heartbeat_period=60;
+CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 60;
 
 --source include/start_slave.inc
 --source include/rpl_end.inc

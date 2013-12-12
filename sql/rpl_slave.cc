@@ -8368,14 +8368,14 @@ err:
 */
 bool change_master(THD* thd, Master_info* mi)
 {
-  //Do we have at least one receive related (IO thread) option?
+  /* Do we have at least one receive related (IO thread) option? */
   bool have_receive_option= false;
-  //Do we have at least one execute related (SQL/coord/worker) option?
+  /* Do we have at least one execute related (SQL/coord/worker) option? */
   bool have_execute_option= false;
   bool ret= false; //return value
-  //If there are no mts gaps, we delete the rows in this table.
+  /* If there are no mts gaps, we delete the rows in this table. */
   bool mts_remove_worker_info= false;
-  //used as a bit mask to indicate running/stopped threads.
+  /* used as a bit mask to indicate running/stopped threads. */
   int thread_mask;
   /*
     We want to save the old receive configurations so that we can use them to
@@ -8446,7 +8446,7 @@ bool change_master(THD* thd, Master_info* mi)
     }
   }
 
-  // CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON
+  /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON */
   if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE && gtid_mode != 3)
   {
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
@@ -8455,7 +8455,7 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  //Check if at least one receive option is given on change master
+  /* Check if at least one receive option is given on change master */
   if(lex_mi->host ||
      lex_mi->user ||
      lex_mi->password ||
@@ -8479,13 +8479,13 @@ bool change_master(THD* thd, Master_info* mi)
      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     have_receive_option= true;
 
-  //Check if at least one execute option is given on change master
+  /* Check if at least one execute option is given on change master */
   if (lex_mi->relay_log_name ||
       lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1)
     have_execute_option= true;
 
-  //With receiver thread running, we dont allow changing receive options.
+  /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO))
   {
     my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP),
@@ -8494,7 +8494,7 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  //With an applier thread running, we don't allow changing execute options.
+  /* With an applier thread running, we don't allow changing execute options. */
   if (have_execute_option && (thread_mask & SLAVE_SQL))
   {
     my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
@@ -8527,7 +8527,7 @@ bool change_master(THD* thd, Master_info* mi)
   */
   init_thread_mask(&thread_mask, mi, 1);
 
-  //Do the initializations for stopped slave thread(s).
+  /* Do the initializations for stopped slave thread(s). */
   if (global_init_info(mi, false, thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
@@ -8535,7 +8535,7 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  //Change thread_mask to indicate running threads again.
+  /* Change thread_mask to indicate running threads again. */
   init_thread_mask(&thread_mask, mi, 0);
 
   if (mi->rli->mts_recovery_group_cnt)
@@ -8563,7 +8563,7 @@ bool change_master(THD* thd, Master_info* mi)
       mts_remove_worker_info= true;
   }
 
-  if (thread_mask) // If any slave thread is running
+  if (thread_mask) /* If any slave thread is running */
   {
     /*
       Traditionally, we have imposed the condition that STOP SLAVE is required
@@ -8596,7 +8596,7 @@ bool change_master(THD* thd, Master_info* mi)
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
 
-  }// end 'if (thread_mask)'
+  }/* end 'if (thread_mask)' */
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -8857,7 +8857,10 @@ bool change_master(THD* thd, Master_info* mi)
   //TODO: this flushes both mi and mi->rli stuff ask Sven if this should be done
   //      with ONLY IO THREAD STOPPED. Is not flushing okay BTW?
 
-  //This ensures receiver is not running else we would have errored out earlier.
+  /*
+    This ensures receiver is not running else we would have errored out
+    earlier.
+  */
   if (have_receive_option)
     if (flush_master_info(mi, true))
     {
@@ -8869,7 +8872,7 @@ bool change_master(THD* thd, Master_info* mi)
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-  if ((thread_mask & SLAVE_SQL) == 0) //Applier module is not executing
+  if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
     /*
       The following code for purging logs can be improved. We currently use
@@ -8887,7 +8890,7 @@ bool change_master(THD* thd, Master_info* mi)
 
     if ((thread_mask & SLAVE_IO) == 0 && need_relay_log_purge)//both threads stopped
     {
-      //purge_relay_log() returns pointer to an error message here.
+      /* purge_relay_log() returns pointer to an error message here. */
       const char* errmsg= 0;
       /*
         purge_relay_log() assumes that we have run_lock and no slave threads
@@ -8935,7 +8938,7 @@ bool change_master(THD* thd, Master_info* mi)
 
     relay_log_purge= save_relay_log_purge;
 
-    //Now we need mi->rli->data_lock we deffered earlier.
+    /* Now we need mi->rli->data_lock we deffered earlier. */
     mysql_mutex_lock(&mi->rli->data_lock);
 
     /*
@@ -8990,9 +8993,11 @@ bool change_master(THD* thd, Master_info* mi)
 
     mysql_mutex_unlock(&mi->rli->data_lock);
 
-  } // end 'if (thread_mask & SLAVE_SQL == 0)'
+  } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
 
   //TODO: this would require data_lock, should we take lock again?
+ // data_lock would protect race while accessing  the following:
+ // mi->host, mi->port, mi->get_master_log_name(), (ulong) mi->get_master_log_pos(), mi->bind_addr)
   sql_print_information("'CHANGE MASTER TO executed'. "
     "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
     "master_log_pos= %ld, master_bind='%s'. "
@@ -9013,7 +9018,6 @@ err:
     if (!mts_remove_worker_info)
       my_ok(thd);
     else
-      //TODO: Is it ok to allow start/stop while we reset workers?
       if (!Rpl_info_factory::reset_workers(mi->rli))
         my_ok(thd);
       else

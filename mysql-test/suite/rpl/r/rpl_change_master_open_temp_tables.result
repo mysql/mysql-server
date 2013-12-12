@@ -4,15 +4,15 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 create temporary table t1(a int);
-include/stop_slave_io.inc
+STOP SLAVE;
 Warnings:
 Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+include/wait_for_slave_to_stop.inc
 change master to master_heartbeat_period= 10;
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/stop_slave_sql.inc
 Warnings:
 Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Note	1255	Slave already has been stopped
 change master to master_heartbeat_period= 10;
 include/start_slave.inc
 drop temporary table t1;
