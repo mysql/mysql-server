@@ -1980,6 +1980,7 @@ public:
   */
   void skip_binary(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
@@ -1994,6 +1995,7 @@ public:
   */
   unsigned char yyGet()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     char c= *m_ptr++;
     if (m_echo)
       *m_cpp_ptr++ = c;
@@ -2014,6 +2016,7 @@ public:
   */
   unsigned char yyPeek()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     return m_ptr[0];
   }
 
@@ -2023,6 +2026,7 @@ public:
   */
   unsigned char yyPeekn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     return m_ptr[n];
   }
 
@@ -2043,6 +2047,7 @@ public:
   */
   void yySkip()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     if (m_echo)
       *m_cpp_ptr++ = *m_ptr++;
     else
@@ -2055,6 +2060,7 @@ public:
   */
   void yySkipn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
