@@ -10813,17 +10813,18 @@ void JOIN::cleanup(bool full)
         tabs_kind= WALK_EXECUTION_TABS;
       if (table_count)
       {
-        for (tab= first_breadth_first_tab(this, tabs_kind); tab; 
+        for (tab= first_breadth_first_tab(this, tabs_kind); tab;
              tab= next_breadth_first_tab(this, tabs_kind, tab))
         {
           tab->cleanup();
         }
       }
       cleaned= true;
+
     }
     else
     {
-      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab;
            tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
       {
 	if (tab->table)

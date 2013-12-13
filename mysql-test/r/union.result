@@ -1734,6 +1734,21 @@ i
 6
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# mdev-5382:  UNION with ORDER BY in subselect
+#
+CREATE TABLE t1 (a int DEFAULT NULL);
+INSERT INTO t1 VALUES (2), (4);
+CREATE TABLE t2 (b int DEFAULT NULL);
+INSERT INTO t2 VALUES (1), (3);
+SELECT c1 FROM (SELECT (SELECT a FROM t1 WHERE t1.a <= t2.b
+UNION ALL
+SELECT a FROM t1 WHERE t1.a+3<= t2.b
+ORDER BY a DESC) AS c1 FROM t2) t3;
+c1
+NULL
+2
+DROP TABLE t1,t2;
 End of 5.3 tests
 #
 # Bug#57986 ORDER BY clause is not used after a UNION, 

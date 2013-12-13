@@ -160,7 +160,8 @@ public:
   inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
     null_value= args[0]->get_time(ltime);
-    DBUG_ASSERT(ltime->time_type != MYSQL_TIMESTAMP_TIME || ltime->day == 0);
+    DBUG_ASSERT(null_value ||
+                ltime->time_type != MYSQL_TIMESTAMP_TIME || ltime->day == 0);
     return null_value;
   }
   bool is_null() { 

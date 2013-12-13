@@ -5022,10 +5022,8 @@ TABLE *TABLE_LIST::get_real_join_table()
           */
           for (TABLE_LIST *t= ti++; t; t= ti++)
             tbl= t;
-          /*
-            It is impossible that the list is empty
-            so tbl can't be NULL after above loop.
-          */
+          if (!tbl)
+            return NULL; // view/derived with no tables
           if (!tbl->nested_join)
             break;
           /* go deeper if we've found nested join */

@@ -383,7 +383,17 @@ set
 
 drop table t1, t2;
 
+--echo #
+--echo # MDEV-5353: server crash on subselect if WHERE applied to some
+--echo # result field
+--echo #
 
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.b;
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.a;
 --echo # End of 5.3 tests
 
 --echo #

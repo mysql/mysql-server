@@ -6701,9 +6701,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
           else
           {
             if (thd->mark_used_columns == MARK_COLUMNS_READ)
-              it->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+              it->walk(&Item::register_field_in_read_map, 0, (uchar *) 0);
             else
-              it->walk(&Item::register_field_in_write_map, 1, (uchar *) 0);
+              it->walk(&Item::register_field_in_write_map, 0, (uchar *) 0);
           }
         }
         else
