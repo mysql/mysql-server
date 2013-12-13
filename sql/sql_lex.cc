@@ -1735,28 +1735,22 @@ static int lex_one_token(void *arg, void *yythd)
         lip->yySkip();
         lip->yySkip();
 
-        if (!lip->eof(4)
-            && my_isdigit(cs, lip->yyPeekn(0))
-            && my_isdigit(cs, lip->yyPeekn(1))
-            && my_isdigit(cs, lip->yyPeekn(2))
-            && my_isdigit(cs, lip->yyPeekn(3))
-            && my_isdigit(cs, lip->yyPeekn(4))
-            )
+        /*
+          The special comment format is very strict:
+          '/' '*' '!', followed by exactly
+          1 digit (major), 2 digits (minor), then 2 digits (dot).
+          32302 -> 3.23.02
+          50032 -> 5.0.32
+          50114 -> 5.1.14
+        */
+        char version_str[6];
+        if (  my_isdigit(cs, (version_str[0]= lip->yyPeekn(0)))
+           && my_isdigit(cs, (version_str[1]= lip->yyPeekn(1)))
+           && my_isdigit(cs, (version_str[2]= lip->yyPeekn(2)))
+           && my_isdigit(cs, (version_str[3]= lip->yyPeekn(3)))
+           && my_isdigit(cs, (version_str[4]= lip->yyPeekn(4)))
+           )
         {
-          /*
-            The special comment format is very strict:
-            '/' '*' '!', followed by exactly
-            1 digit (major), 2 digits (minor), then 2 digits (dot).
-            32302 -> 3.23.02
-            50032 -> 5.0.32
-            50114 -> 5.1.14
-          */
-          char version_str[6];
-          version_str[0]= lip->yyPeekn(0);
-          version_str[1]= lip->yyPeekn(1);
-          version_str[2]= lip->yyPeekn(2);
-          version_str[3]= lip->yyPeekn(3);
-          version_str[4]= lip->yyPeekn(4);
           version_str[5]= 0;
           ulong version;
           version=strtol(version_str, NULL, 10);
