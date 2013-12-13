@@ -1137,6 +1137,7 @@ sync_thread_add_level(
 	case SYNC_RECV:
 	case SYNC_FTS_BG_THREADS:
 	case SYNC_WORK_QUEUE:
+	case SYNC_FTS_TOKENIZE:
 	case SYNC_FTS_OPTIMIZE:
 	case SYNC_FTS_CACHE:
 	case SYNC_FTS_CACHE_INIT:
