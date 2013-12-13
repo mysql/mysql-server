@@ -61,7 +61,7 @@ typedef unsigned int   Uint32;
 #endif /* !INT_MAX64 */
 
 #ifndef UINT_MAX64
-#define UINT_MAX64      0xFFFFFFFFFFFFFFFFLL
+#define UINT_MAX64      ((Uint64)(~0ULL))
 #endif /* !UINT_MAX64 */
 
 typedef unsigned int UintR;
