@@ -103,8 +103,16 @@ protected:
   /* 3 functions below actually do not use the hidden parameter 'this' */ 
 
   /* Calculate the number of bytes used to store an offset value */
-  uint offset_size(uint len)
-  { return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
+  uint offset_size(ulong len)
+  {
+    if (len <= 0xFFUL)
+      return 1;
+    if (len <= 0xFFFFUL)
+      return 2;
+    if (len <= 0xFFFFFFFFUL)
+      return 4;
+    return 8;
+  }
 
   /* Get the offset value that takes ofs_sz bytes at the position ptr */
   ulong get_offset(uint ofs_sz, uchar *ptr)
@@ -113,6 +121,7 @@ protected:
     case 1: return uint(*ptr);
     case 2: return uint2korr(ptr);
     case 4: return uint4korr(ptr);
+    case 8: return uint8korr(ptr);
     }
     return 0;
   }
@@ -124,6 +133,7 @@ protected:
     case 1: *ptr= (uchar) ofs; return;
     case 2: int2store(ptr, (uint16) ofs); return;
     case 4: int4store(ptr, (uint32) ofs); return;
+    case 8: int8store(ptr, (uint64) ofs); return;
     }
   }
 
@@ -292,11 +302,11 @@ protected:
   }
   ulong get_rec_length(uchar *ptr)
   { 
-    return (ulong) get_offset(size_of_rec_len, ptr);
+    return get_offset(size_of_rec_len, ptr);
   }
   ulong get_fld_offset(uchar *ptr)
   { 
-    return (ulong) get_offset(size_of_fld_ofs, ptr);
+    return get_offset(size_of_fld_ofs, ptr);
   }
 
   void store_rec_ref(uchar *ptr, uchar* ref)
@@ -448,7 +458,21 @@ public:
   enum_nested_loop_state join_records(bool skip_last);
 
   enum_op_type type() { return OT_CACHE; }
-  
+
+  /**
+    This constructor creates a join cache, linked or not. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables
+    specified by the 'j' parameter. The parameter 'prev' specifies the previous
+    cache object to which this cache is linked, or NULL if this cache is not
+    linked.
+  */
+  JOIN_CACHE(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
+    : QEP_operation(tab), join(j), buff(NULL), prev_cache(prev),
+    next_cache(NULL)
+    {
+      if (prev_cache)
+        prev_cache->next_cache= this;
+    }
   virtual ~JOIN_CACHE() {}
   void free()
   {
@@ -486,34 +510,9 @@ protected:
   enum_nested_loop_state join_matching_records(bool skip_last);
 
 public:
-
-  /* 
-    This constructor creates an unlinked BNL join cache. The cache is to be
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-  */   
-  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-  }
-
-  /* 
-    This constructor creates a linked BNL join cache. The cache is to be 
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the previous
-    cache object to which this cache is linked.
-  */   
   JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-  }
+    : JOIN_CACHE(j, tab, prev)
+  {}
 
   /* Initialize the BNL cache */       
   int init();
@@ -573,37 +572,10 @@ protected:
 
 public:
   
-  /* 
-    This constructor creates an unlinked BKA join cache. The cache is to be
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-    mrr_mode= flags;
-  }
-
-  /* 
-    This constructor creates a linked BKA join cache. The cache is to be 
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the cache
-    object to which this cache is linked.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-    mrr_mode= flags;
-  }
+  /// The MRR mode initially is set to 'flags'
+  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags, JOIN_CACHE* prev)
+    : JOIN_CACHE(j, tab, prev), mrr_mode(flags)
+  {}
 
   /* Initialize the BKA cache */       
   int init();
@@ -866,24 +838,9 @@ protected:
 
 public:
 
-  /* 
-    This constructor creates an unlinked BKA_UNIQUE join cache. The cache is
-    to be used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags)
-    :JOIN_CACHE_BKA(j, tab, flags) {}
-
-  /* 
-    This constructor creates a linked BKA_UNIQUE join cache. The cache is
-    to be used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the cache
-    object to which this cache is linked.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
-    :JOIN_CACHE_BKA(j, tab, flags, prev) {}
+  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags, JOIN_CACHE* prev)
+    : JOIN_CACHE_BKA(j, tab, flags, prev)
+  {}
 
   /* Initialize the BKA_UNIQUE cache */       
   int init();
