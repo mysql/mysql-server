@@ -1027,8 +1027,8 @@ buf_flush_page(
 		rw_lock = &reinterpret_cast<buf_block_t*>(bpage)->lock;
 
 		if (flush_type != BUF_FLUSH_LIST) {
-			flush = rw_lock_s_lock_nowait(
-				rw_lock, __FILE__, __LINE__);
+			flush = rw_lock_s_lock_gen_nowait(
+				rw_lock, BUF_IO_WRITE);
 		} else {
 			/* Will S lock later */
 			flush = TRUE;
