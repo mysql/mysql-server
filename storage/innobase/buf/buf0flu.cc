@@ -1037,32 +1037,31 @@ buf_flush_page(
 
         if (flush) {
 
-                /* We are committed to flushing by the time we get here */
+		/* We are committed to flushing by the time we get here */
 
-                buf_page_set_io_fix(bpage, BUF_IO_WRITE);
+		buf_page_set_io_fix(bpage, BUF_IO_WRITE);
 
-                buf_page_set_flush_type(bpage, flush_type);
+		buf_page_set_flush_type(bpage, flush_type);
 
-                if (buf_pool->n_flush[flush_type] == 0) {
+		if (buf_pool->n_flush[flush_type] == 0) {
 
-                        os_event_reset(buf_pool->no_flush[flush_type]);
-                }
+			os_event_reset(buf_pool->no_flush[flush_type]);
+		}
 
-                ++buf_pool->n_flush[flush_type];
+		++buf_pool->n_flush[flush_type];
 
-                mutex_exit(block_mutex);
-                buf_pool_mutex_exit(buf_pool);
+		mutex_exit(block_mutex);
+		buf_pool_mutex_exit(buf_pool);
 
-                if (flush_type == BUF_FLUSH_LIST) {
+		if (flush_type == BUF_FLUSH_LIST
+		    && is_uncompressed
+		    && !rw_lock_s_lock_gen_nowait(rw_lock, BUF_IO_WRITE)) {
+			/* avoiding deadlock possibility involves doublewrite
+			buffer, should flush it, because it might hold the
+			another block->lock. */
+			buf_dblwr_flush_buffered_writes();
 
-			/* This is a heuristic for reducing syncs */
-			if (!no_fix_count) {
-				buf_dblwr_flush_buffered_writes();
-			}
-
-			if (is_uncompressed) {
-				rw_lock_s_lock_gen(rw_lock, BUF_IO_WRITE);
-			}
+			rw_lock_s_lock_gen(rw_lock, BUF_IO_WRITE);
                 }
 
                 /* Even though bpage is not protected by any mutex at this
