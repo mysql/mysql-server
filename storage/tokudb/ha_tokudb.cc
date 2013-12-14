@@ -583,9 +583,8 @@ smart_dbt_callback_ir_rowread(DBT const *key, DBT  const *row, void *context) {
 // macro for Smart DBT callback function, 
 // so we do not need to put this long line of code in multiple places
 //
-#define SMART_DBT_CALLBACK ( this->key_read ? smart_dbt_callback_keyread : smart_dbt_callback_rowread ) 
-#define SMART_DBT_IR_CALLBACK ( this->key_read ? smart_dbt_callback_ir_keyread : smart_dbt_callback_ir_rowread ) 
-
+#define SMART_DBT_CALLBACK(do_key_read) ((do_key_read) ? smart_dbt_callback_keyread : smart_dbt_callback_rowread ) 
+#define SMART_DBT_IR_CALLBACK(do_key_read) ((do_key_read) ? smart_dbt_callback_ir_keyread : smart_dbt_callback_ir_rowread ) 
 
 //
 // macro that modifies read flag for cursor operations depending on whether
@@ -4747,7 +4746,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     // create the key that will be used to compare with what is found
     // in order to figure out if we should return an error
     pack_key(&curr_key, tokudb_active_index, key_buff2, key, keylen, COL_ZERO);
-    int error = get_next(buf, 1, &curr_key);
+    int error = get_next(buf, 1, &curr_key, key_read);
     if (error) {
         goto cleanup;
     }
@@ -4814,7 +4813,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         ir_info.orig_key = &lookup_key;
 
         error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+                &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
         }
@@ -4822,17 +4821,17 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_CALLBACK, &info);
+                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
-                &lookup_key, SMART_DBT_CALLBACK, &info);
+                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_CALLBACK, &info);
+                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     //
     // This case does not seem to ever be used, it is ok for it to be slow
@@ -4841,23 +4840,23 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
         error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+                &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
         if (error == DB_NOTFOUND) {
-            error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
+            error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK(key_read), &info);
         }
         else if (ir_info.cmp) {
-            error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
+            error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK(key_read), &info);
         }
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
-                    &lookup_key, SMART_DBT_CALLBACK, &info);
+                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_PREFIX_LAST:
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         ir_info.orig_key = &lookup_key;
-        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
         }
@@ -4883,7 +4882,7 @@ cleanup:
 }
 
 
-int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
+int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val, bool do_key_read) {
     // buffer has the next row, get it from there
     int error;
     uchar* curr_pos = range_query_buff+curr_range_query_buff_offset;
@@ -4900,7 +4899,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     curr_key.size = key_size;
     
     // if this is a covering index, this is all we need
-    if (this->key_read) {
+    if (do_key_read) {
         assert(!need_val);
         extract_hidden_primary_key(tokudb_active_index, &curr_key);
         read_key_only(buf, tokudb_active_index, &curr_key);
@@ -5260,7 +5259,7 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
+int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_key_read) {
     int error = 0; 
     uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
@@ -5271,13 +5270,13 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // we need to read the val of what we retrieve if
     // we do NOT have a covering index AND we are using a clustering secondary
     // key
-    need_val = (this->key_read == 0) && 
+    need_val = (do_key_read == 0) && 
                 (tokudb_active_index == primary_key || 
                  key_is_clustering(&table->key_info[tokudb_active_index])
                        );
 
     if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
-        error = read_data_from_range_query_buff(buf, need_val);
+        error = read_data_from_range_query_buff(buf, need_val, do_key_read);
     }
     else if (icp_went_out_of_range) {
         icp_went_out_of_range = false;
@@ -5327,7 +5326,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
             //
             // now that range_query_buff is filled, read an element
             //
-            error = read_data_from_range_query_buff(buf, need_val);
+            error = read_data_from_range_query_buff(buf, need_val, do_key_read);
         }
         else {
             struct smart_dbt_info info;
@@ -5336,9 +5335,9 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
             info.keynr = tokudb_active_index;
 
             if (direction > 0) {
-                error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
+                error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
             } else {
-                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
+                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
             }
             error = handle_cursor_error(error, HA_ERR_END_OF_FILE, tokudb_active_index);
         }
@@ -5353,7 +5352,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // main table.
     //
     
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
+    if (!error && !do_key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5375,7 +5374,7 @@ cleanup:
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     ha_statistic_increment(&SSV::ha_read_next_count);
-    int error = get_next(buf, 1, NULL);
+    int error = get_next(buf, 1, NULL, key_read);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -5397,7 +5396,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     ha_statistic_increment(&SSV::ha_read_prev_count);
-    int error = get_next(buf, -1, NULL);
+    int error = get_next(buf, -1, NULL, key_read);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -5427,7 +5426,7 @@ int ha_tokudb::index_first(uchar * buf) {
     info.keynr = tokudb_active_index;
 
     error = cursor->c_getf_first(cursor, flags,
-            SMART_DBT_CALLBACK, &info);
+            SMART_DBT_CALLBACK(key_read), &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
 
     //
@@ -5470,7 +5469,7 @@ int ha_tokudb::index_last(uchar * buf) {
     info.keynr = tokudb_active_index;
 
     error = cursor->c_getf_last(cursor, flags,
-            SMART_DBT_CALLBACK, &info);
+            SMART_DBT_CALLBACK(key_read), &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
     //
     // still need to get entire contents of the row if operation done on
@@ -5506,14 +5505,14 @@ int ha_tokudb::rnd_init(bool scan) {
     if (scan) {
         error = prelock_range(NULL, NULL);
         if (error) { goto cleanup; }
+
+        // only want to set range_lock_grabbed to true after index_init
+        // successfully executed for two reasons:
+        // 1) index_init will reset it to false anyway
+        // 2) if it fails, we don't want prelocking on,
+        range_lock_grabbed = true;
     }
-    //
-    // only want to set range_lock_grabbed to true after index_init
-    // successfully executed for two reasons:
-    // 1) index_init will reset it to false anyway
-    // 2) if it fails, we don't want prelocking on,
-    //
-    if (scan) { range_lock_grabbed = true; }
+
     error = 0;
 cleanup:
     if (error) { 
@@ -5545,7 +5544,7 @@ int ha_tokudb::rnd_end() {
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_next");
     ha_statistic_increment(&SSV::ha_read_rnd_next_count);
-    int error = get_next(buf, 1, NULL);
+    int error = get_next(buf, 1, NULL, false);
     TOKUDB_DBUG_RETURN(error);
 }
 
