@@ -4603,12 +4603,10 @@ ibuf_merge_or_delete_for_page(
 
 			corruption_noticed = true;
 
-			ut_print_timestamp(stderr);
-
 			ibuf_mtr_start(&mtr);
 
-			fputs("\nInnoDB: Dump of the ibuf bitmap page:\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Dump of the ibuf bitmap page:");
 
 			ut_ad(page_size != NULL);
 

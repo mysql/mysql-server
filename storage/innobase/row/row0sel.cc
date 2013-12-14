@@ -2553,14 +2553,17 @@ row_sel_store_row_id_to_prebuilt(
 		dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
 
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
-		fprintf(stderr,
-			"InnoDB: Error: Row id field is"
-			" wrong length %lu in ", (ulong) len);
-		dict_index_name_print(stderr, prebuilt->trx, index);
-		fprintf(stderr, "\n"
-			"InnoDB: Field number %lu, record:\n",
-			(ulong) dict_index_get_sys_col_pos(index,
-							   DATA_ROW_ID));
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Row id field is wrong length %lu in index %s of"
+			" table %s, Field number %lu, record:",
+			(ulong) len,
+			ut_get_name(
+				prebuilt->trx, FALSE, index->name).c_str(),
+			ut_get_name(
+				prebuilt->trx, TRUE, index->table_name).c_str(),
+			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+
 		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
 		ut_error;
@@ -3091,13 +3094,15 @@ row_sel_get_clust_rec_for_mysql(
 		if (!rec_get_deleted_flag(rec,
 					  dict_table_is_comp(sec_index->table))
 		    || prebuilt->select_lock_type != LOCK_NONE) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: error clustered record"
-			      " for sec rec not found\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, sec_index);
-			fputs("\n"
-			      "InnoDB: sec index record ", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Clustered record for sec rec not found"
+				" index %s of table %s",
+				ut_get_name(trx, FALSE,
+					    sec_index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    sec_index->table_name).c_str());
+
+			fputs("InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec, sec_index);
 			fputs("\n"
 			      "InnoDB: clust index record ", stderr);
@@ -4078,10 +4083,9 @@ release_search_latch_if_needed:
 		    && !srv_read_only_mode
 		    && prebuilt->select_lock_type == LOCK_NONE) {
 
-			fputs("InnoDB: Error: MySQL is trying to"
-			      " perform a consistent read\n"
-			      "InnoDB: but the read view is not assigned!\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"MySQL is trying to perform a consistent read"
+				" but the read view is not assigned!");
 			trx_print(stderr, trx, 600);
 			fputc('\n', stderr);
 			ut_error;
@@ -4290,16 +4294,17 @@ wrong_offs:
 			/* The user may be dumping a corrupt table. Jump
 			over the corruption to recover as much as possible. */
 
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s."
+				" We try to skip the rest of the page.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". We try to skip the rest of the page.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE,
+					    index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    index->table_name).c_str());
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
 
@@ -4318,16 +4323,16 @@ wrong_offs:
 	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s."
+				" We try to skip the record.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". We try to skip the record.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(
+					trx, TRUE, index->table_name).c_str());
 
 			goto next_rec;
 		}

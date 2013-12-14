@@ -1721,13 +1721,11 @@ row_truncate_table_for_mysql(
 	/* Check if memcached DML is running on this table. if is, we don't
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Cannot truncate table ", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(" by DROP+CREATE\n"
-		      "InnoDB: because there are memcached operations"
-		      " running on it.\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot truncate table %s by DROP+CREATE"
+			" because there are memcached operations"
+			" running on it.",
+			ut_get_name(trx, TRUE, table->name).c_str());
 		err = DB_ERROR;
 		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, logger, err));

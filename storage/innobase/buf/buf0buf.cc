@@ -844,27 +844,22 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 
 	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Page dump in ascii and hex (" ULINTPF
-			" bytes):\n", page_size.physical());
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Page dump in ascii and hex (" ULINTPF " bytes):",
+			page_size.physical());
 		ut_print_buf(stderr, read_buf, page_size.physical());
 		fputs("\nInnoDB: End of page dump\n", stderr);
 	}
 
 	if (page_size.is_compressed()) {
 		/* Print compressed page. */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Compressed page type (" ULINTPF ");"
-			" stored checksum in field1 " ULINTPF ";"
-			" calculated checksums for field1:"
-			" %s " UINT32PF ","
-			" %s " UINT32PF ","
-			" %s " UINT32PF ";"
-			" page LSN " LSN_PF ";"
-			" page number (if stored to page already) " ULINTPF ";"
-			" space id (if stored to page already) " ULINTPF "\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Compressed page type (" ULINTPF "); stored checksum in"
+			" field1 " ULINTPF "; calculated checksums for field1:"
+			" %s " UINT32PF ", %s " UINT32PF ", %s " UINT32PF ";"
+			" page LSN " LSN_PF "; page number (if stored to page"
+			" already) " ULINTPF "; space id (if stored to page"
+			" already) " ULINTPF "",
 			fil_page_get_type(read_buf),
 			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 			buf_checksum_algorithm_name(
@@ -884,25 +879,17 @@ buf_page_print(
 			mach_read_from_4(read_buf
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: uncompressed page,"
-			" stored checksum in field1 " ULINTPF ","
-			" calculated checksums for field1:"
-			" %s " UINT32PF ","
-			" %s " ULINTPF ","
-			" %s " ULINTPF ","
-
-			" stored checksum in field2 " ULINTPF ","
-			" calculated checksums for field2:"
-			" %s " UINT32PF ","
-			" %s " ULINTPF ","
-			" %s " ULINTPF ","
-
-			" page LSN " ULINTPF " " ULINTPF ","
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Uncompressed page, stored checksum in "
+			" field1 " ULINTPF ", calculated checksums for field1:"
+			" %s " UINT32PF ", %s " ULINTPF ", %s " ULINTPF ","
+			" stored checksum in field2 " ULINTPF ", calculated"
+			" checksums for field2: %s " UINT32PF ", %s " ULINTPF ""
+			" , %s " ULINTPF ",  page LSN " ULINTPF " " ULINTPF ","
 			" low 4 bytes of LSN at page end " ULINTPF ","
 			" page number (if stored to page already) " ULINTPF ","
 			" space id (if created with >= MySQL-4.1.1"
-			" and stored already) %lu\n",
+			" and stored already) %lu",
 			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32),
 			buf_calc_page_crc32(read_buf),
