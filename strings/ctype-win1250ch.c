@@ -500,7 +500,7 @@ static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
 
   do {
     NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-    if (totlen <= len)
+    if (totlen < len)
       dest[totlen] = value;
     totlen++;
   } while (value) ;

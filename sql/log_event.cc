@@ -5685,7 +5685,6 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
     thd->first_successful_insert_id_in_prev_stmt= val;
     break;
   case INSERT_ID_EVENT:
