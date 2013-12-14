@@ -4035,8 +4035,8 @@ loop:
 	} else if (btr_page_get_index_id(page) != index->id) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page index id " IB_ID_FMT " != data dictionary "
-			"index id " IB_ID_FMT,
+			"Page index id " IB_ID_FMT " != data dictionary"
+			" index id " IB_ID_FMT,
 			btr_page_get_index_id(page), index->id);
 
 		ret = false;

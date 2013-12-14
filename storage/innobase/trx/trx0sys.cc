@@ -746,8 +746,8 @@ trx_sys_file_format_max_check(
 
 		ib_logf(max_format_id <= UNIV_FORMAT_MAX
 			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
-			"The system tablespace is in a file "
-			"format that this version doesn't support - %s.",
+			"The system tablespace is in a file"
+			" format that this version doesn't support - %s.",
 			trx_sys_file_format_id_to_name(format_id));
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
@@ -1209,8 +1209,8 @@ trx_sys_close(void)
 
 	if (size > 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"All read views were not closed before shutdown: "
-			"%lu read views open", size);
+			"All read views were not closed before shutdown:"
+			" %lu read views open", size);
 	}
 
 

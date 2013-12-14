@@ -559,11 +559,11 @@ row_mysql_store_col_in_innobase_format(
 		We will try to truncate it to n bytes by stripping
 		space padding.	If the field contains single-byte
 		characters only, it will be truncated to n characters.
-		Consider a CHAR(5) field containing the string ".a   "
-		where "." denotes a 3-byte character represented by
-		the bytes "$%&".  After our stripping, the string will
-		be stored as "$%&a " (5 bytes).	 The string ".abc "
-		will be stored as "$%&abc" (6 bytes).
+		Consider a CHAR(5) field containing the string
+		".a   " where "." denotes a 3-byte character represented
+		by the bytes "$%&". After our stripping, the string will
+		be stored as "$%&a " (5 bytes). The string
+		".abc " will be stored as "$%&abc" (6 bytes).
 
 		The space padding will be restored in row0sel.cc, function
 		row_sel_field_store_in_mysql_format(). */
@@ -1098,8 +1098,8 @@ row_update_statistics_if_needed(
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
 			"test_upd_stats_if_needed_not_inited",
-			fprintf(stderr, "test_upd_stats_if_needed_not_inited "
-				"was executed\n");
+			fprintf(stderr, "test_upd_stats_if_needed_not_inited"
+				" was executed\n");
 		);
 		return;
 	}
@@ -1311,8 +1311,8 @@ row_insert_for_mysql(
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The table %s doesn't have a corresponding "
-			"tablespace, it was discarded.",
+			"The table %s doesn't have a corresponding"
+			" tablespace, it was discarded.",
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_DELETED);
@@ -3747,8 +3747,8 @@ check_next_foreign:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"(%s) not able to remove ancillary FTS "
-					"tables for table %s",
+					"(%s) not able to remove ancillary FTS"
+					" tables for table %s",
 					ut_strerr(err),
 					ut_get_name(
 						trx, TRUE, tablename).c_str());
@@ -3813,8 +3813,8 @@ check_next_foreign:
 						tablename, FALSE);
 
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Removed the table %s from "
-						"InnoDB's data dictionary",
+						"Removed the table %s from"
+						" InnoDB's data dictionary",
 						msg_tablename);
 				}
 
@@ -4568,8 +4568,8 @@ row_rename_table_for_mysql(
 			be rolled back and committed, we can't use it any more,
 			so we have to start a new background trx here. */
 			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
-			trx_bg->op_info = "Revert the failing rename "
-					  "for fts aux tables";
+			trx_bg->op_info = "Revert the failing rename"
+					  " for fts aux tables";
 			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
 			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
