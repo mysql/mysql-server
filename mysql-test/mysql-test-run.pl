@@ -4551,7 +4551,7 @@ sub extract_warning_lines ($$) {
       {
 	# Remove initial timestamp and look for consecutive identical lines
 	my $line_pat= $line;
-	$line_pat =~ s/^[0-9: ]*//;
+	$line_pat =~ s/^[0-9:\-\+\.TZ ]*//;
 	if ($line_pat eq $last_pat) {
 	  $num_rep++;
 	} else {
@@ -6220,7 +6220,7 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
   my $ctest_out= `ctest $ctest_vs 2>&1`;
-  if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
+  if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
   }

@@ -23,6 +23,7 @@ include/start_slave.inc
 show status like 'slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	1
+drop temporary table if exists t1;
 include/stop_slave.inc
 reset slave;
 include/check_slave_no_error.inc

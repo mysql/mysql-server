@@ -971,6 +971,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->variables.collation_connection= save_collation_connection;
       thd->variables.character_set_results= save_character_set_results;
       thd->update_charset();
+      sleep(1);
     }
     else
     {

@@ -48,6 +48,7 @@ select (@id := id) - id from t2;
 0
 kill @id;
 drop table t2;
+drop temporary table t3;
 Got one of the listed errors
 include/wait_for_slave_sql_error_and_skip.inc [errno=1053]
 select count(*) from t1;

@@ -53,6 +53,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql/innodb_priv.h>
 #include <mysql/psi/psi.h>
 #include <my_sys.h>
+#include <my_check_opt.h>
 
 /** @file ha_innodb.cc */
 
@@ -7782,6 +7783,10 @@ ha_innobase::records_in_range(
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innobase_get_index() */
+	if (prebuilt->table->ibd_file_missing) {
+		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
 	if (UNIV_UNLIKELY(!index)) {
 		n_rows = HA_POS_ERROR;
 		goto func_exit;
@@ -8462,8 +8467,7 @@ int
 ha_innobase::check(
 /*===============*/
 	THD*		thd,		/*!< in: user thread handle */
-	HA_CHECK_OPT*	check_opt)	/*!< in: check options, currently
-					ignored */
+	HA_CHECK_OPT*	check_opt)	/*!< in: check options */
 {
 	dict_index_t*	index;
 	ulint		n_rows;
@@ -8520,11 +8524,6 @@ ha_innobase::check(
 	do additional check */
 	prebuilt->table->corrupted = FALSE;
 
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
-	mutex_exit(&kernel_mutex);
-
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
@@ -8537,20 +8536,41 @@ ha_innobase::check(
 
 		/* If this is an index being created, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
-			break;
-		}  else if (!btr_validate_index(index, prebuilt->trx)) {
-			is_ok = FALSE;
-
-			innobase_format_name(
-				index_name, sizeof index_name,
-				prebuilt->index->name, TRUE);
-
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_NOT_KEYFILE,
-					    "InnoDB: The B-tree of"
-					    " index %s is corrupted.",
-					    index_name);
 			continue;
+		}
+		if (!(check_opt->flags & T_QUICK)) {
+			/* Enlarge the fatal lock wait timeout during
+			CHECK TABLE. */
+			mutex_enter(&kernel_mutex);
+			srv_fatal_semaphore_wait_threshold +=
+				SRV_SEMAPHORE_WAIT_EXTENSION;
+			mutex_exit(&kernel_mutex);
+
+			ibool	valid = TRUE;
+			valid = btr_validate_index(index, prebuilt->trx);
+
+			/* Restore the fatal lock wait timeout after
+			CHECK TABLE. */
+			mutex_enter(&kernel_mutex);
+			srv_fatal_semaphore_wait_threshold -=
+				SRV_SEMAPHORE_WAIT_EXTENSION;
+			mutex_exit(&kernel_mutex);
+
+			if (!valid) {
+				is_ok = FALSE;
+
+				innobase_format_name(
+					index_name, sizeof index_name,
+					index->name, TRUE);
+				push_warning_printf(thd,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_NOT_KEYFILE,
+					"InnoDB: The B-tree of"
+					" index %s is corrupted.",
+					index_name);
+
+				continue;
+			}
 		}
 
 		/* Instead of invoking change_active_index(), set up
@@ -8654,21 +8674,17 @@ ha_innobase::check(
 	/* Restore the original isolation level */
 	prebuilt->trx->isolation_level = old_isolation_level;
 
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	/* We validate the whole adaptive hash index for all tables
+	at every CHECK TABLE only when QUICK flag is not present. */
 
-	if (!btr_search_validate()) {
+	if (!(check_opt->flags & T_QUICK) && !btr_search_validate()) {
 		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			     ER_NOT_KEYFILE,
 			     "InnoDB: The adaptive hash index is corrupted.");
 		is_ok = FALSE;
 	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= SRV_SEMAPHORE_WAIT_EXTENSION;
-	mutex_exit(&kernel_mutex);
-
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -9522,6 +9538,7 @@ innodb_show_status(
 	const long		MAX_STATUS_SIZE = 1048576;
 	ulint			trx_list_start = ULINT_UNDEFINED;
 	ulint			trx_list_end = ULINT_UNDEFINED;
+	bool			ret_val;
 
 	DBUG_ENTER("innodb_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -9586,12 +9603,13 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-		   STRING_WITH_LEN(""), str, flen);
+	ret_val= stat_print(thd, innobase_hton_name,
+				(uint) strlen(innobase_hton_name),
+				STRING_WITH_LEN(""), str, flen);
 
 	my_free(str);
 
-	DBUG_RETURN(FALSE);
+	DBUG_RETURN(ret_val);
 }
 
 /************************************************************************//**

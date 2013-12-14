@@ -72,6 +72,8 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
+ show status like 'slave_open_temp_tables';
+
 END||
 
 --

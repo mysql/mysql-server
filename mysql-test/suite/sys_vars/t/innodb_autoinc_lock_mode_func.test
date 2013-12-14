@@ -1,9 +1,3 @@
---source include/not_windows_embedded.inc
-# remove this when
-# Bug#53947 InnoDB: Assertion failure in thread 4224 in file
-#   .\sync\sync0sync.c line 324
-# is fixed
-
 ################# mysql-test\t\innodb_autoinc_lock_mode_func.test  ############
 #                                                                             #
 # Variable Name: innodb_autoinc_lock_mode                                     #
