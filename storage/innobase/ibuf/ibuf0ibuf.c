@@ -3024,6 +3024,24 @@ updated_in_place:
 			/* This is the easy case. Do something similar
 			to btr_cur_update_in_place(). */
 			row_upd_rec_in_place(rec, offsets, update);
+
+			/* Log the update in place operation. During recovery
+			MLOG_COMP_REC_UPDATE_IN_PLACE/MLOG_REC_UPDATE_IN_PLACE
+			expects trx_id, roll_ptr for secondary indexes. So we
+			just write dummy trx_id(0), roll_ptr(0) */
+			btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec,
+						    index, update,
+						    NULL,
+						    ut_dulint_zero, mtr);
+			DBUG_EXECUTE_IF(
+				"crash_after_log_ibuf_upd_inplace",
+				log_buffer_flush_to_disk();
+				fprintf(stderr,
+					"InnoDB: Wrote log record for ibuf "
+					"update in place operation\n");
+				DBUG_SUICIDE();
+			);
+
 			goto updated_in_place;
 		}
 
