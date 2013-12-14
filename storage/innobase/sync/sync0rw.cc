@@ -606,7 +606,7 @@ rw_lock_x_lock_low(
 /******************************************************************//**
 Low-level function for acquiring an sx lock.
 @return FALSE if did not succeed, TRUE if success. */
-UNIV_INLINE
+
 ibool
 rw_lock_sx_lock_low(
 /*================*/

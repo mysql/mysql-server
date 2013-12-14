@@ -450,15 +450,15 @@ buf_flush_ready_for_replace(
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-#endif
+#endif /* UNIV_DEBUG */
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_LRU_list);
 
-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
+	if (buf_page_in_file(bpage)) {
 
 		return(bpage->oldest_modification == 0
-		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
-		       && bpage->buf_fix_count == 0);
+		       && bpage->buf_fix_count == 0
+		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_FATAL,
@@ -497,17 +497,10 @@ buf_flush_ready_for_flush(
 
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
-		return(true);
-
 	case BUF_FLUSH_LRU:
 	case BUF_FLUSH_SINGLE_PAGE:
-		/* Because any thread may call single page flush, even
-		when owning locks on pages, to avoid deadlocks, we must
-		make sure that the that it is not buffer fixed.
-		The same holds true for LRU flush because a user thread
-		may end up waiting for an LRU flush to end while
-		holding locks on other pages. */
-		return(bpage->buf_fix_count == 0);
+		return(true);
+
 	case BUF_FLUSH_N_TYPES:
 		break;
 	}
@@ -933,9 +926,10 @@ NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
-function. */
+function if it returns true.
+@return TRUE if the page was flushed */
 
-void
+ibool
 buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
@@ -944,7 +938,6 @@ buf_flush_page(
 	bool		sync)		/*!< in: true if sync IO request */
 {
 	BPageMutex*	block_mutex;
-	ibool		is_uncompressed;
 
 	ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -956,89 +949,70 @@ buf_flush_page(
 
 	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
 
-	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
+        bool            is_uncompressed;
 
-	buf_page_set_flush_type(bpage, flush_type);
+        is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+        ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
-	if (buf_pool->n_flush[flush_type] == 0) {
+        ibool           flush;
+        rw_lock_t*	rw_lock;
+        bool            no_fix_count = bpage->buf_fix_count == 0;
 
-		os_event_reset(buf_pool->no_flush[flush_type]);
+        if (!is_uncompressed) {
+                flush = TRUE;
+		rw_lock = NULL;
+	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)) {
+		/* This is a heuristic, to avoid expensive SX attempts. */
+		flush = FALSE;
+	} else {
+		rw_lock = &reinterpret_cast<buf_block_t*>(bpage)->lock;
+		if (flush_type != BUF_FLUSH_LIST) {
+			flush = rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE);
+		} else {
+			/* Will SX lock later */
+			flush = TRUE;
+		}
 	}
 
-	buf_pool->n_flush[flush_type]++;
+        if (flush) {
 
-	is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
+                /* We are committed to flushing by the time we get here */
 
-	switch (flush_type) {
-		ibool	is_s_latched;
-	case BUF_FLUSH_LIST:
-		/* If the simulated aio thread is not running, we must
-		not wait for any latch, as we may end up in a deadlock:
-		if buf_fix_count == 0, then we know we need not wait */
+                buf_page_set_io_fix(bpage, BUF_IO_WRITE);
 
-		is_s_latched = (bpage->buf_fix_count == 0);
-		if (is_s_latched && is_uncompressed) {
-			rw_lock_sx_lock_gen(&((buf_block_t*) bpage)->lock,
-					    BUF_IO_WRITE);
+                buf_page_set_flush_type(bpage, flush_type);
+
+                if (buf_pool->n_flush[flush_type] == 0) {
+
+                        os_event_reset(buf_pool->no_flush[flush_type]);
+                }
+
+                ++buf_pool->n_flush[flush_type];
+
+                mutex_exit(block_mutex);
+                buf_pool_mutex_exit(buf_pool);
+
+                if (flush_type == BUF_FLUSH_LIST) {
+
+			/* This is a heuristic for reducing syncs */
+			if (!no_fix_count) {
+                        	buf_dblwr_flush_buffered_writes();
 		}
-
-		mutex_exit(block_mutex);
-		buf_pool_mutex_exit(buf_pool);
-
-		/* Even though bpage is not protected by any mutex at
-		this point, it is safe to access bpage, because it is
-		io_fixed and oldest_modification != 0.  Thus, it
-		cannot be relocated in the buffer pool or removed from
-		flush_list or LRU_list. */
-
-		if (!is_s_latched) {
-			buf_dblwr_flush_buffered_writes();
 
 			if (is_uncompressed) {
-				rw_lock_sx_lock_gen(&((buf_block_t*) bpage)
-						    ->lock, BUF_IO_WRITE);
+				rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 			}
-		}
+                }
 
-		break;
+                /* Even though bpage is not protected by any mutex at this
+                point, it is safe to access bpage, because it is io_fixed and
+                oldest_modification != 0.  Thus, it cannot be relocated in the
+                buffer pool or removed from flush_list or LRU_list. */
 
-	case BUF_FLUSH_LRU:
-	case BUF_FLUSH_SINGLE_PAGE:
-		/* VERY IMPORTANT:
-		Because any thread may call single page flush, even when
-		owning locks on pages, to avoid deadlocks, we must make
-		sure that the s-lock is acquired on the page without
-		waiting: this is accomplished because
-		buf_flush_ready_for_flush() must hold, and that requires
-		the page not to be bufferfixed.
-		The same holds true for LRU flush because a user thread
-		may end up waiting for an LRU flush to end while
-		holding locks on other pages. */
+                buf_flush_write_block_low(bpage, flush_type, sync);
+        }
 
-		if (is_uncompressed) {
-			rw_lock_sx_lock_gen(&((buf_block_t*) bpage)->lock,
-					    BUF_IO_WRITE);
-		}
-
-		/* Note that the s-latch is acquired before releasing the
-		buf_pool mutex: this ensures that the latch is acquired
-		immediately. */
-
-		mutex_exit(block_mutex);
-		buf_pool_mutex_exit(buf_pool);
-		break;
-
-	default:
-		ut_error;
-	}
-
-	/* Even though bpage is not protected by any mutex at this
-	point, it is safe to access bpage, because it is io_fixed and
-	oldest_modification != 0.  Thus, it cannot be relocated in the
-	buffer pool or removed from flush_list or LRU_list. */
-
-	buf_flush_write_block_low(bpage, flush_type, sync);
+	return(flush);
 }
 
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -1065,8 +1039,8 @@ buf_flush_page_try(
 
 	/* The following call will release the buffer pool and
 	block mutex. */
-	buf_flush_page(buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE, true);
-	return(TRUE);
+	return(buf_flush_page(
+			buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE, true));
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
@@ -1247,26 +1221,26 @@ buf_flush_try_neighbors(
 		if (flush_type != BUF_FLUSH_LRU
 		    || i == page_id.page_no()
 		    || buf_page_is_old(bpage)) {
+
 			BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
 
 			if (buf_flush_ready_for_flush(bpage, flush_type)
 			    && (i == page_id.page_no()
-				|| !bpage->buf_fix_count)) {
-				/* We only try to flush those
-				neighbors != offset where the buf fix
-				count is zero, as we then know that we
-				probably can latch the page without a
-				semaphore wait. Semaphore waits are
-				expensive because we must flush the
-				doublewrite buffer before we start
-				waiting. */
+				|| bpage->buf_fix_count == 0)) {
 
-				buf_flush_page(buf_pool, bpage, flush_type, false);
-				ut_ad(!mutex_own(block_mutex));
-				ut_ad(!buf_pool_mutex_own(buf_pool));
-				count++;
+				/* We also try to flush those
+				neighbors != offset */
+
+				if (buf_flush_page(
+					buf_pool, bpage, flush_type, false)) {
+					++count;
+				} else {
+					mutex_exit(block_mutex);
+					buf_pool_mutex_exit(buf_pool);
+				}
+
 				continue;
 			} else {
 				mutex_exit(block_mutex);
@@ -1944,15 +1918,23 @@ buf_flush_single_page_from_LRU(
 			}
 
 		} else if (buf_flush_ready_for_flush(
-				bpage, BUF_FLUSH_SINGLE_PAGE)) {
-			/* Block is ready for flush. Dispatch an IO
-			request. We'll put it on free list in IO
-			completion routine. The following call will
-			release the buffer pool and block mutex. */
-			buf_flush_page(buf_pool, bpage,
-				       BUF_FLUSH_SINGLE_PAGE, true);
-			freed = true;
-			break;
+				   bpage, BUF_FLUSH_SINGLE_PAGE)) {
+
+			/* Block is ready for flush. Try and dispatch an IO
+			request. We'll put it on free list in IO completion
+			routine if it is not buffer fixed. The following call
+			will release the buffer pool and block mutex.
+
+			Note: There is no guarantee that this page has actually
+			been freed, only that it has been flushed to disk */
+			freed = buf_flush_page(
+				buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
+
+			if (freed) {
+				break;
+			}
+
+			mutex_exit(block_mutex);
 		} else {
 			mutex_exit(block_mutex);
 		}
