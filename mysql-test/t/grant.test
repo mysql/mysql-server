@@ -15,6 +15,7 @@ drop table if exists t1;
 drop database if exists mysqltest;
 --enable_warnings
 
+call mtr.add_suppression("Did not write failed .* ");
 connect (master,localhost,root,,);
 connection master;
 SET NAMES binary;

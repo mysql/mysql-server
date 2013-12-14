@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -489,7 +489,10 @@ innodb_conn_clean_data(
 	}
 
 	if (conn_data->crsr_trx) {
+		ib_err_t        err;
 		innodb_cb_trx_commit(conn_data->crsr_trx);
+		err = ib_cb_trx_release(conn_data->crsr_trx);
+		assert(err == DB_SUCCESS);
 		conn_data->crsr_trx = NULL;
 	}
 
@@ -506,9 +509,52 @@ innodb_conn_clean_data(
 		conn_data->thd = NULL;
 	}
 
+	if (conn_data->tpl) {
+		ib_cb_tuple_delete(conn_data->tpl);
+		conn_data->tpl = NULL;
+	}
+
+	if (conn_data->idx_tpl) {
+		ib_cb_tuple_delete(conn_data->idx_tpl);
+		conn_data->idx_tpl = NULL;
+	}
+
+	if (conn_data->read_tpl) {
+		ib_cb_tuple_delete(conn_data->read_tpl);
+		conn_data->read_tpl = NULL;
+	}
+
+	if (conn_data->sel_tpl) {
+		ib_cb_tuple_delete(conn_data->sel_tpl);
+		conn_data->sel_tpl = NULL;
+	}
+
 	UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
 	if (free_all) {
+		if (conn_data->result) {
+			free(conn_data->result);
+			conn_data->result = NULL;
+		}
+
+		if (conn_data->row_buf) {
+			free(conn_data->row_buf);
+			conn_data->row_buf = NULL;
+			conn_data->row_buf_len = 0;
+		}
+
+		if (conn_data->cmd_buf) {
+			free(conn_data->cmd_buf);
+			conn_data->cmd_buf = NULL;
+			conn_data->cmd_buf_len = 0;
+		}
+
+		if (conn_data->mul_col_buf) {
+			free(conn_data->mul_col_buf);
+			conn_data->mul_col_buf = NULL;
+			conn_data->mul_col_buf_len = 0;
+		}
+
 		pthread_mutex_destroy(&conn_data->curr_conn_mutex);
 		free(conn_data);
 	}
@@ -646,36 +692,6 @@ innodb_destroy(
 	free(innodb_eng);
 }
 
-
-/*** allocate ***/
-
-/*******************************************************************//**
-Allocate gets a struct item from the slab allocator, and fills in
-everything but the value.  It seems like we can just pass this on to
-the default engine; we'll intercept it later in store(). */
-static
-ENGINE_ERROR_CODE
-innodb_allocate(
-/*============*/
-	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
-	const void*	cookie,		/*!< in: connection cookie */
-	item **		item,		/*!< out: item to allocate */
-	const void*	key,		/*!< in: key */
-	const size_t	nkey,		/*!< in: key length */
-	const size_t	nbytes,		/*!< in: estimated value length */
-	const int	flags,		/*!< in: flag */
-	const rel_time_t exptime)	/*!< in: expiration time */
-{
-	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	struct default_engine*	def_eng = default_handle(innodb_eng);
-
-	/* We use default engine's memory allocator to allocate memory
-	for item */
-	return(def_eng->engine.allocate(innodb_eng->default_engine,
-					cookie, item, key, nkey, nbytes,
-					flags, exptime));
-}
-
 /** Defines for connection initialization to indicate if we will
 do a read or write operation, or in the case of CONN_MODE_NONE, just get
 the connection's conn_data structure */
@@ -701,7 +717,9 @@ innodb_conn_init(
 	int			conn_option,	/*!< in: whether it is
 						for read or write operation*/
 	ib_lck_mode_t		lock_mode,	/*!< in: Table lock mode */
-	bool			has_lock)	/*!< in: Has engine mutex */
+	bool			has_lock,	/*!< in: Has engine mutex */
+	meta_cfg_info_t*	new_meta_info)	/*!< in: meta info for
+						table to open or NULL */
 {
 	innodb_conn_data_t*	conn_data;
 	meta_cfg_info_t*	meta_info;
@@ -712,14 +730,20 @@ innodb_conn_init(
 	ib_crsr_t		idx_crsr;
 	bool			trx_updated = false;
 
-	LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
-
 	/* Get this connection's conn_data */
 	conn_data = engine->server.cookie->get_engine_specific(cookie);
 
 	assert(!conn_data || !conn_data->in_use);
 
 	if (!conn_data) {
+		LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+		conn_data = engine->server.cookie->get_engine_specific(cookie);
+
+		if (conn_data) {
+                        UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+			goto have_conn;
+		}
+
 		if (UT_LIST_GET_LEN(engine->conn_data) > 2048) {
 			/* Some of conn_data can be stale, recycle them */
 			innodb_conn_clean(engine, false, true);
@@ -728,32 +752,40 @@ innodb_conn_init(
 		conn_data = malloc(sizeof(*conn_data));
 
 		if (!conn_data) {
+			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 			return(NULL);
 		}
 
 		memset(conn_data, 0, sizeof(*conn_data));
+		conn_data->result = malloc(sizeof(mci_item_t));
 		conn_data->conn_cookie = (void*) cookie;
 		UT_LIST_ADD_LAST(conn_list, engine->conn_data, conn_data);
 		engine->server.cookie->store_engine_specific(
 			cookie, conn_data);
-		conn_data->conn_meta = engine->meta_info;
-		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
-	}
+		conn_data->conn_meta = new_meta_info
+					 ? new_meta_info
+					 : engine->meta_info;
+		conn_data->row_buf = malloc(1024);
+		conn_data->row_buf_len = 1024;
 
+		conn_data->cmd_buf = malloc(1024);
+		conn_data->cmd_buf_len = 1024;
+
+		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
+		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+	}
+have_conn:
 	meta_info = conn_data->conn_meta;
 	meta_index = &meta_info->index_info;
 
 	assert(engine->conn_data.count > 0);
 
 	if (conn_option == CONN_MODE_NONE) {
-		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 		return(conn_data);
 	}
 
 	LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 	conn_data->in_use = true;
-
-	UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 
 	crsr = conn_data->crsr;
 	read_crsr = conn_data->read_crsr;
@@ -761,8 +793,8 @@ innodb_conn_init(
 	if (lock_mode == IB_LOCK_TABLE_X) {
 		assert(!conn_data->crsr_trx);
 
-		conn_data->crsr_trx = innodb_cb_trx_begin(
-			engine->trx_level);
+		conn_data->crsr_trx = ib_cb_trx_begin(
+			engine->trx_level, true, false);
 
 		err = innodb_api_begin(
 			engine,
@@ -778,6 +810,8 @@ innodb_conn_init(
 			conn_data->crsr = NULL;
 			innodb_cb_trx_commit(
 				conn_data->crsr_trx);
+			err = ib_cb_trx_release(conn_data->crsr_trx);
+			assert(err == DB_SUCCESS);
 			conn_data->crsr_trx = NULL;
 			conn_data->in_use = false;
 			UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
@@ -793,9 +827,13 @@ innodb_conn_init(
 	if (conn_option == CONN_MODE_WRITE) {
 		if (!crsr) {
 			if (!conn_data->crsr_trx) {
-				conn_data->crsr_trx = innodb_cb_trx_begin(
-					engine->trx_level);
+				conn_data->crsr_trx = ib_cb_trx_begin(
+					engine->trx_level, true, false);
 				trx_updated = true;
+			} else {
+				ib_cb_trx_start(conn_data->crsr_trx,
+						engine->trx_level,
+						true, false, NULL);
 			}
 
 			err = innodb_api_begin(
@@ -812,6 +850,8 @@ innodb_conn_init(
 				conn_data->crsr = NULL;
 				innodb_cb_trx_commit(
 					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
 				conn_data->crsr_trx = NULL;
 				conn_data->in_use = false;
 
@@ -824,8 +864,8 @@ innodb_conn_init(
 
 			/* There exists a cursor, just need update
 			with a new transaction */
-			conn_data->crsr_trx = innodb_cb_trx_begin(
-				engine->trx_level);
+			conn_data->crsr_trx = ib_cb_trx_begin(
+				engine->trx_level, true, false);
 
 			innodb_cb_cursor_new_trx(crsr, conn_data->crsr_trx);
 			trx_updated = true;
@@ -836,6 +876,10 @@ innodb_conn_init(
 				innodb_cb_cursor_close(
 					conn_data->crsr);
 				conn_data->crsr = NULL;
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
 				conn_data->crsr_trx = NULL;
 				conn_data->in_use = false;
 				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
@@ -852,12 +896,20 @@ innodb_conn_init(
 					engine, idx_crsr, lock_mode);
 			}
 		} else {
+			ib_cb_trx_start(conn_data->crsr_trx,
+					engine->trx_level,
+					true, false, NULL);
+			ib_cb_cursor_stmt_begin(crsr);
 			err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
 				innodb_cb_cursor_close(
 					conn_data->crsr);
 				conn_data->crsr = NULL;
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
 				conn_data->crsr_trx = NULL;
 				conn_data->in_use = false;
 				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
@@ -884,9 +936,18 @@ innodb_conn_init(
 
 		if (!read_crsr) {
 			if (!conn_data->crsr_trx) {
-				conn_data->crsr_trx = innodb_cb_trx_begin(
-					engine->trx_level);
+				/* This is read operation, start a trx
+				with "read_write" parameter set to false */
+				conn_data->crsr_trx = ib_cb_trx_begin(
+					engine->trx_level, false,
+					engine->read_batch_size == 1);
 				trx_updated = true;
+			} else {
+				ib_cb_trx_start(conn_data->crsr_trx,
+						engine->trx_level,
+						false,
+						engine->read_batch_size == 1,
+						NULL);
 			}
 
 			err = innodb_api_begin(
@@ -904,6 +965,8 @@ innodb_conn_init(
 					conn_data->read_crsr);
 				innodb_cb_trx_commit(
 					conn_data->crsr_trx);
+				err = ib_cb_trx_release(conn_data->crsr_trx);
+				assert(err == DB_SUCCESS);
 				conn_data->crsr_trx = NULL;
 				conn_data->read_crsr = NULL;
 				conn_data->in_use = false;
@@ -914,8 +977,11 @@ innodb_conn_init(
 			}
 
 		} else if (!conn_data->crsr_trx) {
-			conn_data->crsr_trx = innodb_cb_trx_begin(
-				engine->trx_level);
+			/* This is read operation, start a trx
+			with "read_write" parameter set to false */
+			conn_data->crsr_trx = ib_cb_trx_begin(
+				engine->trx_level, false,
+				engine->read_batch_size == 1);
 
 			trx_updated = true;
 
@@ -937,6 +1003,26 @@ innodb_conn_init(
 
 				innodb_cb_cursor_new_trx(
 					idx_crsr, conn_data->crsr_trx);
+				innodb_cb_cursor_lock(
+					engine, idx_crsr, lock_mode);
+			}
+		} else {
+			/* This is read operation, start a trx
+			with "read_write" parameter set to false */
+			ib_cb_trx_start(conn_data->crsr_trx,
+					engine->trx_level,
+					false,
+					engine->read_batch_size == 1,
+					NULL);
+
+			ib_cb_cursor_stmt_begin(conn_data->read_crsr);
+
+			innodb_cb_cursor_lock(
+				engine, conn_data->read_crsr, lock_mode);
+
+			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
+				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
+				ib_cb_cursor_stmt_begin(idx_crsr);
 				innodb_cb_cursor_lock(
 					engine, idx_crsr, lock_mode);
 			}
@@ -962,6 +1048,66 @@ innodb_conn_init(
 	return(conn_data);
 }
 
+/*** allocate ***/
+
+/*******************************************************************//**
+Allocate gets a struct item from the slab allocator, and fills in
+everything but the value.  It seems like we can just pass this on to
+the default engine; we'll intercept it later in store(). */
+static
+ENGINE_ERROR_CODE
+innodb_allocate(
+/*============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item **		item,		/*!< out: item to allocate */
+	const void*	key,		/*!< in: key */
+	const size_t	nkey,		/*!< in: key length */
+	const size_t	nbytes,		/*!< in: estimated value length */
+	const int	flags,		/*!< in: flag */
+	const rel_time_t exptime)	/*!< in: expiration time */
+{
+	size_t			len;
+	struct innodb_engine*	innodb_eng = innodb_handle(handle);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
+	innodb_conn_data_t*	conn_data;
+	hash_item*		it = NULL;
+
+	len = sizeof(*it) + nkey + nbytes + sizeof(uint64_t);
+	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+
+	if (!conn_data) {
+		conn_data = innodb_conn_init(innodb_eng, cookie,
+					     CONN_MODE_WRITE,
+					     IB_LOCK_X, false, NULL);
+		if (!conn_data) {
+			return(ENGINE_TMPFAIL);
+		}
+	}
+
+	if (len > conn_data->cmd_buf_len) {
+		free(conn_data->cmd_buf);
+		conn_data->cmd_buf = malloc(len);
+		conn_data->cmd_buf_len = len;
+	}
+
+	it = (hash_item*) conn_data->cmd_buf;
+
+	it->next = it->prev = it->h_next = 0;
+	it->refcount = 1;
+	it->iflag = def_eng->config.use_cas ? ITEM_WITH_CAS : 0;
+	it->nkey = nkey;
+	it->nbytes = nbytes;
+	it->flags = flags;
+	/* item_get_key() is a memcached code, here we cast away const return */
+	memcpy((void*) item_get_key(it), key, nkey);
+	it->exptime = exptime;
+
+	*item = it;
+	conn_data->in_use = false;
+
+	return(ENGINE_SUCCESS);
+}
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
@@ -1006,7 +1152,8 @@ innodb_remove(
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie,
-				     CONN_MODE_WRITE, IB_LOCK_X, false);
+				     CONN_MODE_WRITE, IB_LOCK_X, false,
+				     NULL);
 
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
@@ -1110,13 +1257,16 @@ innodb_switch_mapping(
 	/* Clean up the existing connection metadata if exists */
 	if (conn_data) {
 		innodb_conn_clean_data(conn_data, false, false);
+
+		/* Point to the new metadata */
+		conn_data->conn_meta = new_meta_info;
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie,
-				     CONN_MODE_NONE, 0, false);
+				     CONN_MODE_NONE, 0, false,
+				     new_meta_info);
 
-	/* Point to the new metadata */
-	conn_data->conn_meta = new_meta_info;
+	assert(conn_data->conn_meta == new_meta_info);
 
 get_key_name:
 	/* Now calculate name length exclude the table mapping name,
@@ -1213,16 +1363,74 @@ innodb_release(
 	ENGINE_HANDLE*		handle,		/*!< in: Engine handle */
 	const void*		cookie __attribute__((unused)),
 						/*!< in: connection cookie */
-	item*			item)		/*!< in: item to free */
+	item*			item __attribute__((unused)))
+						/*!< in: item to free */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	struct default_engine*	def_eng = default_handle(innodb_eng);
+	innodb_conn_data_t*	conn_data;
 
-	if (item) {
-		item_release(def_eng, (hash_item *) item);
+	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+
+	if (conn_data) {
+		conn_data->result_in_use = false;
 	}
 
 	return;
+}
+
+/* maximum number of characters that an 8 bytes integer can convert to */
+#define	MAX_INT_CHAR_LEN	21
+
+/*******************************************************************//**
+Convert an bit int to string
+@return length of string */
+static
+int
+convert_to_char(
+/*============*/
+	char*		buf,		/*!< out: converted integer value */
+	int		buf_len,	/*!< in: buffer len */
+	void*		value,		/*!< in: int value */
+	int		value_len,	/*!< in: int len */
+	bool		is_unsigned)	/*!< in: whether it is unsigned */
+{
+	assert(buf && buf_len);
+
+	if (value_len == 8) {
+		if (is_unsigned) {
+			uint64_t	int_val = *(uint64_t*)value;
+			snprintf(buf, buf_len, "%" PRIu64, int_val);
+		} else {
+			int64_t		int_val = *(int64_t*)value;
+			snprintf(buf, buf_len, "%" PRIi64, int_val);
+		}
+	} else if (value_len == 4) {
+		if (is_unsigned) {
+			uint32_t	int_val = *(uint32_t*)value;
+			snprintf(buf, buf_len, "%" PRIu32, int_val);
+		} else {
+			int32_t		int_val = *(int32_t*)value;
+			snprintf(buf, buf_len, "%" PRIi32, int_val);
+		}
+	} else if (value_len == 2) {
+		if (is_unsigned) {
+			uint16_t	int_val = *(uint16_t*)value;
+			snprintf(buf, buf_len, "%" PRIu16, int_val);
+		} else {
+			int16_t		int_val = *(int16_t*)value;
+			snprintf(buf, buf_len, "%" PRIi16, int_val);
+		}
+	} else if (value_len == 1) {
+		if (is_unsigned) {
+			uint8_t		int_val = *(uint8_t*)value;
+			snprintf(buf, buf_len, "%" PRIu8, int_val);
+		} else {
+			int8_t		int_val = *(int8_t*)value;
+			snprintf(buf, buf_len, "%" PRIi8, int_val);
+		}
+	}
+
+	return(strlen(buf));
 }
 
 /*******************************************************************//**
@@ -1242,23 +1450,16 @@ innodb_get(
 						engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	hash_item*		it = NULL;
 	ib_crsr_t		crsr;
 	ib_err_t		err = DB_SUCCESS;
-	mci_item_t		result;
+	mci_item_t*		result = NULL;
 	ENGINE_ERROR_CODE	err_ret = ENGINE_SUCCESS;
-	uint64_t		cas = 0;
-	uint64_t		exp = 0;
-	uint64_t		flags = 0;
 	innodb_conn_data_t*	conn_data;
-	int			total_len = 0;
 	meta_cfg_info_t*	meta_info = innodb_eng->meta_info;
 	int			option_length;
 	const char*		option_delimiter;
 	size_t			key_len = nkey;
 	int			lock_mode;
-	char			table_name[MAX_TABLE_NAME_LEN
-					   + MAX_DATABASE_NAME_LEN];
 	bool			report_table_switch = false;
 
 	if (meta_info->get_option == META_CACHE_OPT_DISABLE) {
@@ -1295,20 +1496,6 @@ innodb_get(
 		the table map name, if the switch is successful, we will
 		return the table name as result */
 		if (nkey > 0) {
-			char*	name = meta_info->col_info[
-					CONTAINER_TABLE].col_name;
-			char*	dbname = meta_info->col_info[
-					CONTAINER_DB].col_name;
-#ifdef __WIN__
-			sprintf(table_name, "%s\%s", dbname, name);
-#else
-			snprintf(table_name, sizeof(table_name),
-				 "%s/%s", dbname, name);
-#endif
-			memset(&result, 0, sizeof(result));
-
-			result.col_value[MCI_COL_VALUE].value_str = table_name;
-			result.col_value[MCI_COL_VALUE].value_len = strlen(table_name);
 			report_table_switch = true;
 
 			goto search_done;
@@ -1324,14 +1511,16 @@ innodb_get(
 			: IB_LOCK_NONE;
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_READ,
-				     lock_mode, false);
+				     lock_mode, false, NULL);
 
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
 	}
 
+	result = (mci_item_t*)(conn_data->result);
+
 	err = innodb_api_search(conn_data, &crsr, key + nkey - key_len,
-				key_len, &result, NULL, true);
+				key_len, result, NULL, true);
 
 	if (err != DB_SUCCESS) {
 		err_ret = ENGINE_KEY_ENOENT;
@@ -1339,26 +1528,58 @@ innodb_get(
 	}
 
 search_done:
+	if (report_table_switch) {
+		char	table_name[MAX_TABLE_NAME_LEN
+				   + MAX_DATABASE_NAME_LEN];
+		char*	name;
+		char*	dbname;
+
+		conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+		assert(nkey > 0);
+
+		name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
+		dbname = conn_data->conn_meta->col_info[CONTAINER_DB].col_name;
+#ifdef __WIN__
+		sprintf(table_name, "%s\%s", dbname, name);
+#else
+		snprintf(table_name, sizeof(table_name),
+			 "%s/%s", dbname, name);
+#endif
+
+		assert(!conn_data->result_in_use);
+		conn_data->result_in_use = true;
+		result = (mci_item_t*)(conn_data->result);
+
+		memset(result, 0, sizeof(*result));
+
+		memcpy(conn_data->row_buf, table_name, strlen(table_name));
+
+		result->col_value[MCI_COL_VALUE].value_str = conn_data->row_buf;
+		result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
+	}
+
+	result->col_value[MCI_COL_KEY].value_str = (char*)key;
+	result->col_value[MCI_COL_KEY].value_len = nkey;
 
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
-	if (result.col_value[MCI_COL_EXP].is_valid
-	    && result.col_value[MCI_COL_EXP].value_int) {
+	if (result->col_value[MCI_COL_EXP].is_valid
+	    && result->col_value[MCI_COL_EXP].value_int) {
 		uint64_t		time;
 		time = mci_get_time();
 
-		if (time > result.col_value[MCI_COL_EXP].value_int) {
+		if (time > result->col_value[MCI_COL_EXP].value_int) {
 			/* Free allocated memory. */
-			if (result.extra_col_value) {
-				for (int i = 0; i < result.n_extra_col; i++) {
-					free(result.extra_col_value[i].value_str);
+			if (result->extra_col_value) {
+				for (int i = 0; i < result->n_extra_col; i++) {
+					free(result->extra_col_value[i].value_str);
 				}
 
-				free(result.extra_col_value);
+				free(result->extra_col_value);
 			}
-			if (result.col_value[MCI_COL_VALUE].allocated) {
-				free(result.col_value[MCI_COL_VALUE].value_str);
-				result.col_value[MCI_COL_VALUE].allocated =
+			if (result->col_value[MCI_COL_VALUE].allocated) {
+				free(result->col_value[MCI_COL_VALUE].value_str);
+				result->col_value[MCI_COL_VALUE].allocated =
 					false;
 			}
 
@@ -1367,86 +1588,128 @@ search_done:
 		}
 	}
 
-	if (result.col_value[MCI_COL_FLAG].is_valid) {
-		flags = ntohl(result.col_value[MCI_COL_FLAG].value_int);
-	}
-
-	if (result.col_value[MCI_COL_CAS].is_valid) {
-		cas = result.col_value[MCI_COL_CAS].value_int;
-	}
-
-	if (result.col_value[MCI_COL_EXP].is_valid) {
-		exp = result.col_value[MCI_COL_EXP].value_int;
-	}
-
-	if (result.extra_col_value) {
-		int	i;
+	if (result->extra_col_value) {
+		int     	i;
+		char*		c_value;
+		char*		value_end;
+		unsigned int	total_len = 0;
+		char		int_buf[MAX_INT_CHAR_LEN];
 
 		GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter,
 			   option_length);
 
-		for (i = 0; i < result.n_extra_col; i++) {
+		assert(option_length > 0 && option_delimiter);
 
-			total_len += (result.extra_col_value[i].value_len
-				      + option_length);
+		for (i = 0; i < result->n_extra_col; i++) {
+			mci_column_t*   mci_item = &result->extra_col_value[i];
+
+			if (mci_item->value_len == 0) {
+				total_len += option_length;
+				continue;
+			}
+
+			if (!mci_item->is_str) {
+				memset(int_buf, 0, sizeof int_buf);
+				assert(!mci_item->value_str);
+
+				total_len += convert_to_char(
+					int_buf, sizeof int_buf,
+					&mci_item->value_int,
+					mci_item->value_len,
+					mci_item->is_unsigned);
+			} else {
+				total_len += result->extra_col_value[i].value_len;
+			}
+
+			total_len += option_length;
 		}
 
 		/* No need to add the last separator */
 		total_len -= option_length;
-	} else {
-		total_len = result.col_value[MCI_COL_VALUE].value_len;
-	}
 
-	innodb_allocate(handle, cookie, item, key, nkey, total_len, flags, exp);
-
-        it = *item;
-
-	if (it->iflag & ITEM_WITH_CAS) {
-		hash_item_set_cas(it, cas);
-	}
-
-	if (result.extra_col_value) {
-		int		i;
-		char*		c_value = hash_item_get_data(it);
-		char*		value_end = c_value + total_len;
-
-		assert(option_length > 0 && option_delimiter);
-
-		for (i = 0; i < result.n_extra_col; i++) {
-			mci_column_t*	col_value;
-
-			col_value = &result.extra_col_value[i];
-
-			if (col_value->value_len != 0) {
-				memcpy(c_value,
-				       col_value->value_str,
-				       col_value->value_len);
-				c_value += col_value->value_len;
+		if (total_len > conn_data->mul_col_buf_len) {
+			if (conn_data->mul_col_buf) {
+				free(conn_data->mul_col_buf);
 			}
 
-			if (i < result.n_extra_col - 1 ) {
+			conn_data->mul_col_buf = malloc(total_len + 1);
+			conn_data->mul_col_buf_len = total_len;
+		}
+
+		c_value = conn_data->mul_col_buf;
+		value_end = conn_data->mul_col_buf + total_len;
+
+		for (i = 0; i < result->n_extra_col; i++) {
+			mci_column_t*   col_value;
+
+			col_value = &result->extra_col_value[i];
+
+			if (col_value->value_len != 0) {
+				if (!col_value->is_str) {
+					int	int_len;
+					memset(int_buf, 0, sizeof int_buf);
+
+					int_len = convert_to_char(
+						int_buf,
+						sizeof int_buf,
+						&col_value->value_int,
+						col_value->value_len,
+						col_value->is_unsigned);
+					memcpy(c_value, int_buf, int_len);
+					c_value += int_len;
+				} else {
+					memcpy(c_value,
+					       col_value->value_str,
+					       col_value->value_len);
+					c_value += col_value->value_len;
+				}
+			}
+
+			if (i < result->n_extra_col - 1 ) {
 				memcpy(c_value, option_delimiter, option_length);
 				c_value += option_length;
 			}
 
 			assert(c_value <= value_end);
-			free(result.extra_col_value[i].value_str);
+
+			if (col_value->allocated) {
+				free(col_value->value_str);
+			}
 		}
 
-		free(result.extra_col_value);
-	} else {
-		assert(result.col_value[MCI_COL_VALUE].value_len
-		       >= (int) it->nbytes);
+		result->col_value[MCI_COL_VALUE].value_str = conn_data->mul_col_buf;
+		result->col_value[MCI_COL_VALUE].value_len = total_len;
+		((char*)result->col_value[MCI_COL_VALUE].value_str)[total_len] = 0;
 
-		memcpy(hash_item_get_data(it),
-		       result.col_value[MCI_COL_VALUE].value_str,
-		       it->nbytes);
+		free(result->extra_col_value);
+	} else if (!result->col_value[MCI_COL_VALUE].is_str
+		&& result->col_value[MCI_COL_VALUE].value_len != 0) {
+		unsigned int	int_len;
+		char		int_buf[MAX_INT_CHAR_LEN];
 
-		if (result.col_value[MCI_COL_VALUE].allocated) {
-			free(result.col_value[MCI_COL_VALUE].value_str);
-			result.col_value[MCI_COL_VALUE].allocated = false;
+		int_len = convert_to_char(
+			int_buf, sizeof int_buf,
+			&result->col_value[MCI_COL_VALUE].value_int,
+			result->col_value[MCI_COL_VALUE].value_len,
+			result->col_value[MCI_COL_VALUE].is_unsigned);
+
+		if (int_len > conn_data->mul_col_buf_len) {
+			if (conn_data->mul_col_buf) {
+				free(conn_data->mul_col_buf);
+			}
+
+			conn_data->mul_col_buf = malloc(int_len + 1);
+			conn_data->mul_col_buf_len = int_len;
 		}
+
+		memcpy(conn_data->mul_col_buf, int_buf, int_len);
+		result->col_value[MCI_COL_VALUE].value_str =
+			 conn_data->mul_col_buf;
+
+		result->col_value[MCI_COL_VALUE].value_len = int_len;
 	}
+
+        *item = result;
 
 func_exit:
 
@@ -1550,7 +1813,7 @@ innodb_store(
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_WRITE,
-				     IB_LOCK_X, false);
+				     IB_LOCK_X, false, NULL);
 
 	if (!conn_data) {
 		return(ENGINE_NOT_STORED);
@@ -1616,7 +1879,7 @@ innodb_arithmetic(
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_WRITE,
-				     IB_LOCK_X, false);
+				     IB_LOCK_X, false, NULL);
 
 	if (!conn_data) {
 		return(ENGINE_NOT_STORED);
@@ -1717,7 +1980,7 @@ innodb_flush(
 	}
 
         conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_WRITE,
-				     IB_LOCK_TABLE_X, true);
+				     IB_LOCK_TABLE_X, true, NULL);
 
 	if (!conn_data) {
 		pthread_mutex_unlock(&innodb_eng->conn_mutex);
@@ -1772,23 +2035,75 @@ innodb_get_item_info(
 	const item*		item,		/*!< in: item in question */
 	item_info*		item_info)	/*!< out: item info got */
 {
-	hash_item*	it;
+	struct innodb_engine* innodb_eng = innodb_handle(handle);
+	innodb_conn_data_t*     conn_data;
 
-	if (item_info->nvalue < 1) {
-		return(false);
+	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+
+	if (!conn_data || !conn_data->result_in_use) {
+		hash_item*      it;
+
+		if (item_info->nvalue < 1) {
+			return(false);
+		}
+
+		/* Use a hash item */
+		it = (hash_item*) item;
+		item_info->cas = hash_item_get_cas(it);
+		item_info->exptime = it->exptime;
+		item_info->nbytes = it->nbytes;
+		item_info->flags = it->flags;
+		item_info->clsid = it->slabs_clsid;
+		item_info->nkey = it->nkey;
+		item_info->nvalue = 1;
+		item_info->key = hash_item_get_key(it);
+		item_info->value[0].iov_base = hash_item_get_data(it);
+		item_info->value[0].iov_len = it->nbytes;
+	} else {
+		mci_item_t*	it;
+
+		if (item_info->nvalue < 1) {
+			return(false);
+		}
+
+		/* Use a hash item */
+		it = (mci_item_t*) item;
+		if (it->col_value[MCI_COL_CAS].is_valid) {
+			item_info->cas = it->col_value[MCI_COL_CAS].value_int;
+		} else {
+			item_info->cas = 0;
+		}
+
+		if (it->col_value[MCI_COL_EXP].is_valid) {
+			item_info->exptime = it->col_value[MCI_COL_EXP].value_int;
+		} else {
+			item_info->exptime = 0;
+		}
+
+		item_info->nbytes = it->col_value[MCI_COL_VALUE].value_len;
+
+		if (it->col_value[MCI_COL_FLAG].is_valid) {
+			item_info->flags = ntohl(
+				it->col_value[MCI_COL_FLAG].value_int);
+		} else {
+			item_info->flags = 0;
+		}
+
+		item_info->clsid = 1;
+
+		item_info->nkey = it->col_value[MCI_COL_KEY].value_len;
+
+		item_info->nvalue = 1;
+
+		item_info->key = it->col_value[MCI_COL_KEY].value_str;
+
+		item_info->value[0].iov_base = it->col_value[
+					       MCI_COL_VALUE].value_str;;
+
+		item_info->value[0].iov_len = it->col_value[
+						MCI_COL_VALUE].value_len;
+
 	}
 
-	/* Use a hash item */
-	it = (hash_item*) item;
-	item_info->cas = hash_item_get_cas(it);
-	item_info->exptime = it->exptime;
-	item_info->nbytes = it->nbytes;
-	item_info->flags = it->flags;
-	item_info->clsid = it->slabs_clsid;
-	item_info->nkey = it->nkey;
-	item_info->nvalue = 1;
-	item_info->key = hash_item_get_key(it);
-	item_info->value[0].iov_base = hash_item_get_data(it);
-	item_info->value[0].iov_len = it->nbytes;
 	return(true);
 }

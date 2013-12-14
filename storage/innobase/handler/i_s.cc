@@ -3283,11 +3283,21 @@ i_s_fts_index_cache_fill_one_index(
 {
 	TABLE*			table = (TABLE*) tables->table;
 	Field**			fields;
+	CHARSET_INFO*		index_charset;
 	const ib_rbt_node_t*	rbt_node;
+	fts_string_t		conv_str;
+	uint			dummy_errors;
+	char*			word_str;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
 
 	fields = table->field;
+
+	index_charset = index_cache->charset;
+	conv_str.f_len = system_charset_info->mbmaxlen
+		* FTS_MAX_WORD_LEN_IN_CHAR;
+	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_n_char = 0;
 
 	/* Go through each word in the index cache */
 	for (rbt_node = rbt_first(index_cache->words);
@@ -3298,6 +3308,20 @@ i_s_fts_index_cache_fill_one_index(
 		fts_tokenizer_word_t* word;
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
+
+		/* Convert word from index charset to system_charset_info */
+		if (index_charset->cset != system_charset_info->cset) {
+			conv_str.f_n_char = my_convert(
+				reinterpret_cast<char*>(conv_str.f_str),
+				conv_str.f_len, system_charset_info,
+				reinterpret_cast<char*>(word->text.f_str),
+				word->text.f_len, index_charset, &dummy_errors);
+			ut_ad(conv_str.f_n_char <= conv_str.f_len);
+			conv_str.f_str[conv_str.f_n_char] = 0;
+			word_str = reinterpret_cast<char*>(conv_str.f_str);
+		} else {
+			word_str = reinterpret_cast<char*>(word->text.f_str);
+		}
 
 		/* Decrypt the ilist, and display Dod ID and word position */
 		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
@@ -3321,8 +3345,7 @@ i_s_fts_index_cache_fill_one_index(
 
 					OK(field_store_string(
 						fields[I_S_FTS_WORD],
-						reinterpret_cast<const char*>
-						(word->text.f_str)));
+						word_str));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
 						(longlong) node->first_doc_id,
@@ -3351,6 +3374,8 @@ i_s_fts_index_cache_fill_one_index(
 			}
 		}
 	}
+
+	ut_free(conv_str.f_str);
 
 	DBUG_RETURN(0);
 }
@@ -3480,31 +3505,38 @@ Go through a FTS index auxiliary table, fetch its rows and fill
 FTS word cache structure.
 @return	DB_SUCCESS on success, otherwise error code */
 static
-ulint
+dberr_t
 i_s_fts_index_table_fill_selected(
 /*==============================*/
 	dict_index_t*		index,		/*!< in: FTS index */
 	ib_vector_t*		words,		/*!< in/out: vector to hold
 						fetched words */
-	ulint			selected)	/*!< in: selected FTS index */
+	ulint			selected,	/*!< in: selected FTS index */
+	fts_string_t*		word)		/*!< in: word to select */
 {
 	pars_info_t*		info;
 	fts_table_t		fts_table;
 	trx_t*			trx;
 	que_t*			graph;
-	ulint			error;
+	dberr_t			error;
 	fts_fetch_t		fetch;
 
 	info = pars_info_create();
 
 	fetch.read_arg = words;
 	fetch.read_record = fts_optimize_index_fetch_node;
+	fetch.total_memory = 0;
+
+	DBUG_EXECUTE_IF("fts_instrument_result_cache_limit",
+	        fts_result_cache_limit = 8192;
+	);
 
 	trx = trx_allocate_for_background();
 
 	trx->op_info = "fetching FTS index nodes";
 
 	pars_info_bind_function(info, "my_func", fetch.read_record, &fetch);
+	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	FTS_INIT_INDEX_TABLE(&fts_table, fts_get_suffix(selected),
 			     FTS_INDEX_TABLE, index);
@@ -3515,7 +3547,7 @@ i_s_fts_index_table_fill_selected(
 		"DECLARE CURSOR c IS"
 		" SELECT word, doc_count, first_doc_id, last_doc_id, "
 		"ilist\n"
-		" FROM %s;\n"
+		" FROM %s WHERE word >= :word;\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -3546,7 +3578,7 @@ i_s_fts_index_table_fill_selected(
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: %lu "
+				fprintf(stderr, "  InnoDB: Error: %d "
 				"while reading FTS index.\n", error);
 				break;
 			}
@@ -3559,53 +3591,93 @@ i_s_fts_index_table_fill_selected(
 
 	trx_free_for_background(trx);
 
+	if (fetch.total_memory >= fts_result_cache_limit) {
+		error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
+	}
+
 	return(error);
 }
 
 /*******************************************************************//**
-Go through a FTS index and its auxiliary tables, fetch rows in each table
-and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
+Free words. */
+static
+void
+i_s_fts_index_table_free_one_fetch(
+/*===============================*/
+	ib_vector_t*		words)		/*!< in: words fetched */
+{
+	for (ulint i = 0; i < ib_vector_size(words); i++) {
+		fts_word_t*	word;
+
+		word = static_cast<fts_word_t*>(ib_vector_get(words, i));
+
+		for (ulint j = 0; j < ib_vector_size(word->nodes); j++) {
+			fts_node_t*     node;
+
+			node = static_cast<fts_node_t*> (ib_vector_get(
+				word->nodes, j));
+			ut_free(node->ilist);
+		}
+
+		fts_word_free(word);
+	}
+
+	ib_vector_reset(words);
+}
+
+/*******************************************************************//**
+Go through words, fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
 @return	0 on success, 1 on failure */
 static
 int
-i_s_fts_index_table_fill_one_index(
+i_s_fts_index_table_fill_one_fetch(
 /*===============================*/
-	dict_index_t*		index,		/*!< in: FTS index */
+	CHARSET_INFO*		index_charset,	/*!< in: FTS index charset */
 	THD*			thd,		/*!< in: thread */
-	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
+	TABLE_LIST*		tables,		/*!< in/out: tables to fill */
+	ib_vector_t*		words,		/*!< in: words fetched */
+	fts_string_t*		conv_str,	/*!< in: string for conversion*/
+	bool			has_more)	/*!< in: has more to fetch */
 {
 	TABLE*			table = (TABLE*) tables->table;
 	Field**			fields;
-	ib_vector_t*		words;
-	mem_heap_t*		heap;
-	ulint			num_row_fill;
+	uint			dummy_errors;
+	char*			word_str;
+	ulint			words_size;
+	int			ret = 0;
 
-	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
-	DBUG_ASSERT(!dict_index_is_online_ddl(index));
-
-	heap = mem_heap_create(1024);
-
-	words = ib_vector_create(ib_heap_allocator_create(heap),
-				 sizeof(fts_word_t), 256);
+	DBUG_ENTER("i_s_fts_index_table_fill_one_fetch");
 
 	fields = table->field;
 
-	/* Iterate through each auxiliary table as described in
-	fts_index_selector */
-	for (ulint selected = 0; fts_index_selector[selected].value;
-	     selected++) {
-		i_s_fts_index_table_fill_selected(index, words, selected);
+	words_size = ib_vector_size(words);
+	if (has_more) {
+		/* the last word is not fetched completely. */
+		ut_ad(words_size > 1);
+		words_size -= 1;
 	}
 
-	num_row_fill = ut_min(ib_vector_size(words), 500000);
-
 	/* Go through each word in the index cache */
-	for (ulint i = 0; i < num_row_fill; i++) {
+	for (ulint i = 0; i < words_size; i++) {
 		fts_word_t*	word;
 
-		word = (fts_word_t*) ib_vector_get(words, i);
+		word = static_cast<fts_word_t*>(ib_vector_get(words, i));
 
 		word->text.f_str[word->text.f_len] = 0;
+
+		/* Convert word from index charset to system_charset_info */
+		if (index_charset->cset != system_charset_info->cset) {
+			conv_str->f_n_char = my_convert(
+				reinterpret_cast<char*>(conv_str->f_str),
+				conv_str->f_len, system_charset_info,
+				reinterpret_cast<char*>(word->text.f_str),
+				word->text.f_len, index_charset, &dummy_errors);
+			ut_ad(conv_str->f_n_char <= conv_str->f_len);
+			conv_str->f_str[conv_str->f_n_char] = 0;
+			word_str = reinterpret_cast<char*>(conv_str->f_str);
+		} else {
+			word_str = reinterpret_cast<char*>(word->text.f_str);
+		}
 
 		/* Decrypt the ilist, and display Dod ID and word position */
 		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
@@ -3630,8 +3702,7 @@ i_s_fts_index_table_fill_one_index(
 
 					OK(field_store_string(
 						fields[I_S_FTS_WORD],
-						reinterpret_cast<const char*>
-						(word->text.f_str)));
+						word_str));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
 						(longlong) node->first_doc_id,
@@ -3661,9 +3732,95 @@ i_s_fts_index_table_fill_one_index(
 		}
 	}
 
+	i_s_fts_index_table_free_one_fetch(words);
+
+	DBUG_RETURN(ret);
+}
+
+/*******************************************************************//**
+Go through a FTS index and its auxiliary tables, fetch rows in each table
+and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_index_table_fill_one_index(
+/*===============================*/
+	dict_index_t*		index,		/*!< in: FTS index */
+	THD*			thd,		/*!< in: thread */
+	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
+{
+	ib_vector_t*		words;
+	mem_heap_t*		heap;
+	fts_string_t		word;
+	CHARSET_INFO*		index_charset;
+	fts_string_t		conv_str;
+	dberr_t			error;
+	int			ret = 0;
+
+	DBUG_ENTER("i_s_fts_index_table_fill_one_index");
+	DBUG_ASSERT(!dict_index_is_online_ddl(index));
+
+	heap = mem_heap_create(1024);
+
+	words = ib_vector_create(ib_heap_allocator_create(heap),
+				 sizeof(fts_word_t), 256);
+
+	word.f_str = NULL;
+	word.f_len = 0;
+	word.f_n_char = 0;
+
+	index_charset = fts_index_get_charset(index);
+	conv_str.f_len = system_charset_info->mbmaxlen
+		* FTS_MAX_WORD_LEN_IN_CHAR;
+	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_n_char = 0;
+
+	/* Iterate through each auxiliary table as described in
+	fts_index_selector */
+	for (ulint selected = 0; fts_index_selector[selected].value;
+	     selected++) {
+		bool	has_more = false;
+
+		do {
+			/* Fetch from index */
+			error = i_s_fts_index_table_fill_selected(
+				index, words, selected, &word);
+
+			if (error == DB_SUCCESS) {
+				has_more = false;
+			} else if (error == DB_FTS_EXCEED_RESULT_CACHE_LIMIT) {
+				has_more = true;
+			} else {
+				i_s_fts_index_table_free_one_fetch(words);
+				ret = 1;
+				goto func_exit;
+			}
+
+			if (has_more) {
+				fts_word_t*	last_word;
+
+				/* Prepare start point for next fetch */
+				last_word = static_cast<fts_word_t*>(ib_vector_last(words));
+				ut_ad(last_word != NULL);
+				fts_utf8_string_dup(&word, &last_word->text, heap);
+			}
+
+			/* Fill into tables */
+			ret = i_s_fts_index_table_fill_one_fetch(
+				index_charset, thd, tables, words, &conv_str, has_more);
+
+			if (ret != 0) {
+				i_s_fts_index_table_free_one_fetch(words);
+				goto func_exit;
+			}
+		} while (has_more);
+	}
+
+func_exit:
+	ut_free(conv_str.f_str);
 	mem_heap_free(heap);
 
-	DBUG_RETURN(0);
+	DBUG_RETURN(ret);
 }
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE

@@ -2751,6 +2751,10 @@ ibuf_merge(
 
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug) {
+		return(0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 	} else if (table_id == 0) {
 		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
@@ -4136,6 +4140,22 @@ dump:
 			rec = page_cur_get_rec(&page_cur);
 			row_upd_rec_in_place(rec, index, offsets,
 					     update, page_zip);
+
+			/* Log the update in place operation. During recovery
+			MLOG_COMP_REC_UPDATE_IN_PLACE/MLOG_REC_UPDATE_IN_PLACE
+			expects trx_id, roll_ptr for secondary indexes. So we
+			just write dummy trx_id(0), roll_ptr(0) */
+			btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec,
+						    index, update, 0, 0, mtr);
+			DBUG_EXECUTE_IF(
+				"crash_after_log_ibuf_upd_inplace",
+				log_buffer_flush_to_disk();
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Wrote log record for ibuf update in "
+					"place operation");
+				DBUG_SUICIDE();
+			);
+
 			goto updated_in_place;
 		}
 
@@ -4389,14 +4409,6 @@ ibuf_restore_pos(
 		fflush(stderr);
 
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
-
-		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_index(ibuf->index, 0)) {
-			ut_error;
-		}
-
-		fprintf(stderr, "InnoDB: ibuf tree ok\n");
-		fflush(stderr);
 		ut_ad(0);
 	}
 

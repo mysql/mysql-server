@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -460,6 +460,27 @@ btr_pcur_move_to_prev_on_page(
 /*==========================*/
 	btr_pcur_t*	cursor);/*!< in/out: persistent cursor */
 
+/** Position state of persistent B-tree cursor. */
+enum pcur_pos_t {
+	/** The persistent cursor is not positioned. */
+	BTR_PCUR_NOT_POSITIONED = 0,
+	/** The persistent cursor was previously positioned.
+	TODO: currently, the state can be BTR_PCUR_IS_POSITIONED,
+	though it really should be BTR_PCUR_WAS_POSITIONED,
+	because we have no obligation to commit the cursor with
+	mtr; similarly latch_mode may be out of date. This can
+	lead to problems if btr_pcur is not used the right way;
+	all current code should be ok. */
+	BTR_PCUR_WAS_POSITIONED,
+	/** The persistent cursor is positioned by optimistic get to the same
+	record as it was positioned at. Not used for rel_pos == BTR_PCUR_ON.
+	It may need adjustment depending on previous/current search direction
+	and rel_pos. */
+	BTR_PCUR_IS_POSITIONED_OPTIMISTIC,
+	/** The persistent cursor is positioned by index search.
+	Or optimistic get for rel_pos == BTR_PCUR_ON. */
+	BTR_PCUR_IS_POSITIONED
+};
 
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
@@ -493,10 +514,8 @@ struct btr_pcur_t{
 	ib_uint64_t	modify_clock;	/*!< the modify clock value of the
 					buffer block when the cursor position
 					was stored */
-	ulint		pos_state;	/*!< see TODO note below!
-					BTR_PCUR_IS_POSITIONED,
-					BTR_PCUR_WAS_POSITIONED,
-					BTR_PCUR_NOT_POSITIONED */
+	enum pcur_pos_t	pos_state;	/*!< btr_pcur_store_position() and
+					btr_pcur_restore_position() state. */
 	ulint		search_mode;	/*!< PAGE_CUR_G, ... */
 	trx_t*		trx_if_known;	/*!< the transaction, if we know it;
 					otherwise this field is not defined;
@@ -511,21 +530,6 @@ struct btr_pcur_t{
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
 					is not NULL */
 };
-
-#define BTR_PCUR_IS_POSITIONED	1997660512	/* TODO: currently, the state
-						can be BTR_PCUR_IS_POSITIONED,
-						though it really should be
-						BTR_PCUR_WAS_POSITIONED,
-						because we have no obligation
-						to commit the cursor with
-						mtr; similarly latch_mode may
-						be out of date. This can
-						lead to problems if btr_pcur
-						is not used the right way;
-						all current code should be
-						ok. */
-#define BTR_PCUR_WAS_POSITIONED	1187549791
-#define BTR_PCUR_NOT_POSITIONED 1328997689
 
 #define BTR_PCUR_OLD_STORED	908467085
 #define BTR_PCUR_OLD_NOT_STORED	122766467

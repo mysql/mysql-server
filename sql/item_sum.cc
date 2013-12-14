@@ -1538,8 +1538,12 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  if (!args[0]->maybe_null || !args[0]->is_null())
-    count++;
+  for (uint i=0; i<arg_count; i++)
+  {
+    if (args[i]->maybe_null && args[i]->is_null())
+      return 0;
+  }
+  count++;
   return 0;
 }
 
@@ -3426,7 +3430,7 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select;
-  const bool order_or_distinct= test(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 
   /*

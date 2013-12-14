@@ -1661,7 +1661,7 @@ public:
   {
     if (is_expensive_cache < 0)
       is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
-    return test(is_expensive_cache);
+    return MY_TEST(is_expensive_cache);
   }
   virtual bool can_be_evaluated_now() const;
   uint32 max_char_length() const
@@ -1709,11 +1709,7 @@ public:
   /**
      Check if an item either is a blob field, or will be represented as a BLOB
      field if a field is created based on this item.
-     
-     @note Original non-BLOB items that are longer than
-     CONVERT_IF_BIGGER_TO_BLOB will be converted to BLOBs when a field
-     is created for it.
-     
+
      @retval TRUE  If a field based on this item will be a BLOB field,
      @retval FALSE Otherwise.
   */
@@ -2598,7 +2594,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
-  { return (uint)(max_length - test(value < 0)); }
+  { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
@@ -4198,7 +4194,7 @@ public:
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
-  { return test(example && example->basic_const_item());}
+  { return MY_TEST(example && example->basic_const_item());}
   bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }

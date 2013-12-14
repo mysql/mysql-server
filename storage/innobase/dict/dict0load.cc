@@ -1358,7 +1358,7 @@ dict_load_columns(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 		const char*	err_msg;
-		const char*	name;
+		const char*	name = NULL;
 
 		rec = btr_pcur_get_rec(&pcur);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -478,15 +478,17 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
-  ssl= (my_bool) test(temp_ssl);
-  ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
+  ssl= (my_bool) MY_TEST(temp_ssl);
+  ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
-  auto_position= test(temp_auto_position);
+  auto_position= MY_TEST(temp_auto_position);
 
   if (auto_position != 0 && gtid_mode != 3)
   {
-    my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON, MYF(0));
-    DBUG_RETURN(true);
+    auto_position = 0;
+    sql_print_warning("MASTER_AUTO_POSITION in the master info file was 1 but "
+                      "server is started with @@GLOBAL.GTID_MODE = OFF. Forcing "
+                      "MASTER_AUTO_POSITION to 0.");
   }
 
 #ifndef HAVE_OPENSSL

@@ -3087,6 +3087,45 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     Gtid_set gtid_executed(&sid_map);
     global_sid_lock->wrlock();
     gtid_state->dbug_print();
+
+    /*
+      We are unsure whether I/O thread retrieved the last gtid transaction
+      completely or not (before it is going down because of a crash/normal
+      shutdown/normal stop slave io_thread). It is possible that I/O thread
+      would have retrieved and written only partial transaction events. So We
+      request Master to send the last gtid event once again. We do this by
+      removing the last I/O thread retrieved gtid event from
+      "Retrieved_gtid_set".  Possible cases: 1) I/O thread would have
+      retrieved full transaction already in the first time itself, but
+      retrieving them again will not cause problem because GTID number is
+      same, Hence SQL thread will not commit it again. 2) I/O thread would
+      have retrieved full transaction already and SQL thread would have
+      already executed it. In that case, We are not going remove last
+      retrieved gtid from "Retrieved_gtid_set" otherwise we will see gaps in
+      "Retrieved set". The same case is handled in the below code.  Please
+      note there will be paritial transactions written in relay log but they
+      will not cause any problem incase of transactional tables.  But incase
+      of non-transaction tables, partial trx will create inconsistency
+      between master and slave.  In that case, users need to check manually.
+    */
+
+    Gtid_set * retrieved_set= (const_cast<Gtid_set *>(mi->rli->get_gtid_set()));
+    Gtid *last_retrieved_gtid= mi->rli->get_last_retrieved_gtid();
+
+    /*
+      Remove last_retrieved_gtid only if it is not part of
+      executed_gtid_set
+    */
+    if (!last_retrieved_gtid->empty() &&
+        !gtid_state->get_logged_gtids()->contains_gtid(*last_retrieved_gtid))
+    {
+      if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        goto err;
+      }
+    }
+
     if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
         gtid_executed.add_gtid_set(gtid_state->get_logged_gtids()) !=
         RETURN_STATUS_OK)
@@ -3608,7 +3647,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         "skipped because event skip counter was non-zero"
       };
       DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                          test(thd->variables.option_bits & OPTION_BEGIN),
+                          MY_TEST(thd->variables.option_bits & OPTION_BEGIN),
                           rli->get_flag(Relay_log_info::IN_STMT)));
       DBUG_PRINT("skip_event", ("%s event was %s",
                                 ev->get_type_str(), explain[reason]));
@@ -4359,7 +4398,6 @@ Stopping slave I/O thread due to out-of-memory error from master");
                    "could not queue event from master");
         goto err;
       }
-
       if (RUN_HOOK(binlog_relay_io, after_queue_event,
                    (thd, mi, event_buf, event_len, synced)))
       {
@@ -4412,6 +4450,18 @@ ignore_log_space_limit=%d",
 log space");
           goto err;
         }
+      DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == QUERY_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
     }
   }
 
@@ -6660,6 +6710,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       {
         global_sid_lock->rdlock();
         int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
+        if (!ret)
+          rli->set_last_retrieved_gtid(gtid);
         global_sid_lock->unlock();
         if (ret != 0)
           goto err;

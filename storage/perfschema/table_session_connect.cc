@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,9 +42,26 @@ static const TABLE_FIELD_TYPE field_types[]=
 TABLE_FIELD_DEF table_session_connect::m_field_def=
 { 4, field_types };
 
-table_session_connect::table_session_connect(const PFS_engine_table_share *share) :
-                       cursor_by_thread_connect_attr(share)
-{}
+table_session_connect::table_session_connect(const PFS_engine_table_share *share)
+ : cursor_by_thread_connect_attr(share)
+{
+  if (session_connect_attrs_size_per_thread > 0)
+  {
+    m_copy_session_connect_attrs= (char *) my_malloc(/* 5.7: PSI_INSTRUMENT_ME, */
+                                             session_connect_attrs_size_per_thread,
+                                             MYF(0));
+  }
+  else
+  {
+    m_copy_session_connect_attrs= NULL;
+  }
+  m_copy_session_connect_attrs_length= 0;
+}
+
+table_session_connect::~table_session_connect()
+{
+  my_free(m_copy_session_connect_attrs);
+}
 
 /**
   Take a length encoded string
@@ -175,12 +192,17 @@ bool read_nth_attr(const char *connect_attrs,
 void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 {
   pfs_lock lock;
+  pfs_lock session_lock;
   PFS_thread_class *safe_class;
+  const CHARSET_INFO *cs;
 
   m_row_exists= false;
 
   /* Protect this reader against thread termination */
   pfs->m_lock.begin_optimistic_lock(&lock);
+  /* Protect this reader against writing on session attributes */
+  pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+
   safe_class= sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return;
@@ -189,10 +211,39 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   if (! thread_fits(pfs))
     return;
 
+  /* Make a safe copy of the session attributes */
+
+  if (m_copy_session_connect_attrs == NULL)
+    return;
+
+  m_copy_session_connect_attrs_length= pfs->m_session_connect_attrs_length;
+
+  if (m_copy_session_connect_attrs_length > session_connect_attrs_size_per_thread)
+    return;
+
+  memcpy(m_copy_session_connect_attrs,
+         pfs->m_session_connect_attrs,
+         m_copy_session_connect_attrs_length);
+
+  cs= get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
+  if (cs == NULL)
+    return;
+
+  if (! pfs->m_session_lock.end_optimistic_lock(& session_lock))
+    return;
+
+  if (! pfs->m_lock.end_optimistic_lock(& lock))
+    return;
+
+  /*
+    Now we have a safe copy of the data,
+    that will not change while parsing it
+  */
+
   /* populate the row */
-  if (read_nth_attr(pfs->m_session_connect_attrs,
-                    pfs->m_session_connect_attrs_length,
-                    pfs->m_session_connect_attrs_cs,
+  if (read_nth_attr(m_copy_session_connect_attrs,
+                    m_copy_session_connect_attrs_length,
+                    cs,
                     ordinal,
                     m_row.m_attr_name, (uint) sizeof(m_row.m_attr_name),
                     &m_row.m_attr_name_length,
@@ -204,12 +255,9 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 
     m_row.m_ordinal_position= ordinal;
     m_row.m_process_id= pfs->m_processlist_id;
-  }
-  else
-    return;
 
-  if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
+  }
 }
 
 int table_session_connect::read_row_values(TABLE *table,

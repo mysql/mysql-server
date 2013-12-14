@@ -482,13 +482,17 @@ void ReplSemiSyncMaster::remove_slave()
   lock();
   rpl_semi_sync_master_clients--;
 
-  /* If user has chosen not to wait if no semi-sync slave available
-     and the last semi-sync slave exits, turn off semi-sync on master
-     immediately.
-   */
-  if (!rpl_semi_sync_master_wait_no_slave &&
-      rpl_semi_sync_master_clients == 0)
-    switch_off();
+  /* Only switch off if semi-sync is enabled and is on */
+  if (getMasterEnabled() && is_on())
+  {
+    /* If user has chosen not to wait if no semi-sync slave available
+       and the last semi-sync slave exits, turn off semi-sync on master
+       immediately.
+     */
+    if (!rpl_semi_sync_master_wait_no_slave &&
+        rpl_semi_sync_master_clients == 0)
+      switch_off();
+  }
   unlock();
 }
 
@@ -760,7 +764,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
     */
-    assert(!active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
+    assert(!getMasterEnabled() ||
+           !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     
     /* Update the status counter. */
@@ -901,10 +906,7 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
    * target, do not request replies from the slave.
    */
   if (!getMasterEnabled() || !is_semi_sync_slave())
-  {
-    sync = false;
     return 0;
-  }
 
   function_enter(kWho);
 
@@ -912,15 +914,12 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
 
   /* This is the real check inside the mutex. */
   if (!getMasterEnabled())
-  {
-    sync = false;
-    goto l_end;
-  }
+    goto l_end; // sync= false at this point in time
 
   if (is_on())
   {
     /* semi-sync is ON */
-    sync = false;     /* No sync unless a transaction is involved. */
+    /* sync= false; No sync unless a transaction is involved. */
 
     if (reply_file_name_inited_)
     {

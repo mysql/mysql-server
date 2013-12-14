@@ -5,6 +5,11 @@
 
 # do not be influenced by other tests.
 connection master;
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "revoking all_privileges from a list of users.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing routine level grants in the privilege "
+                         "tables.");
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
@@ -252,17 +257,6 @@ CREATE PROCEDURE p1() SELECT * FROM t1 |
 DELIMITER ;|
 -- error ER_NONEXISTING_PROC_GRANT
 REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
-
---connection slave
-SET sql_log_bin= 0;
-call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
-SET sql_log_bin= 1;
---let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
---source include/wait_for_slave_sql_error.inc
-# Skip incident event
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
---source include/start_slave_sql.inc
--- connection master
 -- sync_slave_with_master
 
 -- connection master
@@ -315,6 +309,9 @@ SHOW GRANTS FOR CURRENT_USER;
 -- echo ##############################################################
 
 --connection slave
+SET sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
+SET sql_log_bin= 1;
 --let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
 --source include/wait_for_slave_sql_error.inc
 # Skip incident event
@@ -350,14 +347,6 @@ revoke all privileges, grant option from "foo";
 
 ## assertion: revoke is logged
 -- source include/show_binlog_events.inc
-
---connection slave
---let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
---source include/wait_for_slave_sql_error.inc
-# Skip incident event
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
---source include/start_slave_sql.inc
--- connection master
 -- sync_slave_with_master
 
 -- connection master

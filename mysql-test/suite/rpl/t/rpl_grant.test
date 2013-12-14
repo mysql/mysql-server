@@ -50,6 +50,11 @@ SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 -- source include/rpl_reset.inc
 -- connection master
 
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing routine level grants in the privilege "
+                         "tables.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "revoking all_privileges from a list of users.");
 --let $dbname= b54866
 --let $dbuser= b54866_user
 
@@ -216,26 +221,7 @@ REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
 REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 -- error ER_REVOKE_GRANTS
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
-
---connection slave
---let $errors= 3
-while ($errors)
-{
-  --let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
-  --source include/wait_for_slave_sql_error.inc
-  # Skip incident event caused by failed REVOKE
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-  # start the thread asynchronously so that we can continue
-  # and go wait for the error
-  START SLAVE SQL_THREAD;
-  --dec $errors
-}
-
-if (!$errors)
-{
-  # just to be sure that SQL thread has actually started
-  --source include/wait_for_slave_sql_to_start.inc
-}
+--sync_slave_with_master
 
 --echo ##########
 --echo ########## Cleanup
