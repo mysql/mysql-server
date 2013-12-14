@@ -544,8 +544,8 @@ srv_print_master_thread_info(
 /*=========================*/
 	FILE  *file)    /* in: output stream */
 {
-	fprintf(file, "srv_master_thread loops: %lu srv_active, "
-		"%lu srv_shutdown, %lu srv_idle\n",
+	fprintf(file, "srv_master_thread loops: %lu srv_active,"
+		" %lu srv_shutdown, %lu srv_idle\n",
 		srv_main_active_loops,
 		srv_main_shutdown_loops,
 		srv_main_idle_loops);

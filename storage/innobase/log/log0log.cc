@@ -453,8 +453,8 @@ log_close(void)
 			log_last_warning_time = time(NULL);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The age of the last checkpoint is "
-				LSN_PF ", which exceeds the log group"
+				"The age of the last checkpoint is"
+				" " LSN_PF ", which exceeds the log group"
 				" capacity " LSN_PF ".  If you are using"
 				" big BLOB or TEXT rows, you must set the"
 				" combined size of log files at least 10"
@@ -2176,8 +2176,8 @@ loop:
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for page_cleaner to "
-				"finish flushing of buffer pool");
+				"Waiting for page_cleaner to"
+				" finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -2190,8 +2190,8 @@ loop:
 	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Pending checkpoint_writes: %lu. "
-				"Pending log flush writes: %lu",
+				"Pending checkpoint_writes: %lu."
+				" Pending log flush writes: %lu",
 				(ulong) log_sys->n_pending_checkpoint_writes,
 				(ulong) log_sys->n_pending_flushes);
 			count = 0;
@@ -2215,10 +2215,10 @@ loop:
 	if (srv_fast_shutdown == 2) {
 		if (!srv_read_only_mode) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"MySQL has requested a very fast shutdown "
-				"without flushing the InnoDB buffer pool to "
-				"data files. At the next mysqld startup "
-				"InnoDB will do a crash recovery!");
+				"MySQL has requested a very fast shutdown"
+				" without flushing the InnoDB buffer pool to"
+				" data files. At the next mysqld startup"
+				" InnoDB will do a crash recovery!");
 
 			/* In this fastest shutdown we do not flush the
 			buffer pool:
@@ -2237,8 +2237,8 @@ loop:
 
 			if (thread_name != NULL) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Background thread %s woke up "
-					"during shutdown", thread_name);
+					"Background thread %s woke up"
+					" during shutdown", thread_name);
 				goto loop;
 			}
 		}
@@ -2318,8 +2318,8 @@ loop:
 
 	if (lsn < srv_start_lsn) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Log sequence number at shutdown " LSN_PF " "
-			"is lower than at startup " LSN_PF "!",
+			"Log sequence number at shutdown " LSN_PF
+			" is lower than at startup " LSN_PF "!",
 			lsn, srv_start_lsn);
 	}
 

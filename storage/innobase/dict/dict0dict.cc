@@ -4870,13 +4870,13 @@ loop:
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
 			ut_print_timestamp(ef);
-			fputs(" Error in dropping of a foreign key "
-			      "constraint of table ", ef);
+			fputs(" Error in dropping of a foreign key"
+			      " constraint of table ", ef);
 			ut_print_name(ef, NULL, TRUE, table->name);
 			fputs(",\nin SQL command\n", ef);
 			fputs(str, ef);
-			fputs("\nCannot find a constraint with the "
-			      "given id ", ef);
+			fputs("\nCannot find a constraint with the"
+			      " given id ", ef);
 			ut_print_name(ef, NULL, FALSE, id);
 			fputs(".\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
@@ -5918,8 +5918,8 @@ dict_table_schema_check(
 			if (j == table->n_def) {
 
 				ut_snprintf(errstr, errstr_sz,
-					    "required column %s "
-					    "not found in table %s.",
+					    "required column %s"
+					    " not found in table %s.",
 					    req_schema->columns[i].name,
 					    ut_format_name(
 						    req_schema->table_name,
@@ -5938,8 +5938,8 @@ dict_table_schema_check(
 			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s "
-				    "but should be %s (length mismatch).",
+				    "Column %s in table %s is %s"
+				    " but should be %s (length mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
 						   TRUE, buf, sizeof(buf)),
@@ -5954,8 +5954,8 @@ dict_table_schema_check(
 			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s "
-				    "but should be %s (type mismatch).",
+				    "Column %s in table %s is %s"
+				    " but should be %s (type mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
 						   TRUE, buf, sizeof(buf)),
@@ -5973,8 +5973,8 @@ dict_table_schema_check(
 			CREATE_TYPES_NAMES();
 
 			ut_snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s "
-				    "but should be %s (flags mismatch).",
+				    "Column %s in table %s is %s"
+				    " but should be %s (flags mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
 						   TRUE, buf, sizeof(buf)),
@@ -5987,8 +5987,8 @@ dict_table_schema_check(
 	if (req_schema->n_foreign != UT_LIST_GET_LEN(table->foreign_list)) {
 		ut_snprintf(
 			errstr, errstr_sz,
-			"Table %s has %lu foreign key(s) pointing to other "
-			"tables, but it must have %lu.",
+			"Table %s has %lu foreign key(s) pointing to other"
+			" tables, but it must have %lu.",
 			ut_format_name(req_schema->table_name,
 				       TRUE, buf, sizeof(buf)),
 			UT_LIST_GET_LEN(table->foreign_list),
@@ -5999,8 +5999,8 @@ dict_table_schema_check(
 	if (req_schema->n_referenced != UT_LIST_GET_LEN(table->referenced_list)) {
 		ut_snprintf(
 			errstr, errstr_sz,
-			"There are %lu foreign key(s) pointing to %s, "
-			"but there must be %lu.",
+			"There are %lu foreign key(s) pointing to %s,"
+			" but there must be %lu.",
 			UT_LIST_GET_LEN(table->referenced_list),
 			ut_format_name(req_schema->table_name,
 				       TRUE, buf, sizeof(buf)),

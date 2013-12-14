@@ -691,16 +691,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
-	{"trx_rw_commits", "transaction", "Number of read-write transactions "
-	  "committed",
+	{"trx_rw_commits", "transaction",
+	 "Number of read-write transactions  committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
-	{"trx_ro_commits", "transaction", "Number of read-only transactions "
-	  "committed",
+	{"trx_ro_commits", "transaction",
+	 "Number of read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RO_COMMIT},
 
-	{"trx_nl_ro_commits", "transaction", "Number of non-locking "
-	 "auto-commit read-only transactions committed",
+	{"trx_nl_ro_commits", "transaction",
+	 "Number of non-locking auto-commit read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_NL_RO_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
@@ -760,7 +760,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_N_DEL_ROW_PURGE},
 
 	{"purge_upd_exist_or_extern_records", "purge",
-	 "Number of purges on updates of existing records and "
+	 "Number of purges on updates of existing records and"
 	 " updates on delete marked record with externally stored field",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},

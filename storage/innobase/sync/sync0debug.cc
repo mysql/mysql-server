@@ -383,8 +383,8 @@ void
 SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
 {
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Thread %lu already owns a latch (\"%s\" : %lu), "
-		"with a lower level than (\"%s\" : %lu).",
+		"Thread %lu already owns a latch (\"%s\" : %lu),"
+		" with a lower level than (\"%s\" : %lu).",
 		os_thread_pf(os_thread_get_curr_id()),
 		sync_latch_get_name(latch->m_level),
 		(ulint) latch->m_level,

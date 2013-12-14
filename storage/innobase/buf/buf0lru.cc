@@ -1287,18 +1287,18 @@ loop:
 
 	if (n_iterations > 20) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Difficult to find free blocks in the buffer pool "
-			"(%lu search iterations)! %lu failed attempts to "
-			"flush a page! Consider increasing the buffer pool "
-			"size. It is also possible that in your Unix version "
-			"fsync is very slow, or completely frozen inside "
-			"the OS kernel. Then upgrading to a newer version "
-			"of your operating system may help. Look at the "
-			"number of fsyncs in diagnostic info below. "
-			"Pending flushes (fsync) log: %lu; buffer pool: "
-			"%lu. %lu OS file reads, %lu OS file writes, "
-			"%lu OS fsyncs. Starting InnoDB Monitor to print "
-			"further diagnostics to the standard output.",
+			"Difficult to find free blocks in the buffer pool"
+			" (%lu search iterations)! %lu failed attempts to"
+			" flush a page! Consider increasing the buffer pool"
+			" size. It is also possible that in your Unix version"
+			" fsync is very slow, or completely frozen inside"
+			" the OS kernel. Then upgrading to a newer version"
+			" of your operating system may help. Look at the"
+			" number of fsyncs in diagnostic info below."
+			" Pending flushes (fsync) log: %lu; buffer pool:"
+			" %lu. %lu OS file reads, %lu OS file writes,"
+			" %lu OS fsyncs. Starting InnoDB Monitor to print"
+			" further diagnostics to the standard output.",
 			(ulong) n_iterations,
 			(ulong)	flush_failures,
 			(ulong) fil_n_pending_log_flushes,

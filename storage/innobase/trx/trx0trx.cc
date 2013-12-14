@@ -488,8 +488,8 @@ trx_validate_state_before_free(trx_t* trx)
 	if (trx->declared_to_be_inside_innodb) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared "
-			"to be processing inside InnoDB", trx, trx->id);
+			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
+			" to be processing inside InnoDB", trx, trx->id);
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -503,9 +503,9 @@ trx_validate_state_before_free(trx_t* trx)
 	    || trx->mysql_n_tables_locked != 0) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"MySQL is freeing a thd though "
-			"trx->n_mysql_tables_in_use is %lu and "
-			"trx->mysql_n_tables_locked is %lu.",
+			"MySQL is freeing a thd though"
+			" trx->n_mysql_tables_in_use is %lu and"
+			" trx->mysql_n_tables_locked is %lu.",
 			(ulong) trx->n_mysql_tables_in_use,
 			(ulong) trx->mysql_n_tables_locked);
 
@@ -732,8 +732,8 @@ trx_resurrect_insert(
 		if (undo->state == TRX_UNDO_PREPARED) {
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " was in the XA "
-				"prepared state.", trx->id);
+				"Transaction " TRX_ID_FMT " was in the XA"
+				" prepared state.", trx->id);
 
 			if (srv_force_recovery == 0) {
 
@@ -743,8 +743,8 @@ trx_resurrect_insert(
 			} else {
 
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Since innodb_force_recovery > 0, we "
-					"will force a rollback.");
+					"Since innodb_force_recovery > 0, we"
+					" will force a rollback.");
 
 				trx->state = TRX_STATE_ACTIVE;
 			}
@@ -804,8 +804,8 @@ trx_resurrect_update_in_prepared_state(
 
 	if (undo->state == TRX_UNDO_PREPARED) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transaction " TRX_ID_FMT " was in the XA "
-			"prepared state.", trx->id);
+			"Transaction " TRX_ID_FMT " was in the XA"
+			" prepared state.", trx->id);
 
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
@@ -818,8 +818,8 @@ trx_resurrect_update_in_prepared_state(
 			trx->state = TRX_STATE_PREPARED;
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Since innodb_force_recovery > 0, we will "
-				"rollback it anyway.");
+				"Since innodb_force_recovery > 0, we will"
+				" rollback it anyway.");
 
 			trx->state = TRX_STATE_ACTIVE;
 		}

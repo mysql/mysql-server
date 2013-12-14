@@ -1533,8 +1533,8 @@ dict_stats_analyze_index_for_n_prefix(
 	ib_uint64_t	i;
 
 #if 0
-	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu, "
-		     "n_diff_for_this_prefix=" UINT64PF ")\n",
+	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu,"
+		     " n_diff_for_this_prefix=" UINT64PF ")\n",
 		     __func__, index->table->name, index->name, level,
 		     n_prefix, n_diff_for_this_prefix);
 #endif
@@ -1713,8 +1713,8 @@ dict_stats_analyze_index_for_n_prefix(
 
 	index->stat_n_sample_sizes[n_prefix - 1] = n_recs_to_dive_below;
 
-	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu "
-		     "(%lu"
+	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu"
+		     " (%lu"
 		     " * " UINT64PF " / " UINT64PF
 		     " * " UINT64PF " / " UINT64PF ")\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix - 1],
@@ -1802,11 +1802,11 @@ dict_stats_analyze_index(
 	    || N_SAMPLE_PAGES(index) * n_uniq > index->stat_n_leaf_pages) {
 
 		if (root_level == 0) {
-			DEBUG_PRINTF("  %s(): just one page, "
-				     "doing full scan\n", __func__);
+			DEBUG_PRINTF("  %s(): just one page,"
+				     " doing full scan\n", __func__);
 		} else {
-			DEBUG_PRINTF("  %s(): too many pages requested for "
-				     "sampling, doing full scan\n", __func__);
+			DEBUG_PRINTF("  %s(): too many pages requested for"
+				     " sampling, doing full scan\n", __func__);
 		}
 
 		/* do full scan of level 0; save results directly
@@ -1855,8 +1855,8 @@ dict_stats_analyze_index(
 
 	for (n_prefix = n_uniq; n_prefix >= 1; n_prefix--) {
 
-		DEBUG_PRINTF("  %s(): searching level with >=%llu "
-			     "distinct records, n_prefix=%lu\n",
+		DEBUG_PRINTF("  %s(): searching level with >=%llu"
+			     " distinct records, n_prefix=%lu\n",
 			     __func__, N_DIFF_REQUIRED(index), n_prefix);
 
 		/* Commit the mtr to release the tree S lock to allow
@@ -2260,8 +2260,8 @@ dict_stats_save(
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,
 						 NULL,
-						 "Number of pages "
-						 "in the index");
+						 "Number of pages"
+						 " in the index");
 		if (ret != DB_SUCCESS) {
 			goto end;
 		}
@@ -2269,8 +2269,8 @@ dict_stats_save(
 		ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
 						 index->stat_n_leaf_pages,
 						 NULL,
-						 "Number of leaf pages "
-						 "in the index");
+						 "Number of leaf pages"
+						 " in the index");
 		if (ret != DB_SUCCESS) {
 			goto end;
 		}
@@ -3125,12 +3125,12 @@ dict_stats_drop_index(
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to delete statistics for index %s "
-			    "from %s%s: %s. They can be deleted later using "
-			    "DELETE FROM %s WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s' AND "
-			    "index_name = '%s';",
+			    "Unable to delete statistics for index %s"
+			    " from %s%s: %s. They can be deleted later using"
+			    " DELETE FROM %s WHERE"
+			    " database_name = '%s' AND"
+			    " table_name = '%s' AND"
+			    " index_name = '%s';",
 			    iname,
 			    INDEX_STATS_NAME_PRINT,
 			    (ret == DB_LOCK_WAIT_TIMEOUT
@@ -3278,16 +3278,16 @@ dict_stats_drop_table(
 	if (ret != DB_SUCCESS) {
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to delete statistics for table %s.%s: %s. "
-			    "They can be deleted later using "
+			    "Unable to delete statistics for table %s.%s: %s."
+			    " They can be deleted later using"
 
-			    "DELETE FROM %s WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s'; "
+			    " DELETE FROM %s WHERE"
+			    " database_name = '%s' AND"
+			    " table_name = '%s';"
 
-			    "DELETE FROM %s WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s';",
+			    " DELETE FROM %s WHERE"
+			    " database_name = '%s' AND"
+			    " table_name = '%s';",
 
 			    db_utf8, table_utf8,
 			    ut_strerr(ret),
@@ -3468,16 +3468,16 @@ dict_stats_rename_table(
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to rename statistics from "
-			    "%s.%s to %s.%s in %s: %s. "
-			    "They can be renamed later using "
+			    "Unable to rename statistics from"
+			    " %s.%s to %s.%s in %s: %s."
+			    " They can be renamed later using"
 
-			    "UPDATE %s SET "
-			    "database_name = '%s', "
-			    "table_name = '%s' "
-			    "WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s';",
+			    " UPDATE %s SET"
+			    " database_name = '%s',"
+			    " table_name = '%s'"
+			    " WHERE"
+			    " database_name = '%s' AND"
+			    " table_name = '%s';",
 
 			    old_db_utf8, old_table_utf8,
 			    new_db_utf8, new_table_utf8,
@@ -3527,16 +3527,16 @@ dict_stats_rename_table(
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to rename statistics from "
-			    "%s.%s to %s.%s in %s: %s. "
-			    "They can be renamed later using "
+			    "Unable to rename statistics from"
+			    " %s.%s to %s.%s in %s: %s."
+			    " They can be renamed later using"
 
-			    "UPDATE %s SET "
-			    "database_name = '%s', "
-			    "table_name = '%s' "
-			    "WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s';",
+			    " UPDATE %s SET"
+			    " database_name = '%s',"
+			    " table_name = '%s'"
+			    " WHERE"
+			    " database_name = '%s' AND"
+			    " table_name = '%s';",
 
 			    old_db_utf8, old_table_utf8,
 			    new_db_utf8, new_table_utf8,
@@ -3671,11 +3671,11 @@ test_dict_table_schema_check()
 	schema.columns[1].len = 8;
 	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
-		printf("OK: test.tcheck.c02 has different length and is "
-		       "reported as corrupted\n");
+		printf("OK: test.tcheck.c02 has different length and is"
+		       " reported as corrupted\n");
 	} else {
-		printf("OK: test.tcheck.c02 has different length but is "
-		       "reported as ok\n");
+		printf("OK: test.tcheck.c02 has different length but is"
+		       " reported as ok\n");
 		goto test_dict_table_schema_check_end;
 	}
 	schema.columns[1].len = 4;
@@ -3685,11 +3685,11 @@ test_dict_table_schema_check()
 	schema.columns[1].prtype_mask |= DATA_NOT_NULL;
 	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
-		printf("OK: test.tcheck.c02 does not have NOT NULL while "
-		       "it should and is reported as corrupted\n");
+		printf("OK: test.tcheck.c02 does not have NOT NULL while"
+		       " it should and is reported as corrupted\n");
 	} else {
-		printf("ERROR: test.tcheck.c02 does not have NOT NULL while "
-		       "it should and is not reported as corrupted\n");
+		printf("ERROR: test.tcheck.c02 does not have NOT NULL while"
+		       " it should and is not reported as corrupted\n");
 		goto test_dict_table_schema_check_end;
 	}
 	schema.columns[1].prtype_mask &= ~DATA_NOT_NULL;
@@ -3698,23 +3698,23 @@ test_dict_table_schema_check()
 	schema.n_cols = 6;
 	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    == DB_SUCCESS) {
-		printf("ERROR: test.tcheck has more columns but is not "
-		       "reported as corrupted\n");
+		printf("ERROR: test.tcheck has more columns but is not"
+		       " reported as corrupted\n");
 		goto test_dict_table_schema_check_end;
 	} else {
-		printf("OK: test.tcheck has more columns and is "
-		       "reported as corrupted\n");
+		printf("OK: test.tcheck has more columns and is"
+		       " reported as corrupted\n");
 	}
 
 	/* check a table that has some columns missing */
 	schema.n_cols = 8;
 	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
-		printf("OK: test.tcheck has missing columns and is "
-		       "reported as corrupted\n");
+		printf("OK: test.tcheck has missing columns and is"
+		       " reported as corrupted\n");
 	} else {
-		printf("ERROR: test.tcheck has missing columns but is "
-		       "reported as ok\n");
+		printf("ERROR: test.tcheck has missing columns but is"
+		       " reported as ok\n");
 		goto test_dict_table_schema_check_end;
 	}
 
@@ -3832,8 +3832,8 @@ test_dict_stats_save()
 
 	ut_a(ret == DB_SUCCESS);
 
-	printf("\nOK: stats saved successfully, now go ahead and read "
-	       "what's inside %s and %s:\n\n",
+	printf("\nOK: stats saved successfully, now go ahead and read"
+	       " what's inside %s and %s:\n\n",
 	       TABLE_STATS_NAME_PRINT,
 	       INDEX_STATS_NAME_PRINT);
 

@@ -4809,8 +4809,8 @@ lock_print_info_summary(
 	if (!nowait) {
 		lock_mutex_enter();
 	} else if (lock_mutex_enter_nowait()) {
-		fputs("FAIL TO OBTAIN LOCK MUTEX, "
-		      "SKIP LOCK INFO PRINTING\n", file);
+		fputs("FAIL TO OBTAIN LOCK MUTEX,"
+		      " SKIP LOCK INFO PRINTING\n", file);
 		return(FALSE);
 	}
 
@@ -5130,8 +5130,8 @@ lock_trx_print_locks(
 				buffer pool. */
 
 				fprintf(file,
-					"RECORD LOCKS on non-existing "
-					"space %u\n",
+					"RECORD LOCKS on non-existing"
+					" space %u\n",
 					lock->un_member.rec_lock.space);
 			}
 
@@ -5151,8 +5151,8 @@ lock_trx_print_locks(
 		if (iter.next() >= 10) {
 
 			fprintf(file,
-				"10 LOCKS PRINTED FOR THIS TRX: "
-				"SUPPRESSING FURTHER PRINTS\n");
+				"10 LOCKS PRINTED FOR THIS TRX:"
+				" SUPPRESSING FURTHER PRINTS\n");
 
 			break;
 		}
