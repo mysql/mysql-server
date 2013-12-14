@@ -1553,7 +1553,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
       trace_table.add_utf8_table(s->table);
     }
     /*
-      Dependency computation (make_join_statistics()) and proper ordering
+      Dependency computation (JOIN::make_join_plan()) and proper ordering
       based on them (join_tab_cmp*) guarantee that this order is compatible
       with execution, check it:
     */

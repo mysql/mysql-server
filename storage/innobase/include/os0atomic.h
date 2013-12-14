@@ -199,7 +199,7 @@ amount of increment. */
 amount to decrement. */
 
 # define os_atomic_decrement_uint32(ptr, amount) \
-	os_atomic_increment_uint32((ulong_t*) ptr, -(amount))
+	os_atomic_increment_uint32(ptr, -(amount))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
