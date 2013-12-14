@@ -7034,8 +7034,8 @@ DeadlockChecker::start_print()
 
 	if (srv_print_all_deadlocks) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transactions deadlock detected, dumping detailed "
-			"information.");
+			"Transactions deadlock detected, dumping detailed"
+			" information.");
 	}
 }
 
