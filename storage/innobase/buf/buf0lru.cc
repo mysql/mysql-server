@@ -497,26 +497,22 @@ buf_flush_or_remove_page(
 
 		processed = true;
 
-	} else if (buf_flush_ready_for_flush(bpage,
-					     BUF_FLUSH_SINGLE_PAGE)) {
+	} else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
 
 		/* The following call will release the buffer pool
 		and block mutex. */
-		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
-		ut_ad(!mutex_own(block_mutex));
+		processed = buf_flush_page(
+			buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
 
-		/* Wake possible simulated aio thread to actually
-		post the writes to the operating system */
-		os_aio_simulated_wake_handler_threads();
-
-		buf_pool_mutex_enter(buf_pool);
-
-		processed = true;
+		if (processed) {
+			/* Wake possible simulated aio thread to actually
+			post the writes to the operating system */
+			os_aio_simulated_wake_handler_threads();
+			buf_pool_mutex_enter(buf_pool);
+		} else {
+			mutex_exit(block_mutex);
+		}
 	} else {
-		/* Not ready for flush. It can't be IO fixed because we
-		checked for that at the start of the function. It must
-		be buffer fixed. */
-		ut_ad(bpage->buf_fix_count > 0);
 		mutex_exit(block_mutex);
 	}
 
@@ -1812,7 +1808,7 @@ buf_LRU_free_page(
 
 	if (!buf_page_can_relocate(bpage)) {
 
-		/* Do not free buffer-fixed or I/O-fixed blocks. */
+		/* Do not free buffer fixed and I/O-fixed blocks. */
 		goto func_exit;
 	}
 
@@ -1827,12 +1823,10 @@ buf_LRU_free_page(
 		if (bpage->oldest_modification) {
 			goto func_exit;
 		}
-	} else if ((bpage->oldest_modification)
-		   && (buf_page_get_state(bpage)
-		       != BUF_BLOCK_FILE_PAGE)) {
+	} else if (bpage->oldest_modification > 0
+		   && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 
-		ut_ad(buf_page_get_state(bpage)
-		      == BUF_BLOCK_ZIP_DIRTY);
+		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY);
 
 func_exit:
 		rw_lock_x_unlock(hash_lock);
@@ -1888,7 +1882,7 @@ func_exit:
 
 		mutex_enter(block_mutex);
 
-		ut_a(!buf_page_hash_get_low(buf_pool, bpage->id));
+		ut_a(!buf_page_hash_get_low(buf_pool, b->id));
 
 		b->state = b->oldest_modification
 			? BUF_BLOCK_ZIP_DIRTY
@@ -2330,6 +2324,8 @@ buf_LRU_block_remove_hashed(
 		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
+
+		bpage->id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
 
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
