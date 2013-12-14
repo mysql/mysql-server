@@ -467,6 +467,11 @@ bool JOIN_CACHE::alloc_buffer()
 {
   buff= (uchar*) my_malloc(key_memory_JOIN_CACHE,
                            buff_size, MYF(0));
+  DBUG_EXECUTE_IF("jb_alloc_fail",
+                   buff= NULL;
+                   DBUG_SET("-d,jb_alloc_fail");
+                   return true;
+                  );
   return buff == NULL;
 }
 
