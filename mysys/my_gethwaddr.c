@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,30 +68,61 @@ err:
 #include <sys/ioctl.h>
 #include <net/ethernet.h>
 
+#define MAX_IFS 64
+
 my_bool my_gethwaddr(uchar *to)
 {
-  int fd, res= 1;
+  int fd= -1;
+  int res= 1;
   struct ifreq ifr;
+  struct ifreq ifs[MAX_IFS];
+  struct ifreq *ifri= NULL;
+  struct ifreq *ifend= NULL;
+
   char zero_array[ETHER_ADDR_LEN] = {0};
+  struct ifconf ifc;
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (fd < 0)
-    goto err;
+    return 1;
 
-  memset(&ifr, 0, sizeof(ifr));
-  strnmov(ifr.ifr_name, "eth0", sizeof(ifr.ifr_name) - 1);
-
-  do
+  /* Retrieve interfaces */
+  ifc.ifc_len= sizeof(ifs);
+  ifc.ifc_req= ifs;
+  if (ioctl(fd, SIOCGIFCONF, &ifc) < 0)
   {
-    if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
-    {
-      memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
-    }
-  } while (res && (errno == 0 || errno == ENODEV) && ifr.ifr_name[3]++ < '6');
+    close(fd);
+    return 1;
+  }
 
+  /* Initialize out parameter */
+  memcpy(to, zero_array, ETHER_ADDR_LEN);
+
+  /* Calculate first address after array */
+  ifend= ifs + (ifc.ifc_len / sizeof(struct ifreq));
+
+  /* Loop over all interfaces */
+  for (ifri= ifc.ifc_req; ifri < ifend; ifri++)
+  {
+    if (ifri->ifr_addr.sa_family == AF_INET)
+    {
+      /* Reset struct, copy interface name */
+      memset(&ifr, 0, sizeof(ifr));
+      strncpy(ifr.ifr_name, ifri->ifr_name, sizeof(ifr.ifr_name));
+
+      /* Get HW address, break if not 0 */
+      if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
+      {
+        memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
+        if (memcmp(to, zero_array, ETHER_ADDR_LEN))
+        {
+          res= 0;
+          break;
+        }
+      }
+    }
+  }
   close(fd);
-err:
   return res;
 }
 

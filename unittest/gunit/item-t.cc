@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -400,7 +400,7 @@ TEST_F(ItemTest, ItemFuncXor)
 /*
   Testing MYSQL_TIME_cache.
 */
-TEST_F(ItemTest, MYSQL_TIME_cache)
+TEST_F(ItemTest, MysqlTimeCache)
 {
   String str_buff, *str;
   MYSQL_TIME datetime6=
@@ -523,6 +523,48 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
   str= cache.val_str(&str_buff);
   EXPECT_STREQ("2011-11-07", str->c_ptr_safe());
   EXPECT_STREQ("2011-11-07", cache.cptr());
+}
+
+extern "C"
+{
+  // Verifies that Item_func_conv::val_str does not call my_strntoll()
+  longlong fail_strntoll(const struct charset_info_st *, const char *s,
+                         size_t l, int base, char **e, int *err)
+  {
+    ADD_FAILURE() << "Unexpected call";
+    return 0;
+  }
+}
+
+class Mock_charset : public CHARSET_INFO
+{
+public:
+  Mock_charset(const CHARSET_INFO &csi)
+  {
+    CHARSET_INFO *this_as_cset= this;
+    *this_as_cset= csi;
+
+    number= 666;
+    m_cset_handler= *(csi.cset);
+    m_cset_handler.strntoll= fail_strntoll;
+    cset= &m_cset_handler;
+  }
+private:
+  MY_CHARSET_HANDLER m_cset_handler;
+};
+
+TEST_F(ItemTest, ItemFuncConvIntMin)
+{
+  Mock_charset charset(*system_charset_info);
+  SCOPED_TRACE("");
+  Item_func_conv *item_conv=
+    new Item_func_conv(new Item_string("5", 1, &charset),
+                       new Item_int(INT_MIN),   // from_base
+                       new Item_int(INT_MIN));  // to_base
+  EXPECT_FALSE(item_conv->fix_fields(thd(), NULL));
+  const String *null_string= NULL;
+  String str;
+  EXPECT_EQ(null_string, item_conv->val_str(&str));
 }
 
 }

@@ -697,15 +697,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
     Destroy items in the instruction's free list before re-parsing the
     statement query string (and thus, creating new items).
   */
-  Item *p= free_list;
-  while (p)
-  {
-    Item *next= p->next;
-    p->delete_self();
-    p= next;
-  }
-
-  free_list= NULL;
+  free_items();
 
   // Remove previously stored trigger-field items.
   sp_head *sp= thd->sp_runtime_ctx->sp;

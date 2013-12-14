@@ -119,7 +119,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     DBUG_RETURN(true);
 
   const_cond= (!conds || conds->const_item());
-  safe_update=test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
+  safe_update= MY_TEST(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,

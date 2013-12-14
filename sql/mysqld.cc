@@ -399,6 +399,8 @@ bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 ulong log_warnings;
+uint host_cache_size;
+
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
 #endif
@@ -2655,14 +2657,6 @@ static bool block_until_new_connection()
     */
     DBUG_ASSERT( ! _db_is_pushed_());
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed,
-      before blocking this pthread (blocked on COND_thread_cache).
-    */
-    PSI_THREAD_CALL(delete_current_thread)();
-#endif
-
     // Block pthread
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -2757,6 +2751,13 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
    */
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /*
+    Delete the instrumentation for the job that just completed.
+  */
+  PSI_THREAD_CALL(delete_current_thread)();
+#endif
 
   if (block_pthread)
     block_pthread= block_until_new_connection();
@@ -3636,7 +3637,7 @@ void init_com_statement_info()
     com_statement_info[index].m_flags= 0;
   }
 
-  /* "statement/com/query" can mutate into "statement/sql/..." */
+  /* "statement/abstract/query" can mutate into "statement/sql/..." */
   com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
 }
 #endif
@@ -4591,7 +4592,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
-  if (table_def_init() | hostname_cache_init())
+  if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
   query_cache_set_min_res_unit(query_cache_min_res_unit);
@@ -5460,6 +5461,7 @@ int mysqld_main(int argc, char **argv)
       if (mysql_bin_log.init_gtid_sets(
             const_cast<Gtid_set *>(gtid_state->get_logged_gtids()),
             const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
+            NULL,
             opt_master_verify_checksum,
             true/*true=need lock*/))
         unireg_abort(1);
@@ -8406,7 +8408,7 @@ mysqld_get_one_option(int optid,
     opt_myisam_log=1;
     break;
   case (int) OPT_BIN_LOG:
-    opt_bin_log= test(argument != disabled_my_option);
+    opt_bin_log= MY_TEST(argument != disabled_my_option);
     break;
 #ifdef HAVE_REPLICATION
   case (int)OPT_REPLICATE_IGNORE_DB:
@@ -8940,7 +8942,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     Set some global variables from the global_system_variables
     In most cases the global variables will not be used
   */
-  my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
+  my_disable_locking= myisam_single_user= MY_TEST(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
 
   global_system_variables.long_query_time= (ulonglong)
@@ -8967,8 +8969,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
 
   global_system_variables.engine_condition_pushdown=
-    test(global_system_variables.optimizer_switch &
-         OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+    MY_TEST(global_system_variables.optimizer_switch &
+            OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
 
@@ -9447,10 +9449,21 @@ PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
   key_rwlock_global_sid_lock;
 
+PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
+#ifdef HAVE_REPLICATION
+PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
+PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
+#endif
+
 static PSI_rwlock_info all_server_rwlocks[]=
 {
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
   { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
+#endif
+#ifdef HAVE_REPLICATION
+  { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
   { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
@@ -9458,7 +9471,9 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
-  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL}
+  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -9858,35 +9873,49 @@ void init_server_psi_keys(void)
 
   category= "com";
   init_com_statement_info();
-  count= array_elements(com_statement_info);
+
+  /*
+    Register [0 .. COM_QUERY - 1] as "statement/com/..."
+  */
+  count= (int) COM_QUERY;
   mysql_statement_register(category, com_statement_info, count);
 
   /*
+    Register [COM_QUERY + 1 .. COM_END] as "statement/com/..."
+  */
+  count= (int) COM_END - (int) COM_QUERY;
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY + 1], count);
+
+  category= "abstract";
+  /*
+    Register [COM_QUERY] as "statement/abstract/com_query"
+  */
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY], 1);
+
+  /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/abstract/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
-    "statement/com/query" or "statement/com/ping".
-    In cases of "statement/com/query", SQL queries are given to
+    "statement/abstract/query" or "statement/com/ping".
+    In cases of "statement/abstract/query", SQL queries are given to
     the parser, which mutates the statement type to an even more
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_new_packet, 1);
 
   /*
     Statements processed from the relay log are initially instrumented as
-    "statement/rpl/relay_log". The parser will mutate the statement type to
+    "statement/abstract/relay_log". The parser will mutate the statement type to
     a more specific classification, for example "statement/sql/insert".
   */
-  category= "rpl";
   stmt_info_rpl.m_key= 0;
   stmt_info_rpl.m_name= "relay_log";
   stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_rpl, 1);
-
 #endif
 }
 

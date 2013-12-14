@@ -105,9 +105,9 @@ uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
   uint days;
   ulong daynr=calc_daynr(l_time->year,l_time->month,l_time->day);
   ulong first_daynr=calc_daynr(l_time->year,1,1);
-  bool monday_first= test(week_behaviour & WEEK_MONDAY_FIRST);
-  bool week_year= test(week_behaviour & WEEK_YEAR);
-  bool first_weekday= test(week_behaviour & WEEK_FIRST_WEEKDAY);
+  bool monday_first= MY_TEST(week_behaviour & WEEK_MONDAY_FIRST);
+  bool week_year= MY_TEST(week_behaviour & WEEK_YEAR);
+  bool first_weekday= MY_TEST(week_behaviour & WEEK_FIRST_WEEKDAY);
 
   uint weekday=calc_weekday(first_daynr, !monday_first);
   *year=l_time->year;

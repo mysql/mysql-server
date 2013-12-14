@@ -284,6 +284,8 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
+/** The size of the host_cache. */
+extern uint host_cache_size;
 void init_sql_statement_names();
 
 /*

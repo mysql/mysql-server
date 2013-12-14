@@ -240,8 +240,12 @@ protected:
 
 private:
   Gtid_set gtid_set;
+  /* Last gtid retrieved by IO thread */
+  Gtid last_retrieved_gtid;
 
 public:
+  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
+  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;

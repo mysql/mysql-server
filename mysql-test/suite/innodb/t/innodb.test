@@ -1,10 +1,5 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
---source include/not_windows_embedded.inc
-# remove this when
-# Bug#53947 InnoDB: Assertion failure in thread 4224 in file
-#   .\sync\sync0sync.c line 324
-# is fixed
 
 #######################################################################
 #                                                                     #

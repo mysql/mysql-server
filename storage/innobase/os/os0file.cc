@@ -1464,18 +1464,32 @@ os_file_set_nocache(
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
-		int	errno_save = errno;
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to set O_DIRECT on file %s: %s: %s, "
-			"continuing anyway",
-			file_name, operation_name, strerror(errno_save));
-
+		int		errno_save = errno;
+		static bool	warning_message_printed = false;
 		if (errno_save == EINVAL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"O_DIRECT is known to result in 'Invalid "
-				"argument' on Linux on tmpfs, see MySQL "
-				"Bug#26662");
+			if (!warning_message_printed) {
+				warning_message_printed = true;
+# ifdef UNIV_LINUX
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Failed to set O_DIRECT on file "
+					"%s: %s: %s, continuing anyway. "
+					"O_DIRECT is known to result "
+					"in 'Invalid argument' on Linux on "
+					"tmpfs, see MySQL Bug#26662.",
+					file_name, operation_name,
+					strerror(errno_save));
+# else /* UNIV_LINUX */
+				goto short_warning;
+# endif /* UNIV_LINUX */
+			}
+		} else {
+# ifndef UNIV_LINUX
+short_warning:
+# endif
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to set O_DIRECT on file %s: %s: %s, "
+				"continuing anyway.",
+				file_name, operation_name, strerror(errno_save));
 		}
 	}
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */

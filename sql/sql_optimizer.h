@@ -433,7 +433,7 @@ public:
     result= result_arg;
     lock= thd_arg->lock;
     select_lex= 0; //for safety
-    select_distinct= test(select_options & SELECT_DISTINCT);
+    select_distinct= MY_TEST(select_options & SELECT_DISTINCT);
     no_order= 0;
     simple_order= 0;
     simple_group= 0;

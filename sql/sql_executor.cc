@@ -1455,7 +1455,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 
   if (condition)
   {
-    found= test(condition->val_int());
+    found= MY_TEST(condition->val_int());
 
     if (join->thd->killed)
     {
@@ -1863,7 +1863,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
     DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
-    if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
+    if ((table->null_row= MY_TEST((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
   if (!table->null_row)
@@ -2660,7 +2660,6 @@ pick_table_access_method(JOIN_TAB *tab)
   if (!tab->table)
     return;
 
-#ifndef MCP_BUG16999886
   /**
     Set up modified access function for children of pushed joins.
   */
@@ -2685,37 +2684,7 @@ pick_table_access_method(JOIN_TAB *tab)
     TODO: Move these settings into pick_table_access_method() also
   */
   if (tab->read_first_record != NULL)
-    return;
-#else
-  /**
-    Set up modified access function for pushed joins.
-  */
-  uint pushed_joins= tab->table->file->number_of_pushed_joins();
-  if (pushed_joins > 0)
-  {
-    if (tab->table->file->root_of_pushed_join() != tab->table)
-    {
-      /*
-        Is child of a pushed join operation:
-        Replace access functions with its linked counterpart.
-        ... Which is effectively a NOOP as the row is already fetched 
-        together with the root of the linked operation.
-      */
-      DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
-      tab->read_first_record= join_read_linked_first;
-      tab->read_record.read_record= join_read_linked_next;
-      tab->read_record.unlock_row= rr_unlock_row;
-      return;
-    }
-  }
-
-  /**
-    Already set to some non-default value in sql_select.cc
-    TODO: Move these settings into pick_table_access_method() also
-  */
-  else if (tab->read_first_record != NULL)
     return;  
-#endif //MCP_BUG16999886
 
   // Fall through to set default access functions:
   switch (tab->type) 
@@ -4297,7 +4266,10 @@ QEP_tmp_table::prepare_tmp_table()
       join_tab->tmp_table_param->sum_func_count && table->s->keys)
     rc= table->file->ha_index_init(0, 0);
   else
-    rc= table->file->ha_rnd_init(0);
+  {
+    /* Start index scan in scanning mode */
+    rc= table->file->ha_rnd_init(true);
+  }
   if (rc)
   {
     table->file->print_error(rc, MYF(0));

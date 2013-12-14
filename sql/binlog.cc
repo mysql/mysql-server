@@ -2538,6 +2538,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   this object.
   @param prev_gtids If not NULL, then the GTIDs from the
   Previous_gtids_log_events are stored in this object.
+  @param last_gtid If not NULL, then the last GTID information from the
+  file will be stored in this object.
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
@@ -2556,7 +2558,8 @@ enum enum_read_gtids_from_binlog_status
 { GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
-                       Gtid_set *prev_gtids, bool verify_checksum)
+                       Gtid_set *prev_gtids, Gtid *last_gtid,
+                       bool verify_checksum)
 {
   DBUG_ENTER("read_gtids_from_binlog");
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -2664,24 +2667,34 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         at least one Gtid_log_event, so that we can distinguish the
         return values GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need
         to read anything else from the binary log.
+        But if last_gtid is requested (i.e., NOT NULL), we should continue to
+        read all gtids. Otherwise, we are done.
       */
-      if (all_gtids == NULL)
+      if (all_gtids == NULL && last_gtid == NULL)
+      {
         ret= GOT_GTIDS, done= true;
+      }
       else
       {
         Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
         rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
         if (sidno < 0)
           ret= ERROR, done= true;
+        else
         {
-          if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-            ret= ERROR, done= true;
-          else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-                   RETURN_STATUS_OK)
-            ret= ERROR, done= true;
+          if (all_gtids)
+          {
+            if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                     RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                                filename, sidno, gtid_ev->get_gno()));
+          }
+          if (last_gtid)
+            last_gtid->set(sidno, gtid_ev->get_gno());
         }
-        DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                            filename, sidno, gtid_ev->get_gno()));
       }
       break;
     }
@@ -2778,7 +2791,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     const char *filename= rit->c_str();
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
-    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set,
+    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set, NULL,
                                    opt_master_verify_checksum))
     {
     case ERROR:
@@ -2829,6 +2842,7 @@ end:
 }
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
+                                   Gtid *last_gtid,
                                    bool verify_checksum, bool need_lock)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
@@ -2888,15 +2902,17 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
                         rit->c_str(), reached_first_file));
-    while (!got_gtids && !reached_first_file)
+    while ((!got_gtids || (last_gtid && last_gtid->empty()))
+           && !reached_first_file)
     {
       const char *filename= rit->c_str();
       rit++;
       reached_first_file= (rit == filename_list.rend());
       DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
                           filename, got_gtids, reached_first_file));
-      switch (read_gtids_from_binlog(filename, all_gtids,
+      switch (read_gtids_from_binlog(filename, got_gtids ? NULL : all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
+                                     last_gtid,
                                      verify_checksum))
       {
       case ERROR:
@@ -2919,7 +2935,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     {
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
-      switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
+      switch (read_gtids_from_binlog(filename, NULL, lost_gtids, NULL,
                                      verify_checksum))
       {
       case ERROR:
@@ -4130,6 +4146,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
                        const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
+                       NULL,
                        opt_master_verify_checksum,
                        false/*false=don't need lock*/);
     global_sid_lock->unlock();
