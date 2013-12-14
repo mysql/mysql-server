@@ -540,8 +540,8 @@ sync_array_cell_print(
 		}
 
 		fprintf(file,
-			"number of readers %lu, waiters flag %lu, "
-			"lock_word: %lx\n"
+			"number of readers %lu, waiters flag %lu,"
+			" lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),

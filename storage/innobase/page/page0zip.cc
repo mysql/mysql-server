@@ -1967,8 +1967,8 @@ page_zip_apply_log_ext(
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			if (UNIV_UNLIKELY(data + len >= end)) {
-				page_zip_fail(("page_zip_apply_log_ext: "
-					       "ext %p+%lu >= %p\n",
+				page_zip_fail(("page_zip_apply_log_ext:"
+					       " ext %p+%lu >= %p\n",
 					       (const void*) data,
 					       (ulong) len,
 					       (const void*) end));
@@ -1985,8 +1985,8 @@ page_zip_apply_log_ext(
 	/* Copy the last bytes of the record. */
 	len = rec_get_end(rec, offsets) - next_out;
 	if (UNIV_UNLIKELY(data + len >= end)) {
-		page_zip_fail(("page_zip_apply_log_ext: "
-			       "last %p+%lu >= %p\n",
+		page_zip_fail(("page_zip_apply_log_ext:"
+			       " last %p+%lu >= %p\n",
 			       (const void*) data,
 			       (ulong) len,
 			       (const void*) end));
@@ -2119,8 +2119,8 @@ page_zip_apply_log(
 			/* Non-leaf nodes should not contain any
 			externally stored columns. */
 			if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
-				page_zip_fail(("page_zip_apply_log: "
-					       "%lu&REC_STATUS_NODE_PTR\n",
+				page_zip_fail(("page_zip_apply_log:"
+					       " %lu&REC_STATUS_NODE_PTR\n",
 					       (ulong) hs));
 				return(NULL);
 			}
@@ -2136,8 +2136,8 @@ page_zip_apply_log(
 				- REC_NODE_PTR_SIZE;
 			/* Copy the data bytes, except node_ptr. */
 			if (UNIV_UNLIKELY(data + len >= end)) {
-				page_zip_fail(("page_zip_apply_log: "
-					       "node_ptr %p+%lu >= %p\n",
+				page_zip_fail(("page_zip_apply_log:"
+					       " node_ptr %p+%lu >= %p\n",
 					       (const void*) data,
 					       (ulong) len,
 					       (const void*) end));
@@ -2151,8 +2151,8 @@ page_zip_apply_log(
 			/* Copy all data bytes of
 			a record in a secondary index. */
 			if (UNIV_UNLIKELY(data + len >= end)) {
-				page_zip_fail(("page_zip_apply_log: "
-					       "sec %p+%lu >= %p\n",
+				page_zip_fail(("page_zip_apply_log:"
+					       " sec %p+%lu >= %p\n",
 					       (const void*) data,
 					       (ulong) len,
 					       (const void*) end));
@@ -2170,8 +2170,8 @@ page_zip_apply_log(
 			if (UNIV_UNLIKELY(data + l >= end)
 			    || UNIV_UNLIKELY(len < (DATA_TRX_ID_LEN
 						    + DATA_ROLL_PTR_LEN))) {
-				page_zip_fail(("page_zip_apply_log: "
-					       "trx_id %p+%lu >= %p\n",
+				page_zip_fail(("page_zip_apply_log:"
+					       " trx_id %p+%lu >= %p\n",
 					       (const void*) data,
 					       (ulong) l,
 					       (const void*) end));
@@ -2186,8 +2186,8 @@ page_zip_apply_log(
 			b = rec + l + (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 			len = rec_get_end(rec, offsets) - b;
 			if (UNIV_UNLIKELY(data + len >= end)) {
-				page_zip_fail(("page_zip_apply_log: "
-					       "clust %p+%lu >= %p\n",
+				page_zip_fail(("page_zip_apply_log:"
+					       " clust %p+%lu >= %p\n",
 					       (const void*) data,
 					       (ulong) len,
 					       (const void*) end));
@@ -2939,8 +2939,8 @@ zlib_done:
 				    (externs < page_zip->data
 				     + page_zip->m_end)) {
 					page_zip_fail(("page_zip_"
-						       "decompress_clust: "
-						       "%p < %p + %lu\n",
+						       "decompress_clust:"
+						       " %p < %p + %lu\n",
 						       (const void*) externs,
 						       (const void*)
 						       page_zip->data,
@@ -3382,10 +3382,9 @@ page_zip_validate_low(
 
 				/* Only the minimum record flag
 				differed.  Let us ignore it. */
-				page_zip_fail(("page_zip_validate: "
-					       "min_rec_flag "
-					       "(%s"
-					       "%lu,%lu,0x%02lx)\n",
+				page_zip_fail(("page_zip_validate:"
+					       " min_rec_flag"
+					       " (%s%lu,%lu,0x%02lx)\n",
 					       sloppy ? "ignored, " : "",
 					       page_get_space_id(page),
 					       page_get_page_no(page),
@@ -3401,8 +3400,8 @@ page_zip_validate_low(
 
 		while (rec || trec) {
 			if (page_offset(rec) != page_offset(trec)) {
-				page_zip_fail(("page_zip_validate: "
-					       "PAGE_FREE list: %u!=%u\n",
+				page_zip_fail(("page_zip_validate:"
+					       " PAGE_FREE list: %u!=%u\n",
 					       (unsigned) page_offset(rec),
 					       (unsigned) page_offset(trec)));
 				valid = FALSE;
@@ -3423,8 +3422,8 @@ page_zip_validate_low(
 
 		do {
 			if (page_offset(rec) != page_offset(trec)) {
-				page_zip_fail(("page_zip_validate: "
-					       "record list: 0x%02x!=0x%02x\n",
+				page_zip_fail(("page_zip_validate:"
+					       " record list: 0x%02x!=0x%02x\n",
 					       (unsigned) page_offset(rec),
 					       (unsigned) page_offset(trec)));
 				valid = FALSE;
@@ -3441,8 +3440,8 @@ page_zip_validate_low(
 					   trec - rec_offs_extra_size(offsets),
 					   rec_offs_size(offsets))) {
 					page_zip_fail(
-						("page_zip_validate: "
-						 "record content: 0x%02x",
+						("page_zip_validate:"
+						 " record content: 0x%02x",
 						 (unsigned) page_offset(rec)));
 					valid = FALSE;
 					break;
@@ -4980,8 +4979,8 @@ page_zip_verify_checksum(
 		}
 		if (i >= size) {
 			if (is_log_enabled) {
-				fprintf(log_file, "Page::%llu is empty and "
-					"uncorrupted\n", page_no);
+				fprintf(log_file, "Page::%llu is empty and"
+					" uncorrupted\n", page_no);
 			}
 
 			return(TRUE);
@@ -5000,8 +4999,8 @@ page_zip_verify_checksum(
 
 #ifdef UNIV_INNOCHECKSUM
 	if (is_log_enabled) {
-		fprintf(log_file, "page::%llu; %s checksum: calculated = %u; "
-			"recorded = %u\n", page_no,
+		fprintf(log_file, "page::%llu; %s checksum: calculated = %u;"
+			" recorded = %u\n", page_no,
 			buf_checksum_algorithm_name(
 				static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm)),
@@ -5013,11 +5012,11 @@ page_zip_verify_checksum(
 		crc32 = page_zip_calc_checksum(data, size,
 					       SRV_CHECKSUM_ALGORITHM_CRC32);
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu: crc32 checksum: "
-				"calculated = %u; recorded = %u\n",
+			fprintf(log_file, "page::%llu: crc32 checksum:"
+				" calculated = %u; recorded = %u\n",
 				page_no, crc32, stored);
-			fprintf(log_file, "page::%llu: none checksum: "
-				"calculated = %lu; recorded = %u\n",
+			fprintf(log_file, "page::%llu: none checksum:"
+				" calculated = %lu; recorded = %u\n",
 				page_no, BUF_NO_CHECKSUM_MAGIC, stored);
 		}
 	}

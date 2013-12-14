@@ -1026,8 +1026,8 @@ dict_recreate_index_tree(
 		missing: do nothing. */
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing .ibd file of table "
-			"%s!", table->name);
+			"Trying to TRUNCATE a missing .ibd file of table"
+			" %s!", table->name);
 
 		return(FIL_NULL);
 	}
@@ -1606,15 +1606,15 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	if (sys_foreign_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created "
-			"SYS_FOREIGN table.");
+			"Dropping incompletely created"
+			" SYS_FOREIGN table.");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created "
-			"SYS_FOREIGN_COLS table.");
+			"Dropping incompletely created"
+			" SYS_FOREIGN_COLS table.");
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
@@ -1970,15 +1970,15 @@ dict_create_or_check_sys_tablespace(void)
 
 	if (sys_tablespaces_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created "
-			"SYS_TABLESPACES table.");
+			"Dropping incompletely created"
+			" SYS_TABLESPACES table.");
 		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created "
-			"SYS_DATAFILES table.");
+			"Dropping incompletely created"
+			" SYS_DATAFILES table.");
 
 		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
 	}

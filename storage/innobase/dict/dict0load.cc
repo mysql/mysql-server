@@ -1117,8 +1117,8 @@ loop:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for %s, "
-					"ignored.", table_name);
+					"Tablespace open failed for %s,"
+					" ignored.", table_name);
 			}
 
 			ut_free(filepath);

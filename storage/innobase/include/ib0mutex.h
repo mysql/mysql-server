@@ -90,9 +90,9 @@ struct OSBasicMutex {
 		if (ret != 0) {
 
 			fprintf(stderr,
-				" InnoDB: Return value %lu when calling "
-				"pthread_mutex_destroy(). Byte contents of the "
-				"pthread mutex at %p:",
+				" InnoDB: Return value %lu when calling"
+				" pthread_mutex_destroy(). Byte contents of the"
+				" pthread mutex at %p:",
 				(ulint) ret, (void*) &m_mutex);
 
 			ut_print_buf(stderr, &m_mutex, sizeof(m_mutex));
