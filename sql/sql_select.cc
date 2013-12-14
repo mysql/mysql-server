@@ -1457,7 +1457,7 @@ bool JOIN::set_access_methods()
                            JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
 
     if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
-      continue;                      // Handled in make_join_statistics()
+      continue;                      // Handled in JOIN::make_join_plan()
 
     Key_use *const keyuse= tab->position->key;
     if (!keyuse)
@@ -5470,9 +5470,9 @@ JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *sort_order)
 
   @note
     This function takes into account table->quick_condition_rows statistic
-    (that is calculated by the make_join_statistics function).
+    (that is calculated by JOIN::make_join_plan()).
     However, single table procedures such as mysql_update() and mysql_delete()
-    never call make_join_statistics, so they have to update it manually
+    never call JOIN::make_join_plan(), so they have to update it manually
     (@see get_index_for_order()).
 */
 
@@ -5796,7 +5796,7 @@ uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
     
     /*
       Update quick_condition_rows since single table UPDATE/DELETE procedures
-      don't call make_join_statistics() and leave this variable uninitialized.
+      don't call JOIN::make_join_plan() and leave this variable uninitialized.
     */
     table->quick_condition_rows= table->file->stats.records;
     
