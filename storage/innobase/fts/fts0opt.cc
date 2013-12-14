@@ -550,7 +550,7 @@ fts_index_fetch_nodes(
 			"CLOSE c;");
 	}
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, *graph);
 
 		if (error == DB_SUCCESS) {
@@ -878,7 +878,7 @@ fts_index_fetch_words(
 
 		zip = optim->zip;
 
-		for(;;) {
+		for (;;) {
 			int	err;
 
 			if (!inited && ((err = deflateInit(zip->zp, 9))
@@ -1816,7 +1816,7 @@ fts_optimize_words(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "%.*s", (int) word->f_len, word->f_str);
 
-	while(!optim->done) {
+	while (!optim->done) {
 		dberr_t	error;
 		trx_t*	trx = optim->trx;
 		ulint	selected;
@@ -3003,7 +3003,7 @@ fts_optimize_thread(
 
 	tables = ib_vector_create(heap_alloc, sizeof(fts_slot_t), 4);
 
-	while(!done && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (!done && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* If there is no message in the queue and we have tables
 		to optimize then optimize the tables. */

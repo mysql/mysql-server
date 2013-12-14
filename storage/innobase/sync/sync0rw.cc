@@ -476,7 +476,8 @@ rw_lock_x_lock_wait_func(
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
-		if(i < srv_n_spin_wait_rounds) {
+
+		if (i < srv_n_spin_wait_rounds) {
 			i++;
 			continue;
 		}

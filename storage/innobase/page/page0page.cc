@@ -2721,7 +2721,7 @@ page_find_rec_with_heap_no(
 	if (page_is_comp(page)) {
 		rec = page + PAGE_NEW_INFIMUM;
 
-		for(;;) {
+		for (;;) {
 			ulint	rec_heap_no = rec_get_heap_no_new(rec);
 
 			if (rec_heap_no == heap_no) {

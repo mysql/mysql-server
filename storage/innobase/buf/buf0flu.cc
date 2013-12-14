@@ -949,17 +949,17 @@ buf_flush_page(
 
 	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
 
-        bool            is_uncompressed;
+	bool	is_uncompressed;
 
-        is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-        ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
+	is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
-        ibool           flush;
-        rw_lock_t*	rw_lock;
-        bool            no_fix_count = bpage->buf_fix_count == 0;
+	ibool		flush;
+	rw_lock_t*	rw_lock;
+	bool		no_fix_count = bpage->buf_fix_count == 0;
 
-        if (!is_uncompressed) {
-                flush = TRUE;
+	if (!is_uncompressed) {
+		flush = TRUE;
 		rw_lock = NULL;
 	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)) {
 		/* This is a heuristic, to avoid expensive SX attempts. */
@@ -974,43 +974,42 @@ buf_flush_page(
 		}
 	}
 
-        if (flush) {
+	if (flush) {
 
-                /* We are committed to flushing by the time we get here */
+		/* We are committed to flushing by the time we get here */
 
-                buf_page_set_io_fix(bpage, BUF_IO_WRITE);
+		buf_page_set_io_fix(bpage, BUF_IO_WRITE);
 
-                buf_page_set_flush_type(bpage, flush_type);
+		buf_page_set_flush_type(bpage, flush_type);
 
-                if (buf_pool->n_flush[flush_type] == 0) {
+		if (buf_pool->n_flush[flush_type] == 0) {
+			os_event_reset(buf_pool->no_flush[flush_type]);
+		}
 
-                        os_event_reset(buf_pool->no_flush[flush_type]);
-                }
+		++buf_pool->n_flush[flush_type];
 
-                ++buf_pool->n_flush[flush_type];
+		mutex_exit(block_mutex);
+		buf_pool_mutex_exit(buf_pool);
 
-                mutex_exit(block_mutex);
-                buf_pool_mutex_exit(buf_pool);
-
-                if (flush_type == BUF_FLUSH_LIST) {
+		if (flush_type == BUF_FLUSH_LIST) {
 
 			/* This is a heuristic for reducing syncs */
 			if (!no_fix_count) {
-                        	buf_dblwr_flush_buffered_writes();
-		}
+				buf_dblwr_flush_buffered_writes();
+			}
 
 			if (is_uncompressed) {
 				rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 			}
-                }
+		}
 
-                /* Even though bpage is not protected by any mutex at this
-                point, it is safe to access bpage, because it is io_fixed and
-                oldest_modification != 0.  Thus, it cannot be relocated in the
-                buffer pool or removed from flush_list or LRU_list. */
+		/* Even though bpage is not protected by any mutex at this
+		point, it is safe to access bpage, because it is io_fixed and
+		oldest_modification != 0.  Thus, it cannot be relocated in the
+		buffer pool or removed from flush_list or LRU_list. */
 
-                buf_flush_write_block_low(bpage, flush_type, sync);
-        }
+		buf_flush_write_block_low(bpage, flush_type, sync);
+	}
 
 	return(flush);
 }
