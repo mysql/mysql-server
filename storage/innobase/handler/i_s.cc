@@ -3554,7 +3554,7 @@ i_s_fts_index_table_fill_selected(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {

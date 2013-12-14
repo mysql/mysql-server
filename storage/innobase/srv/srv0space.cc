@@ -816,7 +816,7 @@ Tablespace::file_not_found(
 	}
 
 	/* Set the file create mode. */
-	switch(file.m_type) {
+	switch (file.m_type) {
 	case SRV_NOT_RAW:
 		file.m_open_flags = OS_FILE_CREATE;
 		break;
@@ -843,7 +843,7 @@ Tablespace::file_found(
 	file.m_exists = true;
 
 	/* Set the file open mode */
-	switch(file.m_type) {
+	switch (file.m_type) {
 	case SRV_NOT_RAW:
 	case SRV_NEW_RAW:
 		file.m_open_flags =
