@@ -426,8 +426,8 @@ else
   echo "describes problems on your OS.  Another information source are the"
   echo "MySQL email archives available at http://lists.mysql.com/."
   echo
-  echo "Please check all of the above before mailing us!  And remember, if"
-  echo "you do mail us, you MUST use the $scriptdir/mysqlbug script!"
+  echo "Please check all of the above before submitting a bug report"
+  echo "at http://bugs.mysql.com/"
   echo
   exit 1
 fi
@@ -478,7 +478,7 @@ then
   fi
 
   echo
-  echo "Please report any problems with the $scriptdir/mysqlbug script!"
+  echo "Please report any problems at http://bugs.mysql.com/"
   echo
 fi
 
