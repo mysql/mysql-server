@@ -990,16 +990,15 @@ buf_flush_page(
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit(buf_pool);
 
-		if (flush_type == BUF_FLUSH_LIST) {
+		if (flush_type == BUF_FLUSH_LIST
+		    && is_uncompressed
+		    && !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE)) {
+			/* avoiding deadlock possibility involves doublewrite
+			buffer, should flush it, because it might hold the
+			another block->lock. */
+			buf_dblwr_flush_buffered_writes();
 
-			/* This is a heuristic for reducing syncs */
-			if (!no_fix_count) {
-				buf_dblwr_flush_buffered_writes();
-			}
-
-			if (is_uncompressed) {
-				rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
-			}
+			rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 		}
 
 		/* Even though bpage is not protected by any mutex at this
