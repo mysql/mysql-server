@@ -1521,7 +1521,7 @@ static int run_query(MYSQL *mysql, const char *query, size_t len)
 
   if (verbose >= 3)
     printf("%.*s;\n", (int)len, query);
-  return mysql_real_query(mysql, query, len);
+  return mysql_real_query(mysql, query, (ulong)len);
 }
 
 
