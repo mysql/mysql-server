@@ -764,8 +764,8 @@ public:
 private:
     int read_full_row(uchar * buf);
     int __close();
-    int get_next(uchar* buf, int direction, DBT* key_to_compare);
-    int read_data_from_range_query_buff(uchar* buf, bool need_val);
+    int get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_key_read);
+    int read_data_from_range_query_buff(uchar* buf, bool need_val, bool do_key_read);
     // for ICP, only in MariaDB and MySQL 5.6
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     enum icp_result toku_handler_index_cond_check(Item* pushed_idx_cond);
