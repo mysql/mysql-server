@@ -110,6 +110,15 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
+ show status like 'slave_open_temp_tables';
+
+ -- Dump all events, there should be none
+ SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+ -- Dump all triggers, there should be none
+ SELECT * FROM INFORMATION_SCHEMA.TRIGGERS;
+ -- Dump all created procedures, there should be none
+ SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
+
 END||
 
 --

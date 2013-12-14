@@ -233,7 +233,7 @@ performance_schema	(table_share_hash).count	102
 performance_schema	(table_share_hash).size	12500
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
-performance_schema	(program_hash).count	2
+performance_schema	(program_hash).count	4
 performance_schema	(program_hash).size	5000
 performance_schema	host_cache.size	336
 performance_schema	(pfs_memory_class).row_size	192
