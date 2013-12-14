@@ -88,6 +88,8 @@ BEGIN
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
         ORDER BY columns_in_mysql;
 
+  SHOW STATUS LIKE 'slave_open_temp_tables';
+
   -- Checksum system tables to make sure they have been properly
   -- restored after test
   checksum table

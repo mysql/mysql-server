@@ -124,7 +124,6 @@ void Host_errors::aggregate(const Host_errors *errors)
 }
 
 static hash_filo *hostname_cache;
-ulong host_cache_size;
 
 void hostname_cache_refresh()
 {
@@ -141,12 +140,12 @@ void hostname_cache_resize(uint size)
   hostname_cache->resize(size);
 }
 
-bool hostname_cache_init()
+bool hostname_cache_init(uint size)
 {
   Host_entry tmp;
   uint key_offset= (uint) ((char*) (&tmp.ip_key) - (char*) &tmp);
 
-  if (!(hostname_cache= new hash_filo(HOST_CACHE_SIZE,
+  if (!(hostname_cache= new hash_filo(size,
                                       key_offset, HOST_ENTRY_KEY_SIZE,
                                       NULL, (my_hash_free_key) free,
                                       &my_charset_bin)))

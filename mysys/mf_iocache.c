@@ -180,7 +180,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
       DBUG_ASSERT(seek_offset == 0);
     }
     else
-      info->seek_not_done= test(seek_offset != pos);
+      info->seek_not_done= MY_TEST(seek_offset != pos);
   }
 
   info->disk_writes= 0;

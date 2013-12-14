@@ -170,26 +170,29 @@ mtr_memo_note_modifications(
 /*========================*/
 	mtr_t*	mtr)	/*!< in: mtr */
 {
-	dyn_array_t*	memo;
-	ulint		offset;
-
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
 					     commit */
-	memo = &mtr->memo;
 
-	offset = dyn_array_get_data_size(memo);
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
 
-	while (offset > 0) {
-		mtr_memo_slot_t* slot;
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = static_cast<mtr_memo_slot_t*>(
-			dyn_array_get_element(memo, offset));
-
-		mtr_memo_slot_note_modification(mtr, slot);
+		while (slot-- != start) {
+			if (slot->object != NULL) {
+				mtr_memo_slot_note_modification(mtr, slot);
+			}
+		}
 	}
 }
 

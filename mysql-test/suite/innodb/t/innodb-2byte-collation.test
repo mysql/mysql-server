@@ -56,7 +56,7 @@ CREATE TABLE 2byte_collation(
        c INT,
        z INT,
        INDEX(b))
-ENGINE=InnoDB;
+ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO 2byte_collation VALUES(0,'x',1, 1);
 

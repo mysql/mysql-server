@@ -352,8 +352,8 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 	DBUG_RETURN(-1);
       }
       /* Page will be update later if we return 1 */
-      DBUG_RETURN(test(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
-				  (uint) keyinfo->underflow_block_length)));
+      DBUG_RETURN(MY_TEST(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
+                                     (uint) keyinfo->underflow_block_length)));
     }
     save_flag=1;
     ret_value=del(info,keyinfo,key,anc_buff,leaf_page,leaf_buff,keypos,

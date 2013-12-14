@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -173,7 +173,7 @@ innodb_read_cache_policy(
 	ib_ulint_t		data_len;
 	ib_col_meta_t		col_meta;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CACHE_POLICIES, NULL, ib_trx,
@@ -202,7 +202,7 @@ innodb_read_cache_policy(
 		goto func_exit;
 	}
 
-	err = innodb_cb_read_row(crsr, tpl);
+	err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -265,6 +265,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
@@ -290,7 +291,7 @@ innodb_read_config_option(
 	ib_col_meta_t		col_meta;
 	int			current_option = -1;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONFIG_OPTIONS, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -317,7 +318,7 @@ innodb_read_config_option(
 
 
 	do {
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read"
@@ -395,6 +396,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
@@ -513,7 +515,7 @@ innodb_config_meta_hash_init(
 	ib_err_t		err = DB_SUCCESS;
 	meta_cfg_info_t*        default_item = NULL;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -521,7 +523,7 @@ innodb_config_meta_hash_init(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %d'\n",
+				" 'innodb_memcached_config.sql. error %d'\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
 			err);
 		err = DB_ERROR;
@@ -536,7 +538,7 @@ innodb_config_meta_hash_init(
 	while (err == DB_SUCCESS) {
 		meta_cfg_info_t*        item;
 
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read row"
@@ -585,6 +587,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(default_item);
 }
@@ -629,7 +632,7 @@ innodb_config_container(
 		}
 	}
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -637,7 +640,7 @@ innodb_config_container(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %d'\n",
+				" 'innodb_memcached_config.sql. error %d'\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
 			err);
 		err = DB_ERROR;
@@ -669,11 +672,11 @@ innodb_config_container(
 
 	if (!name) {
 		read_tpl = tpl;
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 	} else {
 		read_tpl = ib_cb_read_tuple_create(crsr);
 
-		err = ib_cb_read_row(crsr, read_tpl);
+		err = ib_cb_read_row(crsr, read_tpl, NULL, NULL);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -758,6 +761,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	if (err != DB_SUCCESS) {
 		free(item);
@@ -937,7 +941,10 @@ innodb_verify_low(
 
 		if (result == DB_SUCCESS) {
 			is_value_col = true;
-			continue;
+
+			if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
+				continue;
+			}
 		} else if (result == DB_DATA_MISMATCH) {
 			err = DB_DATA_MISMATCH;
 			goto func_exit;

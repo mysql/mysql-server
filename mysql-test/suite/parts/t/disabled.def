@@ -1,0 +1,21 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+partition_max_parts_hash_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_parts_inv_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_parts_key_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_parts_list_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_parts_range_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_sub_parts_key_list_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_sub_parts_key_range_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_sub_parts_list_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.
+partition_max_sub_parts_range_innodb : Bug#17719504 2013-11-01 Horst PARTITION_MAX_PARTS ARE FAILING SPORADICLY.

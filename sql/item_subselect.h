@@ -433,7 +433,7 @@ public:
     if ( pushed_cond_guards)
       pushed_cond_guards[i]= v;
   }
-  bool have_guarded_conds() { return test(pushed_cond_guards); }
+  bool have_guarded_conds() { return MY_TEST(pushed_cond_guards); }
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()

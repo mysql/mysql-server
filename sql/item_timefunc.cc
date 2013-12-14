@@ -1337,7 +1337,7 @@ longlong Item_func_weekday::val_int()
 
   return (longlong) calc_weekday(calc_daynr(ltime.year, ltime.month,
                                             ltime.day),
-                                 odbc_type) + test(odbc_type);
+                                 odbc_type) + MY_TEST(odbc_type);
 }
 
 void Item_func_dayname::fix_length_and_dec()

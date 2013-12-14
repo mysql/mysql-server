@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -884,13 +884,33 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_INDEX},
 
-	{"index_splits", "index", "Number of index splits",
+	{"index_page_splits", "index", "Number of index page splits",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_INDEX_SPLIT},
 
-	{"index_merges", "index", "Number of index merges",
+	{"index_page_merge_attempts", "index",
+	 "Number of index page merge attempts",
 	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE},
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE_ATTEMPTS},
+
+	{"index_page_merge_successful", "index",
+	 "Number of successful index page merges",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE_SUCCESSFUL},
+
+	{"index_page_reorg_attempts", "index",
+	 "Number of index page reorganization attempts",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_REORG_ATTEMPTS},
+
+	{"index_page_reorg_successful", "index",
+	 "Number of successful index page reorganizations",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_REORG_SUCCESSFUL},
+
+	{"index_page_discards", "index", "Number of index pages discarded",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_DISCARD},
 
 	/* ========== Counters for Adaptive Hash Index ========== */
 	{"module_adaptive_hash", "adaptive_hash_index", "Adpative Hash Index",

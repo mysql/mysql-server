@@ -465,7 +465,7 @@ public:
   bool close(THD *thd);
 
   bool is_open() const
-  { return test(m_server_side_cursor); }
+  { return MY_TEST(m_server_side_cursor); }
 
   bool fetch(THD *thd, List<sp_variable> *vars);
 
