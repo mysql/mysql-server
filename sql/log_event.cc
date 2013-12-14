@@ -1027,6 +1027,17 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   if (log_file_name_arg)
     *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
 
+  DBUG_EXECUTE_IF("dump_fake_io_error",
+                  {
+                    if (log_lock)
+                    {
+                      pthread_mutex_unlock(log_lock);
+
+                      DBUG_SET("-d,dump_fake_io_error");
+                      DBUG_RETURN(LOG_READ_IO);
+                    }
+                  });
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -5391,7 +5402,6 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
     thd->first_successful_insert_id_in_prev_stmt= val;
     break;
   case INSERT_ID_EVENT:
