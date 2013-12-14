@@ -92,6 +92,7 @@ UNIV_INTERN mysql_pfs_key_t	fts_delete_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_optimize_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_bg_threads_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_doc_id_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
@@ -876,7 +877,7 @@ fts_drop_index(
 
 		current_doc_id = table->fts->cache->next_doc_id;
 		first_doc_id = table->fts->cache->first_doc_id;
-		fts_cache_clear(table->fts->cache, TRUE);
+		fts_cache_clear(table->fts->cache);
 		fts_cache_destroy(table->fts->cache);
 		table->fts->cache = fts_cache_create(table);
 		table->fts->cache->next_doc_id = current_doc_id;
@@ -1079,16 +1080,12 @@ fts_words_free(
 }
 
 /*********************************************************************//**
-Clear cache. If the shutdown flag is TRUE then the cache can contain
-data that needs to be freed. For regular clear as part of normal
-working we assume the caller has freed all resources. */
+Clear cache. */
 UNIV_INTERN
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,		/*!< in: cache */
-	ibool		free_words)	/*!< in: TRUE if free in memory
-					word cache. */
+	fts_cache_t*	cache)		/*!< in: cache */
 {
 	ulint		i;
 
@@ -1099,11 +1096,7 @@ fts_cache_clear(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
-		if (free_words) {
-			fts_words_free(index_cache->words);
-		}
-
-		ut_a(rbt_empty(index_cache->words));
+		fts_words_free(index_cache->words);
 
 		rbt_free(index_cache->words);
 
@@ -2322,7 +2315,7 @@ fts_trx_table_clone(
 	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
 
 	/* Copy the rb tree values to the new savepoint. */
-	rbt_merge_uniq(ftt_src->rows, ftt->rows);
+	rbt_merge_uniq(ftt->rows, ftt_src->rows);
 
 	/* These are only added on commit. At this stage we only have
 	the updated row state. */
@@ -2814,7 +2807,7 @@ fts_update_sync_doc_id(
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"BEGIN "
-		"UPDATE %s SET value = :doc_id"
+		"UPDATE \"%s\" SET value = :doc_id"
 		" WHERE key = 'synced_doc_id';");
 
 	error = fts_eval_sql(trx, graph);
@@ -4221,7 +4214,7 @@ fts_is_word_in_index(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word = :word "
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
@@ -4363,10 +4356,8 @@ fts_sync_commit(
 	}
 
 	/* We need to do this within the deleted lock since fts_delete() can
-	attempt to add a deleted doc id to the cache deleted id array. Set
-	the shutdown flag to FALSE, signifying that we don't want to release
-	all resources. */
-	fts_cache_clear(cache, FALSE);
+	attempt to add a deleted doc id to the cache deleted id array. */
+	fts_cache_clear(cache);
 	fts_cache_init(cache);
 	rw_lock_x_unlock(&cache->lock);
 
@@ -4438,6 +4429,10 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
+		if (index_cache->index->to_be_dropped) {
+			continue;
+		}
+
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -4447,7 +4442,8 @@ fts_sync(
 	}
 
 	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
-			 sync->interrupted = true;
+			sync->interrupted = true;
+			error = DB_INTERRUPTED;
 	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
@@ -4474,16 +4470,20 @@ fts_sync(
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
 UNIV_INTERN
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)		/*!< in: table */
 {
+	dberr_t	err = DB_SUCCESS;
+
 	ut_ad(table->fts);
 
 	if (table->fts->cache) {
-		fts_sync(table->fts->cache->sync);
+		err = fts_sync(table->fts->cache->sync);
 	}
+
+	return(err);
 }
 
 /********************************************************************
@@ -5367,7 +5367,7 @@ fts_free(
 	ut_ad(!fts->add_wq);
 
 	if (fts->cache) {
-		fts_cache_clear(fts->cache, TRUE);
+		fts_cache_clear(fts->cache);
 		fts_cache_destroy(fts->cache);
 		fts->cache = NULL;
 	}
@@ -5546,8 +5546,20 @@ fts_savepoint_release(
 
 	/* Only if we found and element to release. */
 	if (i < ib_vector_size(savepoints)) {
+		fts_savepoint_t*	last_savepoint;
+		fts_savepoint_t*	top_savepoint;
+		ib_rbt_t*		tables;
 
 		ut_a(top_of_stack < ib_vector_size(savepoints));
+
+		/* Exchange tables between last savepoint and top savepoint */
+		last_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_last(trx->fts_trx->savepoints));
+		top_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_get(savepoints, top_of_stack));
+		tables = top_savepoint->tables;
+		top_savepoint->tables = last_savepoint->tables;
+		last_savepoint->tables = tables;
 
 		/* Skip the implied savepoint. */
 		for (i = ib_vector_size(savepoints) - 1;
@@ -5759,6 +5771,9 @@ fts_savepoint_rollback(
 
 		/* Make sure we don't delete the implied savepoint. */
 		ut_a(ib_vector_size(savepoints) > 0);
+
+		/* Restore the savepoint. */
+		fts_savepoint_take(trx, name);
 	}
 }
 

@@ -891,14 +891,14 @@ public:
 
     */
     return real_maybe_null() ?
-      test(null_ptr[row_offset] & null_bit) : table->null_row;
+      MY_TEST(null_ptr[row_offset] & null_bit) : table->null_row;
   }
 
   bool is_real_null(my_ptrdiff_t row_offset= 0) const
-  { return real_maybe_null() ? test(null_ptr[row_offset] & null_bit) : false; }
+  { return real_maybe_null() ? MY_TEST(null_ptr[row_offset] & null_bit) : false; }
 
   bool is_null_in_record(const uchar *record) const
-  { return real_maybe_null() ? test(record[null_offset()] & null_bit) : false; }
+  { return real_maybe_null() ? MY_TEST(record[null_offset()] & null_bit) : false; }
 
   void set_null(my_ptrdiff_t row_offset= 0)
   {
@@ -1415,11 +1415,6 @@ protected:
   {
     handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
     return from + sizeof(int64);
-  }
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
   }
 
 };
@@ -3670,9 +3665,9 @@ public:
   {
     DBUG_ASSERT(ptr == a || ptr == b);
     if (ptr == a)
-      return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+      return Field_bit::key_cmp(b, bytes_in_rec+MY_TEST(bit_len));
     else
-      return Field_bit::key_cmp(a, bytes_in_rec+test(bit_len)) * -1;
+      return Field_bit::key_cmp(a, bytes_in_rec+MY_TEST(bit_len)) * -1;
   }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
@@ -3827,11 +3822,6 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             uint uint_geom_type);
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
-  }
 
   ha_storage_media field_storage_type() const
   {

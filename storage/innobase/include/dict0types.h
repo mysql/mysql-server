@@ -82,4 +82,9 @@ enum ib_quiesce_t {
 #define TEMP_TABLE_PREFIX                "#sql"
 #define TEMP_TABLE_PATH_PREFIX           "/" TEMP_TABLE_PREFIX
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+extern uint		ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 #endif

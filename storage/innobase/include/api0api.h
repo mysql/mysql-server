@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -460,6 +460,10 @@ ib_trx_start(
 /*=========*/
 	ib_trx_t	ib_trx,		/*!< in: transaction to restart */
 	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
+	ib_bool_t	read_write,	/*!< in: true if read write
+					transaction */
+	ib_bool_t	auto_commit,	/*!< in: auto commit after each
+					single DML */
 	void*		thd);		/*!< in: THD */
 
 /*****************************************************************//**
@@ -470,7 +474,11 @@ put the transaction in the active state.
 ib_trx_t
 ib_trx_begin(
 /*=========*/
-	ib_trx_level_t	ib_trx_level);	/*!< in: trx isolation level */
+	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
+	ib_bool_t	read_write,	/*!< in: true if read write
+					transaction */
+	ib_bool_t	auto_commit);	/*!< in: auto commit after each
+					single DML */
 
 /*****************************************************************//**
 Query the transaction's state. This function can be used to check for
@@ -669,7 +677,9 @@ ib_err_t
 ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
-	ib_tpl_t	ib_tpl);	/*!< out: read cols into this tuple */
+	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
+	void**		row_buf,	/*!< in/out: row buffer */
+	ib_ulint_t*	row_len);	/*!< in/out: row buffer len */
 
 /*****************************************************************//**
 Move cursor to the first record in the table.

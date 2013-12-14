@@ -793,7 +793,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                                            update,
                                            update_fields,
                                            fields,
-                                           !test(values->elements),
+                                           !MY_TEST(values->elements),
                                            &can_prune_partitions,
                                            &prune_needs_default_values,
                                            &used_partitions))
@@ -1978,7 +1978,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       if (table_list)
       {
         table_list= table_list->top_table();
-        view= test(table_list->view);
+        view= MY_TEST(table_list->view);
       }
       if (view)
       {
@@ -3980,8 +3980,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->db_low_byte_first= 
-        test(create_info->db_type == myisam_hton ||
-             create_info->db_type == heap_hton);
+        MY_TEST(create_info->db_type == myisam_hton ||
+                create_info->db_type == heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
   if (!thd->variables.explicit_defaults_for_timestamp)

@@ -510,9 +510,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       info.s=share;
       if (_mi_read_pack_info(&info,
 			     (pbool)
-			     test(!(share->options &
-				    (HA_OPTION_PACK_RECORD |
-				     HA_OPTION_TEMP_COMPRESS_RECORD)))))
+			     MY_TEST(!(share->options &
+                                       (HA_OPTION_PACK_RECORD |
+                                        HA_OPTION_TEMP_COMPRESS_RECORD)))))
 	goto err;
     }
     else if (share->options & HA_OPTION_PACK_RECORD)

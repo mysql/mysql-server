@@ -729,6 +729,9 @@ drop database if exists no_priv_db;
 drop database if exists h1;
 drop user test_yesprivs@localhost;
 drop user test_noprivs@localhost;
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing table level and column level grants "
+                         "in the privilege tables.");
 
 ####### Testcase for mix of db and table level: #######
 -------------------------------------------------------

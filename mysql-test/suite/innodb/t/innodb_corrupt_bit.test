@@ -36,7 +36,7 @@ CREATE TABLE corrupt_bit_test_ā(
        c INT,
        z INT,
        INDEX(b))
-ENGINE=InnoDB;
+ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO corrupt_bit_test_ā VALUES(0,'x',1, 1);
 

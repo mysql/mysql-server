@@ -737,13 +737,13 @@ JOIN::optimize()
   need_tmp= ((!plan_is_const() &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT))) ||
+	      MY_TEST(select_options & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   /* Perform FULLTEXT search before all regular searches */
   if (!(select_options & SELECT_DESCRIBE))
   {
-    init_ftfuncs(thd, select_lex, test(order));
+    init_ftfuncs(thd, select_lex, MY_TEST(order));
     optimize_fts_query();
   }
 
@@ -2541,7 +2541,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
-  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
+  bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -5468,8 +5468,8 @@ static int sort_keyuse(Key_use *a, Key_use *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
+  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,8 +286,18 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   {
     DBUG_PRINT("info", ("filesort PQ is not applicable"));
 
+    /*
+      We need space for at least one record from each merge chunk, i.e.
+        param->max_keys_per_buffer >= MERGEBUFF2
+      See merge_buffers()),
+      memory_available must be large enough for
+        param->max_keys_per_buffer * (record + record pointer) bytes
+      (the main sort buffer, see alloc_sort_buffer()).
+      Hence this minimum:
+    */
     const ulong min_sort_memory=
-      max(MIN_SORT_MEMORY, param.sort_length * MERGEBUFF2);
+      max<ulong>(MIN_SORT_MEMORY,
+                 ALIGN_SIZE(MERGEBUFF2 * (param.rec_length + sizeof(uchar*))));
     while (memory_available >= min_sort_memory)
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
@@ -442,9 +452,10 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ?
-                    ER(kill_errno) :
-                    thd->get_stmt_da()->message());
+                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
+                                 !shutdown_in_progress) ? ER(THD::KILL_QUERY) :
+                                                          ER(kill_errno)) :
+                                 thd->get_stmt_da()->message());
 
     if (log_warnings > 1)
     {

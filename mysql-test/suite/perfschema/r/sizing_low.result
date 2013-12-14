@@ -26,7 +26,7 @@ performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	1556
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	2945
-performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_classes	40
 performance_schema_max_rwlock_instances	1612
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	67
@@ -79,8 +79,8 @@ performance_schema	(pfs_mutex_class).row_size	256
 performance_schema	(pfs_mutex_class).row_count	200
 performance_schema	(pfs_mutex_class).memory	51200
 performance_schema	(pfs_rwlock_class).row_size	320
-performance_schema	(pfs_rwlock_class).row_count	30
-performance_schema	(pfs_rwlock_class).memory	9600
+performance_schema	(pfs_rwlock_class).row_count	40
+performance_schema	(pfs_rwlock_class).memory	12800
 performance_schema	(pfs_cond_class).row_size	256
 performance_schema	(pfs_cond_class).row_count	80
 performance_schema	(pfs_cond_class).memory	20480
@@ -99,9 +99,9 @@ performance_schema	rwlock_instances.memory	309504
 performance_schema	cond_instances.row_size	128
 performance_schema	cond_instances.row_count	612
 performance_schema	cond_instances.memory	78336
-performance_schema	threads.row_size	2880
+performance_schema	threads.row_size	2816
 performance_schema	threads.row_count	112
-performance_schema	threads.memory	322560
+performance_schema	threads.memory	315392
 performance_schema	file_instances.row_size	704
 performance_schema	file_instances.row_count	1556
 performance_schema	file_instances.memory	1095424
@@ -109,8 +109,8 @@ performance_schema	(pfs_file_handle).row_size	8
 performance_schema	(pfs_file_handle).row_count	32768
 performance_schema	(pfs_file_handle).memory	262144
 performance_schema	events_waits_summary_by_thread_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_thread_by_event_name.row_count	41776
-performance_schema	events_waits_summary_by_thread_by_event_name.memory	1336832
+performance_schema	events_waits_summary_by_thread_by_event_name.row_count	42896
+performance_schema	events_waits_summary_by_thread_by_event_name.memory	1372672
 performance_schema	(pfs_table_share).row_size	22208
 performance_schema	(pfs_table_share).row_count	445
 performance_schema	(pfs_table_share).memory	9882560
@@ -127,14 +127,14 @@ performance_schema	(pfs_account).row_size	256
 performance_schema	(pfs_account).row_count	10
 performance_schema	(pfs_account).memory	2560
 performance_schema	events_waits_summary_by_account_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_account_by_event_name.row_count	3730
-performance_schema	events_waits_summary_by_account_by_event_name.memory	119360
+performance_schema	events_waits_summary_by_account_by_event_name.row_count	3830
+performance_schema	events_waits_summary_by_account_by_event_name.memory	122560
 performance_schema	events_waits_summary_by_user_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_user_by_event_name.row_count	1865
-performance_schema	events_waits_summary_by_user_by_event_name.memory	59680
+performance_schema	events_waits_summary_by_user_by_event_name.row_count	1915
+performance_schema	events_waits_summary_by_user_by_event_name.memory	61280
 performance_schema	events_waits_summary_by_host_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_host_by_event_name.row_count	7460
-performance_schema	events_waits_summary_by_host_by_event_name.memory	238720
+performance_schema	events_waits_summary_by_host_by_event_name.row_count	7660
+performance_schema	events_waits_summary_by_host_by_event_name.memory	245120
 performance_schema	(pfs_user).row_size	128
 performance_schema	(pfs_user).row_count	5
 performance_schema	(pfs_user).memory	640
@@ -221,4 +221,4 @@ performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	24728544
+performance_schema	performance_schema.memory	24771616

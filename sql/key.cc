@@ -123,8 +123,8 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
   {
     if (key_part->null_bit)
     {
-      *to_key++= test(from_record[key_part->null_offset] &
-		   key_part->null_bit);
+      *to_key++= MY_TEST(from_record[key_part->null_offset] &
+                         key_part->null_bit);
       key_length--;
     }
     if (key_part->key_part_flag & HA_BLOB_PART ||
@@ -299,8 +299,8 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 
     if (key_part->null_bit)
     {
-      if (*key != test(table->record[0][key_part->null_offset] & 
-		       key_part->null_bit))
+      if (*key != MY_TEST(table->record[0][key_part->null_offset] & 
+                          key_part->null_bit))
 	return 1;
       if (*key)
 	continue;
@@ -438,7 +438,7 @@ void key_unpack(String *to, TABLE *table, KEY *key)
       }
     }
     field_unpack(to, key_part->field, table->record[0], key_part->length,
-                 test(key_part->key_part_flag & HA_PART_KEY_SEG));
+                 MY_TEST(key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
   DBUG_VOID_RETURN;
