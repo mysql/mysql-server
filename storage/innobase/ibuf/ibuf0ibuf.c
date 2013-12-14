@@ -193,11 +193,6 @@ access order rules. */
 /** Operations that can currently be buffered. */
 UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
 
-#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-/** Flag to control insert buffer debugging. */
-UNIV_INTERN uint	ibuf_debug;
-#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-
 /** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
@@ -2649,6 +2644,12 @@ ibuf_contract_ext(
 		return(0);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (ibuf_debug) {
+		return(0);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 	ibuf_mtr_start(&mtr);
 
 	/* Open a cursor to a randomly chosen leaf of the tree, at a random
@@ -4016,6 +4017,24 @@ updated_in_place:
 			to btr_cur_update_in_place(). */
 			row_upd_rec_in_place(rec, index, offsets,
 					     update, page_zip);
+
+			/* Log the update in place operation. During recovery
+			MLOG_COMP_REC_UPDATE_IN_PLACE/MLOG_REC_UPDATE_IN_PLACE
+			expects trx_id, roll_ptr for secondary indexes. So we
+			just write dummy trx_id(0), roll_ptr(0) */
+			btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec,
+						    index, update,
+						    NULL, 0, mtr);
+			DBUG_EXECUTE_IF(
+				"crash_after_log_ibuf_upd_inplace",
+				log_buffer_flush_to_disk();
+				fprintf(stderr,
+					"InnoDB: Wrote log record for ibuf "
+					"update in place operation\n");
+				DBUG_SUICIDE();
+			);
+
+
 			goto updated_in_place;
 		}
 

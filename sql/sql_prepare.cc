@@ -877,7 +877,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
 
-        if (param->limit_clause_param && param->item_type != Item::INT_ITEM)
+        if (param->limit_clause_param && param->state != Item_param::INT_VALUE)
         {
           param->set_int(param->val_int(), MY_INT64_NUM_DECIMAL_DIGITS);
           param->item_type= Item::INT_ITEM;

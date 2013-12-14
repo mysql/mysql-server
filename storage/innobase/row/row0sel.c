@@ -3095,48 +3095,78 @@ sel_restore_position_for_mysql(
 	mtr_t*		mtr)		/*!< in: mtr; CAUTION: may commit
 					mtr temporarily! */
 {
-	ibool	success;
-	ulint	relative_position;
-
-	relative_position = pcur->rel_pos;
+	ibool		success;
 
 	success = btr_pcur_restore_position(latch_mode, pcur, mtr);
 
 	*same_user_rec = success;
 
-	if (relative_position == BTR_PCUR_ON) {
-		if (success) {
-			return(FALSE);
-		}
-
-		if (moves_up) {
-			btr_pcur_move_to_next(pcur, mtr);
-		}
-
-		return(TRUE);
+	ut_ad(!success || pcur->rel_pos == BTR_PCUR_ON);
+#ifdef UNIV_DEBUG
+	if (pcur->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
+		ut_ad(pcur->rel_pos == BTR_PCUR_BEFORE
+		      || pcur->rel_pos == BTR_PCUR_AFTER);
+	} else {
+		ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+		ut_ad((pcur->rel_pos == BTR_PCUR_ON)
+		      == btr_pcur_is_on_user_rec(pcur));
 	}
+#endif
 
-	if (relative_position == BTR_PCUR_AFTER
-	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
+	/* The position may need be adjusted for rel_pos and moves_up. */
 
-		if (moves_up) {
+	switch (pcur->rel_pos) {
+	case BTR_PCUR_ON:
+		if (!success && moves_up) {
+next:
+			btr_pcur_move_to_next(pcur, mtr);
 			return(TRUE);
 		}
-
-		if (btr_pcur_is_on_user_rec(pcur)) {
+		return(!success);
+	case BTR_PCUR_AFTER_LAST_IN_TREE:
+	case BTR_PCUR_BEFORE_FIRST_IN_TREE:
+		return(TRUE);
+	case BTR_PCUR_AFTER:
+		/* positioned to record after pcur->old_rec. */
+		pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+prev:
+		if (btr_pcur_is_on_user_rec(pcur) && !moves_up) {
 			btr_pcur_move_to_prev(pcur, mtr);
 		}
-
 		return(TRUE);
+	case BTR_PCUR_BEFORE:
+		/* For non optimistic restoration:
+		The position is now set to the record before pcur->old_rec.
+
+		For optimistic restoration:
+		The position also needs to take the previous search_mode into
+		consideration. */
+
+		switch (pcur->pos_state) {
+		case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
+			pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+			if (pcur->search_mode == PAGE_CUR_GE) {
+				/* Positioned during Greater or Equal search
+				with BTR_PCUR_BEFORE. Optimistic restore to
+				the same record. If scanning for lower then
+				we must move to previous record.
+				This can happen with:
+				HANDLER READ idx a = (const);
+				HANDLER READ idx PREV; */
+				goto prev;
+			}
+			return(TRUE);
+		case BTR_PCUR_IS_POSITIONED:
+			if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
+				goto next;
+			}
+			return(TRUE);
+		case BTR_PCUR_WAS_POSITIONED:
+		case BTR_PCUR_NOT_POSITIONED:
+			break;
+		}
 	}
-
-	ut_ad(relative_position == BTR_PCUR_BEFORE
-	      || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
-
-	if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
-		btr_pcur_move_to_next(pcur, mtr);
-	}
-
+	ut_ad(0);
 	return(TRUE);
 }
 
@@ -4120,6 +4150,14 @@ wrong_offs:
 
 			btr_pcur_store_position(pcur, &mtr);
 
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
+
 			err = DB_RECORD_NOT_FOUND;
 			/* ut_print_name(stderr, index->name);
 			fputs(" record not found 3\n", stderr); */
@@ -4158,6 +4196,14 @@ wrong_offs:
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
+
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
 			/* ut_print_name(stderr, index->name);
@@ -4736,6 +4782,7 @@ normal_return:
 	if (prebuilt->n_fetch_cached > 0) {
 		row_sel_pop_cached_row_for_mysql(buf, prebuilt);
 
+		DEBUG_SYNC_C("row_search_cached_row");
 		err = DB_SUCCESS;
 	}
 

@@ -38,4 +38,8 @@ CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 source include/show_binlog_events.inc;
 
+DROP TEMPORARY TABLE tmp;
+DROP TEMPORARY TABLE tmp1;
+DROP TEMPORARY TABLE tmp2;
+
 --source include/rpl_end.inc

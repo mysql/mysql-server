@@ -91,8 +91,8 @@ connection master1;
 sleep 3;
 select (@id := id) - id from t2;
 kill @id;
-# We don't drop t3 as this is a temporary table
 drop table t2;
+drop temporary table t3;
 connection master;
 # The get_lock function causes warning for unsafe statement.
 --disable_warnings
