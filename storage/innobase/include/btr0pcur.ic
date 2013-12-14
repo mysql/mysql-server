@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -379,7 +379,7 @@ btr_pcur_commit_specify_mtr(
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
 	mtr_t*		mtr)	/*!< in: mtr to commit */
 {
-	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	pcur->latch_mode = BTR_NO_LATCHES;
 

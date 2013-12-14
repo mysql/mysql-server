@@ -67,11 +67,6 @@ typedef enum {
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
 
-#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-/** Flag to control insert buffer debugging. */
-extern uint		ibuf_debug;
-#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;
 

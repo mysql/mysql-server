@@ -4,7 +4,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
 # Test of GRANT commands
 
 SET NAMES binary;

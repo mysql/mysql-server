@@ -139,6 +139,12 @@ trx_create(void)
 
 	trx->op_info = "";
 
+	trx->api_trx = false;
+
+	trx->api_auto_commit = false;
+
+	trx->read_write = true;
+
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 	heap_alloc = ib_heap_allocator_create(heap);
 
@@ -380,7 +386,6 @@ trx_list_rw_insert_ordered(
 
 		if (trx2 == NULL) {
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
-			ut_d(trx_sys->rw_max_trx_id = trx->id);
 		} else {
 			UT_LIST_INSERT_AFTER(
 				trx_list, trx_sys->rw_trx_list, trx2, trx);
@@ -388,6 +393,12 @@ trx_list_rw_insert_ordered(
 	} else {
 		UT_LIST_ADD_LAST(trx_list, trx_sys->rw_trx_list, trx);
 	}
+
+#ifdef UNIV_DEBUG
+	if (trx->id > trx_sys->rw_max_trx_id) {
+		trx_sys->rw_max_trx_id = trx->id;
+	}
+#endif /* UNIV_DEBUG */
 
 	ut_ad(!trx->in_rw_trx_list);
 	ut_d(trx->in_rw_trx_list = TRUE);
@@ -736,7 +747,7 @@ trx_assign_rseg_low(
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
+	if (srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
@@ -752,7 +763,9 @@ trx_assign_rseg_low(
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
 
-	ut_a(trx_sys->rseg_array[0] != NULL);
+	if (trx_sys->rseg_array[0] == NULL) {
+		return(NULL);
+	}
 
 	/* Skip the system tablespace if we have more than one tablespace
 	defined for rollback segments. We want all UNDO records to be in
@@ -807,10 +820,12 @@ trx_start_low(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
-	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
+	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
+			   || thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		(!trx->ddl && thd_trx_is_read_only(trx->mysql_thd))
+		(trx->api_trx && !trx->read_write)
+		|| (!trx->ddl && thd_trx_is_read_only(trx->mysql_thd))
 		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
@@ -864,7 +879,11 @@ trx_start_low(
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
-		ut_d(trx_sys->rw_max_trx_id = trx->id);
+#ifdef UNIV_DEBUG
+		if (trx->id > trx_sys->rw_max_trx_id) {
+			trx_sys->rw_max_trx_id = trx->id;
+		}
+#endif /* UNIV_DEBUG */
 	}
 
 	ut_ad(trx_sys_validate_trx_list());

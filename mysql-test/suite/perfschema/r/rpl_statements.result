@@ -199,10 +199,10 @@ thread_id	event_id	event_name	digest	digest_text	sql_text
 # STEP 6 - DISABLE REPLICATED STATEMENT EVENTS ON SLAVE
 #
 update performance_schema.setup_instruments set enabled='no', timed='no'
-  where name like '%statement/rpl/relay_log%';
-select * from performance_schema.setup_instruments where name like '%statement/rpl/relay_log%';
+  where name like '%statement/abstract/relay_log%';
+select * from performance_schema.setup_instruments where name like '%statement/abstract/relay_log%';
 NAME	ENABLED	TIMED
-statement/rpl/relay_log	NO	NO
+statement/abstract/relay_log	NO	NO
 
 #
 # STEP 7 - UPDATE TABLES ON MASTER, REPLICATE

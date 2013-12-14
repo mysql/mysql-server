@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -33,6 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.h"
 #ifdef UNIV_NONINL
 #include "sync0rw.ic"
+#include "sync0arr.ic"
 #endif
 
 #include "os0thread.h"
@@ -405,11 +406,10 @@ lock_loop:
 
 		rw_lock_stats.rw_s_spin_round_count.add(counter_index, i);
 
-		sync_arr = sync_array_get();
-
-		sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_SHARED,
-			file_name, line, &index);
+		sync_arr = sync_array_get_and_reserve_cell(lock,
+							   RW_LOCK_SHARED,
+							   file_name,
+							   line, &index);
 
 		/* Set waiters before checking lock_word to ensure wake-up
 		signal is sent. This may lead to some unnecessary signals. */
@@ -490,11 +490,10 @@ rw_lock_x_lock_wait(
 		/* If there is still a reader, then go to sleep.*/
 		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 
-		sync_arr = sync_array_get();
-
-		sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_WAIT_EX,
-			file_name, line, &index);
+		sync_arr = sync_array_get_and_reserve_cell(lock,
+							   RW_LOCK_WAIT_EX,
+							   file_name,
+							   line, &index);
 
 		i = 0;
 
@@ -657,10 +656,8 @@ lock_loop:
 
 	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 
-	sync_arr = sync_array_get();
-
-	sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_EX, file_name, line, &index);
+	sync_arr = sync_array_get_and_reserve_cell(lock, RW_LOCK_EX,
+						   file_name, line, &index);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */

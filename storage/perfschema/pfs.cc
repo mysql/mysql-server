@@ -4524,7 +4524,7 @@ refine_statement_v1(PSI_statement_locker *locker,
   PFS_statement_class *klass;
   /* Only refine statements for mutable instrumentation */
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
-  DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
+  DBUG_ASSERT(klass->is_mutable());
   klass= find_statement_class(key);
 
   uint flags= state->m_flags;
@@ -5114,13 +5114,15 @@ static int set_thread_connect_attrs_v1(const char *buffer, uint length,
 
   if (likely(thd != NULL) && session_connect_attrs_size_per_thread > 0)
   {
+    const CHARSET_INFO *cs = static_cast<const CHARSET_INFO *> (from_cs);
+
     /* copy from the input buffer as much as we can fit */
     uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
                            length : session_connect_attrs_size_per_thread);
     thd->m_session_lock.allocated_to_dirty();
     memcpy(thd->m_session_connect_attrs, buffer, copy_size);
     thd->m_session_connect_attrs_length= copy_size;
-    thd->m_session_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
+    thd->m_session_connect_attrs_cs_number= cs->number;
     thd->m_session_lock.dirty_to_allocated();
 
     if (copy_size == length)

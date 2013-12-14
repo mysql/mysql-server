@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,53 +99,75 @@ public:
   {
     if (!inited)
       return TRUE;
-    return rw_rdlock(&lock);
+    return mysql_rwlock_rdlock(&lock);
   }
 
   inline int write_lock()
   {
     if (!inited)
       return TRUE;
-    return rw_wrlock(&lock);
+    return mysql_rwlock_wrlock(&lock);
   }
 
   inline int unlock()
   {
     if (!inited)
       return TRUE;
-    return rw_unlock(&lock);
+    return mysql_rwlock_unlock(&lock);
   }
 
   inline bool is_inited()
   {
     return inited;
   }
-  
-  Delegate()
+
+  Delegate(
+#ifdef HAVE_PSI_INTERFACE
+           PSI_rwlock_key key
+#endif
+           )
   {
     inited= FALSE;
-    if (my_rwlock_init(&lock, NULL))
+#ifdef HAVE_PSI_INTERFACE
+    if (mysql_rwlock_init(key, &lock))
       return;
+#else
+    if (mysql_rwlock_init(0, &lock))
+      return;
+#endif
     init_sql_alloc(&memroot, 1024, 0);
     inited= TRUE;
   }
   ~Delegate()
   {
     inited= FALSE;
-    rwlock_destroy(&lock);
+    mysql_rwlock_destroy(&lock);
     free_root(&memroot, MYF(0));
   }
 
 private:
   Observer_info_list observer_info_list;
-  rw_lock_t lock;
+  mysql_rwlock_t lock;
   MEM_ROOT memroot;
   bool inited;
 };
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+#endif
+
 class Trans_delegate
   :public Delegate {
 public:
+
+  Trans_delegate()
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Trans_delegate_lock
+#endif
+             )
+  {}
+
   typedef Trans_observer Observer;
   int before_commit(THD *thd, bool all);
   int before_rollback(THD *thd, bool all);
@@ -153,18 +175,44 @@ public:
   int after_rollback(THD *thd, bool all);
 };
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
+#endif
+
 class Binlog_storage_delegate
   :public Delegate {
 public:
+
+  Binlog_storage_delegate()
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_storage_delegate_lock
+#endif
+             )
+  {}
+
   typedef Binlog_storage_observer Observer;
   int after_flush(THD *thd, const char *log_file,
                   my_off_t log_pos);
 };
 
 #ifdef HAVE_REPLICATION
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
+#endif
+
 class Binlog_transmit_delegate
   :public Delegate {
 public:
+
+  Binlog_transmit_delegate()
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_transmit_delegate_lock
+#endif
+             )
+  {}
+
   typedef Binlog_transmit_observer Observer;
   int transmit_start(THD *thd, ushort flags,
                      const char *log_file, my_off_t log_pos);
@@ -179,9 +227,22 @@ public:
   int after_reset_master(THD *thd, ushort flags);
 };
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
+#endif
+
 class Binlog_relay_IO_delegate
   :public Delegate {
 public:
+
+  Binlog_relay_IO_delegate()
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_relay_IO_delegate_lock
+#endif
+             )
+  {}
+
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
   int thread_stop(THD *thd, Master_info *mi);

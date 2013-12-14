@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,3 +24,41 @@ Inline code
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
+
+/** User configured sync array size */
+extern ulong srv_sync_array_size;
+
+/******************************************************************//**
+Get an instance of the sync wait array and reserve a wait array cell
+in the instance for waiting for an object. The event of the cell is
+reset to nonsignalled state.
+If reserving cell of the instance fails, try to get another new
+instance until we can reserve an empty cell of it.
+@return the instance found, never NULL. */
+UNIV_INLINE
+sync_array_t*
+sync_array_get_and_reserve_cell(
+/*============================*/
+	void*		object,	/*!< in: pointer to the object to wait for */
+	ulint		type,	/*!< in: lock request type */
+	const char*	file,	/*!< in: file where requested */
+	ulint		line,	/*!< in: line where requested */
+	ulint*		index)	/*!< out: index of the reserved cell */
+{
+	sync_array_t*	sync_arr;
+	bool		reserved = false;
+
+	for (ulint i = 0; i < srv_sync_array_size && !reserved; ++i) {
+		sync_arr = sync_array_get();
+		reserved = sync_array_reserve_cell(sync_arr, object, type,
+						   file, line, index);
+	}
+
+	/* This won't be true every time, for the loop above may execute
+	more than srv_sync_array_size times to reserve a cell.
+	But an assertion here makes the code more solid. */
+	ut_a(reserved);
+
+	return sync_arr;
+}
+

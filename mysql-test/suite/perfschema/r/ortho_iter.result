@@ -28,7 +28,8 @@ select (instr_name like "statement/%") into is_statement;
 select instr_name, is_wait, is_stage, is_statement;
 select count(name)
 from performance_schema.setup_instruments
-where name like (concat(instr_name, "%"))
+where (name like (concat(instr_name, "%")))
+and (not name like "%/abstract/%")
 into count_expected;
 set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
 set cmd_2= concat(" where event_name like \"",
@@ -110,7 +111,7 @@ performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	5000
-performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_classes	40
 performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
@@ -607,6 +608,41 @@ Warning	12000	Done
 call check_instrument("statement/sql/");
 instr_name	is_wait	is_stage	is_statement
 statement/sql/	0	0	1
+status
+Checking table events_stages_summary_by_account_by_event_name ...
+status
+Checking table events_stages_summary_by_host_by_event_name ...
+status
+Checking table events_stages_summary_by_thread_by_event_name ...
+status
+Checking table events_stages_summary_by_user_by_event_name ...
+status
+Checking table events_stages_summary_global_by_event_name ...
+status
+Checking table events_statements_summary_by_account_by_event_name ...
+status
+Checking table events_statements_summary_by_host_by_event_name ...
+status
+Checking table events_statements_summary_by_thread_by_event_name ...
+status
+Checking table events_statements_summary_by_user_by_event_name ...
+status
+Checking table events_statements_summary_global_by_event_name ...
+status
+Checking table events_waits_summary_by_account_by_event_name ...
+status
+Checking table events_waits_summary_by_host_by_event_name ...
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_by_user_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("statement/abstract/");
+instr_name	is_wait	is_stage	is_statement
+statement/abstract/	0	0	1
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status

@@ -239,6 +239,7 @@ unlock tables;
 #clean up
 connection master;
 drop table if exists t1,t2,t3,t4;
+drop temporary table temp_table;
 sync_slave_with_master;
 
 --echo End of 4.1 tests

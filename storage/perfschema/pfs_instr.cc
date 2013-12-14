@@ -852,7 +852,7 @@ PFS_thread* PFS_thread::get_current_thread()
 void PFS_thread::reset_session_connect_attrs()
 {
   m_session_connect_attrs_length= 0;
-  m_session_connect_attrs_cs= NULL;
+  m_session_connect_attrs_cs_number= 0;
 
   if ((m_session_connect_attrs != NULL) &&
       (session_connect_attrs_size_per_thread > 0) )

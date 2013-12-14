@@ -162,12 +162,12 @@ int test_if_hard_path(register const char *dir_name)
 
 my_bool has_path(const char *name)
 {
-  return test(strchr(name, FN_LIBCHAR)) 
+  return MY_TEST(strchr(name, FN_LIBCHAR)) 
 #if FN_LIBCHAR != '/'
-    || test(strchr(name,'/'))
+    || MY_TEST(strchr(name,'/'))
 #endif
 #ifdef FN_DEVCHAR
-    || test(strchr(name, FN_DEVCHAR))
+    || MY_TEST(strchr(name, FN_DEVCHAR))
 #endif
     ;
 }

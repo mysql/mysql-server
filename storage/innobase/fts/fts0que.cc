@@ -784,7 +784,7 @@ fts_query_remove_doc_id(
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 		ut_free(rbt_remove_node(query->doc_ids, parent.last));
 
-		ut_ad(query->total_size >
+		ut_ad(query->total_size >=
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
@@ -935,7 +935,7 @@ fts_query_free_doc_ids(
 
 		ut_free(rbt_remove_node(doc_ids, node));
 
-		ut_ad(query->total_size >
+		ut_ad(query->total_size >=
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
@@ -943,7 +943,7 @@ fts_query_free_doc_ids(
 
 	rbt_free(doc_ids);
 
-	ut_ad(query->total_size > SIZEOF_RBT_CREATE);
+	ut_ad(query->total_size >= SIZEOF_RBT_CREATE);
 	query->total_size -= SIZEOF_RBT_CREATE;
 }
 
@@ -2056,7 +2056,7 @@ fts_query_find_term(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count, ilist\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word LIKE :word AND "
 			"	first_doc_id <= :min_doc_id AND "
 			"	last_doc_id >= :max_doc_id\n"
@@ -2255,7 +2255,7 @@ fts_query_terms_in_document(
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
 		" SELECT count\n"
-		" FROM %s\n"
+		" FROM \"%s\"\n"
 		" WHERE doc_id = :doc_id "
 		"BEGIN\n"
 		"\n"
@@ -3747,9 +3747,10 @@ fts_query_str_preprocess(
                         charset, str_ptr + cur_pos, str_ptr + *result_len,
 			&str, &offset);
 
-                if (cur_len == 0) {
-                        break;
-                }
+		if (cur_len == 0 || str.f_str == NULL) {
+			/* No valid word found */
+			break;
+		}
 
 		/* Check if we are in a phrase, if so, no need to do
 		replacement of '-/+'. */

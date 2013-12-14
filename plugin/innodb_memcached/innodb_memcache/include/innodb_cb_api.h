@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -43,7 +43,9 @@ ib_err_t
 (*cb_read_row_t)(
 /*=============*/
         ib_crsr_t	ib_crsr,
-        ib_tpl_t	ib_tpl);
+        ib_tpl_t	ib_tpl,
+	void**		row_buf,
+	ib_ulint_t*	row_buf_len);
 
 typedef
 ib_err_t
@@ -256,7 +258,9 @@ typedef
 ib_trx_t
 (*cb_trx_begin_t)(
 /*==============*/
-	ib_trx_level_t	ib_trx_level);
+	ib_trx_level_t	ib_trx_level,
+	bool		read_write,
+	bool		auto_commit);
 
 typedef
 ib_err_t
@@ -275,7 +279,10 @@ ib_err_t
 (*cb_trx_start_t)(
 /*==============*/
 	ib_trx_t	ib_trx,
-	ib_trx_level_t	ib_trx_level);
+	ib_trx_level_t	ib_trx_level,
+	bool		read_write,
+	bool		auto_commit,
+	void*		thd);
 
 typedef
 ib_trx_state_t
@@ -443,6 +450,12 @@ ib_ulint_t
 (*cb_bk_commit_interval)();
 /*======================*/
 
+typedef
+ib_err_t
+(*cb_cursor_stmt_begin)(
+/*====================*/
+	ib_crsr_t	ib_crsr);
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -502,5 +515,6 @@ cb_cursor_set_lock_t		ib_cb_cursor_set_lock;
 cb_cursor_clear_trx_t		ib_cb_cursor_clear_trx;
 cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
+cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
 
 #endif /* innodb_cb_api_h */
