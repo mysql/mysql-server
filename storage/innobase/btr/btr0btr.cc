@@ -3038,7 +3038,7 @@ btr_compress(
 
 	DBUG_EXECUTE_IF("ib_always_merge_right", is_left = FALSE;);
 
-	if(!is_left
+	if (!is_left
 	   && !btr_can_merge_with_page(cursor, right_page_no, &merge_block,
 				       mtr)) {
 		goto err_exit;

@@ -1909,15 +1909,15 @@ PageConverter::update_header(
 	buf_block_t*	block) UNIV_NOTHROW
 {
 	/* Check for valid header */
-	switch(fsp_header_get_space_id(get_frame(block))) {
+	switch (fsp_header_get_space_id(get_frame(block))) {
 	case 0:
 		return(DB_CORRUPTION);
 	case ULINT_UNDEFINED:
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Space id check in the header failed- ignored");
+			"Space id check in the header failed: ignored");
 	}
 
-	ulint		space_flags = fsp_header_get_flags(get_frame(block));
+	ulint	space_flags = fsp_header_get_flags(get_frame(block));
 
 	if (!fsp_flags_is_valid(space_flags)) {
 
@@ -2071,7 +2071,7 @@ PageConverter::operator() (
 		ut_ad(m_page_zip_ptr == 0);
 	}
 
-	switch(validate(offset, block)) {
+	switch (validate(offset, block)) {
 	case IMPORT_PAGE_STATUS_OK:
 
 		/* We have to decompress the compressed pages before

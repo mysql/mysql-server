@@ -1918,8 +1918,10 @@ run_again:
 
 	/* Update the statistics only after completing all cascaded
 	operations */
-	for(upd_cascade_t::iterator i = processed_cascades->begin();
-	    i != processed_cascades->end(); ++i) {
+	for (upd_cascade_t::iterator i = processed_cascades->begin();
+	     i != processed_cascades->end();
+	     ++i) {
+
 		node = *i;
 
 		if (node->is_delete) {
@@ -3064,7 +3066,7 @@ row_discard_tablespace(
 
 	err = fil_discard_tablespace(table->space);
 
-	switch(err) {
+	switch (err) {
 	case DB_SUCCESS:
 	case DB_IO_ERROR:
 	case DB_TABLESPACE_NOT_FOUND:

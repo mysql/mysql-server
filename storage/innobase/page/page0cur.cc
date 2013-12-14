@@ -1961,7 +1961,7 @@ page_cur_delete_rec(
 	/* rec now points to the record of the previous directory slot. Look
 	for the immediate predecessor of current_rec in a loop. */
 
-	while(current_rec != rec) {
+	while (current_rec != rec) {
 		prev_rec = rec;
 		rec = page_rec_get_next(rec);
 	}
