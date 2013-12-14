@@ -1543,7 +1543,7 @@ static void print_warnings(MYSQL *mysql)
 
   /* Get the warnings */
   query= "show warnings";
-  if (mysql_real_query(mysql, query, strlen(query)) ||
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
       !(result= mysql_store_result(mysql)))
   {
     my_printf_error(0,"Could not print warnings; error: '%-.200s'",
