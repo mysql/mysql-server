@@ -2221,13 +2221,13 @@ buf_LRU_block_remove_hashed(
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: ERROR: The compressed page"
-				      " to be evicted seems corrupt:", stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The compressed page to be evicted"
+					" seems corrupt:");
 				ut_print_buf(stderr, page,
 					     bpage->size.logical());
-				fputs("\nInnoDB: Possibly older version"
-				      " of the page:", stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Possibly older version of the page:");
 				ut_print_buf(stderr, bpage->zip.data,
 					     bpage->size.physical());
 				putc('\n', stderr);
