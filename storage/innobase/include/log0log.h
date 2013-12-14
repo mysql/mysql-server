@@ -817,6 +817,8 @@ struct log_t{
 					later; this is advanced when a flush
 					operation is completed to all the log
 					groups */
+	volatile bool	is_extending;	/*!< this is set to true during extend
+					the log buffer size */
 	lsn_t		written_to_some_lsn;
 					/*!< first log sequence number not yet
 					written to any log group; for this to

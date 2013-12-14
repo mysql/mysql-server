@@ -38,6 +38,9 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "mysqld.h"
+#include "pars0pars.h"
+#include "row0ftsort.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -1489,6 +1492,10 @@ innobase_start_or_create_for_mysql(void)
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
 
+	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
+		srv_read_only_mode = true;
+	}
+
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
@@ -1728,23 +1735,34 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
-		/* If buffer pool is less than 1000 MB,
-		assume fewer threads. Also use only one
-		buffer pool instance */
-		srv_max_n_threads = 50000;
+#define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
+	srv_max_n_threads = 1   /* io_ibuf_thread */
+			    + 1 /* io_log_thread */
+			    + 1 /* lock_wait_timeout_thread */
+			    + 1 /* srv_error_monitor_thread */
+			    + 1 /* srv_monitor_thread */
+			    + 1 /* srv_master_thread */
+			    + 1 /* srv_purge_coordinator_thread */
+			    + 1 /* buf_dump_thread */
+			    + 1 /* dict_stats_thread */
+			    + 1 /* fts_optimize_thread */
+			    + 1 /* recv_writer_thread */
+			    + 1 /* buf_flush_page_cleaner_thread */
+			    + 1 /* trx_rollback_or_clean_all_recovered */
+			    + 128 /* added as margin, for use of
+				  InnoDB Memcached etc. */
+			    + max_connections
+			    + srv_n_read_io_threads
+			    + srv_n_write_io_threads
+			    + srv_n_purge_threads
+			    /* FTS Parallel Sort */
+			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
+			      * max_connections;
 
-	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
-
+	if (srv_buf_pool_size < BUF_POOL_SIZE_THRESHOLD) {
+		/* If buffer pool is less than 1 GB,
+		use only one buffer pool instance */
 		srv_buf_pool_instances = 1;
-		srv_max_n_threads = 10000;
-	} else {
-		srv_buf_pool_instances = 1;
-
-		/* Saves several MB of memory, especially in
-		64-bit computers */
-
-		srv_max_n_threads = 1000;
 	}
 
 	srv_boot();
@@ -2554,9 +2572,8 @@ files_checked:
 		srv_undo_tablespaces, srv_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
-		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		     || srv_read_only_mode);
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 

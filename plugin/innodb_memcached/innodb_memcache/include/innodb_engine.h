@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -54,6 +54,20 @@ struct innodb_conn_data_struct {
 	ib_trx_t	crsr_trx;	/*!< transaction for write cursor */
 	ib_crsr_t       crsr;		/*!< data cursor */
 	ib_crsr_t       idx_crsr;	/*!< index cursor */
+	ib_tpl_t	read_tpl;	/*!< read tuple */
+	ib_tpl_t	sel_tpl;	/*!< read tuple */
+	ib_tpl_t	tpl;		/*!< read tuple */
+	ib_tpl_t	idx_tpl;	/*!< read tuple */
+	void*		result;		/*!< result info */
+	void*		row_buf;	/*!< row buffer to cache row read */
+	ib_ulint_t	row_buf_len;	/*!< row buffer len */
+	void*		cmd_buf;	/*!< buffer for incoming command */
+	ib_ulint_t	cmd_buf_len;	/*!< cmd buffer len */
+	bool		result_in_use;	/*!< result set or above row_buf
+					contain active result set */
+	void*		mul_col_buf;	/*!< buffer to construct final result
+					from multiple mapped column */
+	ib_ulint_t	mul_col_buf_len;/*!< mul_col_buf len */
 	bool            in_use;		/*!< whether the connection
 					is processing a request */
 	bool		is_stale;	/*!< connection closed, this is

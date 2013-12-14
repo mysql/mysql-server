@@ -545,7 +545,7 @@ check_scramble_sha1(const uchar *scramble_arg, const char *message,
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   compute_sha1_hash(hash_stage2_reassured, (const char *) buf, SHA1_HASH_SIZE);
 
-  return test(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
+  return MY_TEST(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
 my_bool

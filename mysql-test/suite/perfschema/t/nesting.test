@@ -7,6 +7,7 @@
 --source include/not_windows.inc
 --source ../include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
+--source include/have_QC_Disabled.inc
 
 --disable_query_log
 
@@ -45,8 +46,8 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('statement/sql/select',
-                 'statement/com/',
-                 'statement/com/Query',
+                 'statement/abstract/new_packet',
+                 'statement/abstract/Query',
                  'statement/com/error');
 
 # Start from a known clean state, to avoid noise from previous tests

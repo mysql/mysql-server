@@ -1,0 +1,268 @@
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=1;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+content TEXT
+) ENGINE= InnoDB;
+CREATE FULLTEXT INDEX idx ON articles (title, content);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO articles (title, content) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+SET GLOBAL innodb_ft_aux_table="test/articles";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+1001	5	5	1	5	0
+after	3	3	1	3	22
+database	2	2	1	2	37
+dbms	2	2	1	2	15
+engine	5	6	2	5	46
+engine	5	6	2	6	44
+full	5	6	2	5	29
+full	5	6	2	6	27
+mysql	2	6	5	2	0
+mysql	2	6	5	2	31
+mysql	2	6	5	3	11
+mysql	2	6	5	4	11
+mysql	2	6	5	5	5
+mysql	2	6	5	6	3
+optimizing	4	4	1	4	0
+search	5	6	2	5	39
+search	5	6	2	6	37
+show	4	4	1	4	42
+stands	2	2	1	2	20
+text	5	6	2	5	34
+text	5	6	2	6	32
+through	3	3	1	3	37
+tricks	5	6	2	5	11
+tricks	5	6	2	6	9
+tutorial	2	4	2	2	6
+tutorial	2	4	2	4	25
+use	3	6	3	3	7
+use	3	6	3	5	25
+use	3	6	3	6	23
+well	3	3	1	3	17
+went	3	3	1	3	32
+you	3	3	1	3	28
+OPTIMIZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	optimize	status	OK
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+1001	5	5	1	5	0
+after	3	3	1	3	22
+database	2	2	1	2	37
+dbms	2	2	1	2	15
+engine	5	6	2	5	46
+engine	5	6	2	6	44
+full	5	6	2	5	29
+full	5	6	2	6	27
+mysql	2	6	5	2	0
+mysql	2	6	5	2	31
+mysql	2	6	5	3	11
+mysql	2	6	5	4	11
+mysql	2	6	5	5	5
+mysql	2	6	5	6	3
+optimizing	4	4	1	4	0
+search	5	6	2	5	39
+search	5	6	2	6	37
+show	4	4	1	4	42
+stands	2	2	1	2	20
+text	5	6	2	5	34
+text	5	6	2	6	32
+through	3	3	1	3	37
+tricks	5	6	2	5	11
+tricks	5	6	2	6	9
+tutorial	2	4	2	2	6
+tutorial	2	4	2	4	25
+use	3	6	3	3	7
+use	3	6	3	5	25
+use	3	6	3	6	23
+well	3	3	1	3	17
+went	3	3	1	3	32
+you	3	3	1	3	28
+SET SESSION debug="+d,fts_instrument_result_cache_limit";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+1001	5	5	1	5	0
+after	3	3	1	3	22
+database	2	2	1	2	37
+dbms	2	2	1	2	15
+engine	5	6	2	5	46
+engine	5	6	2	6	44
+full	5	6	2	5	29
+full	5	6	2	6	27
+mysql	2	6	5	2	0
+mysql	2	6	5	2	31
+mysql	2	6	5	3	11
+mysql	2	6	5	4	11
+mysql	2	6	5	5	5
+mysql	2	6	5	6	3
+optimizing	4	4	1	4	0
+search	5	6	2	5	39
+search	5	6	2	6	37
+show	4	4	1	4	42
+stands	2	2	1	2	20
+text	5	6	2	5	34
+text	5	6	2	6	32
+through	3	3	1	3	37
+tricks	5	6	2	5	11
+tricks	5	6	2	6	9
+tutorial	2	4	2	2	6
+tutorial	2	4	2	4	25
+use	3	6	3	3	7
+use	3	6	3	5	25
+use	3	6	3	6	23
+well	3	3	1	3	17
+went	3	3	1	3	32
+you	3	3	1	3	28
+SET SESSION debug="-d,fts_instrument_result_cache_limit";
+DROP TABLE articles;
+SET GLOBAL innodb_ft_result_cache_limit=default;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+content TEXT
+) ENGINE= InnoDB;
+CREATE FULLTEXT INDEX idx_t ON articles (title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+CREATE FULLTEXT INDEX idx_c ON articles (content);
+INSERT INTO articles (title, content) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+1001	5	5	1	5	0
+mysql	2	6	5	2	0
+mysql	2	6	5	3	11
+mysql	2	6	5	4	11
+mysql	2	6	5	5	5
+mysql	2	6	5	6	3
+optimizing	4	4	1	4	0
+tricks	5	6	2	5	11
+tricks	5	6	2	6	9
+tutorial	2	2	1	2	6
+use	3	3	1	3	7
+well	3	3	1	3	17
+after	3	3	1	3	0
+database	2	2	1	2	22
+dbms	2	2	1	2	0
+engine	5	6	2	5	28
+engine	5	6	2	6	28
+full	5	6	2	5	11
+full	5	6	2	6	11
+mysql	2	2	1	2	16
+search	5	6	2	5	21
+search	5	6	2	6	21
+show	4	4	1	4	25
+stands	2	2	1	2	5
+text	5	6	2	5	16
+text	5	6	2	6	16
+through	3	3	1	3	15
+tutorial	4	4	1	4	8
+use	5	6	2	5	7
+use	5	6	2	6	7
+went	3	3	1	3	10
+you	3	3	1	3	6
+SET GLOBAL innodb_ft_aux_table="test/articles";
+OPTIMIZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	optimize	status	OK
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+1001	5	5	1	5	0
+mysql	2	6	5	2	0
+mysql	2	6	5	3	11
+mysql	2	6	5	4	11
+mysql	2	6	5	5	5
+mysql	2	6	5	6	3
+optimizing	4	4	1	4	0
+tricks	5	6	2	5	11
+tricks	5	6	2	6	9
+tutorial	2	2	1	2	6
+use	3	3	1	3	7
+well	3	3	1	3	17
+after	3	3	1	3	0
+database	2	2	1	2	22
+dbms	2	2	1	2	0
+engine	5	6	2	5	28
+engine	5	6	2	6	28
+full	5	6	2	5	11
+full	5	6	2	6	11
+mysql	2	2	1	2	16
+search	5	6	2	5	21
+search	5	6	2	6	21
+show	4	4	1	4	25
+stands	2	2	1	2	5
+text	5	6	2	5	16
+text	5	6	2	6	16
+through	3	3	1	3	15
+tutorial	4	4	1	4	8
+use	5	6	2	5	7
+use	5	6	2	6	7
+went	3	3	1	3	10
+you	3	3	1	3	6
+DROP TABLE articles;
+SET NAMES utf8;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE FULLTEXT INDEX idx ON articles (title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO articles (title) VALUES
+('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+SET GLOBAL innodb_ft_aux_table="test/articles";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+充满可爱	4	4	1	4	0
+怜香惜爱	3	3	1	3	0
+爱恨交织	5	5	1	5	0
+相亲相爱	2	2	1	2	0
+OPTIMIZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	optimize	status	OK
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+充满可爱	4	4	1	4	0
+怜香惜爱	3	3	1	3	0
+爱恨交织	5	5	1	5	0
+相亲相爱	2	2	1	2	0
+DROP TABLE articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+CREATE FULLTEXT INDEX idx ON articles (title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO articles (title) VALUES
+('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+SET GLOBAL innodb_ft_aux_table="test/articles";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+爱恨交织	5	5	1	5	0
+充满可爱	4	4	1	4	0
+怜香惜爱	3	3	1	3	0
+相亲相爱	2	2	1	2	0
+OPTIMIZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	optimize	status	OK
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+爱恨交织	5	5	1	5	0
+充满可爱	4	4	1	4	0
+怜香惜爱	3	3	1	3	0
+相亲相爱	2	2	1	2	0
+DROP TABLE articles;
+SET GLOBAL innodb_ft_aux_table=default;
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=default;

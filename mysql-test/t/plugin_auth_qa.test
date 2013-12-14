@@ -3,6 +3,8 @@
 --source include/have_plugin_auth.inc
 --source include/not_embedded.inc
 
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
 CREATE DATABASE test_user_db;
 
 --sorted_result

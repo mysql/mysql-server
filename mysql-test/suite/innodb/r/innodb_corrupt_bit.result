@@ -5,7 +5,7 @@ b CHAR(100),
 c INT,
 z INT,
 INDEX(b))
-ENGINE=InnoDB;
+ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO corrupt_bit_test_ā VALUES(0,'x',1, 1);
 CREATE UNIQUE INDEX idxā ON corrupt_bit_test_ā(c, b);
 CREATE UNIQUE INDEX idxē ON corrupt_bit_test_ā(z, b);

@@ -80,6 +80,7 @@ extern mysql_pfs_key_t	fts_bg_threads_mutex_key;
 extern mysql_pfs_key_t	fts_delete_mutex_key;
 extern mysql_pfs_key_t	fts_optimize_mutex_key;
 extern mysql_pfs_key_t	fts_doc_id_mutex_key;
+extern mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
@@ -710,6 +711,7 @@ or row lock! */
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
+#define SYNC_FTS_TOKENIZE	167
 #define SYNC_FTS_CACHE_INIT	166	/* Used for FTS cache initialization */
 #define SYNC_FTS_BG_THREADS	165
 #define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test

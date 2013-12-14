@@ -6,6 +6,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source ../include/table_io_setup_helper.inc
+--source include/have_QC_Disabled.inc
 
 let $engine_type= MyISAM;
 let $table_item= test.v1;

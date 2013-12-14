@@ -1483,7 +1483,8 @@ bool ha_partition::is_crashed() const
 int ha_partition::prepare_new_partition(TABLE *tbl,
                                         HA_CREATE_INFO *create_info,
                                         handler *file, const char *part_name,
-                                        partition_element *p_elem)
+                                        partition_element *p_elem,
+                                        uint disable_non_uniq_indexes)
 {
   int error;
   DBUG_ENTER("prepare_new_partition");
@@ -1525,6 +1526,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
                             m_open_test_lock | HA_OPEN_NO_PSI_CALL)))
     goto error_open;
   DBUG_PRINT("info", ("partition %s opened", part_name));
+
   /*
     Note: if you plan to add another call that may return failure,
     better to do it before external_lock() as cleanup_new_partition()
@@ -1534,6 +1536,9 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   if ((error= file->ha_external_lock(ha_thd(), F_WRLCK)))
     goto error_external_lock;
   DBUG_PRINT("info", ("partition %s external locked", part_name));
+
+  if (disable_non_uniq_indexes)
+    file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 
   DBUG_RETURN(0);
 error_external_lock:
@@ -1830,6 +1835,14 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       on them to prepare them for copy phase and also for later close
       calls
   */
+
+  /*
+     Before creating new partitions check whether indexes are disabled
+     in the  partitions.
+  */
+
+  uint disable_non_uniq_indexes = indexes_are_disabled();
+
   i= 0;
   part_count= 0;
   part_it.rewind();
@@ -1864,11 +1877,13 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           if ((error= prepare_new_partition(table, create_info,
                                             new_file_array[part],
                                             (const char *)part_name_buff,
-                                            sub_elem)))
+                                            sub_elem,
+                                            disable_non_uniq_indexes)))
           {
             cleanup_new_partition(part_count);
             DBUG_RETURN(error);
           }
+
           m_added_file[part_count++]= new_file_array[part];
         } while (++j < num_subparts);
       }
@@ -1881,11 +1896,13 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
         if ((error= prepare_new_partition(table, create_info,
                                           new_file_array[i],
                                           (const char *)part_name_buff,
-                                          part_elem)))
+                                          part_elem,
+                                          disable_non_uniq_indexes)))
         {
           cleanup_new_partition(part_count);
           DBUG_RETURN(error);
         }
+
         m_added_file[part_count++]= new_file_array[i];
       }
     }
@@ -3222,7 +3239,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_mode= mode;
   m_open_test_lock= test_if_locked;
   m_part_field_array= m_part_info->full_part_field_array;
-  if (get_from_handler_file(name, &table->mem_root, test(m_is_clone_of)))
+  if (get_from_handler_file(name, &table->mem_root, MY_TEST(m_is_clone_of)))
     DBUG_RETURN(error);
   name_buffer_ptr= m_name_buffer_ptr;
   if (populate_partition_name_hash())
@@ -5484,7 +5501,7 @@ int ha_partition::read_range_first(const key_range *start_key,
     m_start_key.key= NULL;
 
   m_index_scan_type= partition_read_range;
-  error= common_index_read(m_rec0, test(start_key));
+  error= common_index_read(m_rec0, MY_TEST(start_key));
   DBUG_RETURN(error);
 }
 
@@ -7480,8 +7497,8 @@ uint32 ha_partition::calculate_key_hash_value(Field **field_array)
   ulong nr1= 1;
   ulong nr2= 4;
   bool use_51_hash;
-  use_51_hash= test((*field_array)->table->part_info->key_algorithm ==
-                    partition_info::KEY_ALGORITHM_51);
+  use_51_hash= MY_TEST((*field_array)->table->part_info->key_algorithm ==
+                       partition_info::KEY_ALGORITHM_51);
 
   do
   {

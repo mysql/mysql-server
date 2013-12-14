@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -843,26 +843,13 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
 static int get_string_length(rpl_gno gno)
 {
   DBUG_ASSERT(gno >= 1 && gno < MAX_GNO);
-  rpl_gno cmp, cmp2;
-  int len= 1;
-  if (gno >= 10000000000000000LL)
-    len+= 16, cmp= 10000000000000000LL;
-  else
+  rpl_gno tmp_gno= gno;
+  int len= 0;
+  do
   {
-    if (gno >= 100000000LL)
-      len += 8, cmp = 100000000LL;
-    else
-      cmp= 1;
-    cmp2= cmp * 10000LL;
-    if (gno >= cmp2)
-      len += 4, cmp = cmp2;
-  }
-  cmp2= cmp * 100LL;
-  if (gno >= cmp2)
-    len += 2, cmp = cmp2;
-  cmp2= cmp * 10LL;
-  if (gno >= cmp2)
+    tmp_gno /= 10;
     len++;
+  } while (tmp_gno != 0);
 #ifndef DBUG_OFF
   char buf[22];
   DBUG_ASSERT(snprintf(buf, 22, "%lld", gno) == len);

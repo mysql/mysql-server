@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <signal.h>
 
 pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
+my_bool THR_KEY_mysys_initialized= FALSE;
 mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_lock, THR_LOCK_myisam, THR_LOCK_heap,
               THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads,
@@ -109,7 +110,7 @@ void my_thread_global_reinit(void)
   mysql_cond_destroy(&THR_COND_threads);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
 
-  tmp= my_pthread_getspecific(struct st_my_thread_var*, THR_KEY_mysys);
+  tmp= _my_thread_var();
   DBUG_ASSERT(tmp);
 
   mysql_mutex_destroy(&tmp->mutex);
@@ -162,12 +163,14 @@ my_bool my_thread_global_init(void)
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
+  DBUG_ASSERT(! THR_KEY_mysys_initialized);
   if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
   {
     fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
 
+  THR_KEY_mysys_initialized= TRUE;
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
@@ -254,7 +257,9 @@ void my_thread_global_end(void)
   }
   mysql_mutex_unlock(&THR_LOCK_threads);
 
+  DBUG_ASSERT(THR_KEY_mysys_initialized);
   pthread_key_delete(THR_KEY_mysys);
+  THR_KEY_mysys_initialized= FALSE;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif
@@ -313,7 +318,7 @@ my_bool my_thread_init(void)
           (ulong) pthread_self());
 #endif  
 
-  if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
+  if (_my_thread_var())
   {
 #ifdef EXTRA_DEBUG_THREADS
     fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
@@ -331,7 +336,7 @@ my_bool my_thread_init(void)
     error= 1;
     goto end;
   }
-  pthread_setspecific(THR_KEY_mysys,tmp);
+  set_mysys_var(tmp);
   tmp->pthread_self= pthread_self();
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
@@ -369,7 +374,7 @@ end:
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp;
-  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  tmp= _my_thread_var();
 
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
@@ -415,17 +420,21 @@ void my_thread_end(void)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
   }
-  pthread_setspecific(THR_KEY_mysys,0);
+  set_mysys_var(NULL);
 }
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  if (THR_KEY_mysys_initialized)
+    return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return NULL;
 }
 
 int set_mysys_var(struct st_my_thread_var *mysys_var)
 {
-  return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+  if (THR_KEY_mysys_initialized)
+    return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+  return 0;
 }
 
 /****************************************************************************
@@ -462,8 +471,17 @@ const char *my_thread_name(void)
 
 extern void **my_thread_var_dbug()
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  struct st_my_thread_var *tmp;
+  /*
+    Instead of enforcing DBUG_ASSERT(THR_KEY_mysys_initialized) here,
+    which causes any DBUG_ENTER and related traces to fail when
+    used in init / cleanup code, we are more tolerant:
+    using DBUG_ENTER / DBUG_PRINT / DBUG_RETURN
+    when the dbug instrumentation is not in place will do nothing.
+  */
+  if (! THR_KEY_mysys_initialized)
+    return NULL;
+  tmp= _my_thread_var();
   return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif /* DBUG_OFF */

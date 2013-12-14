@@ -883,7 +883,7 @@ public:
   Statement() {}
 
   Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum enum_state state_arg, ulong id_arg);
+            enum_state state_arg, ulong id_arg);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
@@ -2407,7 +2407,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
-  const char *m_trans_fixed_log_file;
+  char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2916,11 +2916,10 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
-      MEM_ROOT *log_file_mem_root= &main_mem_root;
       if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
-      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
-                                          file + dirname_length(file));
+        m_trans_fixed_log_file= (char*) alloc_root(&main_mem_root, FN_REFLEN+1);
+      DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
+      strcpy(m_trans_fixed_log_file, m_trans_log_file);
     }
     else
     {
@@ -3305,8 +3304,8 @@ public:
   }
   inline bool is_strict_mode() const
   {
-    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                      MODE_STRICT_ALL_TABLES));
+    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                         MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -4781,7 +4780,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
-  bool is_derived_table() const { return test(sel); }
+  bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
     db.str= db_name; db.length= (uint) strlen(db_name);
@@ -5005,11 +5004,13 @@ public:
   bool get(TABLE *table);
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
                              ulonglong max_in_memory_size);
+
+  // Returns the number of bytes needed in imerge_cost_buf.
   inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+      (max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
     return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 

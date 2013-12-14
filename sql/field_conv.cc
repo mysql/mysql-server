@@ -331,7 +331,7 @@ static void do_field_int(Copy_field *copy)
 {
   longlong value= copy->from_field->val_int();
   copy->to_field->store(value,
-                        test(copy->from_field->flags & UNSIGNED_FLAG));
+                        MY_TEST(copy->from_field->flags & UNSIGNED_FLAG));
 }
 
 static void do_field_real(Copy_field *copy)
@@ -901,5 +901,5 @@ type_conversion_status field_conv(Field *to,Field *from)
     return to->store_decimal(from->val_decimal(&buff));
   }
   else
-    return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
+    return to->store(from->val_int(), MY_TEST(from->flags & UNSIGNED_FLAG));
 }

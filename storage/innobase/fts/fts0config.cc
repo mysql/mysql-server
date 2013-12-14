@@ -105,7 +105,7 @@ fts_config_get_value(
 		fts_table,
 		info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM %s"
+		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
 		" WHERE key = :name;\n"
 		"BEGIN\n"
 		""
@@ -481,7 +481,7 @@ fts_config_increment_value(
 	graph = fts_parse_sql(
 		fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM %s"
+		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
 		" WHERE key = :name FOR UPDATE;\n"
 		"BEGIN\n"
 		""

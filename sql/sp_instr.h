@@ -184,12 +184,12 @@ public:
   {
     free_lex();
     /*
-      If the instruction is reparsed, m_lex_mem_root was used to allocate the
-      items, then freeing the memroot, frees the items. Hence set the free_list
-      pointer to NULL.
+      If the instruction is reparsed, m_lex_mem_root was used to allocate
+      the items, then freeing the memroot, frees the items. Also free the
+      items allocated on heap as well.
     */
     if (alloc_root_inited(&m_lex_mem_root))
-      free_list= NULL;
+      free_items();
     free_root(&m_lex_mem_root, MYF(0));
   }
 
