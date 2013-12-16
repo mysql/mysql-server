@@ -8372,20 +8372,11 @@ bool change_master(THD* thd, Master_info* mi)
   bool have_receive_option= false;
   /* Do we have at least one execute related (SQL/coord/worker) option? */
   bool have_execute_option= false;
-  bool ret= false; //return value
+  bool ret= false; /* return value */
   /* If there are no mts gaps, we delete the rows in this table. */
   bool mts_remove_worker_info= false;
   /* used as a bit mask to indicate running/stopped threads. */
   int thread_mask;
-  /*
-    We want to save the old receive configurations so that we can use them to
-    print the changes in these configurations (from-to form). This is used in
-    sql_print_information() later.
-  */
-  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
-  uint saved_port= 0;
-  char saved_log_name[FN_REFLEN];
-  my_off_t saved_log_pos= 0;
   /*
    Relay logs are purged only if both receive and execute threads are
    stopped before executing CHANGE MASTER.
@@ -8414,7 +8405,6 @@ bool change_master(THD* thd, Master_info* mi)
 
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
-   //TODO: Confirm with Sven if this is setting auto_position or changing auto_position variable.
   /*
     change master with master_auto_position=1 requires stopping both
     receiver and applier threads. If any slave thread is running,
@@ -8630,6 +8620,16 @@ bool change_master(THD* thd, Master_info* mi)
 
     mysql_mutex_lock(&mi->data_lock);
 
+    /*
+      We want to save the old receive configurations so that we can use them to
+      print the changes in these configurations (from-to form). This is used in
+      sql_print_information() later.
+    */
+    char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
+    uint saved_port= 0;
+    char saved_log_name[FN_REFLEN];
+    my_off_t saved_log_pos= 0;
+
     strmake(saved_host, mi->host, HOSTNAME_LENGTH);
     strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
     saved_port= mi->port;
@@ -8820,13 +8820,14 @@ bool change_master(THD* thd, Master_info* mi)
        mi->set_master_log_name(mi->rli->get_group_master_log_name());
     }
 
-    /*
-      Sets if the slave should connect to the master and look for
-      GTIDs.
-    */
-    if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-      mi->set_auto_position(
-        (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'. "
+    "New state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'.",
+    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
     mysql_mutex_unlock(&mi->data_lock);
   }
@@ -9009,18 +9010,6 @@ bool change_master(THD* thd, Master_info* mi)
     mysql_mutex_unlock(&mi->rli->data_lock);
 
   } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
-
-  //TODO: this would require data_lock, should we take lock again?
- // data_lock would protect race while accessing  the following:
- // mi->host, mi->port, mi->get_master_log_name(), (ulong) mi->get_master_log_pos(), mi->bind_addr)
-  sql_print_information("'CHANGE MASTER TO executed'. "
-    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'. "
-    "New state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'.",
-    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
-    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   mysql_cond_broadcast(&mi->data_cond);
 
