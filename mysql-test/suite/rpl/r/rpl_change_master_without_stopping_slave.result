@@ -54,7 +54,6 @@ CHANGE MASTER TO RELAY_LOG_POS= 4;
 CHANGE MASTER TO MASTER_DELAY= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 CHANGE MASTER TO MASTER_HOST= 'localhost';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
 CHANGE MASTER TO MASTER_USER= 'replssl';
