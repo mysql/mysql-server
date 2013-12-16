@@ -551,6 +551,7 @@
    InnoDB config options
 */
 #cmakedefine INNODB_COMPILER_HINTS
+#cmakedefine INNODB_PAGE_ATOMIC_REF_COUNT
 
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
