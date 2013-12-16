@@ -2,7 +2,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
-
+--source include/have_query_cache_disabled.inc
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,
