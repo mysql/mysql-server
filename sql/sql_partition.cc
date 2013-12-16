@@ -4726,6 +4726,8 @@ that are reorganised.
     {
       uint no_parts_found;
       uint no_parts_opt= alter_info->partition_names.elements;
+      set_engine_all_partitions(tab_part_info,
+                                tab_part_info->default_engine_type);
       no_parts_found= set_part_state(alter_info, tab_part_info, PART_CHANGED);
       if (no_parts_found != no_parts_opt &&
           (!(alter_info->flags & ALTER_ALL_PARTITION)))
