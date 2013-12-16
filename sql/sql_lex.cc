@@ -2407,6 +2407,21 @@ Index_hint::print(THD *thd, String *str)
     case INDEX_HINT_USE:    str->append(STRING_WITH_LEN("USE INDEX")); break;
     case INDEX_HINT_FORCE:  str->append(STRING_WITH_LEN("FORCE INDEX")); break;
   }
+  switch (clause)
+  {
+    case INDEX_HINT_MASK_ALL:
+      break;
+    case INDEX_HINT_MASK_JOIN:
+      str->append(STRING_WITH_LEN(" FOR JOIN"));
+      break;
+    case INDEX_HINT_MASK_ORDER:
+      str->append(STRING_WITH_LEN(" FOR ORDER BY"));
+      break;
+    case INDEX_HINT_MASK_GROUP:
+      str->append(STRING_WITH_LEN(" FOR GROUP BY"));
+      break;
+  }
+
   str->append (STRING_WITH_LEN(" ("));
   if (key_name.length)
   {
