@@ -543,9 +543,11 @@ rec_get_offsets_func(
 	ulint			n_fields,/*!< in: maximum number of
 					initialized fields
 					 (ULINT_UNDEFINED if all fields) */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
 	const char*		file,	/*!< in: file name where called */
-	ulint			line)	/*!< in: line number where called */
+	ulint			line,	/*!< in: line number where called */
+#endif /* UNIV_DEBUG */
+	mem_heap_t**		heap)	/*!< in/out: memory heap */
 {
 	ulint	n;
 	ulint	size;
@@ -590,9 +592,8 @@ rec_get_offsets_func(
 	if (UNIV_UNLIKELY(!offsets)
 	    || UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
 		if (UNIV_UNLIKELY(!*heap)) {
-			*heap = mem_heap_create_func(size * sizeof(ulint),
-						     MEM_HEAP_DYNAMIC,
-						     file, line);
+			*heap = mem_heap_create_at(size * sizeof(ulint),
+						   file, line);
 		}
 		offsets = static_cast<ulint*>(
 			mem_heap_alloc(*heap, size * sizeof(ulint)));
