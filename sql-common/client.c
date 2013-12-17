@@ -1079,7 +1079,7 @@ static int check_license(MYSQL *mysql)
   static const char query[]= "SELECT @@license";
   static const char required_license[]= STRINGIFY_ARG(LICENSE);
 
-  if (mysql_real_query(mysql, query, sizeof(query)-1))
+  if (mysql_real_query(mysql, query, (ulong)(sizeof(query)-1)))
   {
     if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
@@ -4475,7 +4475,7 @@ get_info:
 */
 
 int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, size_t length)
+mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   DBUG_ENTER("mysql_send_query");
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
@@ -4483,7 +4483,7 @@ mysql_send_query(MYSQL* mysql, const char* query, size_t length)
 
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, size_t length)
+mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   int retval;
   DBUG_ENTER("mysql_real_query");
@@ -5227,7 +5227,7 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
     if (mysql_get_server_version(mysql) < 40100)
       return 0;
     sprintf(buff, "SET NAMES %s", cs_name);
-    if (!mysql_real_query(mysql, buff, (uint) strlen(buff)))
+    if (!mysql_real_query(mysql, buff, (ulong) strlen(buff)))
     {
       mysql->charset= cs;
     }

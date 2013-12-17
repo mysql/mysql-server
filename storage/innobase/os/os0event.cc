@@ -390,8 +390,8 @@ os_event::timed_wait(
 
 	default:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"pthread_cond_timedwait() returned: "
-			"%d: abstime={%lu,%lu}",
+			"pthread_cond_timedwait() returned:"
+			" %d: abstime={%lu,%lu}",
 			ret, (ulong) abstime->tv_sec,
 			(ulong) abstime->tv_nsec);
 		ut_error;
@@ -564,8 +564,8 @@ os_event::os_event(const char* name) UNIV_NOTHROW
 
 		if (!handle) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Could not create a Windows event "
-				"semaphore; Windows error %lu",
+				"Could not create a Windows event"
+				" semaphore; Windows error %lu",
 				(ulong) GetLastError());
 		}
 

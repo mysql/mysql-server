@@ -36,6 +36,12 @@ INSERT INTO t2 (a2,b2) VALUES
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
 DELETE FROM t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
 id1
 1
