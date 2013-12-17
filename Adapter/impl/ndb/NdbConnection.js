@@ -88,6 +88,7 @@ NdbConnection.prototype.connect = function(properties, callback) {
   }
 
   function onConnected(cb_err, rval) {
+    var err;
     udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
       stats.incr( [ "connections","successful" ]);
@@ -95,7 +96,9 @@ NdbConnection.prototype.connect = function(properties, callback) {
     }
     else {
       stats.incr( [ "connections","failed" ]);
-      runCallbacks('NDB Connect failed ' + rval, self);
+      err = new Error(self.ndb_cluster_connection.get_latest_error_msg());
+      err.sqlstate = "08000";
+      runCallbacks(err, self);
     }
   }
   
