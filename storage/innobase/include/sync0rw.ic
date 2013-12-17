@@ -428,15 +428,11 @@ rw_lock_s_lock_func(
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+	if (!rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
-		return; /* Success */
-	} else {
 		/* Did not succeed, try spin wait */
 
 		rw_lock_s_lock_spin(lock, pass, file_name, line);
-
-		return;
 	}
 }
 

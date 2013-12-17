@@ -1,5 +1,7 @@
-# This is a Myisam engine specific testcase
-# Hence MTR starts mysqld with MyISAM as default
+# Test for per-partition key cache
+# Tests are run with MyISAM since this feature
+# is not supported by the default storage engine innodb
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 

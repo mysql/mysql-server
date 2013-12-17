@@ -3171,7 +3171,8 @@ int ha_federated::real_connect()
   */
   sql_query.append(share->select_query);
   sql_query.append(STRING_WITH_LEN(" WHERE 1=0"));
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (mysql_real_query(mysql, sql_query.ptr(),
+                       static_cast<ulong>(sql_query.length())))
   {
     sql_query.length(0);
     sql_query.append("error: ");
@@ -3211,7 +3212,7 @@ int ha_federated::real_query(const char *query, size_t length)
   if (!query || !length)
     goto end;
 
-  rc= mysql_real_query(mysql, query, (uint) length);
+  rc= mysql_real_query(mysql, query, static_cast<ulong>(length));
   
 end:
   DBUG_RETURN(rc);

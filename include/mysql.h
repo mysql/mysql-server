@@ -43,7 +43,10 @@ typedef char my_bool;
 
 #ifndef my_socket_defined
 #ifdef _WIN32
+#include <windows.h>
+#ifdef WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
+#endif
 #define my_socket SOCKET
 #else
 typedef int my_socket;
@@ -572,7 +575,7 @@ typedef struct st_mysql_bind
   /* output buffer length, must be set when fetching str/binary */
   unsigned long buffer_length;
   unsigned long offset;           /* offset position for char/binary fetch */
-  unsigned long	length_value;     /* Used if length is 0 */
+  unsigned long length_value;     /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
   unsigned int  pack_length;	  /* Internal length for packed data */
   enum enum_field_types buffer_type;	/* buffer type */

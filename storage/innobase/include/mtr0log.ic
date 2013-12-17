@@ -211,11 +211,11 @@ mlog_write_initial_log_record_fast(
 			return(log_ptr);
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to redo log a record of type "
-				"%d on page %lu of space %lu in the "
-				"doublewrite buffer, continuing anyway. "
-				"Please post a bug report to "
-				"bugs.mysql.com.",
+				"Trying to redo log a record of type"
+				" %d on page %lu of space %lu in the"
+				" doublewrite buffer, continuing anyway."
+				" Please post a bug report to"
+				" bugs.mysql.com.",
 				type, offset, space);
 			ut_ad(0);
 		}

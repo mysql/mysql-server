@@ -293,7 +293,7 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
   DBUG_PRINT("info", ("skipping statement '%s'. "
                       "gtid_next->type=%d sql_command=%d "
                       "thd->thread_id=%lu",
-                      thd->query(),
+                      thd->query().str,
                       thd->variables.gtid_next.type,
                       thd->lex->sql_command,
                       thd->thread_id));

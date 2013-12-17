@@ -18,6 +18,8 @@ show session variables like 'innodb_ft_server_stopword_table';
 select * from information_schema.global_variables where variable_name='innodb_ft_server_stopword_table';
 select * from information_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
 
+call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table Salmon does not exist.");
+
 --error ER_GLOBAL_VARIABLE
 set session innodb_ft_server_stopword_table='Salmon';
 --error ER_GLOBAL_VARIABLE
