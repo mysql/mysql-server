@@ -116,7 +116,7 @@ struct klpair_struct {
 
 typedef struct klpair_struct *KLPAIR;
 
-static LEAFENTRY get_le_from_klpair(KLPAIR klpair){
+static inline LEAFENTRY get_le_from_klpair(KLPAIR klpair){
     uint32_t keylen = klpair->keylen;
     LEAFENTRY le = (LEAFENTRY)(klpair->key_le + keylen);
     return le;
