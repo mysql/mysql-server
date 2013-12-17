@@ -588,7 +588,7 @@ Listener.prototype.fail = function(t, e) {
   }
 
   if(t.phase === 0) {
-    console.log("[FailSmokeTest]", t.fullName());
+    console.log("[FailSmokeTest]", t.fullName(), "\t", message);
   }
   else {
     console.log("[FAIL]", t.fullName(), "\t", message);
