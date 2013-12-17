@@ -122,8 +122,7 @@ initialize_performance_schema(PFS_global_param *param)
       init_digest_hash() ||
       init_program(param) ||
       init_program_hash() ||
-      init_prepared_stmt(param) ||
-      init_prepared_stmt_hash())
+      init_prepared_stmt(param))
   {
     /*
       The performance schema initialization failed.
@@ -193,7 +192,6 @@ static void cleanup_performance_schema(void)
   cleanup_host_hash();
   cleanup_user_hash();
   cleanup_program_hash();
-  cleanup_prepared_stmt_hash();
   cleanup_table_share_hash();
   cleanup_file_hash();
   cleanup_digest_hash();
