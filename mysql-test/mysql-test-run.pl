@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,perfschema,funcs_1,opt_trace,parts,auth_sec";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -3559,7 +3559,9 @@ sub mysql_install_db {
   # need to be given to the bootstrap process as well as the
   # server process.
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
-    if ($extra_opt =~ /--innodb/) {
+    (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
+    if ($temp_extra_opt =~ /--innodb-page-size/ || 
+        $temp_extra_opt =~ /--innodb-log-file-size/) {
       mtr_add_arg($args, $extra_opt);
     }
   # Plugin arguments need to be given to the bootstrap 

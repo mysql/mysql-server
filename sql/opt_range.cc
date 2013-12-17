@@ -366,7 +366,7 @@ public:
     element itself.
   */
   uint16 elements;
-  /*
+  /**
     Valid only for elements which are RB-tree roots: Number of
     references to this SEL_ARG tree. References may be from
     SEL_ARG::next_key_part of SEL_ARGs from earlier keyparts or
@@ -8316,7 +8316,15 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
             Move on to next range in key2
           */
-          cur_key2->increment_use_count(-1); // Free not used tree
+          if (cur_key2->next_key_part)
+          {
+            /*
+              cur_key2 will no longer be used. Reduce reference count
+              of SEL_ARGs in its next_key_part.
+            */
+            cur_key2->next_key_part->use_count--;
+            cur_key2->next_key_part->increment_use_count(-1);
+          }
           cur_key2= cur_key2->next;
           continue;
         }

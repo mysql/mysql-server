@@ -460,7 +460,7 @@ buf_flush_ready_for_replace(
 	}
 
 	ib_logf(IB_LOG_LEVEL_FATAL,
-		"buffer block %p state %u in the LRU list!",
+		"Buffer block %p state %u in the LRU list!",
 		reinterpret_cast<const void*>(bpage), bpage->state);
 
 	return(FALSE);
@@ -861,10 +861,9 @@ buf_flush_write_block_low(
 #ifdef UNIV_LOG_DEBUG
 	if (!univ_log_debug_warned) {
 		univ_log_debug_warned = TRUE;
-		fputs("Warning: cannot force log to disk if"
-		      " UNIV_LOG_DEBUG is defined!\n"
-		      "Crash recovery will not work!\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot force log to disk if UNIV_LOG_DEBUG is"
+			" defined!. Crash recovery will not work!");
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
@@ -2299,7 +2298,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "InnoDB: page_cleaner thread running, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"page_cleaner thread running, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 

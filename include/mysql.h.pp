@@ -475,9 +475,9 @@ MYSQL * mysql_real_connect(MYSQL *mysql, const char *host,
 int mysql_select_db(MYSQL *mysql, const char *db);
 int mysql_query(MYSQL *mysql, const char *q);
 int mysql_send_query(MYSQL *mysql, const char *q,
-      unsigned long length);
+      size_t length);
 int mysql_real_query(MYSQL *mysql, const char *q,
-     unsigned long length);
+     size_t length);
 MYSQL_RES * mysql_store_result(MYSQL *mysql);
 MYSQL_RES * mysql_use_result(MYSQL *mysql);
 void mysql_get_character_set_info(MYSQL *mysql,
@@ -553,7 +553,7 @@ enum enum_mysql_stmt_state
 };
 typedef struct st_mysql_bind
 {
-  unsigned long *length;
+  size_t *length;
   my_bool *is_null;
   void *buffer;
   my_bool *error;
@@ -563,9 +563,9 @@ typedef struct st_mysql_bind
                        unsigned char **row);
   void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
         unsigned char **row);
-  unsigned long buffer_length;
+  size_t buffer_length;
   unsigned long offset;
-  unsigned long length_value;
+  size_t length_value;
   unsigned int param_number;
   unsigned int pack_length;
   enum enum_field_types buffer_type;
@@ -615,7 +615,7 @@ enum enum_stmt_attr_type
 };
 MYSQL_STMT * mysql_stmt_init(MYSQL *mysql);
 int mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
-                               unsigned long length);
+                               size_t length);
 int mysql_stmt_execute(MYSQL_STMT *stmt);
 int mysql_stmt_fetch(MYSQL_STMT *stmt);
 int mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind_arg,
@@ -637,7 +637,7 @@ my_bool mysql_stmt_free_result(MYSQL_STMT *stmt);
 my_bool mysql_stmt_send_long_data(MYSQL_STMT *stmt,
                                           unsigned int param_number,
                                           const char *data,
-                                          unsigned long length);
+                                          size_t length);
 MYSQL_RES * mysql_stmt_result_metadata(MYSQL_STMT *stmt);
 MYSQL_RES * mysql_stmt_param_metadata(MYSQL_STMT *stmt);
 unsigned int mysql_stmt_errno(MYSQL_STMT * stmt);

@@ -1,11 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test that must have symlink. eg. using DATA/INDEX DIR
 # (DATA/INDEX DIR requires symlinks)
 # This test is only useful for MyISAM, since no other engine supports DATA DIR
+--source include/have_myisam.inc
 -- source include/have_partition.inc
 -- source include/have_symlink.inc
 # remove the not_windows line after fixing bug#33687

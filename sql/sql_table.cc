@@ -2007,7 +2007,7 @@ end:
 */
 
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length, bool is_trans)
+                  const char *query, size_t query_length, bool is_trans)
 {
   int error= 0;
   if (mysql_bin_log.is_open())
@@ -5034,7 +5034,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
     {
       thd->add_to_binlog_accessed_dbs(create_table->db);
-      result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+      result= write_bin_log(thd, true,
+                            thd->query().str, thd->query().length, is_trans);
     }
   }
 
@@ -5399,14 +5400,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
       }
       else                                      // Case 1
-        if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+        if (write_bin_log(thd, true, thd->query().str, thd->query().length))
           goto err;
     }
     /*
       Case 3 and 4 does nothing under RBR
     */
   }
-  else if (write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans))
+  else if (write_bin_log(thd, true,
+                         thd->query().str, thd->query().length, is_trans))
     goto err;
 
 err:
@@ -5470,7 +5472,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     error=1;
   if (error)
     goto err;
-  error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
 
 err:
   thd->tablespace_op=FALSE;
@@ -7846,7 +7848,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
   if (!error)
   {
-    error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    error= write_bin_log(thd, true, thd->query().str, thd->query().length);
     if (!error)
       my_ok(thd);
   }
@@ -8652,7 +8654,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err_new_table_cleanup;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->is_current_stmt_binlog_format_row() &&
-        write_bin_log(thd, true, thd->query(), thd->query_length()))
+        write_bin_log(thd, true, thd->query().str, thd->query().length))
       DBUG_RETURN(true);
     goto end_temporary;
   }
@@ -8768,13 +8770,13 @@ end_inplace:
   DEBUG_SYNC(thd, "alter_table_before_main_binlog");
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
-                      thd->query(), thd->query_length(),
+                      thd->query().str, thd->query().length,
                       alter_ctx.db, alter_ctx.table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  if (write_bin_log(thd, true, thd->query(), thd->query_length()))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
     DBUG_RETURN(true);
 
   if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))

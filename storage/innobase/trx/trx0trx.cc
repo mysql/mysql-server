@@ -2355,7 +2355,7 @@ state_ok:
 
 	if (trx->undo_no != 0) {
 		newline = TRUE;
-		fprintf(f, ", undo log entries "TRX_ID_FMT, trx->undo_no);
+		fprintf(f, ", undo log entries " TRX_ID_FMT, trx->undo_no);
 	}
 
 	if (newline) {
@@ -2669,22 +2669,19 @@ trx_recover_for_mysql(
 			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Starting recovery for"
-					" XA transactions...\n");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Starting recovery for"
+					" XA transactions...");
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Transaction " TRX_ID_FMT " in"
-				" prepared state after recovery\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Transaction " TRX_ID_FMT " in"
+				" prepared state after recovery",
 				trx->id);
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Transaction contains changes"
-				" to "TRX_ID_FMT" rows\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Transaction contains changes"
+				" to " TRX_ID_FMT " rows",
 				trx->undo_no);
 
 			count++;
@@ -2698,10 +2695,9 @@ trx_recover_for_mysql(
 	trx_sys_mutex_exit();
 
 	if (count > 0){
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: %d transactions in prepared state"
-			" after recovery\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"%d transactions in prepared state"
+			" after recovery",
 			int (count));
 	}
 

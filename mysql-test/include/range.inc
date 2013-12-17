@@ -2032,3 +2032,21 @@ EXPLAIN SELECT DISTINCT a FROM t1 WHERE (NULL, b) IN ((0, 0), (1, 1));
 EXPLAIN SELECT DISTINCT a FROM t2 WHERE (NULL, b) IN ((0, 0), (1, 1));
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+--echo #
+
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+
+INSERT INTO t2 SELECT * FROM t2;
+
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+
+ANALYZE TABLE t2;
+
+SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+DROP TABLE t2;

@@ -1,4 +1,5 @@
 SET DEBUG_SYNC='reset';
+call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t2`");
 create table t1 (f1 integer, key k1 (f1)) engine=innodb;
 create table t2 (f1 int, f2 int, key(f1), key(f2)) engine=innodb;
 create table t3 (f2 int, key(f2)) engine=innodb;

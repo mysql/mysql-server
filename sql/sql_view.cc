@@ -1140,9 +1140,9 @@ err:
    parent_lex)
    @param  parent_select
  */
-static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
-                                           SELECT_LEX *removed_select,
-                                           SELECT_LEX *parent_select)
+void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                    SELECT_LEX *removed_select,
+                                    SELECT_LEX *parent_select)
 {
   List_iterator_fast<TABLE_LIST> ti(join_list);
   TABLE_LIST *tbl;
@@ -1924,7 +1924,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, !something_wrong,
+                      thd->query().str, thd->query().length))
       something_wrong= 1;
   }
 

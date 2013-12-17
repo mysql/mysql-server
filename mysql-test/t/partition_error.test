@@ -1,13 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Simple test for the erroneos statements using the 
 # partition storage engine
 #
 -- source include/have_partition.inc
+# This test needs MyISAM for some sub tests
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -1435,11 +1432,11 @@ primary key (a,b))
 partition by key (a) 
 subpartition by list (a+b)
 ( partition x1
-  ( subpartition x11 engine myisam,
-    subpartition x12 engine myisam),
+  ( subpartition x11,
+    subpartition x12),
    partition x2 
-   ( subpartition x21 engine myisam,
-     subpartition x22 engine myisam)
+   ( subpartition x21,
+     subpartition x22)
 );
 
 #
@@ -1454,11 +1451,11 @@ primary key (a,b))
 partition by key (a)
 subpartition by list (a+b)
 ( partition x1
-  ( subpartition x11 engine myisam values in (0),
-    subpartition x12 engine myisam values in (1)),
+  ( subpartition x11 values in (0),
+    subpartition x12 values in (1)),
   partition x2
-  ( subpartition x21 engine myisam values in (0),
-    subpartition x22 engine myisam values in (1))
+  ( subpartition x21 values in (0),
+    subpartition x22 values in (1))
 );
 
 #

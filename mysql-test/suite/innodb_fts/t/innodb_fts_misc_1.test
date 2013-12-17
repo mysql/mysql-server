@@ -6,8 +6,10 @@
 --disable_warnings
 drop table if exists t2,t1;
 --enable_warnings
-
 set names utf8;
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -220,6 +222,7 @@ DROP TABLE IF EXISTS t2,t1;
 --enable_warnings
 
 SET NAMES utf8;
+call mtr.add_suppression("\\[ERROR\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
 
 # Create FTS table
 CREATE TABLE t1 (

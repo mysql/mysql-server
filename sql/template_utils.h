@@ -11,17 +11,25 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02111-1301  USA */
 
-#include "my_global.h"
+#ifndef TEMPLATE_UTILS_INCLUDED
+#define TEMPLATE_UTILS_INCLUDED
 
-#ifdef _WIN32
-#include <float.h>
-#endif
-
-#include <math.h>
-
-double my_double_isnan(double x)
+/**
+  Clears a container, but deletes all objects that the elements point to first.
+  @tparam Container of pointers.
+ */
+template<typename Container_type>
+void delete_container_pointers(Container_type &container)
 {
-  return isnan(x);
+  typename Container_type::iterator it1= container.begin();
+  typename Container_type::iterator it2= container.end();
+  for (; it1 != it2; ++it1)
+  {
+    delete (*it1);
+  }
+  container.clear();
 }
+
+#endif  // TEMPLATE_UTILS_INCLUDED
