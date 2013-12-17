@@ -1,4 +1,4 @@
-/*
+﻿/*
  Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
@@ -17,6 +17,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+// This file is UTF-8 encoded, begins with a UTF-8 BOM, and contains
+// unusual unicode characters.
 
 "use strict";
 
