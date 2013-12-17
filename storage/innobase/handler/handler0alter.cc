@@ -2532,17 +2532,18 @@ innobase_drop_fts_index_table(
 }
 
 /** Get the new column names if any columns were renamed
-@param ha_alter_info Data used during in-place alter
-@param altered_table MySQL table that is being altered
-@param user_table InnoDB table as it is before the ALTER operation
-@param heap Memory heap for the allocation
+@param ha_alter_info	Data used during in-place alter
+@param altered_table	MySQL table that is being altered
+@param table		MySQL table as it is before the ALTER operation
+@param user_table	InnoDB table as it is before the ALTER operation
+@param heap		Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
 static __attribute__((nonnull, warn_unused_result))
 const char**
 innobase_get_col_names(
-/*===================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
+	const TABLE*		table,
 	const dict_table_t*	user_table,
 	mem_heap_t*		heap)
 {
@@ -2550,19 +2551,31 @@ innobase_get_col_names(
 	uint			i;
 
 	DBUG_ENTER("innobase_get_col_names");
-	DBUG_ASSERT(user_table->n_def > altered_table->s->fields);
+	DBUG_ASSERT(user_table->n_def > table->s->fields);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
 	cols = static_cast<const char**>(
-		mem_heap_alloc(heap, user_table->n_def * sizeof *cols));
+		mem_heap_zalloc(heap, user_table->n_def * sizeof *cols));
 
-	for (i = 0; i < altered_table->s->fields; i++) {
-		const Field*	field = altered_table->field[i];
-		cols[i] = field->field_name;
+	i = 0;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	while (const Create_field* new_field = cf_it++) {
+		DBUG_ASSERT(i < altered_table->s->fields);
+
+		for (uint old_i = 0; table->field[old_i]; old_i++) {
+			if (new_field->field == table->field[old_i]) {
+				cols[old_i] = new_field->field_name;
+				break;
+			}
+		}
+
+		i++;
 	}
 
 	/* Copy the internal column names. */
+	i = table->s->fields;
 	cols[i] = dict_table_get_col_name(user_table, i);
 
 	while (++i < user_table->n_def) {
@@ -2670,7 +2683,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd)->str);
+			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -3721,8 +3734,8 @@ check_if_ok_to_rename:
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME) {
 			col_names = innobase_get_col_names(
-				ha_alter_info, altered_table, indexed_table,
-				heap);
+				ha_alter_info, altered_table, table,
+				indexed_table, heap);
 		} else {
 			col_names = NULL;
 		}
@@ -6075,7 +6088,7 @@ foreign_fail:
 					" returned %u for %s",
 					(unsigned) error,
 					thd_query_string(user_thd)
-					->str);
+					.str);
 				ut_ad(0);
 			} else {
 				if (!commit_cache_norebuild(

@@ -20,7 +20,9 @@ call mtr.add_suppression("Flagged corruption of .* in table "
 			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 call mtr.add_suppression("Parent table of FTS auxiliary table "
 			 ".*\/.* not found");
-
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"test\"\.\"t\" is corrupted.");
+--enable_query_log
 ################################################################################
 #
 # Will test following scenarios:

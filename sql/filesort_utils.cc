@@ -145,6 +145,17 @@ inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len)
   return false;
 }
 
+#define COMPARE(N) if (s1[N] != s2[N]) return s1[N] < s2[N]
+
+inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2, size_t len)
+{
+  COMPARE(0);
+  COMPARE(1);
+  COMPARE(2);
+  COMPARE(3);
+  return memcmp(s1 + 4, s2 + 4, len - 4) < 0;
+}
+
 
 class Mem_compare :
   public std::binary_function<const uchar*, const uchar*, bool>
@@ -158,6 +169,24 @@ public:
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare(s1, s2, m_size);
+#endif
+  }
+private:
+  size_t m_size;
+};
+
+class Mem_compare_longkey :
+  public std::binary_function<const uchar*, const uchar*, bool>
+{
+public:
+  Mem_compare_longkey(size_t n) : m_size(n) {}
+  bool operator()(const uchar *s1, const uchar *s2) const
+  {
+#ifdef __sun
+    // Usually faster on SUN, see comment for native_compare()
+    return memcmp(s1, s2, m_size) < 0;
+#else
+    return my_mem_compare_longkey(s1, s2, m_size);
 #endif
   }
 private:
@@ -212,6 +241,13 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
     my_qsort2(m_sort_keys, count, sizeof(uchar*), get_ptr_compare(size), &size);
     return;
   }
+  // Heuristics here: avoid function overhead call for short keys.
+  if (param->sort_length < 10)
+  {
+    std::stable_sort(m_sort_keys, m_sort_keys + count,
+                     Mem_compare(param->sort_length));
+    return;
+  }
   std::stable_sort(m_sort_keys, m_sort_keys + count,
-                   Mem_compare(param->sort_length));
+                   Mem_compare_longkey(param->sort_length));
 }

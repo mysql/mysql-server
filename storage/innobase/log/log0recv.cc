@@ -303,7 +303,7 @@ DECLARE_THREAD(recv_writer_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "InnoDB: recv_writer thread running, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "recv_writer thread running, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -1102,14 +1102,22 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(
-			ptr, end_ptr, type, space_id, page_no, 0, false);
+		/* Do not rerun file-based log entries if this is
+		IO completion from a page read. */
+		if (page == NULL) {
+			ptr = fil_op_log_parse_or_replay(
+				ptr, end_ptr, type, space_id, page_no, 0, false);
+		}
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(
-			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
+		/* Do not rerun file-based log entries if this is
+		IO completion from a page read. */
+		if (page == NULL) {
+			ptr = fil_op_log_parse_or_replay(
+				ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
+		}
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1763,7 +1771,7 @@ loop:
 	recv_sys_empty_hash();
 
 	if (has_printed) {
-		fprintf(stderr, "InnoDB: Apply batch completed\n");
+		ib_logf(IB_LOG_LEVEL_INFO, "Apply batch completed");
 	}
 
 	mutex_exit(&(recv_sys->mutex));
@@ -2045,12 +2053,13 @@ recv_report_corrupt_log(
 	ulint	space,	/*!< in: space id, this may also be garbage */
 	ulint	page_no)/*!< in: page number, this may also be garbage */
 {
-	fprintf(stderr,
-		"InnoDB: ############### CORRUPT LOG RECORD FOUND\n"
-		"InnoDB: Log record type %lu, space id %lu, page number %lu\n"
-		"InnoDB: Log parsing proceeded successfully up to " LSN_PF "\n"
-		"InnoDB: Previous log record type %lu, is multi %lu\n"
-		"InnoDB: Recv offset %lu, prev %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"############### CORRUPT LOG RECORD FOUND ##################");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Log record type %lu, space id %lu, page number %lu."
+		" Log parsing proceeded successfully up to " LSN_PF "."
+		" Previous log record type %lu, is multi %lu"
+		" Recv offset %lu, prev %lu",
 		(ulong) type, (ulong) space, (ulong) page_no,
 		recv_sys->recovered_lsn,
 		(ulong) recv_previous_parsed_rec_type,
@@ -2210,8 +2219,7 @@ loop:
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"
 						" %lu space %lu not complete"
-						" in the replay phase."
-						" Path %s",
+						" in the replay phase. Path %s",
 						(ulint) type, space,
 						(char*)(body + 2));
 				}
@@ -2488,11 +2496,11 @@ recv_scan_log_recs(
 			if (no == log_block_convert_lsn_to_no(scanned_lsn)
 			    && !log_block_checksum_is_ok_or_old_format(
 				    log_block)) {
-				fprintf(stderr,
-					"InnoDB: Log block no %lu at"
-					" lsn " LSN_PF " has\n"
-					"InnoDB: ok header, but checksum field"
-					" contains %lu, should be %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Log block no %lu at"
+					" lsn " LSN_PF " has"
+					" ok header, but checksum field"
+					" contains %lu, should be %lu",
 					(ulong) no,
 					scanned_lsn,
 					(ulong) log_block_get_checksum(
@@ -2571,16 +2579,16 @@ recv_scan_log_recs(
 
 				if (!srv_read_only_mode) {
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Log scan progressed past the "
-						"checkpoint lsn " LSN_PF "",
+						"Log scan progressed past the"
+						" checkpoint lsn " LSN_PF "",
 						recv_sys->scanned_lsn);
 
 					recv_init_crash_recovery();
 				} else {
 
 					ib_logf(IB_LOG_LEVEL_WARN,
-						"Recovery skipped, "
-						"--innodb-read-only set!");
+						"Recovery skipped,"
+						" --innodb-read-only set!");
 
 					return(TRUE);
 				}
@@ -2635,9 +2643,9 @@ recv_scan_log_recs(
 
 		if (finished || (recv_scan_print_counter % 80 == 0)) {
 
-			fprintf(stderr,
-				"InnoDB: Doing recovery: scanned up to"
-				" log sequence number " LSN_PF "\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Doing recovery: scanned up to"
+				" log sequence number " LSN_PF "",
 				*group_scanned_lsn);
 		}
 	}
@@ -2892,17 +2900,14 @@ recv_recovery_from_checkpoint_start(
 		if (checkpoint_lsn < max_flushed_lsn) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"The log sequence number "
-				"in the ibdata files is higher "
-				"than the log sequence number "
-				"in the ib_logfiles! Are you sure "
-				"you are using the right "
-				"ib_logfiles to start up the database. "
-				"Log sequence number in the "
-				"ib_logfiles is " LSN_PF ", log"
-				"sequence numbers stamped "
-				"to ibdata file headers are between "
-				"" LSN_PF " and " LSN_PF ".",
+				"The log sequence number in the ibdata files is"
+				" higher than the log sequence number in the"
+				" ib_logfiles! Are you sure you are using the"
+				" right ib_logfiles to start up the database."
+				" Log sequence number in the ib_logfiles is"
+				LSN_PF ", log sequence numbers stamped to"
+				" ibdata file headers are between"
+				" " LSN_PF " and " LSN_PF ".",
 				checkpoint_lsn,
 				min_flushed_lsn,
 				max_flushed_lsn);
@@ -2910,11 +2915,9 @@ recv_recovery_from_checkpoint_start(
 
 		if (!recv_needed_recovery) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The log sequence numbers "
-				LSN_PF " and " LSN_PF
-				" in ibdata files do not match"
-				" the log sequence number "
-				LSN_PF
+				"The log sequence numbers " LSN_PF " and "
+				LSN_PF " in ibdata files do not match"
+				" the log sequence number " LSN_PF
 				" in the ib_logfiles!",
 				min_flushed_lsn,
 				max_flushed_lsn,
@@ -2924,9 +2927,8 @@ recv_recovery_from_checkpoint_start(
 				recv_init_crash_recovery();
 			} else {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Can't initiate database "
-					"recovery, running "
-					"in read-only-mode.");
+					"Can't initiate database recovery,"
+					" running in read-only-mode.");
 				return(DB_READ_ONLY);
 			}
 		}
@@ -3034,18 +3036,14 @@ recv_recovery_from_checkpoint_finish(void)
 
 	if (recv_sys->found_corrupt_log) {
 
-		fprintf(stderr,
-			"InnoDB: WARNING: the log file may have been"
-			" corrupt and it\n"
-			"InnoDB: is possible that the log scan or parsing"
-			" did not proceed\n"
-			"InnoDB: far enough in recovery. Please run"
-			" CHECK TABLE\n"
-			"InnoDB: on your InnoDB tables to check that"
-			" they are ok!\n"
-			"InnoDB: It may be safest to recover your"
-			" InnoDB database from\n"
-			"InnoDB: a backup!\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The log file may have been corrupt and it"
+			" is possible that the log scan or parsing"
+			" did not proceed far enough in recovery."
+			" Please run CHECK TABLE on your InnoDB tables"
+			" to check that they are ok!"
+			" It may be safest to recover your"
+			" InnoDB database from a backup!");
 	}
 
 	/* Make sure that the recv_writer thread is done. This is

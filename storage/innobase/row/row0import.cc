@@ -1926,16 +1926,14 @@ PageConverter::update_header(
 		return(DB_CORRUPTION);
 	case ULINT_UNDEFINED:
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Space id check in the header failed "
-			"- ignored");
+			"Space id check in the header failed- ignored");
 	}
 
 	ulint		space_flags = fsp_header_get_flags(get_frame(block));
 
 	if (!fsp_flags_is_valid(space_flags)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unsupported tablespace format %lu",
+		ib_logf(IB_LOG_LEVEL_ERROR, "Unsupported tablespace format %lu",
 			(ulong) space_flags);
 
 		return(DB_UNSUPPORTED);
@@ -2159,8 +2157,7 @@ row_import_discard_changes(
 		table_name, sizeof(table_name),
 		prebuilt->table->name, FALSE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Discarding tablespace of table %s: %s",
+	ib_logf(IB_LOG_LEVEL_INFO, "Discarding tablespace of table %s: %s",
 		table_name, ut_strerr(err));
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
@@ -2296,8 +2293,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			err = btr_root_adjust_on_import(index);
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Skip adjustment of root pages for "
-				"index %s.", index->name);
+				"Skip adjustment of root pages for index %s.",
+				index->name);
 
 			err = DB_CORRUPTION;
 		}

@@ -39,6 +39,7 @@
 #include "lock.h"
 #include "abstract_query_plan.h"
 #include "opt_explain_format.h"  // Explain_format_flags
+#include "sql_view.h"            // repoint_contexts_of_join_nests
 
 #include <algorithm>
 using std::max;
@@ -7051,12 +7052,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   {
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
-    SELECT_LEX *old_sl= tl->select_lex;
-    tl->select_lex= parent_select; 
-    for (TABLE_LIST *emb= tl->embedding;
-         emb && emb->select_lex == old_sl;
-         emb= emb->embedding)
-      emb->select_lex= parent_select;
   }
   parent_join->tables+= subq_select->join->tables;
   parent_join->primary_tables+= subq_select->join->tables;
@@ -7150,6 +7145,10 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
        select != NULL;
        select= select->removed_select)
     select->context.select_lex= parent_select;
+
+  repoint_contexts_of_join_nests(subq_select->top_join_list,
+                                 subq_select, parent_select);
+
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
