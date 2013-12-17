@@ -2101,7 +2101,7 @@ my_strnxfrm_unicode(CHARSET_INFO *cs,
   const uchar *se = src + srclen;
   MY_UNICASE_INFO * const*uni_plane= (cs->state & MY_CS_BINSORT) ?
                                       NULL : cs->caseinfo;
-  DBUG_ASSERT(src);
+  DBUG_ASSERT(!srclen || src);
   
   while (dst < de_beg)
   {
@@ -2145,7 +2145,7 @@ my_strnxfrm_unicode_full_bin(CHARSET_INFO *cs,
   const uchar *se = src + srclen;
 
   LINT_INIT(wc);
-  DBUG_ASSERT(src);
+  DBUG_ASSERT(!srclen || src);
   DBUG_ASSERT(cs->state & MY_CS_BINSORT);
 
   while (dst < de_beg)

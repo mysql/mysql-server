@@ -11418,6 +11418,23 @@ cp932_japanese_ci	6109
 cp932_japanese_ci	61
 cp932_japanese_ci	6120
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+cp932_japanese_ci
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 CREATE TABLE t1 AS
 SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
 ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
@@ -11445,6 +11462,23 @@ cp932_bin	6109
 cp932_bin	61
 cp932_bin	6120
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+cp932_bin
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 CREATE TABLE t1 AS
 SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
 ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);

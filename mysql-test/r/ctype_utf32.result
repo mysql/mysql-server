@@ -582,6 +582,23 @@ utf32_general_ci	0000006100000009
 utf32_general_ci	00000061
 utf32_general_ci	0000006100000020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf32_general_ci
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf32_general_ci
@@ -611,6 +628,23 @@ utf32_bin	0000006100000009
 utf32_bin	00000061
 utf32_bin	0000006100000020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf32_bin
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 #
 # Bug#55980 Character sets: supplementary character _bin ordering is wrong
 #
