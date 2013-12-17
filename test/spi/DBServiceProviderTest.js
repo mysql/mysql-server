@@ -20,14 +20,11 @@
 
 // TODO:  DBServiceProviderTest needs to run before DBConnectionPoolTest.
 
-/*global spi_module, harness, path, suites_dir, spi_doc_dir */
-
 "use strict";
 
 var spi = require(spi_module),
     service = spi.getDBServiceProvider(global.adapter),
     doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
-
 
 var t1 = new harness.ConcurrentTest("getDefaultConnectionProperties");
 t1.run = function() {
@@ -53,8 +50,7 @@ t4.run = function() {
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(service, "DBServiceProvider");
   tester.test(functionList);
-
-  return true;
+  return true; // test is complete
 };
 
 module.exports.tests = [t1, t2, t4];
