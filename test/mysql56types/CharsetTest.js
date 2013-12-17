@@ -92,7 +92,7 @@ t1.run = function() {
 var t2 = new harness.ConcurrentTest("2:str_fix_utf16le:nonascii");
 t2.run = function() {
   var data = new TestData();
-  var value = "search was on for a ☕";
+  var value = "search for ☕";
   data.str_fix_utf16le = value;
   this.verifier = new ValueVerifier(this, "str_fix_utf16le", value);
   fail_openSession(this, InsertFunction(data));
@@ -191,7 +191,7 @@ t12.run = function() {
 var t13 = new harness.ConcurrentTest("13:str_fix_utf16le:non-bmp");
 t13.run = function() {
   var data = new TestData();
-  var value = "points. 𝍧 This encod-";
+  var value = "points. 𝍧";
   data.str_fix_utf16le = value;
   this.verifier = new ValueVerifier(this, "str_fix_utf16le", value);
   fail_openSession(this, InsertFunction(data));
@@ -218,7 +218,7 @@ t15.run = function() {
 var t16 = new harness.ConcurrentTest("16:str_var_utf8mb4:non-bmp");
 t16.run = function() {
   var data = new TestData();
-  var value = "performance grounds, 𝍧";
+  var value = "performance 𝍧";
   data.str_var_utf8mb4 = value;
   this.verifier = new ValueVerifier(this, "str_var_utf8mb4", value);
   fail_openSession(this, InsertFunction(data));
