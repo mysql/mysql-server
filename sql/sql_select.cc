@@ -2258,6 +2258,7 @@ JOIN::exec()
         In this case JOIN::exec must check for JOIN::having_value, in the
         same way it checks for JOIN::cond_value.
       */
+      DBUG_ASSERT(error == 0);
       if (cond_value != Item::COND_FALSE &&
           having_value != Item::COND_FALSE &&
           (!conds || conds->val_int()) &&
@@ -2268,16 +2269,15 @@ JOIN::exec()
              procedure->end_of_records()) : result->send_data(fields_list)> 0))
 	  error= 1;
 	else
-	{
-	  error= (int) result->send_eof();
 	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
                          thd->sent_row_count);
-	}
       }
       else
-      {
-	error=(int) result->send_eof();
         send_records= 0;
+      if (!error)
+      {
+        join_free();                      // Unlock all cursors
+        error= (int) result->send_eof();
       }
     }
     /* Single select (without union) always returns 0 or 1 row */

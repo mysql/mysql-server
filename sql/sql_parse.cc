@@ -4543,6 +4543,7 @@ finish:
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
 
+  lex->unit.cleanup();
 
   if (! thd->in_sub_stmt)
   {
@@ -4575,7 +4576,6 @@ finish:
 #endif
   }
 
-  lex->unit.cleanup();
   /* Free tables */
   thd_proc_info(thd, "closing tables");
   close_thread_tables(thd);

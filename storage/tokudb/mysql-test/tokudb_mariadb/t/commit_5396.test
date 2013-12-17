@@ -1,0 +1,18 @@
+#
+# MDEV-5396 Assertion `Handlerton: r==0 ' failed (errno=0) on EXPLAIN with TokuDB tables
+#
+
+CREATE TABLE t1 (a VARCHAR(8), INDEX(a)) ENGINE=TokuDB;
+INSERT INTO t1 VALUES ('foo'),('bar');
+CREATE TABLE t2 AS SELECT 'qux' IN (SELECT a FROM t1) AS f1;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (c VARCHAR(3), INDEX(c)) ENGINE=TokuDB;
+INSERT INTO t3 VALUES ('foo'),('bar');
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT b FROM t2) OR 'qux' IN (SELECT c FROM t3);
+DROP TABLE t1, t2, t3;
+
