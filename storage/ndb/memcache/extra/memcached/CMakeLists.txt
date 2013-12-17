@@ -78,6 +78,10 @@ IF(HAVE_LIBDL)
 target_link_libraries(memcached dl)
 ENDIF()
 
+if(LIBRT)
+  target_link_libraries(memcached rt)
+endif()
+
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
 CHECK_INCLUDE_FILE("sysexits.h"      HAVE_SYSEXITS_H)

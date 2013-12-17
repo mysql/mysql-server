@@ -82,7 +82,3 @@ ADD_CONVENIENCE_LIBRARY(event
                          ${LIBEVENT_EVPORT_SOURCES} 
                          ${LIBEVENT_KQUEUE_SOURCES})
 
-if(LIBRT) 
-  target_link_libraries(event rt)
-endif()
-
