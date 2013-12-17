@@ -514,7 +514,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                             &thd->security_ctx->priv_user[0],
                             thd->thread_id,
                             cause,
-                            thd->query());
+                            thd->query().str);
   }
   else
     thd->inc_status_sort_rows(num_rows);

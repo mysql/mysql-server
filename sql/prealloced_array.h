@@ -85,6 +85,20 @@ public:
   }
 
   /**
+    Copies all the elements from 'that' into this container.
+    Any objects in this container are destroyed first.
+   */
+  Prealloced_array &operator=(const Prealloced_array &that)
+  {
+    this->clear();
+    if (this->reserve(that.capacity()))
+      return *this;
+    for (const Element_type *p= that.begin(); p != that.end(); ++p)
+      this->push_back(*p);
+    return *this;
+  }
+
+  /**
     Runs DTOR on all elements if needed.
     Deallocates array if we exceeded the Preallocated amount.
    */
@@ -120,6 +134,9 @@ public:
 
   Element_type &back() { return at(size() - 1); }
   const Element_type &back() const { return at(size() - 1); }
+
+  Element_type &front() { return at(0); }
+  const Element_type &front() const { return at(0); }
 
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
@@ -281,9 +298,6 @@ private:
   char           m_buff[Prealloc * sizeof(Element_type)];
   Element_type  *m_array_ptr;
   PSI_memory_key m_psi_key;
-
-  // Not (yet) implemented.
-  Prealloced_array &operator=(const Prealloced_array&);
 };
 
 #endif  // PREALLOCED_ARRAY_INCLUDED

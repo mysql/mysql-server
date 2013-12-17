@@ -1560,7 +1560,7 @@ mysql_stmt_init(MYSQL *mysql)
 */
 
 int STDCALL
-mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
+mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, size_t length)
 {
   MYSQL *mysql= stmt->mysql;
   DBUG_ENTER("mysql_stmt_prepare");
@@ -2030,7 +2030,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   DBUG_PRINT("enter",("type: %d  buffer: 0x%lx  length: %lu  is_null: %d",
 		      param->buffer_type,
 		      (long) (param->buffer ? param->buffer : NullS),
-                      *param->length, *param->is_null));
+                      (ulong) *param->length, *param->is_null));
 
   if (*param->is_null)
     store_param_null(net, param);
@@ -2949,13 +2949,13 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 
 my_bool STDCALL
 mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
-		     const char *data, ulong length)
+                          const char *data, size_t length)
 {
   MYSQL_BIND *param;
   DBUG_ENTER("mysql_stmt_send_long_data");
   DBUG_ASSERT(stmt != 0);
   DBUG_PRINT("enter",("param no: %d  data: 0x%lx, length : %ld",
-		      param_number, (long) data, length));
+		      param_number, (long) data, (ulong) length));
 
   /*
     We only need to check for stmt->param_count, if it's not null
@@ -3126,7 +3126,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 */
 
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
-                                         uint length)
+                                         size_t length)
 {
   char *buffer= (char *)param->buffer;
   char *endptr= value + length;

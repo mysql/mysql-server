@@ -71,6 +71,16 @@ cache_record_length(JOIN *join,uint idx)
 /**
   Find the best index to do 'ref' access on for a table.
 
+  The best index chosen using the following priority list
+  1) A clustered primary key with equality predicates on all keyparts is
+     always chosen.
+  2) A non nullable unique index with equality predicates on
+     all keyparts is preferred over a non-unique index,
+     nullable unique index or unique index where there are some
+     keyparts without equality predicates.
+  3) Otherwise, the index with best cost estimate is chosen.
+
+
   @param tab                        the table to be joined by the function
   @param remaining_tables           set of tables not included in the
                                     partial plan yet.
@@ -117,6 +127,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
   */
   double best_ref_cost= DBL_MAX;
 
+  // Index type, note that code below relies on this element definition order 
+  enum idx_type {CLUSTERED_PK, UNIQUE, NOT_UNIQUE, FULLTEXT};
+  enum idx_type best_found_keytype= NOT_UNIQUE;
+
   TABLE *const table= tab->table;
   Opt_trace_context *const trace= &thd->opt_trace;
 
@@ -146,7 +160,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     table_map table_deps= 0;
     const uint key= keyuse->key;
     const KEY *const keyinfo= table->key_info + key;
-    const bool ft_key= (keyuse->keypart == FT_KEYPART);
     /*
       Bitmap of keyparts in this index that have a condition 
 
@@ -161,6 +174,9 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     Opt_trace_object trace_access_idx(trace);
     trace_access_idx.add_alnum("access_type", "ref").
       add_utf8("index", keyinfo->name);
+
+    enum idx_type cur_keytype= (keyuse->keypart == FT_KEYPART) ?
+      FULLTEXT : NOT_UNIQUE;
 
     // Calculate how many key segments of the current key we can use
     Key_use *const start_key= keyuse;
@@ -237,15 +253,39 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       distinct_keys_est= MATCHING_ROWS_IN_OTHER_TABLE;
 
     // fulltext indexes require special treatment
-    if (!ft_key)
+    if (cur_keytype != FULLTEXT)
     {
       *found_condition|= MY_TEST(found_part);
 
+      const bool all_key_parts_covered=
+         (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));
+      /*
+        check for the current key type.
+        If we find a key with all the keyparts having equality predicates and
+        --> if it is a clustered primary key, current key type is set to
+            CLUSTERED_PK.
+        --> if it is non-nullable unique key, it is set as UNIQUE.
+        --> otherwise its a NOT_UNIQUE keytype.
+      */
+      if (all_key_parts_covered && (keyinfo->flags & HA_NOSAME))
+      {
+        if (key == table->s->primary_key &&
+            table->file->primary_key_is_clustered())
+          cur_keytype= CLUSTERED_PK;
+        else if ((keyinfo->flags & HA_NULL_PART_KEY) == 0)
+          cur_keytype= UNIQUE;
+      }
+
+      if (cur_keytype > best_found_keytype)
+      {
+        trace_access_idx.add("chosen", false).
+          add_alnum("cause", "heuristic_eqref_already_found");
+        continue;
+      }
+
       // Check if we found full key
-      if (found_part == LOWER_BITS(key_part_map,
-                                   actual_key_parts(keyinfo)) &&
-          !ref_or_null_part)
-      {                                         /* use eq key */
+      if (all_key_parts_covered && !ref_or_null_part) /* use eq key */
+      {
         cur_used_keyparts= (uint) ~0;
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
@@ -339,8 +379,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       }
       else if ((found_part & 1) &&
                (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-                found_part == LOWER_BITS(key_part_map,
-                                         actual_key_parts(keyinfo))))
+                all_key_parts_covered))
       {
         /*
           Use as many key-parts as possible and a uniqe key is better
@@ -532,6 +571,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     {
       // This is a full-text index
 
+      if (best_found_keytype < NOT_UNIQUE)
+      {
+        trace_access_idx.add("chosen", false).
+          add_alnum("cause", "heuristic_eqref_already_found");
+        continue;
+      }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost= prev_record_reads(join, idx, table_deps);
       cur_fanout= 1.0;
@@ -544,15 +589,45 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     const double cur_ref_cost=
       cur_read_cost + prefix_rowcount * cur_fanout * ROW_EVALUATE_COST;
     trace_access_idx.add("rows", cur_fanout).add("cost", cur_ref_cost);
-    if (cur_ref_cost < best_ref_cost)
+
+    /*
+      The current index usage is better than the best index usage found
+      so far if:
+
+       1) The access type for the best index and the current index is
+          FULLTEXT or REF, and the current index has a lower cost
+       2) The access type is the same for the best index and the
+          current index, and the current index has a lower cost
+          (ie, both indexes are UNIQUE)
+       3) The access type of the current index is better than
+          that of the best index (EQ_REF better than REF, Clustered PK
+          better than EQ_REF etc)
+    */
+    bool new_candidate= false;
+
+    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE)
+      new_candidate= cur_ref_cost < best_ref_cost;      // 1
+    else if (best_found_keytype == cur_keytype)
+      new_candidate= cur_ref_cost < best_ref_cost;      // 2
+    else if (best_found_keytype > cur_keytype)
+      new_candidate= true;                              // 3
+
+    if (new_candidate)
     {
       *ref_depend_map= table_deps;
       *used_key_parts= cur_used_keyparts;
       best_ref= start_key;
       best_ref_cost= cur_ref_cost;
+      best_found_keytype= cur_keytype;
     }
 
     trace_access_idx.add("chosen", best_ref == start_key);
+
+    if (best_found_keytype == CLUSTERED_PK)
+    {
+      trace_access_idx.add_alnum("cause", "clustered_pk_chosen_by_heuristics");
+      break;
+    }
   } // for each key
 
   return best_ref;

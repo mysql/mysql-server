@@ -371,7 +371,7 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 #error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
 #endif
 
-LEX_STRING* thd_query_string(MYSQL_THD thd);
+LEX_CSTRING thd_query_string(MYSQL_THD thd);
 
 extern "C" {
 
@@ -393,11 +393,6 @@ int thd_non_transactional_update(const MYSQL_THD thd);
 @param thd user thread
 @return Value to be used as index into the binlog_format_names array */
 int thd_binlog_format(const MYSQL_THD thd);
-
-/** Mark transaction to rollback and mark error as fatal to a sub-statement.
-@param thd Thread handle
-@param all TRUE <=> rollback main transaction. */
-void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
 /** Check if binary logging is filtered for thread's current db.
 @param thd Thread handle

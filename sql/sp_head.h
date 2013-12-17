@@ -749,7 +749,7 @@ public:
   { return m_flags & MODIFIES_DATA; }
 
   uint instructions()
-  { return m_instructions.size(); }
+  { return static_cast<uint>(m_instructions.size()); }
 
   sp_instr *last_instruction()
   { return m_instructions.back(); }

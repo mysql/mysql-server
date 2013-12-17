@@ -18,6 +18,7 @@
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
 #cmakedefine _GNU_SOURCE 1
+#cmakedefine HAVE_LLVM_LIBCPP 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_ASM_MSR_H 1

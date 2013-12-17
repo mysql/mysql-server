@@ -2510,7 +2510,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr) || my_isinf(nr))
+    if (my_isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }

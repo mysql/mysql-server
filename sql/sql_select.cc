@@ -82,7 +82,7 @@ bool handle_select(THD *thd, select_result *result,
   SELECT_LEX *const select_lex = lex->select_lex;
 
   DBUG_ENTER("handle_select");
-  MYSQL_SELECT_START(thd->query());
+  MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
 
   if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
   {
@@ -5145,14 +5145,6 @@ bool JOIN::make_tmp_tables_info()
         if (make_group_fields(this, this))
           DBUG_RETURN(true);
       }
-
-      /*
-        If there is no sorting or grouping, 'use_order'
-        index result should not have been requested.
-      */
-      DBUG_ASSERT(!(ordered_index_usage == ordered_index_void &&
-                    !plan_is_const() &&
-                    join_tab[const_tables].use_order()));
 
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
