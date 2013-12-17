@@ -168,11 +168,8 @@ ClassTester.prototype.test = function(functionList, testCase) {
   }
 
   if(msg) {
-    if(testCase) {   testCase.fail(msg);    }
+    if(testCase) {   testCase.appendErrorMessage(msg);    }
     else         {   throw new Error(msg);  }
-  }
-  else {
-    if(testCase) {   testCase.pass();       }
   }
 }
 
