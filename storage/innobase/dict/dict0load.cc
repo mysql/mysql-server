@@ -1117,8 +1117,8 @@ loop:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for %s, "
-					"ignored.", table_name);
+					"Tablespace open failed for %s,"
+					" ignored.", table_name);
 			}
 
 			ut_free(filepath);
@@ -1855,10 +1855,10 @@ dict_load_indexes(
 
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: ", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs(" is corrupted\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+			"Index %s of table %s is corrupted",
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str());
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
@@ -1874,10 +1874,12 @@ dict_load_indexes(
 				DICT_ERR_IGNORE_CORRUPT
 				3) if the index corrupted is a secondary
 				index */
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: load corrupted index ", stderr);
-				dict_index_name_print(stderr, NULL, index);
-				putc('\n', stderr);
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Load corrupted index %s of table %s",
+					ut_get_name(NULL, FALSE,
+						    index->name).c_str(),
+					ut_get_name(NULL, FALSE,
+						    index->table_name).c_str());
 			}
 		}
 
@@ -2226,7 +2228,7 @@ dict_load_table(
 	if (!result) {
 		result = dict_load_table_one(name, cached, ignore_err,
 					     fk_list);
-		while(!fk_list.empty()) {
+		while (!fk_list.empty()) {
 			dict_table_t*	f_table;
 
 			const char* for_table  = fk_list.front();

@@ -154,20 +154,20 @@ static const char* fts_create_common_tables_sql = {
 	"CREATE TABLE $DELETED_CACHE (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON $DELETED_CACHE(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $DELETED_CACHE(doc_id);\n"
 	""
 	"CREATE TABLE $BEING_DELETED (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON $BEING_DELETED(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $BEING_DELETED(doc_id);\n"
 	""
 	"CREATE TABLE $BEING_DELETED_CACHE (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON $BEING_DELETED_CACHE(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $BEING_DELETED_CACHE(doc_id);\n"
 	""
 	"CREATE TABLE $CONFIG (\n"
 	"  key CHAR(50),\n"
@@ -194,8 +194,8 @@ static const char* fts_create_index_tables_sql = {
 static const char* fts_create_index_sql = {
 	"BEGIN\n"
 	""
-	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND "
-		"ON $table (word, first_doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND"
+		" ON $table (word, first_doc_id);\n"
 };
 
 /** FTS auxiliary table suffixes that are common to all FT indexes. */
@@ -532,7 +532,7 @@ fts_load_user_stopword(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT value "
+		" SELECT value"
 		" FROM $table_stopword;\n"
 		"BEGIN\n"
 		"\n"
@@ -2530,7 +2530,7 @@ fts_get_max_cache_size(
 		if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"FTS max cache size "
+				"FTS max cache size"
 				" (%lu) out of range. Minimum value is"
 				" %luMB and the maximum values is %luMB,"
 				" setting cache size to upper limit",
@@ -2838,8 +2838,8 @@ fts_update_sync_doc_id(
 
 	graph = fts_parse_sql(
 		&fts_table, info,
-		"BEGIN "
-		"UPDATE $table_name SET value = :doc_id"
+		"BEGIN"
+		" UPDATE $table_name SET value = :doc_id"
 		" WHERE key = 'synced_doc_id';");
 
 	error = fts_eval_sql(trx, graph);
@@ -3885,9 +3885,9 @@ fts_write_node(
 			fts_table,
 			info,
 			"BEGIN\n"
-			"INSERT INTO $index_table_name VALUES "
-			"(:token, :first_doc_id,"
-			" :last_doc_id, :doc_count, :ilist);");
+			"INSERT INTO $index_table_name VALUES"
+			" (:token, :first_doc_id,"
+			"  :last_doc_id, :doc_count, :ilist);");
 	}
 
 	start_time = ut_time();
@@ -4119,8 +4119,8 @@ fts_sync_write_doc_stat(
 		*graph = fts_parse_sql(
 			&fts_table,
 			info,
-			"BEGIN "
-			"INSERT INTO $doc_id_table VALUES (:doc_id, :count);");
+			"BEGIN"
+			" INSERT INTO $doc_id_table VALUES (:doc_id, :count);");
 	}
 
 	for (;;) {
@@ -4264,7 +4264,7 @@ fts_is_word_in_index(
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count\n"
 			" FROM $table_name\n"
-			" WHERE word = :word "
+			" WHERE word = :word"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
 			"\n"
@@ -4325,8 +4325,8 @@ fts_sync_begin(
 
 	if (fts_enable_diag_print) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS SYNC for table %s, deleted count: %ld size: "
-			"%lu bytes",
+			"FTS SYNC for table %s, deleted count: %ld size:"
+			" %lu bytes",
 			sync->table->name,
 			ib_vector_size(cache->deleted_doc_ids),
 			cache->total_size);
@@ -4423,8 +4423,8 @@ fts_sync_commit(
 
 	if (fts_enable_diag_print && elapsed_time) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"SYNC for table %s: SYNC time : %lu secs: "
-			"elapsed %lf ins/sec",
+			"SYNC for table %s: SYNC time : %lu secs:"
+			" elapsed %lf ins/sec",
 			sync->table->name,
 			(ulong) (ut_time() - sync->start_time),
 			(double) n_nodes/ (double) elapsed_time);
@@ -5026,7 +5026,7 @@ fts_get_rows_count(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT COUNT(*) "
+		" SELECT COUNT(*)"
 		" FROM $table_name;\n"
 		"BEGIN\n"
 		"\n"
@@ -6211,8 +6211,8 @@ fts_update_hex_format_flag(
 		"PROCEDURE UPDATE_HEX_FORMAT_FLAG() IS\n"
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS\n"
-		" SELECT MIX_LEN "
-		" FROM SYS_TABLES "
+		" SELECT MIX_LEN"
+		" FROM SYS_TABLES"
 		" WHERE ID = :table_id FOR UPDATE;"
 		"\n"
 		"BEGIN\n"
@@ -6467,8 +6467,8 @@ fts_rename_aux_tables_to_hex_format(
 			dict_table_close(table, TRUE, FALSE);
 
 			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_WARN, "Failed to revert "
-					"table %s. Please revert manually.",
+				ib_logf(IB_LOG_LEVEL_WARN, "Failed to revert"
+					" table %s. Please revert manually.",
 					table->name);
 				fts_sql_rollback(trx_bg);
 				/* Continue to clear aux tables' flags2 */
@@ -6635,8 +6635,8 @@ fts_check_and_drop_orphaned_tables(
 		if (drop) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Parent table of FTS auxiliary table %s not "
-				"found.", aux_table->name);
+				"Parent table of FTS auxiliary table %s not"
+				" found.", aux_table->name);
 
 			dberr_t err = fts_drop_table(trx, aux_table->name);
 
@@ -6672,8 +6672,8 @@ fts_check_and_drop_orphaned_tables(
 			any failure would cause a complete rollback. */
 			dberr_t	err;
 			trx_t*	trx_rename = trx_allocate_for_background();
-			trx_rename->op_info = "Rename aux tables to "
-					      "hex format";
+			trx_rename->op_info = "Rename aux tables to"
+					      " hex format";
 			trx_rename->dict_operation_lock_mode = RW_X_LATCH;
 			trx_start_for_ddl(trx_rename, TRX_DICT_OP_TABLE);
 
@@ -6684,12 +6684,12 @@ fts_check_and_drop_orphaned_tables(
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Rollback operations on all "
-					"aux tables of table %s. "
-					"Please check why renaming aux tables "
-					"failed, and restart the server to "
-					"upgrade again to "
-					"get the table work.",
+					"Rollback operations on all"
+					" aux tables of table %s."
+					" Please check why renaming aux tables"
+					" failed, and restart the server to"
+					" upgrade again to"
+					" get the table work.",
 					parent_table->name);
 
 				fts_sql_rollback(trx_rename);
@@ -6721,8 +6721,9 @@ fts_check_and_drop_orphaned_tables(
 
 				if (err != DB_SUCCESS) {
 					ib_logf(IB_LOG_LEVEL_WARN,
-						"Setting aux table %s to hex "
-						"format failed.", table->name);
+						"Setting aux table %s to hex"
+						" format failed.",
+						table->name);
 				} else {
 					DICT_TF2_FLAG_SET(table,
 						DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6741,9 +6742,9 @@ fts_check_and_drop_orphaned_tables(
 
 				if (err != DB_SUCCESS) {
 					ib_logf(IB_LOG_LEVEL_WARN,
-						"Setting parent table %s of "
-						"FTS auxiliary %s to hex "
-						"format failed.",
+						"Setting parent table %s of"
+						" FTS auxiliary %s to hex"
+						" format failed.",
 						parent_table->name,
 						aux_table->name);
 				} else {
@@ -6845,7 +6846,7 @@ fts_drop_orphaned_tables(void)
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT NAME, ID "
+		" SELECT NAME, ID"
 		" FROM SYS_TABLES;\n"
 		"BEGIN\n"
 		"\n"
@@ -6872,8 +6873,8 @@ fts_drop_orphaned_tables(void)
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading SYS_TABLES. "
-					"Retrying!");
+					"lock wait timeout reading SYS_TABLES."
+					" Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
