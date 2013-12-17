@@ -98,9 +98,9 @@ void cleanup_prepared_stmt_hash(void);
 void reset_prepared_stmt_instances();
 
 PFS_prepared_stmt*
-find_or_create_prepared_stmt(void *identity,
-                             PFS_thread *thread,
-                             PFS_events_statements *pfs_stmt,
-                             char* sqltext, uint sqltext_length);
+create_prepared_stmt(void *identity,
+                     PFS_thread *thread,
+                     PFS_events_statements *pfs_stmt,
+                     char* sqltext, uint sqltext_length);
 void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps);
 #endif

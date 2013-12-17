@@ -127,25 +127,6 @@ void cleanup_prepared_stmt_hash(void)
     prepared_stmt_hash_inited= false;
   }
 }
-
-static void set_prepared_stmt_key(PFS_prepared_stmt_key *key,
-                                  char* sqltext, uint sqltext_length)
-{
-  char *ptr= &key->m_hash_key[0];
-  if(sqltext_length != 0)
-  {
-    memcpy(ptr, sqltext, sqltext_length);
-    ptr+= sqltext_length;
-  }
-  ptr[0]= 0;
-  ptr++;
- 
-  /* Mayank TODO: Add more parameters to set key value. */
- 
-  key->m_key_length= ptr - &key->m_hash_key[0];
-  return;
-}
-
 void PFS_prepared_stmt::reset_data()
 {
   m_prepared_stmt_stat.reset();
@@ -166,59 +147,21 @@ void reset_prepared_stmt_instances()
   }
 }
 
-static LF_PINS* get_prepared_stmt_hash_pins(PFS_thread *thread)
-{
-  if (unlikely(thread->m_prepared_stmt_hash_pins == NULL))
-  {
-    if (! prepared_stmt_hash_inited)
-      return NULL;
-    thread->m_prepared_stmt_hash_pins= lf_hash_get_pins(&prepared_stmt_hash);
-  }
-  return thread->m_prepared_stmt_hash_pins;
-}
-
 PFS_prepared_stmt*
-find_or_create_prepared_stmt(void *identity,
-                             PFS_thread *thread,
-                             PFS_events_statements *pfs_stmt,
-                             char* sqltext, uint sqltext_length)
+create_prepared_stmt(void *identity,
+                     PFS_thread *thread,
+                     PFS_events_statements *pfs_stmt,
+                     char* sqltext, uint sqltext_length)
 {
   if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
     return NULL;
 
-  LF_PINS *pins= get_prepared_stmt_hash_pins(thread);
-  if (unlikely(pins == NULL))
-    return NULL;
- 
-  /* Prepare prepared statement key */
-  PFS_prepared_stmt_key key;
-  /* Mayank TODO: Add more element for key. */
-  set_prepared_stmt_key(&key, sqltext, sqltext_length);
-  
-  PFS_prepared_stmt **entry;
   PFS_prepared_stmt *pfs= NULL;
-  uint retry_count= 0;
-  const uint retry_max= 3; 
   static uint PFS_ALIGNED prepared_stmt_monotonic_index= 0;
   ulong index= 0;
   ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-search:
-  entry= reinterpret_cast<PFS_prepared_stmt**>
-    (lf_hash_search(&prepared_stmt_hash, pins,
-                    key.m_hash_key, key.m_key_length));
-
-  if (entry && (entry != MY_ERRPTR))
-  {
-    /* If record already exists then return its pointer. */
-    pfs= *entry;
-    lf_hash_search_unpin(pins);
-    return pfs;
-  }
-  
-  lf_hash_search_unpin(pins);
- 
   if(prepared_stmt_full)
   {
     prepared_stmt_lost++;
@@ -236,16 +179,14 @@ search:
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
         /* Do the assignments. */
-        memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
-        pfs->m_key.m_key_length= key.m_key_length;
         pfs->m_identity= identity;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
         pfs->m_sqltext_length= sqltext_length;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
         /* 
-           Ideally pfs_stmt should not be NULL, but there are cases where I was
-           getting it as NULL. Need to investigate it.
+          Ideally pfs_stmt should not be NULL, but there are cases where I was
+          getting it as NULL. Need to investigate it.
         */
         //DBUG_ASSERT(pfs_stmt != NULL);
         if(pfs_stmt)
@@ -266,29 +207,7 @@ search:
       
         /* Insert this record. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
-        int res= lf_hash_insert(&prepared_stmt_hash, pins, &pfs);
-       
-        if (likely(res == 0))
-        {
-          return pfs;
-        }
-       
-        pfs->m_lock.allocated_to_free();
-      
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            prepared_stmt_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-        /* OOM in lf_hash_insert */
-        prepared_stmt_lost++;
-        return NULL;
+        return pfs;
       }
     }
   }
@@ -299,13 +218,6 @@ search:
 
 void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps)
 {
-  LF_PINS *pins= get_prepared_stmt_hash_pins(thread);
-  if (unlikely(pins == NULL))
-    return;
-
-  lf_hash_delete(&prepared_stmt_hash, pins,
-                 pfs_ps->m_key.m_hash_key, pfs_ps->m_key.m_key_length);
-
   pfs_ps->m_lock.allocated_to_free();
   return;
 }
