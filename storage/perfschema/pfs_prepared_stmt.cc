@@ -40,9 +40,6 @@ ulong prepared_stmt_lost= 0;
 /** True when prepared stmt array is full. */
 bool prepared_stmt_full;
 
-LF_HASH prepared_stmt_hash;                                                           
-static bool prepared_stmt_hash_inited= false;
-
 /**
   Initialize table PREPARED_STATEMENTS_INSTANCE.
   @param param performance schema sizing
@@ -85,48 +82,6 @@ void cleanup_prepared_stmt(void)
   prepared_stmt_array= NULL;
 }
 
-C_MODE_START
-static uchar *prepared_stmt_hash_get_key(const uchar *entry, size_t *length,
-                                         my_bool)
-{
-  const PFS_prepared_stmt * const *typed_entry;
-  const PFS_prepared_stmt *prepared_stmt;
-  const void *result;
-  typed_entry= reinterpret_cast<const PFS_prepared_stmt* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
-  prepared_stmt= *typed_entry;
-  DBUG_ASSERT(prepared_stmt != NULL);
-  *length= prepared_stmt->m_key.m_key_length;
-  result= prepared_stmt->m_key.m_hash_key;
-  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
-}
-C_MODE_END
-
-/**
-  Initialize the prepared statement hash.
-  @return 0 on success
-*/
-int init_prepared_stmt_hash(void)
-{
-  if ((! prepared_stmt_hash_inited) && (prepared_stmt_max > 0))
-  {
-    lf_hash_init(&prepared_stmt_hash, sizeof(PFS_prepared_stmt*), LF_HASH_UNIQUE,
-                 0, 0, prepared_stmt_hash_get_key, &my_charset_bin);
-    prepared_stmt_hash.size= prepared_stmt_max;
-    prepared_stmt_hash_inited= true;
-  }
-  return 0;
-}
-
-/** Cleanup the prepared statement hash. */
-void cleanup_prepared_stmt_hash(void)
-{
-  if (prepared_stmt_hash_inited)
-  {
-    lf_hash_destroy(&prepared_stmt_hash);
-    prepared_stmt_hash_inited= false;
-  }
-}
 void PFS_prepared_stmt::reset_data()
 {
   m_prepared_stmt_stat.reset();
