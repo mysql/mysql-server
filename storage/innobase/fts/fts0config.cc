@@ -229,8 +229,8 @@ fts_config_set_value(
 
 	graph = fts_parse_sql(
 		fts_table, info,
-		"BEGIN UPDATE $table_name SET value = :value "
-		"WHERE key = :name;");
+		"BEGIN UPDATE $table_name SET value = :value"
+		" WHERE key = :name;");
 
 	trx->op_info = "setting FTS config value";
 

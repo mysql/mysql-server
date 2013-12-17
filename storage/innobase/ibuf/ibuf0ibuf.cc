@@ -4141,8 +4141,8 @@ dump:
 				"crash_after_log_ibuf_upd_inplace",
 				log_buffer_flush_to_disk();
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Wrote log record for ibuf update in "
-					"place operation");
+					"Wrote log record for ibuf update in"
+					" place operation");
 				DBUG_SUICIDE();
 			);
 
@@ -4659,12 +4659,10 @@ ibuf_merge_or_delete_for_page(
 
 			corruption_noticed = true;
 
-			ut_print_timestamp(stderr);
-
 			ibuf_mtr_start(&mtr);
 
-			fputs("\nInnoDB: Dump of the ibuf bitmap page:\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Dump of the ibuf bitmap page:");
 
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 							       zip_size, &mtr);
