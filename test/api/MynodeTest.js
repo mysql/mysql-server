@@ -26,6 +26,7 @@ t1.run = function() {
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(mynode, "Mynode");
   tester.test(functionList, t1);
+  return true;
 }
 
 module.exports.tests = [t1];
