@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -20,78 +20,59 @@
 
 "use strict";
 
-/*global unified_debug, spi_module, harness */
-
-var udebug = unified_debug.getLogger("DBDictionaryTest.js");
-var spi_lib = require("./lib.js");
+var spi     = require(spi_module),
+    spi_lib = require("./lib.js");
 
 try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi = require(spi_module);
 
-var t1 = new harness.ConcurrentSubTest("listTables");
+var t1 = new harness.ConcurrentTest("listTables");
 var t2 = new harness.ConcurrentTest("getTable");
 
-
-t2.run = function() {  
-  var conn = null,
-      dbSession = null;
-
-  function onTable(err, tab) {
-    udebug.log("onTable");
-    var passed;
-    // TODO: Test specific properties of the table object
-    
-    if(tab && !err)  { passed = true; }
-    else             { passed = false; }
-    
-    function onClose() {
-      udebug.log("onTable onClose");
-      if(passed)     { t2.pass(); }
-      else           { t2.fail("t2 onClose error"); }
-    }
-
-    dbSession.close(onClose);
-  }
+t1.run = function() {  
+  var mySession;
 
   function onList(err, table_list) {
-    udebug.log("onList");
-    if (err) {
-      t1.fail(err);
-      t2.fail(err);
-      return;
-    }
-
     var count = 0;
-
+    t1.errorIfError(err);
+ 
     function countTables(tableName) {
       if (tableName === 'tbl1') {  count++;  }
       if (tableName === 'tbl2') {  count++;  }
     }
     table_list.forEach(countTables);
-    
-    udebug.log("onList count =", count);
+
     t1.errorIfNotEqual("Bad table count", count, 2);
-    t1.failOnError();
-
-    dbSession.getConnectionPool().getTableMetadata("test", "tbl2", dbSession, onTable);
-  }
-
-  function onSession(err, sess) {
-    udebug.log("onSession");
-    dbSession = sess;
-    dbSession.getConnectionPool().listTables("test", dbSession, onList);
-  }
-    
-  function onConnect(err, connection) {
-    udebug.log("onConnect");
-    conn = connection;
-    conn.getDBSession(spi_lib.allocateSessionSlot(), onSession);
+    mySession.close(function() {
+      t1.failOnError();
+    });
   }
   
-  spi_lib.getConnectionPool(onConnect);
+  spi_lib.fail_openDBSession(t1, function(error, dbSession) {
+    mySession = dbSession;
+    dbSession.getConnectionPool().listTables("test", dbSession, onList);
+  });
 };
 
-exports.tests = [ t1, t2];
+
+t2.run = function() {
+  var mySession;
+
+  // TODO: Test specific properties of the table object
+  function onTable(err, tab) {    
+    t2.errorIfError(err);
+    mySession.close(function() {
+      t2.failOnError();
+    });
+  }
+    
+  spi_lib.fail_openDBSession(t2, function (err, dbSession) {
+    mySession = dbSession;
+    dbSession.getConnectionPool().getTableMetadata("test", "tbl2", dbSession, onTable);
+  });
+}
+
+
+exports.tests = [ t1 , t2 ];

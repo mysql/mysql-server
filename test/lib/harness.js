@@ -46,7 +46,6 @@ function Test(name, phase) {
   this.errorMessages = '';
   this.index = 0;
   this.failed = null;
-  this.has_proxy = false;
   this.skipped = false;
 }
 
@@ -61,14 +60,6 @@ function ConcurrentTest(name) {
   this.phase = 1;
 }
 ConcurrentTest.prototype = new Test();
-
-
-function ConcurrentSubTest(name) {
-  this.name = name;
-  this.phase = 1;
-  this.has_proxy = true;
-}
-ConcurrentSubTest.prototype = new Test();
 
 
 function SerialTest(name) {
@@ -90,13 +81,6 @@ Test.prototype.test = function(result) {
   this.result = result;
   result.listener.startTest(this);
   var runReturnCode;
-
-  /* If a concurrent test has a proxy, then it is considered to be an async 
-     test incorporated into some larger test, and it will pass or fail while 
-     the larger test is running. */
-  if(this.has_proxy) {
-    return;
-  }
 
   udebug.log_detail('test.run:', this.suite.name, this.name);
   try {
@@ -726,7 +710,6 @@ exports.FailOnlyListener  = FailOnlyListener;
 exports.Result            = Result;
 exports.SmokeTest         = SmokeTest;
 exports.ConcurrentTest    = ConcurrentTest;
-exports.ConcurrentSubTest = ConcurrentSubTest;
 exports.SerialTest        = SerialTest;
 exports.ClearSmokeTest    = ClearSmokeTest;
 exports.SQL               = SQL;
