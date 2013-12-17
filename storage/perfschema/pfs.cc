@@ -5888,9 +5888,9 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
 }
 
-PSI_prepared_stmt_share*
-pfs_get_prepare_stmt_share_v1(void *identity, PSI_statement_locker *locker, 
-                              char *sql_text, uint sql_text_length)
+PSI_prepared_stmt*
+pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker, 
+                           char *sql_text, uint sql_text_length)
 {
   PFS_events_statements *pfs_stmt= NULL;
 
@@ -5908,17 +5908,17 @@ pfs_get_prepare_stmt_share_v1(void *identity, PSI_statement_locker *locker,
   if (sql_text_length > COL_INFO_SIZE)
     sql_text_length= COL_INFO_SIZE;
 
-  PFS_prepared_stmt *pfs= find_or_create_prepared_stmt(identity,
-                                                       pfs_thread,
-                                                       pfs_stmt,
-                                                       sql_text,
-                                                       sql_text_length);
-  return reinterpret_cast<PSI_prepared_stmt_share*>(pfs);
+  PFS_prepared_stmt *pfs= create_prepared_stmt(identity,
+                                               pfs_thread,
+                                               pfs_stmt,
+                                               sql_text,
+                                               sql_text_length);
+  return reinterpret_cast<PSI_prepared_stmt*>(pfs);
 }
 
 PSI_prepared_stmt_locker*
 pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
-                          PSI_prepared_stmt_share* ps_share)
+                          PSI_prepared_stmt* prepared_stmt)
 {
   DBUG_ASSERT(state != NULL);
 
@@ -5943,7 +5943,7 @@ pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
                                                   & state->m_timer);
   }
 
-  state->m_ps_share= ps_share;
+  state->m_prepared_stmt= prepared_stmt;
 
   return reinterpret_cast<PSI_prepared_stmt_locker*> (state);
 }
@@ -5953,7 +5953,7 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_ps_share);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_prepared_stmt);
   if(pfs_ps == NULL)
     return;
 
@@ -5979,9 +5979,9 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
 
 PSI_prepared_stmt_locker*
 pfs_start_prepared_stmt_execute_v1(PSI_prepared_stmt_locker_state *state,
-                                   PSI_prepared_stmt_share* ps_share)
+                                   PSI_prepared_stmt* prepared_stmt)
 {
-  return pfs_start_prepare_stmt_v1(state, ps_share);
+  return pfs_start_prepare_stmt_v1(state, prepared_stmt);
 }
 
 void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
@@ -5989,7 +5989,7 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_ps_share);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_prepared_stmt);
   if(pfs_ps == NULL)
     return;
 
@@ -6014,9 +6014,9 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
 }
 
 
-void pfs_deallocate_prepared_stmt_v1(PSI_prepared_stmt_share* ps_share)
+void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(ps_share); 
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
   if(pfs_ps == NULL)
     return;
 
@@ -6547,12 +6547,12 @@ PSI_v1 PFS_v1=
   pfs_set_socket_state_v1,
   pfs_set_socket_info_v1,
   pfs_set_socket_thread_owner_v1,
-  pfs_get_prepare_stmt_share_v1,
+  pfs_create_prepare_stmt_v1,
+  pfs_destroy_prepared_stmt_v1,
   pfs_start_prepare_stmt_v1,
   pfs_end_prepare_stmt_v1,
   pfs_start_prepared_stmt_execute_v1,
   pfs_end_prepared_stmt_execute_v1,
-  pfs_deallocate_prepared_stmt_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1,

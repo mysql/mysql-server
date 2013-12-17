@@ -167,7 +167,7 @@ public:
   char last_error[MYSQL_ERRMSG_SIZE];
   bool with_log;
   /* Performance Schema interface for a prepared statement. */
-  PSI_prepared_stmt_share* m_ps_share;
+  PSI_prepared_stmt* m_prepared_stmt;
 public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
@@ -2242,11 +2242,11 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   /* If this prepare statement is called from a SP. */
   if (thd->m_sp_statement_psi)
-    stmt->m_ps_share= MYSQL_GET_PS_SHARE(stmt, thd->m_sp_statement_psi, (char*)packet, (uint)packet_length);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_sp_statement_psi, (char*)packet, (uint)packet_length);
   else
-    stmt->m_ps_share= MYSQL_GET_PS_SHARE(stmt, thd->m_statement_psi, (char*)packet, (uint)packet_length);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)packet, (uint)packet_length);
    
-  locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
+  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt); 
 #endif
 
   if (stmt->prepare(packet, packet_length))
@@ -2429,11 +2429,11 @@ void mysql_sql_stmt_prepare(THD *thd)
 
   /* If this prepare statement is called from a SP. */
   if (thd->m_sp_statement_psi)
-    stmt->m_ps_share= MYSQL_GET_PS_SHARE(stmt, thd->m_sp_statement_psi, (char*)query, query_len);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_sp_statement_psi, (char*)query, query_len);
   else
-    stmt->m_ps_share= MYSQL_GET_PS_SHARE(stmt, thd->m_statement_psi, (char*)query, query_len);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)query, query_len);
    
-  locker= MYSQL_START_PS(&state, stmt->m_ps_share); 
+  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt); 
 #endif
 
   if (stmt->prepare(query, query_len))
@@ -2667,7 +2667,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt_locker_state state;
   PSI_prepared_stmt_locker *locker;
-  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_ps_share);
+  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
 #endif
 
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
@@ -2733,7 +2733,7 @@ void mysql_sql_stmt_execute(THD *thd)
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt_locker_state state;
   PSI_prepared_stmt_locker *locker;
-  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_ps_share);
+  locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
 #endif
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
@@ -2903,7 +2903,7 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
 #ifdef HAVE_PSI_PS_INTERFACE
-    MYSQL_DEALLOCATE_PS(stmt->m_ps_share);
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
 #endif
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
@@ -2939,7 +2939,7 @@ void mysql_sql_stmt_close(THD *thd)
   {
     stmt->deallocate();
 #ifdef HAVE_PSI_PS_INTERFACE
-    MYSQL_DEALLOCATE_PS(stmt->m_ps_share);
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
 #endif
     my_ok(thd);
   }

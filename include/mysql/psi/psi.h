@@ -142,8 +142,8 @@ typedef struct PSI_socket PSI_socket;
 struct PSI_prepared_stmt_locker;
 typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker; 
 
-struct PSI_prepared_stmt_share;
-typedef struct PSI_prepared_stmt_share PSI_prepared_stmt_share;
+struct PSI_prepared_stmt;
+typedef struct PSI_prepared_stmt PSI_prepared_stmt;
 
 /**
   Interface for an instrumented table operation.
@@ -1117,7 +1117,7 @@ struct PSI_prepared_stmt_locker_state
   /** Timer function. */
   ulonglong (*m_timer)(void);
   /** Prepared statement data. */
-  PSI_prepared_stmt_share* m_ps_share;
+  PSI_prepared_stmt* m_prepared_stmt;
 };
 typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
 
@@ -2273,18 +2273,25 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
-  Get a prepare statement share.
+  Get a prepare statement.
   @param current thread.
 */
-typedef PSI_prepared_stmt_share* (*get_prepared_stmt_share_v1_t)
+typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
   (void *identity, PSI_statement_locker *locker, char *name, uint length);
+
+/**
+  destroy a prepare statement.
+  @param current thread.
+*/
+typedef void (*destroy_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
 
 /**
   Record a prepare statement instrumentation start event.
   @param current thread.
 */
 typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt_share* ps_share);
+  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt);
 
 /**
   Record a prepare statement instrumentation end event.
@@ -2298,7 +2305,7 @@ typedef void (*end_prepare_stmt_v1_t)
   @param current thread.
 */
 typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt_share* ps_share);
+  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt);
 
 /**
   Record a prepared statement execute end event.
@@ -2306,9 +2313,6 @@ typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
 */
 typedef void (*end_prepared_stmt_execute_v1_t)
   (PSI_prepared_stmt_locker *locker);
-
-typedef void (*deallocate_prepared_stmt_v1_t)
-  (PSI_prepared_stmt_share *share);
 
 /*
 typedef void (*reprepare_statement_v1_t)
@@ -2611,12 +2615,18 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */
   set_socket_thread_owner_v1_t set_socket_thread_owner;
-  get_prepared_stmt_share_v1_t get_prepared_stmt_share;
+  /** @sa create_prepared_stmt_v1_t. */
+  create_prepared_stmt_v1_t create_prepared_stmt;
+  /** @sa destroy_prepared_stmt_v1_t. */
+  destroy_prepared_stmt_v1_t destroy_prepared_stmt;
+  /** @sa start_prepare_stmt_v1_t. */
   start_prepare_stmt_v1_t start_prepare_stmt;
+  /** @sa end_prepare_stmt_v1_t. */
   end_prepare_stmt_v1_t end_prepare_stmt;
+  /** @sa start_prepared_stmt_execute_v1_t. */
   start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
+  /** @sa end_prepared_stmt_execute_v1_t. */
   end_prepared_stmt_execute_v1_t end_prepared_stmt_execute;
-  deallocate_prepared_stmt_v1_t deallocate_prepared_stmt;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */
