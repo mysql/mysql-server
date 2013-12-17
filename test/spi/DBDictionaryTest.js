@@ -27,7 +27,6 @@ try {
   require("./suite_config.js");
 } catch(e) {} 
 
-
 var t1 = new harness.ConcurrentTest("listTables");
 var t2 = new harness.ConcurrentTest("getTable");
 
@@ -56,7 +55,6 @@ t1.run = function() {
   });
 };
 
-
 t2.run = function() {
   var mySession;
 
@@ -72,7 +70,7 @@ t2.run = function() {
     mySession = dbSession;
     dbSession.getConnectionPool().getTableMetadata("test", "tbl2", dbSession, onTable);
   });
-}
+};
 
 
-exports.tests = [ t1 , t2 ];
+module.exports.tests = [ t1 , t2 ];

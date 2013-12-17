@@ -196,7 +196,7 @@ function buildQueryEqual(query, params) {
       query.where(query[field].eq(query.param(field)));
     }
   }
-};
+}
 
 
 ////////////////////////////////
@@ -377,7 +377,7 @@ function InsertTweetOperation(params, data) {
       then(incrementTweetCount).
       then(createTagEntries).
       then(commitOnSuccess, rollbackOnError).
-      then(function() {return tweet}).
+      then(function() {return tweet;}).
       then(this.setResult).
       then(this.onComplete, this.onError);
   };
@@ -513,7 +513,7 @@ function fetchTweets(operation) {
     } else {
       fetchTweetsInBatch(operation, results);
     }
-  }
+  };
 }
 
 /* Last 20 tweets @user
