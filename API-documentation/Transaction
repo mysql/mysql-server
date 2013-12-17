@@ -10,21 +10,31 @@
  */
 begin();
 
-/** Commit a transaction. Errors are reported in the callback.
- *  Extra arguments are passed to the callback.
+/** Commit a transaction.
  *  ASYNC
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled.  
+ * The optional callback receives only an error value.  Any extra arguments 
+ * passed after the callback function will be returned to the callback verbatim
+ * following the error.
  * 
  * @param callback 
  */
-commit(Function(error, ... ) callback, ... );
+commit([callback], [...] );
 
 
-/** Roll back a transaction. Errors are reported in the callback. 
+/** Roll back a transaction. 
  * ASYNC
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled.
+ * The optional callback receives only an error value.  Any extra arguments 
+ * passed after the callback function will be returned to the callback verbatim
+ * following the error.
+ *
  *
  * @param callback 
  */
-rollback(Function(error, ... ) callback, ... );
+rollback([callback], [...] );
 
 
 /** Is there a transaction currently active?
