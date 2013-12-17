@@ -229,8 +229,8 @@ fts_config_set_value(
 
 	graph = fts_parse_sql(
 		fts_table, info,
-		"BEGIN UPDATE $table_name SET value = :value "
-		"WHERE key = :name;");
+		"BEGIN UPDATE $table_name SET value = :value"
+		" WHERE key = :name;");
 
 	trx->op_info = "setting FTS config value";
 
@@ -324,9 +324,8 @@ fts_config_get_index_ulint(
 	error = fts_config_get_index_value(trx, index, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
 			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
@@ -366,9 +365,8 @@ fts_config_set_index_ulint(
 	error = fts_config_set_index_value(trx, index, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
 			ut_strerr(error), name);
 	}
 
@@ -401,9 +399,7 @@ fts_config_get_ulint(
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
 			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
@@ -444,9 +440,7 @@ fts_config_set_ulint(
 	error = fts_config_set_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
 			ut_strerr(error), name);
 	}
 
@@ -533,10 +527,8 @@ fts_config_increment_value(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) "
-			"while incrementing %s.\n", ut_strerr(error), name);
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while incrementing %s.",
+			ut_strerr(error), name);
 	}
 
 	ut_free(value.f_str);

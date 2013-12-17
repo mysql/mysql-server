@@ -24,11 +24,6 @@ while ($i) {
 }
 
 INSERT INTO bug53046_2 VALUES (1), (2);
-
-# CREATE TABLE innodb_table_monitor (a int) ENGINE=INNODB;
-# wait more than 1 minute and observe the mysqld output
-# DROP TABLE innodb_table_monitor;
-
 ANALYZE TABLE bug53046_1;
 
 # this prints create time and other nondeterministic data

@@ -716,14 +716,11 @@ trx_purge_rseg_get_next_history_log(
 		list cannot be longer than 2000 000 undo logs now. */
 
 		if (trx_sys->rseg_history_len > 2000000) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Warning: purge reached the"
-				" head of the history list,\n"
-				"InnoDB: but its length is still"
-				" reported as %lu! Make a detailed bug\n"
-				"InnoDB: report, and submit it"
-				" to http://bugs.mysql.com\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Purge reached the head of the history list,"
+				" but its length is still reported as %lu! Make"
+				" a detailed bug report, and submit it to"
+				" http://bugs.mysql.com",
 				(ulong) trx_sys->rseg_history_len);
 			ut_ad(0);
 		}
@@ -1438,7 +1435,7 @@ trx_purge_run(void)
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
-	switch(purge_sys->state) {
+	switch (purge_sys->state) {
 	case PURGE_STATE_INIT:
 	case PURGE_STATE_EXIT:
 	case PURGE_STATE_DISABLED:

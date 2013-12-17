@@ -1531,7 +1531,7 @@ io_thread_init_command(Master_info *mi, const char *query, int allowed_error,
   DBUG_ENTER("io_thread_init_command");
   DBUG_PRINT("info", ("IO thread initialization command: '%s'", query));
   MYSQL *mysql= mi->mysql;
-  int ret= mysql_real_query(mysql, query, strlen(query));
+  int ret= mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
   if (io_slave_killed(mi->info_thd, mi))
   {
     sql_print_information("The slave IO thread was killed while executing "
@@ -1596,7 +1596,7 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
   int ret= 0;
 
   sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
-  if (mysql_real_query(mysql, query, strlen(query))
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))
       && !check_io_slave_killed(mi->info_thd, mi, NULL))
     goto err;
 
@@ -2127,7 +2127,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
 
-    if (mysql_real_query(mysql, query, strlen(query)))
+    if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))))
     {
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
@@ -2172,7 +2172,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       Once the first FD will be received its alg descriptor will replace
       the being queried one.
     */
-    rc= mysql_real_query(mysql, query, strlen(query));
+    rc= mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
     if (rc != 0)
     {
       mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;

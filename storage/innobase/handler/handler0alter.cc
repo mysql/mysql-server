@@ -2683,7 +2683,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd)->str);
+			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -3821,8 +3821,8 @@ found_fk:
 					user_thd,
 					Sql_condition::SL_WARNING,
 					HA_ERR_WRONG_INDEX,
-					"InnoDB could not find key "
-					"with name %s", key->name);
+					"InnoDB could not find key"
+					" with name %s", key->name);
 			} else {
 				ut_ad(!index->to_be_dropped);
 				if (!dict_index_is_clust(index)) {
@@ -4035,8 +4035,8 @@ func_exit:
 				user_thd,
 				Sql_condition::SL_WARNING,
 				HA_ERR_WRONG_INDEX,
-				"InnoDB rebuilding table to add column "
-				FTS_DOC_ID_COL_NAME);
+				"InnoDB rebuilding table to add"
+				" column " FTS_DOC_ID_COL_NAME);
 		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
 			goto err_exit;
 		}
@@ -5629,9 +5629,9 @@ alter_stats_norebuild(
 				thd,
 				Sql_condition::SL_WARNING,
 				ER_ERROR_ON_RENAME,
-				"Error renaming an index of table '%s' "
-				"from '%s' to '%s' in InnoDB persistent "
-				"statistics storage: %s",
+				"Error renaming an index of table '%s'"
+				" from '%s' to '%s' in InnoDB persistent"
+				" statistics storage: %s",
 				table_name,
 				pair->old_key->name,
 				pair->new_key->name,
@@ -5697,8 +5697,8 @@ alter_stats_rebuild(
 			thd,
 			Sql_condition::SL_WARNING,
 			ER_ALTER_INFO,
-			"Error updating stats for table '%s' "
-			"after table rebuild: %s",
+			"Error updating stats for table '%s'"
+			" after table rebuild: %s",
 			table_name, ut_strerr(ret));
 	}
 
@@ -6088,7 +6088,7 @@ foreign_fail:
 					" returned %u for %s",
 					(unsigned) error,
 					thd_query_string(user_thd)
-					->str);
+					.str);
 				ut_ad(0);
 			} else {
 				if (!commit_cache_norebuild(

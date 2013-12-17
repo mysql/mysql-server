@@ -1,6 +1,6 @@
 # Set the environmental variables
 call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 [1]: Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool

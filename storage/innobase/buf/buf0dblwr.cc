@@ -216,9 +216,9 @@ start_again:
 		* UNIV_PAGE_SIZE);
 	if (buf_pool_get_curr_size() <  min_doublewrite_size) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must "
-			"increase your buffer pool size. Cannot continue "
-			"operation.");
+			"Cannot create doublewrite buffer: you must"
+			" increase your buffer pool size. Cannot continue"
+			" operation.");
 
 		return(false);
 	}
@@ -234,9 +234,9 @@ start_again:
 
 	if (block2 == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must "
-			"increase your tablespace size. "
-			"Cannot continue operation.");
+			"Cannot create doublewrite buffer: you must"
+			" increase your tablespace size."
+			" Cannot continue operation.");
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
@@ -253,9 +253,9 @@ start_again:
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot create doublewrite buffer: you must "
-				"increase your tablespace size. "
-				"Cannot continue operation.");
+				"Cannot create doublewrite buffer: you must"
+				" increase your tablespace size."
+				" Cannot continue operation.");
 
 			return(false);
 		}
@@ -467,10 +467,10 @@ buf_dblwr_init_or_restore_pages(
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"A page in the doublewrite buffer is "
-					"not within space bounds; space id %lu "
-					"page number %lu, page %lu in "
-					"doublewrite buf.",
+					"A page in the doublewrite buffer is"
+					" not within space bounds; space id %lu"
+					" page number %lu, page %lu in"
+					" doublewrite buf.",
 					(ulong) space_id, (ulong) page_no,
 					(ulong) i);
 			}
@@ -499,26 +499,23 @@ buf_dblwr_init_or_restore_pages(
 
 			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
 
-				fprintf(stderr,
-					"InnoDB: Warning: database page"
-					" corruption or a failed\n"
-					"InnoDB: file read of"
-					" space %lu page %lu.\n"
-					"InnoDB: Trying to recover it from"
-					" the doublewrite buffer.\n",
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Database page corruption or a failed"
+					" file read of space %lu page %lu."
+					" Trying to recover it from the"
+					" doublewrite buffer.",
 					(ulong) space_id, (ulong) page_no);
 
 				if (buf_page_is_corrupted(true,
 							  page, zip_size)) {
-					fprintf(stderr,
-						"InnoDB: Dump of the page:\n");
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Dump of the page:");
 					buf_page_print(
 						read_buf, zip_size,
 						BUF_PAGE_PRINT_NO_CRASH);
-					fprintf(stderr,
-						"InnoDB: Dump of"
-						" corresponding page"
-						" in doublewrite buffer:\n");
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Dump of corresponding page"
+						" in doublewrite buffer:");
 					buf_page_print(
 						page, zip_size,
 						BUF_PAGE_PRINT_NO_CRASH);
@@ -662,13 +659,12 @@ buf_dblwr_check_page_lsn(
 			   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
 		   4)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: ERROR: The page to be written"
-			" seems corrupt!\n"
-			"InnoDB: The low 4 bytes of LSN fields do not match "
-			"(" ULINTPF " != " ULINTPF ")!"
-			" Noticed in the buffer pool.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The page to be written"
+			" seems corrupt!."
+			" The low 4 bytes of LSN fields do not match"
+			" (" ULINTPF " != " ULINTPF ")!"
+			" Noticed in the buffer pool.",
 			mach_read_from_4(
 				page + FIL_PAGE_LSN + 4),
 			mach_read_from_4(

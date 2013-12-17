@@ -103,9 +103,9 @@ srv_mon_reset_all(
 {
 	/* Do not reset all counter values if monitor is still on. */
 	if (MONITOR_IS_ON(monitor)) {
-		fprintf(stderr, "InnoDB: Cannot reset all values for "
-			"monitor counter %s while it is on. Please "
-			"turn it off and retry. \n",
+		fprintf(stderr, "InnoDB: Cannot reset all values for"
+			" monitor counter %s while it is on. Please"
+			" turn it off and retry.\n",
 			srv_mon_get_name(monitor));
 	} else {
 		MONITOR_RESET_ALL(monitor);

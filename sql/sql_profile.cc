@@ -46,7 +46,7 @@ using std::max;
 /** two vals encoded: (dec*100)+len */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
-#define MAX_QUERY_LENGTH 300U
+static const size_t MAX_QUERY_LENGTH= 300;
 #define MAX_QUERY_HISTORY 101U
 
 /**
@@ -288,11 +288,11 @@ QUERY_PROFILE::~QUERY_PROFILE()
 /**
   @todo  Provide a way to include the full text, as in  SHOW PROCESSLIST.
 */
-void QUERY_PROFILE::set_query_source(char *query_source_arg,
-                                     uint query_length_arg)
+void QUERY_PROFILE::set_query_source(const char *query_source_arg,
+                                     size_t query_length_arg)
 {
   /* Truncate to avoid DoS attacks. */
-  uint length= min(MAX_QUERY_LENGTH, query_length_arg);
+  size_t length= min(MAX_QUERY_LENGTH, query_length_arg);
 
   DBUG_ASSERT(query_source == NULL); /* we don't leak memory */
   if (query_source_arg != NULL)
@@ -511,7 +511,7 @@ bool PROFILING::show_profiles()
 
   This must be called exactly once per descrete statement.
 */
-void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
+void PROFILING::set_query_source(const char *query_source_arg, size_t query_length_arg)
 {
   DBUG_ENTER("PROFILING::set_query_source");
 

@@ -388,6 +388,8 @@ public:
 
   typedef Ticket_list::List::Iterator Ticket_iterator;
 
+  typedef ulonglong packed_counter_t;
+
 public:
   /** The key of the object (data) being protected. */
   MDL_key key;
@@ -428,7 +430,8 @@ public:
 
   bool is_empty() const
   {
-    return (m_granted.is_empty() && m_waiting.is_empty());
+    return (! m_fast_path_granted_count &&
+            m_granted.is_empty() && m_waiting.is_empty());
   }
 
   virtual const bitmap_t *incompatible_granted_types_bitmap() const = 0;
@@ -454,6 +457,82 @@ public:
 
   virtual bitmap_t hog_lock_types_bitmap() const = 0;
 
+  /**
+    @returns "Fast path" increment for request for "unobtrusive" type
+              of lock, 0 - if it is request for "obtrusive" type of
+              lock.
+
+    @note We split all lock types for each of MDL namespaces
+          in two sets:
+
+          A) "unobtrusive" lock types
+            1) Each type from this set should be compatible with all other
+               types from the set (including itself).
+            2) These types should be common for DML operations
+
+          Our goal is to optimize acquisition and release of locks of this
+          type by avoiding complex checks and manipulations on m_waiting/
+          m_granted bitmaps/lists. We replace them with a check of and
+          increment/decrement of integer counters.
+          We call the latter type of acquisition/release "fast path".
+          Use of "fast path" reduces the size of critical section associated
+          with MDL_lock::m_rwlock lock in the common case and thus increases
+          scalability.
+
+          The amount by which acquisition/release of specific type
+          "unobtrusive" lock increases/decreases
+          MDL_lock::m_fast_path_granted_count counter is increment
+          returned by this function.
+
+          B) "obtrusive" lock types
+            1) Granted or pending lock of those type is incompatible with
+               some other types of locks or with itself.
+            2) Not common for DML operations
+
+          These locks have to be always acquired involving manipulations on
+          m_waiting/m_granted bitmaps/lists, i.e. we have to use "slow path"
+          for them. Moreover in the presence of active/pending locks from
+          "obtrusive" set we have to acquire using "slow path" even locks of
+          "unobtrusive" type.
+
+    @sa MDL_scoped_lock/MDL_object_lock::m_unobtrusive_lock_increment for
+        definitions of these sets for scoped and per-object locks.
+  */
+  inline static packed_counter_t
+    get_unobtrusive_lock_increment(const MDL_request *request);
+
+  /**
+    @returns "Fast path" increment if type of lock is "unobtrusive" type,
+              0 - if it is "obtrusive" type of lock.
+  */
+  packed_counter_t get_unobtrusive_lock_increment(enum_mdl_type type) const
+  {
+    return get_unobtrusive_lock_increment_array()[type];
+  }
+
+  /**
+    Check if type of lock requested is "obtrusive" type of lock.
+
+    @sa MDL_lock::get_unobtrusive_lock_increment() description.
+  */
+  bool is_obtrusive_lock(enum_mdl_type type) const
+  {
+    return get_unobtrusive_lock_increment(type) == 0;
+  }
+
+  /**
+    @returns Array with "fast path" increments for "unobtrusive" types of
+             locks and 0s for "obtrusive" types of locks.
+  */
+  virtual const packed_counter_t *
+    get_unobtrusive_lock_increment_array() const = 0;
+
+  /**
+    Return set of types of lock requests which were granted using
+    "fast path" algorithm in the bitmap_t form.
+  */
+  virtual bitmap_t fast_path_granted_bitmap() const = 0;
+
   /** List of granted tickets for this lock. */
   Ticket_list m_granted;
   /** Tickets for contexts waiting to acquire a lock. */
@@ -474,6 +553,8 @@ public:
     m_ref_release(0),
     m_is_destroyed(FALSE),
     m_version(0),
+    m_obtrusive_locks_granted_waiting_count(0),
+    m_fast_path_granted_count(0),
     m_map_part(map_part)
   {
     mysql_prlock_init(key_MDL_lock_rwlock, &m_rwlock);
@@ -526,6 +607,26 @@ public:
   */
   ulonglong m_version;
   /**
+    Number of granted or waiting lock requests of "obtrusive" type.
+
+    @sa MDL_lock::get_unobtrusive_lock_increment() description.
+
+    @note This number doesn't include "unobtrusive" locks which were acquired
+          using "slow path".
+  */
+  uint m_obtrusive_locks_granted_waiting_count;
+  /**
+    Packed counter of specific types of "unobtrusive" locks which were
+    granted using "fast path".
+
+    @sa MDL_scoped_lock::m_unobtrusive_lock_increment and
+        MDL_object_lock::m_unobtrusive_lock_increment for details about how
+        counts of different types of locks are packed into this field.
+
+    @note Doesn't include "unobtrusive" locks granted using "slow path".
+  */
+  packed_counter_t m_fast_path_granted_count;
+  /**
     Partition of MDL_map where the lock is stored.
   */
   MDL_map_partition *m_map_part;
@@ -555,9 +656,10 @@ public:
   }
   virtual bool needs_notification(const MDL_ticket *ticket) const
   {
-    return (ticket->get_type() == MDL_SHARED);
+    return false;
   }
-  virtual void notify_conflicting_locks(MDL_context *ctx);
+  virtual void notify_conflicting_locks(MDL_context *ctx)
+  { }
 
   /*
     In scoped locks, only IX lock request would starve because of X/S. But that
@@ -568,9 +670,27 @@ public:
     return 0;
   }
 
+  virtual const packed_counter_t *
+    get_unobtrusive_lock_increment_array() const
+  {
+    return m_unobtrusive_lock_increment;
+  }
+
+  /**
+    Get bitmap of "unobtrusive" locks granted using "fast path" algorithm.
+  */
+  virtual bitmap_t fast_path_granted_bitmap() const
+  {
+    return m_fast_path_granted_count ?
+           MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
+  }
+
 private:
   static const bitmap_t m_granted_incompatible[MDL_TYPE_END];
   static const bitmap_t m_waiting_incompatible[MDL_TYPE_END];
+
+public:
+  static const packed_counter_t m_unobtrusive_lock_increment[MDL_TYPE_END];
 };
 
 
@@ -632,11 +752,34 @@ public:
             MDL_BIT(MDL_EXCLUSIVE));
   }
 
+  virtual const packed_counter_t *
+    get_unobtrusive_lock_increment_array() const
+  {
+    return m_unobtrusive_lock_increment;
+  }
+
+  /**
+    Get bitmap of "unobtrusive" locks granted using "fast path" algorithm.
+  */
+  virtual bitmap_t fast_path_granted_bitmap() const
+  {
+    bitmap_t result= 0;
+    if (m_fast_path_granted_count & 0xFFFFFULL)
+      result|= MDL_BIT(MDL_SHARED);
+    if (m_fast_path_granted_count & (0xFFFFFULL << 20))
+      result|= MDL_BIT(MDL_SHARED_READ);
+    if (m_fast_path_granted_count & (0xFFFFFULL << 40))
+      result|= MDL_BIT(MDL_SHARED_WRITE);
+    return result;
+  }
+
 private:
   static const bitmap_t m_granted_incompatible[MDL_TYPE_END];
   static const bitmap_t m_waiting_incompatible[MDL_TYPE_END];
 
 public:
+  static const packed_counter_t m_unobtrusive_lock_increment[MDL_TYPE_END];
+
   /** Members for linking the object into the list of unused objects. */
   MDL_object_lock *next_in_cache, **prev_in_cache;
 };
@@ -1208,6 +1351,29 @@ void MDL_lock::destroy(MDL_lock *lock)
 
 
 /**
+  @returns "Fast path" increment for request for "unobtrusive" type
+            of lock, 0 - if it is request for "obtrusive" type of
+            lock.
+
+  @sa Description at method declaration for more details.
+*/
+
+MDL_lock::packed_counter_t
+MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
+{
+  switch (request->key.mdl_namespace())
+  {
+    case MDL_key::GLOBAL:
+    case MDL_key::SCHEMA:
+    case MDL_key::COMMIT:
+      return MDL_scoped_lock::m_unobtrusive_lock_increment[request->type];
+    default:
+      return MDL_object_lock::m_unobtrusive_lock_increment[request->type];
+  }
+}
+
+
+/**
   Auxiliary functions needed for creation/destruction of MDL_ticket
   objects.
 
@@ -1533,6 +1699,10 @@ void MDL_lock::reschedule_waiters()
           this lock has to acquire MDL_lock::m_rwlock first and thus,
           when manages to do so, already sees an updated state of the
           MDL_lock object.
+
+          It doesn't matter if we are dealing with "obtrusive" lock here,
+          we are moving lock request from waiting to granted lists,
+          so m_obtrusive_locks_granted_waiting_count should stay the same.
         */
         m_waiting.remove_ticket(ticket);
         m_granted.add_ticket(ticket);
@@ -1639,6 +1809,24 @@ const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
 
 
 /**
+  Array of increments for "unobtrusive" types of lock requests for scoped locks.
+
+  @sa MDL_lock::get_unobtrusive_lock_increment().
+
+  For scoped locks:
+  - "unobtrusive" types: IX
+  - "obtrusive" types: X and S
+
+  We encode number of IX locks acquired using "fast path" in bits 0 .. 59
+  of MDL_lock::m_fast_path_granted_count.
+*/
+
+const MDL_lock::packed_counter_t
+MDL_scoped_lock::m_unobtrusive_lock_increment[MDL_TYPE_END]=
+{ 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+
+/**
   Compatibility (or rather "incompatibility") matrices for per-object
   metadata lock. Arrays of bitmaps which elements specify which granted/
   waiting locks are incompatible with type of lock being requested.
@@ -1733,6 +1921,34 @@ MDL_object_lock::m_waiting_incompatible[MDL_TYPE_END] =
 
 
 /**
+  Array of increments for "unobtrusive" types of lock requests for per-object
+  locks.
+
+  @sa MDL_lock::get_unobtrusive_lock_increment().
+
+  For per-object locks:
+  - "unobtrusive" types: S, SH, SR and SW
+  - "obtrusive" types: SU, SNW, SNRW, X
+
+  Number of locks acquired using "fast path" are encoded in the following
+  bits of MDL_lock::m_fast_path_granted_count:
+
+  - bits 0 .. 19  - S and SH (we don't differentiate them once acquired)
+  - bits 20 .. 39 - SR
+  - bits 40 .. 59 - SW
+
+  Overflow is not an issue as we are unlikely to support more than 2^20 - 1
+  concurrent connections in foreseeable future.
+
+  This encoding defines the below contents of increment array.
+*/
+
+const MDL_lock::packed_counter_t
+MDL_object_lock::m_unobtrusive_lock_increment[MDL_TYPE_END]=
+{ 0, 1, 1, 1ULL << 20, 1ULL << 40, 0, 0, 0, 0 };
+
+
+/**
   Check if request for the metadata lock can be satisfied given its
   current state.
 
@@ -1766,22 +1982,56 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
   */
   if (ignore_lock_priority || !(m_waiting.bitmap() & waiting_incompat_map))
   {
-    if (! (m_granted.bitmap() & granted_incompat_map))
-      can_grant= TRUE;
+    if (! (fast_path_granted_bitmap() & granted_incompat_map))
+    {
+      if (! (m_granted.bitmap() & granted_incompat_map))
+        can_grant= TRUE;
+      else
+      {
+        Ticket_iterator it(m_granted);
+        MDL_ticket *ticket;
+
+        /*
+          There is an incompatible lock. Check that it belongs to some
+          other context.
+
+          If we are trying to acquire "unobtrusive" type of lock then the
+          confliciting lock must be from "obtrusive" set, therefore it should
+          have been acquired using "slow path" and should be present in
+          m_granted list.
+
+          If we are trying to acquire "obtrusive" type of lock then it can be
+          either another "obtrusive" lock or "unobtrusive" type of lock
+          acquired on "slow path" (can't be "unobtrusive" lock on fast path
+          because of surrounding if-statement). In either case it should be
+          present in m_granted list.
+        */
+        while ((ticket= it++))
+        {
+          if (ticket->get_ctx() != requestor_ctx &&
+              ticket->is_incompatible_when_granted(type_arg))
+            break;
+        }
+        if (ticket == NULL)             /* Incompatible locks are our own. */
+          can_grant= TRUE;
+      }
+    }
     else
     {
-      Ticket_iterator it(m_granted);
-      MDL_ticket *ticket;
+      /*
+        Our lock request conflicts with one of granted "fast path" locks:
 
-      /* Check that the incompatible lock belongs to some other context. */
-      while ((ticket= it++))
-      {
-        if (ticket->get_ctx() != requestor_ctx &&
-            ticket->is_incompatible_when_granted(type_arg))
-          break;
-      }
-      if (ticket == NULL)             /* Incompatible locks are our own. */
-        can_grant= TRUE;
+        This means that we are trying to acquire "obtrusive" lock and:
+        a) Either we are called from MDL_context::try_acquire_lock_impl()
+           and then all "fast path" locks belonging to this context were
+           materialized (as we do for "obtrusive" locks).
+        b) Or we are called from MDL_lock::reschedule_waiters() then
+           this context is waiting for this request and all its "fast
+           path" locks were materialized before the wait.
+
+        The above means that conflicting granted "fast path" lock cannot
+        belong to us and our request cannot be satisfied.
+      */
     }
   }
   return can_grant;
@@ -1792,8 +2042,18 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 
 void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
 {
+  bool is_obtrusive= is_obtrusive_lock(ticket->get_type());
+
   mysql_prlock_wrlock(&m_rwlock);
   (this->*list).remove_ticket(ticket);
+
+  /*
+    If we are removing "obtrusive" type of request either from granted or
+    waiting lists we need to decrement "obtrusive" requests counter.
+  */
+  if (is_obtrusive)
+    --m_obtrusive_locks_granted_waiting_count;
+
   if (is_empty())
     mdl_locks.remove(this);
   else
@@ -1972,6 +2232,44 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
 
 
 /**
+  "Materialize" requests for locks which were satisfied using
+  "fast path" by properly including them into corresponding
+  MDL_lock::m_granted bitmaps/lists and removing it from
+  MDL_lock::m_fast_path_granted_count counter.
+
+  @note In future we might optimize this method if necessary,
+        for example, by keeping pointer to first "fast path"
+        ticket.
+*/
+
+void MDL_context::materialize_fast_path_locks()
+{
+  int i;
+
+  for (i= 0; i < MDL_DURATION_END; i++)
+  {
+    Ticket_iterator it(m_tickets[(enum_mdl_duration)i]);
+    MDL_ticket *ticket;
+
+    while ((ticket= it++))
+    {
+      if (ticket->m_is_fast_path)
+      {
+        MDL_lock *lock= ticket->m_lock;
+        MDL_lock::packed_counter_t unobtrusive_lock_increment=
+          lock->get_unobtrusive_lock_increment(ticket->get_type());
+        ticket->m_is_fast_path= false;
+        mysql_prlock_wrlock(&lock->m_rwlock);
+        lock->m_granted.add_ticket(ticket);
+        lock->m_fast_path_granted_count-= unobtrusive_lock_increment;
+        mysql_prlock_unlock(&lock->m_rwlock);
+      }
+    }
+  }
+}
+
+
+/**
   Auxiliary method for acquiring lock without waiting.
 
   @param mdl_request [in/out] Lock request object for lock to be acquired
@@ -1995,6 +2293,8 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   MDL_key *key= &mdl_request->key;
   MDL_ticket *ticket;
   enum_mdl_duration found_duration;
+  MDL_lock::packed_counter_t unobtrusive_lock_increment;
+  bool force_slow;
 
   DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
               is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
@@ -2048,6 +2348,29 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                    )))
     return TRUE;
 
+  /*
+    Get increment for "fast path" or indication that this is
+    request for "obtrusive" type of lock outside of critical section.
+  */
+  unobtrusive_lock_increment=
+    MDL_lock::get_unobtrusive_lock_increment(mdl_request);
+
+  /*
+    If this "obtrusive" type we have to take "slow path".
+    If this context has open HANDLERs we have to take "slow path"
+    as well for MDL_object_lock::notify_conflicting_locks() to work
+    properly.
+  */
+  force_slow= ! unobtrusive_lock_increment || m_needs_thr_lock_abort;
+
+  /*
+    If "obtrusive" lock is requested we need to "materialize" all fast
+    path tickets, so MDL_lock::can_grant_lock() can safely assume
+    that all granted "fast path" locks belong to different context.
+  */
+  if (! unobtrusive_lock_increment)
+    materialize_fast_path_locks();
+
   DBUG_ASSERT(ticket->m_psi == NULL);
   ticket->m_psi= mysql_mdl_create(ticket, key,
                                   mdl_request->type,
@@ -2063,13 +2386,34 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     return TRUE;
   }
 
-  ticket->m_lock= lock;
-
-  if (lock->can_grant_lock(mdl_request->type, this, false))
+  if (! force_slow && ! lock->m_obtrusive_locks_granted_waiting_count)
   {
-    lock->m_granted.add_ticket(ticket);
+    /*
+      "Fast path".
 
+      Hurray! We are acquring "unobtrusive" type of lock and not forced
+      to take "slow path" because of granted/pending "obtrusive" locks
+      or open HANDLERs.
+
+      We simply need to increment m_fast_path_granted_count with
+      a value which corresponds to type of our request (i.e.
+      increment part of counter which corresponds to this type).
+
+      @sa MDL_object_lock::m_unobtrusive_lock_increment for explanation
+      why overflow is not an issue here.
+    */
+    lock->m_fast_path_granted_count+= unobtrusive_lock_increment;
     mysql_prlock_unlock(&lock->m_rwlock);
+
+    /*
+      Since this MDL_ticket is not visible to any threads other than
+      the current one, we can set MDL_ticket::m_lock member without
+      protect of MDL_lock::m_rwlock. MDL_lock won't be deleted
+      underneath our feet as MDL_lock::m_fast_path_granted_count
+      serves as reference counter in this case.
+    */
+    ticket->m_lock= lock;
+    ticket->m_is_fast_path= true;
 
     m_tickets[mdl_request->duration].push_front(ticket);
 
@@ -2078,7 +2422,36 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
   }
   else
-    *out_ticket= ticket;
+  {
+    /*
+      "Slow path".
+
+      Do full-blown check and list manipulation if necessary.
+    */
+    ticket->m_lock= lock;
+
+    if (lock->can_grant_lock(mdl_request->type, this, false))
+    {
+      lock->m_granted.add_ticket(ticket);
+
+      /*
+        If we have acquired "obtrusive" type of lock, force "unobtrusive"
+        lock requests to take "slow path".
+      */
+      if (! unobtrusive_lock_increment)
+        ++lock->m_obtrusive_locks_granted_waiting_count;
+
+      mysql_prlock_unlock(&lock->m_rwlock);
+
+      m_tickets[mdl_request->duration].push_front(ticket);
+
+      mdl_request->ticket= ticket;
+
+      mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
+    }
+    else
+      *out_ticket= ticket;
+  }
 
   return FALSE;
 }
@@ -2119,11 +2492,45 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   DBUG_ASSERT(mdl_request->ticket->has_stronger_or_equal_type(ticket->m_type));
 
   ticket->m_lock= mdl_request->ticket->m_lock;
-  mdl_request->ticket= ticket;
 
-  mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
-  ticket->m_lock->m_granted.add_ticket(ticket);
-  mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+  if (mdl_request->ticket->m_is_fast_path)
+  {
+    /*
+      We are cloning ticket which was acquired on "fast path".
+      Let us use "fast path" to create clone as well.
+    */
+    MDL_lock::packed_counter_t unobtrusive_lock_increment=
+      ticket->m_lock->get_unobtrusive_lock_increment(ticket->get_type());
+
+    /*
+      "Hindering" type of lock can't be cloned from weaker, "unobtrusive"
+      type of lock.
+    */
+    DBUG_ASSERT(unobtrusive_lock_increment != 0);
+
+    mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
+    ticket->m_lock->m_fast_path_granted_count+=
+      unobtrusive_lock_increment;
+    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+    ticket->m_is_fast_path= true;
+  }
+  else
+  {
+    /*
+      We are cloning ticket which was acquired on "slow path".
+      We will use "slow path" for new ticket as well. We also
+      need to take into account if new ticket corresponds to
+      "obtrusive" lock.
+    */
+    bool is_obtrusive= ticket->m_lock->is_obtrusive_lock(ticket->m_type);
+    mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
+    ticket->m_lock->m_granted.add_ticket(ticket);
+    if (is_obtrusive)
+      ++ticket->m_lock->m_obtrusive_locks_granted_waiting_count;
+    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+  }
+
+  mdl_request->ticket= ticket;
 
   m_tickets[mdl_request->duration].push_front(ticket);
 
@@ -2143,6 +2550,14 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 /**
   Notify threads holding a shared metadata locks on object which
   conflict with a pending X, SNW or SNRW lock.
+
+  @note Currently this method is guaranteed to notify shared lock
+        owners which have MDL_context::m_needs_thr_lock_abort flag
+        set (as for others conficting locks might have been acquired
+        on "fast path" and thus might be absent from list of granted
+        locks).
+        This is OK as notification for other contexts is anyway
+        no-op now.
 
   @param  ctx  MDL_context for current thread.
 */
@@ -2165,38 +2580,6 @@ void MDL_object_lock::notify_conflicting_locks(MDL_context *ctx)
         If thread which holds conflicting lock is waiting on table-level
         lock or some other non-MDL resource we might need to wake it up
         by calling code outside of MDL.
-      */
-      ctx->get_owner()->
-        notify_shared_lock(conflicting_ctx->get_owner(),
-                           conflicting_ctx->get_needs_thr_lock_abort());
-    }
-  }
-}
-
-
-/**
-  Notify threads holding scoped IX locks which conflict with a pending S lock.
-
-  @param  ctx  MDL_context for current thread.
-*/
-
-void MDL_scoped_lock::notify_conflicting_locks(MDL_context *ctx)
-{
-  Ticket_iterator it(m_granted);
-  MDL_ticket *conflicting_ticket;
-
-  while ((conflicting_ticket= it++))
-  {
-    if (conflicting_ticket->get_ctx() != ctx &&
-        conflicting_ticket->get_type() == MDL_INTENTION_EXCLUSIVE)
-
-    {
-      MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
-
-      /*
-        Thread which holds global IX lock can be a handler thread for
-        insert delayed. We need to kill such threads in order to get
-        global shared lock. We do this my calling code outside of MDL.
       */
       ctx->get_owner()->
         notify_shared_lock(conflicting_ctx->get_owner(),
@@ -2250,6 +2633,13 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   lock= ticket->m_lock;
 
   lock->m_waiting.add_ticket(ticket);
+
+  /*
+    If we are waiting for "obtrusive" type of lock we need to block
+    "unobtrusive" types of requests from taking "fast path".
+  */
+  if (lock->is_obtrusive_lock(mdl_request->type))
+    ++lock->m_obtrusive_locks_granted_waiting_count;
 
   /*
     Once we added a pending ticket to the waiting queue,
@@ -2468,9 +2858,10 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
                                  enum_mdl_type new_type,
                                  ulong lock_wait_timeout)
 {
-  MDL_request mdl_xlock_request;
+  MDL_request mdl_new_lock_request;
   MDL_savepoint mdl_svp= mdl_savepoint();
   bool is_new_ticket;
+  MDL_lock *lock;
 
   DBUG_ENTER("MDL_context::upgrade_shared_lock");
   DEBUG_SYNC(get_thd(), "mdl_upgrade_lock");
@@ -2482,34 +2873,69 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   if (mdl_ticket->has_stronger_or_equal_type(new_type))
     DBUG_RETURN(FALSE);
 
-  MDL_REQUEST_INIT_BY_KEY(&mdl_xlock_request,
+  MDL_REQUEST_INIT_BY_KEY(&mdl_new_lock_request,
                           &mdl_ticket->m_lock->key, new_type,
                           MDL_TRANSACTION);
 
-  if (acquire_lock(&mdl_xlock_request, lock_wait_timeout))
+  if (acquire_lock(&mdl_new_lock_request, lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
-  is_new_ticket= ! has_lock(mdl_svp, mdl_xlock_request.ticket);
+  is_new_ticket= ! has_lock(mdl_svp, mdl_new_lock_request.ticket);
+
+  lock= mdl_ticket->m_lock;
+
+  /* Code below assumes that we were upgrading to "obtrusive" type of lock. */
+  DBUG_ASSERT(lock->is_obtrusive_lock(new_type));
 
   /* Merge the acquired and the original lock. @todo: move to a method. */
-  mysql_prlock_wrlock(&mdl_ticket->m_lock->m_rwlock);
+  mysql_prlock_wrlock(&lock->m_rwlock);
   if (is_new_ticket)
-    mdl_ticket->m_lock->m_granted.remove_ticket(mdl_xlock_request.ticket);
+  {
+    lock->m_granted.remove_ticket(mdl_new_lock_request.ticket);
+    --lock->m_obtrusive_locks_granted_waiting_count;
+  }
   /*
     Set the new type of lock in the ticket. To update state of
     MDL_lock object correctly we need to temporarily exclude
-    ticket from the granted queue and then include it back.
+    ticket from the granted queue or "fast path" counter and
+    then include lock back into granted queue.
+    Note that with current code at this point we can't have
+    "fast path" tickets as upgrade to "obtrusive" locks
+    materializes tickets normally. Still we cover this case
+    for completeness.
   */
-  mdl_ticket->m_lock->m_granted.remove_ticket(mdl_ticket);
-  mdl_ticket->m_type= new_type;
-  mdl_ticket->m_lock->m_granted.add_ticket(mdl_ticket);
+  if (mdl_ticket->m_is_fast_path)
+  {
+    lock->m_fast_path_granted_count-=
+      lock->get_unobtrusive_lock_increment(mdl_ticket->m_type);
+    mdl_ticket->m_is_fast_path= false;
+  }
+  else
+  {
+    lock->m_granted.remove_ticket(mdl_ticket);
+    /*
+      Also if we are upgrading from "obtrusive" lock we need to temporarily
+      decrement m_obtrusive_locks_granted_waiting_count counter.
+    */
+    if (lock->is_obtrusive_lock(mdl_ticket->m_type))
+      --lock->m_obtrusive_locks_granted_waiting_count;
+  }
 
-  mysql_prlock_unlock(&mdl_ticket->m_lock->m_rwlock);
+  mdl_ticket->m_type= new_type;
+
+  lock->m_granted.add_ticket(mdl_ticket);
+  /*
+    Since we always upgrade to "obtrusive" type of lock we need to
+    increment m_obtrusive_locks_granted_waiting_count counter.
+  */
+  ++lock->m_obtrusive_locks_granted_waiting_count;
+
+  mysql_prlock_unlock(&lock->m_rwlock);
 
   if (is_new_ticket)
   {
-    m_tickets[MDL_TRANSACTION].remove(mdl_xlock_request.ticket);
-    MDL_ticket::destroy(mdl_xlock_request.ticket);
+    m_tickets[MDL_TRANSACTION].remove(mdl_new_lock_request.ticket);
+    MDL_ticket::destroy(mdl_new_lock_request.ticket);
   }
 
   DBUG_RETURN(FALSE);
@@ -2534,7 +2960,17 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
 
   mysql_prlock_rdlock(&m_rwlock);
 
-  /* Must be initialized after taking a read lock. */
+  /*
+    Iterators must be initialized after taking a read lock.
+
+    Note that MDL_ticket's which correspond to lock requests satisfied
+    on "fast path" are not present in m_granted list and thus
+    corresponding edges are missing from wait-for graph.
+    It is OK since contexts with "fast path" tickets are not allowed to
+    wait for any resource (they have to convert "fast path" tickets to
+    normal tickets first) and thus cannot participate in deadlock.
+    @sa MDL_contex::will_wait_for().
+  */
   Ticket_iterator granted_it(m_granted);
   Ticket_iterator waiting_it(m_waiting);
 
@@ -2781,7 +3217,53 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
   DBUG_ASSERT(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  lock->remove_ticket(&MDL_lock::m_granted, ticket);
+  if (ticket->m_is_fast_path)
+  {
+    /*
+      We are releasing ticket which represents lock request which was
+      satisfied using "fast path". We can use "fast path" release
+      algorithm of release for it as well.
+    */
+    MDL_lock::packed_counter_t unobtrusive_lock_increment=
+      lock->get_unobtrusive_lock_increment(ticket->get_type());
+
+    /* We should not have "fast path" tickets for "obtrusive" lock types. */
+    DBUG_ASSERT(unobtrusive_lock_increment != 0);
+
+    mysql_prlock_wrlock(&lock->m_rwlock);
+    /*
+      We need decrement part of counter which hold number of
+      acquired "fast path" locks of this type.
+    */
+    lock->m_fast_path_granted_count-= unobtrusive_lock_increment;
+    /*
+      We also need to check if it was last ticket for this MDL_lock
+      object and remove it from MDL_map if yes.
+    */
+    if (lock->is_empty())
+      mdl_locks.remove(lock);
+    else
+    {
+      /*
+        Or if there are any lock requests waiting for ticket being
+        released to go away. Since this is "fast path" ticket it
+        represents "unobtrusive" type of lock. In this case if there are
+        any waiters for it there should be "obtrusive" type of request
+        among them.
+      */
+      if (lock->m_obtrusive_locks_granted_waiting_count)
+        lock->reschedule_waiters();
+      mysql_prlock_unlock(&lock->m_rwlock);
+    }
+  }
+  else
+  {
+    /*
+      Lock request represented by ticket was acquired using "slow path"
+      or ticket was materialized later. We need to use "slow path" release.
+    */
+    lock->remove_ticket(&MDL_lock::m_granted, ticket);
+  }
 
   m_tickets[duration].remove(ticket);
   MDL_ticket::destroy(ticket);
@@ -2870,8 +3352,9 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
   @param type  Type of lock to which exclusive lock should be downgraded.
 */
 
-void MDL_ticket::downgrade_lock(enum_mdl_type type)
+void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
 {
+  bool new_type_is_unobtrusive;
   mysql_mutex_assert_not_owner(&LOCK_open);
 
   /*
@@ -2881,20 +3364,32 @@ void MDL_ticket::downgrade_lock(enum_mdl_type type)
     (e.g. SW) to a stronger one (e.g SNRW). So we can't even assert
     here that target lock is weaker than existing lock.
   */
-  if (m_type == type || !has_stronger_or_equal_type(type))
+  if (m_type == new_type || !has_stronger_or_equal_type(new_type))
     return;
 
   /* Only allow downgrade from EXCLUSIVE and SHARED_NO_WRITE. */
   DBUG_ASSERT(m_type == MDL_EXCLUSIVE ||
               m_type == MDL_SHARED_NO_WRITE);
 
+  /* Below we assume that we always downgrade "obtrusive" locks. */
+  DBUG_ASSERT(m_lock->is_obtrusive_lock(m_type));
+
+  new_type_is_unobtrusive= ! m_lock->is_obtrusive_lock(new_type);
+
   mysql_prlock_wrlock(&m_lock->m_rwlock);
   /*
     To update state of MDL_lock object correctly we need to temporarily
     exclude ticket from the granted queue and then include it back.
+
+    Since we downgrade only "obtrusive" locks we can always assume that the
+    ticket for the lock being downgraded is a "slow path" ticket.
+    If we are downgrading to non-"obtrusive" lock we also should decrement
+    counter of waiting and granted DDL locks.
   */
   m_lock->m_granted.remove_ticket(this);
-  m_type= type;
+  if (new_type_is_unobtrusive)
+    --m_lock->m_obtrusive_locks_granted_waiting_count;
+  m_type= new_type;
   m_lock->m_granted.add_ticket(this);
   m_lock->reschedule_waiters();
   mysql_prlock_unlock(&m_lock->m_rwlock);

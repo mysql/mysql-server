@@ -1297,16 +1297,18 @@ primary key (a,b))
 partition by key (a) 
 subpartition by list (a+b)
 ( partition x1
-( subpartition x11 engine myisam,
-subpartition x12 engine myisam),
+( subpartition x11,
+subpartition x12),
 partition x2 
-( subpartition x21 engine myisam,
-subpartition x22 engine myisam)
+( subpartition x21,
+subpartition x22)
 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'list (a+b)
 ( partition x1
-( subpartition x11 engine myisam,
-subpartition x12 eng' at line 7
+( subpartition x11,
+subpartition x12),
+partition x2 
+(' at line 7
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1315,16 +1317,16 @@ primary key (a,b))
 partition by key (a)
 subpartition by list (a+b)
 ( partition x1
-( subpartition x11 engine myisam values in (0),
-subpartition x12 engine myisam values in (1)),
+( subpartition x11 values in (0),
+subpartition x12 values in (1)),
 partition x2
-( subpartition x21 engine myisam values in (0),
-subpartition x22 engine myisam values in (1))
+( subpartition x21 values in (0),
+subpartition x22 values in (1))
 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'list (a+b)
 ( partition x1
-( subpartition x11 engine myisam values in (0),
-subpar' at line 7
+( subpartition x11 values in (0),
+subpartition x12 val' at line 7
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1764,15 +1766,15 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p1 VALUES IN (1)
- (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = MyISAM,
-  SUBPARTITION p1spSecond COMMENT = 'SubPartition comment in p1spSecond' ENGINE = MyISAM),
+ (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = InnoDB,
+  SUBPARTITION p1spSecond COMMENT = 'SubPartition comment in p1spSecond' ENGINE = InnoDB),
  PARTITION p2 VALUES IN (2)
- (SUBPARTITION p2spFirst COMMENT = 'SubPartition comment in p2spFirst' ENGINE = MyISAM,
-  SUBPARTITION p2spSecond COMMENT = 'SubPartition comment in p2spSecond' ENGINE = MyISAM)) */
+ (SUBPARTITION p2spFirst COMMENT = 'SubPartition comment in p2spFirst' ENGINE = InnoDB,
+  SUBPARTITION p2spSecond COMMENT = 'SubPartition comment in p2spSecond' ENGINE = InnoDB)) */
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	SUBPARTITION_NAME	PARTITION_COMMENT
@@ -1794,15 +1796,15 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p1 VALUES IN (1)
- (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = MyISAM,
-  SUBPARTITION p1spSecond ENGINE = MyISAM),
+ (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = InnoDB,
+  SUBPARTITION p1spSecond ENGINE = InnoDB),
  PARTITION p2 VALUES IN (2)
- (SUBPARTITION p2spFirst COMMENT = 'Comment in p2' ENGINE = MyISAM,
-  SUBPARTITION p2spSecond COMMENT = 'SubPartition comment in p2spSecond' ENGINE = MyISAM)) */
+ (SUBPARTITION p2spFirst COMMENT = 'Comment in p2' ENGINE = InnoDB,
+  SUBPARTITION p2spSecond COMMENT = 'SubPartition comment in p2spSecond' ENGINE = InnoDB)) */
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	SUBPARTITION_NAME	PARTITION_COMMENT
@@ -1830,15 +1832,15 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   KEY `inx_a` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION pUpTo10 VALUES LESS THAN (10)
- (SUBPARTITION `p-10sp0` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = MyISAM,
-  SUBPARTITION `p-10sp1` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = MyISAM),
+ (SUBPARTITION `p-10sp0` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB,
+  SUBPARTITION `p-10sp1` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB),
  PARTITION pMax VALUES LESS THAN MAXVALUE
- (SUBPARTITION pMaxsp0 COMMENT = 'This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = MyISAM,
-  SUBPARTITION pMaxsp1 COMMENT = 'This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = MyISAM)) */
+ (SUBPARTITION pMaxsp0 COMMENT = 'This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB,
+  SUBPARTITION pMaxsp1 COMMENT = 'This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB)) */
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	SUBPARTITION_NAME	PARTITION_COMMENT

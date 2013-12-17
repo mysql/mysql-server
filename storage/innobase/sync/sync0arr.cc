@@ -442,8 +442,8 @@ sync_array_wait_event(
 	if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
 
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"########################################\n"
-			"Deadlock Detected!");
+                        "########################################\n"
+                        "Deadlock Detected!");
 	}
 
 	rw_lock_debug_mutex_exit();
@@ -540,8 +540,8 @@ sync_array_cell_print(
 		}
 
 		fprintf(file,
-			"number of readers %lu, waiters flag %lu, "
-			"lock_word: %lx\n"
+			"number of readers %lu, waiters flag %lu,"
+			" lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),
@@ -707,8 +707,8 @@ sync_array_detect_deadlock(
 					name = "NULL";
 				}
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Mutex %p owned by thread "
-					"%lu file %s line %lu\n",
+					"Mutex %p owned by thread"
+					" %lu file %s line %lu",
 					mutex,
 					(ulong) os_thread_pf(thread),
 					name,
@@ -1026,8 +1026,8 @@ sync_array_print_long_waits_low(
 		double	diff = difftime(time(NULL), cell->reservation_time);
 
 		if (diff > SYNC_ARRAY_TIMEOUT) {
-			fputs("InnoDB: Warning: a long semaphore wait:\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"A long semaphore wait:");
 			sync_array_cell_print(stderr, cell);
 			*noticed = TRUE;
 		}
