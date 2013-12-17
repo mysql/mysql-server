@@ -495,7 +495,7 @@ amount of increment. */
 amount to decrement. */
 
 # define os_atomic_decrement_uint32(ptr, amount) \
-	os_atomic_increment_uint32((ulong_t*) ptr, -(amount))
+	os_atomic_increment_uint32(ptr, -(amount))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
@@ -598,7 +598,7 @@ amount of increment. */
 	(win_xchg_and_add(ptr, amount) + amount)
 
 # define os_atomic_increment_uint32(ptr, amount) \
-	((ulint) _InterlockedIncrement(ptr, amount))
+	((ulint) _InterlockedExchangeAdd(ptr, amount))
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
@@ -613,7 +613,7 @@ Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. There is no atomic substract function on Windows */
 
 # define os_atomic_decrement_uint32(ptr, amount) \
-	((ulint) _InterlockedDecrement(ptr, amount))
+	((ulint) _InterlockedExchangeAdd(ptr, (-amount)))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	(win_xchg_and_add(ptr, -(lint) amount) - amount)
