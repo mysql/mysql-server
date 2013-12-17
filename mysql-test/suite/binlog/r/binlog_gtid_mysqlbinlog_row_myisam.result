@@ -2399,9 +2399,9 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='1000-01-01 00:00:00' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=75601 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2497,9 +2497,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2676,9 +2676,9 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=1 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=1217855904 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2774,9 +2774,9 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='1000-01-01 00:00:00' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=75601 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2854,9 +2854,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2952,9 +2952,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3032,9 +3032,9 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='1000-01-01 00:00:00' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=75601 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3210,9 +3210,9 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=1 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=1217855904 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3308,9 +3308,9 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=1 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=1217855904 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3486,9 +3486,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3584,9 +3584,9 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=0 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='1000-01-01 00:00:00' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=75601 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3682,9 +3682,9 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=9999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=1 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=1217855904 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */

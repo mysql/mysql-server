@@ -1428,7 +1428,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+###   @1=124.45000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1445,7 +1445,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=-000000543.210000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+###   @1=-543.21000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1462,7 +1462,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+###   @1=124.45000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
