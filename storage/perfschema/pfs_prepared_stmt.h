@@ -29,23 +29,8 @@
 #define OBJECT_NAME_LENGTH NAME_LEN                                             
 #define SCHEMA_NAME_LENGTH NAME_LEN
 
-extern LF_HASH prepared_stmt_hash;
 extern ulong prepared_stmt_max;
 extern ulong prepared_stmt_lost;
-
-/**
-  Hash key for a prepared stmt.
-*/
-struct PFS_prepared_stmt_key 
-{
-  /**
-    Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "???" Mayank TODO.
-  */
-  char m_hash_key[PREPARED_STMT_HASH_KEY_LENGTH];
-  uint m_key_length;
-}; 
 
 struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
 {
@@ -75,9 +60,6 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
 
   //`TIMER_PREPARE` bigint(20) unsigned NOT NULL,
 
-  /** Hash key */
-  PFS_prepared_stmt_key m_key;
-
   /** Prepared stmt stat. */
   PFS_statement_stat m_prepared_stmt_execute_stat;
 
@@ -92,8 +74,6 @@ extern PFS_prepared_stmt *prepared_stmt_array;
 
 int init_prepared_stmt(const PFS_global_param *param);
 void cleanup_prepared_stmt(void);
-int init_prepared_stmt_hash(void);
-void cleanup_prepared_stmt_hash(void);
 
 void reset_prepared_stmt_instances();
 
