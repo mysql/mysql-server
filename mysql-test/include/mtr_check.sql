@@ -52,6 +52,16 @@ BEGIN
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
         ORDER BY columns_in_mysql;
 
+  -- Dump all events, there should be none
+  SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+  -- Dump all triggers	 except mtr internals, there should be none
+  SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+         WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
+  -- Dump all created procedures, there should be none
+  SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
+
+  SHOW STATUS LIKE 'slave_open_temp_tables';
+
   -- Checksum system tables to make sure they have been properly
   -- restored after test
   checksum table
@@ -71,15 +81,6 @@ BEGIN
     mysql.time_zone_transition,
     mysql.time_zone_transition_type,
     mysql.user;
-
- show status like 'slave_open_temp_tables';
-
- -- Dump all events, there should be none
- SELECT * FROM INFORMATION_SCHEMA.EVENTS;
- -- Dump all triggers, there should be none
- SELECT * FROM INFORMATION_SCHEMA.TRIGGERS;
- -- Dump all created procedures, there should be none
- SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
 
 END||
 
