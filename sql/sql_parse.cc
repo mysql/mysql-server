@@ -102,6 +102,7 @@
 #include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "rpl_gtid_persist.h"
 
 #include <algorithm>
 using std::max;
@@ -158,6 +159,7 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Reset Connection") },
+  { C_STRING_WITH_LEN("Compress") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
@@ -4577,8 +4579,14 @@ finish:
     thd->query_plan.set_query_plan(SQLCOM_END, NULL, false);
   }
 
-  DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
-               thd->in_multi_stmt_transaction_mode());
+  /*
+    We do not do the check when binlog is disabled, due to
+    committing a statement with non-transaction table will
+    cause a transaction to save gtid into table.
+  */
+  if (opt_bin_log)
+    DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
+                 thd->in_multi_stmt_transaction_mode());
 
   if (! thd->in_sub_stmt)
   {
@@ -4963,6 +4971,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->query_tables_last= &lex->query_tables;
 }
 
+
 /*
   When you modify mysql_parse(), you may need to mofify
   mysql_test_parse_for_slave() in this same file.
@@ -5113,10 +5122,31 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
               (thd->lex->sql_command == SQLCOM_COMMIT ||
                stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)))
           {
-            // This is executed at the end of a DDL statement or after
-            // COMMIT.  It ensures that an empty group is logged if
-            // needed.
-            error= gtid_empty_group_log_and_cleanup(thd);
+            if (opt_bin_log)
+            {
+              // This is executed at the end of a DDL statement or after
+              // COMMIT.  It ensures that an empty group is logged if
+              // needed.
+              error= gtid_empty_group_log_and_cleanup(thd);
+            }
+            else
+            {
+              /*
+                Save gtid into table for a DDL statement
+                when binlog is disabled.
+              */
+              Gtid *gtid= &thd->owned_gtid;
+              if (!gtid->is_null() && (gtid_table_persistor != NULL))
+              {
+                error= gtid_state->save_gtid_into_table(thd);
+                global_sid_lock->rdlock();
+                if (error)
+                  gtid_state->update_on_rollback(thd);
+                else
+                  gtid_state->update_on_commit(thd);
+                global_sid_lock->unlock();
+              }
+            }
           }
           MYSQL_QUERY_EXEC_DONE(error);
 	}

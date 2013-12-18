@@ -197,6 +197,17 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
+    sid CHAR(36) NOT NULL COMMENT 'Textual representation of the sidno.',
+    gno_start BIGINT NOT NULL COMMENT 'First GNO of interval.',
+    gno_end BIGINT NOT NULL COMMENT 'Last GNO of interval.',
+    PRIMARY KEY(sid, gno_start))";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,

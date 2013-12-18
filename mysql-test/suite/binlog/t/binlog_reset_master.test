@@ -26,6 +26,7 @@
 --source include/write_var_to_file.inc
 --enable_query_log
 
+#--echo $write_to_file
 --exec $MYSQL < $write_to_file
 RESET MASTER;
 --remove_file $write_to_file

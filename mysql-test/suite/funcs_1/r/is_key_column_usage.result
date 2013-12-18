@@ -86,6 +86,8 @@ def	mysql	PRIMARY	def	mysql	db	User
 def	mysql	PRIMARY	def	mysql	event	db
 def	mysql	PRIMARY	def	mysql	event	name
 def	mysql	PRIMARY	def	mysql	func	name
+def	mysql	PRIMARY	def	mysql	gtid_executed	sid
+def	mysql	PRIMARY	def	mysql	gtid_executed	gno_start
 def	mysql	PRIMARY	def	mysql	help_category	help_category_id
 def	mysql	name	def	mysql	help_category	name
 def	mysql	PRIMARY	def	mysql	help_keyword	help_keyword_id
