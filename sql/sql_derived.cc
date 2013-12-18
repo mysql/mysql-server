@@ -357,6 +357,14 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (derived->merged)
     return FALSE;
 
+  if (dt_select->uncacheable & UNCACHEABLE_RAND)
+  {
+    /* There is random function => fall back to materialization. */
+    derived->change_refs_to_fields();
+    derived->set_materialized_derived();
+    return FALSE;
+  }
+
  if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
      thd->lex->sql_command == SQLCOM_DELETE_MULTI)
    thd->save_prep_leaf_list= TRUE;

@@ -4740,6 +4740,16 @@ i1	c1	i1	c1
 deallocate prepare stmt;
 drop view v1;
 drop table t1,t2;
+create table t1 (a int);
+insert into t1 values (1),(2);
+create view v1 (a,r) as select a,rand() from t1;
+create table t2 select a, r as r1, r as r2, r as r3 from v1;
+select a, r1 = r2, r2 = r3 from t2;
+a	r1 = r2	r2 = r3
+1	1	1
+2	1	1
+drop view v1;
+drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.3 tests.
 # -----------------------------------------------------------------

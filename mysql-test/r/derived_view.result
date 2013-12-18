@@ -2246,6 +2246,115 @@ Warnings:
 Note	1003	select 4 AS `a` from `test`.`t1` where (4 > 100) order by 1
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE IF NOT EXISTS `galleries` ( 
+`id` int(11) NOT NULL AUTO_INCREMENT, 
+`name` varchar(100) NOT NULL, 
+`year` int(11) DEFAULT NULL, 
+PRIMARY KEY (`id`), 
+UNIQUE KEY `name` (`name`) 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown table engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 'galleries'
+CREATE TABLE IF NOT EXISTS `pictures` ( 
+`id` int(11) NOT NULL AUTO_INCREMENT, 
+`name` varchar(100) NOT NULL, 
+`width` float DEFAULT NULL, 
+`height` float DEFAULT NULL, 
+`year` int(4) DEFAULT NULL, 
+`technique` varchar(50) DEFAULT NULL, 
+`comment` varchar(2000) DEFAULT NULL, 
+`gallery_id` int(11) NOT NULL, 
+`type` int(11) NOT NULL, 
+PRIMARY KEY (`id`), 
+KEY `gallery_id` (`gallery_id`) 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ;
+Warnings:
+Warning	1286	Unknown table engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 'pictures'
+ALTER TABLE `pictures` 
+ADD CONSTRAINT `pictures_ibfk_1` FOREIGN KEY (`gallery_id`) REFERENCES `galleries` (`id`);
+INSERT INTO `galleries` (`id`, `name`, `year`) VALUES 
+(1, 'Quand le noir et blanc invite le taupe', 2013), 
+(2, 'Une touche de couleur', 2012), 
+(3, 'Éclats', 2011), 
+(4, 'Gris béton', 2010), 
+(5, 'Expression du spalter', 2010), 
+(6, 'Zénitude', 2009), 
+(7, 'La force du rouge', 2008), 
+(8, 'Sphères', NULL), 
+(9, 'Centre', 2009), 
+(10, 'Nébuleuse', NULL);
+INSERT INTO `pictures` (`id`, `name`, `width`, `height`, `year`, `technique`, `comment`, `gallery_id`, `type`) VALUES 
+(1, 'Éclaircie', 72.5, 100, NULL, NULL, NULL, 1, 1), 
+(2, 'Architecture', 81, 100, NULL, NULL, NULL, 1, 1), 
+(3, 'Nouveau souffle', 72.5, 100, NULL, NULL, NULL, 1, 1), 
+(4, 'Échanges (2)', 89, 116, NULL, NULL, NULL, 1, 1), 
+(5, 'Échanges', 89, 116, NULL, NULL, NULL, 1, 1), 
+(6, 'Fenêtre de vie', 81, 116, NULL, NULL, NULL, 1, 1), 
+(7, 'Architecture', 81, 100, NULL, NULL, NULL, 1, 1), 
+(8, 'Nouveau souffle (2)', 72.5, 100, NULL, NULL, NULL, 1, 1), 
+(9, 'Fluidité', 89, 116, NULL, NULL, NULL, 1, 1), 
+(10, 'Nouveau Monde', 89, 125, NULL, NULL, NULL, 1, 1), 
+(11, 'Mirage', 73, 100, NULL, NULL, NULL, 1, 1), 
+(12, 'Équilibre', 72.5, 116, NULL, NULL, NULL, 2, 1), 
+(13, 'Fusion', 72.5, 116, NULL, NULL, NULL, 2, 1), 
+(14, 'Étincelles', NULL, NULL, NULL, NULL, NULL, 3, 1), 
+(15, 'Régénérescence', NULL, NULL, NULL, NULL, NULL, 3, 1), 
+(16, 'Chaleur', 80, 80, NULL, NULL, NULL, 4, 1), 
+(17, 'Création', 90, 90, NULL, NULL, NULL, 4, 1), 
+(18, 'Horizon', 92, 73, NULL, NULL, NULL, 4, 1), 
+(19, 'Labyrinthe', 81, 100, NULL, NULL, NULL, 4, 1), 
+(20, 'Miroir', 80, 116, NULL, NULL, NULL, 5, 1), 
+(21, 'Libération', 81, 116, NULL, NULL, NULL, 5, 1), 
+(22, 'Éclats', 81, 116, NULL, NULL, NULL, 5, 1), 
+(23, 'Zénitude', 116, 89, NULL, NULL, NULL, 6, 1), 
+(24, 'Écritures lointaines', 90, 90, NULL, NULL, NULL, 7, 1), 
+(25, 'Émergence', 80, 80, NULL, NULL, NULL, 7, 1), 
+(26, 'Liberté', 50, 50, NULL, NULL, NULL, 7, 1), 
+(27, 'Silhouettes amérindiennes', 701, 70, NULL, NULL, NULL, 7, 1), 
+(28, 'Puissance', 81, 100, NULL, NULL, NULL, 8, 1), 
+(29, 'Source', 73, 116, NULL, NULL, NULL, 8, 1), 
+(30, 'Comme une ville qui prend vie', 50, 100, 2008, NULL, NULL, 9, 1), 
+(31, 'Suspension azur', 80, 80, NULL, NULL, NULL, 9, 1), 
+(32, 'Nébuleuse', 70, 70, NULL, NULL, NULL, 10, 1), 
+(33, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2), 
+(34, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2), 
+(35, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2), 
+(36, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2), 
+(37, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2), 
+(38, 'Œuvre commandée 120 P', 114, 195, NULL, NULL, NULL, 1, 2);
+explain
+SELECT g.id AS gallery_id, 
+g.name AS gallery_name, 
+p.id AS picture_id, 
+p.name AS picture_name, 
+g.p_random AS r1, 
+g.p_random AS r2, 
+g.p_random AS r3 
+FROM 
+( 
+SELECT gal.id, 
+gal.name, 
+( 
+SELECT pi.id 
+FROM pictures pi 
+WHERE pi.gallery_id = gal.id 
+ORDER BY RAND() 
+LIMIT 1 
+) AS p_random 
+FROM galleries gal 
+) g 
+LEFT JOIN pictures p 
+ON p.id = g.p_random 
+ORDER BY gallery_name ASC 
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+1	SIMPLE	p	eq_ref	PRIMARY	PRIMARY	4	g.p_random	1	Using where
+2	DERIVED	gal	ALL	NULL	NULL	NULL	NULL	10	
+3	DEPENDENT SUBQUERY	pi	ref	gallery_id	gallery_id	4	test.gal.id	4	Using temporary; Using filesort
+drop table galleries, pictures;
 #
 # end of 5.3 tests
 #
