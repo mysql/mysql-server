@@ -197,7 +197,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 */
 uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
-  uint32 length;
+  uint32 length= 0;
 
   switch (type(col)) {
   case MYSQL_TYPE_NEWDECIMAL:
