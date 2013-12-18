@@ -79,8 +79,8 @@ SET(CLUSTERJ_PROJECTS api core jdbc jpatest openjpa test tie unit)
 
 IF(WIN32)
 
-  CONFIGURE_FILE(clusterj/pom.xml.in
-    clusterj/pom.xml
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/pom.xml.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/pom.xml
     @ONLY NEWLINE_STYLE WIN32)
 
   FOREACH(CLUSTERJ_PROJECT ${CLUSTERJ_PROJECTS}) 
@@ -91,9 +91,9 @@ IF(WIN32)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for windows
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.cmd.in
-                 ${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.cmd
-                 @ONLY NEWLINE_STYLE WIN32)
+  #CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.cmd.in
+  #               ${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.cmd
+  #               @ONLY NEWLINE_STYLE WIN32)
 
 ELSE(WIN32)
 
