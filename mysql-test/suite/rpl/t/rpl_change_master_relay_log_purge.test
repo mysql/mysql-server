@@ -5,7 +5,7 @@
 # ==== Purpose ====
 #
 # This test script serves as the functionality testing for
-# WL#6120- Change master without stopping Slave threads.
+# WL#6120- Change master without stopping slave.
 #
 # This test script does the following:
 
