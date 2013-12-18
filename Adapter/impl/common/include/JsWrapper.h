@@ -135,14 +135,15 @@ void wrapPointerInObject(PTR ptr,
   obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
 
-/* Specializations for non-pointers reduce gcc warnings */
+/* Specializations for non-pointers reduce gcc warnings.
+   Only specialize over primitive types. */
 template <> inline void wrapPointerInObject(int, Envelope &, Local<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(size_t, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Local<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned int, Envelope &, Local<Object>) {
   assert(0);
 }
 
