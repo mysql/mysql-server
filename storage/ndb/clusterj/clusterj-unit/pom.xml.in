@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.22-SNAPSHOT</version>
+    <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-unit</artifactId>
   <packaging>jar</packaging>
-  <version>7.1.22-SNAPSHOT</version>
+  <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
   <name>ClusterJ Unit Test Framework</name>
   <build>
     <plugins>
