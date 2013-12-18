@@ -22,6 +22,7 @@
 #include "log.h"                // tc_log
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "binlog.h"
 
 static mysql_mutex_t LOCK_xid_cache;
 static HASH xid_cache;
@@ -597,6 +598,12 @@ bool trans_xa_end(THD *thd)
 {
   XID_STATE *xid_state= &thd->transaction.xid_state;
   DBUG_ENTER("trans_xa_end");
+
+  if (opt_bin_log && gtid_mode > 1 && trans_has_updated_trans_table(thd))
+  {
+    if (generate_and_save_gtid(thd))
+      DBUG_RETURN(true);
+  }
 
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
   if (thd->lex->xa_opt != XA_NONE)

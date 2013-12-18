@@ -2565,7 +2565,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
   if (mi != NULL)
   { 
     global_sid_lock->wrlock();
-    const Gtid_set* sql_gtid_set= gtid_state->get_logged_gtids();
+    const Gtid_set* sql_gtid_set= gtid_state->get_executed_gtids();
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
     if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
         (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
@@ -3140,7 +3140,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       executed_gtid_set
     */
     if (!last_retrieved_gtid->empty() &&
-        !gtid_state->get_logged_gtids()->contains_gtid(*last_retrieved_gtid))
+        !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
     {
       if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
       {
@@ -3149,8 +3149,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       }
     }
 
-    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_executed.add_gtid_set(gtid_state->get_logged_gtids()) !=
+    if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
+        gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();

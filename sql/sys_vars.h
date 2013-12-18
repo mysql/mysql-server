@@ -2123,7 +2123,7 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_executed::global_value_ptr");
     global_sid_lock->wrlock();
-    const Gtid_set *gs= gtid_state->get_logged_gtids();
+    const Gtid_set *gs= gtid_state->get_executed_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -2192,10 +2192,10 @@ public:
     int rotate_res= 0;
 
     global_sid_lock->wrlock();
-    char *previous_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
     char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
     enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
-    char *current_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
     char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
     global_sid_lock->unlock();
     if (RETURN_STATUS_OK != ret)
@@ -2208,7 +2208,7 @@ public:
     sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
                           previous_gtid_lost, current_gtid_lost);
     sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
-                          previous_gtid_logged, current_gtid_logged);
+                          previous_gtid_executed, current_gtid_executed);
 
     // Rotate logs to have Previous_gtid_event on last binlog.
     rotate_res= mysql_bin_log.rotate_and_purge(true);
@@ -2219,9 +2219,9 @@ public:
     }
 
 end:
-    my_free(previous_gtid_logged);
+    my_free(previous_gtid_executed);
     my_free(previous_gtid_lost);
-    my_free(current_gtid_logged);
+    my_free(current_gtid_executed);
     my_free(current_gtid_lost);
     DBUG_RETURN(error);
 #else

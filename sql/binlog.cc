@@ -29,6 +29,7 @@
 #include "sql_parse.h"
 #include "rpl_mi.h"
 #include "dur_prop.h"
+#include "rpl_gtid_persist.h"
 #include <list>
 #include <string>
 #include <m_ctype.h>				// For is_number
@@ -974,47 +975,6 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
 
 /**
-  Checks if the given GTID exists in the Group_cache. If not, add it
-  as an empty group.
-
-  @todo Move this function into the cache class?
-
-  @param thd THD object that owns the Group_cache
-  @param cache_data binlog_cache_data object for the cache
-  @param gtid GTID to check
-*/
-static int write_one_empty_group_to_cache(THD *thd,
-                                          binlog_cache_data *cache_data,
-                                          Gtid gtid)
-{
-  DBUG_ENTER("write_one_empty_group_to_cache");
-  Group_cache *group_cache= &cache_data->group_cache;
-  if (group_cache->contains_gtid(gtid))
-    DBUG_RETURN(0);
-  /*
-    Apparently this code is not being called. We need to
-    investigate if this is a bug or this code is not
-    necessary. /Alfranio
-
-    Empty groups are currently being handled in the function
-    gtid_empty_group_log_and_cleanup().
-  */
-  DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_ERROR_GTID
-  IO_CACHE *cache= &cache_data->cache_log;
-  Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR_GROUP)
-    DBUG_RETURN(1);
-  DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
-  Gtid_specification spec= { GTID_GROUP, gtid };
-  Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(), &spec);
-  if (gtid_ev.write(cache) != 0)
-    DBUG_RETURN(1);
-#endif
-  DBUG_RETURN(0);
-}
-
-/**
   Writes all GTIDs that the thread owns to the stmt/trx cache, if the
   GTID is not already in the cache.
 
@@ -1033,8 +993,6 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
     Gtid gtid= git.get();
     while (gtid.sidno != 0)
     {
-      if (write_one_empty_group_to_cache(thd, cache_data, gtid) != 0)
-        DBUG_RETURN(1);
       git.next();
       gtid= git.get();
     }
@@ -1042,9 +1000,6 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
     DBUG_ASSERT(0);
 #endif
   }
-  else if (thd->owned_gtid.sidno > 0)
-    if (write_one_empty_group_to_cache(thd, cache_data, thd->owned_gtid) != 0)
-      DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
@@ -1066,25 +1021,6 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   Group_cache* group_cache= &cache_data->group_cache;
 
-  global_sid_lock->rdlock();
-
-  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-  {
-    if (group_cache->generate_automatic_gno(thd) !=
-        RETURN_STATUS_OK)
-    {
-      global_sid_lock->unlock();
-      DBUG_RETURN(1); 
-    }
-  }
-  if (write_empty_groups_to_cache(thd, cache_data) != 0)
-  {
-    global_sid_lock->unlock();
-    DBUG_RETURN(1);
-  }
-
-  global_sid_lock->unlock();
-
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   /* Set the transaction GTID in the Performance Schema */
   if (thd->m_transaction_psi != NULL && !error && thd->owned_gtid.sidno >= 1)
@@ -1096,10 +1032,32 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     If an automatic group number was generated, change the first event
     into a "real" one.
   */
+
+  Cached_group *cached_group;
+  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+    cached_group= group_cache->get_unsafe_pointer(0);
+
+  global_sid_lock->rdlock();
+
+  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+  {
+    if (gtid_mode <= 1)
+      cached_group->spec.type= ANONYMOUS_GROUP;
+    else
+      cached_group->spec.type= GTID_GROUP;
+    cached_group->spec.gtid= thd->owned_gtid;
+  }
+  if (write_empty_groups_to_cache(thd, cache_data) != 0)
+  {
+    global_sid_lock->unlock();
+    DBUG_RETURN(1);
+  }
+
+  global_sid_lock->unlock();
+
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
     DBUG_ASSERT(group_cache->get_n_groups() == 1);
-    Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
     Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
                            &cached_group->spec);
@@ -1542,6 +1500,54 @@ void Stage_manager::clear_preempt_status(THD *head)
 }
 #endif
 
+
+/**
+  Generate gtid for transaction and save gtid into table.
+
+  @param thd Session to commit
+
+  @retval 0    success
+  @retval 1    error
+ */
+
+int generate_and_save_gtid(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::generate_and_save_gtid(THD *thd)");
+  DBUG_ASSERT(gtid_table_persistor != NULL);
+  int error= 0;
+  bool is_gtid_generated= false;
+  bool need_decrease_saving_thread= false;
+
+  /*
+    Increase the number of ongoing transactions
+    during reset gtid_executed table.
+  */
+  if (gtid_table_persistor->is_resetting())
+  {
+    gtid_table_persistor->increase_saving_thread();
+    need_decrease_saving_thread= true;
+  }
+
+  /* Generate gtid for transaction. */
+  Gtid *gtid= &thd->owned_gtid;
+  if (gtid->is_null() &&
+      thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+  {
+    if (!(error= gtid_state->generate_automatic_gtid(thd)))
+      is_gtid_generated= true;
+  }
+
+  /* Save gtid into mysql.gtid_executed table. */
+  if ((is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP) &&
+      gtid_table_persistor != NULL)
+    error= gtid_state->save_gtid_into_table(thd);
+
+  if (need_decrease_saving_thread)
+    gtid_table_persistor->decrease_saving_thread();
+  DBUG_RETURN(error);
+}
+
+
 /**
   Write a rollback record of the transaction to the binary log.
 
@@ -1596,6 +1602,24 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     if ((error= ha_rollback_low(thd, all)))
       goto end;
 
+  if (cache_mngr != NULL && ((!cache_mngr->stmt_cache.has_incident() &&
+       !cache_mngr->stmt_cache.is_binlog_empty()) ||
+      (ending_trans(thd, all) && trans_cannot_safely_rollback(thd))) &&
+      gtid_mode > 1 && !thd->is_operating_gtid_table)
+  {
+    /*
+      If the transaction is being rolled back and contains changes that
+      cannot be rolled back, the trx-cache's content is flushed.
+    */
+    if (ending_trans(thd, all) && trans_cannot_safely_rollback(thd))
+    {
+      Query_log_event
+        end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
+      error = cache_mngr->trx_cache.write_event(thd, &end_evt);
+    }
+    error |= generate_and_save_gtid(thd);
+  }
+
   /*
     If there is no cache manager, or if there is nothing in the
     caches, there are no caches to roll back, so we're trivially done.
@@ -1621,12 +1645,12 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     const char* err_msg= "The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log.";
-    error= write_incident(thd, true/*need_lock_log=true*/, err_msg);
+    error |= write_incident(thd, true/*need_lock_log=true*/, err_msg);
     cache_mngr->stmt_cache.reset();
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if ((error= cache_mngr->stmt_cache.finalize(thd)))
+    if ((error |= cache_mngr->stmt_cache.finalize(thd)))
       goto end;
     stuff_logged= true;
   }
@@ -1641,7 +1665,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       */
       Query_log_event
         end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error= cache_mngr->trx_cache.finalize(thd, &end_evt);
+      error |= cache_mngr->trx_cache.finalize(thd, &end_evt);
       stuff_logged= true;
     }
     else
@@ -1650,7 +1674,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         If the transaction is being rolled back and its changes can be
         rolled back, the trx-cache's content is truncated.
       */
-      error= cache_mngr->trx_cache.truncate(thd, all);
+      error |= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
   else
@@ -1694,13 +1718,13 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         Otherwise, the statement's changes in the trx-cache are
         truncated.
       */
-      error= cache_mngr->trx_cache.truncate(thd, all);
+      error |= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
-    error= ordered_commit(thd, all, /* skip_commit */ true);
+    error |= ordered_commit(thd, all, /* skip_commit */ true);
 
   if (check_write_error(thd))
   {
@@ -2501,7 +2525,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   previous_gtid_set(0)
+   previous_gtid_set_relaylog(0)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -3523,11 +3547,37 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   */
   if (current_thd && gtid_mode > 0)
   {
+    Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+    Gtid_set* previous_logged_gtids;
+
+    if (is_relay_log)
+      previous_logged_gtids= previous_gtid_set_relaylog;
+    else
+      previous_logged_gtids= &logged_gtids_binlog;
+
     if (need_sid_lock)
       global_sid_lock->wrlock();
     else
       global_sid_lock->assert_some_wrlock();
-    Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+
+    if (!is_relay_log)
+    {
+      const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
+      const Gtid_set *gtids_only_in_table=
+        gtid_state->get_gtids_only_in_table();
+      /* logged_gtids_binlog= executed_gtids - gtids_only_in_table */
+      if (logged_gtids_binlog.add_gtid_set(executed_gtids) !=
+          RETURN_STATUS_OK ||
+          logged_gtids_binlog.remove_gtid_set(gtids_only_in_table) !=
+          RETURN_STATUS_OK)
+      {
+        if (need_sid_lock)
+          global_sid_lock->unlock();
+        goto err;
+      }
+    }
+    Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
+
     if (need_sid_lock)
       global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
@@ -4011,14 +4061,29 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   ha_reset_logs(thd);
 
+  if (gtid_table_persistor != NULL && !is_relay_log)
+  {
+    /* Reset gtid_executed table during 'RESET MASTER'. */
+    int ret= gtid_table_persistor->reset();
+    if (1 == ret)
+    {
+      /*
+        Gtid table is not ready to be used, so failed to
+        open it. Ignore the error.
+      */
+      thd->clear_error();
+    }
+    else if (-1 == ret)
+      DBUG_RETURN(1);
+  }
+
+  global_sid_lock->wrlock();
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
   */
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
-
-  global_sid_lock->wrlock();
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -4131,9 +4196,10 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
-  global_sid_lock->unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
+  global_sid_lock->unlock();
+
   DBUG_RETURN(error);
 }
 
@@ -4448,6 +4514,7 @@ err:
   @retval
     0			ok
   @retval
+    1                           failed to add purged gtid set
     LOG_INFO_EOF		to_log not found
     LOG_INFO_EMFILE             too many files opened
     LOG_INFO_FATAL              if any other than ENOENT error from
@@ -4548,12 +4615,20 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   // Update gtid_state->lost_gtids
   if (gtid_mode > 0 && !is_relay_log)
   {
+    /* Add purged gtids into GLOBAL.GTID_PURGED when purging logs. */
+    Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
+    Gtid_set *lost_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
-                       const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-                       NULL,
-                       opt_master_verify_checksum,
-                       false/*false=don't need lock*/);
+                          &purged_gtids_binlog,
+                          NULL,
+                          opt_master_verify_checksum,
+                          false/*false=don't need lock*/);
+    if (!error &&
+        lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+      error= 1;
+
     global_sid_lock->unlock();
     if (error)
       goto err;
@@ -6592,8 +6667,15 @@ void MYSQL_BIN_LOG::close()
 int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::prepare");
-
-  int error= ha_prepare_low(thd, all);
+  int error= 0;
+  if (trans_has_updated_trans_table(thd) && ending_trans(thd, all) &&
+      gtid_mode > 1 && !thd->is_operating_gtid_table)
+  {
+    /* Generate gtid and save it into table before transaction prepare. */
+    if (generate_and_save_gtid(thd))
+      DBUG_RETURN(1);
+  }
+  error= ha_prepare_low(thd, all);
 
   DBUG_RETURN(error);
 }
@@ -6663,6 +6745,20 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
               YESNO(thd->transaction.stmt.cannot_safely_rollback()),
               YESNO(cache_mngr->stmt_cache.is_binlog_empty())));
 
+  if ((!cache_mngr->stmt_cache.is_binlog_empty() ||
+       /* Already stored gtid into table before transaction prepare. */
+       (!cache_mngr->trx_cache.is_binlog_empty() &&
+        ending_trans(thd, all) && !(!trans->no_2pc &&
+        trans->rw_ha_count > 1))) &&
+      gtid_mode > 1 && !thd->is_operating_gtid_table)
+  {
+    /*
+      Generate gtid and save it into table before transaction commit
+      if the transaction does not need to be prepared.
+    */
+    if (generate_and_save_gtid(thd))
+      DBUG_RETURN(RESULT_ABORTED);
+  }
 
   /*
     If there are no handlertons registered, there is nothing to

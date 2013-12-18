@@ -545,7 +545,7 @@ bool show_master_status(THD* thd)
   DBUG_ENTER("show_binlog_info");
 
   global_sid_lock->wrlock();
-  const Gtid_set* gtid_set= gtid_state->get_logged_gtids();
+  const Gtid_set* gtid_set= gtid_state->get_executed_gtids();
   if ((gtid_set_size= gtid_set->to_string(&gtid_set_buffer)) < 0)
   {
     global_sid_lock->unlock();

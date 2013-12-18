@@ -328,7 +328,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
       my_error(rc, MYF(0));
   }
 end:
-  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
+  /* Allow to operate gtid_executed table when disconnecting the session. */
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed &&
+      !thd->is_operating_gtid_table)
   {
     thd->send_kill_message();
     if (sql_lock)

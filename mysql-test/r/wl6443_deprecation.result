@@ -115,6 +115,7 @@ mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -158,6 +159,7 @@ mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -195,6 +197,7 @@ mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK

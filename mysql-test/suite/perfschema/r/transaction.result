@@ -255,7 +255,18 @@ ACTUAL	EXPECTED
      1	       1
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     2	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	COMMITTED  	               	            	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            2	       19	      5914	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            2	       19	      8229	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL clear_transaction_tables();
 DROP TABLE test.t2;
 
@@ -280,7 +291,17 @@ XA END 'XA_CON1_001';
 ## Expect 1 active XA transaction, state IDLE
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'IDLE', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     0	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (xid = @xid) AND (xa_state = @xa_state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	ACTIVE     	XA_CON1_001    	IDLE        	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	      8411	transaction	COMMITTED  	XA_CON1_001    	COMMITTED   	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 #
 # STEP 7.3 - XA PREPARE
@@ -290,7 +311,17 @@ XA PREPARE 'XA_CON1_001';
 ## Expect 1 active XA transaction, state PREPARED
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_001', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     0	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (xid = @xid) AND (xa_state = @xa_state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	ACTIVE     	XA_CON1_001    	PREPARED    	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	      8411	transaction	COMMITTED  	XA_CON1_001    	COMMITTED   	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 #
 # STEP 7.4 - XA COMMIT
@@ -317,16 +348,46 @@ XA PREPARE 'XA_CON1_002';
 ## Expect 1 active XA transaction, state PREPARED
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 'XA_CON1_002', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     0	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (xid = @xid) AND (xa_state = @xa_state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	ACTIVE     	XA_CON1_002    	PREPARED    	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	      8911	transaction	COMMITTED  	XA_CON1_002    	COMMITTED   	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 XA ROLLBACK 'XA_CON1_002';
 
 ## Expect 1 XA transaction, state ROLLBACK ONLY in current and history
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     0	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (xid = @xid) AND (xa_state = @xa_state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	ROLLED BACK	XA_CON1_002    	ROLLBACK ONL	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	      8911	transaction	COMMITTED  	XA_CON1_002    	COMMITTED   	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 'XA_CON1_002', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     0	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (xid = @xid) AND (xa_state = @xa_state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	ROLLED BACK	XA_CON1_002    	ROLLBACK ONL	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	      8911	transaction	COMMITTED  	XA_CON1_002    	COMMITTED   	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL clear_transaction_tables();
 SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
 THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	STATE	TRX_ID	GTID	XID	XA_STATE	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	ACCESS_MODE	ISOLATION_LEVEL	AUTOCOMMIT	NUMBER_OF_SAVEPOINTS	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	NUMBER_OF_RELEASE_SAVEPOINT	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE
@@ -347,13 +408,33 @@ INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 ## Expect 0 transactions in events_transactions_current
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', '',  '','', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     0	       0
+     1	       0
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	      9384	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 COMMIT;
 
 ## Expect 0 transactions in events_transactions_history
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', '', '', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     0	       0
+     1	       0
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history WHERE (thread_id = @thread_id) AND (event_name = @event_name) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	      9384	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 #
 # STEP 8.2 - UPDATE TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
@@ -366,7 +447,17 @@ INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 ## Expect 0 transactions in events_transactions_current
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', '', '', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     0	       0
+     1	       0
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current WHERE (thread_id = @thread_id) AND (event_name = @event_name) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	      9653	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 ## Now transactional. Transaction should be started.
 INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
@@ -384,7 +475,19 @@ ACTUAL	EXPECTED
      1	       1
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     1	       1
+     3	       1
+ERROR: Row count mismatch
+
+VERIFIER QUERY:
+SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history WHERE (thread_id = @thread_id) AND (event_name = @event_name) AND (state = @state) AND (access_mode = @access_mode) AND (autocommit = @autocommit) ORDER BY event_id;
+
+
+ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            1	       19	         0	transaction	COMMITTED  	               	            	                                      	READ WRITE 	                	NO        	         0	                    0	                0
+ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
+            3	       19	      9384	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            3	       19	      9653	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            3	       19	      9874	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL clear_transaction_tables();
 
 ========================================================================

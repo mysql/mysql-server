@@ -44,6 +44,7 @@
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
 #include <list>
+#include "rpl_gtid_persist.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1397,12 +1398,12 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
+  bool need_clear_owned_gtid= false;
+  bool rw_trans= false;
+  uint rw_ha_count= 0;
 
   if (ha_info)
   {
-    uint rw_ha_count;
-    bool rw_trans;
-
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
@@ -1420,6 +1421,26 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
+  }
+
+  /*
+    Save transaction's gtid into table before transaction prepare
+    when binlog is disabled.
+  */
+  if (!opt_bin_log && gtid_mode > 1 && (rw_trans ||
+      (all && thd->lex->sql_command == SQLCOM_COMMIT &&
+      thd->variables.gtid_next.type == GTID_GROUP)) &&
+      !thd->is_operating_gtid_table)
+  {
+    if (!thd->owned_gtid.is_null() && gtid_table_persistor != NULL)
+    {
+      error= gtid_state->save_gtid_into_table(thd);
+      need_clear_owned_gtid= true;
+    }
+  }
+
+  if (ha_info)
+  {
     if (rw_trans && !ignore_global_read_lock)
     {
       /*
@@ -1460,6 +1481,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     if (!trans->no_2pc && (rw_ha_count > 1))
       error= tc_log->prepare(thd, all);
   }
+  DBUG_EXECUTE_IF("simulate_prepare_error", error= 1;);
   if (error || (error= tc_log->commit(thd, all)))
   {
     ha_rollback_trans(thd, all);
@@ -1477,8 +1499,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     thd->m_transaction_psi= NULL;
   }
 #endif
-  
-  DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
+  if (!thd->is_operating_gtid_table)
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
   {
@@ -1494,6 +1516,18 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
+
+  if (need_clear_owned_gtid)
+  {
+    /* Release the owned GTID when binlog is disabled. */
+    global_sid_lock->rdlock();
+    if (error)
+      gtid_state->update_on_rollback(thd);
+    else
+      gtid_state->update_on_commit(thd);
+    global_sid_lock->unlock();
+  }
+
   DBUG_RETURN(error);
 }
 

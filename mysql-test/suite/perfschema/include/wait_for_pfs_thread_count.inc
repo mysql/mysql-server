@@ -14,7 +14,7 @@ let $wait_condition=
 # Because instrumentation is optional, we use "<=" here.
 
 let $wait_condition=
-  select count(*) <= 1 from performance_schema.threads
+  select count(*) <= 2 from performance_schema.threads
   where `TYPE`='FOREGROUND';
 --source include/wait_condition.inc
 

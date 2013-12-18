@@ -51,7 +51,7 @@ int gtid_acquire_ownership_single(THD *thd)
     gtid_state->lock_sidno(gtid_next.sidno);
 
     // GTID already logged
-    if (gtid_state->is_logged(gtid_next))
+    if (gtid_state->is_executed(gtid_next))
     {
       /*
         Don't skip the statement here, skip it in
@@ -134,7 +134,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
       // lock all SIDNOs in order
       if (g.sidno != last_sidno)
         gtid_state->lock_sidno(g.sidno);
-      if (!gtid_state->is_logged(g))
+      if (!gtid_state->is_executed(g))
       {
         owner= gtid_state->get_owner(g);
         // break the do-loop and wait for the sid to be updated
@@ -200,7 +200,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
   Gtid g= git.get();
   do
   {
-    if (!gtid_state->is_logged(g))
+    if (!gtid_state->is_executed(g))
     {
       if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK ||
           thd->owned_gtid_set._add_gtid(g))
@@ -299,9 +299,9 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
                       thd->thread_id));
 
 #ifndef DBUG_OFF
-  const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+  const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
   global_sid_lock->rdlock();
-  DBUG_ASSERT(logged_gtids->contains_gtid(thd->variables.gtid_next.gtid));
+  DBUG_ASSERT(executed_gtids->contains_gtid(thd->variables.gtid_next.gtid));
   global_sid_lock->unlock();
 #endif
 

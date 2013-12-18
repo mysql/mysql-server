@@ -60,6 +60,7 @@
 #include <my_dir.h>
 #include <my_bit.h>
 #include "rpl_gtid.h"
+#include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -320,6 +321,9 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
 
+PSI_cond_key key_COND_terminate_compress_thread;
+static PSI_thread_key key_thread_compress_gtid_table;
+
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static PSI_rwlock_key key_rwlock_openssl;
 #endif
@@ -350,6 +354,7 @@ char *default_storage_engine;
 char *default_tmp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used= false;
+static bool terminate_compress_thread= false;
 
 LEX_STRING opt_init_connect, opt_init_slave;
 
@@ -453,6 +458,7 @@ my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
 ulong gtid_mode;
+uint executed_gtids_compression_period= 0;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 TYPELIB gtid_mode_typelib=
@@ -698,6 +704,9 @@ pthread_t signal_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_compress_gtid_table;
+mysql_cond_t COND_compress_gtid_table;
+mysql_cond_t COND_terminate_compress_thread;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -765,6 +774,7 @@ Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor= NULL;
 Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
+Gtid_table_persistor *gtid_table_persistor= NULL;
 
 
 void set_remaining_args(int argc, char **argv)
@@ -1159,6 +1169,21 @@ public:
   }
 };
 
+static void terminate_compress_gtid_table_thread()
+{
+  DBUG_ENTER("terminate_compress_gtid_table_thread");
+  terminate_compress_thread= true;
+  /* Notify suspended compression thread. */
+  mysql_cond_signal(&COND_compress_gtid_table);
+  /* Waiting for until compression is completed. */
+  mysql_mutex_lock(&LOCK_compress_gtid_table);
+  mysql_cond_wait(&COND_terminate_compress_thread, &LOCK_compress_gtid_table);
+  mysql_mutex_unlock(&LOCK_compress_gtid_table);
+
+  DBUG_VOID_RETURN;
+}
+
+
 static void close_connections(void)
 {
   DBUG_ENTER("close_connections");
@@ -1365,12 +1390,26 @@ static void mysqld_exit(int exit_code)
 */
 void gtid_server_cleanup()
 {
-  delete gtid_state;
-  delete global_sid_map;
-  delete global_sid_lock;
-  global_sid_lock= NULL;
-  global_sid_map= NULL;
-  gtid_state= NULL;
+  if (gtid_state != NULL)
+  {
+    delete gtid_state;
+    gtid_state= NULL;
+  }
+  if (global_sid_map != NULL)
+  {
+    delete global_sid_map;
+    global_sid_map= NULL;
+  }
+  if (global_sid_lock != NULL)
+  {
+    delete global_sid_lock;
+    global_sid_lock= NULL;
+  }
+  if (gtid_table_persistor != NULL)
+  {
+    delete gtid_table_persistor;
+    gtid_table_persistor= NULL;
+  }
 }
 
 /**
@@ -1384,7 +1423,8 @@ bool gtid_server_init()
   bool res=
     (!(global_sid_lock= new Checkable_rwlock) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
-     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map)));
+     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
+     !(gtid_table_persistor= new Gtid_table_persistor()));
   if (res)
   {
     gtid_server_cleanup();
@@ -1392,6 +1432,28 @@ bool gtid_server_init()
   return res;
 }
 
+static void init_thd(THD **p_thd)
+{
+  DBUG_ENTER("init_thd");
+  THD *thd= *p_thd;
+  thd->thread_stack= reinterpret_cast<char *>(p_thd);
+  thd->set_command(COM_COMPRESS_GTID_TABLE);
+  thd->security_ctx->skip_grants();
+  thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
+  thd->store_globals();
+  thd->set_time();
+  DBUG_VOID_RETURN;
+}
+
+static void deinit_thd(THD *thd)
+{
+  DBUG_ENTER("deinit_thd");
+  thd->release_resources();
+  thd->restore_globals();
+  delete thd;
+  my_pthread_setspecific_ptr(THR_THD,  NULL);
+  DBUG_VOID_RETURN;
+}
 
 void clean_up(bool print_message)
 {
@@ -2389,6 +2451,53 @@ void *my_str_realloc_mysqld(void *ptr, size_t size)
 }
 #endif // !EMBEDDED_LIBRARY
 
+
+pthread_handler_t compress_gtid_table(void *arg)
+{
+  THD *thd=(THD*) arg;
+  mysql_thread_set_psi_id(thd->thread_id);
+  my_thread_init();
+  DBUG_ENTER("compress_gtid_table");
+  init_thd(&thd);
+  for (;;)
+  {
+    if (terminate_compress_thread)
+      break;
+
+    mysql_mutex_lock(&LOCK_compress_gtid_table);
+    THD_ENTER_COND(thd, &COND_compress_gtid_table,
+                   &LOCK_compress_gtid_table,
+                   &stage_suspending, NULL);
+    mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
+    THD_EXIT_COND(thd, NULL);
+
+    if (terminate_compress_thread)
+      break;
+
+    THD_STAGE_INFO(thd, stage_compressing_gtid_table);
+    /* Compressing gtid_executed table. */
+    if (gtid_table_persistor->compress(thd))
+    {
+      sql_print_warning("Failed to compress gtid_executed table.");
+      DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
+                      {
+                        const char act[]= "now signal compression_failed";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                      };);
+    }
+  }
+
+  deinit_thd(thd);
+  DBUG_LEAVE;
+  my_thread_end();
+  mysql_cond_signal(&COND_terminate_compress_thread);
+  pthread_exit(0);
+  return 0;
+}
+
+
 const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
@@ -3264,6 +3373,12 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
+  mysql_mutex_init(key_LOCK_compress_gtid_table,
+                   &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_compress_gtid_table,
+                  &COND_compress_gtid_table, NULL);
+  mysql_cond_init(key_COND_terminate_compress_thread,
+                  &COND_terminate_compress_thread, NULL);
   sp_cache_init();
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
@@ -4032,11 +4147,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     "data directory and creates system tables.");
     gtid_mode= 0;
   }
-  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
-  {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
-    unireg_abort(1);
-  }
   if (gtid_mode >= 2 && !enforce_gtid_consistency)
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
@@ -4055,8 +4165,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    mysql_bin_log.set_previous_gtid_set(
-      const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
+    DBUG_ASSERT(!mysql_bin_log.is_relay_log);
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   max_binlog_size, false,
                                   true/*need_lock_index=true*/,
@@ -4148,6 +4257,29 @@ static void create_shutdown_thread()
   Service.SetShutdownEvent(hEventShutdown);
 }
 #endif /* _WIN32 */
+
+
+static void create_compress_gtid_table_thread()
+{
+  pthread_t hThread;
+  int error;
+  THD *thd;
+  if (!(thd=new THD))
+  {
+    sql_print_error("Failed to compress gtid_executed table, because "
+                    "it is failed to allocate the THD.");
+    return;
+  }
+  thd->thread_id= thd->variables.pseudo_thread_id= pthread_self();
+  THD_CHECK_SENTRY(thd);
+
+  if ((error= mysql_thread_create(key_thread_compress_gtid_table,
+                                  &hThread, &connection_attrib,
+                                  compress_gtid_table, (void*) thd)))
+    sql_print_warning("Can't create thread to compress gtid_executed table"
+                      " (errno= %d)", error);
+}
+
 
 #ifndef DBUG_OFF
 /*
@@ -4454,13 +4586,66 @@ int mysqld_main(int argc, char **argv)
       if (ret)
         unireg_abort(1);
 
-      if (mysql_bin_log.init_gtid_sets(
-            const_cast<Gtid_set *>(gtid_state->get_logged_gtids()),
-            const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-            NULL,
-            opt_master_verify_checksum,
-            true/*true=need lock*/))
+      /*
+        Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
+        gtid_executed table and binlog files during server startup.
+      */
+      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set *executed_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+      Gtid_set *lost_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
+      Gtid_set *gtids_only_in_table=
+        const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
+
+      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
+                                       &purged_gtids_binlog,
+                                       NULL,
+                                       opt_master_verify_checksum,
+                                       true/*true=need lock*/) ||
+          gtid_table_persistor->fetch_gtids_from_table(executed_gtids) == -1)
         unireg_abort(1);
+
+      /*
+        lost_gtids = executed_gtids -
+                     (logged_gtids_binlog - purged_gtids_binlog);
+      */
+      global_sid_lock->wrlock();
+      DBUG_ASSERT(lost_gtids->is_empty());
+      if (lost_gtids->add_gtid_set(executed_gtids) != RETURN_STATUS_OK ||
+          lost_gtids->remove_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK ||
+          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
+          RETURN_STATUS_OK ||
+          gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+
+      if (executed_gtids->is_empty() && !logged_gtids_binlog.is_empty())
+      {
+        /*
+          Handle the upgrade case, and the case that a slave is provisioned
+          from a backup of the master and the slave is cleaned by
+          RESET MASTER and RESET SLAVE before this.
+        */
+        if (executed_gtids->add_gtid_set(&logged_gtids_binlog) !=
+            RETURN_STATUS_OK)
+        {
+          global_sid_lock->unlock();
+          unireg_abort(1);
+        }
+      }
+      global_sid_lock->unlock();
 
       /*
         Write the previous set of gtids at this point because during
@@ -4473,10 +4658,9 @@ int mysqld_main(int argc, char **argv)
       if (gtid_mode > 0)
       {
         global_sid_lock->wrlock();
-        const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
-        if (gtid_mode > 1 || !logged_gtids->is_empty())
+        if (gtid_mode > 1 || !logged_gtids_binlog.is_empty())
         {
-          Previous_gtids_log_event prev_gtids_ev(logged_gtids);
+          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
           prev_gtids_ev.checksum_alg= binlog_checksum_options;
@@ -4623,6 +4807,7 @@ int mysqld_main(int argc, char **argv)
   create_shutdown_thread();
 #endif
   start_handle_manager();
+  create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
@@ -4668,6 +4853,8 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 */
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
+
+  terminate_compress_gtid_table_thread();
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -7630,6 +7817,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_LOCK_compress_gtid_table;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7706,6 +7894,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7761,6 +7950,7 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
+PSI_cond_key key_COND_compress_gtid_table;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7799,7 +7989,9 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
-  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
+  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
+  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL},
+  { &key_COND_terminate_compress_thread, "COND_terminate_compress_thread", PSI_FLAG_GLOBAL}
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
@@ -7817,7 +8009,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
   { &key_thread_one_connection, "one_connection", 0},
-  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL}
+  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
+  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -7972,6 +8165,9 @@ PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slav
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
 PSI_stage_info stage_slave_waiiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
+PSI_stage_info stage_suspending= { 0, "Suspending", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -8069,7 +8265,9 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_waiting_to_get_readlock
+  & stage_waiting_to_get_readlock,
+  & stage_compressing_gtid_table,
+  & stage_suspending
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;

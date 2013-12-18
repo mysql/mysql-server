@@ -65,6 +65,10 @@ LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 /* WORKER_INFO name */
 LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
+/* GTID_EXECUTED name */
+LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -296,6 +300,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                       WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == GTID_EXECUTED_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                       GTID_EXECUTED_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
   }
 
   return TABLE_CATEGORY_USER;

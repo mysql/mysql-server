@@ -63,6 +63,9 @@ def	mysql	general_log	event_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	N
 def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	general_log	thread_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select,insert,update,references	
 def	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+def	mysql	gtid_executed	gno_end	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	Last GNO of interval.
+def	mysql	gtid_executed	gno_start	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)	PRI		select,insert,update,references	First GNO of interval.
+def	mysql	gtid_executed	sid	1	NULL	NO	char	36	36	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(36)	PRI		select,insert,update,references	Textual representation of the sidno.
 def	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references	
 def	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		select,insert,update,references	
 def	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references	
@@ -403,6 +406,9 @@ NULL	mysql	general_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	mysql	general_log	argument	mediumblob	16777215	16777215	NULL	NULL	mediumblob
+1.0000	mysql	gtid_executed	sid	char	36	36	latin1	latin1_swedish_ci	char(36)
+NULL	mysql	gtid_executed	gno_start	bigint	NULL	NULL	NULL	NULL	bigint(20)
+NULL	mysql	gtid_executed	gno_end	bigint	NULL	NULL	NULL	NULL	bigint(20)
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 3.0000	mysql	help_category	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_category	parent_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
