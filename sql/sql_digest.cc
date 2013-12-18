@@ -387,6 +387,7 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
     case TEXT_STRING:
     case NCHAR_STRING:
     case ULONGLONG_NUM:
+    case PARAM_MARKER:
     {
       /*
         REDUCE:
