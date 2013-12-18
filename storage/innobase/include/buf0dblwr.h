@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ Created 2011/12/19 Inaam Rana
 #include "univ.i"
 #include "ut0byte.h"
 #include "log0log.h"
+#include "log0recv.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -44,18 +45,25 @@ UNIV_INTERN
 void
 buf_dblwr_create(void);
 /*==================*/
+
 /****************************************************************//**
 At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
-recovery, this function uses a possible doublewrite buffer to restore
-half-written pages in the data files. */
+recovery, this function loads the pages from double write buffer into memory. */
 UNIV_INTERN
 void
-buf_dblwr_init_or_restore_pages(
-/*============================*/
-	ibool	restore_corrupt_pages);	/*!< in: TRUE=restore pages */
+buf_dblwr_init_or_load_pages(
+/*=========================*/
+	bool load_corrupt_pages);
+
+/****************************************************************//**
+Process the double write buffer pages. */
+void
+buf_dblwr_process(void);
+/*===================*/
+
 /****************************************************************//**
 frees doublewrite buffer. */
 UNIV_INTERN
