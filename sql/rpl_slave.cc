@@ -8350,12 +8350,11 @@ err:
 /**
   Execute a CHANGE MASTER statement.
 
-  Side-effects:
-  ============
-
-  - Delete temporary table
-  - Purge relay logs
-  - Delete worker info in mysql.slave_worker_info table
+  Apart from changing the receive/execute configurations/positions,
+  this function also does the following:
+  - May leave replicated open temporary table after warning.
+  - Purges relay logs if no threads running and no relay log file/pos options.
+  - Delete worker info in mysql.slave_worker_info table if applier not running.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -8410,12 +8409,29 @@ bool change_master(THD* thd, Master_info* mi)
     receiver and applier threads. If any slave thread is running,
     we report an error.
   */
-  if (thread_mask &&
-      (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED))
+  if (thread_mask) /* If any thread is running */
   {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    ret= true;
-    goto err;
+     if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    {
+      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      ret= true;
+      goto err;
+    }
+    /*
+      Traditionally, we have imposed the condition that STOP SLAVE is required
+      before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
+      fine if we purged relay logs.
+
+      Now that we do allow CHANGE MASTER with a running receiver/applier thread,
+      we need to make sure that the relay logs are purged only if both
+      receiver and applier threads are stopped otherwise we could lose events.
+
+      The idea behind purging relay logs if both the threads are stopped is to
+      keep consistency with the old behavior. If the user/application is doing
+      a CHANGE MASTER without stopping any one thread, the relay log purge
+      should be controlled via the 'relay_log_purge' option.
+    */
+    need_relay_log_purge= 0;
   }
 
   /*
@@ -8526,83 +8542,60 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
+  if (thread_mask & SLAVE_SQL) // If execute threads are stopped
+  {
+    if (mi->rli->mts_recovery_group_cnt)
+    {
+      /*
+        Change-Master can't be done if there is a mts group gap.
+        That requires mts-recovery which START SLAVE provides.
+      */
+      DBUG_ASSERT(mi->rli->recovery_parallel_workers);
+
+      my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
+                 ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
+      ret= true;
+      goto err;
+    }
+    else
+    {
+      /*
+        Lack of mts group gaps makes Workers info stale regardless of
+        need_relay_log_purge computation. We set the mts_remove_workers
+        flag here and call reset_workers() later to delete the worker info
+        in mysql.slave_worker_info table.
+      */
+      if (mi->rli->recovery_parallel_workers)
+        mts_remove_worker_info= true;
+    }
+  }
+
   /* Change thread_mask to indicate running threads again. */
   init_thread_mask(&thread_mask, mi, 0);
 
-  if (mi->rli->mts_recovery_group_cnt)
-  {
-    /*
-      Change-Master can't be done if there is a mts group gap.
-      That requires mts-recovery which START SLAVE provides.
-    */
-    DBUG_ASSERT(mi->rli->recovery_parallel_workers);
-
-    my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
-               ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
-    ret= true;
-    goto err;
-  }
-  else
-  {
-    /*
-      Lack of mts group gaps makes Workers info stale regardless of
-      need_relay_log_purge computation. We set the mts_remove_workers
-      flag here and call reset_workers() later to delete the worker info
-      in mysql.slave_worker_info table.
-    */
-    if (mi->rli->recovery_parallel_workers)
-      mts_remove_worker_info= true;
-  }
-
-  if (thread_mask) /* If any slave thread is running */
-  {
-    /*
-      Traditionally, we have imposed the condition that STOP SLAVE is required
-      before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
-      fine if we purged relay logs.
-
-      Now that we do allow CHANGE MASTER with a running receiver/applier thread,
-      we need to make sure that the relay logs are purged only if both
-      receiver and applier threads are stopped otherwise we could lose events.
-
-      The idea behind purging relay logs if both the threads are stopped is to
-      keep consistency with the old behavior. If the user/application is doing
-      a CHANGE MASTER without stopping any one thread, the relay log purge
-      should be controlled via the 'relay_log_purge' option.
-    */
-    need_relay_log_purge= 0;
-
-    /*
-      If the receiver/applier is running and the slave has open temporary
-      tables, we print a warning on CHANGE MASTER stating that there are open
-      temp tables and that there is a possibility that these could stay
-      forever eating up the memory resources.
-
-      If the slave threads are stopped, we would have already printed a warning
-      on STOP SLAVE. Hence we avoid repeating the same warning now. That is the
-      reason we guard this under 'if (thread_mask)'.
-    */
-    if (slave_open_temp_tables > 0)
-      push_warning(thd, Sql_condition::SL_WARNING,
+  /*
+    If the receiver/applier is running and the slave has open temporary
+    tables, we print a warning on CHANGE MASTER stating that there are open
+    temp tables and that there is a possibility that these could stay
+    forever eating up the memory resources.
+  */
+  if (slave_open_temp_tables > 0)
+    push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
 
-  }/* end 'if (thread_mask)' */
 
+  /*
+    auto_position is the only option that affects both receive
+    and execute sections of replication. So, this code is kept
+    outside both if (have_receive_option) and if (have_execute_option)
 
-    /*
-      auto_position is the only option that affects both receive
-      and execute sections of replication. So, this code is kept
-      outside both if (have_receive_option) and if (have_execute_option)
-
-      Here, we check if the auto_position option was used and set the flag
-      if the slave should connect to the master and look for GTIDs.
-    */
+    Here, we check if the auto_position option was used and set the flag
+    if the slave should connect to the master and look for GTIDs.
+  */
   if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->set_auto_position(
       (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
-
-////////////////////////////////////////////////////////////////////////////
 
   if (have_receive_option)
   {
@@ -8832,8 +8825,6 @@ bool change_master(THD* thd, Master_info* mi)
     mysql_mutex_unlock(&mi->data_lock);
   }
 
-////////////////////////////////////////////////////////////////////////////////////
-
   if (have_execute_option)
   {
     mysql_mutex_lock(&mi->rli->data_lock);
@@ -8863,30 +8854,16 @@ bool change_master(THD* thd, Master_info* mi)
     mysql_mutex_unlock(&mi->rli->data_lock);
   }
 
-////////////////////////////////////////////////////////////////////////////////////
-
   /*
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-
-  //TODO: this flushes both mi and mi->rli stuff ask Sven if this should be done
-  //      with ONLY IO THREAD STOPPED. Is not flushing okay BTW?
-
-  /*
-    This ensures receiver is not running else we would have errored out
-    earlier.
-  */
-  if (have_receive_option)
-    if (flush_master_info(mi, true))
-    {
-      my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
-      ret= TRUE;
-      goto err;
-    }
-
-
-////////////////////////////////////////////////////////////////////////////////////
+  if (flush_master_info(mi, true))
+  {
+    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
+    ret= TRUE;
+    goto err;
+  }
 
   if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
@@ -9013,10 +8990,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   mysql_cond_broadcast(&mi->data_cond);
 
-////////////////////////////////////////////////////////////////////////////////////
-
 err:
-  unlock_slave_threads(mi);
   if (ret == FALSE)
   {
     if (!mts_remove_worker_info)
@@ -9027,6 +9001,7 @@ err:
       else
         my_error(ER_MTS_RESET_WORKERS, MYF(0));
   }
+  unlock_slave_threads(mi);
   DBUG_RETURN(ret);
 }
 /**
