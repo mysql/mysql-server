@@ -82,7 +82,8 @@ select * from t1;
 
 FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000003 | grep "@2='String to find'"
+--replace_regex /(.*)/REMOVE_LINE:\1/ /REMOVE_LINE:(.*@2='String to find')/KEEP_LINE:\1/ /REMOVE_LINE:.*// /KEEP_LINE://
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000003
 
 #
 # Cleanup
