@@ -9,3 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+# MCP_BUG14748587 -->
+innodb_bug11766634 : Bug #14748587 INNODB.INNODB_BUG11766634 FAILING ON DAILY-5.6
+# <-- MCP_BUG14748587
