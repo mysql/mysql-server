@@ -57,6 +57,7 @@ sync_slave_with_master;
 
 let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
 
 --connection slave
 --disable_query_log
@@ -73,6 +74,8 @@ eval CHANGE MASTER TO
   MASTER_LOG_FILE= '$master_log_file',
   MASTER_LOG_POS= $master_log_pos,
   MASTER_HEARTBEAT_PERIOD= 20,
+  IGNORE_SERVER_IDS= ($master_id),
+  MASTER_AUTO_POSITION= 0,
   MASTER_SSL= 1,
   MASTER_SSL_CA= '$MYSQL_TEST_DIR/std_data/cacert.pem',
   MASTER_SSL_CERT= '$MYSQL_TEST_DIR/std_data/client-cert.pem',
@@ -111,6 +114,7 @@ eval CHANGE MASTER TO
   MASTER_LOG_FILE= '$master_log_file',
   MASTER_LOG_POS= $master_log_pos,
   MASTER_HEARTBEAT_PERIOD= 20,
+  IGNORE_SERVER_IDS= ($master_id),
   MASTER_SSL= 1,
   MASTER_SSL_CA= '$MYSQL_TEST_DIR/std_data/cacert.pem',
   MASTER_SSL_CERT= '$MYSQL_TEST_DIR/std_data/client-cert.pem',
@@ -260,6 +264,7 @@ eval CHANGE MASTER TO
   MASTER_HOST= '127.0.0.1',
   MASTER_USER= 'root',
   MASTER_DELAY= 0,
+  IGNORE_SERVER_IDS= (),
   MASTER_SSL= 0,
   MASTER_SSL_CA= '',
   MASTER_SSL_CERT= '',
