@@ -7511,7 +7511,7 @@ bool Xid_log_event::do_commit(THD *thd_arg)
   thd_arg->mdl_context.release_transactional_locks();
 
   if (thd_arg->variables.gtid_next.type == GTID_GROUP &&
-      thd_arg->owned_gtid.sidno != 0)
+      thd_arg->owned_gtid.sidno != 0 && opt_bin_log)
   {
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd_arg);

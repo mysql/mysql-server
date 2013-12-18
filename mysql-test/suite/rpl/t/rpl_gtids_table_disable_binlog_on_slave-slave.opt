@@ -1,0 +1,1 @@
+--enforce-gtid-consistency --disable-log-bin --log-slave-updates=false --gtid-mode=ON --force-restart

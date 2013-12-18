@@ -920,21 +920,21 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     //wait for master update, with optional timeout.
 
     global_sid_lock->wrlock();
-    const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+    const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
                         "!is_intersection_nonempty: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(executed_gtids),
       !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
-    logged_gtids->dbug_print("gtid_executed:");
+    executed_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
     /*
       Since commit is performed after log to binary log, we must also
       check if any GTID of wait_gtid_set is not yet committed.
     */
-    if (wait_gtid_set.is_subset(logged_gtids) &&
+    if (wait_gtid_set.is_subset(executed_gtids) &&
         !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
@@ -1323,14 +1323,17 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   }
 
   case UNTIL_SQL_BEFORE_GTIDS:
-    // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
+    /*
+      We only need to check once if executed_gtids set
+      contains any of the until_sql_gtids.
+    */
     if (until_sql_gtids_first_event)
     {
       until_sql_gtids_first_event= false;
       global_sid_lock->wrlock();
       /* Check if until GTIDs were already applied. */
-      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-      if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
+      const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
+      if (until_sql_gtids.is_intersection_nonempty(executed_gtids))
       {
         char *buffer= until_sql_gtids.to_string();
         global_sid_lock->unlock();
@@ -1363,8 +1366,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   case UNTIL_SQL_AFTER_GTIDS:
     {
       global_sid_lock->wrlock();
-      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-      if (until_sql_gtids.is_subset(logged_gtids))
+      const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
+      if (until_sql_gtids.is_subset(executed_gtids))
       {
         char *buffer= until_sql_gtids.to_string();
         global_sid_lock->unlock();
@@ -1849,7 +1852,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    relay_log.set_previous_gtid_set(&gtid_set);
+    relay_log.set_previous_gtid_set_relaylog(&gtid_set);
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that

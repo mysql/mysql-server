@@ -260,7 +260,7 @@ ENDIF()
 SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
+                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)

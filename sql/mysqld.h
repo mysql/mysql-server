@@ -223,6 +223,7 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern uint executed_gtids_compression_period;
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -365,6 +366,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
+extern PSI_mutex_key key_LOCK_compress_gtid_table;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -392,6 +394,7 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_BINLOG_prep_xids_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
+extern PSI_cond_key key_COND_compress_gtid_table;
 
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
@@ -652,6 +655,8 @@ extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 extern PSI_stage_info stage_slave_waiiting_for_workers_to_finish;
+extern PSI_stage_info stage_compressing_gtid_table;
+extern PSI_stage_info stage_suspending;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -725,6 +730,8 @@ extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
+extern mysql_mutex_t LOCK_compress_gtid_table;
+extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;

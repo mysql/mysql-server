@@ -1,0 +1,84 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SHOW CREATE TABLE mysql.gtid_executed;
+Table	Create Table
+gtid_executed	CREATE TABLE `gtid_executed` (
+  `sid` char(36) NOT NULL COMMENT 'Textual representation of the sidno.',
+  `gno_start` bigint(20) NOT NULL COMMENT 'First GNO of interval.',
+  `gno_end` bigint(20) NOT NULL COMMENT 'Last GNO of interval.',
+  PRIMARY KEY (`sid`,`gno_start`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Verify that these gtids are stored into gtid table and can be
+# reported from global.gtid_executed for normal DDLs.
+CREATE TABLE IF NOT EXISTS t1 (a int) engine=Innodb;
+CREATE TABLE t2 (a int) engine=myisam;
+# Stored gtids MASTER_UUID:1-4 in gtid_executed table on master
+SELECT * FROM mysql.gtid_executed;
+sid	gno_start	gno_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+include/assert.inc [committed gtids MASTER_UUID:1-2]
+# Verify that transactions' gtids are stored into gtid table and can be
+# reported from global.gtid_executed correctly.
+INSERT INTO t2 values(1);
+BEGIN;
+INSERT INTO t2 values(2);
+INSERT INTO t1 values(1);
+INSERT INTO t1 values(2);
+COMMIT;
+# Stored gtids MASTER_UUID:1-5 in gtid_executed table on master
+SELECT * FROM mysql.gtid_executed;
+sid	gno_start	gno_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+MASTER_UUID	3	3
+MASTER_UUID	4	4
+MASTER_UUID	5	5
+include/assert.inc [committed gtids MASTER_UUID:1-5]
+connection slave
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+# Verify that the transaction is skiped if its specified gtid
+# is already in gtid table.
+SET @@SESSION.GTID_NEXT= 'MASTER_UUID:4';
+INSERT INTO t1 values(11);
+# Stored gtids MASTER_UUID:1-5 in gtid_executed table on slave
+SELECT * FROM mysql.gtid_executed;
+sid	gno_start	gno_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+MASTER_UUID	3	3
+MASTER_UUID	4	4
+MASTER_UUID	5	5
+include/assert.inc [committed gtids MASTER_UUID:1-5]
+# Verify that the specified gtid to GTID_NEXT is stored into
+# gtid table.
+SET @@SESSION.GTID_NEXT= 'MASTER_UUID:17';
+COMMIT;
+# Stored gtids MASTER_UUID:1-5:17 in gtid_executed table on slave
+SELECT * FROM mysql.gtid_executed;
+sid	gno_start	gno_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+MASTER_UUID	3	3
+MASTER_UUID	4	4
+MASTER_UUID	5	5
+MASTER_UUID	17	17
+include/assert.inc [committed gtids MASTER_UUID:1-5:17]
+SET GTID_NEXT='AUTOMATIC';
+# Verify that no gtid is generated for transaction
+# when binlog is disabled
+INSERT INTO t1 values(12);
+# Stored gtids MASTER_UUID:1-5:17 in gtid_executed table on slave.
+SELECT * FROM mysql.gtid_executed;
+sid	gno_start	gno_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+MASTER_UUID	3	3
+MASTER_UUID	4	4
+MASTER_UUID	5	5
+MASTER_UUID	17	17
+DROP TABLE t1, t2;
+include/rpl_end.inc

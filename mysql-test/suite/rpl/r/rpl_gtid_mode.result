@@ -57,8 +57,6 @@ include/wait_for_slave_io_error.inc [errno=1593 # ER_SLAVE_FATAL_ERROR]
 include/stop_slave_sql.inc
 ==== Master and slave have GTID_MODE = ON ====
 include/rpl_stop_server.inc [server_number=1]
----- GTID_MODE = ON requires --log-bin --log-slave-updates ----
-include/assert_command_output.inc
 include/rpl_start_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
 include/assert.inc [GTID_MODE should be ON now.]

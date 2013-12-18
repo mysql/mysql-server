@@ -198,9 +198,13 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
+  --let $opt_binlog= `SELECT @@GLOBAL.log_bin`
   if (!$rpl_skip_reset_master_and_slave)
   {
-    RESET MASTER;
+    if ($opt_binlog != 0)
+    {
+      RESET MASTER;
+    }
     RESET SLAVE;
   }
 

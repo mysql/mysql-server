@@ -103,6 +103,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -125,6 +126,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -157,6 +159,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -189,6 +192,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -222,6 +226,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -255,6 +260,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -284,6 +290,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -445,6 +452,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -502,6 +510,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -558,6 +567,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
@@ -618,6 +628,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
