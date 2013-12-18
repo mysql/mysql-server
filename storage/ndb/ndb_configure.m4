@@ -528,6 +528,22 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     NDBJTIE_OPT="ndbjtie"
     NDBJTIE_LIBS="ndbjtie/libndbjtie.la"
 
+    # generate clusterj maven pom.xml files
+    AC_CONFIG_FILES(
+      storage/ndb/clusterj/pom.xml
+      storage/ndb/clusterj/clusterj-api/pom.xml
+      storage/ndb/clusterj/clusterj-core/pom.xml
+      storage/ndb/clusterj/clusterj-jdbc/pom.xml
+      storage/ndb/clusterj/clusterj-jpatest/pom.xml
+      storage/ndb/clusterj/clusterj-openjpa/pom.xml
+      storage/ndb/clusterj/clusterj-test/pom.xml
+      storage/ndb/clusterj/clusterj-tie/pom.xml
+      storage/ndb/clusterj/clusterj-unit/pom.xml
+      )
+    # generate maven install ndbjtie command
+    AC_CONFIG_FILES([storage/ndb/clusterj/mvn_install_ndbjtie.sh],
+      [chmod +x storage/ndb/clusterj/mvn_install_ndbjtie.sh])
+
     # generate jtie unit tests:
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/jtie/test/myapi/test_myapi.sh],
            [chmod +x storage/ndb/src/ndbjtie/jtie/test/myapi/test_myapi.sh])
@@ -862,7 +878,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     JAVA_NDB_VERSION=$JAVA_NDB_VERSION.$NDB_VERSION_STATUS
   fi
   AC_SUBST(JAVA_NDB_VERSION)
-
+  AC_SUBST(JAVA_MVN_SUFFIX) 
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
