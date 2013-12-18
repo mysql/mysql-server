@@ -22,7 +22,7 @@
 
 "use strict";
 
-var     BitMask    = require("../impl/Common/BitMask.js");
+var     BitMask    = require("../impl/common/BitMask.js");
 var      udebug    = unified_debug.getLogger("Query.js");
 var userContext    = require("./UserContext.js");
 
