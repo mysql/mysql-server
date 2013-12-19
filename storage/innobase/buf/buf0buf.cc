@@ -572,10 +572,12 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 #else
-
-		ut_d(for (ulint i = 0; i < UNIV_PAGE_SIZE; i++) {
-		     ut_a(read_buf[i] == 0); });
-
+		for (ulint i = 0; i < UNIV_PAGE_SIZE; i++) {
+			if (read_buf[i] != 0) {
+				return(TRUE);
+			}
+		}
+			
 		return(FALSE);
 #endif /* UNIV_INNOCHECKSUM */
 

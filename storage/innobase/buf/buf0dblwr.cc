@@ -347,13 +347,11 @@ At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
-recovery, this function uses a possible doublewrite buffer to restore
-half-written pages in the data files. */
-
+recovery, this function loads the pages from double write buffer into memory. */
 void
-buf_dblwr_init_or_restore_pages(
-/*============================*/
-	ibool	restore_corrupt_pages)	/*!< in: TRUE=restore pages */
+buf_dblwr_init_or_load_pages(
+/*==========================*/
+	bool load_corrupt_pages)
 {
 	byte*	buf;
 	byte*	read_buf;
@@ -364,8 +362,8 @@ buf_dblwr_init_or_restore_pages(
 	ibool	reset_space_ids = FALSE;
 	byte*	doublewrite;
 	ulint	space_id;
-	ulint	page_no;
 	ulint	i;
+	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
 
 	/* We do the file i/o past the buffer pool */
 
@@ -427,13 +425,12 @@ buf_dblwr_init_or_restore_pages(
 	for (i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
 
 		ulint source_page_no;
-		page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
 		if (reset_space_ids) {
 
 			space_id = 0;
 			mach_write_to_4(page
-					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0);
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 			/* We do not need to calculate new checksums for the
 			pages because the field .._SPACE_ID does not affect
 			them. Write the page back to where we read it from. */
@@ -445,47 +442,67 @@ buf_dblwr_init_or_restore_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, true, 0, 0, source_page_no, 0,
+			fil_io(OS_FILE_WRITE, true, space_id, 0, source_page_no, 0,
 			       UNIV_PAGE_SIZE, page, NULL);
-		} else {
 
-			space_id = mach_read_from_4(
-				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		} else if (load_corrupt_pages) {
+
+			recv_dblwr.add(page);
 		}
 
-		if (!restore_corrupt_pages) {
-			/* The database was shut down gracefully: no need to
-			restore pages */
+		page += UNIV_PAGE_SIZE;
+	}
 
-		} else if (!fil_tablespace_exists_in_mem(space_id)) {
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+leave_func:
+	ut_free(unaligned_read_buf);
+}
+
+/****************************************************************//**
+Process the double write buffer pages. */
+void
+buf_dblwr_process()
+/*===============*/
+{
+	ulint	space_id;
+	ulint	page_no;
+	ulint	page_no_dblwr = 0;
+	byte*	page;
+	byte*	read_buf;
+	byte*	unaligned_read_buf;
+	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
+
+	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+
+	read_buf = static_cast<byte*>(
+		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
+
+	for (std::list<byte*>::iterator i = recv_dblwr.pages.begin();
+	     i != recv_dblwr.pages.end(); ++i, ++page_no_dblwr ) {
+
+		page = *i;
+		page_no  = mach_read_from_4(page + FIL_PAGE_OFFSET);
+		space_id = mach_read_from_4(page + FIL_PAGE_SPACE_ID);
+
+		if (!fil_tablespace_exists_in_mem(space_id)) {
 			/* Maybe we have dropped the single-table tablespace
 			and this page once belonged to it: do nothing */
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
+
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"A page in the doublewrite buffer is"
-					" not within space bounds; space id %lu"
-					" page number %lu, page %lu in"
-					" doublewrite buf.",
-					(ulong) space_id, (ulong) page_no,
-					(ulong) i);
+					"A page in the doublewrite buffer is "
+					"not within space bounds; space id %lu"
+					" page number %lu, page %lu in "
+					"doublewrite buf.", (ulong) space_id,
+					(ulong) page_no, page_no_dblwr);
 			}
 
-		} else if (space_id == TRX_SYS_SPACE
-			   && ((page_no >= block1
-				&& page_no
-				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-			       || (page_no >= block2
-				   && page_no
-				   < (block2
-				      + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)))) {
-
-			/* It is an unwritten doublewrite buffer page:
-			do nothing */
 		} else {
 			ulint	zip_size = fil_space_get_zip_size(space_id);
 
@@ -496,6 +513,9 @@ buf_dblwr_init_or_restore_pages(
 			       read_buf, NULL);
 
 			/* Check if the page is corrupt */
+			ib_logf(IB_LOG_LEVEL_INFO,
+					"Checking space:%lu page:%lu",
+					 (ulong) space_id, (ulong) page_no);
 
 			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
 
@@ -543,14 +563,11 @@ buf_dblwr_init_or_restore_pages(
 					" the doublewrite buffer.");
 			}
 		}
-
-		page += UNIV_PAGE_SIZE;
 	}
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
-
-leave_func:
 	ut_free(unaligned_read_buf);
+	recv_dblwr.pages.clear();
 }
 
 /****************************************************************//**
@@ -758,9 +775,32 @@ buf_dblwr_write_block_to_datafile(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
+	/* The debug point ib_corrupt_page0 is used to corrupt the first half
+	of the first page (page_no == 0) of the single table tablespace
+	(space_id != 0).  This is to simulate a torn page write. */
+#ifndef DBUG_OFF
+	bool corrupted = false;
+#endif /* !DBUG_OFF */
+	DBUG_EXECUTE_IF("ib_corrupt_page0", {
+		if (buf_block_get_space(block) != 0
+		    && buf_block_get_page_no(block) == 0) {
+			memset(block->frame, 0x8228, UNIV_PAGE_SIZE/2);
+			ib_logf(IB_LOG_LEVEL_INFO, "Corrupting space:%lu",
+				buf_block_get_space(block));
+			corrupted = true;
+			sync = true;
+		}
+	});
+
 	fil_io(flags, sync, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 	       (void*) block->frame, (void*) block);
+
+	DBUG_EXECUTE_IF("ib_corrupt_page0", {
+		if (corrupted) {
+			DBUG_SUICIDE();
+		}
+	});
 }
 
 /********************************************************************//**
