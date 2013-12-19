@@ -30,6 +30,7 @@
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
 #include "parse_file.h"
+#include "sql_sort.h"
 #include "table_id.h"
 
 /* Structs that defines the TABLE */
@@ -206,8 +207,7 @@ typedef struct st_order {
   struct st_order *next;
   Item   **item;                        /* Point at item in select fields */
   Item   *item_ptr;                     /* Storage for initial item */
-  int    counter;                       /* position in SELECT list, correct
-                                           only if counter_used is true */
+
   enum enum_order {
     ORDER_NOT_RELEVANT,
     ORDER_ASC,
@@ -216,7 +216,6 @@ typedef struct st_order {
 
   enum_order direction;                 /* Requested direction of ordering */
   bool   in_field_list;                 /* true if in select field list */
-  bool   counter_used;                  /* parameter was counter of columns */
   /**
      Tells whether this ORDER element was referenced with an alias or with an
      expression, in the query:
@@ -320,52 +319,6 @@ enum tmp_table_type
 };
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
-
-class Filesort_info
-{
-  /// Buffer for sorting keys.
-  Filesort_buffer filesort_buffer;
-
-public:
-  IO_CACHE *io_cache;           /* If sorted through filesort */
-  uchar     *buffpek;           /* Buffer for buffpek structures */
-  uint      buffpek_len;        /* Max number of buffpeks in the buffer */
-  uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */
-  size_t    addon_length;       /* Length of the buffer */
-  struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
-  void    (*unpack)(struct st_sort_addon_field *, uchar *); /* To unpack back */
-  uchar     *record_pointers;    /* If sorted in memory */
-  ha_rows   found_records;      /* How many records in sort */
-
-  Filesort_info(): record_pointers(0) {};
-  /** Sort filesort_buffer */
-  void sort_buffer(Sort_param *param, uint count)
-  { filesort_buffer.sort_buffer(param, count); }
-
-  /**
-     Accessors for Filesort_buffer (which @c).
-  */
-  uchar *get_record_buffer(uint idx)
-  { return filesort_buffer.get_record_buffer(idx); }
-
-  uchar **get_sort_keys()
-  { return filesort_buffer.get_sort_keys(); }
-
-  uchar **alloc_sort_buffer(uint num_records, uint record_length)
-  { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
-
-  std::pair<uint, uint> sort_buffer_properties() const
-  { return filesort_buffer.sort_buffer_properties(); }
-
-  void free_sort_buffer()
-  { filesort_buffer.free_sort_buffer(); }
-
-  void init_record_pointers()
-  { filesort_buffer.init_record_pointers(); }
-
-  size_t sort_buffer_size() const
-  { return filesort_buffer.sort_buffer_size(); }
-};
 
 class Field_blob;
 class Table_trigger_dispatcher;
@@ -1918,7 +1871,6 @@ public:
                           TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);
   void hide_view_error(THD *thd);
-  TABLE_LIST *find_underlying_table(TABLE *table);
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
@@ -2071,6 +2023,22 @@ public:
     if (embedding->sj_on_expr)
       return embedding->embedding;
     return embedding;
+  }
+  /**
+    Return the base table entry of an updatable view (or table).
+    In DELETE, UPDATE and LOAD, a view used as a target table must be mergeable,
+    updatable and defined over a single table.
+  */
+  TABLE_LIST *updatable_base_table()
+  {
+    TABLE_LIST *tbl= this;
+    DBUG_ASSERT(tbl->updatable && !tbl->multitable_view);
+    while (tbl->view)
+    {
+      tbl= tbl->merge_underlying_list;
+      DBUG_ASSERT(tbl->updatable && !tbl->multitable_view);
+    }
+    return tbl;
   }
 
 private:

@@ -17,7 +17,7 @@
 #define _my_plugin_h
 
 /*
-  On Windows, exports from DLL need to be declared
+  On Windows, exports from DLL need to be declared.
   Also, plugin needs to be declared as extern "C" because MSVC 
   unlike other compilers, uses C++ mangling for variables not only
   for functions.

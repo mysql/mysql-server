@@ -883,6 +883,8 @@ srv_init(void)
 
 		srv_buf_dump_event = os_event_create(0);
 
+		buf_flush_event = os_event_create("buf_flush_event");
+
 		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
 
@@ -936,6 +938,7 @@ srv_free(void)
 		os_event_destroy(srv_error_event);
 		os_event_destroy(srv_monitor_event);
 		os_event_destroy(srv_buf_dump_event);
+		os_event_destroy(buf_flush_event);
 	}
 
 	trx_i_s_cache_free(trx_i_s_cache);
@@ -1909,7 +1912,7 @@ srv_sync_log_buffer_in_background(void)
 	srv_main_thread_op_info = "flushing log";
 	if (difftime(current_time, srv_last_log_flush_time)
 	    >= srv_flush_log_at_timeout) {
-		log_buffer_sync_in_background(TRUE);
+		log_buffer_sync_in_background(true);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
 	}

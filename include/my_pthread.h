@@ -111,6 +111,16 @@ struct timespec {
   ((TS1.tv.i64 - TS2.tv.i64) * 100)
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
+/*
+  Existing mysql_thread_create() or pthread_create() does not work well
+  in windows platform when threads are joined because
+  A)during thread creation, thread handle is not stored.
+  B)during thread join, thread handle is retrieved using OpenThread().
+    OpenThread() does not behave properly when thread to be joined is already
+    exited.
+  Use pthread_create_get_handle() and pthread_join_with_handle() function
+  instead of mysql_thread_create() function for windows joinable threads.
+*/
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
@@ -127,7 +137,53 @@ int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
+/**
+  Create thread.
+
+  Existing mysql_thread_create does not work well in windows platform
+  when threads are joined. Use pthread_create_get_handle() and
+  pthread_join_with_handle() function instead of mysql_thread_create()
+  function for windows.
+
+  @param thread_id    reference to pthread object
+  @param attr         reference to pthread attribute
+  @param func         pthread handler function
+  @param param        parameters to pass to newly created thread
+  @param out_handle   output parameter to get newly created thread handle
+
+  @return int
+    @retval 0 success
+    @retval 1 failure
+*/
+int pthread_create_get_handle(pthread_t *thread_id,
+                              const pthread_attr_t *attr,
+                              pthread_handler func, void *param,
+                              HANDLE *out_handle);
+
+/**
+  Wait for thread termination.
+
+  @param handle       handle of the thread to wait for
+
+  @return  int
+    @retval 0 success
+    @retval 1 failure
+*/
+int pthread_join_with_handle(HANDLE handle);
+
 void pthread_exit(void *a);
+
+/*
+  Existing pthread_join() does not work well in windows platform when
+  threads are joined because
+  A)during thread creation thread handle is not stored.
+  B)during thread join, thread handle is retrieved using OpenThread().
+    OpenThread() does not behave properly when thread to be joined is already
+    exited.
+
+  Use pthread_create_get_handle() and pthread_join_with_handle()
+  function instead for windows joinable threads.
+*/
 int pthread_join(pthread_t thread, void **value_ptr);
 int pthread_cancel(pthread_t thread);
 extern int pthread_dummy(int);
@@ -157,7 +213,6 @@ extern int pthread_dummy(int);
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_attr_setscope(A,B)
-#define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 #define pthread_yield() SwitchToThread()
@@ -176,7 +231,6 @@ extern int pthread_dummy(int);
 #define pthread_key(T,V) pthread_key_t V
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
 #define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
-#define pthread_detach_this_thread()
 #define pthread_handler_t EXTERNC void *
 typedef void *(* pthread_handler)(void *);
 

@@ -24,7 +24,6 @@ Created 2011/12/19
 *******************************************************/
 
 #include "ha_prototypes.h"
-
 #include "buf0dblwr.h"
 
 #ifdef UNIV_NONINL

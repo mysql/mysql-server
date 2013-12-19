@@ -3352,7 +3352,7 @@ static inline const char *ha_resolve_storage_engine_name(const handlerton *db_ty
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
-  return db_type == NULL ? FALSE : test(db_type->flags & flag);
+  return db_type == NULL ? FALSE : MY_TEST(db_type->flags & flag);
 }
 
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
@@ -3453,8 +3453,8 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
-void trans_register_ha(THD *thd, bool all, handlerton *ht);
-
+void trans_register_ha(THD *thd, bool all, handlerton *ht,
+                       const ulonglong *trxid);
 /*
   Storage engine has to assume the transaction will end up with 2pc if
    - there is more than one 2pc-capable storage engine available

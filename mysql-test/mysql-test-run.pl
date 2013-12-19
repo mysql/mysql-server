@@ -4634,7 +4634,7 @@ sub extract_warning_lines ($$) {
       {
 	# Remove initial timestamp and look for consecutive identical lines
 	my $line_pat= $line;
-	$line_pat =~ s/^[0-9: ]*//;
+	$line_pat =~ s/^[0-9:\-\+\.TZ ]*//;
 	if ($line_pat eq $last_pat) {
 	  $num_rep++;
 	} else {

@@ -62,6 +62,7 @@ INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db4.t values (1),(2),(3);
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
 COMMIT;
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 DROP TABLE db1.t_temp;
 DROP TABLE db2.t_temp;
 DROP TABLE db3.t_temp;

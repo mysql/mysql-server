@@ -103,53 +103,55 @@ select 2 as a, 2 as b) as t2 for update;
 id	1
 select_type	PRIMARY
 table	<derived2>
+partitions	NULL
 type	ALL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	2
+filtered	100.00
 Extra	NULL
 id	1
 select_type	PRIMARY
 table	t1
+partitions	NULL
 type	eq_ref
 possible_keys	PRIMARY
 key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
+filtered	100.00
 Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
+partitions	NULL
 type	NULL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
+filtered	NULL
 Extra	No tables used
 id	3
 select_type	UNION
 table	NULL
+partitions	NULL
 type	NULL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
+filtered	NULL
 Extra	No tables used
-id	NULL
-select_type	UNION RESULT
-table	<union2,3>
-type	ALL
-possible_keys	NULL
-key	NULL
-key_len	NULL
-ref	NULL
-rows	NULL
-Extra	Using temporary
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select 1 AS `1` from `test`.`t1` join (/* select#2 */ select 2 AS `a`,1 AS `b` union all /* select#3 */ select 2 AS `a`,2 AS `b`) `t2` where ((`test`.`t1`.`a` = `t2`.`a`) and (`test`.`t1`.`b` = `t2`.`b`))
 #
 # Demonstrate that the reported SELECT statement
 # no longer produces warnings.
@@ -307,53 +309,55 @@ select 3 as a, 1 as b) as t2 for update;
 id	1
 select_type	PRIMARY
 table	<derived2>
+partitions	NULL
 type	ALL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	2
+filtered	100.00
 Extra	NULL
 id	1
 select_type	PRIMARY
 table	t1
+partitions	NULL
 type	eq_ref
 possible_keys	PRIMARY
 key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
+filtered	100.00
 Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
+partitions	NULL
 type	NULL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
+filtered	NULL
 Extra	No tables used
 id	3
 select_type	UNION
 table	NULL
+partitions	NULL
 type	NULL
 possible_keys	NULL
 key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
+filtered	NULL
 Extra	No tables used
-id	NULL
-select_type	UNION RESULT
-table	<union2,3>
-type	ALL
-possible_keys	NULL
-key	NULL
-key_len	NULL
-ref	NULL
-rows	NULL
-Extra	Using temporary
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select 1 AS `1` from `test`.`t1` join (/* select#2 */ select 3 AS `a`,2 AS `b` union all /* select#3 */ select 3 AS `a`,1 AS `b`) `t2` where ((`test`.`t1`.`a` = `t2`.`a`) and (`test`.`t1`.`b` = `t2`.`b`))
 # Lock the record.
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;

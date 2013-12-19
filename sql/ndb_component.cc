@@ -82,7 +82,6 @@ Ndb_component::start()
 void
 Ndb_component::run_impl()
 {
-  pthread_detach_this_thread();
   pthread_mutex_lock(&m_start_stop_mutex);
   if (m_thread_state == TS_STARTING)
   {

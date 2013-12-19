@@ -598,5 +598,38 @@ DROP DATABASE connected_db;
 # This too should throw single warning message.
 --exec $MYSQL -uroot --password="" --password="" -e "SELECT 1" 2>&1
 
+#
+# WL#6797 Method for clearing session state
+#
+
+--write_file $MYSQLTEST_VARDIR/tmp/WL6797.sql
+
+# this case is added for code coverage
+# clean session state
+resetconnection;
+CREATE DATABASE wl6797;
+USE wl6797;
+CREATE TABLE t1 (a int);
+PREPARE x FROM 'INSERT INTO t1 VALUES (1), (2)';
+EXECUTE x;
+SELECT * FROM t1 ORDER BY 1;
+# clean session state which will clear the prepare
+# statement from internal cache
+resetconnection;
+# below execute should report error
+EXECUTE x;
+EOF
+
+--write_file $MYSQLTEST_VARDIR/tmp/WL6797_cleanup.sql
+DROP TABLE wl6797.t1;
+DROP DATABASE wl6797;
+EOF
+
+--error 1
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/WL6797.sql 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/WL6797.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/WL6797_cleanup.sql 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/WL6797_cleanup.sql
+
 --echo
 --echo End of tests

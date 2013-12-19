@@ -44,6 +44,8 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
 #include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
@@ -792,7 +794,7 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
   {
     if (*need_comma)
       my_b_printf(file,", ");
-    my_b_printf(file,"%s=%d", name, test(flags & option));
+    my_b_printf(file,"%s=%d", name, MY_TEST(flags & option));
     *need_comma= 1;
   }
 }
@@ -3026,7 +3028,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
-      if (schedule_next_event(this, rli))
+      if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli))
       {
         rli->abort_slave= 1;
         DBUG_RETURN(NULL);
@@ -3758,7 +3760,7 @@ bool Query_log_event::write(IO_CACHE* file)
     commit timestamp. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (!file->commit_seq_offset > 0)
+  if (file->commit_seq_offset == 0)
   {
     file->commit_seq_offset= QUERY_HEADER_LEN +
                              (uint)(start-start_of_status);
@@ -7238,7 +7240,6 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
     thd->first_successful_insert_id_in_prev_stmt= val;
     break;
   case INSERT_ID_EVENT:
@@ -7475,6 +7476,8 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 bool Xid_log_event::do_commit(THD *thd_arg)
 {
+  DBUG_EXECUTE_IF("dbug.reached_commit",
+                  {DBUG_SET("+d,dbug.enabled_commit");});
   bool error= trans_commit(thd_arg); /* Automatically rolls back on error. */
   DBUG_EXECUTE_IF("crash_after_apply", 
                   sql_print_information("Crashing crash_after_apply.");
@@ -13543,6 +13546,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
     global_sid_lock->rdlock();
     sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
     global_sid_lock->unlock();
+    MYSQL_SET_TRANSACTION_GTID(thd_arg->m_transaction_psi, &sid, &spec);
   }
   else
     sid.clear();

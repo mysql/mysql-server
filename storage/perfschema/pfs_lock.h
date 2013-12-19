@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -175,27 +175,16 @@ struct pfs_lock
   */
   void allocated_to_free(void)
   {
-#ifndef DBUG_OFF
-    extern volatile bool ready_to_exit;
-#endif
-
     /*
       If this record is not in the ALLOCATED state and the caller is trying
       to free it, this is a bug: the caller is confused,
       and potentially damaging data owned by another thread or object.
       The correct assert to use here to guarantee data integrity is simply:
         DBUG_ASSERT(m_state == PFS_LOCK_ALLOCATED);
-      Now, because of Bug#56666 (Race condition between the server main thread
-      and the kill server thread), this assert actually fails during shutdown,
-      and the failure is legitimate, on concurrent calls to mysql_*_destroy(),
-      when destroying the instrumentation of an object ... twice.
-      During shutdown this has no consequences for the performance schema,
-      so the assert is relaxed with the "|| ready_to_exit" condition as a work
-      around until Bug#56666 is fixed.
     */
     uint32 copy= PFS_atomic::load_u32(&m_version_state);
     /* Make sure the record was ALLOCATED. */
-    DBUG_ASSERT(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED) || ready_to_exit);
+    DBUG_ASSERT(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED));
     /* Keep the same version, set the FREE state */
     uint32 new_val= (copy & VERSION_MASK) + PFS_LOCK_FREE;
     PFS_atomic::store_u32(&m_version_state, new_val);

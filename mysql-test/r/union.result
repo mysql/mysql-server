@@ -83,11 +83,12 @@ a	b
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
 a	b
@@ -107,23 +108,25 @@ explain extended
 select * from t1 where a in
 (select a from t1 union select a from t1 order by (select a))
 union select * from t1 order by (select a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-3	DEPENDENT UNION	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-5	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-NULL	UNION RESULT	<union1,5>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
-6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+3	DEPENDENT UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `a`)
 explain select a,b from t1 union all select a,b from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union all /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain select xx from t1 union select 1;
 ERROR 42S22: Unknown column 'xx' in 'field list'
 explain select a,b from t1 union select 1;
@@ -456,10 +459,12 @@ select length(version()) > 1 as `*` UNION select 2;
 create table t1 (a int);
 insert into t1 values (0), (3), (1), (2);
 explain (select * from t1) union (select * from t1) order by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) order by `a`
 drop table t1;
 CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
@@ -492,11 +497,12 @@ create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
 explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	UNION	t2	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+2	UNION	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
@@ -514,16 +520,20 @@ a	b
 3	3
 4	4
 explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (Block Nested Loop)
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	UNION	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+2	UNION	t2	NULL	index	PRIMARY	PRIMARY	4	NULL	4	75.00	Using where; Using index; Using join buffer (Block Nested Loop)
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 0) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
-2	UNION	t1	ref	b	b	5	const	1	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+2	UNION	t1	NULL	ref	b	b	5	const	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
 drop table t1,t2;
 create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
 create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
@@ -1557,11 +1567,12 @@ SELECT a FROM t1
 UNION
 SELECT a FROM t1
 ORDER BY a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` union /* select#2 */ select NULL AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
@@ -1612,11 +1623,12 @@ INSERT INTO t2 VALUES (1),(2);
 # Should not crash
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
@@ -1627,11 +1639,12 @@ a
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (match `a` against ('+abc' in boolean mode))
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
@@ -1649,12 +1662,13 @@ a
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
 # Should not crash
@@ -1862,3 +1876,90 @@ z
 select b as z from t1 union (select b from t1) order by (select z);
 z
 drop table t1;
+#
+# WL#1763 Avoid creating temporary table in UNION ALL
+#
+EXPLAIN SELECT 1 UNION ALL SELECT 1 LIMIT 1 OFFSET 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union all /* select#2 */ select 1 AS `1` limit 1,1
+# Bug #17579498 CHANGES IN DATATYPE OF THE RESULT QUERY IN UNION.
+CREATE TABLE t1 (a TIME);
+CREATE TABLE t2 (b DATETIME);
+CREATE TABLE t3
+SELECT a FROM t1 UNION ALL SELECT b FROM t2;
+SELECT column_name, column_type
+FROM information_schema.columns
+WHERE TABLE_NAME='t3';
+column_name	column_type
+a	datetime
+DROP TABLE t1, t2, t3;
+# Bug #17602922 RESULT DIFFERENCES IN UNION QUERIES WITH IN
+# (SUBQUERY-UNION ALL)
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('j');
+INSERT INTO t1 VALUES ('k');
+INSERT INTO t1 VALUES ('r');
+INSERT INTO t1 VALUES ('r');
+INSERT INTO t1 VALUES ('h');
+SELECT a FROM t1 WHERE a IN (SELECT 'r' FROM t1 UNION ALL SELECT 'j');
+a
+j
+r
+r
+CREATE TABLE t2
+SELECT a FROM t1 WHERE a IN (SELECT 'r' FROM t1 UNION ALL SELECT 'j');
+SELECT * FROM t2;
+a
+j
+r
+r
+DROP TABLE t1, t2;
+# Bug #17580869 FOUND_ROWS() VALUE DO NOT MATCH WITH
+# UNION-LIMIT QUERIES
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
+a	SUM(a)
+1	1
+NULL	NULL
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+DROP TABLE t1, t2;
+# Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT
+# SQL_INSERT.CC
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 SELECT a, a FROM t1 UNION ALL SELECT a, a FROM t1;
+ERROR 42S21: Duplicate column name 'a'
+DROP TABLE t1;
+# Bug #17694956 RESULT DIFFERENCES IN UNION ALL QUERIES WITH LIMIT
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+(SELECT a FROM t1 ORDER BY a LIMIT 0) UNION ALL SELECT a FROM t1;
+a
+1
+DROP TABLE t1;
+# Bug #17708480 FOUND_ROWS() VALUE DO NOT MATCH WITH UNION ALL QUERIES
+CREATE TABLE t1 (a INT) ENGINE=MEMORY;
+CREATE TABLE t2 (a INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (1);
+SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1;
+a
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+1
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION ALL SELECT * FROM t2;
+a
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+1
+DROP TABLE t1, t2;
+# End of WL1763 tests

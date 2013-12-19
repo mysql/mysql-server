@@ -53,7 +53,6 @@ Created 10/25/1995 Heikki Tuuri
 # include "os0event.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
-static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0space.h"
 #include <set>
@@ -308,8 +307,13 @@ struct fil_system_t {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+#ifdef UNIV_HOTBACKUP
+static ulint	srv_data_read;
+static ulint	srv_data_written;
+#endif /* UNIV_HOTBACKUP */
+
 /** Determine if (i) is a user tablespace id or not. */
-# define fil_is_user_tablespace_id(i) 		\
+# define fil_is_user_tablespace_id(i)		\
 	(((i) > srv_undo_tablespaces_open)	\
 	 && ((i) != srv_tmp_space.space_id()))
 
@@ -727,11 +731,9 @@ fil_node_open_file(
 			/* The following call prints an error message */
 			os_file_get_last_error(true);
 
-			ut_print_timestamp(stderr);
-
-			ib_logf(IB_LOG_LEVEL_WARN, "InnoDB: Error: cannot "
-				"open %s\n. InnoDB: Have you deleted .ibd "
-				"files under a running mysqld server?\n",
+			ib_logf(IB_LOG_LEVEL_WARN, "Cannot open '%s'."
+				" Have you deleted .ibd files under a"
+				" running mysqld server?",
 				node->name);
 
 			return(false);
@@ -1861,13 +1863,9 @@ fil_write_flushed_lsn_to_data_files(
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no)	/*!< in: latest archived log file number */
 {
-	fil_space_t*	space;
-	fil_node_t*	node;
-	dberr_t		err;
-
 	mutex_enter(&fil_system->mutex);
 
-	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL;
 	     space = UT_LIST_GET_NEXT(space_list, space)) {
 
@@ -1881,9 +1879,11 @@ fil_write_flushed_lsn_to_data_files(
 		    && !fil_is_user_tablespace_id(space->id)) {
 			ulint	sum_of_sizes = 0;
 
-			for (node = UT_LIST_GET_FIRST(space->chain);
+			for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 			     node != NULL;
 			     node = UT_LIST_GET_NEXT(chain, node)) {
+
+				dberr_t		err;
 
 				mutex_exit(&fil_system->mutex);
 
@@ -2125,7 +2125,7 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint		type,		/*!< in: MLOG_FILE_CREATE,
+	mlog_id_t	type,		/*!< in: MLOG_FILE_CREATE,
 					MLOG_FILE_CREATE2,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
@@ -2157,6 +2157,7 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(
 		type, space_id, log_flags, log_ptr, mtr);
+
 	if (type == MLOG_FILE_CREATE2) {
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;
@@ -4467,27 +4468,25 @@ fil_load_single_table_tablespace(
 			return;
 		}
 no_good_file:
-		fprintf(stderr,
-			"InnoDB: We do not continue the crash recovery,"
-			" because the table may become\n"
-			"InnoDB: corrupt if we cannot apply the log"
-			" records in the InnoDB log to it.\n"
-			"InnoDB: To fix the problem and start mysqld:\n"
-			"InnoDB: 1) If there is a permission problem"
-			" in the file and mysqld cannot\n"
-			"InnoDB: open the file, you should"
-			" modify the permissions.\n"
-			"InnoDB: 2) If the table is not needed, or you"
-			" can restore it from a backup,\n"
-			"InnoDB: then you can remove the .ibd file,"
-			" and InnoDB will do a normal\n"
-			"InnoDB: crash recovery and ignore that table.\n"
-			"InnoDB: 3) If the file system or the"
-			" disk is broken, and you cannot remove\n"
-			"InnoDB: the .ibd file, you can set"
-			" innodb_force_recovery > 0 in my.cnf\n"
-			"InnoDB: and force InnoDB to continue crash"
-			" recovery here.\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"We do not continue the crash recovery, because"
+			" the table may become corrupt if we cannot apply"
+			" the log records in the InnoDB log to it."
+			"To fix the problem and start mysqld:");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"1) If there is a permission problem in the file"
+			" and mysqld cannot open the file, you should"
+			" modify the permissions.");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"2) If the table is not needed, or you can restore"
+			" it from a backup, then you can remove the .ibd"
+			" file, and InnoDB will do a normal crash recovery"
+			" and ignore that table.");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"3) If the file system or the disk is broken, and"
+			" you cannot remove the .ibd file, you can set"
+			" innodb_force_recovery > 0 in my.cnf and force"
+			" InnoDB to continue crash recovery here.\n");
 will_not_choose:
 		ut_free(tablename);
 		ut_free(remote.filepath);
@@ -4631,11 +4630,11 @@ will_not_choose:
 
 	if (!file_space_create_success) {
 		if (srv_force_recovery > 0) {
-			fprintf(stderr,
-				"InnoDB: innodb_force_recovery was set"
-				" to %lu. Continuing crash recovery\n"
-				"InnoDB: even though the tablespace"
-				" creation of this table failed.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"innodb_force_recovery was set to %lu."
+				" Continuing crash recovery even though"
+				" the tablespace creation of this table"
+				" failed.",
 				srv_force_recovery);
 			goto func_exit;
 		}
@@ -5440,10 +5439,8 @@ fil_node_prepare_for_io(
 	ut_ad(mutex_own(&(system->mutex)));
 
 	if (system->n_open > system->max_n_open + 5) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Warning: open files %lu"
-			" exceeds the limit %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Open files %lu exceeds the limit %lu",
 			(ulong) system->n_open,
 			(ulong) system->max_n_open);
 	}

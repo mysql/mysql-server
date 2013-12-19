@@ -774,16 +774,11 @@ fts_cache_destroy(
 	fts_cache_t*	cache);			/*!< in: cache*/
 
 /*********************************************************************//**
-Clear cache. If the shutdown flag is TRUE then the cache can contain
-data that needs to be freed. For regular clear as part of normal
-working we assume the caller has freed all resources. */
-
+Clear cache. */
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,			/*!< in: cache */
-	ibool		free_words);		/*!< in: TRUE if free
-						in memory word cache. */
+	fts_cache_t*	cache);			/*!< in: cache */
 
 /*********************************************************************//**
 Initialize things in cache. */

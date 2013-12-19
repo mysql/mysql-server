@@ -49,7 +49,71 @@
 #define FT_KEYPART                      (MAX_REF_PARTS+10)
 
 /**
-  Information about usage of an index to satisfy an equality condition.
+  A Key_use represents an equality predicate of the form (table.column = val),
+  where the column is indexed by @c keypart in @c key and @c val is either a
+  constant, a column from other table, or an expression over column(s) from
+  other table(s). If @c val is not a constant, then the Key_use specifies an
+  equi-join predicate, and @c table must be put in the join plan after all
+  tables in @c used_tables.
+
+  At an abstract level a Key_use instance can be viewed as a directed arc
+  of an equi-join graph, where the arc originates from the table(s)
+  containing the column(s) that produce the values used for index lookup
+  into @c table, and the arc points into @c table.
+
+  For instance, assuming there is only an index t3(c), the query
+
+  @code
+    SELECT * FROM t1, t2, t3
+    WHERE t1.a = t3.c AND
+          t2.b = t3.c;
+  @endcode
+
+  would generate two arcs (instances of Key_use)
+
+  @code
+     t1-- a ->- c --.
+                    |
+                    V
+                    t3
+                    ^
+                    |
+     t2-- b ->- c --'
+  @endcode
+
+  If there were indexes t1(a), and t2(b), then the equi-join graph
+  would have two additional arcs "c->a" and "c->b" recording the fact
+  that it is possible to perform lookup in either direction.
+
+  @code
+    t1-- a ->- c --.    ,-- c -<- b --- t2
+     ^             |    |               ^
+     |             |    |               |
+     `-- a -<- c - v    v-- c ->- b ----'
+                     t3
+  @endcode
+
+  The query
+
+  @code
+    SELECT * FROM t1, t2, t3 WHERE t1.a + t2.b = t3.c;
+  @endcode
+
+  can be viewed as a graph with one "multi-source" arc:
+
+  @code
+    t1-- a ---
+              |
+               >-- c --> t3
+              |
+    t2-- b ---
+  @endcode
+
+  The graph of all equi-join conditions usable for index lookup is
+  stored as an ordered sequence of Key_use elements in
+  JOIN::keyuse_array. See sort_keyuse() for details on the
+  ordering. Each JOIN_TAB::keyuse points to the first array element
+  with the same table.
 */
 class Key_use {
 public:
@@ -85,8 +149,21 @@ public:
   {}
 
   TABLE *table;            ///< table owning the index
-  Item	*val;              ///< other side of the equality, or value if no field
-  table_map used_tables;   ///< tables used on other side of equality
+
+  /**
+    Value used for lookup into @c key. It may be an Item_field, a
+    constant or any other expression. If @c val contains a field from
+    another table, then we have a join condition, and the table(s) of
+    the field(s) in @c val should be before @c table in the join plan.
+  */
+  Item	*val;
+
+  /**
+    All tables used in @c val, that is all tables that provide bindings
+    for the expression @c val. These tables must be in the plan before
+    executing the equi-join described by a Key_use.
+  */
+  table_map used_tables;
   uint key;                ///< number of index
   uint keypart;            ///< used part of the index
   uint optimize;           ///< 0, or KEY_OPTIMIZE_*
@@ -403,14 +480,20 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
 typedef struct st_position : public Sql_alloc
 {
-  /*
-    The number of rows that will be produced (after pushed down
-    selection condition is applied) per each row combination of
-    previous tables.
+  /**
+    The "fanout" - number of output rows that will be produced (after
+    table condition is applied) per each row combination of previous
+    tables. That is:
+
+      fanout = selectivity(access_condition) * cardinality(table)
+
+    where 'access_condition' is whatever condition
+    was chosen for index access, depending on the access method
+    ('ref', 'range', etc.)
   */
   double fanout;
 
-  /* 
+  /**
     Cost of accessing the table in course of the entire complete join
     execution, i.e. cost of one access method use (e.g. 'range' or
     'ref' scan ) multiplied by estimated number of rows from tables
@@ -422,22 +505,22 @@ typedef struct st_position : public Sql_alloc
   double read_cost;
   JOIN_TAB *table;
 
-  /*
+  /**
     NULL  -  'index' or 'range' or 'index_merge' or 'ALL' access is used.
     Other - [eq_]ref[_or_null] access is used. Pointer to {t.keypart1 = expr}
   */
   Key_use *key;
 
-  /* If ref-based access is used: bitmap of tables this table depends on  */
+  /** If ref-based access is used: bitmap of tables this table depends on  */
   table_map ref_depend_map;
   bool use_join_buffer; 
   
   
-  /* These form a stack of partial join order costs and output sizes */
+  /** These form a stack of partial join order costs and output sizes */
   Cost_estimate prefix_cost;
   double    prefix_record_count;
 
-  /*
+  /**
     Current optimization state: Semi-join strategy to be used for this
     and preceding join tables.
     
@@ -450,7 +533,7 @@ typedef struct st_position : public Sql_alloc
     must be ignored.
   */
   uint sj_strategy;
-  /*
+  /**
     Valid only after fix_semijoin_strategies_for_picked_join_order() call:
     if sj_strategy!=SJ_OPT_NONE, this is the number of subsequent tables that
     are covered by the specified semi-join strategy
@@ -541,6 +624,17 @@ struct st_cache_field;
 class QEP_operation;
 class Filesort;
 
+
+/**
+  Query plan node.
+
+  Specifies:
+
+  - a table access operation on the table specified by this node, and
+
+  - a join between the result of the set of previous plan nodes and
+    this plan node.
+*/
 typedef struct st_join_table : public Sql_alloc
 {
   st_join_table();
@@ -856,7 +950,7 @@ public:
       used_rowid_fields= 1;
       used_fieldlength+= table->file->ref_length;
     }
-    return test(used_rowid_fields);
+    return MY_TEST(used_rowid_fields);
   }
   bool is_inner_table_of_outer_join() const
   {

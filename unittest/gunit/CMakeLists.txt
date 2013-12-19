@@ -281,12 +281,15 @@ SET(SERVER_TESTS
   make_sortkey
   my_decimal
   opt_range
+  opt_ref
   opt_trace
   segfault
   sql_table
   strings_utf8
   table_cache
   tc_log_mmap
+  thd_manager
+  unique
 )
 
 ## Merging tests into fewer executables saves *a lot* of

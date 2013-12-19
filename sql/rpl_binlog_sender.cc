@@ -16,7 +16,6 @@
 #include "rpl_binlog_sender.h"
 
 #ifdef HAVE_REPLICATION
-#include "global_threads.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"
 #include "my_pthread.h"
@@ -34,9 +33,9 @@ void Binlog_sender::init()
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= &m_linfo;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
@@ -94,9 +93,9 @@ void Binlog_sender::cleanup()
 
   (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, 0/*flags*/));
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet;
 
