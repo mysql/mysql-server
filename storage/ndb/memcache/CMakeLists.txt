@@ -226,7 +226,10 @@ FILE(APPEND ${MEMCLIENT} "${CONTENTS}")
 ### Build the convenience library
 ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
 
-target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
+target_link_libraries(ndbmemcache
+                      ndbclient_static
+                      ndbgeneral
+                      ${MEMCACHED_UTILITIES_LIBRARY})
 
 ### Build the module
 add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
