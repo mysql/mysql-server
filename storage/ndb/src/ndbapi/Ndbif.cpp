@@ -1168,7 +1168,6 @@ Ndb::check_send_timeout()
 {
   const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   const NDB_TICKS now = NdbTick_getCurrentTicks();
-  assert(NdbTick_Compare(now, the_last_check_ticks) >= 0);
   if (NdbTick_Elapsed(the_last_check_ticks, now).milliSec() > 1000) {
     the_last_check_ticks = now;
     Uint32 no_of_sent = theNoOfSentTransactions;
