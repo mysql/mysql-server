@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
                     ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
                     ${CMAKE_CURRENT_SOURCE_DIR}/daemon                                    
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../libevent)
+                    ${LIBEVENT_INCLUDE_DIR})
 
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
@@ -72,7 +72,8 @@ SET(MEMCACHED_SOURCES
 add_executable(memcached ${MEMCACHED_SOURCES})
 
 target_link_libraries(memcached 
-                      event memcached_utilities
+                      memcached_utilities
+                      ${LIBEVENT_LIBRARY}
                       ${LIBM} ${LIBNSL} ${LIBSOCKET})
 IF(HAVE_LIBDL)
 target_link_libraries(memcached dl)
