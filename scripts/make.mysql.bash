@@ -129,7 +129,7 @@ if [ ! -d storage/tokudb/ft-index ] ; then
     github_download Tokutek/ft-index $(git_tree $git_tag $ftindex_tree) storage/tokudb/ft-index
 fi
 
-if [[ $mysql_distro =~ ^mariadb ]] ; then
+if [[ $mysql_repo =~ mariadb ]] || [[ $mysql_distro =~ ^mariadb ]] ; then
     github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) extra/jemalloc
 elif [ ! -d storage/tokudb/ft-index/third_party/jemalloc ] ; then
     github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) storage/tokudb/ft-index/third_party/jemalloc

@@ -126,7 +126,7 @@ if [ $? != 0 ] ; then exit 1; fi
 ln ../../$ftengine/scripts/tokufilecheck.py
 if [ $? != 0 ] ; then exit 1; fi
 popd
-if [[ $mysql_tree =~ mariadb ]] ; then
+if [[ $mysql =~ mariadb ]] || [[ $mysql_tree =~ mariadb ]] ; then
     pushd $mysql_tree/extra
     if [ $? != 0 ] ; then exit 1; fi
     ln -s ../../$jemalloc $jemalloc
