@@ -184,8 +184,10 @@ a	b	c
 set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,b	b	9	NULL	2	Using where with pushed condition; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1	range	PRIMARY,b	b	9	NULL	2	100.00	Using where with pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)); Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 a	b	c
 3	3	NULL
@@ -903,9 +905,11 @@ t2 as t1, t2 as t2, t2 as t3, t2 as t4;
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using where with pushed condition
-1	SIMPLE	t2	ref	ix	ix	10	const,test.t1.a	1	Using where with pushed condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using where with pushed condition (`test`.`t1`.`a` is not null)
+1	SIMPLE	t2	p0,p1	ref	ix	ix	10	const,test.t1.a	1	100.00	Using where with pushed condition isnull(`test`.`t2`.`uq`)
+Warnings:
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and isnull(`test`.`t2`.`uq`))
 SELECT STRAIGHT_JOIN count(*) FROM 
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 count(*)
@@ -924,9 +928,11 @@ Warning	1121	Ndb does not support unique index on NULL valued attributes, index 
 INSERT INTO t2 VALUES (42);
 EXPLAIN SELECT * FROM t1 WHERE i IN
 (SELECT t2.col_int_unique FROM t2) IS TRUE;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	index_subquery	ix1	ix1	5	func	2	Full scan on NULL key
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	p0,p1	index_subquery	ix1	ix1	5	func	2	100.00	Full scan on NULL key
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on ix1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`col_int_unique`), true)))) is true)
 create temporary table row_counts_at_startup 
 select * 
 from information_schema.session_status
