@@ -72,8 +72,16 @@ ThreadConfig::scanTimeQueue()
 //--------------------------------------------------------------------
     const Uint64 backward = 
       NdbTick_Elapsed(currTicks, globalData.internalTicksCounter).milliSec();
-    g_eventLogger->warning("Time moved backwards with %llu ms", backward);
-    globalData.internalTicksCounter = currTicks;
+
+    // Silently ignore sub millisecond backticks.
+    // Such 'noise' is unfortunately common even for monotonic timers.
+    if (backward > 0)
+    {
+      g_eventLogger->warning("Time moved backwards with %llu ms", backward);
+      globalData.internalTicksCounter = currTicks;
+      assert(backward < 100 || !NdbTick_IsMonotonic()); 
+    }
+    return;
   }//if
 
   Uint64 elapsed = 

@@ -1940,7 +1940,6 @@ scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
   Uint32 cnt0 = tq->m_cnt[0];
   Uint32 cnt1 = tq->m_cnt[1];
 
-  assert(NdbTick_Compare(now,last) > 0);
   Uint64 diff = NdbTick_Elapsed(last, now).milliSec();
   Uint32 step = (Uint32)((diff > 20) ? 20 : diff);
   Uint32 end = (curr + step);
