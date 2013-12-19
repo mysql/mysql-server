@@ -47,6 +47,7 @@
 #include <mysql.h>
 #include <NdbApi.hpp>
 
+#include <stdlib.h>
 // Used for cout
 #include <stdio.h>
 #include <iostream>
