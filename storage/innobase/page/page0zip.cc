@@ -4893,8 +4893,12 @@ page_zip_verify_checksum(
 	/* declare empty pages non-corrupted */
 	if (stored == 0) {
 		/* make sure that the page is really empty */
-		ut_d(ulint i; for (i = 0; i < size; i++) {
-		     ut_a(*((const char*) data + i) == 0); });
+		ulint i;
+		for (i = 0; i < size; i++) {
+			if (*((const char*) data + i) != 0) {
+				return(FALSE);
+			}
+		}
 
 		return(TRUE);
 	}

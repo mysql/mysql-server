@@ -548,8 +548,11 @@ buf_page_is_corrupted(
 	if (checksum_field1 == 0 && checksum_field2 == 0
 	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
 		/* make sure that the page is really empty */
-		ut_d(for (ulint i = 0; i < UNIV_PAGE_SIZE; i++) {
-		     ut_a(read_buf[i] == 0); });
+		for (ulint i = 0; i < UNIV_PAGE_SIZE; i++) {
+			if (read_buf[i] != 0) {
+				return(TRUE);
+			}
+		}
 
 		return(FALSE);
 	}
