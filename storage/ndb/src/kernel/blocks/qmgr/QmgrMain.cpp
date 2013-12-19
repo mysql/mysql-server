@@ -2614,8 +2614,11 @@ void Qmgr::timerHandlingLab(Signal* signal)
   {
     jam();
     const Uint64 backwards = NdbTick_Elapsed(TcurrentTime,sent).milliSec();
-    g_eventLogger->warning("timerHandlingLab, clock ticked backwards: %d (ms)",
-                           int(backwards));
+    if (backwards > 0) //Ignore sub millisecond backticks
+    {
+      g_eventLogger->warning("timerHandlingLab, clock ticked backwards: %ull (ms)",
+                              backwards);
+    }
   }
   else
   {
