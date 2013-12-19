@@ -1030,8 +1030,6 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
     }
     order->item= &ref_pointer_array[count - 1];
     order->in_field_list= 1;
-    order->counter= count;
-    order->counter_used= 1;
     return FALSE;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */

@@ -1129,10 +1129,10 @@ statement/sp/stmt	INSERT INTO t1 VALUES (x, y)	nested_sp	PROCEDURE	nested_sp	inc
 statement/sp/stmt	CALL inc2(x2, y)	nested_sp	PROCEDURE	nested_sp	iotest	STATEMENT	1
 statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	nested_sp	PROCEDURE	nested_sp	iotest	STATEMENT	1
 statement/sp/freturn	NULL	nested_sp	FUNCTION	nested_sp	mul	STATEMENT	2
-statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	1
-statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	2
-statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	3
-statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	5
+statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	TRANSACTION	1
+statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	TRANSACTION	2
+statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	TRANSACTION	3
+statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	TRANSACTION	5
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;

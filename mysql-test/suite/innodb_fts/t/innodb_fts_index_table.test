@@ -1,0 +1,120 @@
+# This is the basic function tests for INNODB_FT_INDEX_TABLE
+# and INNODB_FT_INDEX_TABLE in INFORMATION_SCHEMA.
+
+-- source include/have_innodb.inc
+
+# Must have debug code to use SET SESSION debug
+-- source include/have_debug.inc
+
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=1;
+
+# Test Case 1: Test Result Cache Limit
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	content TEXT
+	) ENGINE= InnoDB;
+
+CREATE FULLTEXT INDEX idx ON articles (title, content);
+
+INSERT INTO articles (title, content) VALUES
+	('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','How to use full-text search engine'),
+	('Go MySQL Tricks','How to use full text search engine');
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+OPTIMIZE TABLE articles;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+SET SESSION debug="+d,fts_instrument_result_cache_limit";
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+SET SESSION debug="-d,fts_instrument_result_cache_limit";
+
+DROP TABLE articles;
+
+SET GLOBAL innodb_ft_result_cache_limit=default;
+
+# Test Case 2: Test Multiple Indexes
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	content TEXT
+	) ENGINE= InnoDB;
+
+CREATE FULLTEXT INDEX idx_t ON articles (title);
+
+CREATE FULLTEXT INDEX idx_c ON articles (content);
+
+INSERT INTO articles (title, content) VALUES
+	('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','How to use full-text search engine'),
+	('Go MySQL Tricks','How to use full text search engine');
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+
+OPTIMIZE TABLE articles;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+DROP TABLE articles;
+
+SET NAMES utf8;
+
+# Test Case 3: Test UFT8 Charset
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200)
+	) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+CREATE FULLTEXT INDEX idx ON articles (title);
+
+INSERT INTO articles (title) VALUES
+        ('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+OPTIMIZE TABLE articles;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+DROP TABLE articles;
+
+# Test Case 4: Test GB2312 Charset
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200)
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+CREATE FULLTEXT INDEX idx ON articles (title);
+
+INSERT INTO articles (title) VALUES
+        ('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+OPTIMIZE TABLE articles;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+DROP TABLE articles;
+
+# Restore global variables
+SET GLOBAL innodb_ft_aux_table=default;
+
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=default;

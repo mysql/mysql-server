@@ -640,7 +640,6 @@ static void *signal_hand(void *arg __attribute__((unused)))
   int sig,error,err_count=0;;
 
   my_thread_init();
-  pthread_detach_this_thread();
   init_thr_alarm(10);				/* Setup alarm handler */
   mysql_mutex_lock(&LOCK_thread_count);         /* Required by bsdi */
   mysql_cond_signal(&COND_thread_count);        /* Tell main we are ready */

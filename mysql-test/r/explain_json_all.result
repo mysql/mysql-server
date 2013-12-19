@@ -19,11 +19,15 @@ format
 DROP TABLE t1;
 # different ways of format name writing:
 EXPLAIN FORMAT=traditional SELECT 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 EXPLAIN FORMAT='TrAdItIoNaL' SELECT 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 EXPLAIN FORMAT=JSON SELECT 1;
 EXPLAIN
 {
@@ -55,8 +59,8 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
 set end_markers_in_json=on;
 EXPLAIN             INSERT INTO t1 VALUES (10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (10);
 EXPLAIN
 {
@@ -70,8 +74,10 @@ EXPLAIN
   } /* query_block */
 }
 EXPLAIN             SELECT * FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
 PREPARE stmt FROM 'EXPLAIN FORMAT=JSON SELECT * FROM t1';
 EXECUTE stmt;
 EXPLAIN
@@ -97,13 +103,15 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
 INSERT INTO t2 VALUES (1), (2);
 EXPLAIN
 SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	14	NULL
-2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	14	NULL
-3	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	14	NULL
-4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (Block Nested Loop)
-5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
+3	DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
+4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`.`i` AS `i` from (/* select#3 */ select `a2`.`i` AS `i` from (/* select#4 */ select `a1`.`i` AS `i` from (/* select#5 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) `a1` join `test`.`t2`) `a2`) `a3`) `a4`
 EXPLAIN FORMAT=JSON
 SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
 EXPLAIN
@@ -263,9 +271,12 @@ Warnings:
 Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`.`i` AS `i` from (/* select#3 */ select `a2`.`i` AS `i` from (/* select#4 */ select `a1`.`i` AS `i` from (/* select#5 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) `a1` join `test`.`t2`) `a2`) `a3`) `a4`
 # subquery in WHERE
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = 10) and (`test`.`t1`.`i` = 10))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 EXPLAIN
 {
@@ -327,10 +338,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi joi
 EXPLAIN             SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
-3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
@@ -415,11 +429,13 @@ Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-NULL	UNION RESULT	<union1,2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+NULL	UNION RESULT	<union1,2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` union /* select#3 */ select NULL AS `i` from `test`.`t3`
 EXPLAIN FORMAT=JSON SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 EXPLAIN
 {
@@ -497,19 +513,18 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` union /* select#3 */ select NULL AS `i` from `test`.`t3`
 # more complex UNION
 EXPLAIN             (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (Block Nested Loop)
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
 EXPLAIN FORMAT=JSON (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
 EXPLAIN
 {
   "query_block": {
     "union_result": {
-      "using_temporary_table": true,
-      "table_name": "<union1,2>",
-      "access_type": "ALL",
+      "using_temporary_table": false,
       "query_specifications": [
         {
           "dependent": false,
@@ -573,11 +588,14 @@ Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
 # UNION with subquery in outer ORDER BY
 EXPLAIN             (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #1
+Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
 EXPLAIN FORMAT=JSON (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
 EXPLAIN
 {
@@ -661,9 +679,11 @@ Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #1
 Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
 # optimizer-time subquery
 EXPLAIN SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select length(1) from `test`.`t2` limit 1)
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
 EXPLAIN
 {
@@ -722,10 +742,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select length(1) from `test`.`t2` limit 1)
 # subquery in the HAVING clause
 EXPLAIN SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>((`test`.`t1`.`i` <= <max>(/* select#2 */ select `test`.`t2`.`i` from `test`.`t2`))) or <not>((`test`.`t1`.`i` >= <min>(/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 EXPLAIN
 {
@@ -810,10 +832,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>((`test`.`t1`.`i` <= <max>(/* select#2 */ select `test`.`t2`.`i` from `test`.`t2`))) or <not>((`test`.`t1`.`i` >= <min>(/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))))
 # subquery in the GROUP BY clause
 EXPLAIN SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using temporary; Using filesort
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 EXPLAIN
 {
@@ -907,9 +931,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 # subquery in the SELECT list
 EXPLAIN SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	7	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
+2	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select (`test`.`t1`.`i` + 1) from `test`.`t1` order by rand() limit 1) AS `(SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1)`,`test`.`t1`.`i` AS `i` from `test`.`t1`
 EXPLAIN FORMAT=JSON SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
 EXPLAIN
 {
@@ -974,9 +1000,11 @@ DROP TABLE t1, t2, t3, t4;
 # derived table that is optimized out
 CREATE TABLE t1 (i INT);
 EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where NULL
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
@@ -1009,11 +1037,14 @@ INSERT INTO t2 VALUES (2,10), (2,20);
 INSERT INTO t3 VALUES (10), (30);
 INSERT INTO t4 VALUES (2,10), (2,10);
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
-4	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
 EXPLAIN
 {
@@ -1440,14 +1471,16 @@ INSERT INTO t5 VALUES (1), (2), (3);
 EXPLAIN SELECT * FROM t5 
 WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	<subquery2>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
-1	SIMPLE	<subquery3>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
-2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
-2	MATERIALIZED	t1	index	c_key	c_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
-3	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	3	Using where
-3	MATERIALIZED	t3	ref	c_key	c_key	5	test.t4.c_key	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	MATERIALIZED	t1	NULL	index	c_key	c_key	5	NULL	3	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+3	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+3	MATERIALIZED	t3	NULL	ref	c_key	c_key	5	test.t4.c_key	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`<subquery2>`.`c` = `test`.`t5`.`c`) and (`<subquery3>`.`c` = `test`.`t5`.`c`))
 EXPLAIN FORMAT=JSON SELECT * FROM t5 
 WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
@@ -1628,9 +1661,9 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 # Subqueries in UPDATE values list
 EXPLAIN UPDATE t1 SET i=(SELECT i FROM t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 EXPLAIN FORMAT=JSON UPDATE t1 SET i=(SELECT i FROM t2);
 EXPLAIN
 {
@@ -1674,10 +1707,10 @@ EXPLAIN
   } /* query_block */
 }
 EXPLAIN UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	t1	system	NULL	NULL	NULL	NULL	1	NULL
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
 EXPLAIN
 {
@@ -1755,10 +1788,10 @@ EXPLAIN
 # INSERT ... ON DUPLICATE KEY UPDATE x=(SELECT ...) value list
 EXPLAIN INSERT INTO t1 (i)
 SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 (i)
 SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
 EXPLAIN
@@ -1823,9 +1856,9 @@ EXPLAIN
 }
 EXPLAIN INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
 EXPLAIN
@@ -1869,10 +1902,10 @@ EXPLAIN
 }
 # Subqueries in INSERT VALUES tuples:
 EXPLAIN INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	INSERT	t3	ALL	NULL	NULL	NULL	NULL	NULL	NULL
-3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
 EXPLAIN
 {
@@ -1947,11 +1980,12 @@ UNION ALL
 SELECT 1 AS a, 2 AS b) t1
 GROUP BY a
 ORDER BY b DESC;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (/* select#2 */ select 1 AS `a`,2 AS `b` union all /* select#3 */ select 1 AS `a`,2 AS `b`) `t1` group by `t1`.`a` order by `t1`.`b` desc
 EXPLAIN FORMAT=JSON SELECT a, b FROM 
 (SELECT 1 AS a, 2 AS b
 UNION ALL
@@ -1992,9 +2026,7 @@ EXPLAIN
             "cacheable": true,
             "query_block": {
               "union_result": {
-                "using_temporary_table": true,
-                "table_name": "<union2,3>",
-                "access_type": "ALL",
+                "using_temporary_table": false,
                 "query_specifications": [
                   {
                     "dependent": false,
@@ -2027,11 +2059,13 @@ Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (/* select#
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (), ();
 EXPLAIN SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-2	SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	NULL
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	SUBQUERY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` group by greatest(`test`.`t1`.`a`,(/* select#2 */ select 1 from dual))
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
 EXPLAIN
 {
@@ -2152,11 +2186,12 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(1);
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
 Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
 EXPLAIN
 {
@@ -2225,9 +2260,12 @@ CREATE TABLE t2 (i INT, j INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 INSERT INTO t2 SELECT i, i * 10 FROM t1;
 EXPLAIN SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 EXPLAIN
 {
@@ -2291,9 +2329,12 @@ Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 EXPLAIN SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 EXPLAIN
 {

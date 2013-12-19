@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2000
+ * Copyright (c)  2000, 2013
  * SWsoft  company
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -337,9 +337,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
 
-  res= test(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
-                                 header, sizeof(header), 1, stmt) ||
-            emb_read_query_result(stmt->mysql));
+  res= MY_TEST(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
+                                    header, sizeof(header), 1, stmt) ||
+               emb_read_query_result(stmt->mysql));
   stmt->affected_rows= stmt->mysql->affected_rows;
   stmt->insert_id= stmt->mysql->insert_id;
   stmt->server_status= stmt->mysql->server_status;
@@ -424,9 +424,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thd->store_globals();
   thd->release_resources();
-
-  remove_global_thread(thd);
-
+  Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
@@ -468,7 +466,8 @@ MYSQL_METHODS embedded_methods=
   emb_free_embedded_thd,
   emb_read_statistics,
   emb_read_query_result,
-  emb_read_rows_from_cursor
+  emb_read_rows_from_cursor,
+  free_rows
 };
 
 /*
@@ -656,7 +655,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= 1;
+  mysqld_server_started= true;
   mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
@@ -704,7 +703,9 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
 void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
@@ -735,8 +736,7 @@ void *create_embedded_thd(int client_flag)
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
-
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd->mysys_var= 0;
   return thd;
 err:

@@ -710,20 +710,11 @@
 }
 
 #
-# See related Bug#56666
-# Race condition between the server main thread and the kill server thread.
-#
-# Because of this race condition, the call to shutdown_performance_schema()
-# was commented in sql/mysqld.cc, causing the reported leaks.
-#
-
-{
-   missing shutdown_performance_schema 1a
-   Memcheck:Leak
-   fun:malloc
-   fun:_Z10pfs_mallocmi
-}
-
+# Bug#56666 is fixed by WL#6407
+# Also, as part of WL#6407, call to shutdown_performance_schema()
+# is uncommented in sql/mysqld.cc. As this call was commented out
+# for long time, there are still some leaks which needs to be
+# addressed by pfs.
 {
    missing shutdown_performance_schema 1b
    Memcheck:Leak
@@ -944,57 +935,6 @@
 }
 
 {
-   missing shutdown_performance_schema 9a-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-# Same as shutdown_performance_schema 9,
-# but the compiler/linker can sometime change the
-# calls from:
-# main()
-#   --> init_pfs_instrument_array()
-#     --> init_dynamic_array2()
-# to:
-# main()
-#   --> init_dynamic_array2()
-# when building with optimizations.
-
-{
-   missing shutdown_performance_schema 10
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 10-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 11
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
-}
-
-{
    missing shutdown_performance_schema 11-mem
    Memcheck:Leak
    fun:my_malloc
@@ -1190,37 +1130,7 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIhhEPy
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / two
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / four
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
+   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_EPy
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
 }
 
@@ -1265,9 +1175,6 @@
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
    fun:_ZL8clean_upb
-   fun:_Z10unireg_endv
-   fun:_ZL11kill_serverPv
-   fun:kill_server_thread
 }
 
 #Suppress warnings from glibc implementation of 'malloc_info' 

@@ -288,8 +288,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo_p)+1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
-  fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
-			     (create_info->min_rows == 1) && (keys == 0));
+  fileinfo[26]= (uchar) MY_TEST((create_info->max_rows == 1) &&
+                                (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -887,7 +887,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
     int2store(buff+8,field->pack_flag);
-    DBUG_ASSERT(field->unireg_check < 256);
     buff[10]= (uchar) field->unireg_check;
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 

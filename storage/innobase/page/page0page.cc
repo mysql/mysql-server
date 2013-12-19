@@ -682,7 +682,6 @@ page_copy_rec_list_end(
 	page_t*		page		= page_align(rec);
 	rec_t*		ret		= page_rec_get_next(
 		page_get_infimum_rec(new_page));
-	ulint		log_mode	= 0; /* remove warning */
 
 #ifdef UNIV_ZIP_DEBUG
 	if (new_page_zip) {
@@ -701,6 +700,8 @@ page_copy_rec_list_end(
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
 	/* Here, "ret" may be pointing to a user record or the
 	predefined supremum record. */
+
+	mtr_log_t	log_mode = MTR_LOG_NONE;
 
 	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -802,7 +803,6 @@ page_copy_rec_list_start(
 	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
 	page_cur_t	cur1;
 	rec_t*		cur2;
-	ulint		log_mode	= 0 /* remove warning */;
 	mem_heap_t*	heap		= NULL;
 	rec_t*		ret
 		= page_rec_get_prev(page_get_supremum_rec(new_page));
@@ -817,6 +817,8 @@ page_copy_rec_list_start(
 
 		return(ret);
 	}
+
+	mtr_log_t	log_mode = MTR_LOG_NONE;
 
 	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -914,7 +916,7 @@ page_delete_rec_list_write_log(
 /*===========================*/
 	rec_t*		rec,	/*!< in: record on page */
 	dict_index_t*	index,	/*!< in: record descriptor */
-	byte		type,	/*!< in: operation type:
+	mlog_id_t	type,	/*!< in: operation type:
 				MLOG_LIST_END_DELETE, ... */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -942,7 +944,7 @@ Parses a log record of a record list end or start deletion.
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
-	byte		type,	/*!< in: MLOG_LIST_END_DELETE,
+	mlog_id_t	type,	/*!< in: MLOG_LIST_END_DELETE,
 				MLOG_LIST_START_DELETE,
 				MLOG_COMP_LIST_END_DELETE or
 				MLOG_COMP_LIST_START_DELETE */
@@ -1075,7 +1077,7 @@ delete_all:
 				       : MLOG_LIST_END_DELETE, mtr);
 
 	if (page_zip) {
-		ulint		log_mode;
+		mtr_log_t	log_mode;
 
 		ut_a(page_is_comp(page));
 		/* Individual deletes are not logged */
@@ -1207,11 +1209,9 @@ page_delete_rec_list_start(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	page_cur_t	cur1;
-	ulint		log_mode;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	mem_heap_t*	heap		= NULL;
-	byte		type;
 
 	rec_offs_init(offsets_);
 
@@ -1242,6 +1242,8 @@ page_delete_rec_list_start(
 		return;
 	}
 
+	mlog_id_t	type;
+
 	if (page_rec_is_comp(rec)) {
 		type = MLOG_COMP_LIST_START_DELETE;
 	} else {
@@ -1255,7 +1257,7 @@ page_delete_rec_list_start(
 
 	/* Individual deletes are not logged */
 
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+	mtr_log_t	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 	while (page_cur_get_rec(&cur1) != rec) {
 		offsets = rec_get_offsets(page_cur_get_rec(&cur1), index,

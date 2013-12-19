@@ -799,7 +799,7 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex, test(order));
+  init_ftfuncs(thd, select_lex, MY_TEST(order));
 
   DBUG_VOID_RETURN;
 }
@@ -860,7 +860,7 @@ bool JOIN::destroy()
   {
     JOIN_TAB *const tab= join_tab + i;
 
-    DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
+    DBUG_ASSERT(!tab->table || !tab->table->sort.has_filesort_result());
     if (tab->op)
     {
       if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
@@ -886,8 +886,8 @@ bool JOIN::destroy()
     delete sjm;
   sjm_exec_list.empty();
 
-  keyuse.clear();
-  DBUG_RETURN(test(error));
+  keyuse_array.clear();
+  DBUG_RETURN(MY_TEST(error));
 }
 
 
@@ -972,7 +972,7 @@ mysql_prepare_select(THD *thd,
       creation
     */
     if (select_lex->linkage != DERIVED_TABLE_TYPE ||
-	(select_options & SELECT_DESCRIBE))
+        (select_options & SELECT_DESCRIBE))
     {
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
@@ -995,7 +995,7 @@ mysql_prepare_select(THD *thd,
   else
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
-	DBUG_RETURN(TRUE); /* purecov: inspected */
+      DBUG_RETURN(TRUE); /* purecov: inspected */
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
@@ -1471,7 +1471,7 @@ bool JOIN::set_access_methods()
       if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
         DBUG_RETURN(true);
     }
-   }
+  }
 
   DBUG_RETURN(false);
 }
@@ -1539,9 +1539,12 @@ void JOIN::set_semijoin_info()
 
   @return False if success, True if error
 
-  @details
-    This function will set up a ref access using the best key found
-    during access path analysis and cost analysis.
+  Given a Key_use structure that specifies the fields that can be used
+  for index access, this function creates and set up the structure
+  used for index look up via one of the access methods {JT_FT,
+  JT_CONST, JT_REF_OR_NULL, JT_REF, JT_EQ_REF} for the plan operator
+  'j'. Generally the function sets up the structure j->ref (of type
+  TABLE_REF), and the access method j->type.
 
   @note We cannot setup fields used for ref access before we have sorted
         the items within multiple equalities according to the final order of
@@ -1567,6 +1570,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
   DBUG_ASSERT(j->keys.is_set(org_keyuse->key));
 
+  /* Calculate the length of the used key. */
   if (ftkey)
   {
     Item_func_match *ifm=(Item_func_match *)keyuse->val;
@@ -1579,7 +1583,6 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   {
     keyparts=length=0;
     uint found_part_ref_or_null= 0;
-    // Calculate length for the used key. Remember chosen Key_use-s.
     do
     {
       /*
@@ -1648,7 +1651,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     for (uint part_no= 0 ; part_no < keyparts ; part_no++)
     {
       keyuse= chosen_keyuses[part_no];
-      uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
+      uint maybe_null= MY_TEST(keyinfo->key_part[part_no].null_bit);
 
       if (keyuse->val->type() == Item::FIELD_ITEM)
       {
@@ -1745,16 +1748,16 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
 static store_key *
 get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
-	      KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
+              KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
   {
     return new store_key_const_item(thd,
-				    key_part->field,
-				    key_buff + maybe_null,
-				    maybe_null ? key_buff : 0,
-				    key_part->length,
-				    keyuse->val);
+                                    key_part->field,
+                                    key_buff + maybe_null,
+                                    maybe_null ? key_buff : 0,
+                                    key_part->length,
+                                    keyuse->val);
   }
 
   Item_field *field_item= NULL;
@@ -1784,11 +1787,11 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
                                keyuse->val->full_name());
 
   return new store_key_item(thd,
-			    key_part->field,
-			    key_buff + maybe_null,
-			    maybe_null ? key_buff : 0,
-			    key_part->length,
-			    keyuse->val);
+                            key_part->field,
+                            key_buff + maybe_null,
+                            maybe_null ? key_buff : 0,
+                            key_part->length,
+                            keyuse->val);
 }
 
 
@@ -1871,47 +1874,47 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       table_map used_tables= 0;
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return NULL;
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
-	if (fix)
+        Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+        if (fix)
         {
-	  new_cond->argument_list()->push_back(fix);
+          new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return NULL;
+        return NULL;
       case 1:
         new_cond->set_used_tables(used_tables);
-	return new_cond->argument_list()->head();
+        return new_cond->argument_list()->head();
       default:
-	new_cond->quick_fix_field();
+        new_cond->quick_fix_field();
         new_cond->set_used_tables(used_tables);
-	return new_cond;
+        return new_cond;
       }
     }
     else /* It's OR */
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return NULL;
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
-	if (!fix)
-	  return NULL;
-	new_cond->argument_list()->push_back(fix);
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+        if (!fix)
+          return NULL;
+        new_cond->argument_list()->push_back(fix);
+        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -1921,7 +1924,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       return new_cond;
     }
   }
-
+  
   if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
   {
     /* 
@@ -2725,7 +2728,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  const bool statistics= MY_TEST(!(join->select_options & SELECT_DESCRIBE));
 
   DBUG_ENTER("make_join_readinfo");
 
@@ -4458,7 +4461,7 @@ test_if_subpart(ORDER *a,ORDER *b)
     else
       return 0;
   }
-  return test(!b);
+  return MY_TEST(!b);
 }
 
 /**
@@ -4882,26 +4885,34 @@ void JOIN::clear()
 
 
 /**
-  change select_result object of JOIN.
+  Change the select_result object of the JOIN.
 
-  @param res		new select_result object
+  If old_result is not used, forward the call to the current
+  select_result in case it is a wrapper around old_result.
 
-  @retval
-    FALSE   OK
-  @retval
-    TRUE    error
+  Call prepare() and prepare2() on the new select_result if we decide
+  to use it.
+
+  @param new_result New select_result object
+  @param old_result Old select_result object (NULL to force change)
+
+  @retval false Success
+  @retval true  Error
 */
 
-bool JOIN::change_result(select_result *res)
+bool JOIN::change_result(select_result *new_result, select_result *old_result)
 {
   DBUG_ENTER("JOIN::change_result");
-  result= res;
-  if (result->prepare(fields_list, select_lex->master_unit()) ||
-      result->prepare2())
+  if (old_result == NULL || result == old_result)
   {
-    DBUG_RETURN(TRUE);
+    result= new_result;
+    if (result->prepare(fields_list, select_lex->master_unit()) ||
+        result->prepare2())
+      DBUG_RETURN(true); /* purecov: inspected */
+    DBUG_RETURN(false);
   }
-  DBUG_RETURN(FALSE);
+  else
+    DBUG_RETURN(result->change_result(new_result));
 }
 
 
@@ -5215,7 +5226,7 @@ bool JOIN::make_tmp_tables_info()
         or end_write_group()) if JOIN::group is set to false.
       */
       // the temporary table was explicitly requested
-      DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+      DBUG_ASSERT(MY_TEST(select_options & OPTION_BUFFER_RESULT));
       // the temporary table does not have a grouping expression
       DBUG_ASSERT(!join_tab[curr_tmp_table].table->group); 
     }

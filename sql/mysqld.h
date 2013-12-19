@@ -68,22 +68,21 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
 #define TEST_NO_STACKTRACE	512
-/*
-  TEST_SIGINT is no longer used. Was used to allow
-  sigint on individual threads.
-*/
-#define OBSOLETE_TEST_SIGINT	1024
+#define TEST_SIGINT	        1024    /**< Allow sigint on threads */
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
 #define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
                                            each command. */
 
 /* Function prototypes */
+#ifndef EMBEDDED_LIBRARY
 void kill_mysql(void);
-void restore_globals(THD *thd);
-void destroy_thd(THD *thd);
+#endif
 void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
+int handle_early_options();
+void adjust_related_options(ulong *requested_open_files);
+ulong sql_rnd_with_mutex();
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -119,7 +118,6 @@ extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
-extern bool in_bootstrap;
 extern my_bool opt_bootstrap;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -133,9 +131,6 @@ extern ulonglong slave_rows_search_algorithms_options;
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
-#ifndef EMBEDDED_LIBRARY
-extern "C" int check_enough_stack_size(int);
-#endif
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
@@ -190,7 +185,6 @@ extern const char *server_uuid_ptr;
 extern const double log_10[309];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
-extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
@@ -275,35 +269,23 @@ extern ulong opt_ndb_wait_setup;
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern struct my_option my_long_early_options[];
-int handle_early_options();
-void adjust_related_options(ulong *requested_open_files);
-extern int mysqld_server_started;
+extern bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern pthread_attr_t connection_attrib;
-extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
-extern int bootstrap_error;
 extern char err_shared_dir[];
 extern my_decimal decimal_zero;
-extern ulong connection_errors_select;
-extern ulong connection_errors_accept;
-extern ulong connection_errors_tcpwrap;
+#ifndef EMBEDDED_LIBRARY
 extern ulong connection_errors_internal;
-extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
+#endif
 extern ulong log_warnings;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
-extern mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
-#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
-extern mysql_cond_t COND_handler_count;
-#endif
-
-void init_sql_statement_names();
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -352,7 +334,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
   key_hash_filo_lock, key_LOCK_active_mi,
-  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_error_log,
+  key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
@@ -369,7 +351,7 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_LOCK_thread_remove,
+  key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
@@ -382,7 +364,6 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
-extern PSI_mutex_key key_LOCK_thread_created;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -404,8 +385,7 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
   key_cond_slave_parallel_worker,
-  key_TABLE_SHARE_cond, key_user_level_lock_cond,
-  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+  key_TABLE_SHARE_cond, key_user_level_lock_cond;
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -414,7 +394,7 @@ extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 
 extern PSI_thread_key key_thread_bootstrap,
-  key_thread_handle_manager, key_thread_kill_server, key_thread_main,
+  key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
 
 #ifdef HAVE_MMAP
@@ -431,13 +411,6 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
 extern PSI_file_key key_file_general_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
-
-#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
-extern PSI_thread_key key_thread_handle_con_namedpipes;
-extern PSI_cond_key key_COND_handler_count;
-extern PSI_thread_key key_thread_handle_con_sharedmem;
-extern PSI_thread_key key_thread_handle_con_sockets;
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 void init_server_psi_keys();
 
@@ -492,7 +465,6 @@ extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
 extern PSI_memory_key key_memory_host_cache_hostname;
 extern PSI_memory_key key_memory_User_level_lock_key;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
-extern PSI_memory_key key_memory_SORT_ADDON_FIELD;
 extern PSI_memory_key key_memory_Sort_param_tmp_buffer;
 extern PSI_memory_key key_memory_Filesort_info_buffpek;
 extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
@@ -746,19 +718,17 @@ extern mysql_mutex_t
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
-       LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count,
+       LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
-extern mysql_mutex_t LOCK_thread_created;
 extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
-extern my_atomic_rwlock_t thread_running_lock;
 extern my_atomic_rwlock_t slave_open_temp_tables_lock;
 extern my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 
@@ -875,8 +845,6 @@ typedef int64 query_id_t;
 extern query_id_t global_query_id;
 extern my_atomic_rwlock_t global_query_id_lock;
 
-void unireg_end(void) __attribute__((noreturn));
-
 /* increment query_id and return it.  */
 inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 {
@@ -902,29 +870,6 @@ inline void table_case_convert(char * name, uint length)
   if (lower_case_table_names)
     files_charset_info->cset->casedn(files_charset_info,
                                      name, length, name, length);
-}
-
-ulong sql_rnd_with_mutex();
-
-extern int32 num_thread_running;
-inline int32
-inc_thread_running()
-{
-  int32 num_threads;
-  my_atomic_rwlock_wrlock(&thread_running_lock);
-  num_threads= my_atomic_add32(&num_thread_running, 1);
-  my_atomic_rwlock_wrunlock(&thread_running_lock);
-  return (num_threads+1);
-}
-
-inline int32
-dec_thread_running()
-{
-  int32 num_threads;
-  my_atomic_rwlock_wrlock(&thread_running_lock);
-  num_threads= my_atomic_add32(&num_thread_running, -1);
-  my_atomic_rwlock_wrunlock(&thread_running_lock);
-  return (num_threads-1);
 }
 
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)

@@ -360,19 +360,6 @@ create_log_file(
 /** Initial number of the first redo log file */
 #define INIT_LOG_FILE0	(SRV_N_LOG_FILES_MAX + 1)
 
-#ifdef DBUG_OFF
-# define RECOVERY_CRASH(x) do {} while(0)
-#else
-# define RECOVERY_CRASH(x) do {						\
-	if (srv_force_recovery_crash == x) {				\
-		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
-			srv_force_recovery_crash);			\
-		fflush(stderr);						\
-		exit(3);						\
-	}								\
-} while (0)
-#endif
-
 /*********************************************************************//**
 Creates all log files.
 @return DB_SUCCESS or error code */
@@ -1405,24 +1392,28 @@ innobase_start_or_create_for_mysql(void)
 	their time to enter InnoDB. */
 
 #define BUF_POOL_SIZE_THRESHOLD	(1024 * 1024 * 1024)
-	srv_max_n_threads = max_connections + srv_n_read_io_threads
-				+ srv_n_write_io_threads + srv_n_purge_threads
-				/* FTS Parallel Sort */
-				+ fts_sort_pll_degree * FTS_NUM_AUX_INDEX
-				+ 128 /* added as margin */
-				+ 1 /* io_ibuf_thread */
-				+ 1 /* io_log_thread */
-				+ 1 /* lock_wait_timeout_thread */
-				+ 1 /* srv_error_monitor_thread */
-				+ 1 /* srv_monitor_thread */
-				+ 1 /* srv_master_thread */
-				+ 1 /* srv_purge_coordinator_thread */
-				+ 1 /* buf_dump_thread */
-				+ 1 /* dict_stats_thread */
-				+ 1 /* fts_optimize_thread */
-				+ 1 /* recv_writer_thread */
-				+ 1 /* buf_flush_page_cleaner_thread */
-				+ 1; /* trx_rollback_or_clean_all_recovered */
+	srv_max_n_threads = 1   /* io_ibuf_thread */
+			    + 1 /* io_log_thread */
+			    + 1 /* lock_wait_timeout_thread */
+			    + 1 /* srv_error_monitor_thread */
+			    + 1 /* srv_monitor_thread */
+			    + 1 /* srv_master_thread */
+			    + 1 /* srv_purge_coordinator_thread */
+			    + 1 /* buf_dump_thread */
+			    + 1 /* dict_stats_thread */
+			    + 1 /* fts_optimize_thread */
+			    + 1 /* recv_writer_thread */
+			    + 1 /* buf_flush_page_cleaner_thread */
+			    + 1 /* trx_rollback_or_clean_all_recovered */
+			    + 128 /* added as margin, for use of
+				  InnoDB Memcached etc. */
+			    + max_connections
+			    + srv_n_read_io_threads
+			    + srv_n_write_io_threads
+			    + srv_n_purge_threads
+			    /* FTS Parallel Sort */
+			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
+			      * max_connections;
 
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 

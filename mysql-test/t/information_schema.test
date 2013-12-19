@@ -252,7 +252,7 @@ alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
-select * from information_schema.KEY_COLUMN_USAGE where
+select * from information_schema.key_column_usage where
 TABLE_SCHEMA= "test";
 
 connection user2;
@@ -361,7 +361,7 @@ create view vo as select 'a' union select 'a';
 show index from vo;
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
-select * from information_schema.KEY_COLUMN_USAGE where
+select * from information_schema.key_column_usage where
 TABLE_NAME= "vo";
 drop view vo;
 
@@ -1248,8 +1248,8 @@ WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 #
 select * from information_schema.columns where table_schema = NULL;
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
-select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
-select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`key_column_usage` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`key_column_usage` where `TABLE_NAME` = NULL;
 select * from `information_schema`.`PARTITIONS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`PARTITIONS` where `TABLE_NAME` = NULL;
 select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `CONSTRAINT_SCHEMA` = NULL;
@@ -1531,13 +1531,13 @@ drop tables t1, t3;
 #
 # Bug#39270 I_S optimization algorithm does not work properly in some cases
 #
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+EXPLAIN SELECT * FROM information_schema.key_column_usage;
+EXPLAIN SELECT * FROM information_schema.partitions WHERE TABLE_NAME='t1';
+EXPLAIN SELECT * FROM information_schema.referential_constraints
   WHERE CONSTRAINT_SCHEMA='test';
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+EXPLAIN SELECT * FROM information_schema.table_constraints
   WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+EXPLAIN SELECT * FROM information_schema.triggers
   WHERE EVENT_OBJECT_SCHEMA='test';
 
 #
@@ -1595,7 +1595,7 @@ disconnect con7;
 #
 
 SELECT *
-FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+FROM INFORMATION_SCHEMA.key_column_usage
 LEFT JOIN INFORMATION_SCHEMA.COLUMNS
 USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'

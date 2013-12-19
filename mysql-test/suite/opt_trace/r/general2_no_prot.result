@@ -666,11 +666,13 @@ EXPLAIN SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having (not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select 1,1 from `test`.`t1` having (((<cache>('v') = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>('i') = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`))))))) order by `test`.`t1`.`f2`
 SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
@@ -2591,11 +2593,13 @@ set @old_opt_switch=@@optimizer_switch;
 explain select * 
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
-2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index	a	a	5	NULL	10	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))))
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -2902,7 +2906,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -2930,7 +2934,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -2986,7 +2990,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3014,7 +3018,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3044,7 +3048,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3074,7 +3078,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3127,7 +3131,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3155,7 +3159,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3185,7 +3189,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3215,7 +3219,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3572,7 +3576,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2,
+                                "cost": 1.92,
                                 "chosen": true
                               },
                               {
@@ -3598,7 +3602,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2,
+                                "cost": 1.92,
                                 "chosen": true
                               },
                               {
@@ -4749,7 +4753,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                           "access_type": "ref",
                           "index": "PRIMARY",
                           "rows": 1,
-                          "cost": 20.2,
+                          "cost": 24,
                           "chosen": true
                         },
                         {

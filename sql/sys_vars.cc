@@ -221,6 +221,27 @@ static Sys_var_mybool Sys_pfs_consumer_events_statements_history_long(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
+static Sys_var_mybool Sys_pfs_consumer_events_transactions_current(
+       "performance_schema_consumer_events_transactions_current",
+       "Default startup value for the events_transactions_current consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_current_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_transactions_history(
+       "performance_schema_consumer_events_transactions_history",
+       "Default startup value for the events_transactions_history consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_transactions_history_long(
+       "performance_schema_consumer_events_transactions_history_long",
+       "Default startup value for the events_transactions_history_long consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_long_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
 static Sys_var_mybool Sys_pfs_consumer_events_waits_current(
        "performance_schema_consumer_events_waits_current",
        "Default startup value for the events_waits_current consumer.",
@@ -547,6 +568,24 @@ static Sys_var_long Sys_pfs_digest_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
+       DEFAULT(-1),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_long Sys_pfs_events_transactions_history_long_size(
+       "performance_schema_events_transactions_history_long_size",
+       "Number of rows in EVENTS_TRANSACTIONS_HISTORY_LONG."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(-1),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_long Sys_pfs_events_transactions_history_size(
+       "performance_schema_events_transactions_history_size",
+       "Number of rows per thread in EVENTS_TRANSACTIONS_HISTORY."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
        DEFAULT(-1),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -1636,7 +1675,7 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        "summary line. A value of 0 disables throttling. "
        "Option has no effect unless --log_queries_not_using_indexes is set.",
        GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
-       CMD_LINE(OPT_ARG),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(0),
@@ -2633,7 +2672,8 @@ on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
 {
   if (!var->save_result.ulonglong_value)
   {
-    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+    push_deprecated_warn(thd, "pre-4.1 password hash",
+                         "post-4.1 password hash");
   }
   return false;
 }

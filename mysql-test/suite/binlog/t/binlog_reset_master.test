@@ -12,7 +12,7 @@
 
 #######################################################################
 # BUG#12574820: binlog.binlog_tmp_table timing out in daily and weekly trunk run
-# Problem: MYSQL_BIN_LOG::reset_logs acquired LOCK_thread_count and
+# Problem: MYSQL_BIN_LOG::reset_logs acquired LOCK_thd_count and
 # LOCK_log in the wrong order. This could cause a deadlock when
 # RESET MASTER was run concurrently with a disconnecting thread.
 #######################################################################

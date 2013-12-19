@@ -316,7 +316,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 8,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 486,
+              "sort_buffer_size": 488,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -498,7 +498,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 16,
               "examined_rows": 16,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 650,
+              "sort_buffer_size": 656,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }

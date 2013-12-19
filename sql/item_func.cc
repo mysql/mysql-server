@@ -631,18 +631,19 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
 /**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
 */
 
 void Item_func::count_decimal_length()
 {
   int max_int_part= 0;
   decimals= 0;
-  unsigned_flag= 1;
   for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(decimals, args[i]->decimals);
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
-    set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
@@ -652,18 +653,18 @@ void Item_func::count_decimal_length()
 
 
 /**
-  Set max_length of if it is maximum length of its arguments.
+  Set char_length to the maximum number of characters required by any
+  of this function's arguments.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
 */
 
 void Item_func::count_only_length(Item **item, uint nitems)
 {
   uint32 char_length= 0;
-  unsigned_flag= 1;
   for (uint i= 0; i < nitems; i++)
-  {
     set_if_bigger(char_length, item[i]->max_char_length());
-    set_if_smaller(unsigned_flag, item[i]->unsigned_flag);
-  }
   fix_char_length(char_length);
 }
 
@@ -2474,7 +2475,7 @@ void Item_func_round::fix_length_and_dec()
   case INT_RESULT:
     if ((!decimals_to_set && truncate) || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
     {
-      int length_can_increase= test(!truncate && (val1 < 0) && !val1_unsigned);
+      int length_can_increase= MY_TEST(!truncate && (val1 < 0) && !val1_unsigned);
       max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -4603,7 +4604,7 @@ longlong Item_func_sleep::val_int()
 
   mysql_cond_destroy(&cond);
 
-  return test(!error); 		// Return 1 killed
+  return MY_TEST(!error); 		// Return 1 killed
 }
 
 /*
@@ -4774,7 +4775,7 @@ bool user_var_entry::realloc(uint length)
 bool user_var_entry::store(void *from, uint length, Item_result type)
 {
   // Store strings with end \0
-  if (realloc(length + test(type == STRING_RESULT)))
+  if (realloc(length + MY_TEST(type == STRING_RESULT)))
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
@@ -6766,7 +6767,7 @@ void Item_func_sp::fix_length_and_dec()
   max_length= sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null= 1;
-  unsigned_flag= test(sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_VOID_RETURN;
 }

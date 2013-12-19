@@ -1,13 +1,9 @@
 # This is the basic function tests for innodb FTS stopword charset
 
--- source include/have_innodb.inc
-
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-# Embedded server does not support crashing
+--source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
+# Embedded server does not support restart
 --source include/not_embedded.inc
-# Avoid CrashReporter popup on Mac
---source include/not_crashrep.inc
 
 let $innodb_ft_server_stopword_table_orig=`SELECT @@innodb_ft_server_stopword_table`;
 let $innodb_ft_enable_stopword_orig=`SELECT @@innodb_ft_enable_stopword`;

@@ -489,7 +489,7 @@ public:
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
     return new SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       test(maybe_flag && arg->maybe_flag));
+		       MY_TEST(maybe_flag && arg->maybe_flag));
   }
   SEL_ARG *clone_first(SEL_ARG *arg)
   {						// min <= X < arg->min
@@ -891,6 +891,8 @@ public:
       alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
   }
 
+  virtual ~RANGE_OPT_PARAM() {}
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -910,8 +912,8 @@ public:
 
   key_map *needed_reg;        /* ptr to SQL_SELECT::needed_reg */
 
-  uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
-  uint imerge_cost_buff_size; /* size of the buffer */
+  // Buffer for index_merge cost estimates.
+  Unique::Imerge_cost_buf_type imerge_cost_buff;
 
   /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
@@ -996,6 +998,8 @@ void append_range(String *out,
 
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
+static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE);
+
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
 static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
@@ -2721,7 +2725,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.mem_root= &alloc;
     param.old_root= thd->mem_root;
     param.needed_reg= &needed_reg;
-    param.imerge_cost_buff_size= 0;
+    param.imerge_cost_buff.reset();
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
     param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
@@ -3003,7 +3007,7 @@ free_mem:
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
   */
-  DBUG_RETURN(records ? test(quick) : -1);
+  DBUG_RETURN(records ? MY_TEST(quick) : -1);
 }
 
 /****************************************************************************
@@ -4017,7 +4021,7 @@ process_next_key_part:
         ppar->mark_full_partition_used(ppar->part_info, part_id);
         found= TRUE;
       }
-      res= test(found);
+      res= MY_TEST(found);
     }
     /*
       Restore the "used partitions iterator" to the default setting that
@@ -4377,7 +4381,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   bool all_scans_ror_able= TRUE;
   bool all_scans_rors= TRUE;
-  uint unique_calc_buff_size;
+  size_t unique_calc_buff_size;
   TABLE_READ_PLAN **roru_read_plans;
   TABLE_READ_PLAN **cur_roru_plan;
   double roru_index_costs;
@@ -4515,12 +4519,16 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     Unique::get_cost_calc_buff_size((ulong)non_cpk_scan_records,
                                     param->table->file->ref_length,
                                     param->thd->variables.sortbuff_size);
-  if (param->imerge_cost_buff_size < unique_calc_buff_size)
+  if (param->imerge_cost_buff.size() < unique_calc_buff_size)
   {
-    if (!(param->imerge_cost_buff= (uint*)alloc_root(param->mem_root,
-                                                     unique_calc_buff_size)))
+    typedef Unique::Imerge_cost_buf_type::value_type element_type;
+    void *rawmem=
+      alloc_root(param->mem_root, unique_calc_buff_size * sizeof(element_type));
+    if (!rawmem)
       DBUG_RETURN(NULL);
-    param->imerge_cost_buff_size= unique_calc_buff_size;
+    param->imerge_cost_buff=
+      Unique::Imerge_cost_buf_type(static_cast<element_type*>(rawmem),
+                                   unique_calc_buff_size);
   }
 
   {
@@ -5045,8 +5053,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   key_part_map keypart_map= 0;
   bool cur_covered;
-  bool prev_covered= test(bitmap_is_set(&info->covered_fields,
-                                        key_part->fieldnr-1));
+  bool prev_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
+                                           key_part->fieldnr-1));
   key_range min_range;
   key_range max_range;
   min_range.key= key_val;
@@ -5060,8 +5068,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
        sel_arg= sel_arg->next_key_part)
   {
     DBUG_PRINT("info",("sel_arg step"));
-    cur_covered= test(bitmap_is_set(&info->covered_fields,
-                                    key_part[sel_arg->part].fieldnr-1));
+    cur_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
+                                       key_part[sel_arg->part].fieldnr-1));
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
@@ -5795,7 +5803,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 
 
 /**
-   If EXPLAIN EXTENDED, add a warning that the index cannot be
+   If EXPLAIN, add a warning that the index cannot be
    used for range access due to either type conversion or different
    collations on the field used for comparison
 
@@ -5804,12 +5812,12 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
    @param field              Field in the predicate
  */
 static void 
-if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
                                               const uint key_num,
                                               const Field *field)
 {
   if (param->using_real_indexes &&
-      param->thd->lex->describe & DESCRIBE_EXTENDED)
+      param->thd->lex->describe)
     push_warning_printf(
             param->thd,
             Sql_condition::SL_WARNING,
@@ -5853,28 +5861,305 @@ static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   }
   return tree;
 }
-   
 
-/*
-  Build a SEL_TREE for a simple predicate
- 
-  SYNOPSIS
-    get_func_mm_tree()
-      param       PARAM from SQL_SELECT::test_quick_select
-      cond_func   item for the predicate
-      field       field in the predicate
-      value       constant in the predicate
-      cmp_type    compare type for the field
-      inv         TRUE <> NOT cond_func is considered
-                  (makes sense only when cond_func is BETWEEN or IN) 
 
-  RETURN 
-    Pointer to the tree built tree
+/**
+  Factory function to build a SEL_TREE from an <in predicate>
+
+  @param param      Information on 'just about everything'.
+  @param predicand  The <in predicate's> predicand, i.e. the left-hand
+                    side of the <in predicate> expression.
+  @param op         The 'in' operator itself.
+  @param value      The right-hand side of the <in predicate> expression.
+  @param cmp_type   What types we should pretend that the arguments are.
+  @param is_negated If true, the operator is NOT IN, otherwise IN.
+*/
+static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
+                                                    Item *predicand,
+                                                    Item_func_in *op,
+                                                    Item *value,
+                                                    Item_result cmp_type,
+                                                    bool is_negated)
+{
+  /*
+    Array for IN() is constructed when all values have the same result
+    type. Tree won't be built for values with different result types,
+    so we check it here to avoid unnecessary work.
+  */
+  if (!op->arg_types_compatible)
+    return NULL;
+
+  if (is_negated)
+  {
+    // We don't support row constructors (multiple columns on lhs) here.
+    if (predicand->type() != Item::FIELD_ITEM)
+      return NULL;
+
+    Field *field= static_cast<Item_field*>(predicand)->field;
+
+    if (op->array && op->array->result_type() != ROW_RESULT)
+    {
+      /*
+        We get here for conditions on the form "t.key NOT IN (c1, c2, ...)",
+        where c{i} are constants. Our goal is to produce a SEL_TREE that
+        represents intervals:
+
+        ($MIN<t.key<c1) OR (c1<t.key<c2) OR (c2<t.key<c3) OR ...    (*)
+
+        where $MIN is either "-inf" or NULL.
+
+        The most straightforward way to produce it is to convert NOT
+        IN into "(t.key != c1) AND (t.key != c2) AND ... " and let the
+        range analyzer build a SEL_TREE from that. The problem is that
+        the range analyzer will use O(N^2) memory (which is probably a
+        bug), and people who do use big NOT IN lists (e.g. see
+        BUG#15872, BUG#21282), will run out of memory.
+
+        Another problem with big lists like (*) is that a big list is
+        unlikely to produce a good "range" access, while considering
+        that range access will require expensive CPU calculations (and
+        for MyISAM even index accesses). In short, big NOT IN lists
+        are rarely worth analyzing.
+
+        Considering the above, we'll handle NOT IN as follows:
+
+        - if the number of entries in the NOT IN list is less than
+          NOT_IN_IGNORE_THRESHOLD, construct the SEL_TREE (*)
+          manually.
+
+        - Otherwise, don't produce a SEL_TREE.
+      */
+      const uint NOT_IN_IGNORE_THRESHOLD= 1000;
+      MEM_ROOT *tmp_root= param->mem_root;
+      param->thd->mem_root= param->old_root;
+      /*
+        Create one Item_type constant object. We'll need it as
+        get_mm_parts only accepts constant values wrapped in Item_Type
+        objects.
+        We create the Item on param->mem_root which points to
+        per-statement mem_root (while thd->mem_root is currently pointing
+        to mem_root local to range optimizer).
+      */
+      Item *value_item= op->array->create_item();
+      param->thd->mem_root= tmp_root;
+
+      if (op->array->count > NOT_IN_IGNORE_THRESHOLD || !value_item)
+        return NULL;
+
+      /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
+      uint i= 0;
+      SEL_TREE *tree= NULL;
+      do
+      {
+        op->array->value_to_item(i, value_item);
+        tree= get_mm_parts(param, op, field, Item_func::LT_FUNC, value_item,
+                           cmp_type);
+        if (!tree)
+          break;
+        i++;
+      }
+      while (i < op->array->count && tree->type == SEL_TREE::IMPOSSIBLE);
+
+      if (!tree || tree->type == SEL_TREE::IMPOSSIBLE)
+        /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
+        return NULL;
+      SEL_TREE *tree2;
+      for (; i < op->array->count; i++)
+      {
+        if (op->array->compare_elems(i, i - 1))
+        {
+          /* Get a SEL_TREE for "-inf < X < c_i" interval */
+          op->array->value_to_item(i, value_item);
+          tree2= get_mm_parts(param, op, field, Item_func::LT_FUNC,
+                              value_item, cmp_type);
+          if (!tree2)
+          {
+            tree= NULL;
+            break;
+          }
+
+          /* Change all intervals to be "c_{i-1} < X < c_i" */
+          for (uint idx= 0; idx < param->keys; idx++)
+          {
+            SEL_ARG *new_interval, *last_val;
+            if (((new_interval= tree2->keys[idx])) &&
+                (tree->keys[idx]) &&
+                ((last_val= tree->keys[idx]->last())))
+            {
+              new_interval->min_value= last_val->max_value;
+              new_interval->min_flag= NEAR_MIN;
+
+              /*
+                If the interval is over a partial keypart, the
+                interval must be "c_{i-1} <= X < c_i" instead of
+                "c_{i-1} < X < c_i". Reason:
+
+                Consider a table with a column "my_col VARCHAR(3)",
+                and an index with definition
+                "INDEX my_idx my_col(1)". If the table contains rows
+                with my_col values "f" and "foo", the index will not
+                distinguish the two rows.
+
+                Note that tree_or() below will effectively merge
+                this range with the range created for c_{i-1} and
+                we'll eventually end up with only one range:
+                "NULL < X".
+
+                Partitioning indexes are never partial.
+              */
+              if (param->using_real_indexes)
+              {
+                const KEY key=
+                  param->table->key_info[param->real_keynr[idx]];
+                const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
+
+                if (kpi->key_part_flag & HA_PART_KEY_SEG)
+                  new_interval->min_flag= 0;
+              }
+            }
+          }
+          /*
+            The following doesn't try to allocate memory so no need to
+            check for NULL.
+          */
+          tree= tree_or(param, tree, tree2);
+        }
+      }
+
+      if (tree && tree->type != SEL_TREE::IMPOSSIBLE)
+      {
+        /*
+          Get the SEL_TREE for the last "c_last < X < +inf" interval
+          (value_item cotains c_last already)
+        */
+        tree2= get_mm_parts(param, op, field, Item_func::GT_FUNC,
+                            value_item, cmp_type);
+        tree= tree_or(param, tree, tree2);
+      }
+      return tree;
+    }
+    else
+    {
+      SEL_TREE *tree= get_ne_mm_tree(param, op, field, op->arguments()[1],
+                                     op->arguments()[1], cmp_type);
+      if (tree)
+      {
+        Item **arg, **end;
+        for (arg= op->arguments() + 2, end= arg + op->argument_count() - 2;
+             arg < end ; arg++)
+        {
+          tree= tree_and(param, tree,
+                         get_ne_mm_tree(param, op, field, *arg, *arg,
+                                        cmp_type));
+        }
+      }
+      return tree;
+    }
+    return NULL;
+  }
+
+  // The expression is IN, not negated.
+  if (predicand->type() == Item::FIELD_ITEM)
+  {
+    // The expression is (<column>) IN (...)
+    Field *field= static_cast<Item_field*>(predicand)->field;
+    SEL_TREE *tree= get_mm_parts(param, op, field, Item_func::EQ_FUNC,
+                                 op->arguments()[1], cmp_type);
+    if (tree)
+    {
+      Item **arg, **end;
+      for (arg= op->arguments() + 2, end= arg + op->argument_count() - 2;
+           arg < end ; arg++)
+      {
+        tree= tree_or(param, tree, get_mm_parts(param, op, field,
+                                                Item_func::EQ_FUNC,
+                                                *arg, cmp_type));
+      }
+    }
+    return tree;
+  }
+  if (predicand->type() == Item::ROW_ITEM)
+  {
+    /*
+      The expression is (<column>,...) IN (...)
+
+      We iterate over the rows on the rhs of the in predicate,
+      building an OR tree of ANDs, a.k.a. a DNF expression out of this. E.g:
+
+      (col1, col2) IN ((const1, const2), (const3, const4))
+      becomes
+      (col1 = const1 AND col2 = const2) OR (col1 = const3 AND col2 = const4)
+    */
+    SEL_TREE *or_tree= &null_sel_tree;
+    Item_row *row_predicand= static_cast<Item_row*>(predicand);
+
+    // Iterate over the rows on the rhs of the in predicate, building an OR.
+    for (uint i= 1; i < op->argument_count(); ++i)
+    {
+      /*
+        We only support row value expressions. Some optimizations rewrite
+        the Item tree, and we don't handle that.
+      */        
+      Item *in_list_item= op->arguments()[i];
+      if (in_list_item->type() != Item::ROW_ITEM)
+        return NULL;
+      Item_row *row= static_cast<Item_row*>(in_list_item);
+
+      // Iterate over the columns, building an AND tree.
+      SEL_TREE *and_tree= NULL;
+      for (uint j= 0; j < row_predicand->cols(); ++j)
+      {
+        Item *item= row_predicand->element_index(j);
+
+        // We only support columns in the row on the lhs of the in predicate.
+        if (item->type() != Item::FIELD_ITEM)
+          return NULL;
+        Field *field= static_cast<Item_field*>(item)->field;
+
+        Item *value= row->element_index(j);
+
+        SEL_TREE *and_expr=
+          get_mm_parts(param, op, field, Item_func::EQ_FUNC, value, cmp_type);
+
+        and_tree= tree_and(param, and_tree, and_expr);
+        /*
+          Short-circuit evaluation: If and_expr is NULL then no key part in
+          this disjunct can be used as a search key. Or in other words the
+          condition is always true. Hence the whole disjunction is always true.
+        */
+        if (and_tree == NULL)
+          return NULL;
+      }
+      or_tree= tree_or(param, and_tree, or_tree);
+    }
+    return or_tree;
+  }
+  return NULL;
+}
+
+
+/**
+  Build a SEL_TREE for a simple predicate.
+
+  @param param     PARAM from SQL_SELECT::test_quick_select
+  @param predicand field in the predicate
+  @param cond_func item for the predicate
+  @param value     constant in the predicate
+  @param cmp_type  compare type for the field
+  @param inv       TRUE <> NOT cond_func is considered
+                  (makes sense only when cond_func is BETWEEN or IN)
+
+  @return Pointer to the built tree.
+
+  @todo Remove the appaling hack that 'value' can be a 1 cast to an Item*.
 */
 
-static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
-                                  Field *field, Item *value,
-                                  Item_result cmp_type, bool inv)
+static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
+                                  Item *predicand,
+                                  Item_func *cond_func,
+                                  Item *value,
+                                  Item_result cmp_type,
+                                  bool inv)
 {
   SEL_TREE *tree= 0;
   DBUG_ENTER("get_func_mm_tree");
@@ -5886,242 +6171,75 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
     break;             // See WL#5800
 
   case Item_func::NE_FUNC:
-    tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
+    if (predicand->type() == Item::FIELD_ITEM)
+    {
+      Field *field= static_cast<Item_field*>(predicand)->field;
+      tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
+    }
     break;
 
   case Item_func::BETWEEN:
-  {
-    if (!value)
+    if (predicand->type() == Item::FIELD_ITEM)
     {
-      if (inv)
+      Field *field= static_cast<Item_field*>(predicand)->field;
+
+      if (!value)
       {
-        tree= get_ne_mm_tree(param, cond_func, field, cond_func->arguments()[1],
-                             cond_func->arguments()[2], cmp_type);
-      }
-      else
-      {
-        tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
-		           cond_func->arguments()[1],cmp_type);
-        if (tree)
+        if (inv)
         {
-          tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
-					           Item_func::LE_FUNC,
-					           cond_func->arguments()[2],
-                                                   cmp_type));
+          tree= get_ne_mm_tree(param, cond_func, field,
+                               cond_func->arguments()[1],
+                               cond_func->arguments()[2], cmp_type);
+        }
+        else
+        {
+          tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
+                             cond_func->arguments()[1],cmp_type);
+          if (tree)
+          {
+            tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
+                                                     Item_func::LE_FUNC,
+                                                     cond_func->arguments()[2],
+                                                     cmp_type));
+          }
         }
       }
+      else
+        tree= get_mm_parts(param, cond_func, field,
+                           (inv ?
+                            (value == reinterpret_cast<Item*>(1) ?
+                             Item_func::GT_FUNC :
+                             Item_func::LT_FUNC):
+                            (value == reinterpret_cast<Item*>(1) ?
+                             Item_func::LE_FUNC :
+                             Item_func::GE_FUNC)),
+                           cond_func->arguments()[0], cmp_type);
     }
-    else
-      tree= get_mm_parts(param, cond_func, field,
-                         (inv ?
-                          (value == (Item*)1 ? Item_func::GT_FUNC :
-                                               Item_func::LT_FUNC):
-                          (value == (Item*)1 ? Item_func::LE_FUNC :
-                                               Item_func::GE_FUNC)),
-                         cond_func->arguments()[0], cmp_type);
     break;
-  }
   case Item_func::IN_FUNC:
   {
-    Item_func_in *func=(Item_func_in*) cond_func;
-
-    /*
-      Array for IN() is constructed when all values have the same result
-      type. Tree won't be built for values with different result types,
-      so we check it here to avoid unnecessary work.
-    */
-    if (!func->arg_types_compatible)
-      break;     
-
-    if (inv)
+    Item_func_in *in_pred= static_cast<Item_func_in*>(cond_func);
+    tree= get_func_mm_tree_from_in_predicate(param, predicand, in_pred, value,
+                                             cmp_type, inv);
+  }
+  break;
+  default:
+    if (predicand->type() == Item::FIELD_ITEM)
     {
-      if (func->array && func->array->result_type() != ROW_RESULT)
-      {
-        /*
-          We get here for conditions in form "t.key NOT IN (c1, c2, ...)",
-          where c{i} are constants. Our goal is to produce a SEL_TREE that 
-          represents intervals:
-          
-          ($MIN<t.key<c1) OR (c1<t.key<c2) OR (c2<t.key<c3) OR ...    (*)
-          
-          where $MIN is either "-inf" or NULL.
-          
-          The most straightforward way to produce it is to convert NOT IN
-          into "(t.key != c1) AND (t.key != c2) AND ... " and let the range
-          analyzer to build SEL_TREE from that. The problem is that the
-          range analyzer will use O(N^2) memory (which is probably a bug),
-          and people do use big NOT IN lists (e.g. see BUG#15872, BUG#21282),
-          will run out of memory.
+      Field *field= static_cast<Item_field*>(predicand)->field;
 
-          Another problem with big lists like (*) is that a big list is
-          unlikely to produce a good "range" access, while considering that
-          range access will require expensive CPU calculations (and for 
-          MyISAM even index accesses). In short, big NOT IN lists are rarely
-          worth analyzing.
-
-          Considering the above, we'll handle NOT IN as follows:
-          * if the number of entries in the NOT IN list is less than
-            NOT_IN_IGNORE_THRESHOLD, construct the SEL_TREE (*) manually.
-          * Otherwise, don't produce a SEL_TREE.
-        */
-#define NOT_IN_IGNORE_THRESHOLD 1000
-        MEM_ROOT *tmp_root= param->mem_root;
-        param->thd->mem_root= param->old_root;
-        /* 
-          Create one Item_type constant object. We'll need it as
-          get_mm_parts only accepts constant values wrapped in Item_Type
-          objects.
-          We create the Item on param->mem_root which points to
-          per-statement mem_root (while thd->mem_root is currently pointing
-          to mem_root local to range optimizer).
-        */
-        Item *value_item= func->array->create_item();
-        param->thd->mem_root= tmp_root;
-
-        if (func->array->count > NOT_IN_IGNORE_THRESHOLD || !value_item)
-          break;
-
-        /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
-        uint i=0;
-        do 
-        {
-          func->array->value_to_item(i, value_item);
-          tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-                             value_item, cmp_type);
-          if (!tree)
-            break;
-          i++;
-        } while (i < func->array->count && tree->type == SEL_TREE::IMPOSSIBLE);
-
-        if (!tree || tree->type == SEL_TREE::IMPOSSIBLE)
-        {
-          /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
-          tree= NULL;
-          break;
-        }
-        SEL_TREE *tree2;
-        for (; i < func->array->count; i++)
-        {
-          if (func->array->compare_elems(i, i-1))
-          {
-            /* Get a SEL_TREE for "-inf < X < c_i" interval */
-            func->array->value_to_item(i, value_item);
-            tree2= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-                                value_item, cmp_type);
-            if (!tree2)
-            {
-              tree= NULL;
-              break;
-            }
-
-            /* Change all intervals to be "c_{i-1} < X < c_i" */
-            for (uint idx= 0; idx < param->keys; idx++)
-            {
-              SEL_ARG *new_interval, *last_val;
-              if (((new_interval= tree2->keys[idx])) &&
-                  (tree->keys[idx]) &&
-                  ((last_val= tree->keys[idx]->last())))
-              {
-                new_interval->min_value= last_val->max_value;
-                new_interval->min_flag= NEAR_MIN;
-
-                /*
-                  If the interval is over a partial keypart, the
-                  interval must be "c_{i-1} <= X < c_i" instead of
-                  "c_{i-1} < X < c_i". Reason:
-
-                  Consider a table with a column "my_col VARCHAR(3)",
-                  and an index with definition
-                  "INDEX my_idx my_col(1)". If the table contains rows
-                  with my_col values "f" and "foo", the index will not
-                  distinguish the two rows.
-
-                  Note that tree_or() below will effectively merge
-                  this range with the range created for c_{i-1} and
-                  we'll eventually end up with only one range:
-                  "NULL < X".
-
-                  Partitioning indexes are never partial.
-                */
-                if (param->using_real_indexes)
-                {
-                  const KEY key=
-                    param->table->key_info[param->real_keynr[idx]];
-                  const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
-
-                  if (kpi->key_part_flag & HA_PART_KEY_SEG)
-                    new_interval->min_flag= 0;
-                }
-              }
-            }
-            /* 
-              The following doesn't try to allocate memory so no need to
-              check for NULL.
-            */
-            tree= tree_or(param, tree, tree2);
-          }
-        }
-        
-        if (tree && tree->type != SEL_TREE::IMPOSSIBLE)
-        {
-          /* 
-            Get the SEL_TREE for the last "c_last < X < +inf" interval 
-            (value_item cotains c_last already)
-          */
-          tree2= get_mm_parts(param, cond_func, field, Item_func::GT_FUNC,
-                              value_item, cmp_type);
-          tree= tree_or(param, tree, tree2);
-        }
-      }
-      else
-      {
-        tree= get_ne_mm_tree(param, cond_func, field,
-                             func->arguments()[1], func->arguments()[1],
-                             cmp_type);
-        if (tree)
-        {
-          Item **arg, **end;
-          for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
-               arg < end ; arg++)
-          {
-            tree=  tree_and(param, tree, get_ne_mm_tree(param, cond_func, field, 
-                                                        *arg, *arg, cmp_type));
-          }
-        }
-      }
-    }
-    else
-    {    
-      tree= get_mm_parts(param, cond_func, field, Item_func::EQ_FUNC,
-                         func->arguments()[1], cmp_type);
-      if (tree)
-      {
-        Item **arg, **end;
-        for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
-             arg < end ; arg++)
-        {
-          tree= tree_or(param, tree, get_mm_parts(param, cond_func, field, 
-                                                  Item_func::EQ_FUNC,
-                                                  *arg, cmp_type));
-        }
-      }
-    }
-    break;
-  }
-  default: 
-  {
-    /* 
-       Here the function for the following predicates are processed:
-       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL and GIS functions.
-       If the predicate is of the form (value op field) it is handled
-       as the equivalent predicate (field rev_op value), e.g.
-       2 <= a is handled as a >= 2.
-    */
-    Item_func::Functype func_type=
-      (value != cond_func->arguments()[0]) ? cond_func->functype() :
+      /*
+         Here the function for the following predicates are processed:
+         <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL and GIS functions.
+         If the predicate is of the form (value op field) it is handled
+         as the equivalent predicate (field rev_op value), e.g.
+         2 <= a is handled as a >= 2.
+      */
+      Item_func::Functype func_type=
+        (value != cond_func->arguments()[0]) ? cond_func->functype() :
         ((Item_bool_func2*) cond_func)->rev_functype();
-    tree= get_mm_parts(param, cond_func, field, func_type, value, cmp_type);
-  }
+      tree= get_mm_parts(param, cond_func, field, func_type, value, cmp_type);
+    }
   }
 
   DBUG_RETURN(tree);
@@ -6134,13 +6252,12 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   SYNOPSIS
     get_full_func_mm_tree()
       param       PARAM from SQL_SELECT::test_quick_select
-      cond_func   item for the predicate
-      field_item  field in the predicate
-      value       constant in the predicate (or a field already read from 
+      predicand   column or row constructor in the predicate's left-hand side.
+      op          Item for the predicate operator
+      value       constant in the predicate (or a field already read from
                   a table in the case of dynamic range access)
-                  (for BETWEEN it contains the number of the field argument,
-                   for IN it's always 0) 
-      inv         TRUE <> NOT cond_func is considered
+                  For BETWEEN it contains the number of the field argument.
+      inv         If true, the predicate is negated, e.g. NOT IN.
                   (makes sense only when cond_func is BETWEEN or IN)
 
   DESCRIPTION
@@ -6200,43 +6317,56 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 */
 
 static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
-                                       Item_func *cond_func,
-                                       Item_field *field_item, Item *value, 
+                                       Item *predicand,
+                                       Item_func *op,
+                                       Item *value,
                                        bool inv)
 {
   SEL_TREE *tree= 0;
   SEL_TREE *ftree= 0;
-  table_map ref_tables= 0;
-  table_map param_comp= ~(param->prev_tables | param->read_tables |
-		          param->current_table);
+  const table_map param_comp=
+    ~(param->prev_tables | param->read_tables | param->current_table);
   DBUG_ENTER("get_full_func_mm_tree");
 
-  for (uint i= 0; i < cond_func->arg_count; i++)
+  /*
+    Here we compute a set of tables that we consider as constants
+    suppliers during execution of the SEL_TREE that we produce below.
+  */
+  table_map ref_tables= 0;
+  for (uint i= 0; i < op->arg_count; i++)
   {
-    Item *arg= cond_func->arguments()[i]->real_item();
-    if (arg != field_item)
+    Item *arg= op->arguments()[i]->real_item();
+    if (arg != predicand)
       ref_tables|= arg->used_tables();
   }
-  Field *field= field_item->field;
-  Item_result cmp_type= field->cmp_type();
-  if (!((ref_tables | field->table->map) & param_comp))
-    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type, inv);
-  Item_equal *item_equal= field_item->item_equal;
-  if (item_equal)
+  if (predicand->type() == Item::FIELD_ITEM)
   {
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
-    while ((item= it++))
+    Item_field *item_field= static_cast<Item_field*>(predicand);
+    Field *field= item_field->field;
+    Item_result cmp_type= field->cmp_type();
+
+    if (!((ref_tables | field->table->map) & param_comp))
+      ftree= get_func_mm_tree(param, predicand, op, value, cmp_type, inv);
+    Item_equal *item_equal= item_field->item_equal;
+    if (item_equal != NULL)
     {
-      Field *f= item->field;
-      if (field->eq(f))
-        continue;
-      if (!((ref_tables | f->table->map) & param_comp))
+      Item_equal_iterator it(*item_equal);
+      Item_field *item;
+      while ((item= it++))
       {
-        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type, inv);
-        ftree= !ftree ? tree : tree_and(param, ftree, tree);
+        Field *f= item->field;
+        if (!field->eq(f) && !((ref_tables | f->table->map) & param_comp))
+        {
+          tree= get_func_mm_tree(param, item, op, value, cmp_type, inv);
+          ftree= !ftree ? tree : tree_and(param, ftree, tree);
+        }
       }
     }
+  }
+  else if (predicand->type() == Item::ROW_ITEM)
+  {
+    ftree= get_func_mm_tree(param, predicand, op, value, ROW_RESULT, inv);
+    DBUG_RETURN(ftree);
   }
   DBUG_RETURN(ftree);
 }
@@ -6390,7 +6520,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
       field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
-      ftree= get_full_func_mm_tree(param, cond_func, field_item, NULL, inv);
+      ftree= get_full_func_mm_tree(param, field_item, cond_func, NULL, inv);
     }
 
     /*
@@ -6402,8 +6532,9 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM)
       {
         field_item= (Item_field*) (cond_func->arguments()[i]->real_item());
-        SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
-                                    field_item, (Item*)(intptr)i, inv);
+        SEL_TREE *tmp=
+          get_full_func_mm_tree(param, field_item, cond_func,
+                                reinterpret_cast<Item*>(i), inv);
         if (inv)
         {
           tree= !tree ? tmp : tree_or(param, tree, tmp);
@@ -6425,10 +6556,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   case Item_func::IN_FUNC:
   {
     Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM)
-      DBUG_RETURN(0);
-    field_item= (Item_field*) (func->key_item()->real_item());
-    ftree= get_full_func_mm_tree(param, cond_func, field_item, NULL, inv);
+    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM &&
+        func->key_item()->real_item()->type() != Item::ROW_ITEM)
+      DBUG_RETURN(NULL);
+    Item *predicand= func->key_item()->real_item();
+    ftree= get_full_func_mm_tree(param, predicand, cond_func, NULL, inv);
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
@@ -6460,7 +6592,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     {
       field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
       value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : NULL;
-      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
+      ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
     /*
       Even if get_full_func_mm_tree() was executed above and did not
@@ -6483,7 +6615,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     {
       field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
       value= cond_func->arguments()[0];
-      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
+      ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
   }
 
@@ -6555,24 +6687,24 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 
       SEL_ARG *sel_arg=0;
       if (!tree && !(tree=new SEL_TREE()))
-	DBUG_RETURN(0);				// OOM
+        DBUG_RETURN(0); // OOM
       if (!value || !(value->used_tables() & ~param->read_tables))
       {
-	sel_arg=get_mm_leaf(param,cond_func,
-			    key_part->field,key_part,type,value);
-	if (!sel_arg)
-	  continue;
-	if (sel_arg->type == SEL_ARG::IMPOSSIBLE)
-	{
-	  tree->type=SEL_TREE::IMPOSSIBLE;
-	  DBUG_RETURN(tree);
-	}
+        sel_arg=get_mm_leaf(param,cond_func,
+                            key_part->field,key_part,type,value);
+        if (!sel_arg)
+          continue;
+        if (sel_arg->type == SEL_ARG::IMPOSSIBLE)
+        {
+          tree->type=SEL_TREE::IMPOSSIBLE;
+          DBUG_RETURN(tree);
+        }
       }
       else
       {
-	// This key may be used later
-	if (!(sel_arg= new SEL_ARG(SEL_ARG::MAYBE_KEY)))
-	  DBUG_RETURN(0);			// OOM
+        // This key may be used later
+        if (!(sel_arg= new SEL_ARG(SEL_ARG::MAYBE_KEY)))
+          DBUG_RETURN(0); // OOM
       }
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
@@ -6868,7 +7000,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
          (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -6898,7 +7030,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
       field_time_cmp_date(field, value))                   // 2)
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -7023,7 +7155,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -9674,12 +9806,12 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
   if (param->table->key_info[param->real_keynr[idx]].flags & HA_SPATIAL)
     quick=new QUICK_RANGE_SELECT_GEOM(param->thd, param->table,
                                       param->real_keynr[idx],
-                                      test(parent_alloc),
+                                      MY_TEST(parent_alloc),
                                       parent_alloc, &create_err);
   else
     quick=new QUICK_RANGE_SELECT(param->thd, param->table,
                                  param->real_keynr[idx],
-                                 test(parent_alloc), NULL, &create_err);
+                                 MY_TEST(parent_alloc), NULL, &create_err);
 
   if (quick)
   {
@@ -10733,7 +10865,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
-                                   test(last_range->flag & EQ_RANGE),
+                                   MY_TEST(last_range->flag & EQ_RANGE),
 				   sorted);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
