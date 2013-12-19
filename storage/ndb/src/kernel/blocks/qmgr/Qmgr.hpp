@@ -272,9 +272,7 @@ public:
 
     inline Uint64 getTimediff() {
       const NDB_TICKS now = NdbTick_getCurrentTicks();
-      return NdbTick_Compare(now, timestamp) >= 0
-              ? NdbTick_Elapsed(timestamp, now).milliSec()
-              : 0;
+      return NdbTick_Elapsed(timestamp, now).milliSec();
     }
   };
   
