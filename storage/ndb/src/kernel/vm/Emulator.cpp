@@ -649,8 +649,13 @@ JamEvent::verifyId(Uint32 fileId, const char* pathName)
     const size_t pathLen = strlen(pathName);
     const size_t baseLen = strlen(jamFileNames[fileId]);
 
+    /*
+      With Visual C++, __FILE__ is always in lowercase. Therefore we must use
+      strcasecmp() rather than strcmp(), since jamFileNames contains mixed-case
+      names.
+    */
     return pathLen >= baseLen &&
-      strcmp(pathName+pathLen-baseLen, jamFileNames[fileId]) == 0;
+      strcasecmp(pathName+pathLen-baseLen, jamFileNames[fileId]) == 0;
   }
 }
 
