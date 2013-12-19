@@ -1092,10 +1092,34 @@ loop:
 		case DICT_CHECK_ALL_LOADED:
 			/* All tablespaces should have been found in
 			fil_load_single_table_tablespaces(). */
-
-			fil_space_for_table_exists_in_mem(
+			if (fil_space_for_table_exists_in_mem(
 				space_id, name, TRUE, !(is_temp || discarded),
-				false, NULL, 0);
+				false, NULL, 0)
+			    && !(is_temp || discarded)) {
+				/* If user changes the path of .ibd files in
+				   *.isl files before doing crash recovery ,
+				   then this leads to inconsistency in
+				   SYS_DATAFILES system table because the
+				   tables are loaded from the updated path
+				   but the SYS_DATAFILES still points to the
+				   old path.Therefore after crash recovery
+				   update SYS_DATAFILES with the updated path.*/
+				ut_ad(space_id);
+				ut_ad(recv_needed_recovery);
+				char *dict_path = dict_get_first_path(space_id,
+								      name);
+				char *remote_path = fil_read_link_file(name);
+				if(dict_path && remote_path) {
+					if(strcmp(dict_path,remote_path)) {
+						dict_update_filepath(space_id,
+								     remote_path);
+						}
+				}
+				if(dict_path)
+					mem_free(dict_path);
+				if(remote_path)
+					mem_free(remote_path);
+			}
 			break;
 
 		case DICT_CHECK_SOME_LOADED:
