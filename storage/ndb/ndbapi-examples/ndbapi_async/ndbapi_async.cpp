@@ -53,6 +53,7 @@
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
 
+#include <stdlib.h>
 #include <iostream> // Used for cout
 
 /**
