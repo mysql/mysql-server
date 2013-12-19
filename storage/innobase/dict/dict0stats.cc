@@ -27,25 +27,15 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
+#include "ut0ut.h"
+#include "ut0rnd.h"
+#include "dyn0buf.h"
+#include "row0sel.h"
+#include "trx0trx.h"
+#include "pars0pars.h"
+#include "dict0stats.h"
 #include "ha_prototypes.h"
 #include <mysql_com.h>
-
-#include "btr0btr.h"
-#include "btr0cur.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0stats.h"
-#include "data0type.h"
-#include "page0page.h"
-#include "pars0pars.h"
-#include "pars0types.h"
-#include "que0que.h"
-#include "rem0cmp.h"
-#include "row0sel.h"
-#include "row0types.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "ut0rnd.h"
 
 #include <vector>
 
@@ -790,9 +780,21 @@ dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-		 && dict_index_is_clust(index))) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+	    && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
+		|| !dict_index_is_clust(index))) {
+		/* If we have set a high innodb_force_recovery
+		level, do not calculate statistics, as a badly
+		corrupted index can cause a crash in it.
+		Initialize some bogus index cardinality
+		statistics, so that the data can be queried in
+		various means, also via secondary indexes. */
+		dict_stats_empty_index(index);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug && !dict_index_is_clust(index)) {
+		dict_stats_empty_index(index);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+	} else {
 		mtr_t	mtr;
 		ulint	size;
 
@@ -824,14 +826,6 @@ dict_stats_update_transient_for_index(
 		index->stat_n_leaf_pages = size;
 
 		btr_estimate_number_of_different_key_vals(index);
-	} else {
-		/* If we have set a high innodb_force_recovery
-		level, do not calculate statistics, as a badly
-		corrupted index can cause a crash in it.
-		Initialize some bogus index cardinality
-		statistics, so that the data can be queried in
-		various means, also via secondary indexes. */
-		dict_stats_empty_index(index);
 	}
 }
 

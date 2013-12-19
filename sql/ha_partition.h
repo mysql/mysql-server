@@ -262,6 +262,7 @@ private:
   MY_BITMAP m_key_not_found_partitions;
   bool m_key_not_found;
   bool m_reverse_order;
+  bool m_icp_in_use;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -343,7 +344,8 @@ private:
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
                             handler *file, const char *part_name,
-                            partition_element *p_elem);
+                            partition_element *p_elem,
+                            uint disable_non_uniq_indexes);
   /*
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
@@ -950,11 +952,7 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    /*
-      TODO: sergefp: Support Index Condition Pushdown in this table handler.
-    */
-    return m_file[0]->index_flags(inx, part, all_parts) &
-           ~HA_DO_INDEX_COND_PUSHDOWN;
+    return m_file[0]->index_flags(inx, part, all_parts);
   }
 
   /**
@@ -1016,6 +1014,30 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+
+  /*
+    -------------------------------------------------------------------------
+    MODULE condition pushdown
+    -------------------------------------------------------------------------
+    cond_push
+    -------------------------------------------------------------------------
+  */
+
+  /* No support of engine condition pushdown yet! */
+  //const Item *cond_push(const Item *cond);
+  //void cond_pop();
+  /* Only Index condition pushdown is supported currently. */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+  void cancel_pushed_idx_cond();
+  /* No support of pushed joins yet! */
+  //uint number_of_pushed_joins()
+  //virtual const TABLE* root_of_pushed_join() const
+  //virtual const TABLE* parent_of_pushed_join() const
+  //virtual int index_read_pushed(uchar * buf, const uchar * key,
+                                //key_part_map keypart_map)
+  //virtual int index_next_pushed(uchar * buf)
+
+
   /*
     -------------------------------------------------------------------------
     MODULE auto increment

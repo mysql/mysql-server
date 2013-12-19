@@ -30,8 +30,6 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL
@@ -58,6 +56,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "ha_prototypes.h"
+#include "srv0mon.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -3240,55 +3240,78 @@ sel_restore_position_for_mysql(
 	mtr_t*		mtr)		/*!< in: mtr; CAUTION: may commit
 					mtr temporarily! */
 {
-	ibool	success;
-	ulint	relative_position;
-
-	relative_position = pcur->rel_pos;
+	ibool		success;
 
 	success = btr_pcur_restore_position(latch_mode, pcur, mtr);
 
 	*same_user_rec = success;
 
-	if (relative_position == BTR_PCUR_ON) {
-		if (success) {
-			return(FALSE);
-		}
-
-		if (moves_up) {
-			btr_pcur_move_to_next(pcur, mtr);
-		}
-
-		return(TRUE);
+	ut_ad(!success || pcur->rel_pos == BTR_PCUR_ON);
+#ifdef UNIV_DEBUG
+	if (pcur->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
+		ut_ad(pcur->rel_pos == BTR_PCUR_BEFORE
+		      || pcur->rel_pos == BTR_PCUR_AFTER);
+	} else {
+		ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+		ut_ad((pcur->rel_pos == BTR_PCUR_ON)
+		      == btr_pcur_is_on_user_rec(pcur));
 	}
+#endif
 
-	/* success can only be TRUE for BTR_PCUR_ON! */
-	ut_ad(!success);
+	/* The position may need be adjusted for rel_pos and moves_up. */
 
-	/* BTR_PCUR_BEFORE -> the position is now set to the record before
-	pcur->old_rec.
-	BTR_PCUR_AFTER-> positioned to record after pcur->old_rec. */
-
-	if (relative_position == BTR_PCUR_AFTER
-	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
-
-		if (moves_up) {
+	switch (pcur->rel_pos) {
+	case BTR_PCUR_ON:
+		if (!success && moves_up) {
+next:
+			btr_pcur_move_to_next(pcur, mtr);
 			return(TRUE);
 		}
-
-		if (btr_pcur_is_on_user_rec(pcur)) {
+		return(!success);
+	case BTR_PCUR_AFTER_LAST_IN_TREE:
+	case BTR_PCUR_BEFORE_FIRST_IN_TREE:
+		return(TRUE);
+	case BTR_PCUR_AFTER:
+		/* positioned to record after pcur->old_rec. */
+		pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+prev:
+		if (btr_pcur_is_on_user_rec(pcur) && !moves_up) {
 			btr_pcur_move_to_prev(pcur, mtr);
 		}
-
 		return(TRUE);
+	case BTR_PCUR_BEFORE:
+		/* For non optimistic restoration:
+		The position is now set to the record before pcur->old_rec.
+
+		For optimistic restoration:
+		The position also needs to take the previous search_mode into
+		consideration. */
+
+		switch (pcur->pos_state) {
+		case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
+			pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+			if (pcur->search_mode == PAGE_CUR_GE) {
+				/* Positioned during Greater or Equal search
+				with BTR_PCUR_BEFORE. Optimistic restore to
+				the same record. If scanning for lower then
+				we must move to previous record.
+				This can happen with:
+				HANDLER READ idx a = (const);
+				HANDLER READ idx PREV; */
+				goto prev;
+			}
+			return(TRUE);
+		case BTR_PCUR_IS_POSITIONED:
+			if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
+				goto next;
+			}
+			return(TRUE);
+		case BTR_PCUR_WAS_POSITIONED:
+		case BTR_PCUR_NOT_POSITIONED:
+			break;
+		}
 	}
-
-	ut_ad(relative_position == BTR_PCUR_BEFORE
-	      || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
-
-	if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
-		btr_pcur_move_to_next(pcur, mtr);
-	}
-
+	ut_ad(0);
 	return(TRUE);
 }
 

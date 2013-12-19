@@ -109,6 +109,8 @@ void test_bootstrap()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_events_transactions_history_sizing= 0;
+  param.m_events_transactions_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
@@ -172,6 +174,8 @@ PSI * load_perfschema()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_events_transactions_history_sizing= 0;
+  param.m_events_transactions_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
@@ -179,6 +183,7 @@ PSI * load_perfschema()
   param.m_memory_class_sizing= 10;
   param.m_metadata_lock_sizing= 10;
 
+  pre_initialize_performance_schema();
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
   psi= boot->get_interface(PSI_VERSION_1);
@@ -1520,6 +1525,8 @@ void test_event_name_index()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_events_transactions_history_sizing= 0;
+  param.m_events_transactions_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
@@ -1540,6 +1547,7 @@ void test_event_name_index()
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
 
+  pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "bootstrap");
   psi= (PSI*) boot->get_interface(PSI_VERSION_1);

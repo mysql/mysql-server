@@ -3,6 +3,8 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+--source include/not_embedded.inc
+
 # Turn on ssl between the client and server
 # and run a number of tests
 
@@ -15,14 +17,14 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-connect (ssl_con,localhost,root,,,,,SSL);
+--echo # must return AES128-SHA
+# need to use mysql since mysqltest doesn't support --ssl-cipher
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl --ssl-cipher=AES128-SHA
 
-# Check Cipher Name and Cipher List
-SHOW STATUS LIKE 'Ssl_cipher';
-SHOW STATUS LIKE 'Ssl_cipher_list';
 
-connection default;
-disconnect ssl_con;
+--echo # must fail since the default SSL cipher is not compatible
+--error 1
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

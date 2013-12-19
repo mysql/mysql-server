@@ -35,28 +35,28 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -3,3 +3,3 @@
- 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (Block Nested Loop)
--1	PRIMARY	alias3	ALL	col_varchar_key	NULL	NULL	NULL	20	Range checked for each record (index map: 0x20)
-+1	PRIMARY	alias3	range	col_varchar_key	col_varchar_key	4	NULL	5	Range checked for each record (index map: 0x20); Using index
- 2	SUBQUERY	sq1_alias1	ALL	NULL	NULL	NULL	NULL	20	NULL
+ 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
+-1	PRIMARY	alias3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x20)
++1	PRIMARY	alias3	NULL	range	col_varchar_key	col_varchar_key	4	NULL	5	400.00	Range checked for each record (index map: 0x20); Using index
+ 2	SUBQUERY	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 QUERY: SELECT    alias1.col_int_key AS field1 , alias1.col_date_key AS field2 , alias1.col_varchar_key AS field3 FROM ( c AS alias1 , d AS alias2 , cc AS alias3 ) WHERE (   EXISTS ( (SELECT   sq1_alias1.col_varchar_key AS sq1_field1 FROM ( d AS sq1_alias1 LEFT  JOIN d AS sq1_alias2 ON (sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key  ) )   ) ) ) AND alias1.col_int_key = alias1.col_int_key AND alias1.col_int_key < alias3.col_int_key  GROUP BY field1, field2, field3 HAVING field2 >= 'a' 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	PRIMARY	alias1	ALL	col_int_key	NULL	NULL	NULL	20	Using where; Using temporary; Using filesort
--1	PRIMARY	alias3	ALL	col_int_key	NULL	NULL	NULL	20	Range checked for each record (index map: 0x2)
-+1	PRIMARY	alias3	range	col_int_key	col_int_key	5	NULL	8	Range checked for each record (index map: 0x2); Using index
- 1	PRIMARY	alias2	index	NULL	col_date_key	4	NULL	100	Using index; Using join buffer (Block Nested Loop)
+ 1	PRIMARY	alias1	NULL	ALL	col_int_key	NULL	NULL	NULL	20	100.00	Using where; Using temporary; Using filesort
+-1	PRIMARY	alias3	NULL	ALL	col_int_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x2)
++1	PRIMARY	alias3	NULL	range	col_int_key	col_int_key	5	NULL	8	250.00	Range checked for each record (index map: 0x2); Using index
+ 1	PRIMARY	alias2	NULL	index	NULL	col_date_key	4	NULL	100	100.00	Using index; Using join buffer (Block Nested Loop)
 QUERY: SELECT    alias1.col_datetime_key AS field1 , alias2.col_int_key AS field2 FROM ( c AS alias1 , d AS alias2 , cc AS alias3 ) WHERE (   EXISTS ( (SELECT   sq1_alias1.col_int_key AS sq1_field1 FROM bb AS sq1_alias1 WHERE sq1_alias1.pk < 8   ) ) ) OR alias1.col_int_key > alias3.col_int_key   ORDER BY alias1.col_int_key ASC , field1, field2 LIMIT 2 /*  */
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	PRIMARY	alias1	ALL	col_int_key	NULL	NULL	NULL	20	Using temporary; Using filesort
--1	PRIMARY	alias3	ALL	col_int_key	NULL	NULL	NULL	20	Range checked for each record (index map: 0x2)
-+1	PRIMARY	alias3	range	col_int_key	col_int_key	5	NULL	7	Range checked for each record (index map: 0x2); Using index
- 1	PRIMARY	alias2	index	NULL	col_int_key	5	NULL	100	Using index; Using join buffer (Block Nested Loop)
+ 1	PRIMARY	alias1	NULL	ALL	col_int_key	NULL	NULL	NULL	20	100.00	Using temporary; Using filesort
+-1	PRIMARY	alias3	NULL	ALL	col_int_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x2)
++1	PRIMARY	alias3	NULL	range	col_int_key	col_int_key	5	NULL	7	285.71	Range checked for each record (index map: 0x2); Using index
+ 1	PRIMARY	alias2	NULL	index	NULL	col_int_key	5	NULL	100	100.00	Using index; Using join buffer (Block Nested Loop)
 QUERY: SELECT    alias1.col_int_key AS field1 , alias1.col_int_key AS field2 FROM ( ( SELECT   sq1_alias1.* FROM d AS sq1_alias1  ) AS alias1 , d AS alias2 ) WHERE (  (SELECT   MIN(  sq2_alias1.pk ) AS sq2_field1 FROM ( view_c AS sq2_alias1 RIGHT  JOIN c AS sq2_alias2 ON (sq2_alias2.col_varchar_nokey = sq2_alias1.col_varchar_key  ) )  ) IS NOT NULL ) AND ( alias2.col_varchar_key <= 'z' OR   EXISTS ( (SELECT   sq3_alias1.col_int_nokey AS sq3_field1 FROM a AS sq3_alias1    ) ) )  GROUP BY field1, field2 HAVING field2 < 4 ORDER BY alias1.col_int_key ASC , field1, field2 
 STATUS: EQUAL
 QUERY: SELECT  STRAIGHT_JOIN  alias1.col_int_key AS field1 FROM ( b AS alias1 , ( SELECT   sq1_alias1.* FROM ( cc AS sq1_alias1 INNER JOIN ( c AS sq1_alias2 INNER JOIN c AS sq1_alias3 ON (sq1_alias3.pk = sq1_alias2.pk  ) ) ON (sq1_alias3.col_varchar_key = sq1_alias2.col_varchar_key  ) ) WHERE  sq1_alias2.col_int_key >= ANY (SELECT   c_sq1_alias1.col_int_key AS c_sq1_field1 FROM c AS c_sq1_alias1  GROUP BY c_sq1_field1  ) ) AS alias2 ) WHERE   EXISTS ( (SELECT   sq2_alias1.col_varchar_key AS sq2_field1 FROM c AS sq2_alias1 WHERE sq2_alias1.col_varchar_nokey < 'p' GROUP BY sq2_field1 ) )  GROUP BY field1 HAVING field1 <> 'o' ORDER BY field1  , alias1.col_time_key , alias2 .pk DESC, field1 
@@ -96,27 +96,27 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	PRIMARY	table1	ALL	col_varchar_key	NULL	NULL	NULL	20	Using temporary; Using filesort
--1	PRIMARY	table2	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	Range checked for each record (index map: 0x22)
-+1	PRIMARY	table2	range	col_int_key,col_varchar_key	col_int_key	5	NULL	1	Range checked for each record (index map: 0x22)
- 2	SUBQUERY	subquery1_t1	index	NULL	col_varchar_key	9	NULL	20	Using index
+ 1	PRIMARY	table1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using temporary; Using filesort
+-1	PRIMARY	table2	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x22)
++1	PRIMARY	table2	NULL	range	col_int_key,col_varchar_key	col_int_key	5	NULL	1	100.00	Range checked for each record (index map: 0x22)
+ 2	SUBQUERY	subquery1_t1	NULL	index	NULL	col_varchar_key	9	NULL	20	100.00	Using index
 QUERY: SELECT   SQL_SMALL_RESULT table2.col_varchar_key AS field1 FROM ( c AS table1 LEFT OUTER JOIN cc AS table2 ON (table2.col_int_key = table1.pk  ) ) WHERE (  table2.col_varchar_nokey != ANY (SELECT  SQL_SMALL_RESULT subquery1_t1.col_varchar_key AS subquery1_field1 FROM ( c AS subquery1_t1 LEFT OUTER JOIN c AS subquery1_t2 ON (subquery1_t2.col_int_key = subquery1_t1.col_int_key  OR subquery1_t2.col_int_key = (SELECT   MIN(  child_subquery1_t2.pk ) AS child_subquery1_field1 FROM ( c AS child_subquery1_t1 INNER JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.col_int_key = child_subquery1_t1.pk ) ) WHERE child_subquery1_t2.col_varchar_nokey = child_subquery1_t2.col_varchar_key ) ) ) WHERE subquery1_t2.pk >= table1.col_int_nokey ) ) AND ( table1.pk NOT IN (226, 126) OR table1.col_int_key > 241 AND table1.col_int_key < ( 241 + 133 ) ) OR ( table2.col_varchar_key <> 'a' OR table1.col_int_key < table1.pk ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -4,3 +4,3 @@
- 2	DEPENDENT SUBQUERY	subquery1_t1	index	col_int_key	col_varchar_key	9	NULL	20	Using where; Using index
--2	DEPENDENT SUBQUERY	subquery1_t2	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	20	Range checked for each record (index map: 0x3)
-+2	DEPENDENT SUBQUERY	subquery1_t2	range	PRIMARY,col_int_key	col_int_key	9	NULL	6	Range checked for each record (index map: 0x3); Using index
- 3	SUBQUERY	child_subquery1_t1	index	PRIMARY	col_date_key	4	NULL	20	Using index
+ 2	DEPENDENT SUBQUERY	subquery1_t1	NULL	index	col_int_key	col_varchar_key	9	NULL	20	100.00	Using where; Using index
+-2	DEPENDENT SUBQUERY	subquery1_t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x3)
++2	DEPENDENT SUBQUERY	subquery1_t2	NULL	range	PRIMARY,col_int_key	col_int_key	9	NULL	6	333.33	Range checked for each record (index map: 0x3); Using index
+ 3	SUBQUERY	child_subquery1_t1	NULL	index	PRIMARY	col_date_key	4	NULL	20	100.00	Using index
 QUERY: SELECT    alias1.col_varchar_key AS field1 FROM ( ( SELECT   sq1_alias1.* FROM ( view_cc AS sq1_alias1 , cc AS sq1_alias2 ) WHERE sq1_alias1.pk < sq1_alias2.col_int_nokey ) AS alias1 RIGHT OUTER JOIN c AS alias2 ON (alias2.col_varchar_nokey = alias1.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   sq2_alias1.col_varchar_nokey AS sq2_field1 FROM ( c AS sq2_alias1 , cc AS sq2_alias2 )   ) ) ) AND alias1.col_int_key = 108  HAVING field1 < 'o' ORDER BY alias1.col_date_key , alias2 .pk ASC, field1 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -6,2 +6,2 @@
- 2	DERIVED	sq1_alias2	ALL	NULL	NULL	NULL	NULL	20	NULL
--2	DERIVED	cc	ALL	PRIMARY	NULL	NULL	NULL	20	Range checked for each record (index map: 0x1)
-+2	DERIVED	cc	range	PRIMARY	PRIMARY	4	NULL	1	Range checked for each record (index map: 0x1)
+ 2	DERIVED	sq1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+-2	DERIVED	cc	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
++2	DERIVED	cc	NULL	range	PRIMARY	PRIMARY	4	NULL	1	2000.00	Range checked for each record (index map: 0x1)
 QUERY: SELECT    table2.pk AS field1 FROM ( ( SELECT   subquery1_t1.* FROM ( cc AS subquery1_t1 INNER JOIN c AS subquery1_t2 ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key  ) ) WHERE (  NOT EXISTS (SELECT   child_subquery1_t2.col_varchar_nokey AS child_subquery1_field1 FROM ( cc AS child_subquery1_t1 INNER JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.pk = child_subquery1_t1.pk ) ) WHERE child_subquery1_t2.col_int_nokey <> subquery1_t1.pk ) OR subquery1_t2.col_varchar_key >= 'c' ) ) AS table1 INNER JOIN cc AS table2 ON (table2.col_int_nokey = table1.col_int_key  ) ) WHERE (  table2.col_varchar_key > (SELECT 'r' FROM dummy ) ) AND table1.col_int_key = 104 ORDER BY table1.col_time_key ASC /*+JavaDB:Postgres: NULLS FIRST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 1
 STATUS: EQUAL
 QUERY: SELECT    alias1.col_datetime_key AS field1 , alias1.col_datetime_key AS field2 FROM ( view_cc AS alias1 , cc AS alias2 , ( SELECT   sq1_alias1.* FROM bb AS sq1_alias1  ) AS alias3 ) WHERE (  NOT EXISTS (SELECT   sq2_alias1.col_int_nokey AS sq2_field1 FROM c AS sq2_alias1 WHERE sq2_alias1.col_varchar_key > alias2.col_varchar_nokey AND sq2_alias1.pk >= 8 ) ) AND alias1.col_varchar_key <> 'b'  HAVING field2 < 'b' ORDER BY alias1.col_time_key  , field1, field2 

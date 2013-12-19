@@ -42,6 +42,7 @@ struct PFS_socket_class;
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
+#include "pfs_events_transactions.h"
 #include "pfs_server.h"
 #include "lf.h"
 #include "pfs_con_slice.h"
@@ -312,7 +313,7 @@ struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
 /**
   @def WAIT_STACK_BOTTOM
   Maximum number dummy waits records.
-  One dummy record is reserved for the parent stage / statement,
+  One dummy record is reserved for the parent stage / statement / transaction,
   at the bottom of the wait stack.
 */
 #define WAIT_STACK_BOTTOM 1
@@ -383,7 +384,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /**
     Stack of events waits.
     This member holds the data for the table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
-    Note that stack[0] is a dummy record that represents the parent stage/statement.
+    Note that stack[0] is a dummy record that represents the parent stage/statement/transaction.
     For example, assuming the following tree:
     - STAGE ID 100
       - WAIT ID 101, parent STAGE 100
@@ -443,12 +444,24 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   PFS_events_statements *m_statements_history;
 
+  /** True if the circular buffer @c m_transactions_history is full. */
+  bool m_transactions_history_full;
+  /** Current index in the circular buffer @c m_transactions_history. */
+  uint m_transactions_history_index;
+  /**
+    Statements history circular buffer.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY.
+  */
+  PFS_events_transactions *m_transactions_history;
+
   /**
     Internal lock, for session attributes.
     Statement attributes are expected to be updated in frequently,
     typically per session execution.
   */
   pfs_lock m_session_lock;
+
   /**
     User name.
     Protected by @c m_session_lock.
@@ -508,6 +521,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   uint m_events_statements_count;
   PFS_events_statements *m_statement_stack;
 
+  PFS_events_transactions m_transaction_current;
+
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
@@ -529,7 +544,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Character set in which @c m_connect_attrs are encoded.
     Protected by @c m_session_lock.
   */
-  const CHARSET_INFO *m_session_connect_attrs_cs;
+  uint m_session_connect_attrs_cs_number;
 
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
@@ -611,6 +626,7 @@ extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
+extern ulong events_transactions_history_per_thread;
 extern ulong locker_lost;
 extern ulong statement_lost;
 extern ulong session_connect_attrs_lost;
@@ -652,6 +668,12 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array_1,
                               PFS_statement_stat *to_array_2);
 
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array);
+void aggregate_all_transactions(PFS_transaction_stat *from_array,
+                                PFS_transaction_stat *to_array_1,
+                                PFS_transaction_stat *to_array_2);
+
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
                           PFS_memory_stat *to_array);
@@ -676,6 +698,11 @@ void aggregate_thread_statements(PFS_thread *thread,
                                  PFS_account *safe_account,
                                  PFS_user *safe_user,
                                  PFS_host *safe_host);
+void aggregate_thread_transactions(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host);
+
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,

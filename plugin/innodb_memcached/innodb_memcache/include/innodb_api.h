@@ -74,6 +74,7 @@ typedef struct mci_column {
 	int		value_len;	/*!< char value length in bytes */
 	uint64_t	value_int;	/*!< integer value */
 	bool		is_str;		/*!< whether the value is char or int */
+	bool		is_unsigned;	/*!< whether the value is signed or not */
 	bool		is_valid;	/*!< this structure contains valid
 					or stale column value */
 	bool		is_null;	/*!< whether it is a NULL value */
@@ -279,14 +280,6 @@ ib_err_t
 innodb_cb_cursor_close(
 /*===================*/
 	ib_crsr_t	ib_crsr);	/*!< in: cursor to close */
-
-/*************************************************************//**
-Start a transaction
-@return DB_SUCCESS if successful or error code */
-ib_trx_t
-innodb_cb_trx_begin(
-/*================*/
-	ib_trx_level_t	ib_trx_level);	/*!< in: trx isolation level */
 
 /*************************************************************//**
 Commit the transaction

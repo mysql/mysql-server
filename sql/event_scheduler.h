@@ -99,7 +99,7 @@ public:
   dump_internal_status();
 
 private:
-  uint
+  int
   workers_count();
 
   /* helper functions */

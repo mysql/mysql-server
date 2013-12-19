@@ -107,7 +107,29 @@ class Mysqld_socket_listener
   select_info_t m_select_info;
 #endif // HAVE_POLL
 
+  /** Number of connection errors when selecting on the listening port */
+  static ulong connection_errors_select;
+  /** Number of connection errors when accepting sockets in the listening port. */
+  static ulong connection_errors_accept;
+  /** Number of connection errors from TCP wrappers. */
+  static ulong connection_errors_tcpwrap;
+
 public:
+  static ulong get_connection_errors_select()
+  {
+    return connection_errors_select;
+  }
+
+  static ulong get_connection_errors_accept()
+  {
+    return connection_errors_select;
+  }
+
+  static ulong get_connection_errors_tcpwrap()
+  {
+    return connection_errors_select;
+  }
+
   /**
     Constructor to setup a listener for listen to connect events from
     clients.

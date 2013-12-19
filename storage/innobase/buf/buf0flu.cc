@@ -307,7 +307,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -868,7 +868,7 @@ buf_flush_write_block_low(
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(bpage->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
+	log_write_up_to(bpage->newest_modification, true);
 #endif
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -2305,8 +2305,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 	buf_page_cleaner_is_active = TRUE;
 
-	buf_flush_event = os_event_create("buf_flush_event");
-
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
@@ -2408,8 +2406,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 thread_exit:
 	buf_page_cleaner_is_active = FALSE;
-
-	os_event_destroy(buf_flush_event);
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

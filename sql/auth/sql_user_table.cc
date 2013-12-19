@@ -28,8 +28,6 @@
 #include "sql_user_table.h"
 #include "sql_authentication.h"
 
-#define WARN_DEPRECATED_41_PWD_HASH(thd) \
-  WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash")
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -606,7 +604,8 @@ update_user_table(THD *thd, TABLE *table,
     if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
         password_field == MYSQL_USER_FIELD_PASSWORD)
     {
-      WARN_DEPRECATED_41_PWD_HASH(thd);
+      push_deprecated_warn(thd, "pre-4.1 password hash",
+                           "post-4.1 password hash");
     }
   }
 
@@ -672,6 +671,17 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
       goto end;
+    }
+
+    if (!combo->uses_identified_by_clause &&
+        !combo->uses_identified_with_clause &&
+        !combo->uses_identified_by_password_clause)
+    {
+      if (check_password_policy(NULL))
+      {
+        error= 1;
+        goto end;
+      }
     }
     
     /* 1. Unresolved plugins become default plugin */
@@ -900,7 +910,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     /* The legacy Password field is used */
     if (combo->plugin.str == old_password_plugin_name.str)
-      WARN_DEPRECATED_41_PWD_HASH(thd);
+      push_deprecated_warn(thd, "pre-4.1 password hash",
+                           "post-4.1 password hash");
   }
 
   /* Update table columns with new privileges */

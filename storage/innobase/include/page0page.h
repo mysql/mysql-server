@@ -1009,7 +1009,7 @@ Parses a log record of a record list end or start deletion.
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
-	byte		type,	/*!< in: MLOG_LIST_END_DELETE,
+	mlog_id_t	type,	/*!< in: MLOG_LIST_END_DELETE,
 				MLOG_LIST_START_DELETE,
 				MLOG_COMP_LIST_END_DELETE or
 				MLOG_COMP_LIST_START_DELETE */

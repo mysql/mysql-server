@@ -230,7 +230,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
+    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
   },
   {

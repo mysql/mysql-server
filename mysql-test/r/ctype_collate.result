@@ -516,9 +516,10 @@ SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	4	1
 explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select charset('a') AS `charset('a')`,collation('a') AS `collation('a')`,coercibility('a') AS `coercibility('a')`,('a' = 'A') AS `'a'='A'`
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
@@ -595,35 +596,60 @@ INSERT INTO t1 VALUES ('h','h');
 INSERT INTO t1 VALUES ('i','i');
 INSERT INTO t1 VALUES ('j','j');
 EXPLAIN SELECT * FROM t1 WHERE s1='a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	s1	s1	11	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s1` = 'a')
 EXPLAIN SELECT * FROM t1 WHERE s2='a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s2	s2	11	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	s2	s2	11	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s2` = 'a')
 EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	s1	s1	11	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s1` = ('a' collate latin1_german1_ci))
 EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	s2	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Warning	1739	Cannot use ref access on index 's2' due to type or collation conversion on field 's2'
+Warning	1739	Cannot use range access on index 's2' due to type or collation conversion on field 's2'
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s2` = <cache>(('a' collate latin1_german1_ci)))
 EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	s1	s1	11	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s1` between 'a' and ('b' collate latin1_german1_ci))
 EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	s2	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Warning	1739	Cannot use range access on index 's2' due to type or collation conversion on field 's2'
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s2` between 'a' and <cache>(('b' collate latin1_german1_ci)))
 EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	s1	s1	11	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s1` in ('a',('b' collate latin1_german1_ci)))
 EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	s2	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Warning	1739	Cannot use range access on index 's2' due to type or collation conversion on field 's2'
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s2` in ('a',<cache>(('b' collate latin1_german1_ci))))
 EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	s1	s1	11	NULL	1	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	s1	s1	11	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s1` like ('a' collate latin1_german1_ci))
 EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	s2	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Warning	1739	Cannot use range access on index 's2' due to type or collation conversion on field 's2'
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where (`test`.`t1`.`s2` like <cache>(('a' collate latin1_german1_ci)))
 DROP TABLE t1;
 create table t1(f1 varchar(10) character set latin2 collate latin2_hungarian_ci, key(f1));
 insert into t1 set f1=0x3F3F9DC73F;

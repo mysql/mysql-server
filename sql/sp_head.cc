@@ -38,7 +38,6 @@
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
-#include "global_threads.h"
 
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
@@ -1212,9 +1211,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    mysql_mutex_lock(&LOCK_thread_count);
-    q= global_query_id;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_rdlock(&global_query_id_lock);
+    q= my_atomic_load64(&global_query_id); 
+    my_atomic_rwlock_rdunlock(&global_query_id_lock);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;

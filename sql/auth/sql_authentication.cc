@@ -1241,7 +1241,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
-    return test(packet_error);
+    return MY_TEST(packet_error);
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 
@@ -2429,10 +2429,9 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
 #ifndef EMBEDDED_LIBRARY
-    if (!Connection_handler_manager::valid_connection_count())
+    if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
-      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

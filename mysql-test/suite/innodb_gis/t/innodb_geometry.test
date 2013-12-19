@@ -152,52 +152,52 @@ CREATE INDEX idx3 on tab(c3(5) ASC) USING BTREE;
 CREATE UNIQUE INDEX idx2 on tab(c8(5) ASC) ;
 
 --echo #check equality predicate on the index columns
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab 
 WHERE c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
 WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab 
 WHERE c3=PolyFromWKB(AsWkB(PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
 
 --echo #check index with  WKT function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab 
 WHERE c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 --echo #check range predicate on the index columns
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab 
 WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
 WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab 
 WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with DELETE operation
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN DELETE FROM tab 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
@@ -510,52 +510,52 @@ CREATE UNIQUE INDEX idx2 on tab3(c8(5) ASC) ;
 --enable_warnings
 
 --echo #check equality predicate on the index columns
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3 
 WHERE c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab3 WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab3
 WHERE c3=PolyFromWKB(AsWkB(PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
 
 --echo #check index with  WKT function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3 
 WHERE c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab3 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 --echo #check range predicate on the index columns
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3 
 WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3 
 WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with DELETE operation
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN DELETE FROM tab3 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
@@ -579,12 +579,12 @@ ALTER TABLE tab3 ROW_FORMAT=Dynamic;
 SHOW CREATE TABLE tab3;
 
 --echo #check index with  WKB function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab3 WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
@@ -595,13 +595,13 @@ SELECT fid, Dimension(g) FROM gis_geometry;
 SELECT fid, GeometryType(g) FROM gis_geometry;
 SELECT fid, IsEmpty(g) FROM gis_geometry;
 SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
---replace_column 9 #
+--replace_column 10 #
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
 
 --echo #check Geometry point functions
 SELECT fid, X(g) FROM gis_point;
 SELECT fid, Y(g) FROM gis_point;
---replace_column 9 #
+--replace_column 10 #
 explain extended select X(g),Y(g) FROM gis_point;
 
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
@@ -610,7 +610,7 @@ SELECT fid, GLength(g) FROM gis_line;
 SELECT fid, NumPoints(g) FROM gis_line;
 SELECT fid, AsText(PointN(g, 2)) FROM gis_line;
 SELECT fid, IsClosed(g) FROM gis_line;
---replace_column 9 #
+--replace_column 10 #
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),
 GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
 
@@ -619,7 +619,7 @@ SELECT fid, Area(g) FROM gis_polygon;
 SELECT fid, AsText(ExteriorRing(g)) FROM gis_polygon;
 SELECT fid, NumInteriorRings(g) FROM gis_polygon;
 SELECT fid, AsText(InteriorRingN(g, 1)) FROM gis_polygon;
---replace_column 9 #
+--replace_column 10 #
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),
 NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
 
@@ -632,7 +632,7 @@ SELECT fid, NumGeometries(g) from gis_multi_point;
 SELECT fid, NumGeometries(g) from gis_multi_line;
 SELECT fid, NumGeometries(g) from gis_multi_polygon;
 SELECT fid, NumGeometries(g) from gis_geometrycollection;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
 
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
@@ -640,7 +640,7 @@ SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_line;
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_polygon;
 SELECT fid, AsText(GeometryN(g, 2)) from gis_geometrycollection;
 SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
@@ -648,7 +648,7 @@ Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
---replace_column 9 #
+--replace_column 10 #
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
