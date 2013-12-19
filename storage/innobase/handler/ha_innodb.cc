@@ -15211,6 +15211,7 @@ innobase_fts_find_ranking(
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
+static my_bool	innodb_buf_flush_list_now = TRUE;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15282,6 +15283,29 @@ checkpoint_now_set(
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
 		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+/****************************************************************//**
+Force a dirty pages flush now. */
+static
+void
+buf_flush_list_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -15533,6 +15557,11 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force dirty page flush now",
+  NULL, buf_flush_list_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -16390,6 +16419,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(buf_flush_list_now),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
