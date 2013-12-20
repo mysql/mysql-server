@@ -237,7 +237,9 @@ ha_innobase::check_if_supported_inplace_alter(
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
-		ha_alter_info->unsupported_reason =
+
+		ha_alter_info->unsupported_reason =(srv_force_recovery)?
+			innobase_get_err_msg(ER_INNODB_FORCED_RECOVERY):
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
