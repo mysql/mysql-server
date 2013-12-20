@@ -741,9 +741,10 @@ JOIN::optimize()
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   /* Perform FULLTEXT search before all regular searches */
-  if (!(select_options & SELECT_DESCRIBE))
+  if (!(select_options & SELECT_DESCRIBE) &&
+      !select_lex->materialized_table_count)
   {
-    init_ftfuncs(thd, select_lex, MY_TEST(order));
+    init_ftfuncs(thd, select_lex, order);
     optimize_fts_query();
   }
 
