@@ -35,10 +35,17 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     FILES toku_os_types.h toku_time.h
     DESTINATION include
+    COMPONENT tokukv_headers
     )
   install(
-    TARGETS ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static
-    DESTINATION lib
+    TARGETS ${LIBTOKUPORTABILITY}_static
+    DESTINATION ${INSTALL_LIBDIR}
+    COMPONENT tokukv_libs_static
+    )
+  install(
+    TARGETS ${LIBTOKUPORTABILITY}
+    DESTINATION ${INSTALL_LIBDIR}
+    COMPONENT tokukv_libs_shared
     )
 endif ()
 
