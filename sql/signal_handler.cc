@@ -170,8 +170,8 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "Trying to get some variables.\n"
       "Some pointers may be invalid and cause the dump to abort.\n");
 
-    my_safe_printf_stderr("Query (%p): ", thd->query());
-    my_safe_puts_stderr(thd->query(), MY_MIN(1024U, thd->query_length()));
+    my_safe_printf_stderr("Query (%p): ", thd->query().str);
+    my_safe_puts_stderr(thd->query().str, MY_MIN(1024U, thd->query().length));
     my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
                           (ulong) thd->thread_id);
     my_safe_printf_stderr("Status: %s\n\n", kreason);

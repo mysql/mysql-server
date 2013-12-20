@@ -7054,6 +7054,12 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
     if (head->transaction.flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
+
+      /*
+        TODO: This hook here should probably move outside/below this
+              if and be the only after_commit invocation left in the
+              code.
+      */
       excursion.try_to_attach_to(head);
       bool all= head->transaction.flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
@@ -7207,8 +7213,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids(thd);
     /*
       If commit succeeded, we call the after_commit hook
+
+      TODO: This hook here should probably move outside/below this
+            if and be the only after_commit invocation left in the
+            code.
     */
-    if (thd->commit_error == THD::CE_NONE)
+    if ((thd->commit_error == THD::CE_NONE) && thd->transaction.flags.run_hooks)
     {
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
       thd->transaction.flags.run_hooks= false;
@@ -7824,11 +7834,11 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
   binlog_cache_data *cache_data=
     cache_mngr->get_binlog_cache_data(is_transactional);
 
-  if (binlog_rows_query && this->query())
+  if (binlog_rows_query && this->query().str)
   {
     /* Write the Rows_query_log_event into binlog before the table map */
     Rows_query_log_event
-      rows_query_ev(this, this->query(), this->query_length());
+      rows_query_ev(this, this->query().str, this->query().length);
     if ((error= cache_data->write_event(this, &rows_query_ev)))
       DBUG_RETURN(error);
   }
@@ -7885,7 +7895,56 @@ void
 THD::add_to_binlog_accessed_dbs(const char *db_param)
 {
   char *after_db;
-  MEM_ROOT *db_mem_root= &main_mem_root;
+  /*
+    binlog_accessed_db_names list is to maintain the database
+    names which are referenced in a given command.
+    Prior to bug 17806014 fix, 'main_mem_root' memory root used
+    to store this list. The 'main_mem_root' scope is till the end
+    of the query. Hence it caused increasing memory consumption
+    problem in big procedures like the ones mentioned below.
+    Eg: CALL p1() where p1 is having 1,00,000 create and drop tables.
+    'main_mem_root' is freed only at the end of the command CALL p1()'s
+    execution. But binlog_accessed_db_names list scope is only till the
+    individual statements specified the procedure(create/drop statements).
+    Hence the memory allocated in 'main_mem_root' was left uncleared
+    until the p1's completion, even though it is not required after
+    completion of individual statements.
+
+    Instead of using 'main_mem_root' whose scope is complete query execution,
+    now the memroot is changed to use 'thd->mem_root' whose scope is until the
+    individual statement in CALL p1(). 'thd->mem_root' is set to 'execute_mem_root'
+    in the context of procedure and it's scope is till the individual statement
+    in CALL p1() and thd->memroot is equal to 'main_mem_root' in the context
+    of a normal 'top level query'.
+
+    Eg: a) create table t1(i int); => If this function is called while
+           processing this statement, thd->memroot is equal to &main_mem_root
+           which will be freed immediately after executing this statement.
+        b) CALL p1() -> p1 contains create table t1(i int); => If this function
+           is called while processing create table statement which is inside
+           a stored procedure, then thd->memroot is equal to 'execute_mem_root'
+           which will be freed immediately after executing this statement.
+    In both a and b case, thd->memroot will be freed immediately and will not
+    increase memory consumption.
+
+    A special case(stored functions/triggers):
+    Consider the following example:
+    create function f1(i int) returns int
+    begin
+      insert into db1.t1 values (1);
+      insert into db2.t1 values (2);
+    end;
+    When we are processing SELECT f1(), the list should contain db1, db2 names.
+    Since thd->mem_root contains 'execute_mem_root' in the context of
+    stored function, the mem root will be freed after adding db1 in
+    the list and when we are processing the second statement and when we try
+    to add 'db2' in the db1's list, it will lead to crash as db1's memory
+    is already freed. To handle this special case, if in_sub_stmt is set
+    (which is true incase of stored functions/triggers), we use &main_mem_root,
+    if not set we will use thd->memroot which changes it's value to
+    'execute_mem_root' or '&main_mem_root' depends on the context.
+   */
+  MEM_ROOT *db_mem_root= in_sub_stmt ? &main_mem_root : mem_root;
 
   if (!binlog_accessed_db_names)
     binlog_accessed_db_names= new (db_mem_root) List<char>;
@@ -7932,7 +7991,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     }
   }
   if (after_db)
-    binlog_accessed_db_names->push_back(after_db, &main_mem_root);
+    binlog_accessed_db_names->push_back(after_db, db_mem_root);
 }
 
 /*
@@ -8055,7 +8114,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
 int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
-  DBUG_PRINT("info", ("query: %s", query()));
+  DBUG_PRINT("info", ("query: %s", query().str));
   DBUG_PRINT("info", ("variables.binlog_format: %lu",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
@@ -9138,7 +9197,7 @@ static void reset_binlog_unsafe_suppression()
   Auxiliary function to print warning in the error log.
 */
 static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
-                                 char* query)
+                                        const char* query)
 {
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -9160,7 +9219,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   TODO: Remove this function and implement a general service for all warnings
   that would prevent flooding the error log. => switch to log_throttle class?
 */
-static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
+static void do_unsafe_limit_checkout(char* buf, int unsafe_type, const char* query)
 {
   ulonglong now;
   DBUG_ENTER("do_unsafe_limit_checkout");
@@ -9275,9 +9334,9 @@ void THD::issue_unsafe_warnings()
       if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
-          do_unsafe_limit_checkout( buf, unsafe_type, query());
+          do_unsafe_limit_checkout( buf, unsafe_type, query().str);
         else //cases other than LIMIT unsafety
-          print_unsafe_warning_to_log(unsafe_type, buf, query());
+          print_unsafe_warning_to_log(unsafe_type, buf, query().str);
       }
     }
   }
@@ -9357,8 +9416,8 @@ Logical_clock::~Logical_clock()
   @retval nonzero If there is a failure when writing the query (e.g.,
   write failure), then the error code is returned.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
-                      ulong query_len, bool is_trans, bool direct, 
+int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
+                      size_t query_len, bool is_trans, bool direct,
                       bool suppress_use, int errcode)
 {
   DBUG_ENTER("THD::binlog_query");

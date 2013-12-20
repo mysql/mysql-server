@@ -35,6 +35,7 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 #include "dur_prop.h"
+#include "prealloced_array.h"
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -161,19 +162,20 @@ extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
+extern LEX_CSTRING EMPTY_CSTR;
+extern LEX_CSTRING NULL_CSTR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
-extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
-extern "C" char **thd_query(MYSQL_THD thd);
+extern "C" LEX_CSTRING thd_query_string (MYSQL_THD thd);
 
 /**
   @class CSET_STRING
-  @brief Character set armed LEX_STRING
+  @brief Character set armed LEX_CSTRING
 */
 class CSET_STRING
 {
 private:
-  LEX_STRING string;
+  LEX_CSTRING string;
   const CHARSET_INFO *cs;
 public:
   CSET_STRING() : cs(&my_charset_bin)
@@ -181,7 +183,7 @@ public:
     string.str= NULL;
     string.length= 0;
   }
-  CSET_STRING(char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
+  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
   cs(cs_arg)
   {
     DBUG_ASSERT(cs_arg != NULL);
@@ -189,12 +191,9 @@ public:
     string.length= length_arg;
   }
 
-  inline char *str() const { return string.str; }
+  inline const char *str() const { return string.str; }
   inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
-
-  friend LEX_STRING * thd_query_string (MYSQL_THD thd);
-  friend char **thd_query(MYSQL_THD thd);
 };
 
 
@@ -746,13 +745,6 @@ public:
   { return strmake_root(mem_root,str,size); }
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
-  inline void *memdup_w_gap(const void *str, size_t size, uint gap)
-  {
-    void *ptr;
-    if ((ptr= alloc_root(mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
 
   void set_query_arena(Query_arena *set);
 
@@ -806,31 +798,37 @@ public:
 
   LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
-  /*
-    Points to the query associated with this statement. It's const, but
-    we need to declare it char * because all table handlers are written
-    in C and need to point to it.
 
-    Note that if we set query = NULL, we must at the same time set
-    query_length = 0, and protect the whole operation with
-    LOCK_thd_data mutex. To avoid crashes in races, if we do not
-    know that thd->query cannot change at the moment, we should print
-    thd->query like this:
-      (1) reserve the LOCK_thd_data mutex;
-      (2) print or copy the value of query and query_length
-      (3) release LOCK_thd_data mutex.
-    This printing is needed at least in SHOW PROCESSLIST and SHOW
-    ENGINE INNODB STATUS.
+  /**
+    The query associated with this statement.
+
+    In order to enforce a safe access pattern when it is used by
+    THD, it is private and its getter/setter are protected.
+    It is assumed that other classes interiting from Statement
+    (Prepared_Statement) access the query string from one thread only.
+
+    See comments for THD's setters/getters about how to access this
+    safely from multiple threads.
   */
-  CSET_STRING query_string;
+private:
+  LEX_CSTRING m_query_string;
 
+protected:
+  virtual const LEX_CSTRING& query() const { return m_query_string; }
+
+  void set_query_inner(const LEX_CSTRING& string_arg)
+  {
+    m_query_string= string_arg;
+  }
+
+public:
   /*
     In some cases, we may want to modify the query (i.e. replace
     passwords with their hashes before logging the statement etc.).
 
     In case the query was rewritten, the original query will live in
-    query_string, while the rewritten query lives in rewritten_query.
-    If rewritten_query is empty, query_string should be logged.
+    m_query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, m_query_string should be logged.
     If rewritten_query is non-empty, the rewritten query it contains
     should be used in logs (general log, slow query log, binary log).
 
@@ -841,22 +839,6 @@ public:
   */
   String      rewritten_query;
 
-  inline char *query() const { return query_string.str(); }
-  inline uint32 query_length() const { return query_string.length(); }
-  const CHARSET_INFO *query_charset() const { return query_string.charset(); }
-  void set_query_inner(const CSET_STRING &string_arg)
-  {
-    query_string= string_arg;
-  }
-  void set_query_inner(char *query_arg, uint32 query_length_arg,
-                       const CHARSET_INFO *cs_arg)
-  {
-    set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
-  }
-  void reset_query_inner()
-  {
-    set_query_inner(CSET_STRING());
-  }
   /**
     Name of the current (default) database.
 
@@ -883,9 +865,7 @@ public:
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
-  virtual void set_statement(Statement *stmt);
-  void set_n_backup_statement(Statement *stmt, Statement *backup);
-  void restore_backup_statement(Statement *stmt, Statement *backup);
+  void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
 };
@@ -1326,22 +1306,26 @@ private:
 
     @sa check_and_update_table_version()
   */
-  Dynamic_array<Reprepare_observer *> m_reprepare_observers;
+  Prealloced_array<Reprepare_observer *, 4> m_reprepare_observers;
 
 public:
   Reprepare_observer *get_reprepare_observer() const
   {
     return
-      m_reprepare_observers.elements() > 0 ?
-      *m_reprepare_observers.back() :
+      m_reprepare_observers.size() > 0 ?
+      m_reprepare_observers.back() :
       NULL;
   }
 
   void push_reprepare_observer(Reprepare_observer *o)
-  { m_reprepare_observers.append(o); }
+  { m_reprepare_observers.push_back(o); }
 
   Reprepare_observer *pop_reprepare_observer()
-  { return m_reprepare_observers.pop(); }
+  {
+    Reprepare_observer *retval= m_reprepare_observers.back();
+    m_reprepare_observers.pop_back();
+    return retval;
+  }
 
   void reset_reprepare_observers()
   { m_reprepare_observers.clear(); }
@@ -1429,7 +1413,8 @@ public:
      operations which open/lock/close tables (e.g. open_table()) one has to
      call init_open_tables_state().
   */
-  Open_tables_state() : state_flags(0U) { }
+  Open_tables_state()
+    : m_reprepare_observers(PSI_INSTRUMENT_ME), state_flags(0U) { }
 
   void set_open_tables_state(Open_tables_state *state);
 
@@ -3071,7 +3056,7 @@ public:
   };
   
   int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len, bool is_trans,
+                   const char *query, size_t query_len, bool is_trans,
                    bool direct, bool suppress_use,
                    int errcode);
 #endif
@@ -3436,7 +3421,7 @@ public:
   }
 
 public:
-  inline const CHARSET_INFO *charset()
+  const CHARSET_INFO *charset() const
   { return variables.character_set_client; }
   void update_charset();
 
@@ -3831,8 +3816,8 @@ private:
                   const char* msg);
 
 public:
-  /** Overloaded to guard query/query_length fields */
-  virtual void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
 
   void set_command(enum enum_server_command command);
 
@@ -3840,23 +3825,38 @@ public:
   { return m_command; }
 
   /**
+    For safe and protected access to the query string, the following
+    rules should be followed:
+    1: Only the owner (current_thd) can set the query string.
+       This will be protected by LOCK_thd_data.
+    2: The owner (current_thd) can read the query string without
+       locking LOCK_thd_data.
+    3: Other threads must lock LOCK_thd_data before reading
+       the query string.
+
+    This means that write-write conflicts are avoided by LOCK_thd_data.
+    Read(by owner or other thread)-write(other thread) are disallowed.
+    Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_data.
+    Read(by owner)-write(by owner) won't happen as THD=thread.
+  */
+  virtual const LEX_CSTRING& query() const
+  {
+    return Statement::query();
+  }
+
+  /**
     Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
-  void set_query(char *query_arg, uint32 query_length_arg,
-                 const CHARSET_INFO *cs_arg)
+  void set_query(const char *query_arg, size_t query_length_arg)
   {
-    set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
+    LEX_CSTRING tmp= { query_arg, query_length_arg };
+    set_query(tmp);
   }
-  void set_query(char *query_arg, uint32 query_length_arg) /*Mutex protected*/
-  {
-    set_query(CSET_STRING(query_arg, query_length_arg, charset()));
-  }
-  void set_query(const CSET_STRING &str); /* Mutex protected */
-  void reset_query()               /* Mutex protected */
-  { set_query(CSET_STRING()); }
-  void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        const CHARSET_INFO *cs, query_id_t new_query_id);
+  void set_query(const LEX_CSTRING& query_arg);
+  void reset_query() { set_query(LEX_CSTRING()); }
+  void set_query_and_id(const char *query_arg, size_t query_length_arg,
+                        query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
   void set_open_tables(TABLE *open_tables_arg)
   {

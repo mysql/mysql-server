@@ -442,8 +442,8 @@ sync_array_wait_event(
 	if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
 
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"########################################\n"
-			"Deadlock Detected!");
+                        "########################################\n"
+                        "Deadlock Detected!");
 	}
 
 	rw_lock_debug_mutex_exit();
@@ -483,6 +483,13 @@ sync_array_cell_print(
 #ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
+#ifdef UNIV_DEBUG
+		const char*	name = policy.m_file_name;
+		if (name == NULL) {
+			/* The mutex might have been released. */
+			name = "NULL";
+		}
+#endif /* UNIV_DEBUG */
 
 		fprintf(file,
 			"Mutex at %p created file %s line %lu, lock var %lu\n"
@@ -495,7 +502,7 @@ sync_array_cell_print(
 			(ulong) policy.m_cline,
 			(ulong) mutex->state()
 #ifdef UNIV_DEBUG
-			,policy.m_file_name,
+			,name,
 			(ulong) policy.m_line
 #endif /* UNIV_DEBUG */
 		       );
@@ -533,8 +540,8 @@ sync_array_cell_print(
 		}
 
 		fprintf(file,
-			"number of readers %lu, waiters flag %lu, "
-			"lock_word: %lx\n"
+			"number of readers %lu, waiters flag %lu,"
+			" lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),
@@ -693,12 +700,18 @@ sync_array_detect_deadlock(
 				arr, start, thread, 0, depth);
 
 			if (ret) {
+				const char*	name = policy.m_file_name;
+				if (name == NULL) {
+					/* The mutex might have been
+					released. */
+					name = "NULL";
+				}
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Mutex %p owned by thread "
-					"%lu file %s line %lu\n",
+					"Mutex %p owned by thread"
+					" %lu file %s line %lu",
 					mutex,
 					(ulong) os_thread_pf(thread),
-					policy.m_file_name,
+					name,
 					(ulong) policy.m_line);
 
 				sync_array_cell_print(stderr, cell);
@@ -1013,8 +1026,8 @@ sync_array_print_long_waits_low(
 		double	diff = difftime(time(NULL), cell->reservation_time);
 
 		if (diff > SYNC_ARRAY_TIMEOUT) {
-			fputs("InnoDB: Warning: a long semaphore wait:\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"A long semaphore wait:");
 			sync_array_cell_print(stderr, cell);
 			*noticed = TRUE;
 		}
@@ -1090,7 +1103,7 @@ sync_array_print_long_waits(
 
 		os_thread_sleep(30000000);
 
-		srv_print_innodb_monitor = old_val;
+		srv_print_innodb_monitor = my_bool(old_val);
 		fprintf(stderr,
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");

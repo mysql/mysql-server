@@ -25,7 +25,6 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_compress.c my_copy.c  my_create.c my_delete.c
 				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
 				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
-				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
 				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c

@@ -1,5 +1,7 @@
-# This is a Myisam engine specific testcase
+# This testcase is an auto increment feature specific, to Myisam
+# All tests are required to run with Myisam
 # Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 

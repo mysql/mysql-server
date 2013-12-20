@@ -159,7 +159,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       */
       result= FALSE;
       /* Still, we need to log the query ... */
-      stmt_query.append(thd->query(), thd->query_length());
+      stmt_query.append(thd->query().str, thd->query().length);
       goto end;
     }
   }
@@ -252,7 +252,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
                                           &trigger_found);
 
     if (!result && trigger_found)
-      result= stmt_query.append(thd->query(), thd->query_length());
+      result= stmt_query.append(thd->query().str, thd->query().length);
   }
 
   if (result)

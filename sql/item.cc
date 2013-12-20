@@ -1452,11 +1452,10 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 }
 
 
-/*
-- Return NULL if argument is NULL.
-- Return zero if argument is not NULL, but we could not convert it to DATETIME.
-- Return zero if argument is not NULL and represents a valid DATETIME value,
-  but the value is out of the supported Unix timestamp range.
+/**
+   If argument is NULL, sets null_value. Otherwise:
+   if invalid DATETIME value, or a valid DATETIME value but which is out of
+   the supported Unix timestamp range, sets 'tm' to 0.
 */
 bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
@@ -4696,30 +4695,6 @@ void mark_select_range_as_dependent(THD *thd,
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
   }
-}
-
-
-/**
- Find a Item reference in a item list
-
- @param[in]   item            The Item to search for.
- @param[in]   list            Item list.
-
- @retval true   found
- @retval false  otherwise
-*/
-
-static bool find_item_in_item_list (Item *item, List<Item> *list)
-{
-  List_iterator<Item> li(*list);
-  Item *it= NULL;
-  while ((it= li++))
-  {
-    if (it->walk(&Item::find_item_processor, true,
-                 (uchar*)item))
-      return true;
-  }
-  return false;
 }
 
 
@@ -8135,8 +8110,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
   Item_field *field_arg= (Item_field *)arg;
 
   if (field_arg->field->table->insert_values &&
-      find_item_in_item_list(this, &thd->lex->value_list))
-
+      thd->lex->in_update_value_clause)
   {
     Field *def_field= field_arg->field->clone();
     if (!def_field)

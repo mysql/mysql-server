@@ -632,7 +632,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
   SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
-
+  SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1627,14 +1627,15 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     was called.
   */
   thd->transaction.flags.commit_low= false;
-  /*
-    FIXME: This change is needed while BUG#16240131 is not fixed, to
-    avoid duplicate calls of hooks on DDL and hooks being called by
-    transactions which do not log anything to binary log.
-  */
   if (run_after_commit && thd->transaction.flags.run_hooks)
   {
-    /* If commit succeeded, we call the after_commit hook */
+    /*
+       If commit succeeded, we call the after_commit hook.
+
+       TODO: Investigate if this can be refactored so that there is
+             only one invocation of this hook in the code (in
+             MYSQL_LOG_BIN::finish_commit).
+    */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
     thd->transaction.flags.run_hooks= false;
@@ -3550,9 +3551,13 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_SE_OUT_OF_MEMORY:
     my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
+#ifdef WITH_PARTITION_STORAGE_ENGINE
              table->part_info ? ha_resolve_storage_engine_name
              (table->part_info->default_engine_type) :
              table->file->table_type());
+#else
+             table->file->table_type());
+#endif
     DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
@@ -3669,6 +3674,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TEMP_FILE_WRITE_FAILURE:
     textno= ER_TEMP_FILE_WRITE_FAILURE;
+    break;
+  case HA_ERR_INNODB_FORCED_RECOVERY:
+    textno= ER_INNODB_FORCED_RECOVERY;
     break;
   default:
     {
