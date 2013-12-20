@@ -746,7 +746,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     thd->m_sp_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                    thd->db, thd->db_length,
                                                    thd->charset(),
-                                                   this->m_sp_share);
+                                                   this->m_sp_share, NULL);
 #endif
 
     err_status= i->execute(thd, &ip);

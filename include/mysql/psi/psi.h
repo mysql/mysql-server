@@ -1246,6 +1246,7 @@ struct PSI_statement_locker_state_v1
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
   PSI_sp_share *m_parent_sp_share;
+  PSI_prepared_stmt *m_parent_prepared_stmt;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
@@ -1948,7 +1949,8 @@ typedef void (*end_stage_v1_t) (void);
 */
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share, 
+   PSI_prepared_stmt *parent_ps);
 
 /**
   Refine a statement locker to a more specific key.
