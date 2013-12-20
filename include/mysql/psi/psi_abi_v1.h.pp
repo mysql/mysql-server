@@ -356,6 +356,7 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
   PSI_sp_share *m_parent_sp_share;
+  PSI_prepared_stmt *m_parent_prepared_stmt;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 struct PSI_transaction_locker_state_v1
@@ -547,7 +548,8 @@ typedef void (*start_stage_v1_t)
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share,
+   PSI_prepared_stmt *parent_ps);
 typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   (struct PSI_statement_locker *locker,
    PSI_statement_key key);

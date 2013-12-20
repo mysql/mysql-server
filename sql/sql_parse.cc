@@ -1205,7 +1205,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
-                                                  thd->charset(), NULL);
+                                                  thd->charset(), NULL, NULL);
       THD_STAGE_INFO(thd, stage_init);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 

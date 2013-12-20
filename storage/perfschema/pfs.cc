@@ -4622,7 +4622,8 @@ void pfs_end_stage_v1()
 PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
-                                   const void *charset, PSI_sp_share *sp_share)
+                                   const void *charset, PSI_sp_share *sp_share,
+                                   PSI_prepared_stmt *parent_prepared_stmt)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4797,6 +4798,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   state->m_schema_name_length= 0;
   state->m_parent_sp_share= sp_share;
+  state->m_parent_prepared_stmt= parent_prepared_stmt;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -5072,6 +5074,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PSI_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
   PFS_program *pfs_program= NULL;
+  PFS_prepared_stmt *pfs_prepared_stmt= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -5139,6 +5142,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       }
 
       pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
+      pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(state->m_parent_prepared_stmt);
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5264,11 +5268,48 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     }
   }
 
-  PFS_statement_stat *sub_stmt_stat= NULL;
-  if(pfs_program != NULL)
+  if (pfs_prepared_stmt != NULL)
   {
-    sub_stmt_stat= &pfs_program->m_stmt_stat;
+    PFS_statement_stat *prepared_stmt_stat= NULL;
+    prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
+    if(prepared_stmt_stat != NULL)
+    {
+      if (flags & STATE_FLAG_TIMED)
+      {
+        prepared_stmt_stat->aggregate_value(wait_time);
+      }
+      else
+      {
+        prepared_stmt_stat->aggregate_counted();
+      }
+
+      prepared_stmt_stat->m_lock_time+= state->m_lock_time;
+      prepared_stmt_stat->m_rows_sent+= state->m_rows_sent;
+      prepared_stmt_stat->m_rows_examined+= state->m_rows_examined;
+      prepared_stmt_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+      prepared_stmt_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+      prepared_stmt_stat->m_select_full_join+= state->m_select_full_join;
+      prepared_stmt_stat->m_select_full_range_join+= state->m_select_full_range_join;
+      prepared_stmt_stat->m_select_range+= state->m_select_range;
+      prepared_stmt_stat->m_select_range_check+= state->m_select_range_check;
+      prepared_stmt_stat->m_select_scan+= state->m_select_scan;
+      prepared_stmt_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+      prepared_stmt_stat->m_sort_range+= state->m_sort_range;
+      prepared_stmt_stat->m_sort_rows+= state->m_sort_rows;
+      prepared_stmt_stat->m_sort_scan+= state->m_sort_scan;
+      prepared_stmt_stat->m_no_index_used+= state->m_no_index_used;
+      prepared_stmt_stat->m_no_good_index_used+= state->m_no_good_index_used;
+    }
   }
+
+  PFS_statement_stat *sub_stmt_stat= NULL;
+  if (pfs_program != NULL)
+    sub_stmt_stat= &pfs_program->m_stmt_stat;
+
+  PFS_statement_stat *prepared_stmt_stat= NULL;
+  if (pfs_prepared_stmt != NULL)
+    prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
+
   switch (da->status())
   {
     case Diagnostics_area::DA_EMPTY:
@@ -5286,6 +5327,11 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         sub_stmt_stat->m_rows_affected+= da->affected_rows();
         sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
       }
+      if (prepared_stmt_stat != NULL)
+      {
+        prepared_stmt_stat->m_rows_affected+= da->affected_rows();
+        prepared_stmt_stat->m_warning_count+= da->last_statement_cond_count();
+      }
       break;
     case Diagnostics_area::DA_EOF:
       stat->m_warning_count+= da->last_statement_cond_count();
@@ -5297,6 +5343,10 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
       }
+      if (prepared_stmt_stat != NULL)
+      {
+        prepared_stmt_stat->m_warning_count+= da->last_statement_cond_count();
+      }
       break;
     case Diagnostics_area::DA_ERROR:
       stat->m_error_count++;
@@ -5304,9 +5354,13 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_error_count++;
       }
-      if(sub_stmt_stat != NULL)
+      if (sub_stmt_stat != NULL)
       {
         sub_stmt_stat->m_error_count++;
+      }
+      if (prepared_stmt_stat != NULL)
+      {
+        prepared_stmt_stat->m_error_count++;
       }
       break;
     case Diagnostics_area::DA_DISABLED:
@@ -5953,7 +6007,7 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_prepared_stmt);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(state->m_prepared_stmt);
   if(pfs_ps == NULL)
     return;
 
@@ -5981,15 +6035,17 @@ PSI_prepared_stmt_locker*
 pfs_start_prepared_stmt_execute_v1(PSI_prepared_stmt_locker_state *state,
                                    PSI_prepared_stmt* prepared_stmt)
 {
-  return pfs_start_prepare_stmt_v1(state, prepared_stmt);
+  //return pfs_start_prepare_stmt_v1(state, prepared_stmt);
+  return NULL;
 }
 
 void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
 {
+/*
   PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(&state->m_prepared_stmt);
+  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(state->m_prepared_stmt);
   if(pfs_ps == NULL)
     return;
 
@@ -6002,14 +6058,13 @@ void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
 
-    /* Now use this timer_end and wait_time for timing information. */
     stat->aggregate_value(wait_time);
   }
   else
   {
     stat->aggregate_counted();
   }
-
+*/
   return;
 }
 
