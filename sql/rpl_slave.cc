@@ -8357,10 +8357,10 @@ err:
   - Delete worker info in mysql.slave_worker_info table if applier not running.
 
   @param thd Pointer to THD object for the client thread executing the
-  statement.
+             statement.
 
   @param mi Pointer to Master_info object belonging to the slave's IO
-  thread.
+            thread.
 
   @retval FALSE success
   @retval TRUE error
@@ -8377,8 +8377,8 @@ bool change_master(THD* thd, Master_info* mi)
   /* used as a bit mask to indicate running/stopped threads. */
   int thread_mask;
   /*
-   Relay logs are purged only if both receive and execute threads are
-   stopped before executing CHANGE MASTER.
+    Relay logs are purged only if both receive and execute threads are
+    stopped before executing CHANGE MASTER.
   */
   bool need_relay_log_purge= 1;
 
@@ -8578,12 +8578,21 @@ bool change_master(THD* thd, Master_info* mi)
     tables, we print a warning on CHANGE MASTER stating that there are open
     temp tables and that there is a possibility that these could stay
     forever eating up the memory resources.
+
+    When give a warning?
+    CHANGE MASTER command is used in three ways:
+    a) To change a connection configuration but remain connected to
+       the same master.
+    b) To change positions in binary or relay log(eg: master_log_pos).
+    c) To change the master you are replicating from.
+    We give a warning in cases b and c.
   */
-  if (slave_open_temp_tables > 0)
+  if ((lex_mi->host || lex_mi->port || lex_mi->log_file_name || lex_mi->pos ||
+       lex_mi->relay_log_name || lex_mi->relay_log_pos) &&
+      (slave_open_temp_tables > 0))
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
-
 
   /*
     auto_position is the only option that affects both receive
