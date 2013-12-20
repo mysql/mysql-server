@@ -4329,9 +4329,19 @@ fil_user_tablespace_find_space_id(
 				continue;
 			}
 
-			if (!buf_page_is_corrupted(false, page, 0)
-			    || !buf_page_is_corrupted(false, page,
-						      page_size)) {
+			bool uncompressed_ok = false;
+
+			/* For uncompressed pages, the page size must be equal
+			to UNIV_PAGE_SIZE. */
+			if (page_size == UNIV_PAGE_SIZE) {
+				uncompressed_ok = !buf_page_is_corrupted(
+					false, page, 0);
+			}
+
+			bool compressed_ok = !buf_page_is_corrupted(
+				false, page, page_size);
+
+			if (uncompressed_ok || compressed_ok) {
 
 				ulint space_id = mach_read_from_4(page
 					+ FIL_PAGE_SPACE_ID);
