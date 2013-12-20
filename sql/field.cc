@@ -7709,7 +7709,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
     {
       Field_blob::store_length(length);
-      bmove(ptr+packlength,(char*) &from,sizeof(char*));
+      bmove(ptr + packlength, &from, sizeof(char*));
       return 0;
     }
     if (tmpstr.copy(from, length, cs))
@@ -8364,7 +8364,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
       value.copy(from, length, cs);
       from= value.ptr();
     }
-    bmove(ptr + packlength, (char*) &from, sizeof(char*));
+    bmove(ptr + packlength, &from, sizeof(char*));
   }
   return 0;
 

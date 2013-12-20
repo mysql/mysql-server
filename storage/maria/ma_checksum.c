@@ -58,7 +58,7 @@ ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
       length= _ma_calc_blob_length(blob_size_length, pos);
       if (length)
       {
-        memcpy((char*) &pos, pos + blob_size_length, sizeof(char*));
+        memcpy(&pos, pos + blob_size_length, sizeof(char*));
         crc= my_checksum(crc, pos, length);
       }
       continue;
