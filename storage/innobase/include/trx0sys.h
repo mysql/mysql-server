@@ -75,7 +75,7 @@ extern ib_int64_t	trx_sys_mysql_bin_log_pos;
 extern trx_sys_t*	trx_sys;
 
 /** Checks if a page address is the trx sys header page.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return true if trx sys header page */
 UNIV_INLINE
 bool

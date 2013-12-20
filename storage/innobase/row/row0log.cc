@@ -881,21 +881,22 @@ row_log_table_get_pk_old_col(
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param col old table column (before ALTER TABLE)
-@param ifield clustered index field in the new table (after ALTER TABLE)
-@param dfield clustered index tuple field in the new table
-@param heap memory heap for allocating dfield contents
-@param rec clustered index leaf page record in the old table
-@param offsets rec_get_offsets(rec)
-@param i rec field corresponding to col
-@param page_size page size of the old table
-@param max_len maximum length of dfield
-@retval DB_INVALID_NULL if a NULL value is encountered
-@retval DB_TOO_BIG_INDEX_COL if the maximum prefix length is exceeded */
+@param[in]	col		old table column (before ALTER TABLE)
+@param[in]	ifield		clustered index field in the new table (after
+ALTER TABLE)
+@param[in,out]	dfield		clustered index tuple field in the new table
+@param[in,out]	heap		memory heap for allocating dfield contents
+@param[in]	rec		clustered index leaf page record in the old
+table
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	i		rec field corresponding to col
+@param[in]	page_size	page size of the old table
+@param[in]	max_len		maximum length of dfield
+@retval DB_INVALID_NULL		if a NULL value is encountered
+@retval DB_TOO_BIG_INDEX_COL	if the maximum prefix length is exceeded */
 static
 dberr_t
 row_log_table_get_pk_col(
-/*=====================*/
 	const dict_col_t*	col,
 	const dict_field_t*	ifield,
 	dfield_t*		dfield,

@@ -282,7 +282,7 @@ fsp_header_get_flags(
 	const page_t*	page);	/*!< in: first page of a tablespace */
 
 /** Reads the page size from the first page of a tablespace.
-@param[in] page first page of a tablespace
+@param[in]	page	first page of a tablespace
 @return page size */
 page_size_t
 fsp_header_get_page_size(
@@ -521,7 +521,8 @@ fseg_free_step_not_header(
 	__attribute__((nonnull, warn_unused_result));
 
 /** Checks if a page address is an extent descriptor page address.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
@@ -583,36 +584,37 @@ fsp_flags_is_compressed(
 /*====================*/
 	ulint	flags);	/*!< in: tablespace flags */
 
-/********************************************************************//**
-Calculates the descriptor index within a descriptor page.
+/** Calculates the descriptor index within a descriptor page.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor index */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
-/*=======================*/
 	const page_size_t&	page_size,
-	ulint	offset);	/*!< in: page offset */
+	ulint			offset);
 
-/********************************************************************//**
-Gets pointer to a the extent descriptor of a page. The page where the
-extent descriptor resides is x-locked. If the page offset is equal to
-the free limit of the space, adds new extents from above the free limit
-to the space free list, if not free limit == space size. This adding
+/** Gets pointer to a the extent descriptor of a page.
+The page where the extent descriptor resides is x-locked. If the page offset
+is equal to the free limit of the space, adds new extents from above the free
+limit to the space free list, if not free limit == space size. This adding
 is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
+@param[in]	space		space id
+@param[in]	offset		page offset; if equal to the free limit, we
+try to add new extents to the space free list
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-
 xdes_t*
 xdes_get_descriptor(
-/*================*/
-	ulint	space,		/*!< in: space id */
-	ulint	offset,		/*!< in: page offset; if equal to the
-				free limit, we try to add new extents
-				to the space free list */
+	ulint			space,
+	ulint			offset,
 	const page_size_t&	page_size,
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
-	__attribute__((warn_unused_result));
+	mtr_t*			mtr)
+__attribute__((warn_unused_result));
+
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */
@@ -625,15 +627,15 @@ xdes_get_bit(
 	ulint		offset);/*!< in: page offset within extent:
 				0 ... FSP_EXTENT_SIZE - 1 */
 
-/********************************************************************//**
-Calculates the page where the descriptor of a page resides.
+/** Calculates the page where the descriptor of a page resides.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(
-/*======================*/
 	const page_size_t&	page_size,
-	ulint	offset);	/*!< in: page offset */
+	ulint			offset);
 
 #endif /* !UNIV_INNOCHECKSUM */
 

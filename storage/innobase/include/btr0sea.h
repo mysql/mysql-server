@@ -144,7 +144,8 @@ btr_search_drop_page_hash_index(
 
 /** Drops a possible page hash index when a page is evicted from the
 buffer pool or freed in a file segment.
-@param[in] page_id page id */
+@param[in]	page_id		page id
+@param[in]	page_size	page size */
 void
 btr_search_drop_page_hash_when_freed(
 	const page_id_t&	page_id,

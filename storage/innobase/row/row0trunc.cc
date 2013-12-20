@@ -2483,27 +2483,27 @@ truncate_t::index_t::set(
 	return(DB_SUCCESS);
 }
 
-/**
-Create an index for a table.
-
-@param table_name		table name, for which to create the index
-@param space_id			space id where we have to create the index
-@param page_size		page size of the .ibd file
-@param index_type		type of index to truncate
-@param index_id			id of index to truncate
-@param btr_redo_create_info	control info for ::btr_create()
-@param mtr			mini-transaction covering the create index
+/** Create an index for a table.
+@param[in]	table_name		table name, for which to create
+the index
+@param[in]	space_id		space id where we have to
+create the index
+@param[in]	page_size		page size of the .ibd file
+@param[in]	index_type		type of index to truncate
+@param[in]	index_id		id of index to truncate
+@param[in]	btr_redo_create_info	control info for ::btr_create()
+@param[in,out]	mtr			mini-transaction covering the
+create index
 @return root page no or FIL_NULL on failure */
-
 ulint
 truncate_t::create_index(
-	const char*	table_name,
-	ulint		space_id,
+	const char*		table_name,
+	ulint			space_id,
 	const page_size_t&	page_size,
-	ulint		index_type,
-	index_id_t	index_id,
-	btr_create_t&	btr_redo_create_info,
-	mtr_t*		mtr) const
+	ulint			index_type,
+	index_id_t		index_id,
+	const btr_create_t&	btr_redo_create_info,
+	mtr_t*			mtr) const
 {
 	ulint	root_page_no = btr_create(
 		index_type, space_id, page_size, index_id,
@@ -2625,14 +2625,12 @@ truncate_t::drop_indexes(
 
 
 /** Create the indexes for a table
-
-@param table_name	table name, for which to create the indexes
-@param space_id		space id where we have to create the indexes
-@param page_size	page size of the .ibd file
-@param flags		tablespace flags
-@param format_flags	page format flags
+@param[in]	table_name	table name, for which to create the indexes
+@param[in]	space_id	space id where we have to create the indexes
+@param[in]	page_size	page size of the .ibd file
+@param[in]	flags		tablespace flags
+@param[in]	format_flags	page format flags
 @return DB_SUCCESS or error code. */
-
 dberr_t
 truncate_t::create_indexes(
 	const char*		table_name,

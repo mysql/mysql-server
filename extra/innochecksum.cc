@@ -152,7 +152,7 @@ static TYPELIB innochecksum_algorithms_typelib = {
 };
 
 /** Get the page size of the filespace from the filespace header.
-@param[in] buf buffer used to read the page.
+@param[in]	buf	buffer used to read the page.
 @return page size */
 static
 const page_size_t
@@ -303,20 +303,14 @@ ulong read_file(
 	return bytes;
 }
 
-/*****************************************************************//*
- Check if page is corrupted or not.
-
- @param [in/out]	buf			page buffer read
- @param [in]		compressed		enable when tablespace is compressed.
- @param	[in]		logical_page_size	Logical/Uncompressed page size.
- @param	[in]		physical_page_size	Physical/Commpressed page size.
-
- @retval true if page is corrupted otherwise false.
-*/
+/** Check if page is corrupted or not.
+@param[in]	buf		page frame
+@param[in]	page_size	page size
+@retval true if page is corrupted otherwise false. */
 static
 bool
 is_page_corrupted(
-	const	byte* buf,
+	const byte*		buf,
 	const page_size_t&	page_size)
 {
 

@@ -401,8 +401,8 @@ buf_page_set_flush_type(
 }
 
 /** Map a block to a file page.
-@param[in,out] block pointer to control block
-@param[in] page_id page id */
+@param[in,out]	block	pointer to control block
+@param[in]	page_id	page id */
 UNIV_INLINE
 void
 buf_block_set_file_page(
@@ -994,7 +994,7 @@ buf_block_buf_fix_dec(
 }
 
 /** Returns the buffer pool instance given a page id.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return buffer pool */
 UNIV_INLINE
 buf_pool_t*
@@ -1027,8 +1027,8 @@ buf_pool_from_array(
 }
 
 /** Returns the control block of a file page, NULL if not found.
-@param[in] buf_pool buffer pool instance
-@param[in] page_id page id
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
 @return block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
@@ -1052,7 +1052,7 @@ buf_page_hash_get_low(
 		    bpage,
 		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
 			  && buf_page_in_file(bpage)),
-		    bpage->id == page_id);
+		    page_id.equals_to(bpage->id));
 	if (bpage) {
 		ut_a(buf_page_in_file(bpage));
 		ut_ad(bpage->in_page_hash);
@@ -1074,12 +1074,13 @@ page_hash lock is acquired in the specified lock mode. Otherwise,
 mode value is ignored. It is up to the caller to release the
 lock. If the block is found and the lock is NULL then the page_hash
 lock is released by this function.
-@param[in] buf_pool buffer pool instance
-@param[in] page_id page id
-@param[in,out] lock lock of the page hash acquired if bpage is found,
-NULL otherwise. If NULL is passed then the hash_lock is released by
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
+@param[in,out]	lock		lock of the page hash acquired if bpage is
+found, NULL otherwise. If NULL is passed then the hash_lock is released by
 this function.
-@param[in] lock_mode RW_LOCK_X or RW_LOCK_S. Ignored if lock == NULL
+@param[in]	lock_mode	RW_LOCK_X or RW_LOCK_S. Ignored if
+lock == NULL
 @return pointer to the bpage or NULL; if NULL, lock is also NULL. */
 UNIV_INLINE
 buf_page_t*
@@ -1121,7 +1122,7 @@ buf_page_hash_get_locked(
 	}
 
 	ut_ad(buf_page_in_file(bpage));
-	ut_ad(page_id == bpage->id);
+	ut_ad(page_id.equals_to(bpage->id));
 
 	if (lock == NULL) {
 		/* The caller wants us to release the page_hash lock */
@@ -1148,12 +1149,13 @@ page_hash lock is acquired in the specified lock mode. Otherwise,
 mode value is ignored. It is up to the caller to release the
 lock. If the block is found and the lock is NULL then the page_hash
 lock is released by this function.
-@param[in] buf_pool buffer pool instance
-@param[in] page_id page id
-@param[in,out] lock lock of the page hash acquired if bpage is found,
-NULL otherwise. If NULL is passed then the hash_lock is released by
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
+@param[in,out]	lock		lock of the page hash acquired if bpage is
+found, NULL otherwise. If NULL is passed then the hash_lock is released by
 this function.
-@param[in] lock_mode RW_LOCK_X or RW_LOCK_S. Ignored if lock == NULL
+@param[in]	lock_mode	RW_LOCK_X or RW_LOCK_S. Ignored if
+lock == NULL
 @return pointer to the block or NULL; if NULL, lock is also NULL. */
 UNIV_INLINE
 buf_block_t*
@@ -1198,7 +1200,7 @@ buf_block_hash_get_locked(
 /** Returns TRUE if the page can be found in the buffer pool hash table.
 NOTE that it is possible that the page is not yet read from disk,
 though.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return TRUE if found in the page hash table */
 UNIV_INLINE
 ibool

@@ -412,13 +412,14 @@ fil_space_free(
 /** Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
-@param[in] page_id page id
-@param[in] byte_offset remainder of offset in bytes; in aio this must be
-divisible by the OS block size
-@param[in] len how many bytes to read; this must not cross a file boundary;
-in aio this must be a block size multiple
-@param[in,out] buf buffer where to store data read; in aio this must be
-appropriately aligned
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read; this must not cross a
+file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store data read; in aio this
+must be appropriately aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
@@ -437,13 +438,14 @@ fil_read(
 /** Writes data to a space from a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
-@param[in] page_id page id
-@param[in] byte_offset remainder of offset in bytes; in aio this must be
-divisible by the OS block size
-@param[in] len how many bytes to write; this must not cross a file boundary;
-in aio this must be a block size multiple
-@param[in] buf buffer from which to write; in aio this must be appropriately
-aligned
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to write; this must not cross
+a file boundary; in aio this must be a block size multiple
+@param[in]	buf		buffer from which to write; in aio this must
+be appropriately aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
@@ -534,8 +536,8 @@ fil_space_get_version(
 }
 
 /** Returns the latch of a file space.
-@param[in] id space id
-@param[out] flags tablespace flags
+@param[in]	id	space id
+@param[out]	flags	tablespace flags
 @return latch protecting storage allocation */
 rw_lock_t*
 fil_space_get_latch(
@@ -1153,10 +1155,10 @@ fil_node_free(
 
 /** Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
-@param[in] space name
-@param[in] id space id
-@param[in] flags space flags
-@param[in] purpose FIL_TABLESPACE, or FIL_LOG if log
+@param[in]	space	name
+@param[in]	id	space id
+@param[in]	flags	space flags
+@param[in]	purpose	FIL_TABLESPACE, or FIL_LOG if log
 @return true if success */
 bool
 fil_space_create(
@@ -1554,8 +1556,8 @@ fil_space_get_flags(
 
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
-@param[in] id space id
-@param[out] found true if tablespace was found
+@param[in]	id	space id
+@param[out]	found	true if tablespace was found
 @return page size */
 const page_size_t
 fil_space_get_page_size(
@@ -2981,9 +2983,9 @@ fil_delete_tablespace(
 
 /** Check if an index tree is freed by checking a descriptor bit of
 index root page.
-@param[in] space_id space id
-@param[in] root_page_no root page no of an index tree
-@param[in] page_size page size
+@param[in]	space_id	space id
+@param[in]	root_page_no	root page no of an index tree
+@param[in]	page_size	page size
 @return true if the index tree is freed */
 bool
 fil_index_tree_is_freed(
@@ -5508,22 +5510,22 @@ fil_report_invalid_page_access(
 }
 
 /** Reads or writes data. This operation could be asynchronous (aio).
-@param[in] type OS_FILE_READ or OS_FILE_WRITE,
-ORed to OS_FILE_LOG, if a log i/o and
-ORed to OS_AIO_SIMULATED_WAKE_LATER if simulated aio and we want to post
-a batch of i/os;
-NOTE that a simulated batch may introduce hidden chances of deadlocks,
-because i/os are not actually handled until all have been posted: use
-with great caution!
-@param[in] sync true if synchronous aio is desired
-@param[in] page_id page id
-@param[in] byte_offset remainder of offset in bytes; in aio this must be
-divisible by the OS block size
-@param[in] len how many bytes to read or write; this must not cross a file
-boundary; in aio this must be a block size multiple
-@param[in,out] buf buffer where to store read data or from where to write;
-in aio this must be appropriately aligned
-@param[in] message message for aio handler if non-sync aio used, else ignored
+@param[in]	type		OS_FILE_READ or OS_FILE_WRITE, ORed to
+OS_FILE_LOG, if a log i/o and ORed to OS_AIO_SIMULATED_WAKE_LATER if
+simulated aio and we want to post a batch of IOs; NOTE that a simulated
+batch may introduce hidden chances of deadlocks, because IOs are not
+actually handled until all have been posted: use with great caution!
+@param[in]	sync		true if synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+not cross a file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+to write; in aio this must be appropriately aligned
+@param[in]	message		message for aio handler if non-sync aio used,
+else ignored
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 if we are trying to do i/o on a tablespace which does not exist */
 dberr_t
@@ -6503,7 +6505,7 @@ fil_tablespace_iterate(
 }
 
 /** Set the tablespace table size.
-@param[in] page a page belonging to the tablespace */
+@param[in]	page	a page belonging to the tablespace */
 void
 PageCallback::set_page_size(
 	const buf_frame_t*	page) UNIV_NOTHROW

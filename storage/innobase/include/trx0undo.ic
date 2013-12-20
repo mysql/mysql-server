@@ -156,8 +156,9 @@ trx_read_roll_ptr(
 #ifndef UNIV_HOTBACKUP
 
 /** Gets an undo log page and x-latches it.
-@param[in] page_id page id
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t*
@@ -174,8 +175,9 @@ trx_undo_page_get(
 }
 
 /** Gets an undo log page and s-latches it.
-@param[in] page_id page id
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t*
