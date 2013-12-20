@@ -22,10 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * export LD_LIBRARY_PATH=../../../libmysql_r/.libs:../../../ndb/src/.libs
- */
-
 #define MGMERROR(h) \
 { \
   fprintf(stderr, "code: %d msg: %s\n", \
