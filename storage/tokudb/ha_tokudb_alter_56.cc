@@ -216,7 +216,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
 static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
 // The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus handler flags to something we like.
-static ulong fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+static ulong fix_handler_flags(THD *thd, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     ulong handler_flags = ha_alter_info->handler_flags;
 
     // workaround for fill_alter_inplace_info bug (#5193)
@@ -225,7 +225,7 @@ static ulong fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace
     // column addition later.
     if (handler_flags & (Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::DROP_COLUMN)) {
         if (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX)) {
-            if (tables_have_same_keys(table, altered_table, false, false)) {
+            if (tables_have_same_keys(table, altered_table, THDVAR(thd, alter_print_error) != 0, false)) {
                 handler_flags &= ~(Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX);
             }
         }
@@ -294,7 +294,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     // setup context
     tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
     ha_alter_info->handler_ctx = ctx;
-    ctx->handler_flags = fix_handler_flags(table, altered_table, ha_alter_info);
+    ctx->handler_flags = fix_handler_flags(thd, table, altered_table, ha_alter_info);
     ctx->table_kc_info = &share->kc_info;
     ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
     memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
@@ -306,7 +306,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     if (only_flags(ctx->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
                    Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
         if ((ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
-            !tables_have_same_keys(table, altered_table, false, false) &&
+            !tables_have_same_keys(table, altered_table, THDVAR(thd, alter_print_error) != 0, false) &&
             is_disjoint_add_drop(ha_alter_info)) {
 
             if (ctx->handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
@@ -413,14 +413,14 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             // do a sanity check that the table is what we think it is
-            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+            if (tables_have_same_keys_and_columns(table, altered_table, THDVAR(thd, alter_print_error) != 0)) {
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
         // alter row_format
         else if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
             // do a sanity check that the table is what we think it is
-            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+            if (tables_have_same_keys_and_columns(table, altered_table, THDVAR(thd, alter_print_error) != 0)) {
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }

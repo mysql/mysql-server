@@ -181,6 +181,14 @@ static bool get_create_index_online(THD* thd) {
     return (THDVAR(thd, create_index_online) != 0);
 }
 
+static MYSQL_THDVAR_BOOL(alter_print_error,
+    0,
+    "Print errors for alter table operations",
+    NULL, 
+    NULL,
+    false
+);
+
 static MYSQL_THDVAR_BOOL(disable_prefetching,
     0,
     "if on, prefetching disabled",
