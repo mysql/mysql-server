@@ -39,6 +39,7 @@ Before you start, make sure you have a C++11-compatible compiler (GCC >=
 header files for valgrind,zlib, and Berkeley DB.
 
 On CentOS, `yum install valgrind-devel zlib-devel libdb-devel`
+
 On Ubuntu, `apt-get install valgrind zlib1g-dev libdb-dev`
 
 You can set the compiler by passing `--cc` and `--cxx` to the script, to
