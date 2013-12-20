@@ -47,9 +47,10 @@
 #include <mysql.h>
 #include <NdbApi.hpp>
 
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 // Used for cout
-#include <stdio.h>
 #include <iostream>
 
 #define PRINT_ERROR(code,msg) \

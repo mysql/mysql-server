@@ -31,11 +31,14 @@
 
 #include <mysql.h>
 #include <NdbApi.hpp>
+
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 // Used for cout
-#include <stdio.h>
 #include <iostream>
+
 
 // Do we use old-style (NdbRecAttr?) or new style (NdbRecord?)
 enum ApiType {api_attr, api_record};
