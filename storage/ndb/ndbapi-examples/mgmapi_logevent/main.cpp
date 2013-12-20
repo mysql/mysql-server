@@ -22,9 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * export LD_LIBRARY_PATH=../../../../libmysql_r/.libs:../../src/.libs
- */
 
 #define MGMERROR(h) \
 { \
