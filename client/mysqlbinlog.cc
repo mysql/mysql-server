@@ -838,7 +838,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   Log_event_type ev_type= ev->get_type_code();
   my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
-  print_event_info->short_form= short_form;
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -886,8 +885,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       print_event_info->hexdump_from= 0; /* Disabled */
     else
       print_event_info->hexdump_from= pos;
-
-    print_event_info->base64_output_mode= opt_base64_output_mode;
 
     DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
 
@@ -1570,8 +1567,8 @@ static struct my_option my_long_options[] =
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
   {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
-   "Do not print Global Transaction Identifier information "
-   "(SET GTID_NEXT=... etc).",
+   "Do not preserve Global Transaction Identifiers; instead make the server "
+   "execute the transactions as if they were new.",
    &opt_skip_gtids, &opt_skip_gtids, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"include-gtids", OPT_MYSQLBINLOG_INCLUDE_GTIDS,
@@ -1883,6 +1880,9 @@ static Exit_status dump_log_entries(const char* logname)
   strmov(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
+  print_event_info.short_form= short_form;
+  print_event_info.base64_output_mode= opt_base64_output_mode;
+  print_event_info.skip_gtids= opt_skip_gtids;
 
   switch (opt_remote_proto)
   {

@@ -2185,25 +2185,51 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
 
 void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 {
+  DBUG_ENTER("Relay_log_info::set_rli_description_event");
   DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fe);
 
   if (fe)
   {
     adapt_to_master_version(fe);
-    if (info_thd && is_parallel_exec())
+    if (info_thd)
     {
-      for (uint i= 0; i < workers.elements; i++)
+      /*
+        When the slave applier thread executes a
+        Format_description_log_event originating from a master
+        (corresponding to a new master binary log), set gtid_next to
+        NOT_YET_DETERMINED.  This tells the slave thread that:
+        - If a Gtid_log_event is read subsequently, gtid_next will be
+          set to the given GTID (this is done in
+          Gtid_log_event::do_apply_event().
+        - If a statement is executed before any Gtid_log_event, then
+          gtid_next is set to anonymous (this is done in
+          gtid_pre_statement_checks()).
+      */
+      if (fe->server_id != ::server_id &&
+          (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+           info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
       {
-        Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
-        mysql_mutex_lock(&w->jobs_lock);
-        if (w->running_status == Slave_worker::RUNNING)
-          w->set_rli_description_event(fe);
-        mysql_mutex_unlock(&w->jobs_lock);
+        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
+        info_thd->variables.gtid_next.set_not_yet_determined();
+      }
+
+      if (is_parallel_exec())
+      {
+        for (uint i= 0; i < workers.elements; i++)
+        {
+          Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+          mysql_mutex_lock(&w->jobs_lock);
+          if (w->running_status == Slave_worker::RUNNING)
+            w->set_rli_description_event(fe);
+          mysql_mutex_unlock(&w->jobs_lock);
+        }
       }
     }
   }
   delete rli_description_event;
   rli_description_event= fe;
+
+  DBUG_VOID_RETURN;
 }
 
 struct st_feature_version
