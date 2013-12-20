@@ -96,14 +96,14 @@ include/stop_slave.inc
 ==== Checks performed at server start when GTID_MODE = OFF ====
 include/rpl_stop_server.inc [server_number=2]
 ---- Fail to start replication with GTID_MODE = OFF and GTIDs in binlog/relay log ----
-include/rpl_start_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 gtids=off]
 START SLAVE;
 include/rpl_restart_server.inc [server_number=2 gtids=on]
 RESET SLAVE;
 RESET MASTER;
 ==== Master has GTID_MODE = ON, slave has GTID_MODE = OFF ====
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --log-slave-updates]
+include/rpl_start_server.inc [server_number=2 gtids=off parameters: --log-slave-updates]
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root', MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS, MASTER_CONNECT_RETRY = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
