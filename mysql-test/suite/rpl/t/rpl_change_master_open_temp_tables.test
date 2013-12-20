@@ -13,8 +13,10 @@
 #    CHANGE MASTER.
 #  - If there are open temporary tables and there is a CHANGE MASTER,
 #    there should be a warning.
+#  - If there are open temporary tables and there is a STOP SLAVE,
+#    there should be a warning.
 #  - Ensure that CHANGE MASTER is allowed if there are open temporary
-#    tables and both receiver and applier threads are stopped.
+#    tables.
 #
 #  ==== Related Worklog(s) And Bug(s)====
 #
@@ -29,15 +31,19 @@ sync_slave_with_master;
 
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
-change master to master_heartbeat_period= 10;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
---source include/stop_slave_sql.inc
-change master to master_heartbeat_period= 10;
+STOP SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_to_stop.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
-#TODO: Add testing for warning on change master when any thread is running.
+STOP SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+
 --source include/start_slave.inc
 --connection master
-drop temporary table t1;
+DROP TEMPORARY TABLE t1;
 sync_slave_with_master;
 
 --source include/rpl_end.inc
