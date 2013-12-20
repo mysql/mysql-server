@@ -31,16 +31,18 @@ Created September 2006 Marko Makela
 
 #include "btr0cur.h"
 
-/********************************************************************//**
-Fills the column prefix cache of an externally stored column. */
+/** Fills the column prefix cache of an externally stored column.
+@param[in,out]	ext		column prefix cache
+@param[in]	i		index of ext->ext[]
+@param[in]	page_size	page size
+@param[in]	dfield		data field */
 static
 void
 row_ext_cache_fill(
-/*===============*/
-	row_ext_t*	ext,	/*!< in/out: column prefix cache */
-	ulint		i,	/*!< in: index of ext->ext[] */
-	const page_size_t&	page_size,/*!< compressed page size in bytes, or 0 */
-	const dfield_t*	dfield)	/*!< in: data field */
+	row_ext_t*		ext,
+	ulint			i,
+	const page_size_t&	page_size,
+	const dfield_t*		dfield)
 {
 	const byte*	field	= static_cast<const byte*>(
 					dfield_get_data(dfield));

@@ -263,11 +263,11 @@ btr_rec_set_deleted_flag(
 #endif
 
 /** Latches the leaf page or pages requested.
-@param[in] block leaf page where the search converged
-@param[in] page_id page id of the leaf
-@param[in] latch_mode BTR_SEARCH_LEAF, ...
-@param[in] cursor cursor
-@param[in] mtr mini-transaction */
+@param[in]	block		leaf page where the search converged
+@param[in]	page_id		page id of the leaf
+@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	mtr		mini-transaction */
 static
 void
 btr_cur_latch_leaves(
@@ -438,16 +438,14 @@ btr_cur_latch_for_root_leaf(
 	return(RW_NO_LATCH); /* avoid compiler warnings */
 }
 
-/**
-Detects whether the modifying record might need a modifying tree structure.
-@param index		in: index
-@param page		in: page
-@param lock_intention	in: lock intention for the tree operation
-@param rec		in: record (current node_ptr)
-@param rec_size		in: size of the record or max size of node_ptr
-@param page_size		in: compressed page size in bytes
-			    or 0 for uncompressed pages
-@param mtr		in: mtr
+/** Detects whether the modifying record might need a modifying tree structure.
+@param[in]	index		index
+@param[in]	page		page
+@param[in]	lock_intention	lock intention for the tree operation
+@param[in]	rec		record (current node_ptr)
+@param[in]	rec_size	size of the record or max size of node_ptr
+@param[in]	page_size	page size
+@param[in]	mtr		mtr
 @return true if tree modification is needed */
 static
 bool
@@ -3324,7 +3322,7 @@ btr_cur_pess_upd_restore_supremum(
 		return;
 	}
 
-	const ulint		prev_page_no = btr_page_get_prev(page, mtr);
+	const ulint	prev_page_no = btr_page_get_prev(page, mtr);
 
 	const page_id_t	page_id(block->page.id.space(), prev_page_no);
 
@@ -6227,21 +6225,25 @@ btr_copy_blob_prefix(
 	}
 }
 
-/*******************************************************************//**
-Copies the prefix of a compressed BLOB.  The clustered index record
-that points to this BLOB must be protected by a lock or a page latch.
+/** Copies the prefix of a compressed BLOB.
+The clustered index record that points to this BLOB must be protected
+by a lock or a page latch.
+@param[out]	buf		the externally stored part of the field,
+or a prefix of it
+@param[in]	len		length of buf, in bytes
+@param[in]	page_size	compressed BLOB page size
+@param[in]	space_id	space id of the BLOB pages
+@param[in]	offset		offset on the first BLOB page
 @return number of bytes written to buf */
 static
 ulint
 btr_copy_zblob_prefix(
-/*==================*/
-	byte*		buf,	/*!< out: the externally stored part of
-				the field, or a prefix of it */
-	ulint		len,	/*!< in: length of buf, in bytes */
-	const page_size_t&	page_size,/*!< in: compressed BLOB page size */
-	ulint		space_id,/*!< in: space id of the BLOB pages */
-	ulint		page_no,/*!< in: page number of the first BLOB page */
-	ulint		offset)	/*!< in: offset on the first BLOB page */
+	byte*			buf,
+	ulint			len,
+	const page_size_t&	page_size,
+	ulint			space_id,
+	ulint			page_no,
+	ulint			offset)
 {
 	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
 	mem_heap_t*	heap;
@@ -6371,23 +6373,26 @@ func_exit:
 	return(d_stream.total_out);
 }
 
-/*******************************************************************//**
-Copies the prefix of an externally stored field of a record.  The
-clustered index record that points to this BLOB must be protected by a
-lock or a page latch.
+/** Copies the prefix of an externally stored field of a record.
+The clustered index record that points to this BLOB must be protected
+by a lock or a page latch.
+@param[out]	buf		the externally stored part of the
+field, or a prefix of it
+@param[in]	len		length of buf, in bytes
+@param[in]	page_size	BLOB page size
+@param[in]	space_id	space id of the first BLOB page
+@param[in]	page_no		page number of the first BLOB page
+@param[in]	offset		offset on the first BLOB page
 @return number of bytes written to buf */
 static
 ulint
 btr_copy_externally_stored_field_prefix_low(
-/*========================================*/
-	byte*		buf,	/*!< out: the externally stored part of
-				the field, or a prefix of it */
-	ulint		len,	/*!< in: length of buf, in bytes */
-	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	ulint		space_id,/*!< in: space id of the first BLOB page */
-	ulint		page_no,/*!< in: page number of the first BLOB page */
-	ulint		offset)	/*!< in: offset on the first BLOB page */
+	byte*			buf,
+	ulint			len,
+	const page_size_t&	page_size,
+	ulint			space_id,
+	ulint			page_no,
+	ulint			offset)
 {
 	if (len == 0) {
 		return(0);
@@ -6403,24 +6408,24 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 }
 
-/*******************************************************************//**
-Copies the prefix of an externally stored field of a record.  The
-clustered index record must be protected by a lock or a page latch.
+/** Copies the prefix of an externally stored field of a record.
+The clustered index record must be protected by a lock or a page latch.
+@param[out]	buf		the field, or a prefix of it
+@param[in]	len		length of buf, in bytes
+@param[in]	page_size	BLOB page size
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part; must be protected by
+a lock or a page latch
+@param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
-
 ulint
 btr_copy_externally_stored_field_prefix(
-/*====================================*/
-	byte*		buf,	/*!< out: the field, or a prefix of it */
-	ulint		len,	/*!< in: length of buf, in bytes */
-	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	const byte*	data,	/*!< in: 'internally' stored part of the
-				field containing also the reference to
-				the external part; must be protected by
-				a lock or a page latch */
-	ulint		local_len)/*!< in: length of data, in bytes */
+	byte*			buf,
+	ulint			len,
+	const page_size_t&	page_size,
+	const byte*		data,
+	ulint			local_len)
 {
 	ulint	space_id;
 	ulint	page_no;
@@ -6462,23 +6467,23 @@ btr_copy_externally_stored_field_prefix(
 							     offset));
 }
 
-/*******************************************************************//**
-Copies an externally stored field of a record to mem heap.  The
-clustered index record must be protected by a lock or a page latch.
+/** Copies an externally stored field of a record to mem heap.
+The clustered index record must be protected by a lock or a page latch.
+@param[out]	len		length of the whole field
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part; must be protected by
+a lock or a page latch
+@param[in]	page_size	BLOB page size
+@param[in]	local_len	length of data
+@param[in,out]	heap		mem heap
 @return the whole field copied to heap */
-
 byte*
 btr_copy_externally_stored_field(
-/*=============================*/
-	ulint*		len,	/*!< out: length of the whole field */
-	const byte*	data,	/*!< in: 'internally' stored part of the
-				field containing also the reference to
-				the external part; must be protected by
-				a lock or a page latch */
-	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	ulint		local_len,/*!< in: length of data */
-	mem_heap_t*	heap)	/*!< in: mem heap */
+	ulint*			len,
+	const byte*		data,
+	const page_size_t&	page_size,
+	ulint			local_len,
+	mem_heap_t*		heap)
 {
 	ulint	space_id;
 	ulint	page_no;
@@ -6514,21 +6519,23 @@ btr_copy_externally_stored_field(
 	return(buf);
 }
 
-/*******************************************************************//**
-Copies an externally stored field of a record to mem heap.
+/** Copies an externally stored field of a record to mem heap.
+@param[in]	rec		record in a clustered index; must be
+protected by a lock or a page latch
+@param[in]	offset		array returned by rec_get_offsets()
+@param[in]	page_size	BLOB page size
+@param[in]	no		field number
+@param[out]	len		length of the field
+@param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
-
 byte*
 btr_rec_copy_externally_stored_field(
-/*=================================*/
-	const rec_t*	rec,	/*!< in: record in a clustered index;
-				must be protected by a lock or a page latch */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	const page_size_t&	page_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	ulint		no,	/*!< in: field number */
-	ulint*		len,	/*!< out: length of the field */
-	mem_heap_t*	heap)	/*!< in: mem heap */
+	const rec_t*		rec,
+	const ulint*		offsets,
+	const page_size_t&	page_size,
+	ulint			no,
+	ulint*			len,
+	mem_heap_t*		heap)
 {
 	ulint		local_len;
 	const byte*	data;

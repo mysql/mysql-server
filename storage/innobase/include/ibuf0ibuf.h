@@ -253,7 +253,8 @@ ibuf_inside(
 	__attribute__((nonnull, pure));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
@@ -263,13 +264,15 @@ ibuf_bitmap_page(
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==TRUE.
-@param[in] page_id page id
-@param[in] x_latch FALSE if relaxed check (avoid latching the bitmap page)
-@param[in] file file name
-@param[in] line line where called
-@param[in] mtr mtr which will contain an x-latch to the bitmap page if the
-page is not one of the fixed address ibuf pages, or NULL, in which case a
-new transaction is created.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	x_latch		FALSE if relaxed check (avoid latching the
+bitmap page)
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in,out]	mtr		mtr which will contain an x-latch to the
+bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
+in which case a new transaction is created.
 @return TRUE if level 2 or level 3 page */
 ibool
 ibuf_page_low(
@@ -284,23 +287,27 @@ ibuf_page_low(
 __attribute__((warn_unused_result));
 
 #ifdef UNIV_DEBUG
-/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
-pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param page_id tablespace/page identifier
-@param page_size page size
-@param mtr mini-transaction or NULL
+
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
+Must not be called when recv_no_ibuf_operations==TRUE.
+@param[in]	page_id		tablespace/page identifier
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
 # define ibuf_page(page_id, page_size, mtr)	\
 	ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
+
 #else /* UVIV_DEBUG */
-/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
-pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param page_id tablespace/page identifier
-@param page_size page size
-@param mtr mini-transaction or NULL
+
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
+Must not be called when recv_no_ibuf_operations==TRUE.
+@param[in]	page_id		tablespace/page identifier
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
 # define ibuf_page(page_id, page_size, mtr)	\
 	ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
+
 #endif /* UVIV_DEBUG */
 /***********************************************************************//**
 Frees excess pages from the ibuf free list. This function is called when an OS
@@ -314,11 +321,12 @@ ibuf_free_excess_pages(void);
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@param[in] op operation type
-@param[in] entry index entry to insert
-@param[in,out] index index where to insert
-@param[in] page_id page id where to insert
-@param[in,out] thr query thread
+@param[in]	op		operation type
+@param[in]	entry		index entry to insert
+@param[in,out]	index		index where to insert
+@param[in]	page_id		page id where to insert
+@param[in]	page_size	page size
+@param[in,out]	thr		query thread
 @return TRUE if success */
 ibool
 ibuf_insert(
@@ -335,12 +343,12 @@ insert buffer. If the page is not read, but created in the buffer pool, this
 function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
-@param[in,out] block if page has been read from disk, pointer to the page
-x-latched, else NULL
-@param[in] page_id page id of the index page
-@param[in] update_ibuf_bitmap normally this is set to TRUE, but if we have
-deleted or are deleting the tablespace, then we naturally do not want to
-update a non-existent bitmap page */
+@param[in,out]	block			if page has been read from disk,
+pointer to the page x-latched, else NULL
+@param[in]	page_id			page id of the index page
+@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
+if we have deleted or are deleting the tablespace, then we naturally do not
+want to update a non-existent bitmap page */
 void
 ibuf_merge_or_delete_for_page(
 	buf_block_t*		block,
@@ -391,7 +399,7 @@ ibuf_parse_bitmap_init(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
 /** Gets the ibuf count for a given page.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return number of entries in the insert buffer currently buffered for
 this page */
 ulint

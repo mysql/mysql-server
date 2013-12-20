@@ -26,7 +26,8 @@ Created 12/18/1995 Heikki Tuuri
 #ifndef UNIV_INNOCHECKSUM
 
 /** Checks if a page address is an extent descriptor page address.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
@@ -174,15 +175,15 @@ fsp_flags_set_page_size(
 	return(flags);
 }
 
-/********************************************************************//**
-Calculates the descriptor index within a descriptor page.
+/** Calculates the descriptor index within a descriptor page.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor index */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
-/*=======================*/
 	const page_size_t&	page_size,
-	ulint	offset)		/*!< in: page offset */
+	ulint			offset)
 {
 	return(ut_2pow_remainder(offset, page_size.physical())
 	       / FSP_EXTENT_SIZE);
@@ -214,15 +215,15 @@ xdes_get_bit(
 			bit_index));
 }
 
-/********************************************************************//**
-Calculates the page where the descriptor of a page resides.
+/** Calculates the page where the descriptor of a page resides.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(
-/*======================*/
 	const page_size_t&	page_size,
-	ulint	offset)		/*!< in: page offset */
+	ulint			offset)
 {
 #ifndef DOXYGEN /* Doxygen gets confused by these */
 # if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\

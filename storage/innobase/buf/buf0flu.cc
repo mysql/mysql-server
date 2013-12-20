@@ -677,15 +677,16 @@ buf_flush_write_complete(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/********************************************************************//**
-Calculate the checksum of a page from compressed table and update the page. */
-
+/** Calculate the checksum of a page from compressed table and update
+the page.
+@param[in,out]	page	page to update
+@param[in]	size	compressed page size
+@param[in]	lsn	LSN to stamp on the page */
 void
 buf_flush_update_zip_checksum(
-/*==========================*/
-	buf_frame_t*	page,		/*!< in/out: Page to update */
-	ulint		size,	/*!< in: Compressed page size */
-	lsn_t		lsn)		/*!< in: Lsn to stamp on the page */
+	buf_frame_t*	page,
+	ulint		size,
+	lsn_t		lsn)
 {
 	ut_a(size > 0);
 
@@ -1042,8 +1043,8 @@ buf_flush_page_try(
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Check the page is in buffer pool and can be flushed.
-@param[in] page_id page id
-@param[in] flush_type BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]	page_id		page id
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @return true if the page can be flushed. */
 static
 bool
@@ -1090,10 +1091,10 @@ buf_flush_check_neighbor(
 }
 
 /** Flushes to disk all flushable pages within the flush area.
-@param[in] page_id page id
-@param[in] flush_type BUF_FLUSH_LRU or BUF_FLUSH_LIST
-@param[in] n_flushed number of pages flushed so far in this batch
-@param[in] n_to_flush maximum number of pages we are allowed to flush
+@param[in]	page_id		page id
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]	n_flushed	number of pages flushed so far in this batch
+@param[in]	n_to_flush	maximum number of pages we are allowed to flush
 @return number of pages flushed */
 static
 ulint

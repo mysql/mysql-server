@@ -864,26 +864,26 @@ btr_page_get_father(
 	mem_heap_free(heap);
 }
 
-/************************************************************//**
-Creates the root node for a new index tree.
+/** Creates the root node for a new index tree.
+@param[in]	type			type of the index
+@param[in]	space			space where created
+@param[in]	page_size		page size
+@param[in]	index_id		index id
+@param[in]	index			index, or NULL when applying TRUNCATE
+log record during recovery
+@param[in]	btr_redo_create_info	used for applying TRUNCATE log
+@param[in]	mtr			mini-transaction handle
+record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
-
 ulint
 btr_create(
-/*=======*/
-	ulint			type,		/*!< in: type of the index */
-	ulint			space,		/*!< in: space where created */
+	ulint			type,
+	ulint			space,
 	const page_size_t&	page_size,
-	index_id_t		index_id,	/*!< in: index id */
-	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying TRUNCATE log
-						record during recovery */
+	index_id_t		index_id,
+	dict_index_t*		index,
 	const btr_create_t*	btr_redo_create_info,
-						/*!< in: used for applying
-						TRUNCATE log record
-						during recovery */
-	mtr_t*			mtr)		/*!< in: mini-transaction
-						handle */
+	mtr_t*			mtr)
 {
 	ulint			page_no;
 	buf_block_t*		block;
@@ -1035,8 +1035,8 @@ btr_create(
 
 /** Frees a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
-@param[in] root_page_id id of the root page
-@param[in] logging_mode mtr logging mode */
+@param[in]	root_page_id	id of the root page
+@param[in]	logging_mode	mtr logging mode */
 void
 btr_free_but_not_root(
 	const page_id_t&	root_page_id,
@@ -1093,8 +1093,8 @@ top_loop:
 }
 
 /** Frees the B-tree root page. Other tree MUST already have been freed.
-@param[in] root_page_id id of the root page
-@param[in,out] mtr mini-transaction */
+@param[in]	root_page_id	id of the root page
+@param[in,out]	mtr		mini-transaction */
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
@@ -2594,40 +2594,41 @@ func_exit:
 }
 
 #ifdef UNIV_SYNC_DEBUG
-/*************************************************************//**
-Removes a page from the level list of pages.
-@param space in: space where removed
-@param page_size in: page size
-@param page in/out: page to remove
-@param index in: index tree
-@param mtr in/out: mini-transaction */
+/** Removes a page from the level list of pages.
+@param[in]	space		space where removed
+@param[in]	page_size	page size
+@param[in,out]	page		page to remove
+@param[in]	index		index tree
+@param[in,out]	mtr		mini-transaction */
 # define btr_level_list_remove(space,page_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,page_size,page,index,mtr)
 #else /* UNIV_SYNC_DEBUG */
-/*************************************************************//**
-Removes a page from the level list of pages.
-@param space in: space where removed
-@param page_size in: page size
-@param page in/out: page to remove
-@param index in: index tree
-@param mtr in/out: mini-transaction */
+/** Removes a page from the level list of pages.
+@param[in]	space		space where removed
+@param[in]	page_size	page size
+@param[in,out]	page		page to remove
+@param[in]	index		index tree
+@param[in,out]	mtr		mini-transaction */
 # define btr_level_list_remove(space,page_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,page_size,page,mtr)
 #endif /* UNIV_SYNC_DEBUG */
 
-/*************************************************************//**
-Removes a page from the level list of pages. */
+/** Removes a page from the level list of pages.
+@param[in]	space		space where removed
+@param[in]	page_size	page size
+@param[in,out]	page		page to remove
+@param[in]	index		index tree
+@param[in,out]	mtr		mini-transaction */
 static
 void
 btr_level_list_remove_func(
-/*=======================*/
-	ulint			space,	/*!< in: space where removed */
+	ulint			space,
 	const page_size_t&	page_size,
-	page_t*			page,	/*!< in/out: page to remove */
+	page_t*			page,
 #ifdef UNIV_SYNC_DEBUG
-	const dict_index_t*	index,	/*!< in: index tree */
+	const dict_index_t*	index,
 #endif /* UNIV_SYNC_DEBUG */
-	mtr_t*			mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	ut_ad(page && mtr);
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
@@ -3528,9 +3529,9 @@ btr_print_recursive(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX));
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"NODE ON LEVEL %lu page number %lu",
+		"NODE ON LEVEL %lu page number " UINT32PF,
 		(ulong) btr_page_get_level(page, mtr),
-		(ulong) block->page.id.page_no());
+		block->page.id.page_no());
 
 	page_print(block, index, width, width);
 
@@ -4473,7 +4474,7 @@ btr_can_merge_with_page(
 	page_t*		page;
 	ulint		n_recs;
 	ulint		data_size;
-        ulint           max_ins_size_reorg;
+	ulint		max_ins_size_reorg;
 	ulint		max_ins_size;
 	buf_block_t*	mblock;
 	page_t*		mpage;
@@ -4488,16 +4489,16 @@ btr_can_merge_with_page(
 	page = btr_cur_get_page(cursor);
 
 	const page_id_t		page_id(dict_index_get_space(index), page_no);
-        const page_size_t	page_size(dict_table_page_size(index->table));
+	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	mblock = btr_block_get(page_id, page_size, RW_X_LATCH, index, mtr);
 	mpage = buf_block_get_frame(mblock);
 
-        n_recs = page_get_n_recs(page);
-        data_size = page_get_data_size(page);
+	n_recs = page_get_n_recs(page);
+	data_size = page_get_data_size(page);
 
-        max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
-                mpage, n_recs);
+	max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
+		mpage, n_recs);
 
 	if (data_size > max_ins_size_reorg) {
 		goto error;

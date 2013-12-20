@@ -93,18 +93,19 @@ buf_read_page_handle_error(
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@param[out] err DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
-if we are trying to read from a non-existent tablespace, a tablespace which
-is just now being dropped, or a tablespace which is truncated
-@param[in] sync true if synchronous aio is desired
-@param[in] mode BUF_READ_IBUF_PAGES_ONLY, ..., ORed to
-OS_AIO_SIMULATED_WAKE_LATER (see below at read-ahead functions)
-@param[in] page_id page id
-@param[in] unzip TRUE=request uncompressed page
-@param[in] tablespace_version if the space memory object has this timestamp
-different from what we are giving here, treat the tablespace as dropped;
-this is a timestamp we use to stop dangling page reads from a tablespace
-which we have DISCARDed + IMPORTed back
+@param[out]	err			DB_SUCCESS, DB_TABLESPACE_DELETED or
+DB_TABLESPACE_TRUNCATED if we are trying to read from a non-existent
+tablespace, a tablespace which is just now being dropped, or a tablespace
+which is truncated
+@param[in]	sync			true if synchronous aio is desired
+@param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ..., ORed
+to OS_AIO_SIMULATED_WAKE_LATER (see below at read-ahead functions)
+@param[in]	page_id			page id
+@param[in]	unzip			TRUE=request uncompressed page
+@param[in]	tablespace_version	if the space memory object has this
+timestamp different from what we are giving here, treat the tablespace as
+dropped; this is a timestamp we use to stop dangling page reads from a
+tablespace which we have DISCARDed + IMPORTed back
 @return 1 if a read request was queued, 0 if the page already resided
 in buf_pool, or if the page is in the doublewrite buffer blocks in
 which case it is never read into the pool, or if the tablespace does
@@ -235,8 +236,10 @@ end up waiting for these latches! NOTE 2: the calling thread must want
 access to the page given: this rule is set to prevent unintended read-aheads
 performed by ibuf routines, a situation which could result in a deadlock if
 the OS does not support asynchronous i/o.
-@param[in] page_id page id of a page which the current thread wants to access
-@param[in] inside_ibuf TRUE if we are inside ibuf routine
+@param[in]	page_id		page id of a page which the current thread
+wants to access
+@param[in]	page_size	page size
+@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
@@ -390,7 +393,8 @@ read_ahead:
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page(
@@ -426,8 +430,9 @@ buf_read_page(
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
-@param[in] page_id page id
-@param[in] sync true if synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	sync		true if synchronous aio is desired
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page_background(
@@ -480,8 +485,9 @@ latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
-@param[in] page_id page id; see NOTE 3 above
-@param[in] inside_ibuf TRUE if we are inside ibuf routine
+@param[in]	page_id		page id; see NOTE 3 above
+@param[in]	page_size	page size
+@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued */
 ulint
 buf_read_ahead_linear(

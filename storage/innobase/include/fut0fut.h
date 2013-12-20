@@ -32,23 +32,25 @@ Created 12/13/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 
-/********************************************************************//**
-Gets a pointer to a file address and latches the page.
+/** Gets a pointer to a file address and latches the page.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	addr		file address
+@param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH
+@param[in,out]	mtr		mini-transaction
 @return pointer to a byte in a frame; the file page in the frame is
 bufferfixed and latched */
 UNIV_INLINE
 byte*
 fut_get_ptr(
-/*========*/
-	ulint		space,	/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	fil_addr_t	addr,	/*!< in: file address */
-	ulint		rw_latch, /*!< in: RW_S_LATCH, RW_X_LATCH */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	fil_addr_t		addr,
+	ulint			rw_latch,
+	mtr_t*			mtr);
 
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
 #endif
 
-#endif
-
+#endif /* fut0fut_h */

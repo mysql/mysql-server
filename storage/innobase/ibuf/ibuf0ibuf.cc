@@ -215,7 +215,7 @@ ibuf_t*	ibuf			= NULL;
 static ulint	ibuf_counts[IBUF_COUNT_N_SPACES][IBUF_COUNT_N_PAGES];
 
 /** Checks that the indexes to ibuf_counts[][] are within limits.
-@param[in] page_id page id */
+@param[in]	page_id	page id */
 UNIV_INLINE
 void
 ibuf_count_check(
@@ -423,7 +423,7 @@ ibuf_tree_root_get(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
 /** Gets the ibuf count for a given page.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return number of entries in the insert buffer currently buffered for
 this page */
 ulint
@@ -436,8 +436,8 @@ ibuf_count_get(
 }
 
 /** Sets the ibuf count for a given page.
-@param[in] page_id page id
-@param[in] val value to set */
+@param[in]	page_id	page id
+@param[in]	val	value to set */
 static
 void
 ibuf_count_set(
@@ -657,33 +657,37 @@ ibuf_parse_bitmap_init(
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
 /** Gets the desired bits for a given page from a bitmap page.
-@param page in: bitmap page
-@param offset in: page whose bits to get
-@param zs in: compressed page size in bytes; 0 for uncompressed pages
-@param bit in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param mtr in: mini-transaction holding an x-latch on the bitmap page
+@param[in]	page		bitmap page
+@param[in]	page_id		page id whose bits to get
+@param[in]	page_size	page id whose bits to get
+@param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param[in,out]	mtr		mini-transaction holding an x-latch on the
+bitmap page
 @return value of bits */
 #  define ibuf_bitmap_page_get_bits(page, page_id, page_size, bit, mtr)	\
 	ibuf_bitmap_page_get_bits_low(page, page_id, page_size,		\
 				      MTR_MEMO_PAGE_X_FIX, mtr, bit)
 # else /* UNIV_DEBUG */
 /** Gets the desired bits for a given page from a bitmap page.
-@param page in: bitmap page
-@param offset in: page whose bits to get
-@param zs in: compressed page size in bytes; 0 for uncompressed pages
-@param bit in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param mtr in: mini-transaction holding an x-latch on the bitmap page
+@param[in]	page		bitmap page
+@param[in]	page_id		page id whose bits to get
+@param[in]	page_size	page id whose bits to get
+@param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param[in,out]	mtr		mini-transaction holding an x-latch on the
+bitmap page
 @return value of bits */
 #  define ibuf_bitmap_page_get_bits(page, page_id, page_size, bit, mtr)	\
 	ibuf_bitmap_page_get_bits_low(page, page_id, page_size, bit)
 # endif /* UNIV_DEBUG */
 
 /** Gets the desired bits for a given page from a bitmap page.
-@param[in] page bitmap page
-@param[in] page_id page id whose bits to get
-@param[in] latch_type MTR_MEMO_PAGE_X_FIX, MTR_MEMO_BUF_FIX, ...
-@param[in,out] mtr mini-transaction holding latch_type on the bitmap page
-@param[in] bit IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param[in]	page		bitmap page
+@param[in]	page_id		page id whose bits to get
+@param[in]	page_size	page size
+@param[in]	latch_type	MTR_MEMO_PAGE_X_FIX, MTR_MEMO_BUF_FIX, ...
+@param[in,out]	mtr		mini-transaction holding latch_type on the
+bitmap page
+@param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
 @return value of bits */
 UNIV_INLINE
 ulint
@@ -730,11 +734,12 @@ ibuf_bitmap_page_get_bits_low(
 }
 
 /** Sets the desired bit for a given page in a bitmap page.
-@param[in,out] page bitmap page
-@param[in] page_id page id whose bits to set
-@param[in] bit IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param[in] val value to set
-@param[in,out] mtr mtr containing an x-latch to the bitmap page */
+@param[in,out]	page		bitmap page
+@param[in]	page_id		page id whose bits to set
+@param[in]	page_size	page size
+@param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param[in]	val		value to set
+@param[in,out]	mtr		mtr containing an x-latch to the bitmap page */
 static
 void
 ibuf_bitmap_page_set_bits(
@@ -784,7 +789,8 @@ ibuf_bitmap_page_set_bits(
 }
 
 /** Calculates the bitmap page number for a given page number.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return the bitmap page id where the file page is mapped */
 UNIV_INLINE
 const page_id_t
@@ -802,11 +808,11 @@ ibuf_bitmap_page_no_calc(
 
 /** Gets the ibuf bitmap page where the bits describing a given file page are
 stored.
-@param[in] page_id page id of the file page
-@param[in] page_size page size of the file page
-@param[in] file file name
-@param[in] line line where called
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id of the file page
+@param[in]	page_size	page size of the file page
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in,out]	mtr		mini-transaction
 @return bitmap page where the file page is mapped, that is, the bitmap
 page containing the descriptor bits for the file page; the bitmap page
 is x-latched */
@@ -832,9 +838,9 @@ ibuf_bitmap_get_map_page_func(
 
 /** Gets the ibuf bitmap page where the bits describing a given file page are
 stored.
-@param[in] page_id page id of the file page
-@param[in] page_size page size of the file page
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id of the file page
+@param[in]	page_size	page size of the file page
+@param[in,out]	mtr		mini-transaction
 @return bitmap page where the file page is mapped, that is, the bitmap
 page containing the descriptor bits for the file page; the bitmap page
 is x-latched */
@@ -1083,7 +1089,8 @@ ibuf_update_free_bits_for_two_pages_low(
 }
 
 /** Returns TRUE if the page is one of the fixed address ibuf pages.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a fixed address ibuf i/o page */
 UNIV_INLINE
 ibool
@@ -1098,13 +1105,15 @@ ibuf_fixed_addr_page(
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==TRUE.
-@param[in] page_id page id
-@param[in] x_latch FALSE if relaxed check (avoid latching the bitmap page)
-@param[in] file file name
-@param[in] line line where called
-@param[in] mtr mtr which will contain an x-latch to the bitmap page if the
-page is not one of the fixed address ibuf pages, or NULL, in which case a
-new transaction is created.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	x_latch		FALSE if relaxed check (avoid latching the
+bitmap page)
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in,out]	mtr		mtr which will contain an x-latch to the
+bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
+in which case a new transaction is created.
 @return TRUE if level 2 or level 3 page */
 ibool
 ibuf_page_low(
@@ -3388,14 +3397,17 @@ ibuf_get_entry_counter_func(
 
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
-@param[in] mode BTR_MODIFY_PREV or BTR_MODIFY_TREE
-@param[in] op operation type
-@param[in] no_counter TRUE=use 5.0.3 format; FALSE=allow delete buffering
-@param[in] entry index entry to insert
-@param[in] entry_size rec_get_converted_size(index, entry)
-@param[in,out] index index where to insert; must not be unique or clustered
-@param[in] page_id page id where to insert
-@param[in,out] thr query thread
+@param[in]	mode		BTR_MODIFY_PREV or BTR_MODIFY_TREE
+@param[in]	op		operation type
+@param[in]	no_counter	TRUE=use 5.0.3 format; FALSE=allow delete
+buffering
+@param[in]	entry		index entry to insert
+@param[in]	entry_size	rec_get_converted_size(index, entry)
+@param[in,out]	index		index where to insert; must not be unique
+or clustered
+@param[in]	page_id		page id where to insert
+@param[in]	page_size	page size
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_STRONG_FAIL or other error */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -3735,11 +3747,12 @@ func_exit:
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@param[in] op operation type
-@param[in] entry index entry to insert
-@param[in,out] index index where to insert
-@param[in] page_id page id where to insert
-@param[in,out] thr query thread
+@param[in]	op		operation type
+@param[in]	entry		index entry to insert
+@param[in,out]	index		index where to insert
+@param[in]	page_id		page id where to insert
+@param[in]	page_size	page size
+@param[in,out]	thr		query thread
 @return TRUE if success */
 ibool
 ibuf_insert(
@@ -4477,12 +4490,12 @@ insert buffer. If the page is not read, but created in the buffer pool, this
 function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
-@param[in,out] block if page has been read from disk, pointer to the page
-x-latched, else NULL
-@param[in] page_id page id of the index page
-@param[in] update_ibuf_bitmap normally this is set to TRUE, but if we have
-deleted or are deleting the tablespace, then we naturally do not want to
-update a non-existent bitmap page */
+@param[in,out]	block			if page has been read from disk,
+pointer to the page x-latched, else NULL
+@param[in]	page_id			page id of the index page
+@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
+if we have deleted or are deleting the tablespace, then we naturally do not
+want to update a non-existent bitmap page */
 void
 ibuf_merge_or_delete_for_page(
 	buf_block_t*		block,
@@ -4505,7 +4518,7 @@ ibuf_merge_or_delete_for_page(
 	ulint		mops[IBUF_OP_COUNT];
 	ulint		dops[IBUF_OP_COUNT];
 
-	ut_ad(block == NULL || block->page.id == page_id);
+	ut_ad(block == NULL || page_id.equals_to(block->page.id));
 	ut_ad(block == NULL || buf_block_get_io_fix(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE

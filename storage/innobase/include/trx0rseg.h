@@ -31,28 +31,34 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include <vector>
 
-/******************************************************************//**
-Gets a rollback segment header.
+/** Gets a rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
-/*==========*/
-	ulint	space,		/*!< in: space where placed */
+	ulint			space,
+	ulint			page_no,
 	const page_size_t&	page_size,
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr);		/*!< in: mtr */
-/******************************************************************//**
-Gets a newly created rollback segment header.
+	mtr_t*			mtr);
+
+/** Gets a newly created rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	page_no,	/*!< in: page number of the header */
+	ulint			space,
+	ulint			page_no,
 	const page_size_t&	page_size,
-	mtr_t*	mtr);		/*!< in: mtr */
+	mtr_t*			mtr);
+
 /***************************************************************//**
 Gets the file page number of the nth undo log slot.
 @return page number of the undo log segment */
@@ -91,19 +97,24 @@ trx_rseg_get_on_id(
 /*===============*/
 	ulint	id,		/*!< in: rollback segment id */
 	bool	is_redo_rseg);	/*!< in: true if redo rseg else false. */
-/****************************************************************//**
-Creates a rollback segment header. This function is called only when
-a new rollback segment is created in the database.
-@return page number of the created segment, FIL_NULL if fail */
 
+/** Creates a rollback segment header.
+This function is called only when a new rollback segment is created in
+the database.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	max_size	max size in pages
+@param[in]	rseg_slot_no	rseg id == slot number in trx sys
+@param[in,out]	mtr		mini-transaction
+@return page number of the created segment, FIL_NULL if fail */
 ulint
 trx_rseg_header_create(
-/*===================*/
-	ulint	space,		/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
-	mtr_t*	mtr);		/*!< in: mtr */
+	ulint			max_size,
+	ulint			rseg_slot_no,
+	mtr_t*			mtr);
+
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg array in trx_sys at a database startup. */

@@ -53,7 +53,7 @@ trx_sys_flush_max_trx_id(void);
 /*==========================*/
 
 /** Checks if a page address is the trx sys header page.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return true if trx sys header page */
 UNIV_INLINE
 bool

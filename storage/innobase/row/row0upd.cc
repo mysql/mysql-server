@@ -911,23 +911,25 @@ row_upd_build_difference_binary(
 	return(update);
 }
 
-/***********************************************************//**
-Fetch a prefix of an externally stored column.  This is similar
-to row_ext_lookup(), but the row_ext_t holds the old values
+/** Fetch a prefix of an externally stored column.
+This is similar to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part
+@param[in]	local_len	length of data, in bytes
+@param[in]	page_size	BLOB page size
+@param[in,out]	len		input - length of prefix to
+fetch; output: fetched length of the prefix
+@param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static
 byte*
 row_upd_ext_fetch(
-/*==============*/
-	const byte*	data,		/*!< in: 'internally' stored part of the
-					field containing also the reference to
-					the external part */
-	ulint		local_len,	/*!< in: length of data, in bytes */
-	const page_size_t&	page_size, /*!< in: BLOB page size */
-	ulint*		len,		/*!< in: length of prefix to fetch;
-					out: fetched length of the prefix */
-	mem_heap_t*	heap)		/*!< in: heap where to allocate */
+	const byte*		data,
+	ulint			local_len,
+	const page_size_t&	page_size,
+	ulint*			len,
+	mem_heap_t*		heap)
 {
 	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
@@ -940,22 +942,24 @@ row_upd_ext_fetch(
 	return(buf);
 }
 
-/***********************************************************//**
-Replaces the new column value stored in the update vector in
-the given index entry field. */
+/** Replaces the new column value stored in the update vector in
+the given index entry field.
+@param[in,out]	dfield		data field of the index entry
+@param[in]	field		index field
+@param[in]	col		field->col
+@param[in]	uf		update field
+@param[in,out]	heap		memory heap for allocating and copying
+the new value
+@param[in]	page_size	page size */
 static
 void
 row_upd_index_replace_new_col_val(
-/*==============================*/
-	dfield_t*		dfield,	/*!< in/out: data field
-					of the index entry */
-	const dict_field_t*	field,	/*!< in: index field */
-	const dict_col_t*	col,	/*!< in: field->col */
-	const upd_field_t*	uf,	/*!< in: update field */
-	mem_heap_t*		heap,	/*!< in: memory heap for allocating
-					and copying the new value */
-	const page_size_t&	page_size)/*!< in: compressed page
-					 size of the table, or 0 */
+	dfield_t*		dfield,
+	const dict_field_t*	field,
+	const dict_col_t*	col,
+	const upd_field_t*	uf,
+	mem_heap_t*		heap,
+	const page_size_t&	page_size)
 {
 	ulint		len;
 	const byte*	data;

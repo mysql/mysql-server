@@ -38,19 +38,22 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <algorithm>
 
-/****************************************************************//**
-Creates a rollback segment header. This function is called only when
-a new rollback segment is created in the database.
+/** Creates a rollback segment header.
+This function is called only when a new rollback segment is created in
+the database.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	max_size	max size in pages
+@param[in]	rseg_slot_no	rseg id == slot number in trx sys
+@param[in,out]	mtr		mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
-
 ulint
 trx_rseg_header_create(
-/*===================*/
-	ulint	space,		/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
-	mtr_t*	mtr)		/*!< in: mtr */
+	ulint			max_size,
+	ulint			rseg_slot_no,
+	mtr_t*			mtr)
 {
 	ulint		page_no;
 	trx_rsegf_t*	rsegf;
@@ -164,26 +167,28 @@ trx_rseg_mem_free(
 	ut_free(rseg);
 }
 
-/***************************************************************************
-Creates and initializes a rollback segment object. The values for the
-fields are read from the header. The object is inserted to the rseg
-list of the trx system object and a pointer is inserted in the rseg
+/** Creates and initializes a rollback segment object.
+The values for the fields are read from the header. The object is inserted to
+the rseg list of the trx system object and a pointer is inserted in the rseg
 array in the trx system object.
+@param[in]	id		rollback segment id
+@param[in]	space		space where the segment is placed
+@param[in]	page_no		page number of the segment header
+@param[in]	page_size	page size
+@param[in,out]	purge_queue	rseg queue
+@param[out]	rseg_array	add rseg reference to this central array
+@param[in,out]	mtr		mini-transaction
 @return own: rollback segment object */
 static
 trx_rseg_t*
 trx_rseg_mem_create(
-/*================*/
-	ulint		id,		/*!< in: rollback segment id */
-	ulint		space,		/*!< in: space where the segment
-					placed */
+	ulint			id,
+	ulint			space,
+	ulint			page_no,
 	const page_size_t&	page_size,
-	ulint		page_no,	/*!< in: page number of the segment
-					header */
-	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
-	trx_rseg_t**	rseg_array,	/*!< out: add rseg reference to this
-					central array. */
-	mtr_t*		mtr)		/*!< in: mtr */
+	purge_pq_t*		purge_queue,
+	trx_rseg_t**		rseg_array,
+	mtr_t*			mtr)
 {
 	ulint		len;
 	trx_rseg_t*	rseg;
@@ -299,7 +304,7 @@ trx_rseg_schedule_pending_purge(
 		trx_rseg_t** rseg_array =
 			((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
 		rseg = trx_rseg_mem_create(
-			slot, space, page_size, page_no,
+			slot, space, page_no, page_size,
 			purge_queue, rseg_array, mtr);
 
 		ut_a(rseg->id == slot);
@@ -358,7 +363,7 @@ trx_rseg_create_instance(
 				static_cast<trx_rseg_t**>(trx_sys->rseg_array);
 
 			rseg = trx_rseg_mem_create(
-				i, space, page_size, page_no,
+				i, space, page_no, page_size,
 				purge_queue, rseg_array, mtr);
 
 			ut_a(rseg->id == i);
@@ -419,7 +424,7 @@ trx_rseg_create(
 			((trx_rseg_t**) trx_sys->rseg_array);
 
 		rseg = trx_rseg_mem_create(
-			slot_no, space, page_size, page_no,
+			slot_no, space, page_no, page_size,
 			purge_sys->purge_queue, rseg_array, &mtr);
 	}
 

@@ -222,17 +222,19 @@ buf_LRU_evict_from_unzip_LRU(
 	return(unzip_avg <= io_avg * BUF_LRU_IO_TO_UNZIP_FACTOR);
 }
 
-/******************************************************************//**
-Attempts to drop page hash index on a batch of pages belonging to a
-particular space id. */
+/** Attempts to drop page hash index on a batch of pages belonging to a
+particular space id.
+@param[in]	space_id	space id
+@param[in]	page_size	page size
+@param[in]	arr		array of page_no
+@param[in]	count		number of entries in array */
 static
 void
 buf_LRU_drop_page_hash_batch(
-/*=========================*/
-	ulint		space_id,	/*!< in: space id */
+	ulint			space_id,
 	const page_size_t&	page_size,
-	const ulint*	arr,		/*!< in: array of page_no */
-	ulint		count)		/*!< in: number of entries in array */
+	const ulint*		arr,
+	ulint			count)
 {
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 

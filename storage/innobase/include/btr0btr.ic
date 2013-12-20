@@ -36,12 +36,13 @@ Created 6/2/1994 Heikki Tuuri
 					btr_page_get_level_low */
 
 /** Gets a buffer page and declares its latching order level.
-@param[in] page_id page id
-@param[in] mode latch mode
-@param[in] file file name
-@param[in] line line where called
-@param[in] index index tree, may be NULL if it is not an insert buffer tree
-@param[in,out] mtr mini-transaction
+@param[in]	page_id	page id
+@param[in]	mode	latch mode
+@param[in]	file	file name
+@param[in]	line	line where called
+@param[in]	index	index tree, may be NULL if it is not an insert buffer
+tree
+@param[in,out]	mtr	mini-transaction
 @return block */
 UNIV_INLINE
 buf_block_t*

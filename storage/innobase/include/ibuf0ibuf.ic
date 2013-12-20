@@ -149,7 +149,8 @@ ibuf_inside(
 }
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
@@ -161,16 +162,16 @@ ibuf_bitmap_page(
 	       == FSP_IBUF_BITMAP_OFFSET);
 }
 
-/*********************************************************************//**
-Translates the free space on a page to a value in the ibuf bitmap.
+/** Translates the free space on a page to a value in the ibuf bitmap.
+@param[in]	page_size	page size in bytes
+@param[in]	max_ins_size	maximum insert size after reorganize for
+the page
 @return value for ibuf bitmap bits */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_bits(
-/*===========================*/
-	ulint	page_size,	/*!< in: page size in bytes */
-	ulint	max_ins_size)	/*!< in: maximum insert size after reorganize
-				for the page */
+	ulint	page_size,
+	ulint	max_ins_size)
 {
 	ulint	n;
 	ut_ad(ut_is_2pow(page_size));
@@ -189,15 +190,15 @@ ibuf_index_page_calc_free_bits(
 	return(n);
 }
 
-/*********************************************************************//**
-Translates the ibuf free bits to the free space on a page in bytes.
+/** Translates the ibuf free bits to the free space on a page in bytes.
+@param[in]	page_size	page_size
+@param[in]	bits		value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_from_bits(
-/*================================*/
 	const page_size_t&	page_size,
-	ulint	bits)	/*!< in: value for ibuf bitmap bits */
+	ulint			bits)
 {
 	ut_ad(bits < 4);
 	ut_ad(!page_size.is_compressed()

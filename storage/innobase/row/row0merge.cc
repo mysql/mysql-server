@@ -2123,17 +2123,20 @@ row_merge_sort(
 	DBUG_RETURN(error);
 }
 
-/*************************************************************//**
-Copy externally stored columns to the data tuple. */
-static __attribute__((nonnull))
+/** Copy externally stored columns to the data tuple.
+@param[in]	mrec		merge record
+@param[in]	offsets		offsets of mrec
+@param[in]	page_size	page size
+@param[in,out]	tuple		data tuple
+@param[in,out]	heap		memory heap */
+static
 void
 row_merge_copy_blobs(
-/*=================*/
-	const mrec_t*	mrec,	/*!< in: merge record */
-	const ulint*	offsets,/*!< in: offsets of mrec */
+	const mrec_t*		mrec,
+	const ulint*		offsets,
 	const page_size_t&	page_size,
-	dtuple_t*	tuple,	/*!< in/out: data tuple */
-	mem_heap_t*	heap)	/*!< in/out: memory heap */
+	dtuple_t*		tuple,
+	mem_heap_t*		heap)
 {
 	ut_ad(rec_offs_any_extern(offsets));
 
