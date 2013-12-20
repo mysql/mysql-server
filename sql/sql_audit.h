@@ -135,7 +135,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
     uint userlen;
     const char *user;
     char user_buff[MAX_USER_HOST_SIZE];
-    LEX_CSTRING query;
+    LEX_CSTRING query= EMPTY_CSTR;
     const CHARSET_INFO *query_charset= thd->charset();
     MYSQL_LEX_STRING ip, host, external_user, sql_command;
     ha_rows rows;
