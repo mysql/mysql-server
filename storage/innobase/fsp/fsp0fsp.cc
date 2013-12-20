@@ -55,8 +55,9 @@ Created 11/29/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 
 /** Returns an extent to the free list of a space.
-@param[in] page_id page id in the extent
-@param[in,out] mtr mini-transaction */
+@param[in]	page_id		page id in the extent
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fsp_free_extent(
@@ -87,19 +88,23 @@ fseg_mark_page_used(
 	ulint		page,	/*!< in: page offset */
 	xdes_t*		descr,  /*!< in: extent descriptor */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
-/**********************************************************************//**
-Returns the first extent descriptor for a segment. We think of the extent
-lists of the segment catenated in the order FSEG_FULL -> FSEG_NOT_FULL
--> FSEG_FREE.
+
+/** Returns the first extent descriptor for a segment.
+We think of the extent lists of the segment catenated in the order
+FSEG_FULL -> FSEG_NOT_FULL -> FSEG_FREE.
+@param[in]	inode		segment inode
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return the first extent descriptor, or NULL if none */
 static
 xdes_t*
 fseg_get_first_extent(
-/*==================*/
-	fseg_inode_t*	inode,	/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		inode,
+	ulint			space,
 	const page_size_t&	page_size,
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	mtr_t*			mtr);
+
 /**********************************************************************//**
 Puts new extents to the free list if
 there are free extents above the free limit. If an extent happens
@@ -118,41 +123,44 @@ fsp_fill_free_list(
 	fsp_header_t*	header,		/*!< in/out: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 	UNIV_COLD __attribute__((nonnull));
-/**********************************************************************//**
-Allocates a single free page from a segment. This function implements
-the intelligent allocation strategy which tries to minimize file space
-fragmentation.
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+
+/** Allocates a single free page from a segment.
+This function implements the intelligent allocation strategy which tries
+to minimize file space fragmentation.
+@param[in]	space			space
+@param[in]	page_size		page size
+@param[in,out]	seg_inode		segment inode
+@param[in]	hint			hint of which page would be desirable
+@param[in]	direction		if the new page is needed because of
+an index page split, and records are inserted there in order, into which
+direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
+@param[in]	rw_latch		RW_SX_LATCH, RW_X_LATCH
+@param[in,out]	mtr			mini-transaction
+@param[in,out]	init_mtr		mtr or another mini-transaction in
+which the page should be initialized. If init_mtr != mtr, but the page is
+already latched in mtr, do not initialize the page
+@param[in]	has_done_reservation	TRUE if the space has already been
+reserved, in this case we will never return NULL
+@retval NULL	if no page could be allocated
+@retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
-@retval block (not allocated or initialized) otherwise */
+@retval block	(not allocated or initialized) otherwise */
 static
 buf_block_t*
 fseg_alloc_free_page_low(
-/*=====================*/
-	ulint		space,	/*!< in: space */
+	ulint			space,
 	const page_size_t&	page_size,
-	fseg_inode_t*	seg_inode, /*!< in/out: segment inode */
-	ulint		hint,	/*!< in: hint of which page would be
-				desirable */
-	byte		direction, /*!< in: if the new page is needed because
-				of an index page split, and records are
-				inserted there in order, into which
-				direction they go alphabetically: FSP_DOWN,
-				FSP_UP, FSP_NO_DIR */
-	rw_lock_type_t	rw_latch,/*!< in: RW_SX_LATCH, RW_X_LATCH */
-	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
-				in which the page should be initialized.
-				If init_mtr!=mtr, but the page is already
-				latched in mtr, do not initialize the page. */
+	fseg_inode_t*		seg_inode,
+	ulint			hint,
+	byte			direction,
+	rw_lock_type_t		rw_latch,
+	mtr_t*			mtr,
+	mtr_t*			init_mtr
 #ifdef UNIV_DEBUG
-	, ibool		has_done_reservation /*!< in: TRUE if the space has
-				already been reserved, in this case we will
-				never return NULL */
+	, ibool			has_done_reservation
 #endif
 )
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -169,9 +177,9 @@ fsp_get_size_low(
 
 #ifndef UNIV_HOTBACKUP
 /** Gets a pointer to the space header and x-locks its page.
-@param[in] id space id
-@param[in] page_size page size
-@param[in,out] mtr mini-transaction
+@param[in]	id		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to the space header, page x-locked */
 UNIV_INLINE
 fsp_header_t*
@@ -508,25 +516,25 @@ xdes_get_descriptor_with_space_hdr(
 	       + XDES_SIZE * xdes_calc_descriptor_index(page_size, offset));
 }
 
-/********************************************************************//**
-Gets pointer to a the extent descriptor of a page. The page where the
-extent descriptor resides is x-locked. If the page offset is equal to
-the free limit of the space, adds new extents from above the free limit
-to the space free list, if not free limit == space size. This adding
+/** Gets pointer to a the extent descriptor of a page.
+The page where the extent descriptor resides is x-locked. If the page offset
+is equal to the free limit of the space, adds new extents from above the free
+limit to the space free list, if not free limit == space size. This adding
 is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
+@param[in]	space		space id
+@param[in]	offset		page offset; if equal to the free limit, we
+try to add new extents to the space free list
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-
 xdes_t*
 xdes_get_descriptor(
-/*================*/
-	ulint	space,		/*!< in: space id */
-	ulint	offset,		/*!< in: page offset; if equal to the
-				free limit, we try to add new extents
-				to the space free list */
+	ulint			space,
+	ulint			offset,
 	const page_size_t&	page_size,
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	buf_block_t*	block;
 	fsp_header_t*	sp_header;
@@ -803,7 +811,7 @@ fsp_header_get_flags(
 }
 
 /** Reads the page size from the first page of a tablespace.
-@param[in] page first page of a tablespace
+@param[in]	page	first page of a tablespace
 @return page size */
 page_size_t
 fsp_header_get_page_size(
@@ -1207,19 +1215,20 @@ fsp_fill_free_list(
 	}
 }
 
-/**********************************************************************//**
-Allocates a new free extent.
+/** Allocates a new free extent.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	hint		hint of which extent would be desirable: any
+page offset in the extent goes; the hint must not be > FSP_FREE_LIMIT
+@param[in,out]	mtr		mini-transaction
 @return extent descriptor, NULL if cannot be allocated */
 static
 xdes_t*
 fsp_alloc_free_extent(
-/*==================*/
-	ulint	space,	/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint	hint,	/*!< in: hint of which extent would be desirable: any
-			page offset in the extent goes; the hint must not
-			be > FSP_FREE_LIMIT */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	ulint			hint,
+	mtr_t*			mtr)
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -1297,16 +1306,16 @@ fsp_alloc_from_free_frag(
 NOTE: If init_mtr != mtr, the block will only be initialized if it was
 not previously x-latched. It is assumed that the block has been
 x-latched only by mtr, and freed in mtr in that case.
-@param[in] page_id page id of the allocated page
-@param[in] rw_latch RW_SX_LATCH, RW_X_LATCH
-@param[in,out] mtr mini-transaction of the allocation
-@param[in,out] init_mtr mini-transaction for initializing the page
+@param[in]	page_id		page id of the allocated page
+@param[in]	page_size	page size of the allocated page
+@param[in]	rw_latch	RW_SX_LATCH, RW_X_LATCH
+@param[in,out]	mtr		mini-transaction of the allocation
+@param[in,out]	init_mtr	mini-transaction for initializing the page
 @return block, initialized if init_mtr==mtr
 or rw_lock_x_lock_count(&block->lock) == 1 */
 static
 buf_block_t*
 fsp_page_create(
-/*============*/
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	rw_lock_type_t		rw_latch,
@@ -1356,24 +1365,28 @@ fsp_page_create(
 	return(block);
 }
 
-/**********************************************************************//**
-Allocates a single free page from a space. The page is marked as used.
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+/** Allocates a single free page from a space.
+The page is marked as used.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	hint		hint of which page would be desirable
+@param[in]	rw_latch	RW_SX_LATCH, RW_X_LATCH
+@param[in,out]	mtr		mini-transaction
+@param[in,out]	init_mtr	mini-transaction in which the page should be
+initialized (may be the same as mtr)
+@retval NULL	if no page could be allocated
+@retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
-@retval block (not allocated or initialized) otherwise */
+@retval block	(not allocated or initialized) otherwise */
 static __attribute__((warn_unused_result))
 buf_block_t*
 fsp_alloc_free_page(
-/*================*/
-	ulint	space,	/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint	hint,	/*!< in: hint of which page would be desirable */
-	rw_lock_type_t rw_latch,/*!< in: RW_SX_LATCH, RW_X_LATCH */
-	mtr_t*	mtr,	/*!< in/out: mini-transaction */
-	mtr_t*	init_mtr)/*!< in/out: mini-transaction in which the
-			page should be initialized
-			(may be the same as mtr) */
+	ulint			hint,
+	rw_lock_type_t		rw_latch,
+	mtr_t*			mtr,
+	mtr_t*			init_mtr)
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -1468,9 +1481,11 @@ fsp_alloc_free_page(
 			       rw_latch, mtr, init_mtr));
 }
 
-/** Frees a single page of a space. The page is marked as free and clean.
-@param[in] page_id page id
-@param[in,out] mtr mini-transaction */
+/** Frees a single page of a space.
+The page is marked as free and clean.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fsp_free_page(
@@ -1570,8 +1585,9 @@ fsp_free_page(
 }
 
 /** Returns an extent to the free list of a space.
-@param[in] page_id page id in the extent
-@param[in,out] mtr mini-transaction */
+@param[in]	page_id		page id in the extent
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fsp_free_extent(
@@ -1602,18 +1618,19 @@ fsp_free_extent(
 	flst_add_last(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
 }
 
-/**********************************************************************//**
-Returns the nth inode slot on an inode page.
+/** Returns the nth inode slot on an inode page.
+@param[in]	page		segment inode page
+@param[in]	i		inode index on page
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return segment inode */
 UNIV_INLINE
 fseg_inode_t*
 fsp_seg_inode_page_get_nth_inode(
-/*=============================*/
-	page_t*	page,	/*!< in: segment inode page */
-	ulint	i,	/*!< in: inode index on page */
+	page_t*			page,
+	ulint			i,
 	const page_size_t&	page_size,
-	mtr_t*	mtr)
-			/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	ut_ad(i < FSP_SEG_INODES_PER_PAGE(page_size));
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_SX_FIX));
@@ -1621,16 +1638,17 @@ fsp_seg_inode_page_get_nth_inode(
 	return(page + FSEG_ARR_OFFSET + FSEG_INODE_SIZE * i);
 }
 
-/**********************************************************************//**
-Looks for a used segment inode on a segment inode page.
+/** Looks for a used segment inode on a segment inode page.
+@param[in]	page		segment inode page
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return segment inode index, or ULINT_UNDEFINED if not found */
 static
 ulint
 fsp_seg_inode_page_find_used(
-/*=========================*/
-	page_t*	page,	/*!< in: segment inode page */
+	page_t*			page,
 	const page_size_t&	page_size,
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	ulint		i;
 	fseg_inode_t*	inode;
@@ -1652,17 +1670,19 @@ fsp_seg_inode_page_find_used(
 	return(ULINT_UNDEFINED);
 }
 
-/**********************************************************************//**
-Looks for an unused segment inode on a segment inode page.
+/** Looks for an unused segment inode on a segment inode page.
+@param[in]	page		segment inode page
+@param[in]	i		search forward starting from this index
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return segment inode index, or ULINT_UNDEFINED if not found */
 static
 ulint
 fsp_seg_inode_page_find_free(
-/*=========================*/
-	page_t*	page,	/*!< in: segment inode page */
-	ulint	i,	/*!< in: search forward starting from this index */
+	page_t*			page,
+	ulint			i,
 	const page_size_t&	page_size,
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	for (; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
 
@@ -1801,16 +1821,18 @@ fsp_alloc_seg_inode(
 	return(inode);
 }
 
-/**********************************************************************//**
-Frees a file segment inode. */
+/** Frees a file segment inode.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	inode		segment inode
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fsp_free_seg_inode(
-/*===============*/
-	ulint		space,	/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	fseg_inode_t*	inode,	/*!< in: segment inode */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	fseg_inode_t*	inode,
+	mtr_t*		mtr)
 {
 	page_t*		page;
 	fsp_header_t*	space_header;
@@ -1849,17 +1871,19 @@ fsp_free_seg_inode(
 	}
 }
 
-/**********************************************************************//**
-Returns the file segment inode, page x-latched.
+/** Returns the file segment inode, page x-latched.
+@param[in]	header		segment header
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return segment inode, page x-latched; NULL if the inode is free */
 static
 fseg_inode_t*
 fseg_inode_try_get(
-/*===============*/
-	fseg_header_t*	header,	/*!< in: segment header */
-	ulint		space,	/*!< in: space id */
+	fseg_header_t*		header,
+	ulint			space,
 	const page_size_t&	page_size,
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	fil_addr_t	inode_addr;
 	fseg_inode_t*	inode;
@@ -1881,17 +1905,19 @@ fseg_inode_try_get(
 	return(inode);
 }
 
-/**********************************************************************//**
-Returns the file segment inode, page x-latched.
+/** Returns the file segment inode, page x-latched.
+@param[in]	header		segment header
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return segment inode, page x-latched */
 static
 fseg_inode_t*
 fseg_inode_get(
-/*===========*/
-	fseg_header_t*	header,	/*!< in: segment header */
-	ulint		space,	/*!< in: space id */
+	fseg_header_t*		header,
+	ulint			space,
 	const page_size_t&	page_size,
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	fseg_inode_t*	inode
 		= fseg_inode_try_get(header, space, page_size, mtr);
@@ -2242,21 +2268,24 @@ fseg_n_reserved_pages(
 	return(ret);
 }
 
-/*********************************************************************//**
-Tries to fill the free list of a segment with consecutive free extents.
+/** Tries to fill the free list of a segment with consecutive free extents.
 This happens if the segment is big enough to allow extents in the free list,
 the free list is empty, and the extents can be allocated consecutively from
-the hint onward. */
+the hint onward.
+@param[in]	inode		segment inode
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	hint		hint which extent would be good as the first
+extent
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fseg_fill_free_list(
-/*================*/
-	fseg_inode_t*	inode,	/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		inode,
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint		hint,	/*!< in: hint which extent would be good as
-				the first extent */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	ulint			hint,
+	mtr_t*			mtr)
 {
 	xdes_t*	descr;
 	ulint	i;
@@ -2307,22 +2336,25 @@ fseg_fill_free_list(
 	}
 }
 
-/*********************************************************************//**
-Allocates a free extent for the segment: looks first in the free list of the
-segment, then tries to allocate from the space free list. NOTE that the extent
-returned still resides in the segment free list, it is not yet taken off it!
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+/** Allocates a free extent for the segment: looks first in the free list of
+the segment, then tries to allocate from the space free list.
+NOTE that the extent returned still resides in the segment free list, it is
+not yet taken off it!
+@param[in]	inode		segment inode
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@retval NULL	if no page could be allocated
+@retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
-@retval block (not allocated or initialized) otherwise */
+@retval block	(not allocated or initialized) otherwise */
 static
 xdes_t*
 fseg_alloc_free_extent(
-/*===================*/
-	fseg_inode_t*	inode,	/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		inode,
+	ulint			space,
 	const page_size_t&	page_size,
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	xdes_t*		descr;
 	ib_id_t		seg_id;
@@ -2361,38 +2393,40 @@ fseg_alloc_free_extent(
 	return(descr);
 }
 
-/**********************************************************************//**
-Allocates a single free page from a segment. This function implements
-the intelligent allocation strategy which tries to minimize file space
-fragmentation.
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+/** Allocates a single free page from a segment.
+This function implements the intelligent allocation strategy which tries to
+minimize file space fragmentation.
+@param[in]	space			space id
+@param[in]	page_size		page size
+@param[in,out]	seg_inode		segment inode
+@param[in]	hint			hint of which page would be desirable
+@param[in]	direction		if the new page is needed because of
+an index page split, and records are inserted there in order, into which
+direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
+@param[in]	rw_latch		RW_SX_LATCH, RW_X_LATCH
+@param[in,out]	mtr			mini-transaction
+@param[in,out]	init_mtr		mtr or another mini-transaction in
+which the page should be initialized. If init_mtr != mtr, but the page is
+already latched in mtr, do not initialize the page
+@param[in]	has_done_reservation	TRUE if the space has already been
+reserved, in this case we will never return NULL
+@retval NULL	if no page could be allocated
+@retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
-@retval block (not allocated or initialized) otherwise */
+@retval block	(not allocated or initialized) otherwise */
 static
 buf_block_t*
 fseg_alloc_free_page_low(
-/*=====================*/
-	ulint		space,	/*!< in: space */
+	ulint			space,
 	const page_size_t&	page_size,
-	fseg_inode_t*	seg_inode, /*!< in/out: segment inode */
-	ulint		hint,	/*!< in: hint of which page would be
-				desirable */
-	byte		direction, /*!< in: if the new page is needed because
-				of an index page split, and records are
-				inserted there in order, into which
-				direction they go alphabetically: FSP_DOWN,
-				FSP_UP, FSP_NO_DIR */
-	rw_lock_type_t	rw_latch,/*!< in: RW_SX_LATCH, RW_X_LATCH */
-	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
-				in which the page should be initialized.
-				If init_mtr!=mtr, but the page is already
-				latched in mtr, do not initialize the page. */
+	fseg_inode_t*		seg_inode,
+	ulint			hint,
+	byte			direction,
+	rw_lock_type_t		rw_latch,
+	mtr_t*			mtr,
+	mtr_t*			init_mtr
 #ifdef UNIV_DEBUG
-	, ibool		has_done_reservation /*!< in: TRUE if the space has
-				already been reserved, in this case we will
-				never return NULL */
+	, ibool			has_done_reservation
 #endif
 )
 {
@@ -3058,10 +3092,12 @@ fseg_mark_page_used(
 }
 
 /** Frees a single page of a segment.
-@param[in] seg_inode segment inode
-@param[in] page_id page id
-@param[in] ahi whether we may need to drop the adaptive hash index
-@param[in,out] mtr mini-transaction */
+@param[in]	seg_inode	segment inode
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	ahi		whether we may need to drop the adaptive
+hash index
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fseg_free_page_low(
@@ -3497,19 +3533,21 @@ fseg_free_step_not_header(
 	return(FALSE);
 }
 
-/**********************************************************************//**
-Returns the first extent descriptor for a segment. We think of the extent
-lists of the segment catenated in the order FSEG_FULL -> FSEG_NOT_FULL
--> FSEG_FREE.
+/** Returns the first extent descriptor for a segment.
+We think of the extent lists of the segment catenated in the order
+FSEG_FULL -> FSEG_NOT_FULL -> FSEG_FREE.
+@param[in]	inode		segment inode
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return the first extent descriptor, or NULL if none */
 static
 xdes_t*
 fseg_get_first_extent(
-/*==================*/
-	fseg_inode_t*	inode,	/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		inode,
+	ulint			space,
 	const page_size_t&	page_size,
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*			mtr)
 {
 	fil_addr_t	first;
 	xdes_t*		descr;

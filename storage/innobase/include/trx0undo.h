@@ -100,8 +100,9 @@ trx_read_roll_ptr(
 #ifndef UNIV_HOTBACKUP
 
 /** Gets an undo log page and x-latches it.
-@param[in] page_id page id
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t*
@@ -111,8 +112,9 @@ trx_undo_page_get(
 	mtr_t*			mtr);
 
 /** Gets an undo log page and s-latches it.
-@param[in] page_id page id
-@param[in,out] mtr mini-transaction
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t*
@@ -188,19 +190,24 @@ trx_undo_get_next_rec(
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************************//**
-Gets the first record in an undo log.
-@return undo log record, the page latched, NULL if none */
 
+/** Gets the first record in an undo log.
+@param[in]	space		undo log header space
+@param[in]	page_size	page size
+@param[in]	page_no		undo log header page number
+@param[in]	offset		undo log header offset on page
+@param[in]	mode		latching mode: RW_S_LATCH or RW_X_LATCH
+@param[in,out]	mtr		mini-transaction
+@return undo log record, the page latched, NULL if none */
 trx_undo_rec_t*
 trx_undo_get_first_rec(
-/*===================*/
-	ulint	space,	/*!< in: undo log header space */
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset,	/*!< in: undo log header offset on page */
-	ulint	mode,	/*!< in: latching mode: RW_S_LATCH or RW_X_LATCH */
-	mtr_t*	mtr);	/*!< in: mtr */
+	ulint			page_no,
+	ulint			offset,
+	ulint			mode,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
 @return X-latched block if success, else NULL */

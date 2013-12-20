@@ -1574,7 +1574,7 @@ recv_recover_page_func(
 
 /** Reads in pages which have hashed log records, from an area around a given
 page number.
-@param[in] page_id page id
+@param[in]	page_id	page id
 @return number of pages found */
 static
 ulint

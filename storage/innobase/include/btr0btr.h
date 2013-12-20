@@ -180,12 +180,13 @@ btr_height_get(
 	__attribute__((nonnull, warn_unused_result));
 
 /** Gets a buffer page and declares its latching order level.
-@param[in] page_id page id
-@param[in] mode latch mode
-@param[in] file file name
-@param[in] line line where called
-@param[in] index index tree, may be NULL if it is not an insert buffer tree
-@param[in,out] mtr mini-transaction
+@param[in]	page_id	page id
+@param[in]	mode	latch mode
+@param[in]	file	file name
+@param[in]	line	line where called
+@param[in]	index	index tree, may be NULL if it is not an insert buffer
+tree
+@param[in,out]	mtr	mini-transaction
 @return block */
 UNIV_INLINE
 buf_block_t*

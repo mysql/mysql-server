@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/page0size.h
+A class describing a page size.
+
+Created Nov 14, 2013 Vasil Dimov
+*******************************************************/
+
 #ifndef page0size_t
 #define page0size_t
 
@@ -6,8 +31,14 @@
 
 #define PAGE_SIZE_T_SIZE_BITS	15
 
+/** Page size descriptor. Contains the physical and logical page size, as well
+as whether the page is compressed or not. */
 class page_size_t {
 public:
+	/** Constructor from (physical, logical, is_compressed).
+	@param[in]	physical	physical (on-disk) page size
+	@param[in]	logical		logical (in-memory) page size
+	@param[in]	is_compressed	whether the page is compressed */
 	page_size_t(ulint physical, ulint logical, bool is_compressed)
 		:
 		m_physical(physical),
@@ -24,6 +55,8 @@ public:
 		ut_ad(!is_compressed || physical <= UNIV_ZIP_SIZE_MAX);
 	}
 
+	/** Constructor from (fsp_flags).
+	@param[in]	fsp_flags	filespace flags */
 	explicit page_size_t(ulint fsp_flags)
 	{
 		ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
@@ -64,6 +97,8 @@ public:
 		}
 	}
 
+	/** Retrieve the physical page size.
+	@return physical page size in bytes */
 	inline ulint physical() const
 	{
 		/* Remove this assert once we add support for different
@@ -75,25 +110,24 @@ public:
 		return(m_physical);
 	}
 
+	/** Retrieve the logical page size.
+	@return logical page size in bytes */
 	inline ulint logical() const
 	{
 		ut_ad(m_logical > 0);
 		return(m_logical);
 	}
 
+	/** Check whether the page is compressed.
+	@return true if compressed */
 	inline bool is_compressed() const
 	{
 		//buf_block_get_page_zip() == NULL;
 		return(m_is_compressed);
 	}
 
-	inline bool equals_to(const page_size_t& a) const
-	{
-		return(a.physical() == m_physical
-		       && a.logical() == m_logical
-		       && a.is_compressed() == m_is_compressed);
-	}
-
+	/** Copy the values from a given page_size_t object.
+	@param[in]	src	page size object whose values to fetch */
 	inline void copy_from(const page_size_t& src)
 	{
 		m_physical = src.physical();
@@ -101,8 +135,19 @@ public:
 		m_is_compressed = src.is_compressed();
 	}
 
+	/** Check if a given page_size_t object is equal to the current one.
+	@param[in]	a	page_size_t object to compare
+	@return true if equal */
+	inline bool equals_to(const page_size_t& a) const
+	{
+		return(a.physical() == m_physical
+		       && a.logical() == m_logical
+		       && a.is_compressed() == m_is_compressed);
+	}
+
 private:
-	//page_size_t(const page_size_t&);
+
+	/* Disable implicit copying. */
 	void operator=(const page_size_t&);
 
 	/* For non compressed tablespaces, physical page size is equal to

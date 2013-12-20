@@ -34,7 +34,8 @@ Created 11/5/1995 Heikki Tuuri
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
-@param[in] page_id page id
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page(
@@ -45,8 +46,9 @@ buf_read_page(
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
-@param[in] page_id page id
-@param[in] sync true if synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	sync		true if synchronous aio is desired
 @return TRUE if page has been read in, FALSE in case of failure */
 ibool
 buf_read_page_background(
@@ -63,8 +65,10 @@ end up waiting for these latches! NOTE 2: the calling thread must want
 access to the page given: this rule is set to prevent unintended read-aheads
 performed by ibuf routines, a situation which could result in a deadlock if
 the OS does not support asynchronous i/o.
-@param[in] page_id page id of a page which the current thread wants to access
-@param[in] inside_ibuf TRUE if we are inside ibuf routine
+@param[in]	page_id		page id of a page which the current thread
+wants to access
+@param[in]	page_size	page size
+@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
@@ -96,8 +100,9 @@ latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
-@param[in] page_id page id; see NOTE 3 above
-@param[in] inside_ibuf TRUE if we are inside ibuf routine
+@param[in]	page_id		page id; see NOTE 3 above
+@param[in]	page_size	page size
+@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued */
 ulint
 buf_read_ahead_linear(
