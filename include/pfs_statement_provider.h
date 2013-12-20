@@ -40,7 +40,8 @@ PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
                                    const void *charset,
-                                   PSI_sp_share *sp_share);
+                                   PSI_sp_share *sp_share,
+                                   PSI_prepared_stmt *parent_prepared_stmt);
 
 PSI_statement_locker*
 pfs_refine_statement_v1(PSI_statement_locker *locker,

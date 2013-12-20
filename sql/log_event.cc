@@ -5019,7 +5019,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
-                                                    thd->charset(), NULL);
+                                                    thd->charset(), NULL, NULL);
         THD_STAGE_INFO(thd, stage_init);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                  thd->query().length);

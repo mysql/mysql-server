@@ -463,7 +463,8 @@ static PSI_statement_locker*
 get_thread_statement_locker_noop(PSI_statement_locker_state *state NNN,
                                  PSI_statement_key key NNN,
                                  const void *charset NNN,
-                                 PSI_sp_share *sp_share NNN)
+                                 PSI_sp_share *sp_share NNN,
+                                 PSI_prepared_stmt *parent_ps NNN)
 {
   return NULL;
 }

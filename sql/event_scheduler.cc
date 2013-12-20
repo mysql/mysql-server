@@ -317,7 +317,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                                               event->get_psi_info()->m_key,
                                               event->dbname.str,
                                               event->dbname.length,
-                                              thd->charset(), NULL);
+                                              thd->charset(), NULL, NULL);
 #endif
 
   thd->thread_stack= &my_stack;                // remember where our stack is

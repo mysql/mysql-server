@@ -388,7 +388,7 @@ int table_prepared_stmt_instances
           f->set_null();
         break;
       case 7: /* Mayank TODO, TIMER_PREPARE */
-        f->set_null();
+        m_row.m_prepared_stmt_stat.set_field(1, f);
         break;
       default: /* 8, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_prepared_stmt_execute_stat.set_field(f->field_index - 8, f);
