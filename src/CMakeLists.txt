@@ -42,8 +42,14 @@ endif ()
 # detect when we are being built as a subproject
 if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
-    TARGETS ${LIBTOKUDB} ${LIBTOKUDB}_static
-    DESTINATION lib
+    TARGETS ${LIBTOKUDB}
+    DESTINATION ${INSTALL_LIBDIR}
+    COMPONENT tokukv_libs_shared
+    )
+  install(
+    TARGETS ${LIBTOKUDB}_static
+    DESTINATION ${INSTALL_LIBDIR}
+    COMPONENT tokukv_libs_static
     )
 endif ()
 

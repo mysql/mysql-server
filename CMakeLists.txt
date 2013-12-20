@@ -19,6 +19,8 @@ include(TokuMergeLibs)
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")
 set(LIBTOKUDB "tokufractaltree" CACHE STRING "Name of libtokufractaltree.so")
 
+set(INSTALL_LIBDIR "lib" CACHE STRING "where to install libs")
+
 include_directories(
   ${VALGRIND_INCLUDE_DIR}
   )
@@ -58,6 +60,7 @@ add_subdirectory(examples)
 install(
   FILES README.md README-TOKUDB
   DESTINATION .
+  COMPONENT tokukv_misc
   )
 
 ## build tags

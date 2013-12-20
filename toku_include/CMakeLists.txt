@@ -7,9 +7,11 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     FILES toku_list.h toku_os.h
     DESTINATION include
+    COMPONENT tokukv_headers
     )
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/toku_config.h"
     DESTINATION include
+    COMPONENT tokukv_headers
     )
 endif ()

@@ -10,5 +10,7 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
       README.examples
     DESTINATION
       examples
+    COMPONENT
+      tokukv_examples
     )
 endif ()
