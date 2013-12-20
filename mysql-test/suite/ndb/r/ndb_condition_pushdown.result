@@ -1979,19 +1979,19 @@ insert into NodeAlias VALUES(null, 6 , '154' , '154' , 0 , '2008-03-10 10:48:43'
 insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57');
 insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
-explain select * from NodeAlias where (aliasKey LIKE '491803%');
+explain select * from nodealias where (aliasKey LIKE '491803%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NodeAlias	p0,p1	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	100.00	Using where with pushed condition (`test`.`NodeAlias`.`aliasKey` like '491803%'); Using MRR
+1	SIMPLE	nodealias	p0,p1	range	nodealias_KeyIndex	nodealias_KeyIndex	48	NULL	3	100.00	Using where with pushed condition (`test`.`nodealias`.`aliasKey` like '491803%'); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`NodeAlias`.`id` AS `id`,`test`.`NodeAlias`.`nodeId` AS `nodeId`,`test`.`NodeAlias`.`displayName` AS `displayName`,`test`.`NodeAlias`.`aliasKey` AS `aliasKey`,`test`.`NodeAlias`.`objectVersion` AS `objectVersion`,`test`.`NodeAlias`.`changed` AS `changed` from `test`.`NodeAlias` where (`test`.`NodeAlias`.`aliasKey` like '491803%')
+Note	1003	/* select#1 */ select `test`.`nodealias`.`id` AS `id`,`test`.`nodealias`.`nodeId` AS `nodeId`,`test`.`nodealias`.`displayName` AS `displayName`,`test`.`nodealias`.`aliasKey` AS `aliasKey`,`test`.`nodealias`.`objectVersion` AS `objectVersion`,`test`.`nodealias`.`changed` AS `changed` from `test`.`nodealias` where (`test`.`nodealias`.`aliasKey` like '491803%')
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
 7	8	491803%	491803%	0	2008-03-10 12:22:26
-explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220');
+explain select * from nodealias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NodeAlias	p0,p1	ALL	NodeAlias_KeyIndex	NULL	NULL	NULL	7	100.00	Using where
+1	SIMPLE	nodealias	p0,p1	ALL	nodealias_KeyIndex	NULL	NULL	NULL	7	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`NodeAlias`.`id` AS `id`,`test`.`NodeAlias`.`nodeId` AS `nodeId`,`test`.`NodeAlias`.`displayName` AS `displayName`,`test`.`NodeAlias`.`aliasKey` AS `aliasKey`,`test`.`NodeAlias`.`objectVersion` AS `objectVersion`,`test`.`NodeAlias`.`changed` AS `changed` from `test`.`NodeAlias` where (('4918031215220' like `test`.`NodeAlias`.`aliasKey`) or (`test`.`NodeAlias`.`aliasKey` like '4918031215220'))
+Note	1003	/* select#1 */ select `test`.`nodealias`.`id` AS `id`,`test`.`nodealias`.`nodeId` AS `nodeId`,`test`.`nodealias`.`displayName` AS `displayName`,`test`.`nodealias`.`aliasKey` AS `aliasKey`,`test`.`nodealias`.`objectVersion` AS `objectVersion`,`test`.`nodealias`.`changed` AS `changed` from `test`.`nodealias` where (('4918031215220' like `test`.`nodealias`.`aliasKey`) or (`test`.`nodealias`.`aliasKey` like '4918031215220'))
 select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
 7	8	491803%	491803%	0	2008-03-10 12:22:26

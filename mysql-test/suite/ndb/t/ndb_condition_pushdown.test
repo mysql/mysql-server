@@ -1784,9 +1784,13 @@ insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57'
 insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
 explain select * from NodeAlias where (aliasKey LIKE '491803%'); 
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id; 
 
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
 explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220'); 
 select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id; 
 
