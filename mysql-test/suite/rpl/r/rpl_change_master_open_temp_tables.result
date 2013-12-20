@@ -21,6 +21,18 @@ Warning	1901	This operation may not be safe when the slave has temporary tables.
 Note	1255	Slave already has been stopped
 include/wait_for_slave_io_to_stop.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+CHANGE MASTER TO MASTER_LOG_FILE= 'master-bin.000001';
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+CHANGE MASTER TO MASTER_LOG_POS= 235;
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000001';
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+CHANGE MASTER TO RELAY_LOG_POS= 4;
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/start_slave.inc
 DROP TEMPORARY TABLE t1;
 include/rpl_end.inc
