@@ -1240,6 +1240,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(disable_slow_alter),
     MYSQL_SYSVAR(disable_hot_alter),
+    MYSQL_SYSVAR(alter_print_error),
     MYSQL_SYSVAR(create_index_online),
     MYSQL_SYSVAR(disable_prefetching),
     MYSQL_SYSVAR(version),
