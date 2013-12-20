@@ -2204,17 +2204,9 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) ptr, &dec,
                         precision, decimals);
-      int i;
-      char buff[512], *pos;
-      pos= buff;
-      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
-      /*Print integral part, decimal point, fractional part*/
-      for (i= 0; i < ROUND_UP(dec.intg); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
-      if(ROUND_UP(dec.frac)>0)
-        pos+= sprintf(pos, "%s", ".");
-      for (i= ROUND_UP(dec.intg); i < ROUND_UP(dec.intg) + ROUND_UP(dec.frac); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
+      int len= DECIMAL_MAX_STR_LENGTH;
+      char buff[DECIMAL_MAX_STR_LENGTH + 1];
+      decimal2string(&dec,buff,&len, 0, 0, 0);
       my_b_printf(file, "%s", buff);
       return bin_size;
     }
