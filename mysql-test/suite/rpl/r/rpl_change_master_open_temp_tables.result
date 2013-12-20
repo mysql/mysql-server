@@ -8,12 +8,19 @@ STOP SLAVE;
 Warnings:
 Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_to_stop.inc
-change master to master_heartbeat_period= 10;
-include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+STOP SLAVE SQL_THREAD;
 Warnings:
 Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 Note	1255	Slave already has been stopped
-change master to master_heartbeat_period= 10;
+include/wait_for_slave_sql_to_stop.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Note	1255	Slave already has been stopped
+include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 include/start_slave.inc
-drop temporary table t1;
+DROP TEMPORARY TABLE t1;
 include/rpl_end.inc
