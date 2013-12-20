@@ -64,6 +64,16 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0import.h"
 #include <deque>
 
+const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
+	"A new raw disk partition was initialized. We do not allow database"
+	" modifications by the user at this time.  Shut down mysqld and edit"
+	" my.cnf so that newraw is replaced with raw.";
+
+const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
+	"innodb_force_recovery is on. We do not allow database modifications"
+	" by the user. Shut down mysqld and edit my.cnf to set"
+	" innodb_force_recovery=0";
+
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 ibool	row_rollback_on_timeout	= FALSE;
 
@@ -1335,15 +1345,14 @@ row_insert_for_mysql(
 		mem_analyze_corruption(prebuilt);
 		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 
-	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A new raw disk partition was initialized or"
-			" innodb_force_recovery is on: We do not allow"
-			" database modifications by the user. Shut down"
-			" mysqld and edit my.cnf so that newraw is replaced"
-			" with raw, and innodb_force_... is removed.");
-
+	} else if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		return(DB_ERROR);
+	} else if (srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		return(DB_READ_ONLY);
 	}
 
 	trx->op_info = "inserting";
@@ -1740,15 +1749,16 @@ row_update_for_mysql(
 		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
-	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A new raw disk partition was initialized or"
-			" innodb_force_recovery is on: we do not allow"
-			" database modifications by the user. Shut down"
-			" mysqld and edit my.cnf so that newraw is replaced"
-			" with raw, and innodb_force_... is removed.");
-
+	if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		DBUG_RETURN(DB_ERROR);
+	}
+
+	if(srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		DBUG_RETURN(DB_READ_ONLY);
 	}
 
 	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
@@ -2258,11 +2268,9 @@ row_create_table_for_mysql(
 	);
 
 	if (srv_sys_space.created_new_raw()) {
-		fputs("InnoDB: A new raw disk partition was initialized:\n"
-		      "InnoDB: we do not allow database modifications"
-		      " by the user.\n"
-		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
-		      " is replaced with raw.\n", stderr);
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
+
 err_exit:
 		dict_mem_table_free(table);
 
@@ -3293,12 +3301,8 @@ row_drop_table_for_mysql(
 	ut_a(name != NULL);
 
 	if (srv_sys_space.created_new_raw()) {
-		fputs("InnoDB: A new raw disk partition was initialized:\n"
-		      "InnoDB: we do not allow database modifications"
-		      " by the user.\n"
-		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
-		      " is replaced with raw.\n", stderr);
-
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+                        MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		DBUG_RETURN(DB_ERROR);
 	}
 
@@ -4291,15 +4295,17 @@ row_rename_table_for_mysql(
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"A new raw disk partition was initialized or"
-			" innodb_force_recovery is on: we do not allow"
-			" database modifications by the user. Shut down"
-			" mysqld and edit my.cnf so that newraw is replaced"
-			" with raw, and innodb_force_... is removed.");
-
+	if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		goto funct_exit;
+
+	} else if (srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		err = DB_READ_ONLY;
+		goto funct_exit;
+
 	} else if (row_mysql_is_system_table(new_name)) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
