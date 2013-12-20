@@ -92,7 +92,8 @@ static const char *handler_error_messages[]=
   "Row in wrong partition",
   "InnoDB is in read only mode",
   "FTS query exceeds result cache memory limit",
-  "Temporary file write failure"
+  "Temporary file write failure",
+  "Operation not allowed when innodb_forced_recovery > 0"
 };
 
 extern void my_handler_error_register(void);

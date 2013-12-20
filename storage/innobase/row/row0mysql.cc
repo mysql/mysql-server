@@ -1277,7 +1277,9 @@ row_insert_for_mysql(
 		      " newraw is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
-
+		if(srv_force_recovery) {
+			return(DB_READ_ONLY);
+		}
 		return(DB_ERROR);
 	}
 
@@ -1662,7 +1664,9 @@ row_update_for_mysql(
 		      " is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
-
+		if(srv_force_recovery) {
+			return(DB_READ_ONLY);
+		}
 		return(DB_ERROR);
 	}
 
@@ -4727,6 +4731,9 @@ row_rename_table_for_mysql(
 		      " is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
+		if(srv_force_recovery) {
+			err = DB_READ_ONLY;
+		}
 
 		goto funct_exit;
 	} else if (row_mysql_is_system_table(new_name)) {
