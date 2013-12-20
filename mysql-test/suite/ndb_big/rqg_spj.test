@@ -42,7 +42,7 @@ let $cmd = $RUN_RQG -g spj_test.yy -t 600;
 --exec bash -c "$cmd"
 --exec bash -c "$cmd"
 
-drop database spj_myisam;
+drop database spj_innodb;
 drop database spj_ndb;
 
 --disable_query_log
