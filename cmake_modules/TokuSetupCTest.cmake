@@ -85,7 +85,7 @@ set(TOKUDB_DATA "${TokuDB_SOURCE_DIR}/../tokudb.data" CACHE FILEPATH "Path to da
 
 if (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)
   set(WARNED_ABOUT_DATA 0)
-  if (NOT EXISTS "${TOKUDB_DATA}/" AND NOT WARNED_ABOUT_DATA)
+  if (NOT EXISTS "${TOKUDB_DATA}/" AND NOT WARNED_ABOUT_DATA AND CMAKE_PROJECT_NAME STREQUAL TokuDB)
     message(WARNING "Test data files are missing from ${TOKUDB_DATA}, which will cause some tests to fail.  Please put them there or modify TOKUDB_DATA to avoid this.")
     set(WARNED_ABOUT_DATA 1)
   endif ()
