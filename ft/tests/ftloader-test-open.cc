@@ -143,7 +143,7 @@ static void test_loader_open(int ndbs) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE, true, 0, false);
+        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, nullptr, true, 0, false);
         if (r == 0)
             break;
     }
