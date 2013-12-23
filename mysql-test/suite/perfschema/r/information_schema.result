@@ -53,6 +53,7 @@ performance_schema	metadata_locks	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
+performance_schema	prepared_statement_instances	def
 performance_schema	replication_connection_configuration	def
 performance_schema	replication_connection_status	def
 performance_schema	replication_execute_configuration	def
@@ -131,6 +132,7 @@ metadata_locks	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
+prepared_statement_instances	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_execute_configuration	BASE TABLE	PERFORMANCE_SCHEMA
@@ -209,6 +211,7 @@ metadata_locks	10	Dynamic
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
+prepared_statement_instances	10	Dynamic
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
 replication_execute_configuration	10	Fixed
@@ -287,6 +290,7 @@ metadata_locks	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
+prepared_statement_instances	1000	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
 replication_execute_configuration	0	0
@@ -365,6 +369,7 @@ metadata_locks	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
+prepared_statement_instances	0	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
 replication_execute_configuration	0	0
@@ -443,6 +448,7 @@ metadata_locks	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
+prepared_statement_instances	0	0	NULL
 replication_connection_configuration	0	0	NULL
 replication_connection_status	0	0	NULL
 replication_execute_configuration	0	0	NULL
@@ -521,6 +527,7 @@ metadata_locks	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
+prepared_statement_instances	NULL	NULL	NULL
 replication_connection_configuration	NULL	NULL	NULL
 replication_connection_status	NULL	NULL	NULL
 replication_execute_configuration	NULL	NULL	NULL
@@ -599,6 +606,7 @@ metadata_locks	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
+prepared_statement_instances	utf8_general_ci	NULL
 replication_connection_configuration	utf8_general_ci	NULL
 replication_connection_status	utf8_general_ci	NULL
 replication_execute_configuration	utf8_general_ci	NULL
@@ -677,6 +685,7 @@ metadata_locks
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+prepared_statement_instances	
 replication_connection_configuration	
 replication_connection_status	
 replication_execute_configuration	
