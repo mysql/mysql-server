@@ -165,8 +165,8 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		if (os_thread_pf(m_thread_id) != ULINT_UNDEFINED) {
 
 			fprintf(stream,
-				"Locked mutex: "
-				"addr %p thread %ld file %s line %ld",
+				"Locked mutex:"
+				" addr %p thread %ld file %s line %ld",
 				(void*) m_latch.m_mutex,
 				os_thread_pf(m_thread_id),
 				m_file_name,

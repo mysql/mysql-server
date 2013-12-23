@@ -691,7 +691,7 @@ void mysql_set_local_infile_default(MYSQL *mysql)
 int STDCALL
 mysql_query(MYSQL *mysql, const char *query)
 {
-  return mysql_real_query(mysql,query, (uint) strlen(query));
+  return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
 
@@ -1560,7 +1560,7 @@ mysql_stmt_init(MYSQL *mysql)
 */
 
 int STDCALL
-mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, size_t length)
+mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
 {
   MYSQL *mysql= stmt->mysql;
   DBUG_ENTER("mysql_stmt_prepare");
@@ -2949,7 +2949,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 
 my_bool STDCALL
 mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
-                          const char *data, size_t length)
+		     const char *data, ulong length)
 {
   MYSQL_BIND *param;
   DBUG_ENTER("mysql_stmt_send_long_data");

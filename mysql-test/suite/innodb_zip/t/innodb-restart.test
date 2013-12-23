@@ -15,7 +15,7 @@ SET default_storage_engine=InnoDB;
 --disable_query_log
 # This error is expected in the error log for this test.
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 17 means 'File exists'");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 17 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number (17|80) in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*t55.isl");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The link file: .* already exists.");
 --enable_query_log
