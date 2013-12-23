@@ -63,6 +63,7 @@ void test_no_instruments()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
+  param.m_prepared_stmt_sizing= 0;
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
@@ -128,6 +129,7 @@ void test_no_instances()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
+  param.m_prepared_stmt_sizing= 0;
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
@@ -274,6 +276,7 @@ void test_with_instances()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_program_sizing= 0;
+  param.m_prepared_stmt_sizing= 0;
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
