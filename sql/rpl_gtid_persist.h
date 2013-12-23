@@ -184,7 +184,7 @@ private:
       @retval FALSE success
   */
   bool open_table(THD* thd, enum thr_lock_type lock_type,
-      TABLE **table, Open_tables_backup* backup);
+                  TABLE **table, Open_tables_backup* backup);
   /**
     Commits the changes, unlocks the table and closes it. This method
     needs to be called even if the open_table fails, in order to ensure
