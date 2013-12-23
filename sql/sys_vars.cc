@@ -329,7 +329,7 @@ static Sys_var_long Sys_pfs_max_program_instances(
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
-       "performance_schema_max_prepared_statment_instances",
+       "performance_schema_max_prepared_statement_instances",
        "Maximum number of instrumented prepared statements."
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
