@@ -81,6 +81,12 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
       This will be used later in the code to signal the thread after the
       sequence number is updated.
     */
+    mysql_cond_t *cond_i=
+        get_transaction_wait_cond(tcle->get_thread_id()).first;
+    mysql_mutex_t *mutex_i=
+        get_transaction_wait_cond(tcle->get_thread_id()).second;
+
+    mysql_mutex_lock(mutex_i);
     if (add_transaction_certification_result(tcle->get_thread_id(),
                                              seq_number,
                                              gcs_cluster_sidno))
@@ -92,11 +98,6 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
       DBUG_RETURN(1);
     }
 
-    mysql_cond_t *cond_i=
-      get_transaction_wait_cond(tcle->get_thread_id()).first;
-    mysql_mutex_t *mutex_i=
-      get_transaction_wait_cond(tcle->get_thread_id()).second;
-
     if (cond_i == NULL || mutex_i == NULL)
     {
       log_message(MY_ERROR_LEVEL,
@@ -105,7 +106,6 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
       cont->signal(1,true);
       DBUG_RETURN(1);
     }
-    mysql_mutex_lock(mutex_i);
     mysql_cond_signal(cond_i);
     mysql_mutex_unlock(mutex_i);
 
