@@ -593,17 +593,32 @@ buf_block_buf_fix_inc_func(
 # endif /* UNIV_SYNC_DEBUG */
 	buf_block_t*	block)	/*!< in/out: block to bufferfix */
 	__attribute__((nonnull));
+
+/** Increments the bufferfix count.
+@param[in,out]	block	block to bufferfix */
+UNIV_INLINE
+void
+buf_block_fix(
+	buf_block_t*	block);
+
+/** Decrements the bufferfix count.
+@param[in,out]	block	block to bufferunfix */
+UNIV_INLINE
+void
+buf_block_unfix(
+	buf_block_t*	block);
+
 # ifdef UNIV_SYNC_DEBUG
 /** Increments the bufferfix count.
-@param b in/out: block to bufferfix
-@param f in: file name where requested
-@param l in: line number where requested */
+@param[in,out]	b	block to bufferfix
+@param[in]	f	file name where requested
+@param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
 # else /* UNIV_SYNC_DEBUG */
 /** Increments the bufferfix count.
-@param b in/out: block to bufferfix
-@param f in: file name where requested
-@param l in: line number where requested */
+@param[in,out]	b	block to bufferfix
+@param[in]	f	file name where requested
+@param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
 # endif /* UNIV_SYNC_DEBUG */
 #else /* !UNIV_HOTBACKUP */
@@ -1425,38 +1440,42 @@ struct buf_page_t{
 	by buf_pool->mutex. */
 	/* @{ */
 
-	unsigned	space:32;	/*!< tablespace id; also protected
+	ib_uint32_t	space;		/*!< tablespace id; also protected
 					by buf_pool->mutex. */
-	unsigned	offset:32;	/*!< page number; also protected
+	ib_uint32_t	offset;		/*!< page number; also protected
 					by buf_pool->mutex. */
+	/** count of how manyfold this block is currently bufferfixed */
+#ifdef PAGE_ATOMIC_REF_COUNT
+	ib_uint32_t	buf_fix_count;
 
+	/** type of pending I/O operation; also protected by
+	buf_pool->mutex for writes only @see enum buf_io_fix */
+	byte		io_fix;
+
+	byte		state;
+#else
+	unsigned	buf_fix_count:19;
+
+	/** type of pending I/O operation; also protected by
+	buf_pool->mutex for writes only @see enum buf_io_fix */
+	unsigned	io_fix:2;
+
+	/*!< state of the control block; also protected by buf_pool->mutex.
+	State transitions from BUF_BLOCK_READY_FOR_USE to BUF_BLOCK_MEMORY
+	need not be protected by buf_page_get_mutex(). @see enum buf_page_state.
+	State changes that are relevant to page_hash are additionally protected
+	by the appropriate page_hash mutex i.e.: if a page is in page_hash or
+	is being added to/removed from page_hash then the corresponding changes
+	must also be protected by page_hash mutex. */
 	unsigned	state:BUF_PAGE_STATE_BITS;
-					/*!< state of the control block; also
-					protected by buf_pool->mutex.
-					State transitions from
-					BUF_BLOCK_READY_FOR_USE to
-					BUF_BLOCK_MEMORY need not be
-					protected by buf_page_get_mutex().
-					@see enum buf_page_state.
-					State changes that are relevant
-					to page_hash are additionally
-					protected by the appropriate
-					page_hash mutex i.e.: if a page
-					is in page_hash or is being
-					added to/removed from page_hash
-					then the corresponding changes
-					must also be protected by
-					page_hash mutex. */
+
+#endif /* PAGE_ATOMIC_REF_COUNT */
+
 #ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
 					flush_type.
 					@see buf_flush_t */
-	unsigned	io_fix:2;	/*!< type of pending I/O operation;
-					also protected by buf_pool->mutex
-					@see enum buf_io_fix */
-	unsigned	buf_fix_count:19;/*!< count of how manyfold this block
-					is currently bufferfixed */
 	unsigned	buf_pool_index:6;/*!< index number of the buffer pool
 					that this block belongs to */
 # if MAX_BUFFER_POOLS > 64

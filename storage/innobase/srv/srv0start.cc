@@ -194,8 +194,8 @@ srv_file_check_mode(
 	if (err == DB_FAIL) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_get_status() failed on '%s'. Can't determine "
-			"file permissions", name);
+			"os_file_get_status() failed on '%s'. Can't determine"
+			" file permissions", name);
 
 		return(false);
 
@@ -589,8 +589,8 @@ srv_undo_tablespace_create(
 
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Error in creating %s: probably out of "
-				"disk space", name);
+				"Error in creating %s: probably out of"
+				" disk space", name);
 
 			err = DB_ERROR;
 		}
@@ -705,11 +705,11 @@ srv_check_undo_redo_logs_exists()
 		if (ret) {
 			os_file_close(fh);
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"undo tablespace '%s' exists. "
-				"Creating system tablespace with existing undo "
-				"tablespaces is not supported. Please delete "
-				"all undo tablespaces before creating new "
-				"system tablespace.", name);
+				"undo tablespace '%s' exists."
+				" Creating system tablespace with existing undo"
+				" tablespaces is not supported. Please delete"
+				" all undo tablespaces before creating new"
+				" system tablespace.", name);
 			return(DB_ERROR);
 		}
 	}
@@ -735,11 +735,11 @@ srv_check_undo_redo_logs_exists()
 		if (ret) {
 			os_file_close(fh);
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"redo log file '%s' exists. "
-				"Creating system tablespace with existing redo "
-				"log files is not recommended. Please delete "
-				"all redo log files before creating new system "
-				"tablespace.", logfilename);
+				"redo log file '%s' exists."
+				" Creating system tablespace with existing redo"
+				" log files is not recommended. Please delete"
+				" all redo log files before creating new system"
+				" tablespace.", logfilename);
 			return(DB_ERROR);
 		}
 	}
@@ -1190,12 +1190,22 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
 
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Using %s to ref count buffer pool pages",
+#ifdef PAGE_ATOMIC_REF_COUNT
+		"atomics"
+#else
+		"mutexes"
+#endif /* PAGE_ATOMIC_REF_COUNT */
+	);
+
+
 	if (sizeof(ulint) != sizeof(void*)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Size of InnoDB's ulint is %lu, but size of void* "
-			"is %lu. The sizes should be the same so that on "
-			"a 64-bit platforms you can allocate more than 4 GB "
-			"of memory.",
+			"Size of InnoDB's ulint is %lu, but size of void*"
+			" is %lu. The sizes should be the same so that on"
+			" a 64-bit platforms you can allocate more than 4 GB"
+			" of memory.",
 			(ulong) sizeof(ulint),
 			(ulong) sizeof(void*));
 	}
@@ -1423,9 +1433,9 @@ innobase_start_or_create_for_mysql(void)
 			will not emit a warning here, but we should actually
 			do so. */
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Adjusting innodb_buffer_pool_instances from "
-				"%lu to 1 since innodb_buffer_pool_size is "
-				"less than %d MiB",
+				"Adjusting innodb_buffer_pool_instances from"
+				" %lu to 1 since innodb_buffer_pool_size is"
+				" less than %d MiB",
 				srv_buf_pool_instances,
 				BUF_POOL_SIZE_THRESHOLD / (1024 * 1024));
 		}
@@ -1495,9 +1505,9 @@ innobase_start_or_create_for_mysql(void)
 	is now deprecated. */
 	if (srv_n_file_io_threads != 4) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"innodb_file_io_threads is deprecated. Please use "
-			"innodb_read_io_threads and innodb_write_io_threads "
-			"instead");
+			"innodb_file_io_threads is deprecated. Please use"
+			" innodb_read_io_threads and innodb_write_io_threads"
+			" instead");
 	}
 
 	/* Now overwrite the value on srv_n_file_io_threads */
@@ -1552,8 +1562,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Initializing buffer pool, total size = %.1f%c, "
-		"instances = %lu",
+		"Initializing buffer pool, total size = %.1f%c,"
+		" instances = %lu",
 		size, unit, srv_buf_pool_instances);
 
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
@@ -1575,9 +1585,9 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_buf_pool_size <= 5 * 1024 * 1024) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Small buffer pool size (%luM), the flst_validate() "
-			"debug function can cause a deadlock if the "
-			"buffer pool fills up.",
+			"Small buffer pool size (%luM), the flst_validate()"
+			" debug function can cause a deadlock if the"
+			" buffer pool fills up.",
 			srv_buf_pool_size / 1024 / 1024);
 	}
 #endif /* UNIV_DEBUG */
@@ -1655,15 +1665,15 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not open or create the system tablespace. If "
-			"you tried to add new data files to the system "
-			"tablespace, and it failed here, you should now "
-			"edit innodb_data_file_path in my.cnf back to what "
-			"it was, and remove the new ibdata files InnoDB "
-			"created in this failed attempt. InnoDB only wrote "
-			"those files full of zeros, but did not yet use "
-			"them in any way. But be careful: do not remove "
-			"old data files which contain your precious data!");
+			"Could not open or create the system tablespace. If"
+			" you tried to add new data files to the system"
+			" tablespace, and it failed here, you should now"
+			" edit innodb_data_file_path in my.cnf back to what"
+			" it was, and remove the new ibdata files InnoDB"
+			" created in this failed attempt. InnoDB only wrote"
+			" those files full of zeros, but did not yet use"
+			" them in any way. But be careful: do not remove"
+			" old data files which contain your precious data!");
 
 		return(srv_init_abort(err));
 	}
@@ -1782,8 +1792,8 @@ innobase_start_or_create_for_mysql(void)
 
 			if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Log file %s size "
-					UINT64PF " is not a multiple of"
+					"Log file %s size"
+					" " UINT64PF " is not a multiple of"
 					" innodb_page_size",
 					logfilename, size);
 				return(srv_init_abort(DB_ERROR));
@@ -2039,8 +2049,8 @@ files_checked:
 
 			if (srv_read_only_mode) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Cannot resize log files "
-					"in read-only mode.");
+					"Cannot resize log files"
+					" in read-only mode.");
 				return(srv_init_abort(DB_READ_ONLY));
 			}
 
@@ -2349,9 +2359,9 @@ files_checked:
 		if (mutex_enter_nowait(&mutex) != 0) {
 
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"pthread_mutex_trylock returns "
-				"an unexpected value on success! "
-				"Cannot continue.");
+				"pthread_mutex_trylock returns"
+				" an unexpected value on success!"
+				" Cannot continue.");
 
 			exit(EXIT_FAILURE);
 		}
@@ -2444,8 +2454,8 @@ innobase_shutdown_for_mysql(void)
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Shutting down an improperly started, "
-				"or created database!");
+				"Shutting down an improperly started,"
+				" or created database!");
 		}
 
 		return(DB_SUCCESS);
@@ -2467,8 +2477,8 @@ innobase_shutdown_for_mysql(void)
 
 	if (srv_conc_get_active_threads() != 0) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Query counter shows %ld queries still "
-			"inside InnoDB at shutdown",
+			"Query counter shows %ld queries still"
+			" inside InnoDB at shutdown",
 			srv_conc_get_active_threads());
 	}
 

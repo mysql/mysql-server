@@ -835,7 +835,8 @@ pthread_handler_t connection_thread(void *arg)
       case EMB_END_CONNECTION:
         goto end_thread;
       case EMB_SEND_QUERY:
-        cn->result= mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len);
+        cn->result= mysql_send_query(&cn->mysql, cn->cur_query,
+                                     static_cast<ulong>(cn->cur_query_len));
         break;
       case EMB_READ_QUERY_RESULT:
         cn->result= mysql_read_query_result(&cn->mysql);
@@ -891,7 +892,7 @@ static void signal_connection_thd(struct st_connection *cn, int command)
 static int do_send_query(struct st_connection *cn, const char *q, size_t q_len)
 {
   if (!cn->has_thread)
-    return mysql_send_query(&cn->mysql, q, q_len);
+    return mysql_send_query(&cn->mysql, q, static_cast<ulong>(q_len));
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   signal_connection_thd(cn, EMB_SEND_QUERY);
@@ -939,7 +940,7 @@ static void init_connection_thd(struct st_connection *cn)
 
 #else /*EMBEDDED_LIBRARY*/
 
-#define do_send_query(cn,q,q_len) mysql_send_query(&cn->mysql, q, q_len)
+#define do_send_query(cn,q,q_len) mysql_send_query(&cn->mysql, q, static_cast<ulong>(q_len))
 #define do_read_query_result(cn) mysql_read_query_result(&cn->mysql)
 
 #endif /*EMBEDDED_LIBRARY*/
@@ -2476,7 +2477,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, FALSE);
 
-  if (mysql_real_query(mysql, ds_query.str, ds_query.length)) 
+  if (mysql_real_query(mysql, ds_query.str,
+                       static_cast<ulong>(ds_query.length)))
   {
     handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
                   mysql_sqlstate(mysql), &ds_res);
@@ -2733,7 +2735,8 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
     die("Mismatched \"'s around query '%s'", ds_query.str);
 
   /* Run the query */
-  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
+  if (mysql_real_query(mysql, ds_query.str,
+                       static_cast<ulong>(ds_query.length)))
   {
     handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
                   mysql_sqlstate(mysql), &ds_res);
@@ -7201,15 +7204,15 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
 {
   MYSQL_BIND *my_bind;
   my_bool *is_null;
-  size_t *length;
+  ulong *length;
   uint i;
 
   /* Allocate array with bind structs, lengths and NULL flags */
   my_bind= (MYSQL_BIND*) my_malloc(PSI_NOT_INSTRUMENTED,
                                    num_fields * sizeof(MYSQL_BIND),
 				MYF(MY_WME | MY_FAE | MY_ZEROFILL));
-  length= (size_t*) my_malloc(PSI_NOT_INSTRUMENTED,
-                             num_fields * sizeof(size_t),
+  length= (ulong*) my_malloc(PSI_NOT_INSTRUMENTED,
+                             num_fields * sizeof(ulong),
 			     MYF(MY_WME | MY_FAE));
   is_null= (my_bool*) my_malloc(PSI_NOT_INSTRUMENTED,
                                 num_fields * sizeof(my_bool),
@@ -7222,12 +7225,13 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
     my_bind[i].buffer= my_malloc(PSI_NOT_INSTRUMENTED,
                                  max_length, MYF(MY_WME | MY_FAE));
-    my_bind[i].buffer_length= max_length;
+    my_bind[i].buffer_length= static_cast<ulong>(max_length);
     my_bind[i].is_null= &is_null[i];
     my_bind[i].length= &length[i];
 
     DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %lu",
-			i, my_bind[i].buffer_type, my_bind[i].buffer_length));
+			i, my_bind[i].buffer_type,
+                        my_bind[i].buffer_length));
   }
 
   if (mysql_stmt_bind_result(stmt, my_bind))
@@ -7758,7 +7762,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   /*
     Prepare the query
   */
-  if (mysql_stmt_prepare(stmt, query, query_len))
+  if (mysql_stmt_prepare(stmt, query, static_cast<ulong>(query_len)))
   {
     handle_error(command,  mysql_stmt_errno(stmt),
                  mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);

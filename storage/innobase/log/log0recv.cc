@@ -26,6 +26,7 @@ Created 9/20/1997 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include <vector>
 #include "log0recv.h"
 
 #ifdef UNIV_NONINL
@@ -53,6 +54,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "row0merge.h"
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
+
 
 /** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
@@ -392,6 +394,9 @@ recv_sys_init(
 
 	recv_max_page_lsn = 0;
 
+	/* Call the constructor for recv_sys_t::dblwr member */
+	new (&recv_sys->dblwr) recv_dblwr_t();
+
 	mutex_exit(&(recv_sys->mutex));
 }
 
@@ -406,8 +411,8 @@ recv_sys_empty_hash(void)
 
 	if (recv_sys->n_addrs != 0) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"%lu pages with log records were left unprocessed! "
-			"Maximum page number with log records on it is %lu",
+			"%lu pages with log records were left unprocessed!"
+			" Maximum page number with log records on it is %lu",
 			(ulong) recv_sys->n_addrs,
 			(ulong) recv_max_parsed_page_no);
 	}
@@ -567,8 +572,8 @@ recv_find_max_checkpoint(
 
 			if (!recv_check_cp_is_consistent(buf)) {
 				DBUG_PRINT("ib_log",
-					   ("invalid checkpoint, "
-					    "group %u at %u, checksum %#x",
+					   ("invalid checkpoint,"
+					    " group %u at %u, checksum %#x",
 					    (unsigned) group->id,
 					    (unsigned) field,
 					    (unsigned) mach_read_from_4(
@@ -1498,8 +1503,8 @@ recv_recover_page_func(
 			}
 
 			DBUG_PRINT("ib_log",
-				   ("apply " LSN_PF ": %u len %u "
-				    "page %u:%u", recv->start_lsn,
+				   ("apply " LSN_PF ": %u len %u"
+				    " page %u:%u", recv->start_lsn,
 				    (unsigned) recv->type,
 				    (unsigned) recv->len,
 				    (unsigned) recv_addr->space,
@@ -2183,8 +2188,8 @@ loop:
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
 		DBUG_PRINT("ib_log",
-			   ("scan " LSN_PF ": log rec %u len %u "
-			    "page %u:%u", old_lsn,
+			   ("scan " LSN_PF ": log rec %u len %u"
+			    " page %u:%u", old_lsn,
 			    (unsigned) type, (unsigned) len,
 			    (unsigned) space, (unsigned) page_no));
 
@@ -2271,8 +2276,8 @@ loop:
 #endif /* UNIV_LOG_DEBUG */
 
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": multi-log rec %u "
-				    "len %u page %u:%u",
+				   ("scan " LSN_PF ": multi-log rec %u"
+				    " len %u page %u:%u",
 				    recv_sys->recovered_lsn,
 				    (unsigned) type, (unsigned) len,
 				    (unsigned) space, (unsigned) page_no));
@@ -2739,6 +2744,8 @@ recv_init_crash_recovery(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
+	buf_dblwr_init_or_load_pages(true);
+
 	fil_load_single_table_tablespaces();
 
 	/* If we are using the doublewrite method, we will
@@ -2754,7 +2761,7 @@ recv_init_crash_recovery(void)
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"from the doublewrite buffer...");
 
-		buf_dblwr_init_or_restore_pages(TRUE);
+		buf_dblwr_process();
 
 		/* Spawn the background thread to flush dirty pages
 		from the buffer pools. */
@@ -2792,8 +2799,8 @@ recv_recovery_from_checkpoint_start(
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The user has set SRV_FORCE_NO_LOG_REDO on, "
-			"skipping log redo");
+			"The user has set SRV_FORCE_NO_LOG_REDO on,"
+			" skipping log redo");
 
 		return(DB_SUCCESS);
 	}
@@ -2835,8 +2842,8 @@ recv_recovery_from_checkpoint_start(
 		if (srv_read_only_mode) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot restore from ibbackup, InnoDB running "
-				"in read-only mode!");
+				"Cannot restore from ibbackup, InnoDB running"
+				" in read-only mode!");
 
 			return(DB_ERROR);
 		}
@@ -2845,9 +2852,9 @@ recv_recovery_from_checkpoint_start(
 		a note to the user about it */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The log file was created by ibbackup --apply-log "
-			"at %s. The following crash recovery is part of a "
-			"normal restore.",
+			"The log file was created by ibbackup --apply-log"
+			" at %s. The following crash recovery is part of a"
+			" normal restore.",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
 
 		/* Wipe over the label now */
@@ -2915,8 +2922,8 @@ recv_recovery_from_checkpoint_start(
 
 		if (!recv_needed_recovery) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The log sequence numbers " LSN_PF " and "
-				LSN_PF " in ibdata files do not match"
+				"The log sequence numbers " LSN_PF " and"
+				" " LSN_PF " in ibdata files do not match"
 				" the log sequence number " LSN_PF
 				" in the ib_logfiles!",
 				min_flushed_lsn,
@@ -2935,7 +2942,7 @@ recv_recovery_from_checkpoint_start(
 
 		if (!recv_needed_recovery && !srv_read_only_mode) {
 			/* Init the doublewrite buffer memory structure */
-			buf_dblwr_init_or_restore_pages(FALSE);
+			buf_dblwr_init_or_load_pages(false);
 		}
 	}
 
@@ -2943,10 +2950,10 @@ recv_recovery_from_checkpoint_start(
 	if (group_scanned_lsn < checkpoint_lsn
 	    || group_scanned_lsn < recv_max_page_lsn) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"We scanned the log up to "
-			LSN_PF ". A checkpoint was at " LSN_PF
-			" and the maximum LSN on a database page was " LSN_PF
-			". It is possible that the database is now corrupt!",
+			"We scanned the log up to " LSN_PF ". A checkpoint"
+			" was at " LSN_PF " and the maximum LSN on a database"
+			" page was " LSN_PF ". It is possible that the"
+			" database is now corrupt!",
 			group_scanned_lsn, checkpoint_lsn, recv_max_page_lsn);
 	}
 
@@ -3068,8 +3075,8 @@ recv_recovery_from_checkpoint_finish(void)
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for recv_writer to "
-				"finish flushing of buffer pool");
+				"Waiting for recv_writer to"
+				" finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -3256,4 +3263,45 @@ recv_reset_log_files_for_backup(
 	ut_free(buf);
 }
 #endif /* UNIV_HOTBACKUP */
+
+void recv_dblwr_t::add(byte* page)
+{
+	pages.push_back(page);
+}
+
+byte* recv_dblwr_t::find_first_page(ulint space_id)
+{
+	std::vector<byte*> matches;
+	byte*	result = 0;
+
+	for (std::list<byte*>::iterator i = pages.begin();
+	     i != pages.end(); ++i) {
+
+		if ((page_get_space_id(*i) == space_id)
+		    && (page_get_page_no(*i) == 0)) {
+			matches.push_back(*i);
+		}
+	}
+
+	if (matches.size() == 1) {
+		result = matches[0];
+	} else if (matches.size() > 1) {
+
+		lsn_t max_lsn	= 0;
+		lsn_t page_lsn	= 0;
+
+		for (std::vector<byte*>::iterator i = matches.begin();
+		     i != matches.end(); ++i) {
+
+			page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);
+
+			if (page_lsn > max_lsn) {
+				max_lsn = page_lsn;
+				result = *i;
+			}
+		}
+	}
+
+	return(result);
+}
 
