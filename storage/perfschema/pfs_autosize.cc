@@ -410,6 +410,10 @@ void pfs_automated_sizing(PFS_global_param *param)
     param->m_statement_stack_sizing= 1;
 #endif
 
+#ifndef HAVE_PSI_PS_INTERFACE
+  param->m_prepared_stmt_sizing= 0;
+#endif
+
 #ifndef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
   param->m_digest_sizing= 0;
 #endif
