@@ -28,9 +28,9 @@ const LEX_STRING Gtid_table_persistor::TABLE_NAME= {C_STRING_WITH_LEN("gtid_exec
 const LEX_STRING Gtid_table_persistor::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
 bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
-     Open_tables_backup* backup,
-     bool error)
- {
+                                       Open_tables_backup* backup,
+                                       bool error)
+{
   Query_tables_list query_tables_list_backup;
 
   DBUG_ENTER("Gtid_table_persistor::close_table");
@@ -70,7 +70,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
                                       TABLE **table,
                                       Open_tables_backup *backup)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::open_table");
+  DBUG_ENTER("Gtid_table_persistor::open_table");
 
   TABLE_LIST tables;
   Query_tables_list query_tables_list_backup;
@@ -149,7 +149,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
 int Gtid_table_persistor::write_row(TABLE* table, char *sid,
                                     rpl_gno gno_start, rpl_gno gno_end)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::write_row");
+  DBUG_ENTER("Gtid_table_persistor::write_row");
   int error= 0;
   Field **fields= NULL;
 
@@ -204,7 +204,7 @@ end:
 
 int Gtid_table_persistor::save(Gtid *gtid)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::save(Gtid *gtid)");
+  DBUG_ENTER("Gtid_table_persistor::save(Gtid *gtid)");
   int error= 0;
   TABLE *table= NULL;
   char buf[rpl_sid::TEXT_LENGTH + 1];
@@ -259,7 +259,7 @@ end:
 bool Gtid_table_persistor::is_consecutive(string prev_gtid_interval,
                                           string gtid_interval)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::is_consecutive");
+  DBUG_ENTER("Gtid_table_persistor::is_consecutive");
   DBUG_ASSERT(!gtid_interval.empty());
 
   if (prev_gtid_interval.empty())
@@ -309,7 +309,7 @@ bool Gtid_table_persistor::is_consecutive(string prev_gtid_interval,
 int Gtid_table_persistor::delete_consecutive_rows(TABLE* table,
                                                   Gtid_set *gtid_deleted)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::delete_uncompressed_rows");
+  DBUG_ENTER("Gtid_table_persistor::delete_uncompressed_rows");
   int ret= 0;
   int err= 0;
   bool prev_row_deleted= false;
@@ -365,7 +365,7 @@ int Gtid_table_persistor::delete_consecutive_rows(TABLE* table,
 
 int Gtid_table_persistor::save(Gtid_set *gtid_executed)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::save(Gtid_set *gtid_executed)");
+  DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_executed)");
   int error= 0;
   TABLE *table= NULL;
   ulong saved_mode;
@@ -400,7 +400,7 @@ end:
 
 int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::save(TABLE* table, "
+  DBUG_ENTER("Gtid_table_persistor::save(TABLE* table, "
              "Gtid_set *gtid_set)");
   int error= 0;
   list<Gtid_interval> gtid_intervals;
@@ -427,7 +427,7 @@ int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
 
 int Gtid_table_persistor::compress(THD *thd)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::compress");
+  DBUG_ENTER("Gtid_table_persistor::compress");
   int error= 0;
   Sid_map sid_map(NULL);
   Gtid_set gtid_deleted(&sid_map);
@@ -502,7 +502,7 @@ end:
 
 int Gtid_table_persistor::reset()
 {
-  DBUG_ENTER("Gtid_Table_Persistor::reset");
+  DBUG_ENTER("Gtid_table_persistor::reset");
   int error= 0;
   TABLE *table= NULL;
   ulong saved_mode;
@@ -581,7 +581,7 @@ string Gtid_table_persistor::encode_gtid_text(TABLE* table)
 
 int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::fetch_gtids_from_table");
+  DBUG_ENTER("Gtid_table_persistor::fetch_gtids_from_table");
   int ret= 0;
   int err= 0;
   TABLE *table= NULL;
@@ -636,7 +636,7 @@ end:
 
 int Gtid_table_persistor::delete_all(TABLE* table)
 {
-  DBUG_ENTER("Gtid_Table_Persistor::delete_all");
+  DBUG_ENTER("Gtid_table_persistor::delete_all");
   int ret= 0;
   int err= 0;
 
