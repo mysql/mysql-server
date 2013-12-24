@@ -22,7 +22,7 @@ static void *t1_func(void *arg) {
         rwlock.write_unlock();
         toku_mutex_unlock(&rwlock_mutex);
     }
-    printf("%lu %d\n", pthread_self(), i);
+    printf("%lu %d\n", (unsigned long) pthread_self(), i);
     return arg;
 }
 

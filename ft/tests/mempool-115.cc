@@ -163,13 +163,13 @@ public:
         // like crazy, it should expose the bug
         bn_data* bnd = BLB_DATA(&sn, 0);
         size_t old_size = bnd->m_buffer_mempool.size;
-        if (verbose) printf("frag size: %" PRIu64 "\n", bnd->m_buffer_mempool.frag_size);
-        if (verbose) printf("size: %" PRIu64 "\n", bnd->m_buffer_mempool.size);
+        if (verbose) printf("frag size: %zu\n", bnd->m_buffer_mempool.frag_size);
+        if (verbose) printf("size: %zu\n", bnd->m_buffer_mempool.size);
         for (uint32_t i = 0; i < 1000000; i++) {
             le_overwrite(bnd, 0, "a", 2, "aval", 5);
         }
-        if (verbose) printf("frag size: %" PRIu64 "\n", bnd->m_buffer_mempool.frag_size);
-        if (verbose) printf("size: %" PRIu64 "\n", bnd->m_buffer_mempool.size);
+        if (verbose) printf("frag size: %zu\n", bnd->m_buffer_mempool.frag_size);
+        if (verbose) printf("size: %zu\n", bnd->m_buffer_mempool.size);
         size_t new_size = bnd->m_buffer_mempool.size;
         // just a crude test to make sure we did not grow unbounded.
         // if this assert ever fails, revisit the code and see what is going
