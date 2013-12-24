@@ -21,9 +21,11 @@ set(LIBTOKUDB "tokufractaltree" CACHE STRING "Name of libtokufractaltree.so")
 
 set(INSTALL_LIBDIR "lib" CACHE STRING "where to install libs")
 
-include_directories(
-  ${VALGRIND_INCLUDE_DIR}
-  )
+if (USE_VALGRIND AND NOT VALGRIND_INCLUDE_DIR MATCHES NOTFOUND)
+  include_directories(
+    ${VALGRIND_INCLUDE_DIR}
+    )
+endif()
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/toku_include
