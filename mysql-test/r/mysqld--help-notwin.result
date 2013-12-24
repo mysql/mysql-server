@@ -641,7 +641,7 @@ The following options may be given as the first argument:
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
  disable, -1 for automated sizing.
- --performance-schema-max-prepared-statment-instances=# 
+ --performance-schema-max-prepared-statement-instances=# 
  Maximum number of instrumented prepared statements. Use 0
  to disable, -1 for automated sizing.
  --performance-schema-max-program-instances=# 
