@@ -18,7 +18,7 @@ static void *t1_func(void *arg) {
         r = pthread_rwlock_unlock(&rwlock);
         assert(r == 0);
     }
-    printf("%lu %d\n", pthread_self(), i);
+    printf("%lu %d\n", (unsigned long) pthread_self(), i);
     return arg;
 }
 
