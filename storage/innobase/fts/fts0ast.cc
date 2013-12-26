@@ -396,6 +396,10 @@ fts_ast_term_set_distance(
 	ulint		distance)		/*!< in: the text proximity
 						distance */
 {
+	if (node == NULL) {
+		return;
+	}
+
 	ut_a(node->type == FTS_AST_TEXT);
 	ut_a(node->text.distance == ULINT_UNDEFINED);
 
