@@ -379,12 +379,15 @@ static inline bool is_replace_into(THD* thd) {
 }
 
 static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
-    uint pk_insert_mode = get_pk_insert_mode(thd);
-    return ( 
-        opt_eligible && 
-        (is_replace_into(thd) || is_insert_ignore(thd)) && 
-        ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0)
-        );
+    if (opt_eligible) {
+        if (is_replace_into(thd) || is_insert_ignore(thd)) {
+            uint pk_insert_mode = get_pk_insert_mode(thd);
+            if ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 static inline uint get_key_parts(const KEY *key) {
@@ -410,7 +413,7 @@ static inline uint get_ext_key_parts(const KEY *key) {
 #endif
 
 ulonglong ha_tokudb::table_flags() const {
-    return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
+    return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast && !using_ignore_no_key) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
         int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
 }
@@ -1204,7 +1207,8 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     added_rows = 0;
     deleted_rows = 0;
     last_dup_key = UINT_MAX;
-    using_ignore = 0;
+    using_ignore = false;
+    using_ignore_no_key = false;
     last_cursor_error = 0;
     range_lock_grabbed = false;
     blob_buff = NULL;
@@ -3741,7 +3745,7 @@ void ha_tokudb::set_main_dict_put_flags(
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
     bool using_ignore_flag_opt = do_ignore_flag_optimization(
-            thd, table, share->replace_into_fast);
+            thd, table, share->replace_into_fast && !using_ignore_no_key);
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
@@ -3962,7 +3966,7 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)));
+    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast && !using_ignore_no_key)));
     if (create_sub_trans) {
         error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
@@ -5955,16 +5959,22 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
         reset();
         break;
     case HA_EXTRA_KEYREAD:
-        key_read = 1;           // Query satisfied with key
+        key_read = true;           // Query satisfied with key
         break;
     case HA_EXTRA_NO_KEYREAD:
-        key_read = 0;
+        key_read = false;
         break;
     case HA_EXTRA_IGNORE_DUP_KEY:
-        using_ignore = 1;
+        using_ignore = true;
         break;
     case HA_EXTRA_NO_IGNORE_DUP_KEY:
-        using_ignore = 0;
+        using_ignore = false;
+        break;
+    case HA_EXTRA_IGNORE_NO_KEY:
+        using_ignore_no_key = true;
+        break;
+    case HA_EXTRA_NO_IGNORE_NO_KEY:
+        using_ignore_no_key = false;
         break;
     default:
         break;
@@ -5974,8 +5984,9 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
 
 int ha_tokudb::reset(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::reset");
-    key_read = 0;
-    using_ignore = 0;
+    key_read = false;
+    using_ignore = false;
+    using_ignore_no_key = false;
     reset_dsmrr();
     invalidate_icp();
     TOKUDB_DBUG_RETURN(0);

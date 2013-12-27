@@ -357,6 +357,7 @@ private:
     //
     uint hidden_primary_key;
     bool key_read, using_ignore;
+    bool using_ignore_no_key;
 
     //
     // After a cursor encounters an error, the cursor will be unusable
