@@ -4400,7 +4400,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
 
         DBUG_PRINT("info",("purging %s",log_info.log_file_name));
-        if (!my_delete(log_info.log_file_name, MYF(0)))
+        if (!mysql_file_delete(key_file_binlog, log_info.log_file_name, MYF(0)))
         {
           if (decrease_log_space)
             *decrease_log_space-= s.st_size;
