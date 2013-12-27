@@ -15,7 +15,6 @@
 --source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-#--source include/have_binlog_format_row.inc
 
 call mtr.add_suppression("test the suppression statement");
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
@@ -72,12 +71,19 @@ SELECT * FROM mysql.gtid_executed;
 
 --echo # Verify that transactions' gtids are stored into gtid table and can be
 --echo # reported from global.gtid_executed correctly.
-INSERT INTO t2 values(1);
 BEGIN;
 INSERT INTO t2 values(2);
 INSERT INTO t1 values(1);
 INSERT INTO t1 values(2);
 COMMIT;
+--echo # Verify that specified gtid is stored into gtid table for transaction
+--echo # and can be reported from global.gtid_executed correctly.
+--replace_result $master_uuid MASTER_UUID
+--eval SET @@SESSION.GTID_NEXT= '$master_uuid:11'
+BEGIN;
+INSERT INTO t1 values(3);
+COMMIT;
+--eval SET GTID_NEXT='AUTOMATIC'
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -114,7 +120,6 @@ SELECT * FROM mysql.gtid_executed;
 --sync_slave_with_master
 --echo connection slave
 --let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
-#call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 
 --echo # Verify that the transaction is skiped if its specified gtid
 --echo # is already in gtid table.

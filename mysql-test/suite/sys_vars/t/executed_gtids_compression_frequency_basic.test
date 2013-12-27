@@ -5,7 +5,7 @@
 # executed_gtids_compression_period
 #
 # It is a global variable only and can be set dynamically.
-# It has UINT type and accepts numbers from 0 to 4294967295. Default value is 5000.
+# It has UINT type and accepts numbers from 0 to 4294967295. Default value is 1000.
 #
 # This test verifies the variable can be set, selected and showed correctly.
 ################################################################################
@@ -44,7 +44,7 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
 SET GLOBAL executed_gtids_compression_period= 0;
 SELECT @@GLOBAL.executed_gtids_compression_period;
 
-SET GLOBAL executed_gtids_compression_period= 1000;
+SET GLOBAL executed_gtids_compression_period= 5000;
 SELECT @@GLOBAL.executed_gtids_compression_period;
 
 SET GLOBAL executed_gtids_compression_period= 4294967295;

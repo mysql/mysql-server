@@ -2476,7 +2476,7 @@ pthread_handler_t compress_gtid_table(void *arg)
 
     THD_STAGE_INFO(thd, stage_compressing_gtid_table);
     /* Compressing gtid_executed table. */
-    if (gtid_table_persistor->compress(thd))
+    if (gtid_table_persistor->compress())
     {
       sql_print_warning("Failed to compress gtid_executed table.");
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",

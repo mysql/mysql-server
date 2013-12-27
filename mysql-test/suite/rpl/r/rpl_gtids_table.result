@@ -58,12 +58,18 @@ MASTER_UUID	8	8
 include/assert.inc [committed gtids MASTER_UUID:1-8]
 # Verify that transactions' gtids are stored into gtid table and can be
 # reported from global.gtid_executed correctly.
-INSERT INTO t2 values(1);
 BEGIN;
 INSERT INTO t2 values(2);
 INSERT INTO t1 values(1);
 INSERT INTO t1 values(2);
 COMMIT;
+# Verify that specified gtid is stored into gtid table for transaction
+# and can be reported from global.gtid_executed correctly.
+SET @@SESSION.GTID_NEXT= 'MASTER_UUID:11';
+BEGIN;
+INSERT INTO t1 values(3);
+COMMIT;
+SET GTID_NEXT='AUTOMATIC';
 # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end

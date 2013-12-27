@@ -599,8 +599,12 @@ bool trans_xa_end(THD *thd)
   XID_STATE *xid_state= &thd->transaction.xid_state;
   DBUG_ENTER("trans_xa_end");
 
-  if (opt_bin_log && gtid_mode > 1 && trans_has_updated_trans_table(thd))
+  if (gtid_mode > 1 && opt_bin_log && trans_has_updated_trans_table(thd))
   {
+    /*
+      Generate gtid and save it into table for real transaction
+      on the top of XA_END.
+    */
     if (generate_and_save_gtid(thd))
       DBUG_RETURN(true);
   }
