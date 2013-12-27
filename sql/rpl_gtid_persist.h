@@ -31,8 +31,8 @@ public:
   static const LEX_STRING TABLE_NAME;
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : saved_current_thd(NULL), m_count(0),
-                           saving_threads(0), m_is_resetting(false) { };
+  Gtid_table_persistor() : need_commit(false), m_count(0), saving_threads(0),
+                           m_is_resetting(false) { };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -98,8 +98,6 @@ public:
       - Store compressed intervals of these deleted gtids
         into the gtid_executed table.
 
-    @param  gtid_executed contains compressed intervals
-
     @retval
       0    OK
     @retval
@@ -107,7 +105,7 @@ public:
     @retval
       -1   Error
   */
-  int compress(THD *thd);
+  int compress();
   /**
     Reset the table.
 
@@ -137,7 +135,8 @@ public:
   int fetch_gtids_from_table(Gtid_set *gtid_executed);
 
 private:
-  THD *saved_current_thd;
+  /* Need to commit current transaction if it is true */
+  bool need_commit;
   /* Count the append size of the table */
   ulong m_count;
   /* The number of threads, which are saving gtid into table */

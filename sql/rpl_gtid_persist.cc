@@ -42,7 +42,7 @@ bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
     else
       ha_commit_trans(thd, false);
 
-    if (saved_current_thd != current_thd)
+    if (need_commit)
     {
       if (error)
         ha_rollback_trans(thd, true);
@@ -243,7 +243,8 @@ end:
     /* Do not protect m_count for improving transactions' concurrency */
     m_count++;
     if ((executed_gtids_compression_period != 0) && !is_resetting() &&
-        (m_count > executed_gtids_compression_period ||
+        (m_count >= executed_gtids_compression_period ||
+         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
          DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
          DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
          DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
@@ -425,7 +426,7 @@ int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
 }
 
 
-int Gtid_table_persistor::compress(THD *thd)
+int Gtid_table_persistor::compress()
 {
   DBUG_ENTER("Gtid_table_persistor::compress");
   int error= 0;
@@ -434,6 +435,10 @@ int Gtid_table_persistor::compress(THD *thd)
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_backup backup;
+  THD *thd= current_thd, *drop_thd_object= NULL;
+
+  if (!thd)
+    thd= drop_thd_object= this->create_thd();
   tmp_disable_binlog(thd);
   saved_mode= thd->variables.sql_mode;
 
@@ -493,9 +498,20 @@ int Gtid_table_persistor::compress(THD *thd)
   error= save(table, &gtid_deleted);
 
 end:
+  need_commit= true;
   this->close_table(thd, table, &backup, 0 != error);
+  need_commit= false;
+  DBUG_EXECUTE_IF("compress_gtid_table",
+                  {
+                    const char act[]= "now signal complete_compression";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
+  if (drop_thd_object)
+    this->drop_thd(drop_thd_object);
   DBUG_RETURN(error);
 }
 
@@ -525,7 +541,9 @@ int Gtid_table_persistor::reset()
   m_is_resetting= false;
 
 end:
+  need_commit= true;
   this->close_table(thd, table, &backup, 0 != error);
+  need_commit= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
@@ -542,6 +560,7 @@ THD *Gtid_table_persistor::create_thd()
   thd->store_globals();
   thd->security_ctx->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
+  need_commit= true;
 
   return(thd);
 }
@@ -554,6 +573,7 @@ void Gtid_table_persistor::drop_thd(THD *thd)
   thd->restore_globals();
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  NULL);
+  need_commit= false;
 
   DBUG_VOID_RETURN;
 }
@@ -625,7 +645,9 @@ int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
     ret= -1;
 
 end:
+  need_commit= true;
   this->close_table(thd, table, &backup, 0 != ret);
+  need_commit= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)

@@ -6750,6 +6750,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
        (!cache_mngr->trx_cache.is_binlog_empty() &&
         ending_trans(thd, all) && !(!trans->no_2pc &&
         trans->rw_ha_count > 1))) &&
+      /* Already stored gtid into table before XA transaction prepare. */
+      !thd->transaction.xid_state.has_state(XID_STATE::XA_PREPARED) &&
       gtid_mode > 1 && !thd->is_operating_gtid_table)
   {
     /*

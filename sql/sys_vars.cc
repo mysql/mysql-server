@@ -4758,7 +4758,7 @@ static Sys_var_uint Sys_executed_gtids_compression_period(
        "special case, if variable is 0, the thread never wakes up "
        "to compress the gtid_executed table.",
        GLOBAL_VAR(executed_gtids_compression_period),
-       CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(5000),
+       CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(1000),
        BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_disconnect_on_expired_password(
