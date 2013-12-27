@@ -15018,7 +15018,7 @@ buf_flush_list_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
@@ -15432,6 +15432,11 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page cleaner threads can be from 1 to 64. Default is 1.",
+  NULL, NULL, 1, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -16175,6 +16180,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_only),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(io_capacity_max),
+  MYSQL_SYSVAR(page_cleaners),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),
