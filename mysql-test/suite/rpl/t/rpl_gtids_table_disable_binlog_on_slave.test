@@ -15,8 +15,8 @@
 --source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-#--source include/have_binlog_format_statement.inc
 
+SET @debug_save= @@GLOBAL.DEBUG;
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 SHOW CREATE TABLE mysql.gtid_executed;
 
@@ -31,20 +31,41 @@ SELECT * FROM mysql.gtid_executed;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
 --source include/assert.inc
 
---echo # Verify that transactions' gtids are stored into gtid table and can be
---echo # reported from global.gtid_executed correctly.
+--echo # Verify that XA transactions' gtids are stored into gtid table and
+--echo # can be reported from global.gtid_executed correctly.
 INSERT INTO t2 values(1);
-BEGIN;
+XA START '1';
 INSERT INTO t2 values(2);
 INSERT INTO t1 values(1);
 INSERT INTO t1 values(2);
-COMMIT;
+XA END '1';
+XA PREPARE '1';
+XA COMMIT '1';
 --echo # Stored gtids MASTER_UUID:1-5 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 --let $assert_text= committed gtids MASTER_UUID:1-5
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
 --source include/assert.inc
+--echo # Verify that specified gtid is stored into gtid table for XA transaction
+--echo # and can be reported from global.gtid_executed correctly.
+--replace_result $master_uuid MASTER_UUID
+--eval SET @@SESSION.GTID_NEXT= '$master_uuid:16'
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
+XA START '1';
+INSERT INTO t1 values(3);
+XA END '1';
+XA PREPARE '1';
+XA COMMIT '1';
+--eval SET GTID_NEXT='AUTOMATIC'
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
+--echo # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on master
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+--let $assert_text= committed gtids MASTER_UUID:1-5:16
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:16"
+--source include/assert.inc
+SET GLOBAL DEBUG= @debug_save;
 
 --sync_slave_with_master
 --echo connection slave
@@ -56,11 +77,14 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:4'
 INSERT INTO t1 values(11);
---echo # Stored gtids MASTER_UUID:1-5 in gtid_executed table on slave
+--let $assert_text= The transaction is skiped
+--let $assert_cond= [SELECT count(*) FROM t1 WHERE a = 11] = 0
+--source include/assert.inc
+--echo # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on slave
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
---let $assert_text= committed gtids MASTER_UUID:1-5
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
+--let $assert_text= committed gtids MASTER_UUID:1-5:16
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:16"
 --source include/assert.inc
 
 --echo # Verify that the specified gtid to GTID_NEXT is stored into
@@ -68,18 +92,18 @@ SELECT * FROM mysql.gtid_executed;
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:17'
 COMMIT;
---echo # Stored gtids MASTER_UUID:1-5:17 in gtid_executed table on slave
+--echo # Stored gtids MASTER_UUID:1-5:16-17 in gtid_executed table on slave
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
---let $assert_text= committed gtids MASTER_UUID:1-5:17
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:17"
+--let $assert_text= committed gtids MASTER_UUID:1-5:16-17
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:16-17"
 --source include/assert.inc
 
 --eval SET GTID_NEXT='AUTOMATIC'
 --echo # Verify that no gtid is generated for transaction
 --echo # when binlog is disabled
 INSERT INTO t1 values(12);
---echo # Stored gtids MASTER_UUID:1-5:17 in gtid_executed table on slave.
+--echo # Stored gtids MASTER_UUID:1-5:16-17 in gtid_executed table on slave.
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed
 
