@@ -73,6 +73,8 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
@@ -881,6 +883,8 @@ static int binlog_init(void *p)
   binlog_hton->close_connection= binlog_close_connection;
   binlog_hton->savepoint_set= binlog_savepoint_set;
   binlog_hton->savepoint_rollback= binlog_savepoint_rollback;
+  binlog_hton->savepoint_rollback_can_release_mdl=
+                                     binlog_savepoint_rollback_can_release_mdl;
   binlog_hton->commit= binlog_commit;
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
@@ -1758,6 +1762,29 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (cache_mngr->trx_cache.is_binlog_empty())
     cache_mngr->trx_cache.group_cache.clear();
   DBUG_RETURN(0);
+}
+
+/**
+  Check whether binlog state allows to safely release MDL locks after
+  rollback to savepoint.
+
+  @param hton  The binlog handlerton.
+  @param thd   The client thread that executes the transaction.
+
+  @return true  - It is safe to release MDL locks.
+          false - If it is not.
+*/
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd)
+{
+  DBUG_ENTER("binlog_savepoint_rollback_can_release_mdl");
+  /*
+    If we have not updated any non-transactional tables rollback
+    to savepoint will simply truncate binlog cache starting from
+    SAVEPOINT command. So it should be safe to release MDL acquired
+    after SAVEPOINT command in this case.
+  */
+  DBUG_RETURN(!trans_cannot_safely_rollback(thd));
 }
 
 #ifdef HAVE_REPLICATION

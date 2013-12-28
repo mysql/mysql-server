@@ -4421,6 +4421,12 @@ static int dump_all_tables_in_db(char *database)
     else
       verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
   }
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Setting savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "SAVEPOINT sp"))
+      DBUG_RETURN(1);
+  }
   while ((table= getTableName(0)))
   {
     char *end= strmov(afterdot, table);
@@ -4437,6 +4443,23 @@ static int dump_all_tables_in_db(char *database)
             my_fclose(md_result_file, MYF(MY_WME));
           maybe_exit(EX_MYSQLERR);
         }
+      }
+
+      /**
+        ROLLBACK TO SAVEPOINT in --single-transaction mode to release metadata
+        lock on table which was already dumped. This allows to avoid blocking
+        concurrent DDL on this table without sacrificing correctness, as we
+        won't access table second time and dumps created by --single-transaction
+        mode have validity point at the start of transaction anyway.
+        Note that this doesn't make --single-transaction mode with concurrent
+        DDL safe in general case. It just improves situation for people for whom
+        it might be working.
+      */
+      if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+      {
+        verbose_msg("-- Rolling back to savepoint sp...\n");
+        if (mysql_query_with_error_report(mysql, 0, "ROLLBACK TO SAVEPOINT sp"))
+          maybe_exit(EX_MYSQLERR);
       }
     }
     else
@@ -4460,6 +4483,14 @@ static int dump_all_tables_in_db(char *database)
       }
     }
   }
+
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Releasing savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "RELEASE SAVEPOINT sp"))
+      DBUG_RETURN(1);
+  }
+
   if (opt_events && mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", database));
@@ -4702,6 +4733,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
 
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Setting savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "SAVEPOINT sp"))
+      DBUG_RETURN(1);
+  }
+
   /* Dump each selected table */
   for (pos= dump_tables; pos < end; pos++)
   {
@@ -4717,6 +4755,31 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
         maybe_exit(EX_MYSQLERR);
       }
     }
+
+    /**
+      ROLLBACK TO SAVEPOINT in --single-transaction mode to release metadata
+      lock on table which was already dumped. This allows to avoid blocking
+      concurrent DDL on this table without sacrificing correctness, as we
+      won't access table second time and dumps created by --single-transaction
+      mode have validity point at the start of transaction anyway.
+      Note that this doesn't make --single-transaction mode with concurrent
+      DDL safe in general case. It just improves situation for people for whom
+      it might be working.
+    */
+    if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+    {
+      verbose_msg("-- Rolling back to savepoint sp...\n");
+      if (mysql_query_with_error_report(mysql, 0, "ROLLBACK TO SAVEPOINT sp"))
+        maybe_exit(EX_MYSQLERR);
+    }
+  }
+
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Releasing savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "RELEASE SAVEPOINT sp"))
+      DBUG_RETURN(1);
+
   }
 
   /* Dump each selected view */
