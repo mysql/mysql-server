@@ -850,6 +850,13 @@ struct handlerton
      to the savepoint_set call
    */
    int  (*savepoint_rollback)(handlerton *hton, THD *thd, void *sv);
+   /**
+     Check if storage engine allows to release metadata locks which were
+     acquired after the savepoint if rollback to savepoint is done.
+     @return true  - If it is safe to release MDL locks.
+             false - If it is not.
+   */
+   bool (*savepoint_rollback_can_release_mdl)(handlerton *hton, THD *thd);
    int  (*savepoint_release)(handlerton *hton, THD *thd, void *sv);
    /*
      'all' is true if it's a real commit, that makes persistent changes
@@ -3423,6 +3430,7 @@ int ha_enable_transaction(THD *thd, bool on);
 
 /* savepoints */
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
+bool ha_rollback_to_savepoint_can_release_mdl(THD *thd);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 

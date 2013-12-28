@@ -734,6 +734,19 @@ innobase_rollback_to_savepoint(
 	void*		savepoint);	/*!< in: savepoint data */
 
 /*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
+	THD*		thd);		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
+
+/*****************************************************************//**
 Sets a transaction savepoint.
 @return	always 0, that is, always succeeds */
 static
@@ -2778,6 +2791,8 @@ innobase_init(
 	innobase_hton->close_connection = innobase_close_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+	innobase_hton->savepoint_rollback_can_release_mdl =
+				innobase_rollback_to_savepoint_can_release_mdl;
 	innobase_hton->savepoint_release = innobase_release_savepoint;
 	innobase_hton->commit = innobase_commit;
 	innobase_hton->rollback = innobase_rollback;
@@ -3693,6 +3708,38 @@ innobase_rollback_to_savepoint(
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+/*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint. 
+When binlog is on, MDL locks acquired after savepoint unit are not 
+released if there are any locks held in InnoDB.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd)		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back to savepoint */
+{
+	trx_t*		trx;
+
+	DBUG_ENTER("innobase_rollback_to_savepoint_can_release_mdl");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+	ut_ad(trx);
+
+        /* If transaction has not acquired any locks then it is safe
+	   to release MDL after rollback to savepoint */
+	if (!(UT_LIST_GET_LEN(trx->lock.trx_locks))) {
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**
