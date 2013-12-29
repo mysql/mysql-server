@@ -10056,17 +10056,7 @@ innobase_rename_table(
 			}
 		}
 
-		if (error != DB_SUCCESS) {
-			if (!srv_read_only_mode) {
-				FILE* ef = dict_foreign_err_file;
-
-				fputs("InnoDB: Renaming table ", ef);
-				ut_print_name(ef, trx, TRUE, norm_from);
-				fputs(" to ", ef);
-				ut_print_name(ef, trx, TRUE, norm_to);
-				fputs(" failed!\n", ef);
-			}
-		} else {
+		if (error == DB_SUCCESS) {
 #ifndef _WIN32
 			sql_print_warning("Rename partition table %s"
 					  " succeeds after converting to lower"
