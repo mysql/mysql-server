@@ -2931,10 +2931,10 @@ CREATE TABLE t3 (c3 VARCHAR(1)) ENGINE=MyISAM;
 INSERT INTO t3 VALUES ('x'),('d');
 SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
 pk	c1	c2
-4	NULL	x
-3	c	x
 1	v	x
 2	v	x
+3	c	x
+4	NULL	x
 5	x	x
 # This should show that "t1 left join t3" is still in the semi-join nest:
 EXPLAIN EXTENDED
