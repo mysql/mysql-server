@@ -88,6 +88,7 @@ set_cflags_if_supported(
   -Wno-error=missing-format-attribute
   -Wno-error=address-of-array-temporary
   -Wno-error=tautological-constant-out-of-range-compare
+  -Wno-ignored-attributes
   -fno-rtti
   -fno-exceptions
   )
