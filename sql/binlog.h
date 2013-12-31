@@ -386,6 +386,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   my_atomic_rwlock_t m_prep_xids_lock;
   mysql_cond_t m_prep_xids_cond;
   volatile int32 m_prep_xids;
+  bool m_is_resetting;
 
   /**
     Increment the prepared XID counter.
@@ -462,6 +463,10 @@ class MYSQL_BIN_LOG: public TC_LOG
   int generate_new_name(char *new_name, const char *log_name);
 
 public:
+  /**
+    Check if we are resetting binlog files.
+  */
+  bool is_resetting() const { return m_is_resetting; };
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
   bool is_open() const { return log_state != LOG_CLOSED; }

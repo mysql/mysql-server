@@ -31,8 +31,7 @@ public:
   static const LEX_STRING TABLE_NAME;
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : need_commit(false), m_count(0), saving_threads(0),
-                           m_is_resetting(false) { };
+  Gtid_table_persistor() : need_commit(false), m_count(0) { };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -62,33 +61,6 @@ public:
       -1   Error
   */
   int save(Gtid_set *gtid_executed);
-  /**
-    Increase the number of thread, which is saving gtid into table.
-
-    -- The function decreases concurrency, but that is OK as we just
-    invoke the function during reset gtid_executed table, so that
-    we have chance to delete all ongoing transactions's gtids from
-    the table.
-  */
-  void increase_saving_thread()
-  {
-    mysql_mutex_lock(&LOCK_compress_gtid_table);
-    saving_threads++;
-    mysql_mutex_unlock(&LOCK_compress_gtid_table);
-  };
-  /**
-    Decrease the number of thread, which is saving gtid into table.
-  */
-  void decrease_saving_thread()
-  {
-    mysql_mutex_lock(&LOCK_compress_gtid_table);
-    saving_threads--;
-    mysql_mutex_unlock(&LOCK_compress_gtid_table);
-  };
-  /**
-    Check if the gtid_executed table is being reset.
-  */
-  bool is_resetting() const { return m_is_resetting; };
   /**
     Compress gtid_executed table, execute the following
     within a single transaction.

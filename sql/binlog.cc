@@ -1516,16 +1516,17 @@ int generate_and_save_gtid(THD *thd)
   DBUG_ASSERT(gtid_table_persistor != NULL);
   int error= 0;
   bool is_gtid_generated= false;
-  bool need_decrease_saving_thread= false;
+  bool need_unlock= false;
 
   /*
     Increase the number of ongoing transactions
     during reset gtid_executed table.
   */
-  if (gtid_table_persistor->is_resetting())
+  if (mysql_bin_log.is_resetting())
   {
-    gtid_table_persistor->increase_saving_thread();
-    need_decrease_saving_thread= true;
+    /* The transaction will wait until finish resetting binlog files. */
+    mysql_mutex_lock(&LOCK_reset_binlog);
+    need_unlock= true;
   }
 
   /* Generate gtid for transaction. */
@@ -1542,8 +1543,8 @@ int generate_and_save_gtid(THD *thd)
       gtid_table_persistor != NULL)
     error= gtid_state->save_gtid_into_table(thd);
 
-  if (need_decrease_saving_thread)
-    gtid_table_persistor->decrease_saving_thread();
+  if (need_unlock)
+    mysql_mutex_unlock(&LOCK_reset_binlog);
   DBUG_RETURN(error);
 }
 
@@ -2521,7 +2522,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
 #endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
-   m_prep_xids(0),
+   m_prep_xids(0), m_is_resetting(false),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
@@ -4061,23 +4062,26 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   ha_reset_logs(thd);
 
-  if (gtid_table_persistor != NULL && !is_relay_log)
+  if (!is_relay_log)
   {
-    /* Reset gtid_executed table during 'RESET MASTER'. */
-    int ret= gtid_table_persistor->reset();
-    if (1 == ret)
+    m_is_resetting= true;
+    mysql_mutex_lock(&LOCK_reset_binlog);
+    while (true)
     {
-      /*
-        Gtid table is not ready to be used, so failed to
-        open it. Ignore the error.
-      */
-      thd->clear_error();
+      global_sid_lock->wrlock();
+      if (gtid_state->get_gtid_count() != 0)
+      {
+        global_sid_lock->unlock();
+        my_sleep(1);
+      }
+      else
+        /* Still hold global_sid_lock after break. */
+        break;
     }
-    else if (-1 == ret)
-      DBUG_RETURN(1);
   }
+  else
+    global_sid_lock->wrlock();
 
-  global_sid_lock->wrlock();
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
@@ -4177,6 +4181,22 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
   else
   {
+    /* Reset gtid_executed table during 'RESET MASTER'. */
+    int ret= gtid_table_persistor->reset();
+    if (1 == ret)
+    {
+      /*
+        Gtid table is not ready to be used, so failed to
+        open it. Ignore the error.
+      */
+      thd->clear_error();
+    }
+    else if (-1 == ret)
+    {
+      error= 1;
+      goto err;
+    }
+
     gtid_state->clear();
     // don't clear global_sid_map because it's used by the relay log too
     if (gtid_state->init() != 0)
@@ -4199,6 +4219,11 @@ err:
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   global_sid_lock->unlock();
+  if (!is_relay_log)
+  {
+    m_is_resetting= false;
+    mysql_mutex_unlock(&LOCK_reset_binlog);
+  }
 
   DBUG_RETURN(error);
 }
