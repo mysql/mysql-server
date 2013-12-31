@@ -198,6 +198,22 @@ int Gtid_table_persistor::write_row(TABLE* table, char *sid,
   }
 
 end:
+  if (!error)
+  {
+    /* Do not protect m_count for improving transactions' concurrency */
+    m_count++;
+    if ((executed_gtids_compression_period != 0) &&
+        (m_count >= executed_gtids_compression_period ||
+         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
+    {
+      m_count= 0;
+      mysql_cond_signal(&COND_compress_gtid_table);
+    }
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -238,21 +254,6 @@ end:
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
     this->drop_thd(drop_thd_object);
-  if (!error)
-  {
-    /* Do not protect m_count for improving transactions' concurrency */
-    m_count++;
-    if ((executed_gtids_compression_period != 0) && !is_resetting() &&
-        (m_count >= executed_gtids_compression_period ||
-         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
-    {
-      m_count= 0;
-      mysql_cond_signal(&COND_compress_gtid_table);
-    }
-  }
   DBUG_RETURN(error);
 }
 
@@ -392,9 +393,6 @@ end:
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
     this->drop_thd(drop_thd_object);
-  /* Do not protect m_count for improving transactions' concurrency */
-  if (!error)
-    m_count++;
   DBUG_RETURN(error);
 }
 
@@ -436,6 +434,9 @@ int Gtid_table_persistor::compress()
   ulong saved_mode;
   Open_tables_backup backup;
   THD *thd= current_thd, *drop_thd_object= NULL;
+
+  /* The compression will wait until finish resetting binlog files. */
+  mysql_mutex_lock(&LOCK_reset_binlog);
 
   if (!thd)
     thd= drop_thd_object= this->create_thd();
@@ -500,6 +501,7 @@ int Gtid_table_persistor::compress()
 end:
   need_commit= true;
   this->close_table(thd, table, &backup, 0 != error);
+  mysql_mutex_unlock(&LOCK_reset_binlog);
   need_commit= false;
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
@@ -525,7 +527,6 @@ int Gtid_table_persistor::reset()
   Open_tables_backup backup;
   THD *thd= current_thd, *drop_thd_object= NULL;
 
-  m_is_resetting= true;
   if (!thd)
     thd= drop_thd_object= this->create_thd();
   tmp_disable_binlog(thd);
@@ -538,7 +539,6 @@ int Gtid_table_persistor::reset()
   }
 
   error= delete_all(table);
-  m_is_resetting= false;
 
 end:
   need_commit= true;
@@ -669,8 +669,6 @@ int Gtid_table_persistor::delete_all(TABLE* table)
     Delete all rows in the gtid_executed table. We cannot use
     truncate(), since it is a non-transactional DDL operation.
   */
-  while (saving_threads)
-    my_sleep(1);
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
     /* Delete current row. */
@@ -681,8 +679,6 @@ int Gtid_table_persistor::delete_all(TABLE* table)
                       "table.", encode_gtid_text(table).c_str());
       break;
     }
-    while (saving_threads)
-      my_sleep(1);
   }
 
   table->file->ha_rnd_end();

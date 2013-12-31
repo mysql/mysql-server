@@ -225,6 +225,8 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
       if (g.sidno != prev_sidno)
         sid_locks.lock(g.sidno);
       owned_gtids.remove_gtid(g);
+      /* Decrease gtid count when removing GTID. */
+      gtid_counter--;
       git.next();
       g= git.get();
     }
@@ -236,6 +238,8 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
   {
     lock_sidno(thd->owned_gtid.sidno);
     owned_gtids.remove_gtid(thd->owned_gtid);
+    /* Decrease gtid count when removing GTID. */
+    gtid_counter--;
   }
 
   /*
@@ -428,6 +432,8 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
     sql_print_error("Failed to generate automatic gtid.");
   }
   acquire_ownership(thd, automatic_gtid);
+  /* Increase gtid count when generating GTID. */
+  gtid_counter++;
   unlock_sidno(automatic_gtid.sidno);
   global_sid_lock->unlock();
 
@@ -440,23 +446,14 @@ int Gtid_state::save_gtid_into_table(THD *thd)
   DBUG_ENTER("Gtid_state::save_gtid_into_table");
   DBUG_ASSERT(gtid_table_persistor != NULL);
   int error= 0;
-  bool need_decrease_saving_thread= false;
-
-  /*
-    Increase the number of ongoing transactions
-    during reset gtid_executed table when binlog
-    is disabled.
-  */
-  if (gtid_table_persistor->is_resetting() && !opt_bin_log)
-  {
-    gtid_table_persistor->increase_saving_thread();
-    need_decrease_saving_thread= true;
-  }
 
   Gtid *gtid= &thd->owned_gtid;
   Gtid_set *executed_gtids=
     const_cast<Gtid_set *>(get_executed_gtids());
   global_sid_lock->wrlock();
+  /* Increase gtid count when saving specipied gtid into table. */
+  if (thd->variables.gtid_next.type == GTID_GROUP)
+    gtid_counter++;
   if (!executed_gtids->contains_gtid(*gtid))
   {
     int err= 0;
@@ -499,8 +496,6 @@ int Gtid_state::save_gtid_into_table(THD *thd)
     DBUG_ASSERT(0);
   }
 
-  if (need_decrease_saving_thread)
-    gtid_table_persistor->decrease_saving_thread();
   DBUG_RETURN(error);
 }
 
