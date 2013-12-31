@@ -1089,7 +1089,7 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
-executed-gtids-compression-period 5000
+executed-gtids-compression-period 1000
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE

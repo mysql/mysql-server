@@ -2383,7 +2383,8 @@ public:
   */
   int generate_automatic_gtid(THD *thd);
   /**
-    Save gtid owned by the thd into gtid_executed table.
+    Save gtid owned by the thd into executed_gtids variable
+    and gtid_executed table.
 
     @param thd    Current thread
     @retval

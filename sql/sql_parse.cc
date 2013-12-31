@@ -4579,14 +4579,8 @@ finish:
     thd->query_plan.set_query_plan(SQLCOM_END, NULL, false);
   }
 
-  /*
-    We do not do the check when binlog is disabled, due to
-    committing a statement with non-transaction table will
-    cause a transaction to save gtid into table.
-  */
-  if (opt_bin_log)
-    DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
-                 thd->in_multi_stmt_transaction_mode());
+  DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
+               thd->in_multi_stmt_transaction_mode());
 
   if (! thd->in_sub_stmt)
   {
@@ -4970,7 +4964,6 @@ void mysql_init_multi_delete(LEX *lex)
   lex->query_tables= NULL;
   lex->query_tables_last= &lex->query_tables;
 }
-
 
 /*
   When you modify mysql_parse(), you may need to mofify

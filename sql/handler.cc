@@ -1519,6 +1519,7 @@ end:
 
   if (need_clear_owned_gtid)
   {
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     /* Release the owned GTID when binlog is disabled. */
     global_sid_lock->rdlock();
     if (error)
