@@ -2039,8 +2039,7 @@ maybe_pin_pair(
         unpin_pair(p, (lock_type == PL_READ));
     }    
     else {
-        // just a sanity check
-        assert(retval == 0);
+        pair_touch(p);
     }
     pair_unlock(p);
     return retval;
