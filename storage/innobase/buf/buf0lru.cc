@@ -2320,8 +2320,10 @@ buf_LRU_block_remove_hashed(
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
-		bpage->space = ULINT32_UNDEFINED;
-		bpage->offset = ULINT32_UNDEFINED;
+		if (buf_pool->flush_rbt == NULL) {
+			bpage->space = ULINT32_UNDEFINED;
+			bpage->offset = ULINT32_UNDEFINED;
+		}
 
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
