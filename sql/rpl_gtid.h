@@ -2128,7 +2128,8 @@ public:
     lost_gtids(sid_map, sid_lock),
     executed_gtids(sid_map, sid_lock),
     gtids_only_in_table(sid_map, sid_lock),
-    owned_gtids(sid_lock) {}
+    owned_gtids(sid_lock),
+    gtid_counter(0) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -2393,6 +2394,14 @@ public:
       1    Error
   */
   int save_gtid_into_table(THD *thd);
+  /*
+    Return the count of ongoing transactions' gtids.
+  */
+  uint get_gtid_count() const
+  {
+    global_sid_lock->assert_some_lock();
+    return gtid_counter;
+  }
 private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
@@ -2434,6 +2443,8 @@ private:
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
+  /* The count of ongoing transactions' gtids. */
+  uint gtid_counter;
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE
