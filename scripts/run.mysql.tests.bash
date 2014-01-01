@@ -116,20 +116,21 @@ if [ -z $engine ] ; then
     if [ $? = 0 ] ; then
         if [[ $mysqlbuild =~ tokudb ]] ; then
             # run standard tests
-            if [[ $mysqlbuild =~ 5.5 ]] ; then
+            if [[ $mysqlbuild =~ 5\\.5 ]] ; then
                 ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
                     --mysqld=--default-storage-engine=myisam --mysqld=--sql-mode="" \
-                    --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
+                    --mysqld=--loose-tokudb_debug=3072 \
                     --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
             else
                 ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                    --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
+                    --mysqld=--loose-tokudb_debug=3072 \
                     --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
             fi
+
             # run tokudb tests
             ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
                 --mysqld=--default-storage-engine=tokudb \
-                --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
+                --mysqld=--loose-tokudb_debug=3072 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
             # setup for engines tests
             engine="tokudb"
@@ -139,16 +140,21 @@ if [ -z $engine ] ; then
         fi
         popd
     fi
-    
 fi
 
 if [ ! -z $engine ] ; then
     teststorun="engines/funcs,engines/iuds"
     pushd $mysql_basedir/mysql-test
     if [ $? = 0 ] ; then
-        ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
-            --mysqld=--default-storage-engine=$engine --mysqld=--loose-tokudb_hide_default_row_format=1 \
-            --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        if [[ $mysqlbuild =~ 5\\.6 ]] ; then
+            ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
+                --mysqld=--default-storage-engine=$engine --mysqld=--default-tmp-storage-engine=$engine \
+                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        else
+            ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
+                --mysqld=--default-storage-engine=$engine \
+                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        fi
         popd
     fi
 fi
