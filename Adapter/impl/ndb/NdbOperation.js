@@ -106,7 +106,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   this.error        = null;
   this.query        = null;
   this.ndbScanOp    = null;
-  this.autoinc      = null;
+  this.needAutoInc   = false;
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
   this.scan         = {};
@@ -767,6 +767,10 @@ function newInsertOperation(tx, tableHandler, row) {
   var op = new DBOperation(opcodes.OP_INSERT, tx, null, tableHandler);
 // Test row for VO?
   op.values = row;
+  if (typeof row[op.tableHandler.autoIncFieldName] === 'undefined') {
+    // we need autoincrement services because the user did not supply the value for the autoincrement column
+    op.needAutoInc = true;
+  }
   return op;
 }
 
