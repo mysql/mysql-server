@@ -31,6 +31,9 @@ Created Nov 14, 2013 Vasil Dimov
 
 #define PAGE_SIZE_T_SIZE_BITS	15
 
+/* XXX perf test if this makes any difference and use the faster one if it does. */
+#define PAGE_SIZE_USES_BIT_FIELDS
+
 /** Page size descriptor. Contains the physical and logical page size, as well
 as whether the page is compressed or not. */
 class page_size_t {
@@ -41,9 +44,15 @@ public:
 	@param[in]	is_compressed	whether the page is compressed */
 	page_size_t(ulint physical, ulint logical, bool is_compressed)
 		:
+#ifdef PAGE_SIZE_USES_BIT_FIELDS
+		m_physical(static_cast<unsigned>(physical)),
+		m_logical(static_cast<unsigned>(logical)),
+		m_is_compressed(static_cast<unsigned>(is_compressed))
+#else
 		m_physical(physical),
 		m_logical(logical),
 		m_is_compressed(is_compressed)
+#endif
 	{
 		ut_ad(physical <= (1 << PAGE_SIZE_T_SIZE_BITS));
 		ut_ad(logical <= (1 << PAGE_SIZE_T_SIZE_BITS));
@@ -160,9 +169,7 @@ private:
 	buf_page_t::frame (currently also always equal to univ_page_size
 	(--innodb-page-size=)). */
 
-	/* XXX perf test if this makes any difference and use the faster
-	one if it does. */
-#if 1
+#ifdef PAGE_SIZE_USES_BIT_FIELDS
 	/** Physical page size. */
 	unsigned	m_physical:PAGE_SIZE_T_SIZE_BITS;
 
