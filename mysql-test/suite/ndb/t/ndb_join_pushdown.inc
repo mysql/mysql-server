@@ -4042,6 +4042,7 @@ SELECT *
   FROM t1
        LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
        LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+--sorted_result
 SELECT *
   FROM t1
        LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
