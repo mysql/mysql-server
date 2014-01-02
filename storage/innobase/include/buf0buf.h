@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -262,19 +262,24 @@ public:
 	/** Reset the values from a (space, page_no).
 	@param[in]	space	tablespace id
 	@param[in]	page_no	page number */
-	inline void reset(ib_uint32_t space, ib_uint32_t page_no)
+	inline void reset(ulint space, ulint page_no)
 	{
-		m_space = space;
-		m_page_no = page_no;
+		m_space = static_cast<ib_uint32_t>(space);
+		m_page_no = static_cast<ib_uint32_t>(page_no);
 		m_fold = ULINT_UNDEFINED;
+
+		ut_ad(space <= 0xFFFFFFFFU);
+		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	/** Reset the page number only.
 	@param[in]	page_no	page number */
-	inline void set_page_no(ib_uint32_t page_no)
+	inline void set_page_no(ulint page_no)
 	{
-		m_page_no = page_no;
+		m_page_no = static_cast<ib_uint32_t>(page_no);
 		m_fold = ULINT_UNDEFINED;
+
+		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	/** Check if a given page_id_t object is equal to the current one.
