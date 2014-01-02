@@ -8428,6 +8428,7 @@ bool change_master_execute_option(LEX_MASTER_INFO* lex_mi)
    change_execute_options()
 
    - used in change_master().
+   - Receiver threads should be stopped when this function is called.
 
   @param thd    Pointer to THD object for the client thread executing the
                 statement.
@@ -8448,17 +8449,6 @@ bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi, Master_info* mi,
   bool ret= false; /* return value. Set if there is an error. */
 
   DBUG_ENTER("change_receive_options");
-
-  /*
-    We need data_lock on mi here because receiver threads could be running
-    and we need to protect data to avoid race conditions between client
-    thread and the running receive thread. For example- client thread maybe
-    copying log positions from lex_mi to mi and at the same time:
-    - receiver tread may be trying to update the positions or
-    - SHOW SLAVE STATUS may be trying to read positions etc
-  */
-
-  mysql_mutex_lock(&mi->data_lock);
 
   /*
     We want to save the old receive configurations so that we can use them to
@@ -8668,7 +8658,6 @@ sql_print_information("'CHANGE MASTER TO executed'. "
   (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
 err:
-  mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(ret);
 }
 
@@ -8679,6 +8668,7 @@ err:
    change_receive_options()
 
    - used in change_master().
+   - Execute threads should be stopped before this function is called.
 
   @param lex_mi structure that holds all change master options given on the
                 change master command.
@@ -8694,15 +8684,6 @@ void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
                             bool &need_relay_log_purge)
 {
   DBUG_ENTER("change_execute_options");
-
-  /*
-    We need data_lock on mi->rli here because execute threads could be running
-    and we need to protect data to avoid race conditions between client
-    thread and the execute threads. For example- client thread maybe
-    copying log positions from lex_mi to mi and at the same time execute
-    threads may be trying to update the positions (eg: relay_log_pos)
-  */
-  mysql_mutex_lock(&mi->rli->data_lock);
 
   if (lex_mi->relay_log_name)
   {
@@ -8726,7 +8707,6 @@ void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
   if (lex_mi->sql_delay != -1)
     mi->rli->set_sql_delay(lex_mi->sql_delay);
 
-  mysql_mutex_unlock(&mi->rli->data_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -8862,7 +8842,7 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  /* With an applier thread running, we don't allow changing execute options. */
+  /* With an execute thread running, we don't allow changing execute options. */
   if (have_execute_option && (thread_mask & SLAVE_SQL))
   {
     my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
