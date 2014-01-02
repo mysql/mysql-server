@@ -125,7 +125,7 @@ Group_cache::add_empty_group(const Gtid &gtid)
 #endif
 
 
-enum_return_status Group_cache::generate_automatic_gno(THD *thd)
+/*enum_return_status Group_cache::generate_automatic_gno(THD *thd)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
@@ -165,7 +165,7 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
     }
   }
   RETURN_OK;
-}
+}*/
 
 
 enum_return_status Group_cache::get_gtids(Gtid_set *gs) const

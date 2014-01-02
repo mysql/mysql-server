@@ -44,6 +44,14 @@ int gtid_acquire_ownership_single(THD *thd)
   DBUG_ENTER("gtid_acquire_ownership_single");
   int ret= 0;
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
+  bool need_unlock= false;
+
+  if (opt_bin_log && mysql_bin_log.is_resetting())
+  {
+    /* The transaction will wait until finish resetting binlog files. */
+    mysql_mutex_lock(&LOCK_reset_binlog);
+    need_unlock= true;
+  }
   while (true)
   {
     global_sid_lock->rdlock();
@@ -80,7 +88,10 @@ int gtid_acquire_ownership_single(THD *thd)
 
       // Check if thread was killed.
       if (thd->killed || abort_loop)
-        DBUG_RETURN(1);
+      {
+        ret= 1;
+        goto err;
+      }
 #ifdef HAVE_REPLICATION
       // If this thread is a slave SQL thread or slave SQL worker
       // thread, we need this additional condition to determine if it
@@ -91,7 +102,10 @@ int gtid_acquire_ownership_single(THD *thd)
         // TODO: error is *not* reported on cancel
         DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
         if (active_mi->rli->abort_slave)
-          DBUG_RETURN(1);
+        {
+          ret= 1;
+          goto err;
+        }
       }
 #endif // HAVE_REPLICATION
     }
@@ -107,6 +121,9 @@ int gtid_acquire_ownership_single(THD *thd)
                                &thd->variables.gtid_next);
 #endif
 
+err:
+  if (need_unlock)
+    mysql_mutex_unlock(&LOCK_reset_binlog);
   DBUG_RETURN(ret);
 }
 
@@ -118,9 +135,18 @@ int gtid_acquire_ownership_single(THD *thd)
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd)
 {
+  int ret= 0;
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
   rpl_sidno greatest_sidno= 0;
+  bool need_unlock= false;
   DBUG_ENTER("gtid_acquire_ownership_multiple");
+
+  if (opt_bin_log && mysql_bin_log.is_resetting())
+  {
+    /* The transaction will wait until finish resetting binlog files. */
+    mysql_mutex_lock(&LOCK_reset_binlog);
+    need_unlock= true;
+  }
   // first check if we need to wait for any group
   while (true)
   {
@@ -170,7 +196,10 @@ int gtid_acquire_ownership_multiple(THD *thd)
     // at this point, we don't hold any locks. re-acquire the global
     // read lock that was held when this function was invoked
     if (thd->killed || abort_loop)
-      DBUG_RETURN(1);
+    {
+      ret= 1;
+      goto err;
+    }
 #ifdef HAVE_REPLICATION
     // If this thread is a slave SQL thread or slave SQL worker
     // thread, we need this additional condition to determine if it
@@ -180,7 +209,10 @@ int gtid_acquire_ownership_multiple(THD *thd)
     {
       DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
       if (active_mi->rli->abort_slave)
-        DBUG_RETURN(1);
+      {
+        ret= 1;
+        goto err;
+      }
     }
 #endif // HAVE_REPLICATION
   }
@@ -195,7 +227,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
      - We hold a lock on all SIDNOs in GTID_NEXT_LIST.
     So we acquire ownership of all groups that we need.
   */
-  int ret= 0;
   Gtid_set::Gtid_iterator git(gtid_next_list);
   Gtid g= git.get();
   do
@@ -227,6 +258,9 @@ int gtid_acquire_ownership_multiple(THD *thd)
     similar to gtid_acquire_ownership_single().
   */
 
+err:
+  if (need_unlock)
+    mysql_mutex_unlock(&LOCK_reset_binlog);
   DBUG_RETURN(ret);
 }
 #endif
@@ -458,9 +492,12 @@ int gtid_rollback(THD *thd)
 {
   DBUG_ENTER("gtid_rollback");
 
-  global_sid_lock->rdlock();
-  gtid_state->update_on_rollback(thd);
-  global_sid_lock->unlock();
+  if (!thd->owned_gtid.is_null())
+  {
+    global_sid_lock->rdlock();
+    gtid_state->update_on_rollback(thd);
+    global_sid_lock->unlock();
+  }
 
   DBUG_RETURN(0);
 }
