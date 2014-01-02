@@ -1516,18 +1516,6 @@ int generate_and_save_gtid(THD *thd)
   DBUG_ASSERT(gtid_table_persistor != NULL);
   int error= 0;
   bool is_gtid_generated= false;
-  bool need_unlock= false;
-
-  /*
-    Increase the number of ongoing transactions
-    during reset gtid_executed table.
-  */
-  if (mysql_bin_log.is_resetting())
-  {
-    /* The transaction will wait until finish resetting binlog files. */
-    mysql_mutex_lock(&LOCK_reset_binlog);
-    need_unlock= true;
-  }
 
   /* Generate gtid for transaction. */
   Gtid *gtid= &thd->owned_gtid;
@@ -1543,8 +1531,6 @@ int generate_and_save_gtid(THD *thd)
       gtid_table_persistor != NULL)
     error= gtid_state->save_gtid_into_table(thd);
 
-  if (need_unlock)
-    mysql_mutex_unlock(&LOCK_reset_binlog);
   DBUG_RETURN(error);
 }
 
@@ -7284,9 +7270,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
   */
-  global_sid_lock->rdlock();
-  gtid_state->update_on_commit(thd);
-  global_sid_lock->unlock();
+  if (!thd->owned_gtid.is_null())
+  {
+    global_sid_lock->rdlock();
+    gtid_state->update_on_commit(thd);
+    global_sid_lock->unlock();
+  }
 
   DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
