@@ -1731,17 +1731,9 @@ drop tables if exists t1;
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
 prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
-execute stmt;
 ERROR 42S22: Unknown column 'v' in 'field list'
-execute stmt;
-ERROR 42S22: Unknown column 'v' in 'field list'
-deallocate prepare stmt;
 prepare stmt from "insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP'";
-execute stmt;
 ERROR 42S22: Unknown column 'y.value' in 'field list'
-execute stmt;
-ERROR 42S22: Unknown column 'y.value' in 'field list'
-deallocate prepare stmt;
 drop tables t1;
 prepare stmt from "create table t1 select ?";
 set @a=1.0;
@@ -3937,3 +3929,21 @@ field1
 150
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
+#
+# Bug#16820562: Bad column names are not rejected at 'prepare'
+#
+Resolver errors should be given at prepare time in insert select
+CREATE TABLE t1 (a INTEGER);
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE absent=2";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE a=absent";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE absent=2";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE a=absent";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+PREPARE s FROM "INSERT INTO t1(absent) VALUES(1) ON DUPLICATE KEY UPDATE a=1";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+PREPARE s FROM "INSERT INTO t1(absent) SELECT 1 ON DUPLICATE KEY UPDATE a=1";
+ERROR 42S22: Unknown column 'absent' in 'field list'
+DROP TABLE t1;
