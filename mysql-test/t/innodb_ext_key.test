@@ -662,6 +662,34 @@ ORDER BY rev_timestamp ASC LIMIT 10;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # MDEV-5424 SELECT using ORDER BY DESC and LIMIT produces unexpected
+--echo # results (InnoDB/XtraDB)
+--echo #
+
+create table t1 (a bigint not null unique auto_increment, b varchar(10), primary key (a), key (b(2))) engine = myisam default character set utf8;
+create table t2 (a bigint not null unique auto_increment, b varchar(10), primary key (a), key (b(2))) engine = innodb default character set utf8;
+
+insert into t1 (b) values (null), (null), (null);
+insert into t2 (b) values (null), (null), (null);
+
+set optimizer_switch='extended_keys=on';
+explain select a from t1 where b is null order by a desc limit 2;
+select a from t1 where b is null order by a desc limit 2;
+explain select a from t2 where b is null order by a desc limit 2;
+select a from t2 where b is null order by a desc limit 2;
+set optimizer_switch='extended_keys=off';
+explain select a from t2 where b is null order by a desc limit 2;
+select a from t2 where b is null order by a desc limit 2;
+
+explain select a from t2 where b is null order by a desc;
+select a from t2 where b is null order by a desc;
+
+explain select a from t2 where b is null order by a desc,a,a;
+select a from t2 where b is null order by a desc,a,a;
+
+drop table t1, t2;
+
 set optimizer_switch=@save_optimizer_switch;
 
 set optimizer_switch=@save_ext_key_optimizer_switch;

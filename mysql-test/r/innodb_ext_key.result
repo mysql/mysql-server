@@ -987,6 +987,54 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	page_timestamp	page_timestamp	4	const	10	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.rev_text_id	1	
 DROP TABLE t1,t2,t3;
+#
+# MDEV-5424 SELECT using ORDER BY DESC and LIMIT produces unexpected
+# results (InnoDB/XtraDB)
+#
+create table t1 (a bigint not null unique auto_increment, b varchar(10), primary key (a), key (b(2))) engine = myisam default character set utf8;
+create table t2 (a bigint not null unique auto_increment, b varchar(10), primary key (a), key (b(2))) engine = innodb default character set utf8;
+insert into t1 (b) values (null), (null), (null);
+insert into t2 (b) values (null), (null), (null);
+set optimizer_switch='extended_keys=on';
+explain select a from t1 where b is null order by a desc limit 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b	b	9	const	2	Using where; Using filesort
+select a from t1 where b is null order by a desc limit 2;
+a
+3
+2
+explain select a from t2 where b is null order by a desc limit 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	b	b	9	NULL	3	Using where; Using filesort
+select a from t2 where b is null order by a desc limit 2;
+a
+3
+2
+set optimizer_switch='extended_keys=off';
+explain select a from t2 where b is null order by a desc limit 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	b	b	9	NULL	3	Using where; Using filesort
+select a from t2 where b is null order by a desc limit 2;
+a
+3
+2
+explain select a from t2 where b is null order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	PRIMARY	8	NULL	3	Using where
+select a from t2 where b is null order by a desc;
+a
+3
+2
+1
+explain select a from t2 where b is null order by a desc,a,a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	PRIMARY	8	NULL	3	Using where
+select a from t2 where b is null order by a desc,a,a;
+a
+3
+2
+1
+drop table t1, t2;
 set optimizer_switch=@save_optimizer_switch;
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;

@@ -1336,7 +1336,7 @@ INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
    (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 let $query0=SELECT col1 AS field1, col1 AS field2
-            FROM t1 GROUP BY field1, field2;
+            FROM t1 GROUP BY field1, field2+0;
 
 # Needs to be range to exercise bug
 --eval EXPLAIN $query0;
@@ -1366,7 +1366,9 @@ LIMIT 3;
 
 explain
 select col1 f1, col1 f2 from t1 order by f2, f1;
-select col1 f1, col1 f2 from t1 order by f2, f1;
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
 
 explain
 select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
@@ -1386,12 +1388,12 @@ INSERT INTO t2(col1, col2) VALUES
    (11,10),(12,9),(13,8),(14,7),(15,6),(16,5),(17,4),(18,3),(19,2),(20,1);
 
 explain
-select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
-select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
 
 explain
-select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
-select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;

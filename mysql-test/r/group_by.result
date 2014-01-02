@@ -1957,12 +1957,12 @@ UNIQUE INDEX idx (col1));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 EXPLAIN SELECT col1 AS field1, col1 AS field2
-FROM t1 GROUP BY field1, field2;;
+FROM t1 GROUP BY field1, field2+0;;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using temporary; Using filesort
 FLUSH STATUS;
 SELECT col1 AS field1, col1 AS field2
-FROM t1 GROUP BY field1, field2;;
+FROM t1 GROUP BY field1, field2+0;;
 field1	field2
 1	1
 2	2
@@ -2054,8 +2054,12 @@ field1	field2
 explain
 select col1 f1, col1 f2 from t1 order by f2, f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using filesort
-select col1 f1, col1 f2 from t1 order by f2, f1;
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
 f1	f2
 1	1
 2	2
@@ -2080,7 +2084,7 @@ f1	f2
 explain
 select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx	5	NULL	7	Using index for group-by; Using temporary; Using filesort
+1	SIMPLE	t1	range	NULL	idx	5	NULL	7	Using index for group-by
 select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
 f1	f2
 1	1
@@ -2106,7 +2110,7 @@ f1	f2
 explain
 select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using temporary; Using filesort
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index
 select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
 f1	f2
 1	1
@@ -2137,10 +2141,10 @@ INSERT INTO t2(col1, col2) VALUES
 (1,20),(2,19),(3,18),(4,17),(5,16),(6,15),(7,14),(8,13),(9,12),(10,11),
 (11,10),(12,9),(13,8),(14,7),(15,6),(16,5),(17,4),(18,3),(19,2),(20,1);
 explain
-select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	idx	10	NULL	20	Using index; Using temporary; Using filesort
-select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
 f1	f2	f3
 1	20	1
 2	19	2
@@ -2163,10 +2167,10 @@ f1	f2	f3
 19	2	19
 20	1	20
 explain
-select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	idx	10	NULL	20	Using index; Using filesort
-select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
 f1	f2	f3
 1	20	1
 2	19	2

@@ -734,14 +734,10 @@ err_not_open:
 }
 
 
-static bool create_key_infos(uchar *strpos, uint keys, KEY *keyinfo, uint new_frm_ver,
+static bool create_key_infos(uchar *strpos, uint keys, KEY *keyinfo,
+                             uint new_frm_ver,
                              uint &ext_key_parts, TABLE_SHARE *share, uint len,
-                             KEY *first_keyinfo, char* &keynames
-                             
-                             
-                             
-                             
-                             )
+                             KEY *first_keyinfo, char* &keynames)
 {
   uint i, j, n_length;
   KEY_PART_INFO *key_part= NULL;
@@ -848,7 +844,6 @@ static bool create_key_infos(uchar *strpos, uint keys, KEY *keyinfo, uint new_fr
     keyinfo->ext_key_part_map= 0;
     if (share->use_ext_keys && i)
     {
-      keyinfo->ext_key_part_map= 0;
       for (j= 0; 
            j < first_key_parts && keyinfo->ext_key_parts < MAX_REF_PARTS;
            j++)
@@ -1148,7 +1143,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     share->set_use_ext_keys_flag(share->db_type()->flags & HTON_EXTENDED_KEYS);
 
-    if (create_key_infos(disk_buff + 6, keys, keyinfo, new_frm_ver, ext_key_parts,
+    if (create_key_infos(disk_buff + 6, keys, keyinfo, new_frm_ver,
+                         ext_key_parts,
                          share, len, &first_keyinfo, keynames))
       goto err;
 
@@ -1242,7 +1238,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   else
   {
-    if (create_key_infos(disk_buff + 6, keys, keyinfo, new_frm_ver, ext_key_parts,
+    if (create_key_infos(disk_buff + 6, keys, keyinfo, new_frm_ver,
+                         ext_key_parts,
                          share, len, &first_keyinfo, keynames))
       goto err;
   }

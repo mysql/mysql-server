@@ -11038,6 +11038,8 @@ static void update_depend_map_for_order(JOIN *join, ORDER *order)
   Remove all constants and check if ORDER only contains simple
   expressions.
 
+  We also remove all duplicate expressions, keeping only the first one.
+
   simple_order is set to 1 if sort_order only uses fields from head table
   and the head table is not a LEFT JOIN table.
 
@@ -11045,9 +11047,10 @@ static void update_depend_map_for_order(JOIN *join, ORDER *order)
   @param first_order		List of SORT or GROUP order
   @param cond			WHERE statement
   @param change_list		Set to 1 if we should remove things from list.
-                               If this is not set, then only simple_order is
-                               calculated.
-  @param simple_order		Set to 1 if we are only using simple expressions
+                                If this is not set, then only simple_order is
+                                calculated.
+  @param simple_order		Set to 1 if we are only using simple
+				expressions.
 
   @return
     Returns new sort order
@@ -11060,7 +11063,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   if (join->table_count == join->const_tables)
     return change_list ? 0 : first_order;		// No need to sort
 
-  ORDER *order,**prev_ptr;
+  ORDER *order,**prev_ptr, *tmp_order;
   table_map first_table;
   table_map not_const_tables= ~join->const_table_map;
   table_map ref;
@@ -11074,7 +11077,6 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
     first_is_base_table= TRUE;
   }
   
-
   /*
     Cleanup to avoid interference of calls of this function for
     ORDER BY and GROUP BY
@@ -11143,6 +11145,17 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 	}
       }
     }
+    /* Remove ORDER BY entries that we have seen before */
+    for (tmp_order= first_order;
+         tmp_order != order;
+         tmp_order= tmp_order->next)
+    {
+      if (tmp_order->item[0]->eq(order->item[0],1))
+        break;
+    }
+    if (tmp_order != order)
+      continue;                                // Duplicate order by. Remove
+    
     if (change_list)
       *prev_ptr= order;				// use this entry
     prev_ptr= &order->next;
@@ -18829,7 +18842,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         key as a suffix to the secondary keys. If it has continue to check
         the primary key as a suffix.
       */
-      if (!on_pk_suffix &&
+      if (!on_pk_suffix && (table->key_info[idx].ext_key_part_map & 1) &&
           (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
           table->s->primary_key != MAX_KEY &&
           table->s->primary_key != idx)
@@ -18853,20 +18866,22 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                 (((key_part_map) 1) << pk_part_idx)))
             break;
         }
+
         /* Adjust const_key_parts */
         const_key_parts&= (((key_part_map) 1) << pk_part_idx) -1;
 
-         for (; const_key_parts & 1 ; const_key_parts>>= 1)
-           key_part++; 
+        for (; const_key_parts & 1 ; const_key_parts>>= 1)
+          key_part++;
         /*
           Test if the primary key parts were all const (i.e. there's one row).
           The sorting doesn't matter.
         */
-        if (key_part == start+table->key_info[table->s->primary_key].key_parts &&
+        if (key_part ==
+            start+table->key_info[table->s->primary_key].key_parts &&
             reverse == 0)
         {
           key_parts= 0;
-          reverse= 1;
+          reverse= 1;                           // Key is ok to use
           goto ok;
         }
       }
