@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8348,6 +8348,389 @@ err:
 }
 
 /**
+   This function checks if the given CHANGE MASTER command has any receive
+   option being set or changed.
+
+   - used in change_master().
+
+  @param  lex_mi structure that holds all change master options given on the
+          change master command.
+
+  @retval FALSE No change master receive option.
+  @retval TRUE  At least one receive option was there.
+*/
+
+bool change_master_receive_option(LEX_MASTER_INFO* lex_mi)
+{
+  bool have_receive_option= false;
+
+  DBUG_ENTER("change_master_receive_option");
+
+  /* Check if *at least one* receive option is given on change master command*/
+  if(lex_mi->host ||
+     lex_mi->user ||
+     lex_mi->password ||
+     lex_mi->log_file_name ||
+     lex_mi->pos ||
+     lex_mi->bind_addr ||
+     lex_mi->port ||
+     lex_mi->connect_retry ||
+     lex_mi->server_id ||
+     lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+     lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+     lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+     lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+     lex_mi->ssl_key ||
+     lex_mi->ssl_cert ||
+     lex_mi->ssl_ca ||
+     lex_mi->ssl_capath ||
+     lex_mi->ssl_cipher ||
+     lex_mi->ssl_crl ||
+     lex_mi->ssl_crlpath ||
+     lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+    have_receive_option= true;
+
+  DBUG_RETURN(have_receive_option);
+}
+
+/**
+   This function checks if the given CHANGE MASTER command has any execute
+   option being set or changed.
+
+   - used in change_master().
+
+  @param  lex_mi structure that holds all change master options given on the
+          change master command.
+
+  @retval FALSE No change master execute option.
+  @retval TRUE  At least one execute option was there.
+*/
+
+bool change_master_execute_option(LEX_MASTER_INFO* lex_mi)
+{
+  bool have_execute_option= false;
+
+  DBUG_ENTER("change_master_execute_option");
+
+  /* Check if *at least one* execute option is given on change master command*/
+  if (lex_mi->relay_log_name ||
+      lex_mi->relay_log_pos ||
+      lex_mi->sql_delay != -1)
+    have_execute_option= true;
+
+  DBUG_RETURN(have_execute_option);
+}
+
+/**
+   This function is called if the change master command had at least one
+   receive option. This function then sets or alters the receive option(s)
+   given in the command. The execute options are handled in the function
+   change_execute_options()
+
+   - used in change_master().
+
+  @param thd    Pointer to THD object for the client thread executing the
+                statement.
+
+  @param lex_mi structure that holds all change master options given on the
+                change master command.
+
+  @param mi     Pointer to Master_info object belonging to the slave's IO
+                thread.
+
+  @retval FALSE No change master execute option.
+  @retval TRUE  At least one execute option was there.
+*/
+
+bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi, Master_info* mi,
+                            bool need_relay_log_purge)
+{
+  bool ret= false; /* return value. Set if there is an error. */
+
+  DBUG_ENTER("change_receive_options");
+
+  /*
+    We need data_lock on mi here because receiver threads could be running
+    and we need to protect data to avoid race conditions between client
+    thread and the running receive thread. For example- client thread maybe
+    copying log positions from lex_mi to mi and at the same time:
+    - receiver tread may be trying to update the positions or
+    - SHOW SLAVE STATUS may be trying to read positions etc
+  */
+
+  mysql_mutex_lock(&mi->data_lock);
+
+  /*
+    We want to save the old receive configurations so that we can use them to
+    print the changes in these configurations (from-to form). This is used in
+    sql_print_information() later.
+  */
+  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
+  uint saved_port= 0;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos= 0;
+
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
+  saved_port= mi->port;
+  strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
+  saved_log_pos= mi->get_master_log_pos();
+
+  /*
+    If the user specified host or port without binlog or position,
+    reset binlog's name to FIRST and position to 4.
+  */
+
+  if ((lex_mi->host && strcmp(lex_mi->host, mi->host)) ||
+      (lex_mi->port && lex_mi->port != mi->port))
+  {
+    /*
+      This is necessary because the primary key, i.e. host or port, has
+      changed.
+
+      The repository does not support direct changes on the primary key,
+      so the row is dropped and re-inserted with a new primary key. If we
+      don't do that, the master info repository we will end up with several
+      rows.
+    */
+    if (mi->clean_info())
+    {
+      ret= true;
+      goto err;
+    }
+    mi->master_uuid[0]= 0;
+    mi->master_id= 0;
+  }
+
+  if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
+  {
+    char *var_master_log_name= NULL;
+    var_master_log_name= const_cast<char*>(mi->get_master_log_name());
+    var_master_log_name[0]= '\0';
+    mi->set_master_log_pos(BIN_LOG_HEADER_SIZE);
+  }
+
+  if (lex_mi->log_file_name)
+    mi->set_master_log_name(lex_mi->log_file_name);
+  if (lex_mi->pos)
+  {
+    mi->set_master_log_pos(lex_mi->pos);
+  }
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
+
+  if (lex_mi->user || lex_mi->password)
+  {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+      push_warning(thd, Sql_condition::SL_NOTE,
+                   ER_INSECURE_PLAIN_TEXT,
+                   ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    push_warning(thd, Sql_condition::SL_NOTE,
+                 ER_INSECURE_PLAIN_TEXT,
+                 ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+    push_warning(thd, Sql_condition::SL_NOTE,
+                 ER_INSECURE_CHANGE_MASTER,
+                 ER(ER_INSECURE_CHANGE_MASTER));
+  }
+
+  if (lex_mi->user)
+    mi->set_user(lex_mi->user);
+
+  if (lex_mi->password)
+  {
+    if (mi->set_password(lex_mi->password, strlen(lex_mi->password)))
+    {
+      /*
+        After implementing WL#5769, we should create a better error message
+        to denote that the call may have failed due to an error while trying
+        to encrypt/store the password in a secure key store.
+      */
+      my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+      ret= true;
+      goto err;
+    }
+  }
+  if (lex_mi->host)
+    strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->bind_addr)
+    strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
+  if (lex_mi->port)
+    mi->port = lex_mi->port;
+  if (lex_mi->connect_retry)
+    mi->connect_retry = lex_mi->connect_retry;
+  if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->retry_count = lex_mi->retry_count;
+  if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->heartbeat_period = lex_mi->heartbeat_period;
+  else
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
+
+  mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
+  /*
+    reset the last time server_id list if the current CHANGE MASTER
+    is mentioning IGNORE_SERVER_IDS= (...)
+  */
+  if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+    reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
+  for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
+  {
+    ulong s_id;
+    get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
+    if (s_id == ::server_id && replicate_same_server_id)
+    {
+      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
+      ret= true;
+      goto err;
+    }
+    else
+    {
+      if (bsearch((const ulong *) &s_id,
+                  mi->ignore_server_ids->dynamic_ids.buffer,
+                  mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
+                  (int (*) (const void*, const void*))
+                  change_master_server_id_cmp) == NULL)
+        insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
+    }
+  }
+  sort_dynamic(&(mi->ignore_server_ids->dynamic_ids),
+               (qsort_cmp) change_master_server_id_cmp);
+
+  if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->ssl_verify_server_cert=
+      (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->ssl_ca)
+    strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
+  if (lex_mi->ssl_capath)
+    strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (lex_mi->ssl_cert)
+    strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
+  if (lex_mi->ssl_cipher)
+    strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
+  if (lex_mi->ssl_key)
+    strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+  if (lex_mi->ssl_crl)
+    strmake(mi->ssl_crl, lex_mi->ssl_crl, sizeof(mi->ssl_crl)-1);
+  if (lex_mi->ssl_crlpath)
+    strmake(mi->ssl_crlpath, lex_mi->ssl_crlpath, sizeof(mi->ssl_crlpath)-1);
+#ifndef HAVE_OPENSSL
+  if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
+      lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
+      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
+    push_warning(thd, Sql_condition::SL_NOTE,
+                 ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
+#endif
+
+  /*
+    If user did specify neither host nor port nor any log name nor any log
+    pos, i.e. he specified only user/password/master_connect_retry, he probably
+    wants replication to resume from where it had left, i.e. from the
+    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
+    of the SQL; restarting from the coordinates of the I/O would lose some
+    events which is probably unwanted when you are just doing minor changes
+    like changing master_connect_retry).
+    A side-effect is that if only the I/O thread was started, this thread may
+    restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
+    much more unlikely situation than the one we are fixing here).
+    Note: coordinates of the SQL thread must be read here, before the
+    'if (need_relay_log_purge)' block which resets them.
+  */
+  if (!lex_mi->host && !lex_mi->port &&
+      !lex_mi->log_file_name && !lex_mi->pos &&
+      need_relay_log_purge)
+  {
+    /*
+       Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
+       not initialized), so we use a max().
+       What happens to mi->rli->master_log_pos during the initialization stages
+       of replication is not 100% clear, so we guard against problems using
+       max().
+    */
+     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                           mi->rli->get_group_master_log_pos()));
+     mi->set_master_log_name(mi->rli->get_group_master_log_name());
+  }
+
+sql_print_information("'CHANGE MASTER TO executed'. "
+  "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+  "master_log_pos= %ld, master_bind='%s'. "
+  "New state master_host='%s', master_port= %u, master_log_file='%s', "
+  "master_log_pos= %ld, master_bind='%s'.",
+  saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+  saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+  (ulong) mi->get_master_log_pos(), mi->bind_addr);
+
+err:
+  mysql_mutex_unlock(&mi->data_lock);
+  DBUG_RETURN(ret);
+}
+
+/**
+   This function is called if the change master command had at least one
+   execute option. This function then sets or alters the execute option(s)
+   given in the command. The receive options are handled in the function
+   change_receive_options()
+
+   - used in change_master().
+
+  @param lex_mi structure that holds all change master options given on the
+                change master command.
+
+  @param mi     Pointer to Master_info object belonging to the slave's IO
+                thread.
+
+  @param need_relay_log_purge If relay_log_file/relay_log_pos options are
+                              used, we say that we wont delete relaylogs.
+*/
+
+void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
+                            bool &need_relay_log_purge)
+{
+  DBUG_ENTER("change_execute_options");
+
+  /*
+    We need data_lock on mi->rli here because execute threads could be running
+    and we need to protect data to avoid race conditions between client
+    thread and the execute threads. For example- client thread maybe
+    copying log positions from lex_mi to mi and at the same time execute
+    threads may be trying to update the positions (eg: relay_log_pos)
+  */
+  mysql_mutex_lock(&mi->rli->data_lock);
+
+  if (lex_mi->relay_log_name)
+  {
+    need_relay_log_purge= 0;
+    char relay_log_name[FN_REFLEN];
+
+    mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
+    mi->rli->set_group_relay_log_name(relay_log_name);
+    mi->rli->set_event_relay_log_name(relay_log_name);
+    mi->rli->is_group_master_log_pos_invalid= true;
+  }
+
+  if (lex_mi->relay_log_pos)
+  {
+    need_relay_log_purge= 0;
+    mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
+    mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
+    mi->rli->is_group_master_log_pos_invalid= true;
+  }
+
+  if (lex_mi->sql_delay != -1)
+    mi->rli->set_sql_delay(lex_mi->sql_delay);
+
+  mysql_mutex_unlock(&mi->rli->data_lock);
+  DBUG_VOID_RETURN;
+}
+
+/**
   Execute a CHANGE MASTER statement.
 
   Apart from changing the receive/execute configurations/positions,
@@ -8371,14 +8754,16 @@ bool change_master(THD* thd, Master_info* mi)
   bool have_receive_option= false;
   /* Do we have at least one execute related (SQL/coord/worker) option? */
   bool have_execute_option= false;
-  bool ret= false; /* return value */
+  /* return value. This is set if there is an error. */
+  bool ret= false;
   /* If there are no mts gaps, we delete the rows in this table. */
   bool mts_remove_worker_info= false;
   /* used as a bit mask to indicate running/stopped threads. */
   int thread_mask;
   /*
     Relay logs are purged only if both receive and execute threads are
-    stopped before executing CHANGE MASTER.
+    stopped before executing CHANGE MASTER and relay_log_file/relay_log_pos
+    options are not used.
   */
   bool need_relay_log_purge= 1;
 
@@ -8463,34 +8848,10 @@ bool change_master(THD* thd, Master_info* mi)
   }
 
   /* Check if at least one receive option is given on change master */
-  if(lex_mi->host ||
-     lex_mi->user ||
-     lex_mi->password ||
-     lex_mi->log_file_name ||
-     lex_mi->pos ||
-     lex_mi->bind_addr ||
-     lex_mi->port ||
-     lex_mi->connect_retry ||
-     lex_mi->server_id ||
-     lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->ssl_key ||
-     lex_mi->ssl_cert ||
-     lex_mi->ssl_ca ||
-     lex_mi->ssl_capath ||
-     lex_mi->ssl_cipher ||
-     lex_mi->ssl_crl ||
-     lex_mi->ssl_crlpath ||
-     lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    have_receive_option= true;
+  have_receive_option= change_master_receive_option(lex_mi);
 
   /* Check if at least one execute option is given on change master */
-  if (lex_mi->relay_log_name ||
-      lex_mi->relay_log_pos ||
-      lex_mi->sql_delay != -1)
-    have_execute_option= true;
+  have_execute_option= change_master_execute_option(lex_mi);
 
   /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO))
@@ -8606,262 +8967,16 @@ bool change_master(THD* thd, Master_info* mi)
     mi->set_auto_position(
       (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
 
+
   if (have_receive_option)
   {
-    /*
-      We need data_lock on mi here because receiver threads could be running
-      and we need to protect data to avoid race conditions between client
-      thread and the running receive thread. For example- client thread maybe
-      copying log positions from lex_mi to mi and at the same time:
-      - receiver tread may be trying to update the positions or
-      - SHOW SLAVE STATUS may be trying to read positions etc
-
-      If we error out and go to 'err' lable, we should make sure we do unlock
-      mi->data_lock;
-    */
-
-    mysql_mutex_lock(&mi->data_lock);
-
-    /*
-      We want to save the old receive configurations so that we can use them to
-      print the changes in these configurations (from-to form). This is used in
-      sql_print_information() later.
-    */
-    char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
-    uint saved_port= 0;
-    char saved_log_name[FN_REFLEN];
-    my_off_t saved_log_pos= 0;
-
-    strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-    strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
-    saved_port= mi->port;
-    strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
-    saved_log_pos= mi->get_master_log_pos();
-
-    /*
-      If the user specified host or port without binlog or position,
-      reset binlog's name to FIRST and position to 4.
-    */
-
-    if ((lex_mi->host && strcmp(lex_mi->host, mi->host)) ||
-        (lex_mi->port && lex_mi->port != mi->port))
-    {
-      /*
-        This is necessary because the primary key, i.e. host or port, has
-        changed.
-
-        The repository does not support direct changes on the primary key,
-        so the row is dropped and re-inserted with a new primary key. If we
-        don't do that, the master info repository we will end up with several
-        rows.
-      */
-      if (mi->clean_info())
-      {
-        ret= true;
-        mysql_mutex_unlock(&mi->data_lock);
-        goto err;
-      }
-      mi->master_uuid[0]= 0;
-      mi->master_id= 0;
-    }
-
-    if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
-    {
-      char *var_master_log_name= NULL;
-      var_master_log_name= const_cast<char*>(mi->get_master_log_name());
-      var_master_log_name[0]= '\0';
-      mi->set_master_log_pos(BIN_LOG_HEADER_SIZE);
-    }
-
-    if (lex_mi->log_file_name)
-      mi->set_master_log_name(lex_mi->log_file_name);
-    if (lex_mi->pos)
-    {
-      mi->set_master_log_pos(lex_mi->pos);
-    }
-    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-
-    if (lex_mi->user || lex_mi->password)
-    {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-      if (thd->vio_ok() && !thd->net.vio->ssl_arg)
-        push_warning(thd, Sql_condition::SL_NOTE,
-                     ER_INSECURE_PLAIN_TEXT,
-                     ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-      push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_INSECURE_PLAIN_TEXT,
-                   ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-      push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_INSECURE_CHANGE_MASTER,
-                   ER(ER_INSECURE_CHANGE_MASTER));
-    }
-
-    if (lex_mi->user)
-      mi->set_user(lex_mi->user);
-
-    if (lex_mi->password)
-    {
-      if (mi->set_password(lex_mi->password, strlen(lex_mi->password)))
-      {
-        /*
-          After implementing WL#5769, we should create a better error message
-          to denote that the call may have failed due to an error while trying
-          to encrypt/store the password in a secure key store.
-        */
-        my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
-        ret= false;
-        mysql_mutex_unlock(&mi->data_lock);
-        goto err;
-      }
-    }
-    if (lex_mi->host)
-      strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
-    if (lex_mi->bind_addr)
-      strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-    if (lex_mi->port)
-      mi->port = lex_mi->port;
-    if (lex_mi->connect_retry)
-      mi->connect_retry = lex_mi->connect_retry;
-    if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-      mi->retry_count = lex_mi->retry_count;
-    if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-      mi->heartbeat_period = lex_mi->heartbeat_period;
-    else
-      mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                       (slave_net_timeout/2.0));
-
-    mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
-    /*
-      reset the last time server_id list if the current CHANGE MASTER
-      is mentioning IGNORE_SERVER_IDS= (...)
-    */
-    if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-      reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
-    for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
-    {
-      ulong s_id;
-      get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
-      if (s_id == ::server_id && replicate_same_server_id)
-      {
-        my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
-        mysql_mutex_unlock(&mi->data_lock);
-        ret= TRUE;
-        goto err;
-      }
-      else
-      {
-        if (bsearch((const ulong *) &s_id,
-                    mi->ignore_server_ids->dynamic_ids.buffer,
-                    mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
-                    (int (*) (const void*, const void*))
-                    change_master_server_id_cmp) == NULL)
-          insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
-      }
-    }
-    sort_dynamic(&(mi->ignore_server_ids->dynamic_ids), (qsort_cmp) change_master_server_id_cmp);
-
-    if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-      mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
-
-    if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-      mi->ssl_verify_server_cert=
-        (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
-
-    if (lex_mi->ssl_ca)
-      strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
-    if (lex_mi->ssl_capath)
-      strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
-    if (lex_mi->ssl_cert)
-      strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
-    if (lex_mi->ssl_cipher)
-      strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
-    if (lex_mi->ssl_key)
-      strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
-    if (lex_mi->ssl_crl)
-      strmake(mi->ssl_crl, lex_mi->ssl_crl, sizeof(mi->ssl_crl)-1);
-    if (lex_mi->ssl_crlpath)
-      strmake(mi->ssl_crlpath, lex_mi->ssl_crlpath, sizeof(mi->ssl_crlpath)-1);
-#ifndef HAVE_OPENSSL
-    if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
-        lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
-        lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
-      push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
-#endif
-
-    /*
-      If user did specify neither host nor port nor any log name nor any log
-      pos, i.e. he specified only user/password/master_connect_retry, he probably
-      wants replication to resume from where it had left, i.e. from the
-      coordinates of the **SQL** thread (imagine the case where the I/O is ahead
-      of the SQL; restarting from the coordinates of the I/O would lose some
-      events which is probably unwanted when you are just doing minor changes
-      like changing master_connect_retry).
-      A side-effect is that if only the I/O thread was started, this thread may
-      restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
-      much more unlikely situation than the one we are fixing here).
-      Note: coordinates of the SQL thread must be read here, before the
-      'if (need_relay_log_purge)' block which resets them.
-    */
-    if (!lex_mi->host && !lex_mi->port &&
-        !lex_mi->log_file_name && !lex_mi->pos &&
-        need_relay_log_purge)
-    {
-      /*
-         Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
-         not initialized), so we use a max().
-         What happens to mi->rli->master_log_pos during the initialization stages
-         of replication is not 100% clear, so we guard against problems using
-         max().
-      */
-       mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
-                                             mi->rli->get_group_master_log_pos()));
-       mi->set_master_log_name(mi->rli->get_group_master_log_name());
-    }
-
-  sql_print_information("'CHANGE MASTER TO executed'. "
-    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'. "
-    "New state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'.",
-    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
-    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos(), mi->bind_addr);
-
-    mysql_mutex_unlock(&mi->data_lock);
+    ret= change_receive_options(thd, lex_mi, mi, need_relay_log_purge);
+    if(ret)
+      goto err;
   }
 
   if (have_execute_option)
-  {
-    mysql_mutex_lock(&mi->rli->data_lock);
-
-    if (lex_mi->relay_log_name)
-    {
-      need_relay_log_purge= 0;
-      char relay_log_name[FN_REFLEN];
-
-      mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
-      mi->rli->set_group_relay_log_name(relay_log_name);
-      mi->rli->set_event_relay_log_name(relay_log_name);
-      mi->rli->is_group_master_log_pos_invalid= true;
-    }
-
-    if (lex_mi->relay_log_pos)
-    {
-      need_relay_log_purge= 0;
-      mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
-      mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
-      mi->rli->is_group_master_log_pos_invalid= true;
-    }
-
-    if (lex_mi->sql_delay != -1)
-      mi->rli->set_sql_delay(lex_mi->sql_delay);
-
-    mysql_mutex_unlock(&mi->rli->data_lock);
-  }
+    change_execute_options(lex_mi, mi, need_relay_log_purge);
 
   /*
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
