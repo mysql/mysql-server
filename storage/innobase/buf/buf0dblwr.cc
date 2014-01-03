@@ -766,7 +766,7 @@ buf_dblwr_write_block_to_datafile(
 	ut_a(bpage);
 	ut_a(buf_page_in_file(bpage));
 
-	const ulint flags = sync
+	const ulint	flags = sync
 		? OS_FILE_WRITE
 		: OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER;
 
@@ -783,38 +783,12 @@ buf_dblwr_write_block_to_datafile(
 
 	ut_ad(!bpage->size.is_compressed());
 
-	const buf_block_t* block = (buf_block_t*) bpage;
+	const buf_block_t*	block = (buf_block_t*) bpage;
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
-	/* The debug point ib_corrupt_page0 is used to corrupt the first half
-	of the first page (page_no == 0) of the single table tablespace
-	(space_id != 0). This is to simulate a torn page write. */
-#ifndef DBUG_OFF
-	bool	corrupted = false;
-#endif /* !DBUG_OFF */
-	DBUG_EXECUTE_IF("ib_corrupt_page0", {
-		if (block->page.id.space() != 0
-		    && block->page.id.page_no() == 0) {
-
-			memset(block->frame, 0x8228,
-			       univ_page_size.physical() / 2);
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Corrupting space:" UINT32PF,
-				block->page.id.space());
-			corrupted = true;
-			sync = true;
-		}
-	});
-
 	fil_io(flags, sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 	       (void*) block->frame, (void*) block);
-
-	DBUG_EXECUTE_IF("ib_corrupt_page0", {
-		if (corrupted) {
-			DBUG_SUICIDE();
-		}
-	});
 }
 
 /********************************************************************//**
