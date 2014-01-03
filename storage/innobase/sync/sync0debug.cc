@@ -574,6 +574,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_FTS_OPTIMIZE:
 	case SYNC_FTS_CACHE:
 	case SYNC_FTS_CACHE_INIT:
+	case SYNC_PAGE_CLEANER:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_ANY_LATCH:
@@ -959,6 +960,10 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "mem_pool",
 		  SYNC_MEM_POOL,
 		  mem_pool_mutex_key);
+
+	LATCH_ADD(SrvLatches, "page_cleaner",
+		  SYNC_PAGE_CLEANER,
+		  page_cleaner_mutex_key);
 
 	LATCH_ADD(SrvLatches, "purge_sys_pq",
 		  SYNC_PURGE_QUEUE,
