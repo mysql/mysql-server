@@ -228,6 +228,9 @@ ulint	srv_max_n_open_files	  = 300;
 ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
 
+/* The number of page cleaner threads to use.*/
+ulong	srv_n_page_cleaners = 1;
+
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below

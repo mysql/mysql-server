@@ -1743,6 +1743,41 @@ int ha_release_temporary_latches(THD *thd)
   return 0;
 }
 
+/**
+  Check if all storage engines used in transaction agree that after
+  rollback to savepoint it is safe to release MDL locks acquired after
+  savepoint creation.
+
+  @param thd   The client thread that executes the transaction.
+
+  @return true  - It is safe to release MDL locks.
+          false - If it is not.
+*/
+bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
+{
+  Ha_trx_info *ha_info;
+  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
+                                        &thd->transaction.all);
+
+  DBUG_ENTER("ha_rollback_to_savepoint_can_release_mdl");
+
+  /**
+    Checking whether it is safe to release metadata locks after rollback to
+    savepoint in all the storage engines that are part of the transaction.
+  */
+  for (ha_info= trans->ha_list; ha_info; ha_info= ha_info->next())
+  {
+    handlerton *ht= ha_info->ht();
+    DBUG_ASSERT(ht);
+
+    if (ht->savepoint_rollback_can_release_mdl == 0 ||
+        ht->savepoint_rollback_can_release_mdl(ht, thd) == false)
+      DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}
+
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
