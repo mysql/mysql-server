@@ -1325,11 +1325,11 @@ loop:
 	find a free block then we should sleep here to let the
 	page_cleaner do an LRU batch for us. */
 
-	if (n_iterations > 1) {
+	if (!srv_read_only_mode) {
+		os_event_set(buf_flush_event);
+	}
 
-		if (!srv_read_only_mode) {
-			os_event_set(buf_flush_event);
-		}
+	if (n_iterations > 1) {
 
 		os_thread_sleep(10000);
 	}
@@ -2324,8 +2324,10 @@ buf_LRU_block_remove_hashed(
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
-		bpage->space = ULINT32_UNDEFINED;
-		bpage->offset = ULINT32_UNDEFINED;
+		if (buf_pool->flush_rbt == NULL) {
+			bpage->space = ULINT32_UNDEFINED;
+			bpage->offset = ULINT32_UNDEFINED;
+		}
 
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
