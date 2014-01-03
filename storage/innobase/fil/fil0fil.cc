@@ -4354,13 +4354,23 @@ fil_user_tablespace_find_space_id(
 				continue;
 			}
 
+			bool	noncompressed_ok = false;
+
+			/* For noncompressed pages, the page size must be
+			equal to univ_page_size.physical(). */
+			if (page_size == univ_page_size.physical()) {
+				noncompressed_ok = !buf_page_is_corrupted(
+					false, page, univ_page_size);
+			}
+
 			const page_size_t	compr_page_size(
 				page_size, univ_page_size.logical(), true);
+			bool			compressed_ok;
 
-			if (!buf_page_is_corrupted(
-				false, page, univ_page_size)
-			    || !buf_page_is_corrupted(
-				false, page, compr_page_size)) {
+			compressed_ok = !buf_page_is_corrupted(false, page,
+							       compr_page_size);
+
+			if (noncompressed_ok || compressed_ok) {
 
 				ulint	space_id = mach_read_from_4(page
 					+ FIL_PAGE_SPACE_ID);
