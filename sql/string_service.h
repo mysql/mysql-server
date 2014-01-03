@@ -18,8 +18,6 @@
 
 #include "sql_string.h"
 
-String temp_str;
-
 /* mysql_string_itrerator structure to provide service to plugins */
 typedef struct st_string_iterator
 {
