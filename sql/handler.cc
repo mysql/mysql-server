@@ -561,7 +561,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
   SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
-
+  SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1741,6 +1741,41 @@ int ha_release_temporary_latches(THD *thd)
         hton->release_temporary_latches(hton, thd);
   }
   return 0;
+}
+
+/**
+  Check if all storage engines used in transaction agree that after
+  rollback to savepoint it is safe to release MDL locks acquired after
+  savepoint creation.
+
+  @param thd   The client thread that executes the transaction.
+
+  @return true  - It is safe to release MDL locks.
+          false - If it is not.
+*/
+bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
+{
+  Ha_trx_info *ha_info;
+  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
+                                        &thd->transaction.all);
+
+  DBUG_ENTER("ha_rollback_to_savepoint_can_release_mdl");
+
+  /**
+    Checking whether it is safe to release metadata locks after rollback to
+    savepoint in all the storage engines that are part of the transaction.
+  */
+  for (ha_info= trans->ha_list; ha_info; ha_info= ha_info->next())
+  {
+    handlerton *ht= ha_info->ht();
+    DBUG_ASSERT(ht);
+
+    if (ht->savepoint_rollback_can_release_mdl == 0 ||
+        ht->savepoint_rollback_can_release_mdl(ht, thd) == false)
+      DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
 }
 
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
@@ -3598,6 +3633,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TEMP_FILE_WRITE_FAILURE:
     textno= ER_TEMP_FILE_WRITE_FAILURE;
+    break;
+  case HA_ERR_INNODB_FORCED_RECOVERY:
+    textno= ER_INNODB_FORCED_RECOVERY;
     break;
   default:
     {
