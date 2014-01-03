@@ -1452,6 +1452,7 @@ void clean_up(bool print_message)
   multi_keycache_free();
   free_status_vars();
   end_thr_alarm(1);     /* Free allocated memory */
+  query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
     free_defaults(defaults_argv);
@@ -1489,7 +1490,6 @@ void clean_up(bool print_message)
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  query_logger.cleanup();
   my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_destroy(&global_query_id_lock);
   free_charsets();
