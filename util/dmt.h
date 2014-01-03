@@ -1,9 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef UTIL_DMT_H
-#define UTIL_DMT_H
+#pragma once
 
-#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -210,13 +208,16 @@ public:
 
 }
 
+// Each data type used in a dmt requires a dmt_functor (allows you to insert/etc with dynamic sized types).
+// There is no default implementation.
 template<typename dmtdata_t>
 class dmt_functor {
-    static_assert(!std::is_same<dmtdata_t, dmtdata_t>::value, "Must use partial specialization");
+    // Ensures that if you forget to use partial specialization this compile error will remind you to use it.
+    static_assert(!std::is_same<dmtdata_t, dmtdata_t>::value, "Must use partial specialization on dmt_functor");
     // Defines the interface:
-    //static size_t get_dmtdata_t_size(const dmtdata_t &) { return 0; }
-    //size_t get_dmtdatain_t_size(void) { return 0; }
-    //void write_dmtdata_t_to(dmtdata_t *const dest) {}
+    static size_t get_dmtdata_t_size(const dmtdata_t &) { return 0; }
+    size_t get_dmtdatain_t_size(void) { return 0; }
+    void write_dmtdata_t_to(dmtdata_t *const dest) {}
 };
 
 template<typename dmtdata_t,
@@ -237,10 +238,10 @@ public:
 
     class builder {
     public:
-        void insert_sorted(const dmtdatain_t &value);
+        void append(const dmtdatain_t &value);
         void create(uint32_t n_values, uint32_t n_value_bytes);
-        bool is_value_length_fixed(void);
-        void build_and_destroy(dmt<dmtdata_t, dmtdataout_t> *dest);
+        bool value_length_is_fixed(void);
+        void build(dmt<dmtdata_t, dmtdataout_t> *dest);
     private:
         uint32_t max_values;
         uint32_t max_value_bytes;
@@ -512,7 +513,7 @@ public:
      */
     size_t memory_size(void);
 
-    bool is_value_length_fixed(void) const;
+    bool value_length_is_fixed(void) const;
 
     uint32_t get_fixed_length(void) const;
 
@@ -533,7 +534,7 @@ private:
     };
 
 
-    bool values_same_size;  //TODO: is this necessary? maybe sentinel for value_length
+    bool values_same_size;
     uint32_t value_length;
     struct mempool mp;
     bool is_array;
@@ -678,4 +679,3 @@ private:
 // include the implementation here
 #include "dmt.cc"
 
-#endif // UTIL_DMT_H

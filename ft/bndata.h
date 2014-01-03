@@ -96,39 +96,29 @@ PATENT RIGHTS GRANT:
 #include <util/dmt.h>
 #include "leafentry.h"
 
-#if 0 //for implementation
-static int
-UU() verify_in_mempool(OMTVALUE lev, uint32_t UU(idx), void *mpv)
-{
-    LEAFENTRY CAST_FROM_VOIDP(le, lev);
-    struct mempool *CAST_FROM_VOIDP(mp, mpv);
-    int r = toku_mempool_inrange(mp, le, leafentry_memsize(le));
-    lazy_assert(r);
-    return 0;
-}
-            toku_omt_iterate(bn->buffer, verify_in_mempool, &bn->buffer_mempool);
-
-#endif
-
+// Key/leafentry pair stored in a dmt.  The key is inlined, the offset (in leafentry mempool) is stored for the leafentry.
 struct klpair_struct {
     uint32_t le_offset;  //Offset of leafentry (in leafentry mempool)
-    uint8_t key_le[0]; // key, followed by le
+    uint8_t key[0]; // key, followed by le
 };
 
 static constexpr uint32_t keylen_from_klpair_len(const uint32_t klpair_len) {
-    return klpair_len - __builtin_offsetof(klpair_struct, key_le);
+    return klpair_len - __builtin_offsetof(klpair_struct, key);
 }
 
 typedef struct klpair_struct KLPAIR_S, *KLPAIR;
 
-static_assert(__builtin_offsetof(klpair_struct, key_le) == 1*sizeof(uint32_t), "klpair alignment issues");
-static_assert(__builtin_offsetof(klpair_struct, key_le) == sizeof(klpair_struct), "klpair size issues");
+static_assert(__builtin_offsetof(klpair_struct, key) == 1*sizeof(uint32_t), "klpair alignment issues");
+static_assert(__builtin_offsetof(klpair_struct, key) == sizeof(klpair_struct), "klpair size issues");
 
+// A wrapper for the heaviside function provided to dmt->find*.
+// Needed because the heaviside functions provided to bndata do not know about the internal types.
+// Alternative to this wrapper is to expose accessor functions and rewrite all the external heaviside functions.
 template<typename dmtcmp_t,
          int (*h)(const DBT &, const dmtcmp_t &)>
 static int wrappy_fun_find(const uint32_t klpair_len, const klpair_struct &klpair, const dmtcmp_t &extra) {
     DBT kdbt;
-    kdbt.data = const_cast<void*>(reinterpret_cast<const void*>(klpair.key_le));
+    kdbt.data = const_cast<void*>(reinterpret_cast<const void*>(klpair.key));
     kdbt.size = keylen_from_klpair_len(klpair_len);
     return h(kdbt, extra);
 }
@@ -140,17 +130,21 @@ struct wrapped_iterate_extra_t {
     const class bn_data * bd;
 };
 
+// A wrapper for the high-order function provided to dmt->iterate*
+// Needed because the heaviside functions provided to bndata do not know about the internal types.
+// Alternative to this wrapper is to expose accessor functions and rewrite all the external heaviside functions.
 template<typename iterate_extra_t,
-         int (*h)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t idx, iterate_extra_t *const)>
+         int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t idx, iterate_extra_t *const)>
 static int wrappy_fun_iterate(const uint32_t klpair_len, const klpair_struct &klpair, const uint32_t idx, wrapped_iterate_extra_t<iterate_extra_t> *const extra) {
-    const void* key = &klpair.key_le;
+    const void* key = &klpair.key;
     LEAFENTRY le = extra->bd->get_le_from_klpair(&klpair);
-    return h(key, keylen_from_klpair_len(klpair_len), le, idx, extra->inner);
+    return f(key, keylen_from_klpair_len(klpair_len), le, idx, extra->inner);
 }
 
 
 namespace toku {
 template<>
+// Use of dmt requires a dmt_functor for the specific type.
 class dmt_functor<klpair_struct> {
     public:
         size_t get_dmtdatain_t_size(void) const {
@@ -158,13 +152,13 @@ class dmt_functor<klpair_struct> {
         }
         void write_dmtdata_t_to(klpair_struct *const dest) const {
             dest->le_offset = this->le_offset;
-            memcpy(dest->key_le, this->keyp, this->keylen);
+            memcpy(dest->key, this->keyp, this->keylen);
         }
 
         dmt_functor(uint32_t _keylen, uint32_t _le_offset, const void* _keyp)
             : keylen(_keylen), le_offset(_le_offset), keyp(_keyp) {}
         dmt_functor(const uint32_t klpair_len, klpair_struct *const src)
-            : keylen(keylen_from_klpair_len(klpair_len)), le_offset(src->le_offset), keyp(src->key_le) {}
+            : keylen(keylen_from_klpair_len(klpair_len)), le_offset(src->le_offset), keyp(src->key) {}
     private:
         const uint32_t keylen;
         const uint32_t le_offset;
@@ -178,6 +172,8 @@ class bn_data {
 public:
     void init_zero(void);
     void initialize_empty(void);
+
+    // Deserialize from rbuf.
     void initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version);
     // globals
     uint64_t get_memory_size(void);
@@ -212,7 +208,7 @@ public:
             }
             if (key) {
                 paranoid_invariant(keylen != NULL);
-                *key = klpair->key_le;
+                *key = klpair->key;
                 *keylen = keylen_from_klpair_len(klpair_len);
             }
             else {
@@ -234,7 +230,7 @@ public:
             }
             if (key) {
                 paranoid_invariant(keylen != NULL);
-                *key = klpair->key_le;
+                *key = klpair->key;
                 *keylen = keylen_from_klpair_len(klpair_len);
             }
             else {
@@ -281,9 +277,22 @@ public:
 
     LEAFENTRY get_le_from_klpair(const klpair_struct *klpair) const;
 
+    // Must be called before serializing this basement node.
+    // Between calling prepare_to_serialize and actually serializing, the basement node may not be modified
     void prepare_to_serialize(void);
+
+    // Requires prepare_to_serialize() to have been called first.
+    // Serialize the basement node header to a wbuf
     void serialize_header(struct wbuf *wb) const;
+
+    // Requires prepare_to_serialize() (and serialize_header()) has been called first.
+    // Serialize all keys and leafentries to a wbuf
+    // Currently only supported when all keys are fixed-length.
     void serialize_rest(struct wbuf *wb) const;
+
+    // Requires prepare_to_serialize() to have been called first.
+    // Returns true if we must use the old (version 24) serialization method for this basement node
+    // In other words, the bndata does not know how to serialize the keys and leafentries.
     bool need_to_serialize_each_leafentry_with_key(void) const;
 
     static const uint32_t HEADER_LENGTH = 0
@@ -298,8 +307,12 @@ private:
     // Private functions
     LEAFENTRY mempool_malloc_and_update_omt(size_t size, void **maybe_free);
     void omt_compress_kvspace(size_t added_size, void **maybe_free, bool force_compress);
+
+    // Maintain metadata about size of memory for keys (adding a single key)
     void add_key(uint32_t keylen);
+    // Maintain metadata about size of memory for keys (adding multiple keys)
     void add_keys(uint32_t n_keys, uint32_t combined_keylen);
+    // Maintain metadata about size of memory for keys (removing a single key)
     void remove_key(uint32_t keylen);
 
     klpair_dmt_t m_buffer;                     // pointers to individual leaf entries
@@ -307,6 +320,7 @@ private:
 
     friend class bndata_bugfix_test;
     uint32_t klpair_disksize(const uint32_t klpair_len, const klpair_struct *klpair) const;
+    // The disk/memory size of all keys.  (Note that the size of memory for the leafentries is maintained by m_buffer_mempool)
     size_t m_disksize_of_keys;
 
     void initialize_from_separate_keys_and_vals(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version,

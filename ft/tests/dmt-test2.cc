@@ -210,12 +210,12 @@ static void test_builder_fixed(uint32_t len, uint32_t num) {
 
     for (uint32_t i = 0; i < num; i++) {
         vfunctor vfun(data[i]);
-        builder.insert_sorted(vfun);
+        builder.append(vfun);
     }
-    invariant(builder.is_value_length_fixed());
+    invariant(builder.value_length_is_fixed());
     vdmt v;
-    builder.build_and_destroy(&v);
-    invariant(v.is_value_length_fixed());
+    builder.build(&v);
+    invariant(v.value_length_is_fixed());
     invariant(v.get_fixed_length() == len);
 
     invariant(v.size() == num);
@@ -257,12 +257,12 @@ static void test_builder_variable(uint32_t len, uint32_t len2, uint32_t num) {
 
     for (uint32_t i = 0; i < num; i++) {
         vfunctor vfun(data[i]);
-        builder.insert_sorted(vfun);
+        builder.append(vfun);
     }
-    invariant(!builder.is_value_length_fixed());
+    invariant(!builder.value_length_is_fixed());
     vdmt v;
-    builder.build_and_destroy(&v);
-    invariant(!v.is_value_length_fixed());
+    builder.build(&v);
+    invariant(!v.value_length_is_fixed());
 
     invariant(v.size() == num);
 
@@ -305,7 +305,7 @@ static void test_create_from_sorted_memory_of_fixed_sized_elements__and__seriali
     vdmt v;
 
     v.create_from_sorted_memory_of_fixed_size_elements(flat, num, len*num, len);
-    invariant(v.is_value_length_fixed());
+    invariant(v.value_length_is_fixed());
     invariant(v.get_fixed_length() == len);
 
     invariant(v.size() == num);
