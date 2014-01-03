@@ -577,7 +577,7 @@ buf_page_is_corrupted(
 				return(TRUE);
 			}
 		}
-			
+
 		return(FALSE);
 #endif /* UNIV_INNOCHECKSUM */
 
@@ -1901,8 +1901,8 @@ page_found:
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
 			bpage->state = BUF_BLOCK_ZIP_PAGE;
-			bpage->space = space;
-			bpage->offset = offset;
+			bpage->space = ib_uint32_t(space);
+			bpage->offset = ib_uint32_t(offset);
 			bpage->buf_fix_count = 1;
 
 			ut_d(bpage->in_page_hash = TRUE);
@@ -3905,8 +3905,8 @@ err_exit:
 		buf_page_init_low(bpage);
 
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
-		bpage->space	= space;
-		bpage->offset	= offset;
+		bpage->space	= ib_uint32_t(space);
+		bpage->offset	= ib_uint32_t(offset);
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;

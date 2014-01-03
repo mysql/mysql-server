@@ -4329,9 +4329,19 @@ fil_user_tablespace_find_space_id(
 				continue;
 			}
 
-			if (!buf_page_is_corrupted(false, page, 0)
-			    || !buf_page_is_corrupted(false, page,
-						      page_size)) {
+			bool uncompressed_ok = false;
+
+			/* For uncompressed pages, the page size must be equal
+			to UNIV_PAGE_SIZE. */
+			if (page_size == UNIV_PAGE_SIZE) {
+				uncompressed_ok = !buf_page_is_corrupted(
+					false, page, 0);
+			}
+
+			bool compressed_ok = !buf_page_is_corrupted(
+				false, page, page_size);
+
+			if (uncompressed_ok || compressed_ok) {
 
 				ulint space_id = mach_read_from_4(page
 					+ FIL_PAGE_SPACE_ID);
@@ -4706,8 +4716,8 @@ will_not_choose:
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Renaming tablespace %s of id %lu, to"
-			" %s_ibbackup_old_vers_<timestamp> because its size %"
-			" PRId64  is too small (< 4 pages 16 kB each), or the"
+			" %s_ibbackup_old_vers_<timestamp> because its size"
+			INT64PF " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
 			" happen in an ibbackup run, and is not dangerous.",
 			fsp->filepath, fsp->id, fsp->filepath, size);

@@ -53,7 +53,7 @@ mlog_catenate_string(
 		return;
 	}
 
-	mtr->get_log()->push(str, len);
+	mtr->get_log()->push(str, ib_uint32_t(len));
 }
 
 /********************************************************//**
