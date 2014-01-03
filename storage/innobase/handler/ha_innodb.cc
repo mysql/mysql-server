@@ -735,6 +735,19 @@ innobase_rollback_to_savepoint(
 	void*		savepoint);	/*!< in: savepoint data */
 
 /*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
+	THD*		thd);		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
+
+/*****************************************************************//**
 Sets a transaction savepoint.
 @return always 0, that is, always succeeds */
 static
@@ -1359,6 +1372,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_READ_ONLY:
+		if(srv_force_recovery) {
+			return(HA_ERR_INNODB_FORCED_RECOVERY);
+		}
 		return(HA_ERR_TABLE_READONLY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -1437,15 +1453,19 @@ convert_error_code_to_mysql(
 		locally for BLOB fields. Refer to dict_table_get_format() */
 		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
 		my_printf_error(ER_TOO_BIG_ROWSIZE,
-			"Row size too large (> %lu). Changing some columns "
-			"to TEXT or BLOB %smay help. In current row "
-			"format, BLOB prefix of %d bytes is stored inline.",
+			"Row size too large (> %lu). Changing some columns"
+			" to TEXT or BLOB %smay help. In current row"
+			" format, BLOB prefix of %d bytes is stored inline.",
 			MYF(0),
 			page_get_free_space_of_empty(flags &
 				DICT_TF_COMPACT) / 2,
-			prefix ? "or using ROW_FORMAT=DYNAMIC "
-			"or ROW_FORMAT=COMPRESSED ": "",
-			prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+			prefix
+			? "or using ROW_FORMAT=DYNAMIC or"
+			  " ROW_FORMAT=COMPRESSED "
+			: "",
+			prefix
+			? DICT_MAX_FIXED_COL_LEN
+			: 0);
 		return(HA_ERR_TO_BIG_ROW);
 	}
 
@@ -2362,9 +2382,9 @@ innobase_query_caching_of_table_permitted(
 	}
 
 	if (trx->has_search_latch) {
-		sql_print_error("The calling thread is holding the adaptive "
-				"search, latch though calling "
-				"innobase_query_caching_of_table_permitted.");
+		sql_print_error("The calling thread is holding the adaptive"
+				" search, latch though calling"
+				" innobase_query_caching_of_table_permitted.");
 		trx_print(stderr, trx, 1024);
 	}
 
@@ -2785,6 +2805,8 @@ innobase_init(
 	innobase_hton->close_connection = innobase_close_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+	innobase_hton->savepoint_rollback_can_release_mdl =
+				innobase_rollback_to_savepoint_can_release_mdl;
 	innobase_hton->savepoint_release = innobase_release_savepoint;
 	innobase_hton->commit = innobase_commit;
 	innobase_hton->rollback = innobase_rollback;
@@ -2975,10 +2997,10 @@ innobase_init(
 	if (innobase_file_format_validate_and_set(
 			innobase_file_format_max) < 0) {
 
-		sql_print_error("InnoDB: invalid "
-				"innodb_file_format_max value: "
-				"should be any value up to %s or its "
-				"equivalent numeric id",
+		sql_print_error("InnoDB: invalid"
+				" innodb_file_format_max value:"
+				" should be any value up to %s or its"
+				" equivalent numeric id",
 				trx_sys_file_format_id_to_name(
 					UNIV_FORMAT_MAX));
 
@@ -2999,8 +3021,8 @@ innobase_init(
 			}
 		}
 
-		sql_print_error("InnoDB: invalid value "
-				"innodb_change_buffering=%s",
+		sql_print_error("InnoDB: invalid value"
+				" innodb_change_buffering=%s",
 				innobase_change_buffering);
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -3070,8 +3092,8 @@ innobase_change_buffering_inited_ok:
 
 	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"innodb-page-size has been changed "
-			"from the default value %d to %lu.",
+			"innodb-page-size has been changed"
+			" from the default value %d to %lu.",
 			UNIV_PAGE_SIZE_DEF, srv_page_size);
 	}
 
@@ -3141,10 +3163,10 @@ innobase_change_buffering_inited_ok:
 	srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 	if (innobase_locks_unsafe_for_binlog) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Using innodb_locks_unsafe_for_binlog is DEPRECATED. "
-			"This option may be removed in future releases. "
-			"Please use READ COMMITTED transaction isolation "
-			"level instead, see " REFMAN "set-transaction.html.");
+			"Using innodb_locks_unsafe_for_binlog is DEPRECATED."
+			" This option may be removed in future releases."
+			" Please use READ COMMITTED transaction isolation"
+			" level instead, see " REFMAN "set-transaction.html.");
 	}
 
 	if (innobase_open_files < 10) {
@@ -3384,10 +3406,10 @@ innobase_start_trx_and_assign_read_view(
 	} else {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    HA_ERR_UNSUPPORTED,
-				    "InnoDB: WITH CONSISTENT SNAPSHOT "
-				    "was ignored because this phrase "
-				    "can only be used with "
-				    "REPEATABLE READ isolation level.");
+				    "InnoDB: WITH CONSISTENT SNAPSHOT"
+				    " was ignored because this phrase"
+				    " can only be used with"
+				    " REPEATABLE READ isolation level.");
 	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
@@ -3438,8 +3460,8 @@ innobase_commit(
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-		sql_print_error("Transaction not registered for MySQL 2PC, "
-				"but transaction is active");
+		sql_print_error("Transaction not registered for MySQL 2PC,"
+				" but transaction is active");
 	}
 
 	bool	read_only = trx->read_only || trx->id == 0;
@@ -3695,6 +3717,38 @@ innobase_rollback_to_savepoint(
 }
 
 /*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint. 
+When binlog is on, MDL locks acquired after savepoint unit are not 
+released if there are any locks held in InnoDB.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd)		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back to savepoint */
+{
+	trx_t*		trx;
+
+	DBUG_ENTER("innobase_rollback_to_savepoint_can_release_mdl");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+	ut_ad(trx);
+
+        /* If transaction has not acquired any locks then it is safe
+	   to release MDL after rollback to savepoint */
+	if (!(UT_LIST_GET_LEN(trx->lock.trx_locks))) {
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
+}
+
+/*****************************************************************//**
 Release transaction savepoint name.
 @return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
 given name */
@@ -3798,16 +3852,16 @@ innobase_close_connection(
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-		sql_print_error("Transaction not registered for MySQL 2PC, "
-				"but transaction is active");
+		sql_print_error("Transaction not registered for MySQL 2PC,"
+				" but transaction is active");
 	}
 
 	if (trx_is_started(trx)) {
 
 		sql_print_warning(
-			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  " TRX_ID_FMT " row modifications "
-			"will roll back.",
+			"MySQL is closing a connection that has an active"
+			" InnoDB transaction. " TRX_ID_FMT " row modifications"
+			" will roll back.",
 			trx->undo_no);
 	}
 
@@ -4143,8 +4197,8 @@ test_normalize_table_name_low()
 	};
 
 	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
-		printf("test_normalize_table_name_low(): "
-		       "testing \"%s\", expected \"%s\"... ",
+		printf("test_normalize_table_name_low():"
+		       " testing \"%s\", expected \"%s\"... ",
 		       test_data[i][0], test_data[i][1]);
 
 		normalize_table_name_low(norm_name, test_data[i][0], FALSE);
@@ -4210,16 +4264,16 @@ test_ut_format_name()
 
 		if (strcmp(buf, test_data[i].expected) == 0) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"ut_format_name(%s, %s, buf, %lu), "
-				"expected %s, OK",
+				"ut_format_name(%s, %s, buf, %lu),"
+				" expected %s, OK",
 				test_data[i].name,
 				test_data[i].is_table ? "TRUE" : "FALSE",
 				test_data[i].buf_size,
 				test_data[i].expected);
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"ut_format_name(%s, %s, buf, %lu), "
-				"expected %s, ERROR: got %s",
+				"ut_format_name(%s, %s, buf, %lu),"
+				" expected %s, ERROR: got %s",
 				test_data[i].name,
 				test_data[i].is_table ? "TRUE" : "FALSE",
 				test_data[i].buf_size,
@@ -4364,9 +4418,9 @@ innobase_build_index_translation(
 		if (!index_mapping) {
 			/* Report an error if index_mapping continues to be
 			NULL and mysql_num_index is a non-zero value */
-			sql_print_error("InnoDB: fail to allocate memory for "
-					"index translation table. Number of "
-					"Index:%lu, array size:%lu",
+			sql_print_error("InnoDB: fail to allocate memory for"
+					" index translation table. Number of"
+					" Index:%lu, array size:%lu",
 					mysql_num_index,
 					share->idx_trans_tbl.array_size);
 			ret = FALSE;
@@ -4387,8 +4441,8 @@ innobase_build_index_translation(
 			ib_table, table->key_info[count].name);
 
 		if (!index_mapping[count]) {
-			sql_print_error("Cannot find index %s in InnoDB "
-					"index dictionary.",
+			sql_print_error("Cannot find index %s in InnoDB"
+					" index dictionary.",
 					table->key_info[count].name);
 			ret = FALSE;
 			goto func_exit;
@@ -4398,8 +4452,8 @@ innobase_build_index_translation(
 		column info as those in mysql key_info. */
 		if (!innobase_match_index_columns(&table->key_info[count],
 					          index_mapping[count])) {
-			sql_print_error("Found index %s whose column info "
-					"does not match that of MySQL.",
+			sql_print_error("Found index %s whose column info"
+					" does not match that of MySQL.",
 					table->key_info[count].name);
 			ret = FALSE;
 			goto func_exit;
@@ -4528,7 +4582,7 @@ ha_innobase::innobase_initialize_autoinc()
 				" AUTOINC next value generation.",
 				col_name, index->table->name);
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"You can either set the next AUTOINC value "
+				"You can either set the next AUTOINC value"
 				" explicitly using ALTER TABLE or fix the data"
 				" dictionary by recreating the table.");
 
@@ -4622,11 +4676,11 @@ ha_innobase::open(
 		    && (table->s->fields
 			!= dict_table_get_n_user_cols(ib_table) - 1)))) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"table %s contains %lu user defined columns "
-			"in InnoDB, but %lu columns in MySQL. Please "
-			"check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and "
-			REFMAN "innodb-troubleshooting.html "
-			"for how to resolve it",
+			"table %s contains %lu user defined columns"
+			" in InnoDB, but %lu columns in MySQL. Please"
+			" check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and"
+			" " REFMAN "innodb-troubleshooting.html"
+			" for how to resolve it",
 			norm_name, (ulong) dict_table_get_n_user_cols(ib_table),
 			(ulong) table->s->fields);
 
@@ -4684,23 +4738,23 @@ ha_innobase::open(
 
 			if (ib_table) {
 #ifndef _WIN32
-				sql_print_warning("Partition table %s opened "
-						  "after converting to lower "
-						  "case. The table may have "
-						  "been moved from a case "
-						  "in-sensitive file system. "
-						  "Please recreate table in "
-						  "the current file system\n",
+				sql_print_warning("Partition table %s opened"
+						  " after converting to lower"
+						  " case. The table may have"
+						  " been moved from a case"
+						  " in-sensitive file system."
+						  " Please recreate table in"
+						  " the current file system\n",
 						  norm_name);
 #else
-				sql_print_warning("Partition table %s opened "
-						  "after skipping the step to "
-						  "lower case the table name. "
-						  "The table may have been "
-						  "moved from a case sensitive "
-						  "file system. Please "
-						  "recreate table in the "
-						  "current file system\n",
+				sql_print_warning("Partition table %s opened"
+						  " after skipping the step to"
+						  " lower case the table name."
+						  " The table may have been"
+						  " moved from a case sensitive"
+						  " file system. Please"
+						  " recreate table in the"
+						  " current file system\n",
 						  norm_name);
 #endif
 				goto table_opened;
@@ -4713,11 +4767,11 @@ ha_innobase::open(
 		}
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot open table %s from the internal data "
-			"dictionary of InnoDB though the .frm file "
-			"for the table exists. See "
-			REFMAN "innodb-troubleshooting.html for how "
-			"you can resolve the problem.", norm_name);
+			"Cannot open table %s from the internal data"
+			" dictionary of InnoDB though the .frm file"
+			" for the table exists. See"
+			" " REFMAN "innodb-troubleshooting.html for how"
+			" you can resolve the problem.", norm_name);
 
 		free_share(share);
 		my_errno = ENOENT;
@@ -4796,9 +4850,9 @@ table_opened:
 		prebuilt->clust_index_was_generated = FALSE;
 
 		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)) {
-			sql_print_error("Table %s has a primary key in "
-					"InnoDB data dictionary, but not "
-					"in MySQL!", name);
+			sql_print_error("Table %s has a primary key in"
+					" InnoDB data dictionary, but not"
+					" in MySQL!", name);
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user's attention
@@ -4806,10 +4860,10 @@ table_opened:
 			in the errorlog */
 			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NO_SUCH_INDEX,
-					    "InnoDB: Table %s has a "
-					    "primary key in InnoDB data "
-					    "dictionary, but not in "
-					    "MySQL!", name);
+					    "InnoDB: Table %s has a"
+					    " primary key in InnoDB data"
+					    " dictionary, but not in"
+					    " MySQL!", name);
 
 			/* If primary_key >= MAX_KEY, its (primary_key)
 			value could be out of bound if continue to index
@@ -4857,15 +4911,15 @@ table_opened:
 	} else {
 		if (primary_key != MAX_KEY) {
 			sql_print_error(
-				"Table %s has no primary key in InnoDB data "
-				"dictionary, but has one in MySQL! If you "
-				"created the table with a MySQL version < "
-				"3.23.54 and did not define a primary key, "
-				"but defined a unique key with all non-NULL "
-				"columns, then MySQL internally treats that "
-				"key as the primary key. You can fix this "
-				"error by dump + DROP + CREATE + reimport "
-				"of the table.", name);
+				"Table %s has no primary key in InnoDB data"
+				" dictionary, but has one in MySQL! If you"
+				" created the table with a MySQL version <"
+				" 3.23.54 and did not define a primary key,"
+				" but defined a unique key with all non-NULL"
+				" columns, then MySQL internally treats that"
+				" key as the primary key. You can fix this"
+				" error by dump + DROP + CREATE + reimport"
+				" of the table.", name);
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user attention
@@ -4873,10 +4927,10 @@ table_opened:
 			in the errorlog */
 			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NO_SUCH_INDEX,
-					    "InnoDB: Table %s has no "
-					    "primary key in InnoDB data "
-					    "dictionary, but has one in "
-					    "MySQL!", name);
+					    "InnoDB: Table %s has no"
+					    " primary key in InnoDB data"
+					    " dictionary, but has one in"
+					    " MySQL!", name);
 		}
 
 		prebuilt->clust_index_was_generated = TRUE;
@@ -4893,9 +4947,9 @@ table_opened:
 
 		if (key_used_on_scan != MAX_KEY) {
 			sql_print_warning(
-				"Table %s key_used_on_scan is %lu even "
-				"though there is no primary key inside "
-				"InnoDB.", name, (ulong) key_used_on_scan);
+				"Table %s key_used_on_scan is %lu even"
+				" though there is no primary key inside"
+				" InnoDB.", name, (ulong) key_used_on_scan);
 		}
 	}
 
@@ -7318,10 +7372,10 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_warning("InnoDB could not find "
-						  "index %s key no %u for "
-						  "table %s through its "
-						  "index translation table",
+				sql_print_warning("InnoDB could not find"
+						  " index %s key no %u for"
+						  " table %s through its"
+						  " index translation table",
 						  key ? key->name : "NULL",
 						  keynr,
 						  prebuilt->table->name);
@@ -7336,8 +7390,8 @@ ha_innobase::innobase_get_index(
 
 	if (!index) {
 		sql_print_error(
-			"InnoDB could not find key no %u with name %s "
-			"from dict cache for table %s",
+			"InnoDB could not find key no %u with name %s"
+			" from dict cache for table %s",
 			keynr, key ? key->name : "NULL",
 			prebuilt->table->name);
 	}
@@ -8109,8 +8163,8 @@ ha_innobase::position(
 	table. */
 
 	if (len != ref_length) {
-		sql_print_error("Stored ref len is %lu, but table ref len is "
-				"%lu", (ulong) len, (ulong) ref_length);
+		sql_print_error("Stored ref len is %lu, but table ref len is"
+				" %lu", (ulong) len, (ulong) ref_length);
 	}
 }
 
@@ -8159,9 +8213,9 @@ create_table_check_doc_id_col(
 					trx->mysql_thd,
 					Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: FTS_DOC_ID column must be "
-					"of BIGINT NOT NULL type, and named "
-					"in all capitalized characters");
+					"InnoDB: FTS_DOC_ID column must be"
+					" of BIGINT NOT NULL type, and named"
+					" in all capitalized characters");
 				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
 					 field->field_name);
 				*doc_id_col = ULINT_UNDEFINED;
@@ -8289,11 +8343,11 @@ create_table_def(
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_CANT_CREATE_TABLE,
-				"Error creating table '%s' with "
-				"column '%s'. Please check its "
-				"column type and try to re-create "
-				"the table with an appropriate "
-				"column type.",
+				"Error creating table '%s' with"
+				" column '%s'. Please check its"
+				" column type and try to re-create"
+				" the table with an appropriate"
+				" column type.",
 				table->name, field->field_name);
 			goto err_col;
 		}
@@ -8533,10 +8587,10 @@ found:
 			case DATA_DOUBLE:
 			case DATA_DECIMAL:
 				sql_print_error(
-					"MySQL is trying to create a column "
-					"prefix index field, on an "
-					"inappropriate data type. Table "
-					"name %s, column name %s.",
+					"MySQL is trying to create a column"
+					" prefix index field, on an"
+					" inappropriate data type. Table"
+					" name %s, column name %s.",
 					table_name,
 					key_part->field->field_name);
 
@@ -10002,31 +10056,21 @@ innobase_rename_table(
 			}
 		}
 
-		if (error != DB_SUCCESS) {
-			if (!srv_read_only_mode) {
-				FILE* ef = dict_foreign_err_file;
-
-				fputs("InnoDB: Renaming table ", ef);
-				ut_print_name(ef, trx, TRUE, norm_from);
-				fputs(" to ", ef);
-				ut_print_name(ef, trx, TRUE, norm_to);
-				fputs(" failed!\n", ef);
-			}
-		} else {
+		if (error == DB_SUCCESS) {
 #ifndef _WIN32
-			sql_print_warning("Rename partition table %s "
-					  "succeeds after converting to lower "
-					  "case. The table may have "
-					  "been moved from a case "
-					  "in-sensitive file system.\n",
+			sql_print_warning("Rename partition table %s"
+					  " succeeds after converting to lower"
+					  " case. The table may have"
+					  " been moved from a case"
+					  " in-sensitive file system.\n",
 					  norm_from);
 #else
-			sql_print_warning("Rename partition table %s "
-					  "succeeds after skipping the step to "
-					  "lower case the table name. "
-					  "The table may have been "
-					  "moved from a case sensitive "
-					  "file system.\n",
+			sql_print_warning("Rename partition table %s"
+					  " succeeds after skipping the step to"
+					  " lower case the table name."
+					  " The table may have been"
+					  " moved from a case sensitive"
+					  " file system.\n",
 					  norm_from);
 #endif /* _WIN32 */
 		}
@@ -10551,8 +10595,8 @@ innobase_get_mysql_key_number_for_index(
 		/* Print an error message if we cannot find the index
 		in the "index translation table". */
 		if (*index->name != TEMP_INDEX_PREFIX) {
-			sql_print_error("Cannot find index %s in InnoDB index "
-					"translation table.", index->name);
+			sql_print_error("Cannot find index %s in InnoDB index"
+					" translation table.", index->name);
 		}
 	}
 
@@ -10579,9 +10623,9 @@ innobase_get_mysql_key_number_for_index(
 			need to print such mismatch warning. */
 			if (*(index->name) != TEMP_INDEX_PREFIX) {
 				sql_print_warning(
-					"Find index %s in InnoDB index list "
-					"but not its MySQL index number "
-					"It could be an InnoDB internal index.",
+					"Found index %s in InnoDB index list"
+					" but not its MySQL index number."
+					" It could be an InnoDB internal index.",
 					index->name);
 			}
 			return(-1);
@@ -10845,12 +10889,12 @@ ha_innobase::info_low(
 					thd,
 					Sql_condition::SL_WARNING,
 					ER_CANT_GET_STAT,
-					"InnoDB: Trying to get the free "
-					"space for table %s but its "
-					"tablespace has been discarded or "
-					"the .ibd file is missing. Setting "
-					"the free space to zero. "
-					"(errno: %d - %s)",
+					"InnoDB: Trying to get the free"
+					" space for table %s but its"
+					" tablespace has been discarded or"
+					" the .ibd file is missing. Setting"
+					" the free space to zero."
+					" (errno: %d - %s)",
 					ib_table->name, errno,
 					my_strerror(errbuf, sizeof(errbuf),
 						    errno));
@@ -10912,10 +10956,10 @@ ha_innobase::info_low(
 		}
 
 		if (table->s->keys != num_innodb_index) {
-			sql_print_error("InnoDB: Table %s contains %lu "
-					"indexes inside InnoDB, which "
-					"is different from the number of "
-					"indexes %u defined in the MySQL ",
+			sql_print_error("InnoDB: Table %s contains %lu"
+					" indexes inside InnoDB, which"
+					" is different from the number of"
+					" indexes %u defined in MySQL",
 					ib_table->name, num_innodb_index,
 					table->s->keys);
 		}
@@ -10936,13 +10980,13 @@ ha_innobase::info_low(
 			dict_index_t* index = innobase_get_index(i);
 
 			if (index == NULL) {
-				sql_print_error("Table %s contains fewer "
-						"indexes inside InnoDB than "
-						"are defined in the MySQL "
-						".frm file. Have you mixed up "
-						".frm files from different "
-						"installations? See "
-						REFMAN
+				sql_print_error("Table %s contains fewer"
+						" indexes inside InnoDB than"
+						" are defined in the MySQL"
+						" .frm file. Have you mixed up"
+						" .frm files from different"
+						" installations? See"
+						" " REFMAN
 						"innodb-troubleshooting.html\n",
 						ib_table->name);
 				break;
@@ -10960,12 +11004,13 @@ ha_innobase::info_low(
 				if (j + 1 > index->n_uniq) {
 					sql_print_error(
 						"Index %s of %s has %lu columns"
-					        " unique inside InnoDB, but "
-						"MySQL is asking statistics for"
-					        " %lu columns. Have you mixed "
-						"up .frm files from different "
-					       	"installations? "
-						"See " REFMAN
+					        " unique inside InnoDB, but"
+						" MySQL is asking statistics for"
+					        " %lu columns. Have you mixed"
+						" up .frm files from different"
+					       	" installations?"
+						" See"
+						" " REFMAN
 						"innodb-troubleshooting.html\n",
 						index->name,
 						ib_table->name,
@@ -11986,9 +12031,9 @@ ha_innobase::external_lock(
 		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = true;);
 		if (!skip) {
 			my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
-			         " InnoDB is limited to row-logging when "
-			         "transaction isolation level is "
-			         "READ COMMITTED or READ UNCOMMITTED.");
+			         " InnoDB is limited to row-logging when"
+			         " transaction isolation level is"
+			         " READ COMMITTED or READ UNCOMMITTED.");
 			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
 		}
 	}
@@ -12244,9 +12289,9 @@ ha_innobase::transactional_table_lock(
 		prebuilt->stored_select_lock_type = LOCK_S;
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"MySQL is trying to set transactional table lock "
-			"with corrupted lock type to table %s, lock type "
-			"%d does not exist.",
+			"MySQL is trying to set transactional table lock"
+			" with corrupted lock type to table %s, lock type"
+			" %d does not exist.",
 			table->s->table_name.str, lock_type);
 
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -12830,8 +12875,8 @@ ha_innobase::innobase_peek_autoinc(void)
 
 	if (auto_inc == 0) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"AUTOINC next value generation "
-			"is disabled for '%s'", innodb_table->name);
+			"AUTOINC next value generation"
+			" is disabled for '%s'", innodb_table->name);
 	}
 
 	dict_table_autoinc_unlock(innodb_table);
@@ -13289,8 +13334,8 @@ innobase_xa_prepare(
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-		sql_print_error("Transaction not registered for MySQL 2PC, "
-				"but transaction is active");
+		sql_print_error("Transaction not registered for MySQL 2PC,"
+				" but transaction is active");
 	}
 
 	if (prepare_trx
@@ -13779,9 +13824,9 @@ innodb_file_format_max_validate(
 			push_warning_printf(thd,
 			  Sql_condition::SL_WARNING,
 			  ER_WRONG_ARGUMENTS,
-			  "InnoDB: invalid innodb_file_format_max "
-			  "value; can be any format up to %s "
-			  "or equivalent id of %d",
+			  "InnoDB: invalid innodb_file_format_max"
+			  " value; can be any format up to %s"
+			  " or equivalent id of %d",
 			  trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX),
 			  UNIV_FORMAT_MAX);
 		}
@@ -14481,14 +14526,14 @@ innodb_monitor_update(
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NO_DEFAULT,
-				"Default value is not defined for "
-				"this set option. Please specify "
-				"correct counter or module name.");
+				"Default value is not defined for"
+				" this set option. Please specify"
+				" correct counter or module name.");
 		} else {
 			sql_print_error(
-				"Default value is not defined for "
-				"this set option. Please specify "
-				"correct counter or module name.\n");
+				"Default value is not defined for"
+				" this set option. Please specify"
+				" correct counter or module name.\n");
 		}
 
 		if (var_ptr) {
@@ -14577,8 +14622,8 @@ innodb_srv_buf_dump_filename_validate(
 			push_warning_printf(thd,
 				Sql_condition::SL_WARNING,
 				ER_WRONG_ARGUMENTS,
-				"InnoDB: innodb_buffer_pool_filename "
-				"cannot have colon (:) in the file name.");
+				"InnoDB: innodb_buffer_pool_filename"
+				" cannot have colon (:) in the file name.");
 
 		}
 	}
@@ -14824,10 +14869,10 @@ innobase_index_name_is_reserved(
 			push_warning_printf(thd,
 					    Sql_condition::SL_WARNING,
 					    ER_WRONG_NAME_FOR_INDEX,
-					    "Cannot Create Index with name "
-					    "'%s'. The name is reserved "
-					    "for the system default primary "
-					    "index.",
+					    "Cannot Create Index with name"
+					    " '%s'. The name is reserved"
+					    " for the system default primary"
+					    " index.",
 					    innobase_index_reserve_name);
 
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
@@ -14917,6 +14962,7 @@ innobase_fts_find_ranking(
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
+static my_bool	innodb_buf_flush_list_now = TRUE;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -14988,6 +15034,29 @@ checkpoint_now_set(
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
 		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+/****************************************************************//**
+Force a dirty pages flush now. */
+static
+void
+buf_flush_list_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -15220,34 +15289,34 @@ static struct st_mysql_storage_engine innobase_storage_engine=
 
 static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   PLUGIN_VAR_RQCMDARG,
-  "The algorithm InnoDB uses for page checksumming. Possible values are "
-  "CRC32 (hardware accelerated if the CPU supports it) "
-    "write crc32, allow any of the other checksums to match when reading; "
-  "STRICT_CRC32 "
-    "write crc32, do not allow other algorithms to match when reading; "
-  "INNODB "
-    "write a software calculated checksum, allow any other checksums "
-    "to match when reading; "
-  "STRICT_INNODB "
-    "write a software calculated checksum, do not allow other algorithms "
-    "to match when reading; "
-  "NONE "
-    "write a constant magic number, do not do any checksum verification "
-    "when reading (same as innodb_checksums=OFF); "
-  "STRICT_NONE "
-    "write a constant magic number, do not allow values other than that "
-    "magic number when reading; "
-  "Files updated when this option is set to crc32 or strict_crc32 will "
-  "not be readable by MySQL versions older than 5.6.3",
+  "The algorithm InnoDB uses for page checksumming. Possible values are"
+  " CRC32 (hardware accelerated if the CPU supports it)"
+    " write crc32, allow any of the other checksums to match when reading;"
+  " STRICT_CRC32"
+    " write crc32, do not allow other algorithms to match when reading;"
+  " INNODB"
+    " write a software calculated checksum, allow any other checksums"
+    " to match when reading;"
+  " STRICT_INNODB"
+    " write a software calculated checksum, do not allow other algorithms"
+    " to match when reading;"
+  " NONE"
+    " write a constant magic number, do not do any checksum verification"
+    " when reading (same as innodb_checksums=OFF);"
+  " STRICT_NONE"
+    " write a constant magic number, do not allow values other than that"
+    " magic number when reading;"
+  " Files updated when this option is set to crc32 or strict_crc32 will"
+  " not be readable by MySQL versions older than 5.6.3",
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. Use innodb_checksum_algorithm=NONE instead of setting "
-  "this to OFF. "
-  "Enable InnoDB checksums validation (enabled by default). "
-  "Disable with --skip-innodb-checksums.",
+  "DEPRECATED. Use innodb_checksum_algorithm=NONE instead of setting"
+  " this to OFF."
+  " Enable InnoDB checksums validation (enabled by default)."
+  " Disable with --skip-innodb-checksums.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
@@ -15257,8 +15326,8 @@ static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
 
 static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "Enable InnoDB doublewrite buffer (enabled by default). "
-  "Disable with --skip-innodb-doublewrite.",
+  "Enable InnoDB doublewrite buffer (enabled by default)."
+  " Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
@@ -15288,6 +15357,11 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force dirty page flush now",
+  NULL, buf_flush_list_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -15316,8 +15390,8 @@ static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
 
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
-  "Speeds up the shutdown process of the InnoDB storage engine. Possible "
-  "values are 0, 1 (faster) or 2 (fastest - crash-like).",
+  "Speeds up the shutdown process of the InnoDB storage engine. Possible"
+  " values are 0, 1 (faster) or 2 (fastest - crash-like).",
   NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
@@ -15387,14 +15461,19 @@ static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
 
 static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binlog,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases. "
-  "Please use READ COMMITTED transaction isolation level instead. "
-  "Force InnoDB to not use next-key locking, to use only row-level locking.",
+  "DEPRECATED. This option may be removed in future releases."
+  " Please use READ COMMITTED transaction isolation level instead."
+  " Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page cleaner threads can be from 1 to 64. Default is 1.",
+  NULL, NULL, 1, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -15449,8 +15528,8 @@ static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   PLUGIN_VAR_OPCMDARG,
-  "Enable statistics gathering for metadata commands such as "
-  "SHOW TABLE STATUS for tables that use transient statistics (off by default)",
+  "Enable statistics gathering for metadata commands such as"
+  " SHOW TABLE STATUS for tables that use transient statistics (off by default)",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pages,
@@ -15461,41 +15540,41 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pag
 static MYSQL_SYSVAR_ULONGLONG(stats_transient_sample_pages,
   srv_stats_transient_sample_pages,
   PLUGIN_VAR_RQCMDARG,
-  "The number of leaf index pages to sample when calculating transient "
-  "statistics (if persistent statistics are not used, default 8)",
+  "The number of leaf index pages to sample when calculating transient"
+  " statistics (if persistent statistics are not used, default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
 static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
   PLUGIN_VAR_OPCMDARG,
-  "InnoDB persistent statistics enabled for all tables unless overridden "
-  "at table level",
+  "InnoDB persistent statistics enabled for all tables unless overridden"
+  " at table level",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_BOOL(stats_auto_recalc, srv_stats_auto_recalc,
   PLUGIN_VAR_OPCMDARG,
-  "InnoDB automatic recalculation of persistent statistics enabled for all "
-  "tables unless overridden at table level (automatic recalculation is only "
-  "done when InnoDB decides that the table has changed too much and needs a "
-  "new statistics)",
+  "InnoDB automatic recalculation of persistent statistics enabled for all"
+  " tables unless overridden at table level (automatic recalculation is only"
+  " done when InnoDB decides that the table has changed too much and needs a"
+  " new statistics)",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
   srv_stats_persistent_sample_pages,
   PLUGIN_VAR_RQCMDARG,
-  "The number of leaf index pages to sample when calculating persistent "
-  "statistics (by ANALYZE, default 20)",
+  "The number of leaf index pages to sample when calculating persistent"
+  " statistics (by ANALYZE, default 20)",
   NULL, NULL, 20, 1, ~0ULL, 0);
 
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
-  "Enable InnoDB adaptive hash index (enabled by default).  "
-  "Disable with --skip-innodb-adaptive-hash-index.",
+  "Enable InnoDB adaptive hash index (enabled by default). "
+  " Disable with --skip-innodb-adaptive-hash-index.",
   NULL, innodb_adaptive_hash_index_update, TRUE);
 
 static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   PLUGIN_VAR_RQCMDARG,
-  "Replication thread delay (ms) on the slave server if "
-  "innodb_thread_concurrency is reached (0 by default)",
+  "Replication thread delay (ms) on the slave server if"
+  " innodb_thread_concurrency is reached (0 by default)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
 static MYSQL_SYSVAR_UINT(compression_level, page_zip_level,
@@ -15515,10 +15594,11 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, page_zip_log_pages,
 
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases, "
-  "together with the option innodb_use_sys_malloc and with the InnoDB's "
-  "internal memory allocator. "
-  "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
+  "DEPRECATED. This option may be removed in future releases,"
+  " together with the option innodb_use_sys_malloc and with the InnoDB's"
+  " internal memory allocator."
+  " Size of a memory pool InnoDB uses to store data dictionary information"
+  " and other internal data structures.",
   NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_ULONG(autoextend_increment,
@@ -15786,8 +15866,8 @@ static MYSQL_SYSVAR_ULONG(
 
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
-  "Time of innodb thread sleeping before joining InnoDB queue (usec). "
-  "Value 0 disable a sleep",
+  "Time of innodb thread sleeping before joining InnoDB queue (usec)."
+  " Value 0 disable a sleep",
   NULL, NULL,
   10000L,
   0L,
@@ -15835,11 +15915,10 @@ static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
 
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "The AUTOINC lock modes supported by InnoDB:               "
-  "0 => Old style AUTOINC locking (for backward"
-  " compatibility)                                           "
-  "1 => New style AUTOINC locking                            "
-  "2 => No AUTOINC locking (unsafe for SBR)",
+  "The AUTOINC lock modes supported by InnoDB:"
+  " 0 => Old style AUTOINC locking (for backward compatibility);"
+  " 1 => New style AUTOINC locking;"
+  " 2 => No AUTOINC locking (unsafe for SBR)",
   NULL, NULL,
   AUTOINC_NEW_STYLE_LOCKING,	/* Default setting */
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
@@ -15851,9 +15930,9 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
 
 static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases, "
-  "together with the InnoDB's internal memory allocator. "
-  "Use OS memory allocator instead of InnoDB's internal memory allocator",
+  "DEPRECATED. This option may be removed in future releases,"
+  " together with the InnoDB's internal memory allocator."
+  " Use OS memory allocator instead of InnoDB's internal memory allocator",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
@@ -15894,8 +15973,8 @@ static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
-  "Buffer changes to reduce random access: "
-  "OFF, ON, inserting, deleting, changing, or purging.",
+  "Buffer changes to reduce random access:"
+  " OFF, ON, inserting, deleting, changing, or purging.",
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "all");
 
@@ -15909,9 +15988,9 @@ static MYSQL_SYSVAR_UINT(change_buffer_max_size,
 
 static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
    PLUGIN_VAR_RQCMDARG,
-  "Specifies how InnoDB index statistics collection code should "
-  "treat NULLs. Possible values are NULLS_EQUAL (default), "
-  "NULLS_UNEQUAL and NULLS_IGNORED",
+  "Specifies how InnoDB index statistics collection code should"
+  " treat NULLs. Possible values are NULLS_EQUAL (default),"
+  " NULLS_UNEQUAL and NULLS_IGNORED",
    NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -15934,8 +16013,8 @@ static MYSQL_SYSVAR_BOOL(random_read_ahead, srv_random_read_ahead,
 
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
-  "Number of pages that must be accessed sequentially for InnoDB to "
-  "trigger a readahead.",
+  "Number of pages that must be accessed sequentially for InnoDB to"
+  " trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
 static MYSQL_SYSVAR_STR(monitor_enable, innobase_enable_monitor_counter,
@@ -15996,8 +16075,8 @@ static MYSQL_SYSVAR_BOOL(read_only, srv_read_only_mode,
 
 static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
   PLUGIN_VAR_OPCMDARG,
-  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
-  "may have negative impact on performance (off by default)",
+  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index,"
+  " may have negative impact on performance (off by default)",
   NULL, innodb_cmp_per_index_update, FALSE);
 
 #ifdef UNIV_DEBUG
@@ -16013,9 +16092,9 @@ static MYSQL_SYSVAR_UINT(limit_optimistic_insert_debug,
 
 static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
   srv_purge_view_update_only_debug, PLUGIN_VAR_NOCMDARG,
-  "Pause actual purging any delete-marked records, but merely update the purge view. "
-  "It is to create artificially the situation the purge view have been updated "
-  "but the each purges were not done yet.",
+  "Pause actual purging any delete-marked records, but merely update the purge view."
+  " It is to create artificially the situation the purge view have been updated"
+  " but the each purges were not done yet.",
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
@@ -16138,6 +16217,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_only),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(io_capacity_max),
+  MYSQL_SYSVAR(page_cleaners),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),
@@ -16148,6 +16228,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(buf_flush_list_now),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
@@ -16411,7 +16492,7 @@ ib_senderrf(
 
 	l = Sql_condition::SL_NOTE;
 
-	switch(level) {
+	switch (level) {
 	case IB_LOG_LEVEL_INFO:
 		break;
 	case IB_LOG_LEVEL_WARN:
@@ -16523,7 +16604,7 @@ ib_logf(
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
-	switch(level) {
+	switch (level) {
 	case IB_LOG_LEVEL_INFO:
 		sql_print_information("InnoDB: %s", str);
 		break;

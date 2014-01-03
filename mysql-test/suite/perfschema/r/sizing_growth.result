@@ -208,8 +208,8 @@ Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-select @rwlock_per_share <= 3;
-@rwlock_per_share <= 3
+select @rwlock_per_share <= 4;
+@rwlock_per_share <= 4
 1
 select @cond_per_share;
 @cond_per_share
@@ -242,7 +242,7 @@ select @file_per_handle;
 @file_per_handle
 0
 select if(
-(@rwlock_per_share <= 3)
+(@rwlock_per_share <= 4)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 3)
 AND (@mutex_per_con = 4)

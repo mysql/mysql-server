@@ -878,7 +878,8 @@ dict_update_filepath(
 }
 
 /********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES.
+Insert records into SYS_TABLESPACES and SYS_DATAFILES using an
+independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
@@ -905,7 +906,7 @@ dict_insert_tablespace_and_filepath(
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
-	SYS_TABLESPACES.  Insert records onto them both. */
+	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_create_add_tablespace_to_dictionary(
 		space, name, fsp_flags, filepath, trx, false);
 
@@ -1069,10 +1070,34 @@ loop:
 		case DICT_CHECK_ALL_LOADED:
 			/* All tablespaces should have been found in
 			fil_load_single_table_tablespaces(). */
-
-			fil_space_for_table_exists_in_mem(
-				space_id, name, !(is_temp || discarded),
-				false, NULL, 0);
+			if (fil_space_for_table_exists_in_mem(
+				space_id, name,!(is_temp || discarded),
+				false, NULL, 0)
+			    && !(is_temp || discarded)) {
+				/* If user changes the path of .ibd files in
+				   *.isl files before doing crash recovery ,
+				   then this leads to inconsistency in
+				   SYS_DATAFILES system table because the
+				   tables are loaded from the updated path
+				   but the SYS_DATAFILES still points to the
+				   old path.Therefore after crash recovery
+				   update SYS_DATAFILES with the updated path.*/
+				ut_ad(space_id);
+				ut_ad(recv_needed_recovery);
+				char *dict_path = dict_get_first_path(space_id,
+								      name);
+				char *remote_path = fil_read_link_file(name);
+				if(dict_path && remote_path) {
+					if(strcmp(dict_path,remote_path)) {
+						dict_update_filepath(space_id,
+								     remote_path);
+						}
+				}
+				if(dict_path)
+					ut_free(dict_path);
+				if(remote_path)
+					ut_free(remote_path);
+			}
 			break;
 
 		case DICT_CHECK_SOME_LOADED:
@@ -1117,8 +1142,8 @@ loop:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for %s, "
-					"ignored.", table_name);
+					"Tablespace open failed for %s,"
+					" ignored.", table_name);
 			}
 
 			ut_free(filepath);
@@ -1855,10 +1880,10 @@ dict_load_indexes(
 
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: ", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs(" is corrupted\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+			"Index %s of table %s is corrupted",
+			ut_get_name(NULL, FALSE, index->name).c_str(),
+			ut_get_name(NULL, TRUE, index->table_name).c_str());
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
@@ -1874,10 +1899,12 @@ dict_load_indexes(
 				DICT_ERR_IGNORE_CORRUPT
 				3) if the index corrupted is a secondary
 				index */
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: load corrupted index ", stderr);
-				dict_index_name_print(stderr, NULL, index);
-				putc('\n', stderr);
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Load corrupted index %s of table %s",
+					ut_get_name(NULL, FALSE,
+						    index->name).c_str(),
+					ut_get_name(NULL, FALSE,
+						    index->table_name).c_str());
 			}
 		}
 
@@ -2226,7 +2253,7 @@ dict_load_table(
 	if (!result) {
 		result = dict_load_table_one(name, cached, ignore_err,
 					     fk_list);
-		while(!fk_list.empty()) {
+		while (!fk_list.empty()) {
 			dict_table_t*	f_table;
 
 			const char* for_table  = fk_list.front();

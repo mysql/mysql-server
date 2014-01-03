@@ -1329,11 +1329,11 @@ trx_i_s_common_fill_table(
 
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"trx_i_s_common_fill_table() was "
-			"called to fill unknown table: %s. "
-			"This function only knows how to fill "
-			"innodb_trx, innodb_locks and "
-			"innodb_lock_waits tables.", table_name);
+			"trx_i_s_common_fill_table() was"
+			" called to fill unknown table: %s."
+			" This function only knows how to fill"
+			" innodb_trx, innodb_locks and"
+			" innodb_lock_waits tables.", table_name);
 
 		ret = 1;
 	}
@@ -3540,8 +3540,8 @@ i_s_fts_index_table_fill_selected(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT word, doc_count, first_doc_id, last_doc_id, "
-		"ilist\n"
+		" SELECT word, doc_count, first_doc_id, last_doc_id,"
+		" ilist\n"
 		" FROM $table_name WHERE word >= :word;\n"
 		"BEGIN\n"
 		"\n"
@@ -3554,7 +3554,7 @@ i_s_fts_index_table_fill_selected(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {

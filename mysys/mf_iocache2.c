@@ -165,7 +165,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   else if (info->type == WRITE_CACHE)
   {
     /* If write is in current buffer, reuse it */
-    if ((ulonglong) offset <
+    if ((ulonglong) offset <=
 	(ulonglong) (info->write_end - info->write_buffer))
     {
       info->write_pos = info->write_buffer + offset;
