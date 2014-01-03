@@ -630,8 +630,8 @@ os_file_handle_error_cond_exit(
 		to the log. */
 
 		if (should_exit || !on_error_silent) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "File %s: '%s' returned OS "
-				"error " ULINTPF ".%s", name ? name : "(unknown)",
+			ib_logf(IB_LOG_LEVEL_ERROR, "File %s: '%s' returned OS"
+				" error " ULINTPF ".%s", name ? name : "(unknown)",
 				operation, err, should_exit
 				? " Cannot continue operation" : "");
 		}
@@ -1154,8 +1154,8 @@ os_file_create_simple_func(
 	} else if (srv_read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"read only mode set. Unable to "
-			"open file '%s' in RW mode, trying RO mode", name);
+			"Read only mode set. Unable to"
+			" open file '%s' in RW mode, trying RO mode", name);
 
 		access = GENERIC_READ;
 
@@ -1440,8 +1440,8 @@ os_file_set_nocache(
 		int	errno_save = errno;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to set DIRECTIO_ON on file %s: %s: %s, "
-			"continuing anyway.",
+			"Failed to set DIRECTIO_ON on file %s: %s: %s,"
+			" continuing anyway.",
 			file_name, operation_name, strerror(errno_save));
 	}
 #elif defined(O_DIRECT)
@@ -1453,11 +1453,11 @@ os_file_set_nocache(
 				warning_message_printed = true;
 # ifdef UNIV_LINUX
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to set O_DIRECT on file "
-					"%s: %s: %s, continuing anyway. "
-					"O_DIRECT is known to result "
-					"in 'Invalid argument' on Linux on "
-					"tmpfs, see MySQL Bug#26662.",
+					"Failed to set O_DIRECT on file"
+					" %s: %s: %s, continuing anyway."
+					" O_DIRECT is known to result"
+					" in 'Invalid argument' on Linux on"
+					" tmpfs, see MySQL Bug#26662.",
 					file_name, operation_name,
 					strerror(errno_save));
 # else /* UNIV_LINUX */
@@ -1469,8 +1469,8 @@ os_file_set_nocache(
 short_warning:
 # endif
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to set O_DIRECT on file %s: %s: %s, "
-				"continuing anyway.",
+				"Failed to set O_DIRECT on file %s: %s: %s,"
+				" continuing anyway.",
 				file_name, operation_name, strerror(errno_save));
 		}
 	}
@@ -2392,20 +2392,20 @@ os_file_io(
 			return(bytes_returned);
 		} else if (n_bytes > 0 && (ulint) n_bytes < n) {
 			/* For partial read/write scenario */
-			if(type == OS_FILE_READ) {
+			if (type == OS_FILE_READ) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"%lu bytes should have"
 					" been read. Only %lu bytes"
 					" read. Retrying again to read"
 					" the remaining bytes.",
-					(ulong) n,(ulong) n_bytes);
+					(ulong) n, (ulong) n_bytes);
 			} else {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"%lu bytes should have"
 					" been written. Only %lu bytes"
-					" written. Retrying again to "
+					" written. Retrying again to"
 					" write the remaining bytes.",
-					(ulong) n,(ulong) n_bytes);
+					(ulong) n, (ulong) n_bytes);
 			}
 
 			buf = (uchar*) buf + (ulint) n_bytes;
@@ -2878,7 +2878,7 @@ error_handling:
 
 	if (retry) {
 #ifndef _WIN32
-		if(ret > 0 && (ulint) ret < n) {
+		if (ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += ret;
 			n -= (ulint) ret;
@@ -3697,8 +3697,8 @@ os_aio_native_aio_supported(void)
 
 		if (fd < 0) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to create temp file to check "
-				"native AIO support.");
+				"Unable to create temp file to check"
+				" native AIO support.");
 
 			return(false);
 		}
@@ -3722,8 +3722,8 @@ os_aio_native_aio_supported(void)
 		if (fd == -1) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to open \"%s\" to check "
-				"native AIO read support.", name);
+				"Unable to open \"%s\" to check"
+				" native AIO read support.", name);
 
 			return(false);
 		}
@@ -3768,10 +3768,10 @@ os_aio_native_aio_supported(void)
 	case -EINVAL:
 	case -ENOSYS:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO not supported. You can either "
-			"move %s to a file system that supports native "
-			"AIO or you can set innodb_use_native_aio to "
-			"FALSE to avoid this message.",
+			"Linux Native AIO not supported. You can either"
+			" move %s to a file system that supports native"
+			" AIO or you can set innodb_use_native_aio to"
+			" FALSE to avoid this message.",
 			srv_read_only_mode ? name : "tmpdir");
 
 		/* fall through. */

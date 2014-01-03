@@ -18,6 +18,7 @@
 #ifdef MYSQL_CLIENT
 
 #include "sql_priv.h"
+#include "mysqld_error.h"
 
 #else
 
@@ -2204,17 +2205,9 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) ptr, &dec,
                         precision, decimals);
-      int i;
-      char buff[512], *pos;
-      pos= buff;
-      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
-      /*Print integral part, decimal point, fractional part*/
-      for (i= 0; i < ROUND_UP(dec.intg); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
-      if(ROUND_UP(dec.frac)>0)
-        pos+= sprintf(pos, "%s", ".");
-      for (i= ROUND_UP(dec.intg); i < ROUND_UP(dec.intg) + ROUND_UP(dec.frac); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
+      int len= DECIMAL_MAX_STR_LENGTH;
+      char buff[DECIMAL_MAX_STR_LENGTH + 1];
+      decimal2string(&dec,buff,&len, 0, 0, 0);
       my_b_printf(file, "%s", buff);
       return bin_size;
     }
@@ -2513,6 +2506,17 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
       continue;
     
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
+    if (!is_null)
+    {
+      size_t fsize= td->calc_field_size((uint)i, (uchar*) value);
+      if (value + fsize > m_rows_end)
+      {
+        my_b_printf(file, "***Corrupted replication event was detected."
+                    " Not printing the value***\n");
+        value+= fsize;
+        return 0;
+      }
+    }
     size_t size= log_event_print_value(file,is_null? NULL: value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));

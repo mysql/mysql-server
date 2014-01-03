@@ -650,16 +650,16 @@ row_ins_cascade_calc_update_vec(
 					if (new_doc_id <= 0) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
 							"FTS Doc ID"
-							" must be larger than "
-							"0");
+							" must be larger than"
+							" 0");
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID "
-							"must be larger than "
-							IB_ID_FMT" for"
+							"FTS Doc ID"
+							" must be larger than"
+							" " IB_ID_FMT " for"
 							" table %s",
 							n_doc_id -1,
 							ut_get_name(
@@ -2787,7 +2787,7 @@ row_ins_sec_index_entry_low(
 			LOCK_GAP, btr_cur_get_block(&cursor), rec,
 			index, offsets, thr);
 
-		switch(err) {
+		switch (err) {
 		case DB_SUCCESS:
 		case DB_SUCCESS_LOCKED_REC:
 			if (thr_get_trx(thr)->error_state != DB_DUPLICATE_KEY) {
@@ -3259,7 +3259,7 @@ row_ins(
 		if (node->index->type != DICT_FTS) {
 			err = row_ins_index_entry_step(node, thr);
 
-			switch(err) {
+			switch (err) {
 			case DB_SUCCESS:
 				break;
 			case DB_DUPLICATE_KEY:

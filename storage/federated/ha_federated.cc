@@ -2317,6 +2317,22 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
+int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
+{
+  int error= index_init(index, 0);
+  if (error)
+    return error;
+  error= index_read_map(buf, key, keypart_map, find_flag);
+  if(!error && stored_result)
+  {
+    uchar *dummy_arg=NULL;
+    position(dummy_arg);
+  }
+  int error1= index_end();
+  return error ?  error : error1;
+}
 
 /*
   Positions an index cursor to the index specified in the handle. Fetches the
@@ -3171,7 +3187,8 @@ int ha_federated::real_connect()
   */
   sql_query.append(share->select_query);
   sql_query.append(STRING_WITH_LEN(" WHERE 1=0"));
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (mysql_real_query(mysql, sql_query.ptr(),
+                       static_cast<ulong>(sql_query.length())))
   {
     sql_query.length(0);
     sql_query.append("error: ");
@@ -3211,7 +3228,7 @@ int ha_federated::real_query(const char *query, size_t length)
   if (!query || !length)
     goto end;
 
-  rc= mysql_real_query(mysql, query, (uint) length);
+  rc= mysql_real_query(mysql, query, static_cast<ulong>(length));
   
 end:
   DBUG_RETURN(rc);

@@ -3597,18 +3597,6 @@ public:
   {
     store_length(ptr, packlength, number);
   }
-
-  /**
-     Return the packed length plus the length of the data. 
-
-     This is used to determine the size of the data plus the 
-     packed length portion in the row data.
-
-     @returns The length in the row plus the size of the data.
-  */
-  uint32 get_packed_size(const uchar *ptr_arg, bool low_byte_first)
-    {return packlength + get_length(ptr_arg, packlength, low_byte_first);}
-
   inline uint32 get_length(uint row_offset= 0)
   { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);

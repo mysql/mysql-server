@@ -33,7 +33,7 @@ performance_schema_max_mutex_instances	2945
 performance_schema_max_prepared_statement_instances	5000
 performance_schema_max_program_instances	5000
 performance_schema_max_rwlock_classes	40
-performance_schema_max_rwlock_instances	1612
+performance_schema_max_rwlock_instances	2056
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	67
 performance_schema_max_stage_classes	150
@@ -106,8 +106,8 @@ performance_schema	mutex_instances.size	128
 performance_schema	mutex_instances.count	2945
 performance_schema	mutex_instances.memory	376960
 performance_schema	rwlock_instances.size	192
-performance_schema	rwlock_instances.count	1612
-performance_schema	rwlock_instances.memory	309504
+performance_schema	rwlock_instances.count	2056
+performance_schema	rwlock_instances.memory	394752
 performance_schema	cond_instances.size	128
 performance_schema	cond_instances.count	612
 performance_schema	cond_instances.memory	78336
@@ -234,11 +234,11 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	20
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	103
+performance_schema	(table_share_hash).count	102
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
-performance_schema	(program_hash).count	2
+performance_schema	(program_hash).count	4
 performance_schema	(program_hash).size	5000
 performance_schema	host_cache.size	336
 performance_schema	(pfs_memory_class).row_size	192
@@ -280,17 +280,17 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	440
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	20
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	1760
-performance_schema	performance_schema.memory	49988072
+performance_schema	performance_schema.memory	40793320
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
-COUNT_ALLOC	60
+COUNT_ALLOC	59
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	49988072
+SUM_NUMBER_OF_BYTES_ALLOC	40793320
 SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	60
-CURRENT_COUNT_USED	60
-HIGH_COUNT_USED	60
-LOW_NUMBER_OF_BYTES_USED	49988072
-CURRENT_NUMBER_OF_BYTES_USED	49988072
-HIGH_NUMBER_OF_BYTES_USED	49988072
+LOW_COUNT_USED	59
+CURRENT_COUNT_USED	59
+HIGH_COUNT_USED	59
+LOW_NUMBER_OF_BYTES_USED	40793320
+CURRENT_NUMBER_OF_BYTES_USED	40793320
+HIGH_NUMBER_OF_BYTES_USED	40793320

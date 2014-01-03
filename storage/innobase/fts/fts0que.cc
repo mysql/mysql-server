@@ -2193,9 +2193,9 @@ fts_query_find_term(
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count, ilist\n"
 			" FROM $index_table_name\n"
-			" WHERE word LIKE :word AND "
-			"	first_doc_id <= :min_doc_id AND "
-			"	last_doc_id >= :max_doc_id\n"
+			" WHERE word LIKE :word AND"
+			" first_doc_id <= :min_doc_id AND"
+			" last_doc_id >= :max_doc_id\n"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
 			"\n"
@@ -2209,7 +2209,7 @@ fts_query_find_term(
 			"CLOSE c;");
 	}
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, *graph);
 
 		if (error == DB_SUCCESS) {
@@ -2317,7 +2317,7 @@ fts_query_total_docs_containing_term(
 		"DECLARE CURSOR c IS"
 		" SELECT doc_count\n"
 		" FROM $index_table_name\n"
-		" WHERE word = :word "
+		" WHERE word = :word"
 		" ORDER BY first_doc_id;\n"
 		"BEGIN\n"
 		"\n"
@@ -2330,7 +2330,7 @@ fts_query_total_docs_containing_term(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
@@ -2402,8 +2402,8 @@ fts_query_terms_in_document(
 		"DECLARE CURSOR c IS"
 		" SELECT count\n"
 		" FROM $index_table_name\n"
-		" WHERE doc_id = :doc_id "
-		"BEGIN\n"
+		" WHERE doc_id = :doc_id"
+		" BEGIN\n"
 		"\n"
 		"OPEN c;\n"
 		"WHILE 1 = 1 LOOP\n"
@@ -2414,7 +2414,7 @@ fts_query_terms_in_document(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
@@ -2424,8 +2424,8 @@ fts_query_terms_in_document(
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading FTS "
-					"doc id table. Retrying!");
+					"lock wait timeout reading FTS"
+					" doc id table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
