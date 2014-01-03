@@ -4986,8 +4986,11 @@ page_zip_verify_checksum(
 			return(TRUE);
 		}
 #else
-		ut_d(ulint i; for (i = 0; i < size; i++) {
-		     ut_a(*((const char*) data + i) == 0); });
+		for (ulint i = 0; i < size; i++) {
+			if (*((const char*) data + i) != 0) {
+				return(FALSE);
+			}
+		}
 
 		return(TRUE);
 #endif /* UNIV_INNOCHECKSUM */
