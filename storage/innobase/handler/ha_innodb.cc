@@ -735,6 +735,19 @@ innobase_rollback_to_savepoint(
 	void*		savepoint);	/*!< in: savepoint data */
 
 /*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
+	THD*		thd);		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
+
+/*****************************************************************//**
 Sets a transaction savepoint.
 @return always 0, that is, always succeeds */
 static
@@ -1359,6 +1372,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_READ_ONLY:
+		if(srv_force_recovery) {
+			return(HA_ERR_INNODB_FORCED_RECOVERY);
+		}
 		return(HA_ERR_TABLE_READONLY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -2789,6 +2805,8 @@ innobase_init(
 	innobase_hton->close_connection = innobase_close_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+	innobase_hton->savepoint_rollback_can_release_mdl =
+				innobase_rollback_to_savepoint_can_release_mdl;
 	innobase_hton->savepoint_release = innobase_release_savepoint;
 	innobase_hton->commit = innobase_commit;
 	innobase_hton->rollback = innobase_rollback;
@@ -3696,6 +3714,38 @@ innobase_rollback_to_savepoint(
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+/*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint. 
+When binlog is on, MDL locks acquired after savepoint unit are not 
+released if there are any locks held in InnoDB.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd)		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back to savepoint */
+{
+	trx_t*		trx;
+
+	DBUG_ENTER("innobase_rollback_to_savepoint_can_release_mdl");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+	ut_ad(trx);
+
+        /* If transaction has not acquired any locks then it is safe
+	   to release MDL after rollback to savepoint */
+	if (!(UT_LIST_GET_LEN(trx->lock.trx_locks))) {
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**
@@ -10006,17 +10056,7 @@ innobase_rename_table(
 			}
 		}
 
-		if (error != DB_SUCCESS) {
-			if (!srv_read_only_mode) {
-				FILE* ef = dict_foreign_err_file;
-
-				fputs("InnoDB: Renaming table ", ef);
-				ut_print_name(ef, trx, TRUE, norm_from);
-				fputs(" to ", ef);
-				ut_print_name(ef, trx, TRUE, norm_to);
-				fputs(" failed!\n", ef);
-			}
-		} else {
+		if (error == DB_SUCCESS) {
 #ifndef _WIN32
 			sql_print_warning("Rename partition table %s"
 					  " succeeds after converting to lower"
@@ -14922,6 +14962,7 @@ innobase_fts_find_ranking(
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
+static my_bool	innodb_buf_flush_list_now = TRUE;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -14993,6 +15034,29 @@ checkpoint_now_set(
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
 		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+/****************************************************************//**
+Force a dirty pages flush now. */
+static
+void
+buf_flush_list_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -15293,6 +15357,11 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force dirty page flush now",
+  NULL, buf_flush_list_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -15400,6 +15469,11 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page cleaner threads can be from 1 to 64. Default is 1.",
+  NULL, NULL, 1, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -16143,6 +16217,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_only),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(io_capacity_max),
+  MYSQL_SYSVAR(page_cleaners),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),
@@ -16153,6 +16228,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(buf_flush_list_now),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),

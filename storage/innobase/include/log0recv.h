@@ -32,6 +32,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
+#include <list>
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
@@ -305,6 +306,14 @@ struct recv_addr_t{
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
 };
 
+struct recv_dblwr_t {
+	void add(byte* page);
+
+	byte* find_first_page(ulint space_id);
+
+	std::list<byte *> pages; /* Pages from double write buffer */
+};
+
 /** Recovery system data structure */
 struct recv_sys_t{
 #ifndef UNIV_HOTBACKUP
@@ -364,6 +373,8 @@ struct recv_sys_t{
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
 	ulint		n_addrs;/*!< number of not processed hashed file
 				addresses in the hash table */
+
+	recv_dblwr_t	dblwr;
 };
 
 /** The recovery system */

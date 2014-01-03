@@ -2,7 +2,6 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source include/have_query_cache_disabled.inc
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,
@@ -387,7 +386,7 @@ show status like "performance_schema%";
 # plus rwlocks used inside the storage engine
 # This is very storage engine dependent
 #
-select @rwlock_per_share <= 3;
+select @rwlock_per_share <= 4;
 
 #
 # Expecting 0:
@@ -461,7 +460,7 @@ select @file_per_handle;
 # not enforcing mutex estimates
 
 select if(
-      (@rwlock_per_share <= 3)
+      (@rwlock_per_share <= 4)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
   AND (@mutex_per_con = 4)
