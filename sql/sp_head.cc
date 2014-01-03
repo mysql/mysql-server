@@ -740,10 +740,12 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();
-    PSI_statement_locker *save_psi;
+    PSI_statement_locker *sp_parent_locker, *parent_locker;
  
-    save_psi= thd->m_sp_statement_psi;
-    thd->m_sp_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
+    parent_locker= thd->m_statement_psi;
+    sp_parent_locker= thd->m_sp_statement_psi;
+    thd->m_sp_statement_psi= thd->m_statement_psi= 
+                             MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                    thd->db, thd->db_length,
                                                    thd->charset(),
                                                    this->m_sp_share, NULL);
@@ -752,8 +754,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     err_status= i->execute(thd, &ip);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    MYSQL_END_STATEMENT(thd->m_sp_statement_psi, thd->get_stmt_da());
-    thd->m_sp_statement_psi= save_psi;
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= parent_locker;
+    thd->m_sp_statement_psi= sp_parent_locker;
 #endif
 
     if (i->free_list)
