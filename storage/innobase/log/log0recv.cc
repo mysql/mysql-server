@@ -323,7 +323,7 @@ DECLARE_THREAD(recv_writer_thread)(
 		}
 
 		/* Flush pages from end of LRU if required */
-		buf_flush_LRU_tail();
+		buf_flush_LRU_lists();
 
 		mutex_exit(&recv_sys->writer_mutex);
 	}

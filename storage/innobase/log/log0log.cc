@@ -1464,7 +1464,7 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
+	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
