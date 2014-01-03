@@ -1186,8 +1186,8 @@ public:
     separators in the resulting text.
     @return Length of the generated string.
   */
-
   int to_string(char *buf, const String_format *string_format= NULL) const;
+
   /**
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
     @param[out] buf Pointer to pointer to string. The function will

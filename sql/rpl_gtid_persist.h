@@ -111,10 +111,6 @@ private:
   bool need_commit;
   /* Count the append size of the table */
   ulong m_count;
-  /* The number of threads, which are saving gtid into table */
-  ulong saving_threads;
-  /* Indicate if the table is being reset */
-  bool m_is_resetting;
 
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,

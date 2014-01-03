@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -599,7 +599,8 @@ bool trans_xa_end(THD *thd)
   XID_STATE *xid_state= &thd->transaction.xid_state;
   DBUG_ENTER("trans_xa_end");
 
-  if (gtid_mode > 1 && opt_bin_log && trans_has_updated_trans_table(thd))
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 && opt_bin_log &&
+      trans_has_updated_trans_table(thd))
   {
     /*
       Generate gtid and save it into table for real transaction

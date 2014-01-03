@@ -2499,9 +2499,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
 
-  /* Allow to operate gtid_executed table when disconnecting the session. */
-  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed &&
-      !thd->is_operating_gtid_table)
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
 
   /*
