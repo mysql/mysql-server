@@ -2721,7 +2721,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   String scramble_response_packet;
 #if !defined(HAVE_YASSL)
   int cipher_length= 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 #endif /* HAVE_YASSL */

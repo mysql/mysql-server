@@ -280,9 +280,9 @@ buf_dump(
 			if (j % 128 == 0) {
 				buf_dump_status(
 					STATUS_INFO,
-					"Dumping buffer pool "
-					ULINTPF "/" ULINTPF ", "
-					"page " ULINTPF "/" ULINTPF,
+					"Dumping buffer pool"
+					" " ULINTPF "/" ULINTPF ","
+					" page " ULINTPF "/" ULINTPF,
 					i + 1, srv_buf_pool_instances,
 					j + 1, n_pages);
 			}
@@ -454,8 +454,8 @@ buf_load()
 			what = "parsing";
 		}
 		fclose(f);
-		buf_load_status(STATUS_ERR, "Error %s '%s', "
-				"unable to load buffer pool (stage 1)",
+		buf_load_status(STATUS_ERR, "Error %s '%s',"
+				" unable to load buffer pool (stage 1)",
 				what, full_filename);
 		return;
 	}
@@ -495,8 +495,8 @@ buf_load()
 			ut_free(dump);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
-					"Error parsing '%s', unable "
-					"to load buffer pool (stage 2)",
+					"Error parsing '%s', unable"
+					" to load buffer pool (stage 2)",
 					full_filename);
 			return;
 		}
@@ -505,10 +505,10 @@ buf_load()
 			ut_free(dump);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
-					"Error parsing '%s': bogus "
-					"space,page " ULINTPF "," ULINTPF
-					" at line " ULINTPF ", "
-					"unable to load buffer pool",
+					"Error parsing '%s': bogus"
+					" space,page " ULINTPF "," ULINTPF
+					" at line " ULINTPF ","
+					" unable to load buffer pool",
 					full_filename,
 					space_id, page_no,
 					i);
@@ -529,8 +529,8 @@ buf_load()
 		ut_free(dump);
 		ut_sprintf_timestamp(now);
 		buf_load_status(STATUS_NOTICE,
-				"Buffer pool(s) load completed at %s "
-				"(%s was empty)", now, full_filename);
+				"Buffer pool(s) load completed at %s"
+				" (%s was empty)", now, full_filename);
 		return;
 	}
 

@@ -1081,7 +1081,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
     /*
       Presumably, ANALYZE and binlog writing doesn't require synchronization
     */
-    res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    res= write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
@@ -1136,7 +1136,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
     /*
       Presumably, OPTIMIZE and binlog writing doesn't require synchronization
     */
-    res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    res= write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
@@ -1168,7 +1168,7 @@ bool Sql_cmd_repair_table::execute(THD *thd)
     /*
       Presumably, REPAIR and binlog writing doesn't require synchronization
     */
-    res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    res= write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;

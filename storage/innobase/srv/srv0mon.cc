@@ -42,8 +42,8 @@ Created 12/9/2009 Jimmy Yang
 /* Macro to standardize the counter names for counters in the
 "monitor_buf_page" module as they have very structured defines */
 #define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
-	{"buffer_page_"op"_"name, "buffer_page_io",		\
-	 "Number of "description" Pages "op,			\
+	{"buffer_page_" op "_" name, "buffer_page_io",		\
+	 "Number of " description " Pages " op,			\
 	 MONITOR_GROUP_MODULE, MONITOR_DEFAULT_START,		\
 	 MONITOR_##code##_##op_code}
 
@@ -691,16 +691,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
-	{"trx_rw_commits", "transaction", "Number of read-write transactions "
-	  "committed",
+	{"trx_rw_commits", "transaction",
+	 "Number of read-write transactions  committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
-	{"trx_ro_commits", "transaction", "Number of read-only transactions "
-	  "committed",
+	{"trx_ro_commits", "transaction",
+	 "Number of read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RO_COMMIT},
 
-	{"trx_nl_ro_commits", "transaction", "Number of non-locking "
-	 "auto-commit read-only transactions committed",
+	{"trx_nl_ro_commits", "transaction",
+	 "Number of non-locking auto-commit read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_NL_RO_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
@@ -760,7 +760,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_N_DEL_ROW_PURGE},
 
 	{"purge_upd_exist_or_extern_records", "purge",
-	 "Number of purges on updates of existing records and "
+	 "Number of purges on updates of existing records and"
 	 " updates on delete marked record with externally stored field",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},
@@ -1389,7 +1389,8 @@ srv_mon_set_module_control(
 		should be aware some counters are already on before
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			fprintf(stderr, "Monitor '%s' is already enabled.\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Monitor '%s' is already enabled.",
 				srv_mon_get_name((monitor_id_t) ix));
 			continue;
 		}

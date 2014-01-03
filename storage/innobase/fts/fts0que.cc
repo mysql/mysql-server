@@ -699,8 +699,9 @@ fts_query_add_word_freq(
 		memset(&word_freq, 0, sizeof(word_freq));
 
 		word_freq.word.f_str = static_cast<byte*>(
-			mem_heap_alloc(query->heap, word->f_len));
+			mem_heap_alloc(query->heap, word->f_len + 1));
 		memcpy(word_freq.word.f_str, word->f_str, word->f_len);
+		word_freq.word.f_str[word->f_len] = 0;
 		word_freq.word.f_len = word->f_len;
 
 		word_freq.doc_count = 0;
@@ -1155,7 +1156,7 @@ fts_query_difference(
 	ut_a(query->oper == FTS_IGNORE);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "DIFFERENCE: Searching: '%.*s'\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "DIFFERENCE: Searching: '%.*s'",
 		(int) token->f_len, token->f_str);
 #endif
 
@@ -1246,7 +1247,7 @@ fts_query_intersect(
 	ut_a(query->oper == FTS_EXIST);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "INTERSECT: Searching: '%.*s'\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "INTERSECT: Searching: '%.*s'",
 		(int) token->f_len, token->f_str);
 #endif
 
@@ -1428,7 +1429,7 @@ fts_query_union(
 	     query->oper == FTS_NEGATE || query->oper == FTS_INCR_RATING);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "UNION: Searching: '%.*s'\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "UNION: Searching: '%.*s'",
 		(int) token->f_len, token->f_str);
 #endif
 
@@ -2192,9 +2193,9 @@ fts_query_find_term(
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count, ilist\n"
 			" FROM $index_table_name\n"
-			" WHERE word LIKE :word AND "
-			"	first_doc_id <= :min_doc_id AND "
-			"	last_doc_id >= :max_doc_id\n"
+			" WHERE word LIKE :word AND"
+			" first_doc_id <= :min_doc_id AND"
+			" last_doc_id >= :max_doc_id\n"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
 			"\n"
@@ -2208,24 +2209,24 @@ fts_query_find_term(
 			"CLOSE c;");
 	}
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, *graph);
 
 		if (error == DB_SUCCESS) {
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, " InnoDB: Warning: lock wait "
-					"timeout reading FTS index. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading FTS index."
+					" Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, " InnoDB: Error: %lu "
-					"while reading FTS index.\n", error);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%lu while reading FTS index.",
+					error);
 
 				break;			/* Exit the loop. */
 			}
@@ -2316,7 +2317,7 @@ fts_query_total_docs_containing_term(
 		"DECLARE CURSOR c IS"
 		" SELECT doc_count\n"
 		" FROM $index_table_name\n"
-		" WHERE word = :word "
+		" WHERE word = :word"
 		" ORDER BY first_doc_id;\n"
 		"BEGIN\n"
 		"\n"
@@ -2329,24 +2330,24 @@ fts_query_total_docs_containing_term(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, " InnoDB: Warning: lock wait "
-					"timeout reading FTS index. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading FTS index."
+					" Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, " InnoDB: Error: %lu "
-					"while reading FTS index.\n", error);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%lu while reading FTS index.",
+					error);
 
 				break;			/* Exit the loop. */
 			}
@@ -2401,8 +2402,8 @@ fts_query_terms_in_document(
 		"DECLARE CURSOR c IS"
 		" SELECT count\n"
 		" FROM $index_table_name\n"
-		" WHERE doc_id = :doc_id "
-		"BEGIN\n"
+		" WHERE doc_id = :doc_id"
+		" BEGIN\n"
 		"\n"
 		"OPEN c;\n"
 		"WHILE 1 = 1 LOOP\n"
@@ -2413,24 +2414,23 @@ fts_query_terms_in_document(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, " InnoDB: Warning: lock wait "
-					"timeout reading FTS doc id table. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading FTS"
+					" doc id table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, " InnoDB: Error: %lu "
-					"while reading FTS doc id table.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%lu while reading FTS doc id table.",
 					error);
 
 				break;			/* Exit the loop. */
@@ -2479,8 +2479,7 @@ fts_query_match_document(
 		fts_query_fetch_document, &phrase);
 
 	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: Error: (%s) matching document.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) matching document.",
 			ut_strerr(error));
 	} else {
 		*found = phrase.found;
@@ -2531,8 +2530,8 @@ fts_query_is_in_proximity_range(
 
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Error: (%s) in verification phase of proximity "
-			"search", ut_strerr(err));
+			"(%s) in verification phase of proximity search",
+			ut_strerr(err));
 	}
 
 	/* Free the prepared statement. */
@@ -2583,8 +2582,7 @@ fts_query_search_phrase(
 	rw_lock_x_unlock(&cache->lock);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " Start phrase search\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "Start phrase search");
 #endif
 
 	/* Read the document from disk and do the actual
@@ -3072,6 +3070,10 @@ fts_query_visitor(
 		}
 		break;
 
+	case FTS_AST_SUBEXP_LIST:
+		query->error = fts_ast_visit_sub_exp(node, fts_query_visitor, arg);
+		break;
+
 	default:
 		ut_error;
 	}
@@ -3105,13 +3107,7 @@ fts_ast_visit_sub_exp(
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
-	node = node->list.head;
-
-	if (!node || !node->next) {
-		return(error);
-	}
-
-	cur_oper = node->oper;
+	cur_oper = query->oper;
 
 	/* Save current result set */
 	parent_doc_ids = query->doc_ids;
@@ -3127,24 +3123,18 @@ fts_ast_visit_sub_exp(
 	query->multi_exist = false;
 	/* Process nodes in current sub-expression and store its
 	result set in query->doc_ids we created above. */
-	error = fts_ast_visit(FTS_NONE, node->next, visitor,
+	error = fts_ast_visit(FTS_NONE, node, visitor,
 			      arg, &will_be_ignored);
 
-	/* Reinstate parent node state and prepare for merge. */
+	/* Reinstate parent node state */
 	query->multi_exist = multi_exist;
 	query->oper = cur_oper;
-	subexpr_doc_ids = query->doc_ids;
-
-	/* Restore current result set. */
-	query->doc_ids = parent_doc_ids;
 
 	/* Merge the sub-expression result with the parent result set. */
+	subexpr_doc_ids = query->doc_ids;
+	query->doc_ids = parent_doc_ids;
 	if (error == DB_SUCCESS && !rbt_empty(subexpr_doc_ids)) {
 		error = fts_merge_doc_ids(query, subexpr_doc_ids);
-	}
-
-	if (query->oper == FTS_EXIST) {
-		query->multi_exist = true;
 	}
 
 	/* Free current result set. Result already merged into parent. */
@@ -3535,11 +3525,12 @@ fts_query_calculate_idf(
 		}
 
 		if (fts_enable_diag_print) {
-			fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF
-				" %6.5lf\n",
-			        word_freq->word.f_str,
-			        query->total_docs, word_freq->doc_count,
-			        word_freq->idf);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"'%s' -> " UINT64PF "/" UINT64PF
+				" %6.5lf",
+				word_freq->word.f_str,
+				query->total_docs, word_freq->doc_count,
+				word_freq->idf);
 		}
 	}
 }
@@ -4074,7 +4065,8 @@ fts_query(
 			goto func_exit;
 		}
 
-		fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Total docs: " UINT64PF " Total words: %lu",
 			query.total_docs, query.total_words);
 	}
 #endif /* FTS_DOC_STATS_DEBUG */
@@ -4180,8 +4172,9 @@ fts_query(
 
 	if (fts_enable_diag_print && (*result)) {
 		ulint	diff_time = ut_time_ms() - start_time_ms;
-		fprintf(stderr, "FTS Search Processing time: %ld secs:"
-				" %ld millisec: row(s) %d \n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS Search Processing time: %ld secs:"
+			" %ld millisec: row(s) %d",
 			diff_time / 1000, diff_time % 1000,
 			(*result)->rankings_by_id
 				? (int) rbt_size((*result)->rankings_by_id)
@@ -4189,8 +4182,7 @@ fts_query(
 
 		/* Log memory consumption & result size */
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Full Search Memory: "
-			"%lu (bytes),  Row: %lu .",
+			"Full Search Memory: %lu (bytes),  Row: %lu .",
 			query.total_size,
 			(*result)->rankings_by_id
 				?  rbt_size((*result)->rankings_by_id)
@@ -4284,7 +4276,7 @@ fts_print_doc_id(
 		fts_ranking_t*	ranking;
 		ranking = rbt_value(fts_ranking_t, node);
 
-		ib_logf(IB_LOG_LEVEL_INFO, "doc_ids info, doc_id: %ld \n",
+		ib_logf(IB_LOG_LEVEL_INFO, "doc_ids info, doc_id: %ld",
 			(ulint) ranking->doc_id);
 
 		ulint		pos = 0;
@@ -4378,9 +4370,9 @@ fts_expand_query(
 
 			/* The word must exist in the doc we found */
 			if (!ret) {
-				ib_logf(IB_LOG_LEVEL_ERROR, "Did not "
-					"find word %s in doc %ld for query "
-					"expansion search.\n", word.f_str,
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Did not find word %s in doc %ld for"
+					" query expansion search.", word.f_str,
 					(ulint) ranking->doc_id);
 			}
 		}

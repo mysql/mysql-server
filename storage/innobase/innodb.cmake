@@ -37,12 +37,39 @@ ENDIF()
 OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
 MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
 
+IF(INNODB_COMPILER_HINTS)
+   ADD_DEFINITIONS("-DCOMPILER_HINTS")
+ENDIF()
+
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
+
+OPTION(INNODB_PAGE_ATOMIC_REF_COUNT "Atomics for the page reference count" ON)
+MARK_AS_ADVANCED(INNODB_PAGE_ATOMIC_REF_COUNT)
+
+IF(INNODB_PAGE_ATOMIC_REF_COUNT)
+   ADD_DEFINITIONS("-DPAGE_ATOMIC_REF_COUNT")
+ENDIF()
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 # After: WL#5825 Using C++ Standard Library with MySQL code
 #       we no longer use -fno-exceptions
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+
+# Add -Wconversion if compiling with GCC
+## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+## please fix them and enable the following code:
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+
+  IF (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
+      CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    INCLUDE(CheckCXXCompilerFlag)
+    CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+    IF (HAVE_NO_BUILTIN_MEMCMP)
+      # Work around http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
+      SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0cmp.cc
+	PROPERTIES COMPILE_FLAGS -fno-builtin-memcmp)
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # Enable InnoDB's UNIV_DEBUG and UNIV_SYNC_DEBUG in debug builds
@@ -64,13 +91,6 @@ IF(WITH_INNODB_EXTRA_DEBUG)
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${EXTRA_DEBUG_FLAGS}")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${EXTRA_DEBUG_FLAGS}")
 ENDIF()
-
-# Add -Wconversion if compiling with GCC
-## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
-## please fix them and enable the following code:
-#IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
-#ENDIF()
 
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
 IF(HAVE_SCHED_GETCPU)

@@ -1947,9 +1947,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length);
+  bool init(THD *thd, const char *buff, size_t length);
 
-  void reset(char *buff, unsigned int length);
+  void reset(const char *buff, size_t length);
 
   /**
     Set the echo mode.
@@ -1981,6 +1981,7 @@ public:
   */
   void skip_binary(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
@@ -1995,6 +1996,7 @@ public:
   */
   unsigned char yyGet()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     char c= *m_ptr++;
     if (m_echo)
       *m_cpp_ptr++ = c;
@@ -2015,6 +2017,7 @@ public:
   */
   unsigned char yyPeek()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     return m_ptr[0];
   }
 
@@ -2024,6 +2027,7 @@ public:
   */
   unsigned char yyPeekn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     return m_ptr[n];
   }
 
@@ -2044,6 +2048,7 @@ public:
   */
   void yySkip()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     if (m_echo)
       *m_cpp_ptr++ = *m_ptr++;
     else
@@ -2056,6 +2061,7 @@ public:
   */
   void yySkipn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
@@ -2670,6 +2676,8 @@ public:
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+  /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
+  bool in_update_value_clause;
 
   /*
     The set of those tables whose fields are referenced in all subqueries
@@ -2956,7 +2964,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length)
+  bool init(THD *thd, const char *buff, size_t length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2964,7 +2972,7 @@ public:
   ~Parser_state()
   {}
 
-  void reset(char *found_semicolon, unsigned int length)
+  void reset(const char *found_semicolon, size_t length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();

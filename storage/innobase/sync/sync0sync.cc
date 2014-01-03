@@ -148,14 +148,14 @@ void
 sync_print_wait_info(FILE* file)
 {
 	fprintf(file,
-		"Mutex spin waits "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-shared spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-sx spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n",
+		"Mutex spin waits " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-shared spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-excl spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-sx spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n",
 		(ib_uint64_t) mutex_spin_wait_count,
 		(ib_uint64_t) mutex_spin_round_count,
 		(ib_uint64_t) mutex_os_wait_count,
@@ -170,8 +170,8 @@ sync_print_wait_info(FILE* file)
 		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
 
 	fprintf(file,
-		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "
-		"%.2f RW-excl, %.2f RW-sx\n",
+		"Spin rounds per wait: %.2f mutex, %.2f RW-shared,"
+		" %.2f RW-excl, %.2f RW-sx\n",
 		(double) mutex_spin_round_count /
 		(mutex_spin_wait_count_get() ? mutex_spin_wait_count_get() : 1),
 		(double) rw_lock_stats.rw_s_spin_round_count /

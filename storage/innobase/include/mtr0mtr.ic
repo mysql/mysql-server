@@ -169,13 +169,7 @@ mtr_t::release_block_at_savepoint(
 
 	ut_a(slot->object == block);
 
-	mutex_enter(&block->mutex);
-
-	ut_a(block->page.buf_fix_count > 0);
-
-	--block->page.buf_fix_count;
-
-	mutex_exit(&block->mutex);
+	buf_block_unfix(reinterpret_cast<buf_block_t*>(block));
 
 	buf_page_release_latch(block, slot->type);
 

@@ -605,7 +605,7 @@ fts_ast_visit(
 	     node && (error == DB_SUCCESS);
 	     node = node->next) {
 
-		switch(node->type) {
+		switch (node->type) {
 		case FTS_AST_LIST:
 			if (visit_pass != FTS_PASS_FIRST) {
 				break;
@@ -624,14 +624,6 @@ fts_ast_visit(
 				node->oper = oper;
 			}
 
-			break;
-
-		case FTS_AST_SUBEXP_LIST:
-			if (visit_pass != FTS_PASS_FIRST) {
-				break;
-			}
-
-			error = fts_ast_visit_sub_exp(node, visitor, arg);
 			break;
 
 		case FTS_AST_OPER:

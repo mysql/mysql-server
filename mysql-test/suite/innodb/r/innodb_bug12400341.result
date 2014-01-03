@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too");
 set @old_innodb_undo_logs = @@innodb_undo_logs;
 set global innodb_undo_logs=1;
 show variables like "max_connections";

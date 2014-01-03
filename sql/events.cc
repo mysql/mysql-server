@@ -381,7 +381,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     if (!dropped)
     {
       /* Binlog the create event. */
-      DBUG_ASSERT(thd->query() && thd->query_length());
+      DBUG_ASSERT(thd->query().str && thd->query().length);
       String log_query;
       if (create_query_string(thd, &log_query))
       {
@@ -526,13 +526,13 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
           event_queue->update_event(thd, parse_data->dbname, parse_data->name,
                                     new_element);
         /* Binlog the alter event. */
-        DBUG_ASSERT(thd->query() && thd->query_length());
+        DBUG_ASSERT(thd->query().str && thd->query().length);
 
         thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
         if (new_dbname)
           thd->add_to_binlog_accessed_dbs(new_dbname->str);
 
-        ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+        ret= write_bin_log(thd, true, thd->query().str, thd->query().length);
       }
     }
   }
@@ -598,10 +598,10 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     if (event_queue)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
-    DBUG_ASSERT(thd->query() && thd->query_length());
+    DBUG_ASSERT(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
-    ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    ret= write_bin_log(thd, TRUE, thd->query().str, thd->query().length);
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
     MYSQL_DROP_SP(SP_TYPE_EVENT,
