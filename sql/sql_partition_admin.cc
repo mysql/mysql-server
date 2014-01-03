@@ -634,7 +634,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   */
   (void) thd->locked_tables_list.reopen_tables(thd);
 
-  if ((error= write_bin_log(thd, TRUE, thd->query(), thd->query_length())))
+  if ((error= write_bin_log(thd, true, thd->query().str, thd->query().length)))
   {
     /*
       The error is reported in write_bin_log().
@@ -829,7 +829,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     Also, it is logged in statement format, regardless of the binlog format.
   */
   if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

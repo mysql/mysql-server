@@ -62,7 +62,7 @@ prepare dump_waits_current from
     where event_name = \'wait/lock/metadata/sql/mdl\';";
 prepare dump_waits_history_long from
 "select thread_id_name(THREAD_ID) as THREAD_ID,
-    EVENT_NAME, SOURCE,
+    EVENT_NAME,
     TIMER_START is not NULL as TIMER_START_SET,
     TIMER_END is not NULL as TIMER_END_SET,
     OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
@@ -268,7 +268,6 @@ OPERATION	metadata lock
 execute dump_waits_history_long;
 THREAD_ID	USER2
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -425,7 +424,6 @@ execute dump_waits_current;
 execute dump_waits_history_long;
 THREAD_ID	USER2
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -498,7 +496,6 @@ OPERATION	metadata lock
 execute dump_waits_history_long;
 THREAD_ID	USER2
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -541,7 +538,6 @@ execute dump_waits_current;
 execute dump_waits_history_long;
 THREAD_ID	USER2
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -551,7 +547,6 @@ INDEX_NAME	NULL
 OPERATION	metadata lock
 THREAD_ID	USER1
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -594,7 +589,6 @@ execute dump_waits_current;
 execute dump_waits_history_long;
 THREAD_ID	USER2
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE
@@ -604,7 +598,6 @@ INDEX_NAME	NULL
 OPERATION	metadata lock
 THREAD_ID	USER1
 EVENT_NAME	wait/lock/metadata/sql/mdl
-SOURCE	mdl.cc:2275
 TIMER_START_SET	1
 TIMER_END_SET	1
 OBJECT_TYPE	TABLE

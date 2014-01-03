@@ -522,17 +522,16 @@ btr_cur_will_modify_tree(
 
 	if (lock_intention >= BTR_INTENTION_BOTH) {
 		/* check insert will cause. BTR_INTENTION_BOTH
-		or BTR_INTENTION_INSERT)*/
-		if (page_get_max_insert_size_after_reorganize(page, 1)
-		    < BTR_CUR_PAGE_REORGANIZE_LIMIT) {
-			return(true);
-		}
+		or BTR_INTENTION_INSERT*/
 		/* needs 2 records' space for the case the single split and
 		insert cannot fit.
 		page_get_max_insert_size_after_reorganize() includes space
 		for page directory already */
-		if (page_get_max_insert_size_after_reorganize(page, 2)
-			< rec_size * 2) {
+		ulint	max_size
+			= page_get_max_insert_size_after_reorganize(page, 2);
+
+		if (max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT + rec_size
+		    || max_size < rec_size * 2) {
 			return(true);
 		}
 		/* TODO: optimize this condition for compressed page.
@@ -2428,11 +2427,11 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			fputs("InnoDB: Error: cannot insert tuple ", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Cannot insert tuple");
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
 			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			fprintf(stderr, "\nInnoDB: max insert size %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR, "Max insert size %lu",
 				(ulong) max_size);
 			ut_error;
 		}
@@ -3075,8 +3074,7 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -6296,22 +6294,18 @@ btr_copy_zblob_prefix(
 		bpage = buf_page_get_zip(space_id, zip_size, page_no);
 
 		if (UNIV_UNLIKELY(!bpage)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Cannot load"
-				" compressed BLOB"
-				" page %lu space %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load compressed BLOB"
+				" page %lu space %lu",
 				(ulong) page_no, (ulong) space_id);
 			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
 		    (fil_page_get_type(bpage->zip.data) != page_type)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Unexpected type %lu of"
-				" compressed BLOB"
-				" page %lu space %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unexpected type %lu of compressed BLOB"
+				" page %lu space %lu",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
 			ut_ad(0);
@@ -6346,11 +6340,9 @@ btr_copy_zblob_prefix(
 			/* fall through */
 		default:
 inflate_error:
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: inflate() of"
-				" compressed BLOB"
-				" page %lu space %lu returned %d (%s)\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"inflate() of compressed BLOB"
+				" page %lu space %lu returned %d (%s)",
 				(ulong) page_no, (ulong) space_id,
 				err, d_stream.msg);
 		case Z_BUF_ERROR:
@@ -6359,11 +6351,9 @@ inflate_error:
 
 		if (next_page_no == FIL_NULL) {
 			if (!d_stream.avail_in) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: unexpected end of"
-					" compressed BLOB"
-					" page %lu space %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Unexpected end of compressed BLOB"
+					" page %lu space %lu",
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {

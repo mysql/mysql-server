@@ -825,7 +825,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			           thd->query(), thd->query_length(),
+                              thd->query().str, thd->query().length,
 			           transactional_table, FALSE, FALSE,
                                    errcode))
 	  error= 1;
@@ -1181,11 +1181,13 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         *values, MARK_COLUMNS_READ, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
+    thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
                         update_values, MARK_COLUMNS_READ, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, update_values, map);
+    thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1793,8 +1795,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
     }
+    lex->in_update_value_clause= true;
     res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
                              MARK_COLUMNS_READ, 0, 0);
+    lex->in_update_value_clause= false;
     if (!res)
     {
       /*
@@ -2080,8 +2084,8 @@ bool select_insert::send_eof()
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                      thd->query(), thd->query_length(),
-                      trans_table, FALSE, FALSE, errcode))
+                          thd->query().str, thd->query().length,
+                          trans_table, false, false, errcode))
     {
       table->file->ha_release_auto_increment();
       DBUG_RETURN(1);
@@ -2175,8 +2179,8 @@ void select_insert::abort_result_set() {
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           /* error of writing binary log is ignored */
-          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
-                                   thd->query_length(),
+          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
+                                   thd->query().length,
                                    transactional_table, FALSE, FALSE, errcode);
         }
 	if (changed)

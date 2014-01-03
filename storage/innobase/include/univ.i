@@ -252,7 +252,7 @@ operations (very slow); also UNIV_DEBUG must be defined */
 
 // #define UNIV_SQL_DEBUG
 
-#if defined(INNODB_COMPILER_HINTS)      \
+#if defined(COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
 
@@ -436,10 +436,10 @@ typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
-# define UINT32PF	"%"PRIu32
-# define INT64PF	"%"PRId64
-# define UINT64PF	"%"PRIu64
-# define UINT64PFx	"%016"PRIx64
+# define UINT32PF	"%" PRIu32
+# define INT64PF	"%" PRId64
+# define UINT64PF	"%" PRIu64
+# define UINT64PFx	"%016" PRIx64
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;
@@ -530,7 +530,7 @@ contains the sum of the following flag and the locally stored len. */
 #endif /* CHECK FOR GCC VER_GT_2 */
 
 /* Some macros to improve branch prediction and reduce cache misses */
-#if defined(INNODB_COMPILER_HINTS) && defined(HAVE_GCC_GT_2)
+#if defined(COMPILER_HINTS) && defined(HAVE_GCC_GT_2)
 /* Tell the compiler that 'expr' probably evaluates to 'constant'. */
 # define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
 /* Tell the compiler that a pointer is likely to be NULL */
@@ -551,16 +551,16 @@ it is read or written. */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
 
-# if defined(INNODB_COMPILER_HINTS)
+# if defined(COMPILER_HINTS)
 //# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 #  define UNIV_PREFETCH_R(addr) ((void) 0)
 #  define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 # else
 #  define UNIV_PREFETCH_R(addr) ((void) 0)
 #  define UNIV_PREFETCH_RW(addr) ((void) 0)
-# endif /* INNODB_COMPILER_HINTS */
+# endif /* COMPILER_HINTS */
 
-# elif defined __WIN__ && defined INNODB_COMPILER_HINTS
+# elif defined __WIN__ && defined COMPILER_HINTS
 # include <xmmintrin.h>
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)

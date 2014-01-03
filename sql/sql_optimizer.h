@@ -52,17 +52,16 @@ class JOIN :public Sql_alloc
 public:
   /**
     Optimal query execution plan. Initialized with a tentative plan in
-    make_join_statistics() and later replaced with the optimal plan in
+    JOIN::make_join_plan() and later replaced with the optimal plan in
     get_best_combination().
   */
   JOIN_TAB *join_tab;
 
   /**
     Array of plan operators representing the current (partial) best
-    plan. The array is stack-allocated in make_join_statistics() as
-    stat_vector[MAX_TABLES + 1] and is thus valid only inside
-    make_join_statistics(). Initially (*best_ref[i]) ==
-    join_tab[i]. The optimizer reorders best_ref.
+    plan. The array is allocated in JOIN::make_join_plan() and is valid only
+    inside this function. Initially (*best_ref[i]) == join_tab[i].
+    The optimizer reorders best_ref.
   */
   JOIN_TAB **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
@@ -238,7 +237,7 @@ public:
   bool need_tmp;
   int hidden_group_field_count;
 
-  // Used and updated by make_join_statistics and optimize_keyuse
+  // Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
   List<Item> all_fields; ///< to store all expressions used in query
@@ -600,6 +599,7 @@ public:
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
+  void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN
   enum enum_plan_state
   {
@@ -699,11 +699,21 @@ private:
 
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
-public: // @todo: Make private
-  void set_semijoin_embedding();
 private:
+  void set_semijoin_embedding();
+  bool make_join_plan(bool first_optimization);
+  bool init_planner_arrays();
+  bool propagate_dependencies();
+  bool extract_const_tables();
+  bool extract_func_dependent_tables();
+  void update_sargable_from_const(SARGABLE_PARAM *sargables);
+  bool estimate_rowcount();
+  void optimize_keyuse();
   void set_semijoin_info();
   bool set_access_methods();
+  void update_depend_map();
+  void update_depend_map(ORDER *order);
+  void make_outerjoin_info();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
@@ -711,6 +721,9 @@ private:
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  ORDER *remove_const(ORDER *first_order, Item *cond,
+                      bool change_list, bool *simple_order,
+                      const char *clause_type);
   /**
     Recount temp table field types recursively.
   */
@@ -733,7 +746,6 @@ private:
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
-void update_depend_map(JOIN *join);
 void reset_nj_counters(List<TABLE_LIST> *join_list);
 Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,

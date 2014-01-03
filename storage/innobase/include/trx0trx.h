@@ -1008,8 +1008,7 @@ struct trx_t{
 					on dict_operation_lock. Protected
 					by dict_operation_lock. */
 
-	time_t		start_time;	/*!< time the trx object was created
-					or the state last time became
+	time_t		start_time;	/*!< time the state last time became
 					TRX_STATE_ACTIVE */
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation

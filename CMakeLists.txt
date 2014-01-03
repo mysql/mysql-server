@@ -13,11 +13,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-# Avoid warnings in higher versions
-if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
- CMAKE_POLICY(VERSION 2.8)
-endif()
+# There's a bug in unzipping prior to 2.8.2
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+
+# We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
+IF(CMAKE_VERSION VERSION_GREATER "2.8.8")
+  CMAKE_POLICY(SET CMP0018 OLD)
+ENDIF()
+
+# We use PROPERTIES LINK_INTERFACE_LIBRARIES. See cmake --help-policy CMP0022
+IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
+   CMAKE_VERSION VERSION_GREATER "2.8.12")
+ CMAKE_POLICY(SET CMP0022 OLD)
+ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
@@ -156,8 +164,26 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
+    EXECUTE_PROCESS(COMMAND isainfo -b
+      OUTPUT_VARIABLE ISAINFO_B
+      RESULT_VARIABLE ISAINFO_B_RES
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    IF(ISAINFO_B_RES)
+      MESSAGE(STATUS "Failed to run isainfo -b to determine arch bits: "
+        "${ISAINFO_B_RES}. Falling back to compiler's default.")
+    ELSE()
+      MESSAGE("Adding -m${ISAINFO_B}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m${ISAINFO_B}")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m${ISAINFO_B}")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
@@ -177,11 +203,7 @@ OPTION(MYSQL_MAINTAINER_MODE
 # Whether the maintainer mode compiler options should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
   IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    IF(WITH_INNODB_MEMCACHED)
-      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS_NO_WERROR()
-    ELSE()
-      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-    ENDIF()
+    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
@@ -334,9 +356,6 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
-OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
-MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
-
 #
 # Options related to client-side protocol tracing
 #
@@ -414,6 +433,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
+OPTION(TMPDIR
+"PATH to MySQL TMP dir. If unspecified, defaults to P_tmpdir in <stdio.h>" OFF)
+IF(TMPDIR)
+  # Quote it, to make it a const char string.
+  SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
+ELSE()
+  # Do not quote it, to refer to the P_tmpdir macro in <stdio.h>.
+  SET(DEFAULT_TMPDIR "P_tmpdir")
+ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)
@@ -484,19 +512,7 @@ IF(WITH_UNIT_TESTS)
     ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
   ENDIF()
   # libc++ doesn't have tuple in tr1
-  include(CheckCXXSourceRuns)
-  CHECK_CXX_SOURCE_RUNS(
-    "#include <ciso646>
-    int main()
-    {
-    #ifdef _LIBCPP_VERSION
-      return 0;
-    #else
-      return 1;
-    #endif
-    }"
-    HAVE_LIBCPP)
-  IF(HAVE_LIBCPP)
+  IF(HAVE_LLVM_LIBCPP)
     ADD_DEFINITIONS(-DGTEST_USE_OWN_TR1_TUPLE=1)
   ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)

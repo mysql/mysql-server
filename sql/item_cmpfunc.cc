@@ -2506,16 +2506,32 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
   thd->lex->current_select()->between_count++;
 
-  /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
   if (pred_level && !negated)
     return 0;
 
-  /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
   not_null_tables_cache= (args[0]->not_null_tables() |
                           (args[1]->not_null_tables() &
                            args[2]->not_null_tables()));
 
   return 0;
+}
+
+
+void Item_func_between::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
+  if (pred_level && !negated)
+    return;
+
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
+  not_null_tables_cache= args[0]->not_null_tables() |
+                         (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
 }
 
 
@@ -2960,6 +2976,15 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
   return 0;
 }
 
+
+void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func::fix_after_pullout(parent_select, removed_select);
+
+  not_null_tables_cache= (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
+}
 
 void Item_func_if::cache_type_info(Item *source)
 {
@@ -4150,29 +4175,39 @@ cmp_item_row::~cmp_item_row()
 }
 
 
-void cmp_item_row::alloc_comparators()
+void cmp_item_row::alloc_comparators(Item *item)
 {
+  n= item->cols();
+  DBUG_ASSERT(comparators == NULL);
   if (!comparators)
     comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+  if (comparators)
+  {
+    for (uint i= 0; i < n; i++)
+    {
+      DBUG_ASSERT(comparators[i] == NULL);
+      Item *item_i= item->element_index(i);
+      if (!(comparators[i]=
+            cmp_item::get_comparator(item_i->result_type(),
+                                     item_i->collation.collation)))
+        break;                                  // new failed
+      if (item_i->result_type() == ROW_RESULT)
+        static_cast<cmp_item_row*>(comparators[i])->alloc_comparators(item_i);
+    }
+  }
 }
 
 
 void cmp_item_row::store_value(Item *item)
 {
   DBUG_ENTER("cmp_item_row::store_value");
-  n= item->cols();
-  alloc_comparators();
+  DBUG_ASSERT(comparators);
   if (comparators)
   {
     item->bring_value();
     item->null_value= 0;
-    for (uint i=0; i < n; i++)
+    for (uint i= 0; i < n; i++)
     {
-      if (!comparators[i])
-        if (!(comparators[i]=
-              cmp_item::get_comparator(item->element_index(i)->result_type(),
-                                       item->element_index(i)->collation.collation)))
-	  break;					// new failed
       comparators[i]->store_value(item->element_index(i));
       item->null_value|= item->element_index(i)->null_value;
     }
@@ -4351,24 +4386,41 @@ bool Item_func_in::list_contains_null()
     1   got error
 */
 
-bool
-Item_func_in::fix_fields(THD *thd, Item **ref)
+bool Item_func_in::fix_fields(THD *thd, Item **ref)
 {
-  Item **arg, **arg_end;
-
   if (Item_func_opt_neg::fix_fields(thd, ref))
-    return 1;
+    return true;
 
-  /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
   if (pred_level && negated)
-    return 0;
+    return false;
 
-  /* not_null_tables_cache = union(T1(e),intersection(T1(ei))) */
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
   not_null_tables_cache= ~(table_map) 0;
-  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end; arg++)
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
     not_null_tables_cache&= (*arg)->not_null_tables();
   not_null_tables_cache|= (*args)->not_null_tables();
-  return 0;
+
+  return false;
+}
+
+
+void Item_func_in::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
+  if (pred_level && negated)
+    return;
+
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
+  not_null_tables_cache= ~(table_map) 0;
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
+    not_null_tables_cache&= (*arg)->not_null_tables();
+  not_null_tables_cache|= (*args)->not_null_tables();
 }
 
 
@@ -4464,7 +4516,7 @@ void Item_func_in::fix_length_and_dec()
         cmp_items[ROW_RESULT]= cmp;
       }
       cmp->n= args[0]->cols();
-      cmp->alloc_comparators();
+      cmp->alloc_comparators(args[0]);
     }
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
@@ -4580,11 +4632,8 @@ void Item_func_in::fix_length_and_dec()
         break;
       case ROW_RESULT:
         /*
-          The row comparator was created at the beginning but only DATETIME
-          items comparators were initialized. Call store_value() to setup
-          others.
+          The row comparator was created at the beginning.
         */
-        ((in_row*)array)->tmp.store_value(args[0]);
         break;
       case DECIMAL_RESULT:
         array= new in_decimal(arg_count - 1);

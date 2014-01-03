@@ -1556,9 +1556,15 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     was called.
   */
   thd->transaction.flags.commit_low= false;
-  if (run_after_commit)
+  if (run_after_commit && thd->transaction.flags.run_hooks)
   {
-    /* If commit succeeded, we call the after_commit hook */
+    /*
+       If commit succeeded, we call the after_commit hook.
+
+       TODO: Investigate if this can be refactored so that there is
+             only one invocation of this hook in the code (in
+             MYSQL_LOG_BIN::finish_commit).
+    */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
     thd->transaction.flags.run_hooks= false;
@@ -3469,9 +3475,13 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_SE_OUT_OF_MEMORY:
     my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
+#ifdef WITH_PARTITION_STORAGE_ENGINE
              table->part_info ? ha_resolve_storage_engine_name
              (table->part_info->default_engine_type) :
              table->file->table_type());
+#else
+             table->file->table_type());
+#endif
     DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
