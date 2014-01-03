@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -425,7 +425,7 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
   DBUG_ENTER("MYSQL_BIN_LOG::generate_gtid(THD *thd)");
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
-  DBUG_ASSERT(gtid_mode > 1);
+  DBUG_ASSERT(gtid_mode > GTID_MODE_UPGRADE_STEP_1);
   int error= 0;
   bool need_unlock= false;
 

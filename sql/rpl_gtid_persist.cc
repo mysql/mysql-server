@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -38,16 +38,28 @@ bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
   if (table)
   {
     if (error)
-      ha_rollback_trans(thd, false);
+      ha_rollback_trans(thd, FALSE);
     else
-      ha_commit_trans(thd, false);
+    {
+      /*
+        To make the commit not to block with global read lock set
+        "ignore_global_read_lock" flag to true.
+      */
+      ha_commit_trans(thd, FALSE, TRUE);
+    }
 
     if (need_commit)
     {
       if (error)
-        ha_rollback_trans(thd, true);
+        ha_rollback_trans(thd, TRUE);
       else
-        ha_commit_trans(thd, true);
+      {
+        /*
+          To make the commit not to block with global read lock set
+          "ignore_global_read_lock" flag to true.
+        */
+        ha_commit_trans(thd, TRUE, TRUE);
+      }
     }
 
     /*
@@ -75,11 +87,13 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
   TABLE_LIST tables;
   Query_tables_list query_tables_list_backup;
 
+  /* Allow to operate the gtid table when disconnecting the session. */
   uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
                MYSQL_OPEN_IGNORE_FLUSH |
                MYSQL_LOCK_IGNORE_TIMEOUT |
-               MYSQL_LOCK_RPL_INFO_TABLE);
+               MYSQL_OPEN_IGNORE_KILLED |
+               MYSQL_LOCK_RPL_INFO_TABLE); // remove and test the option later
 
   /*
     This is equivalent to a new "statement". For that reason, we call both
@@ -159,30 +173,24 @@ int Gtid_table_persistor::write_row(TABLE* table, char *sid,
   fields[0]->set_notnull();
   if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
   {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
-             fields[0]->field_name);
-    error= -1;
-    goto end;
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
+    goto err;
   }
 
   /* Store gno_start */
   fields[1]->set_notnull();
   if (fields[1]->store(gno_start, true /* unsigned = true*/))
   {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
-             fields[1]->field_name);
-    error= -1;
-    goto end;
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[1]->field_name);
+    goto err;
   }
 
   /* Store gno_end */
   fields[2]->set_notnull();
   if (fields[2]->store(gno_end, true /* unsigned = true*/))
   {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
-             fields[2]->field_name);
-    error= -1;
-    goto end;
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[2]->field_name);
+    goto err;
   }
 
   /* Inserts a new row into gtid_executed table. */
@@ -193,28 +201,25 @@ int Gtid_table_persistor::write_row(TABLE* table, char *sid,
       This makes sure that the error is -1 and not the status returned
       by the handler.
     */
-    error= -1;
-    goto end;
+    goto err;
   }
 
-end:
-  if (!error)
+  /* Do not protect m_count for improving transactions' concurrency */
+  m_count++;
+  if ((executed_gtids_compression_period != 0) &&
+      (m_count >= executed_gtids_compression_period ||
+       DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
+       DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
+       DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
+       DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
   {
-    /* Do not protect m_count for improving transactions' concurrency */
-    m_count++;
-    if ((executed_gtids_compression_period != 0) &&
-        (m_count >= executed_gtids_compression_period ||
-         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
-    {
-      m_count= 0;
-      mysql_cond_signal(&COND_compress_gtid_table);
-    }
+    m_count= 0;
+    mysql_cond_signal(&COND_compress_gtid_table);
   }
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(-1);
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1513,13 +1513,11 @@ void Stage_manager::clear_preempt_status(THD *head)
 int generate_and_save_gtid(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::generate_and_save_gtid(THD *thd)");
-  DBUG_ASSERT(gtid_table_persistor != NULL);
   int error= 0;
   bool is_gtid_generated= false;
 
   /* Generate gtid for transaction. */
-  Gtid *gtid= &thd->owned_gtid;
-  if (gtid->is_null() &&
+  if (thd->owned_gtid.is_null() &&
       thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
     if (!(error= gtid_state->generate_automatic_gtid(thd)))
@@ -1527,8 +1525,7 @@ int generate_and_save_gtid(THD *thd)
   }
 
   /* Save gtid into mysql.gtid_executed table. */
-  if ((is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP) &&
-      gtid_table_persistor != NULL)
+  if (is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP)
     error= gtid_state->save_gtid_into_table(thd);
 
   DBUG_RETURN(error);
@@ -1592,7 +1589,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   if (cache_mngr != NULL && ((!cache_mngr->stmt_cache.has_incident() &&
        !cache_mngr->stmt_cache.is_binlog_empty()) ||
       (ending_trans(thd, all) && trans_cannot_safely_rollback(thd))) &&
-      gtid_mode > 1 && !thd->is_operating_gtid_table)
+      gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /*
       If the transaction is being rolled back and contains changes that
@@ -1602,9 +1599,9 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     {
       Query_log_event
         end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error = cache_mngr->trx_cache.write_event(thd, &end_evt);
+      error= cache_mngr->trx_cache.write_event(thd, &end_evt);
     }
-    error |= generate_and_save_gtid(thd);
+    error|= generate_and_save_gtid(thd);
   }
 
   /*
@@ -1632,12 +1629,12 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     const char* err_msg= "The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log.";
-    error |= write_incident(thd, true/*need_lock_log=true*/, err_msg);
+    error|= write_incident(thd, true/*need_lock_log=true*/, err_msg);
     cache_mngr->stmt_cache.reset();
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if ((error |= cache_mngr->stmt_cache.finalize(thd)))
+    if ((error|= cache_mngr->stmt_cache.finalize(thd)))
       goto end;
     stuff_logged= true;
   }
@@ -1652,7 +1649,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       */
       Query_log_event
         end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error |= cache_mngr->trx_cache.finalize(thd, &end_evt);
+      error|= cache_mngr->trx_cache.finalize(thd, &end_evt);
       stuff_logged= true;
     }
     else
@@ -1661,7 +1658,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         If the transaction is being rolled back and its changes can be
         rolled back, the trx-cache's content is truncated.
       */
-      error |= cache_mngr->trx_cache.truncate(thd, all);
+      error|= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
   else
@@ -1705,13 +1702,13 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         Otherwise, the statement's changes in the trx-cache are
         truncated.
       */
-      error |= cache_mngr->trx_cache.truncate(thd, all);
+      error|= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
-    error |= ordered_commit(thd, all, /* skip_commit */ true);
+    error|= ordered_commit(thd, all, /* skip_commit */ true);
 
   if (check_write_error(thd))
   {
@@ -1726,7 +1723,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       We reach this point if the effect of a statement did not properly get into
       a cache and need to be rolled back.
     */
-    error |= cache_mngr->trx_cache.truncate(thd, all);
+    error|= cache_mngr->trx_cache.truncate(thd, all);
   }
 
 end:
@@ -6680,7 +6677,7 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
   DBUG_ENTER("MYSQL_BIN_LOG::prepare");
   int error= 0;
   if (trans_has_updated_trans_table(thd) && ending_trans(thd, all) &&
-      gtid_mode > 1 && !thd->is_operating_gtid_table)
+      gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /* Generate gtid and save it into table before transaction prepare. */
     if (generate_and_save_gtid(thd))
@@ -6763,7 +6760,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
         trans->rw_ha_count > 1))) &&
       /* Already stored gtid into table before XA transaction prepare. */
       !thd->transaction.xid_state.has_state(XID_STATE::XA_PREPARED) &&
-      gtid_mode > 1 && !thd->is_operating_gtid_table)
+      gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /*
       Generate gtid and save it into table before transaction commit

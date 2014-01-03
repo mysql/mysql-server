@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1427,16 +1427,14 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     Save transaction's gtid into table before transaction prepare
     when binlog is disabled.
   */
-  if (!opt_bin_log && gtid_mode > 1 && (rw_trans ||
-      (all && thd->lex->sql_command == SQLCOM_COMMIT &&
-      thd->variables.gtid_next.type == GTID_GROUP)) &&
+  if (!opt_bin_log && !thd->owned_gtid.is_null() &&
+      gtid_mode > GTID_MODE_UPGRADE_STEP_1 &&
+      (rw_trans || (all && thd->lex->sql_command == SQLCOM_COMMIT &&
+       thd->variables.gtid_next.type == GTID_GROUP)) &&
       !thd->is_operating_gtid_table)
   {
-    if (!thd->owned_gtid.is_null() && gtid_table_persistor != NULL)
-    {
-      error= gtid_state->save_gtid_into_table(thd);
-      need_clear_owned_gtid= true;
-    }
+    error= gtid_state->save_gtid_into_table(thd);
+    need_clear_owned_gtid= true;
   }
 
   if (ha_info)
