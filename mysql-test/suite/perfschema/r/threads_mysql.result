@@ -12,7 +12,7 @@ type	FOREGROUND
 processlist_user	NULL
 processlist_host	NULL
 processlist_db	NULL
-processlist_command	Compress
+processlist_command	Daemon
 processlist_info	NULL
 unified_parent_thread_id	unified parent_thread_id
 role	NULL

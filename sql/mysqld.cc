@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1438,7 +1438,8 @@ static void init_thd(THD **p_thd)
   DBUG_ENTER("init_thd");
   THD *thd= *p_thd;
   thd->thread_stack= reinterpret_cast<char *>(p_thd);
-  thd->set_command(COM_COMPRESS_GTID_TABLE);
+  //thd->set_command(COM_COMPRESS_GTID_TABLE);
+  thd->set_command(COM_DAEMON);
   thd->security_ctx->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
   thd->store_globals();
@@ -4279,8 +4280,8 @@ static void create_compress_gtid_table_thread()
   if ((error= mysql_thread_create(key_thread_compress_gtid_table,
                                   &hThread, &connection_attrib,
                                   compress_gtid_table, (void*) thd)))
-    sql_print_warning("Can't create thread to compress gtid_executed table"
-                      " (errno= %d)", error);
+    sql_print_warning("Can't create thread to compress gtid table "
+                      "(errno= %d)", error);
 }
 
 
@@ -4661,7 +4662,8 @@ int mysqld_main(int argc, char **argv)
       if (gtid_mode > 0)
       {
         global_sid_lock->wrlock();
-        if (gtid_mode > 1 || !logged_gtids_binlog.is_empty())
+        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
+            !logged_gtids_binlog.is_empty())
         {
           Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();

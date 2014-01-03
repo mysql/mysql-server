@@ -35,6 +35,6 @@ SELECT NAME, TYPE, PROCESSLIST_STATE, PROCESSLIST_COMMAND FROM performance_schem
 NAME	thread/sql/compress_gtid_table
 TYPE	FOREGROUND
 PROCESSLIST_STATE	Compressing gtid_executed table
-PROCESSLIST_COMMAND	Compress
+PROCESSLIST_COMMAND	Daemon
 SET GLOBAL DEBUG= @debug_save;
 DROP TABLE t1;
