@@ -138,8 +138,8 @@ buf_buddy_stamp_free(
 
 /**********************************************************************//**
 Stamps a buddy nonfree.
-@param[in/out] buf block to stamp
-@param[in] i block size */
+@param[in,out]	buf	block to stamp
+@param[in]	i	block size */
 #define buf_buddy_stamp_nonfree(buf, i) do {				\
 	buf_buddy_mem_invalid(buf, i);					\
 	memset(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET, 0xff, 4);	\

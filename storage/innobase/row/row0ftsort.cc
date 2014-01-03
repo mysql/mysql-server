@@ -1335,7 +1335,7 @@ row_fts_sel_tree_update(
 
 	for (i = 1; i <= height; i++) {
 		propagated = (ulint) row_fts_sel_tree_propagate(
-			(int) propagated, sel_tree, mrec, offsets, index);
+			int(propagated), sel_tree, mrec, offsets, index);
 	}
 
 	return(sel_tree[0]);

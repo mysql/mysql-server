@@ -4734,8 +4734,8 @@ will_not_choose:
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Renaming tablespace %s of id %lu, to"
-			" %s_ibbackup_old_vers_<timestamp> because its size %"
-			" PRId64  is too small (< 4 pages 16 kB each), or the"
+			" %s_ibbackup_old_vers_<timestamp> because its size"
+			INT64PF " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
 			" happen in an ibbackup run, and is not dangerous.",
 			fsp->filepath, fsp->id, fsp->filepath, size);
