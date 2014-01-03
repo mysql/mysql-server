@@ -1319,11 +1319,11 @@ loop:
 	find a free block then we should sleep here to let the
 	page_cleaner do an LRU batch for us. */
 
-	if (n_iterations > 1) {
+	if (!srv_read_only_mode) {
+		os_event_set(buf_flush_event);
+	}
 
-		if (!srv_read_only_mode) {
-			os_event_set(buf_flush_event);
-		}
+	if (n_iterations > 1) {
 
 		os_thread_sleep(10000);
 	}
