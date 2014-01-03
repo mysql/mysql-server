@@ -433,6 +433,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
+OPTION(TMPDIR
+"PATH to MySQL TMP dir. If unspecified, defaults to P_tmpdir in <stdio.h>" OFF)
+IF(TMPDIR)
+  # Quote it, to make it a const char string.
+  SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
+ELSE()
+  # Do not quote it, to refer to the P_tmpdir macro in <stdio.h>.
+  SET(DEFAULT_TMPDIR "P_tmpdir")
+ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)
