@@ -575,9 +575,11 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 #else
-
-		ut_d(for (ulint i = 0; i < page_size.logical(); i++) {
-		     ut_a(read_buf[i] == 0); });
+		for (ulint i = 0; i < page_size.logical(); i++) {
+			if (read_buf[i] != 0) {
+				return(TRUE);
+			}
+		}
 
 		return(FALSE);
 #endif /* UNIV_INNOCHECKSUM */
