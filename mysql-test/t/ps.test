@@ -1798,24 +1798,17 @@ set @@character_set_server= @old_character_set_server;
 drop tables if exists t1;
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
-# Let us prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
+# Prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
 # which in its ON DUPLICATE KEY clause erroneously tries to assign value
-# to a column which is mentioned only in SELECT part.
-prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
-# Both first and second attempts to execute it should fail
---error ER_BAD_FIELD_ERROR 
-execute stmt;
+# to a column which is mentioned only in SELECT part. This is now caught
+# during preparation.
 --error ER_BAD_FIELD_ERROR
-execute stmt;
-deallocate prepare stmt;
+prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
+#
 # And now the same test for more complex case which is more close
 # to the one that was reported originally.
-prepare stmt from "insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP'";
---error ER_BAD_FIELD_ERROR 
-execute stmt;
 --error ER_BAD_FIELD_ERROR
-execute stmt;
-deallocate prepare stmt;
+prepare stmt from "insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP'";
 drop tables t1;
 
 #
@@ -3486,4 +3479,26 @@ DEALLOCATE PREPARE stmt;
 
 DROP TABLE t1, t2;
 
-###########################################################################
+--echo #
+--echo # Bug#16820562: Bad column names are not rejected at 'prepare'
+--echo #
+
+--echo Resolver errors should be given at prepare time in insert select
+
+CREATE TABLE t1 (a INTEGER);
+
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE absent=2";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE a=absent";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE absent=2";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE a=absent";
+
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1(absent) VALUES(1) ON DUPLICATE KEY UPDATE a=1";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1(absent) SELECT 1 ON DUPLICATE KEY UPDATE a=1";
+
+DROP TABLE t1;
