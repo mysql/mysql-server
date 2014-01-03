@@ -96,6 +96,7 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   @param table_list   The table for insert.
   @param fields       The insert fields.
   @param value_count  Number of values supplied
+                      = 0: INSERT ... SELECT, delay field count check
   @param check_unique If duplicate values should be rejected.
   @param[out] insert_table_ref resolved reference to base table
 
@@ -113,7 +114,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   DBUG_ASSERT(table_list->updatable);
 
-  if (fields.elements == 0 && value_count != 0)
+  if (fields.elements == 0)
   {
     // No field list supplied, use field list of table being updated.
 
@@ -121,7 +122,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     *insert_table_ref= table_list;
 
-    if (value_count != table->s->fields)
+    if (value_count > 0 && value_count != table->s->fields)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -146,7 +147,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     Name_resolution_context_state ctx_state;
     int res;
 
-    if (fields.elements != value_count)
+    if (value_count > 0 && fields.elements != value_count)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -1153,14 +1154,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
     DBUG_RETURN(true);
 
+  // Save the state of the current name resolution context.
+  ctx_state.save_state(context, table_list);
+
   // Prepare the lists of columns and values in the statement.
   if (values)
   {
-    /* if we have INSERT ... VALUES () we cannot have a GROUP BY clause */
+    // if we have INSERT ... VALUES () we cannot have a GROUP BY clause
     DBUG_ASSERT (!select_lex->group_list.elements);
-
-    /* Save the state of the current name resolution context. */
-    ctx_state.save_state(context, table_list);
 
     /*
       Perform name resolution only in the first table - 'table_list',
@@ -1192,17 +1193,72 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= true;
-      // Setup the fields to be modified
+      // Resolve the columns that will be updated
       res= setup_fields(thd, Ref_ptr_array(),
                         update_fields, MARK_COLUMNS_WRITE, 0, 0);
       select_lex->no_wrap_view_item= false;
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
     }
-
-    /* Restore the current context. */
-    ctx_state.restore_state(context, table_list);
   }
+  else if (thd->stmt_arena->is_stmt_prepare())
+  {
+    /*
+      This section of code is more or less a duplicate of the code  in
+      select_insert::prepare, and the 'if' branch above.
+      @todo Consolidate these three sections into one.
+    */
+    /*
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+     */
+    table_list->next_local= NULL;
+    thd->dup_field= NULL;
+    context->resolve_in_table_list_only(table_list);
+
+    res= check_insert_fields(thd, context->table_list, fields, 0,
+                             !insert_into_view, insert_table_ref);
+    table_map map= 0;
+    if (!res)
+      map= (*insert_table_ref)->table->map;
+
+    if (!res && duplic == DUP_UPDATE)
+    {
+      select_lex->no_wrap_view_item= true;
+
+      // Resolve the columns that will be updated
+      res= setup_fields(thd, Ref_ptr_array(),
+                        update_fields, MARK_COLUMNS_WRITE, 0, 0);
+      select_lex->no_wrap_view_item= false;
+      if (!res)
+        res= check_valid_table_refs(table_list, update_fields, map);
+
+      DBUG_ASSERT(!table_list->next_name_resolution_table);
+      if (select_lex->group_list.elements == 0 && !select_lex->with_sum_func)
+      {
+        /*
+          There are two separata name resolution contexts:
+          the INSERT table and the tables in the SELECT expression 
+          Make a single context out of them by concatenating the lists:
+        */  
+        table_list->next_name_resolution_table= 
+          ctx_state.get_first_name_resolution_table();
+      }
+      thd->lex->in_update_value_clause= true;
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), update_values,
+                          MARK_COLUMNS_READ, 0, 0);
+      thd->lex->in_update_value_clause= false;
+
+      /*
+        Notice that there is no need to apply the Item::update_value_transformer
+        here, as this will be done during EXECUTE in select_insert::prepare().
+      */
+    }
+  }
+
+  // Restore the current name resolution context
+  ctx_state.restore_state(context, table_list);
 
   if (res)
     DBUG_RETURN(res);
