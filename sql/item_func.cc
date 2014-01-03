@@ -6236,6 +6236,12 @@ void Item_func_match::init_search(bool no_order)
     ft_tmp= &search_value;
   }
 
+  if (!table->is_created())
+  {
+     my_error(ER_NO_FT_MATERIALIZED_SUBQUERY, MYF(0));
+     DBUG_VOID_RETURN;
+  }
+
   if (join_key && !no_order)
     flags|=FT_SORTED;
   ft_handler=table->file->ft_init_ext(flags, key, ft_tmp);
