@@ -27,23 +27,25 @@
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
+#include "prealloced_array.h"
 
 #include <algorithm>
+#include <functional>
 
 #include "trigger.h"                  // Trigger
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 
-///////////////////////////////////////////////////////////////////////////
-// Static function implementation.
-///////////////////////////////////////////////////////////////////////////
 
-
-static int cmp_splocal_locations(Item_splocal * const *a,
-                                 Item_splocal * const *b)
+class Cmp_splocal_locations :
+  public std::binary_function<const Item_splocal*, const Item_splocal*, bool>
 {
-  return (int)((*a)->pos_in_query - (*b)->pos_in_query);
-}
-
+public:
+  bool operator()(const Item_splocal *a, const Item_splocal *b)
+  {
+    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+    return a->pos_in_query < b->pos_in_query;
+  }
+};
 
 /*
   StoredRoutinesBinlogging
@@ -140,10 +142,8 @@ static int cmp_splocal_locations(Item_splocal * const *a,
 */
 static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 {
-  Dynamic_array<Item_splocal*> sp_vars_uses;
-  char *pbuf, *cur, buffer[512];
-  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
-  int prev_pos, res, buf_len;
+  // Stack-local array, does not need instrumentation.
+  Prealloced_array<Item_splocal*, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
   for (Item *item= instr->free_list; item; item= item->next)
@@ -152,27 +152,30 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     {
       Item_splocal *item_spl= (Item_splocal*)item;
       if (item_spl->pos_in_query)
-        sp_vars_uses.append(item_spl);
+        sp_vars_uses.push_back(item_spl);
     }
   }
 
-  if (!sp_vars_uses.elements())
+  if (sp_vars_uses.empty())
     return false;
 
   /* Sort SP var refs by their occurrences in the query */
-  sp_vars_uses.sort(cmp_splocal_locations);
+  std::sort(sp_vars_uses.begin(), sp_vars_uses.end(), Cmp_splocal_locations());
 
   /*
     Construct a statement string where SP local var refs are replaced
     with "NAME_CONST(name, value)"
   */
+  char buffer[512];
+  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  cur= query_str->str;
-  prev_pos= res= 0;
+  char *cur= query_str->str;
+  int prev_pos= 0;
+  int res= 0;
   thd->query_name_consts= 0;
 
-  for (Item_splocal **splocal= sp_vars_uses.front(); 
-       splocal <= sp_vars_uses.back(); splocal++)
+  for (Item_splocal **splocal= sp_vars_uses.begin(); 
+       splocal != sp_vars_uses.end(); splocal++)
   {
     Item *val;
 
@@ -221,25 +224,11 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     return true;
 
-  /*
-    Allocate additional space at the end of the new query string for the
-    query_cache_send_result_to_client function.
-
-    The query buffer layout is:
-       buffer :==
-            <statement>   The input statement(s)
-            '\0'          Terminating null char
-            <length>      Length of following current database name (size_t)
-            <db_name>     Name of current database
-            <flags>       Flags struct
-  */
-  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-           QUERY_CACHE_FLAGS_SIZE + 1;
-  if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
+  char *pbuf;
+  if ((pbuf= static_cast<char*>(thd->alloc(qbuf.length() + 1))))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
-    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     return true;
@@ -745,7 +734,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
 
-  const CSET_STRING query_backup= thd->query_string;
+  const LEX_CSTRING query_backup= thd->query();
 
 #if defined(ENABLED_PROFILING)
   /* This SP-instr is profilable and will be captured. */
@@ -799,11 +788,10 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     queries with SP vars can't be cached)
   */
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-    query_logger.general_log_write(thd, COM_QUERY, thd->query(),
-                                   thd->query_length());
+    query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
+                                   thd->query().length);
 
-  if (query_cache.send_result_to_client(thd, thd->query(),
-                                        thd->query_length()) <= 0)
+  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     rc= validate_lex_and_execute_core(thd, nextp, false);
 
@@ -882,7 +870,7 @@ void sp_instr_stmt::print(String *str)
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(thd->query(),
+  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          &thd->security_ctx->priv_user[0],

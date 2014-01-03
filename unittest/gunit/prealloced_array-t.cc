@@ -295,6 +295,20 @@ TEST_F(PreallocedArrayTest, NoMemLeaksResizing)
   EXPECT_EQ(0U, array.size());
 }
 
+TEST_F(PreallocedArrayTest, NoMemLeaksAssigning)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  Prealloced_array<IntWrap, 1, false> array2(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 10; ++ix)
+    array2.push_back(IntWrap(ix + 100));
+  array2= array1;
+  EXPECT_EQ(array1.size(), array2.size());
+  for (size_t ix= 0; ix < array1.size(); ++ix)
+    EXPECT_EQ(array1[ix].getval(), array2[ix].getval());
+}
+
 /*
   A simple class to verify that Prealloced_array also works for
   classes which have their own operator new/delete.

@@ -18,6 +18,7 @@
 
 #include "sql_class.h"                    // select_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
+#include "prealloced_array.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
@@ -188,8 +189,8 @@ public:
   /// Get the Handler_call_frame representing the currently active handler.
   Handler_call_frame *current_handler_frame() const
   {
-    return m_activated_handlers.elements() ?
-      (*m_activated_handlers.back()) : NULL;
+    return m_activated_handlers.size() ?
+      m_activated_handlers.back() : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -228,7 +229,7 @@ public:
   /// handler. This function must not be called for the EXIT handlers.
   uint get_last_handler_continue_ip() const
   {
-    uint ip= (*m_activated_handlers.back())->continue_ip;
+    uint ip= m_activated_handlers.back()->continue_ip;
     DBUG_ASSERT(ip != 0);
 
     return ip;
@@ -362,10 +363,10 @@ private:
   bool m_in_sub_stmt;
 
   /// Stack of visible handlers.
-  Dynamic_array<sp_handler_entry *> m_visible_handlers;
+  Prealloced_array<sp_handler_entry *, 16> m_visible_handlers;
 
   /// Stack of caught SQL conditions.
-  Dynamic_array<Handler_call_frame *> m_activated_handlers;
+  Prealloced_array<Handler_call_frame *, 16> m_activated_handlers;
 
   /// Stack of cursors.
   Bounds_checked_array<sp_cursor *> m_cstack;

@@ -691,7 +691,7 @@ void mysql_set_local_infile_default(MYSQL *mysql)
 int STDCALL
 mysql_query(MYSQL *mysql, const char *query)
 {
-  return mysql_real_query(mysql,query, (uint) strlen(query));
+  return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
 
@@ -3126,7 +3126,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 */
 
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
-                                         uint length)
+                                         size_t length)
 {
   char *buffer= (char *)param->buffer;
   char *endptr= value + length;

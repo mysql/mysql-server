@@ -344,9 +344,9 @@ table_cache_create_empty_row(
 		cache->mem_allocd += got_bytes;
 
 #if 0
-		printf("allocating chunk %d req bytes=%lu, got bytes=%lu, "
-		       "row size=%lu, "
-		       "req rows=%lu, got rows=%lu\n",
+		printf("allocating chunk %d req bytes=%lu, got bytes=%lu,"
+		       " row size=%lu,"
+		       " req rows=%lu, got rows=%lu\n",
 		       i, req_bytes, got_bytes,
 		       table_cache->row_size,
 		       req_rows, got_rows);
@@ -1644,7 +1644,7 @@ trx_i_s_create_lock_id(
 	} else {
 		/* table lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT":"UINT64PF,
+				      TRX_ID_FMT":" UINT64PF,
 				      row->lock_trx_id,
 				      row->lock_table_id);
 	}

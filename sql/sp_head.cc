@@ -24,7 +24,6 @@
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
-#include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"

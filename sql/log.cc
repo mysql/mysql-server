@@ -1361,7 +1361,7 @@ void log_slow_do(THD *thd)
                                 thd->rewritten_query.c_ptr_safe(),
                                 thd->rewritten_query.length());
   else
-    query_logger.slow_log_write(thd, thd->query(), thd->query_length());
+    query_logger.slow_log_write(thd, thd->query().str, thd->query().length);
 }
 
 

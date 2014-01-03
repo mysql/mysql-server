@@ -1024,7 +1024,7 @@ bool mysql_update(THD *thd,
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_table, FALSE, FALSE, errcode))
       {
         error=1;				// Rollback update
@@ -2272,8 +2272,8 @@ void multi_update::abort_result_set()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* the error of binary logging is ignored */
       (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, FALSE, errcode);
+                              thd->query().str, thd->query().length,
+                              transactional_tables, false, false, errcode);
     }
   }
   DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.cannot_safely_rollback());
@@ -2529,7 +2529,7 @@ bool multi_update::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_tables, FALSE, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update

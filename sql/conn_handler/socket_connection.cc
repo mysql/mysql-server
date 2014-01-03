@@ -101,6 +101,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
       by also passing count here.
     */
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+    thd->m_server_idle= false;
   }
 }
 
