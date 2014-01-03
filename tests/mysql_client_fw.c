@@ -325,7 +325,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
  MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
- if (stmt && mysql_stmt_prepare(stmt, query, strlen(query)))
+ if (stmt && mysql_stmt_prepare(stmt, query, (ulong)strlen(query)))
  {
    mysql_stmt_close(stmt);
    return 0;
@@ -600,7 +600,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
  MYSQL_FIELD *field;
  MYSQL_RES   *result;
  char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
- size_t      length[MAX_RES_FIELDS];
+ ulong       length[MAX_RES_FIELDS];
  my_bool     is_null[MAX_RES_FIELDS];
  int         rc, i;
 
@@ -967,7 +967,7 @@ MYSQL_STMT *handle;
 my_bool is_open;
 MYSQL_BIND *bind_array;
 char **out_data;
-size_t *out_data_length;
+unsigned long *out_data_length;
 unsigned column_count;
 unsigned row_count;
 } Stmt_fetch;
@@ -993,7 +993,7 @@ const char *query_arg)
 
  fetch->handle= mysql_stmt_init(mysql);
 
- rc= mysql_stmt_prepare(fetch->handle, fetch->query, strlen(fetch->query));
+ rc= mysql_stmt_prepare(fetch->handle, fetch->query, (ulong)strlen(fetch->query));
  check_execute(fetch->handle, rc);
 
  /*
@@ -1020,8 +1020,8 @@ const char *query_arg)
  fetch->bind_array= (MYSQL_BIND *) calloc(1, sizeof(MYSQL_BIND) *
  fetch->column_count);
  fetch->out_data= (char**) calloc(1, sizeof(char*) * fetch->column_count);
- fetch->out_data_length= (size_t*) calloc(1, sizeof(size_t) *
-                                          fetch->column_count);
+ fetch->out_data_length= (ulong*) calloc(1, sizeof(ulong) *
+                                         fetch->column_count);
  for (i= 0; i < fetch->column_count; ++i)
  {
    fetch->out_data[i]= (char*) calloc(1, MAX_COLUMN_LENGTH);

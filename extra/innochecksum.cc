@@ -1098,8 +1098,12 @@ int main(
 	time_t		now;
 	/* last time */
 	time_t		lastt;
-	/* for stat, if you couldn't guess */
+	/* stat, to get file size. */
+#ifdef _WIN32
+	struct _stat64	st;
+#else
 	struct stat	st;
+#endif /* _WIN32 */
 	/* Page size in bytes on disk. */
 	static ulong	physical_page_size;
 	/* Page size when uncompressed. */
@@ -1191,7 +1195,12 @@ int main(
 		}
 
 		/* stat the file to get size and page count. */
-		if (!read_from_stdin && stat(filename, &st)) {
+		if (!read_from_stdin &&
+#ifdef _WIN32
+			_stat64(filename, &st)) {
+#else
+			stat(filename, &st)) {
+#endif /* _WIN32 */
 			fprintf(stderr, "Error: %s cannot be found\n",
 				filename);
 

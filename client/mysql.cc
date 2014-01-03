@@ -1564,7 +1564,8 @@ void kill_query(const char *reason)
   if (verbose)
     tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", reason,
                 kill_buffer);
-  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
+  mysql_real_query(kill_mysql, kill_buffer,
+                   static_cast<ulong>(strlen(kill_buffer)));
   tee_fprintf(stdout, "%s -- query aborted\n", reason);
 
 err:

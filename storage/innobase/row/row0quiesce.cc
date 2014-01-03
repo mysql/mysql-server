@@ -557,8 +557,8 @@ row_quiesce_table_start(
 			   != DB_SUCCESS) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"There was an error writing to the "
-				"meta data file");
+				"There was an error writing to the"
+				" meta data file");
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table '%s' flushed to disk", table_name);
@@ -668,8 +668,8 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_NOT_SUPPORTED_YET,
-			    "FLUSH TABLES on tables that have an FTS index. "
-			    "FTS auxiliary tables will not be flushed.");
+			    "FLUSH TABLES on tables that have an FTS index."
+			    " FTS auxiliary tables will not be flushed.");
 
 	} else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 		/* If this flag is set then the table may not have any active
@@ -677,10 +677,10 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_NOT_SUPPORTED_YET,
-			    "FLUSH TABLES on a table that had an FTS index, "
-			    "created on a hidden column, the "
-			    "auxiliary tables haven't been dropped as yet. "
-			    "FTS auxiliary tables will not be flushed.");
+			    "FLUSH TABLES on a table that had an FTS index,"
+			    " created on a hidden column, the"
+			    " auxiliary tables haven't been dropped as yet."
+			    " FTS auxiliary tables will not be flushed.");
 	}
 
 	row_mysql_lock_data_dictionary(trx);

@@ -359,10 +359,11 @@ mem_heap_create_block_func(
 		block = (mem_block_t*) buf_block->frame;
 	}
 
-	if(!block) {
+	if (block == NULL) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Unable to allocate memory of size %lu.", len);
 	}
+
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
