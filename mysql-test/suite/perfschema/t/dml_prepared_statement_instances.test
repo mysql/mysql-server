@@ -22,7 +22,8 @@
 --source include/have_perfschema.inc
 
 #--disable_result_log 
-select * from performance_schema.prepared_statement_instances limit 1;
+select * from performance_schema.prepared_statement_instances
+  where owner_object_name like 'XXYYZZ%' limit 1;
 
 select * from performance_schema.prepared_statement_instances
   where owner_object_name='XXYYZZ';
