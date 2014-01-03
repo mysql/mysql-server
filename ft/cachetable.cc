@@ -807,7 +807,7 @@ static void cachetable_evicter(void* extra) {
 static void cachetable_partial_eviction(void* extra) {
     PAIR p = (PAIR)extra;
     CACHEFILE cf = p->cachefile;
-    p->ev->do_partial_eviction(p, false);
+    p->ev->do_partial_eviction(p);
     bjm_remove_background_job(cf->bjm);
 }
 
@@ -4102,10 +4102,10 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             write_extraargs
             );
         if (cost == PE_CHEAP) {
-            curr_in_clock->size_evicting_estimate = 0;
-            this->do_partial_eviction(curr_in_clock, true);
-            bjm_remove_background_job(cf->bjm);
             pair_unlock(curr_in_clock);
+            curr_in_clock->size_evicting_estimate = 0;
+            this->do_partial_eviction(curr_in_clock);
+            bjm_remove_background_job(cf->bjm);
         }
         else if (cost == PE_EXPENSIVE) {
             // only bother running an expensive partial eviction
@@ -4145,25 +4145,22 @@ exit:
 }
 
 //
-// on entry and exit, pair's mutex is held if pair_mutex_held is true
+// on entry and exit, pair's mutex is not held
 // on exit, PAIR is unpinned
 //
-void evictor::do_partial_eviction(PAIR p, bool pair_mutex_held) {
+void evictor::do_partial_eviction(PAIR p) {
     PAIR_ATTR new_attr;
     PAIR_ATTR old_attr = p->attr;
-    
+
     p->pe_callback(p->value_data, old_attr, &new_attr, p->write_extraargs);
 
     this->change_pair_attr(old_attr, new_attr);
     p->attr = new_attr;
     this->decrease_size_evicting(p->size_evicting_estimate);
-    if (!pair_mutex_held) {
-        pair_lock(p);
-    }
+
+    pair_lock(p);
     p->value_rwlock.write_unlock();
-    if (!pair_mutex_held) {
-        pair_unlock(p);
-    }
+    pair_unlock(p);
 }
 
 //

@@ -525,7 +525,7 @@ public:
     uint64_t reserve_memory(double fraction, uint64_t upper_bound);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
-    void do_partial_eviction(PAIR p, bool pair_mutex_held);
+    void do_partial_eviction(PAIR p);
     void evict_pair(PAIR p, bool checkpoint_pending);
     void wait_for_cache_pressure_to_subside();
     void signal_eviction_thread();
