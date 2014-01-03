@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4443,7 +4443,7 @@ fil_user_tablespace_restore_page0(
 		return(false);
 	}
 
-        ulint			flags = mach_read_from_4(FSP_HEADER_OFFSET
+	ulint			flags = mach_read_from_4(FSP_HEADER_OFFSET
 							 + FSP_SPACE_FLAGS
 							 + page);
 	const page_size_t	page_size(flags);
