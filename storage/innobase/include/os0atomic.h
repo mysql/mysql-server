@@ -83,26 +83,20 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
-# define os_atomic_fetch_and_increment(ptr, amount) \
-	__sync_fetch_and_add(ptr, amount)
-
 # define os_atomic_increment(ptr, amount) \
 	__sync_add_and_fetch(ptr, amount)
 
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
-# define os_atomic_increment_uint32(ptr, amount ) \
+# define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
-# define os_atomic_increment_ulint(ptr, amount) \
+# define os_atomic_increment_uint32(ptr, amount ) \
 	os_atomic_increment(ptr, amount)
 
 # define os_atomic_increment_uint64(ptr, amount) \
 	os_atomic_increment(ptr, amount)
-
-# define os_atomic_fetch_and_increment_uint64(ptr, amount) \
-	os_atomic_fetch_and_increment(ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -110,13 +104,13 @@ amount to decrement. */
 # define os_atomic_decrement(ptr, amount) \
 	__sync_sub_and_fetch(ptr, amount)
 
-# define os_atomic_decrement_uint32(ptr, amount) \
-	os_atomic_decrement(ptr, amount)
-
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
 # define os_atomic_decrement_ulint(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+
+# define os_atomic_decrement_uint32(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
 # define os_atomic_decrement_uint64(ptr, amount) \
@@ -180,32 +174,29 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
-# define os_atomic_increment_uint32(ptr, amount) \
-	atomic_add_32_nv(ptr, amount)
+# define os_atomic_increment_lint(ptr, amount) \
+	os_atomic_increment_ulint((ulong_t*) ptr, amount)
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	atomic_add_long_nv(ptr, amount)
 
-# define os_atomic_increment_lint(ptr, amount) \
-	os_atomic_increment_ulint((ulong_t*) ptr, amount)
+# define os_atomic_increment_uint32(ptr, amount) \
+	atomic_add_32_nv(ptr, amount)
 
 # define os_atomic_increment_uint64(ptr, amount) \
 	atomic_add_64_nv(ptr, amount)
 
-# define os_atomic_fetch_and_increment_uint64(ptr, amount) \
-	(os_atomic_increment_uint64(ptr, amount) - amount)
-
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
-
-# define os_atomic_decrement_uint32(ptr, amount) \
-	os_atomic_increment_uint32(ptr, -(amount))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
 
 # define os_atomic_decrement_ulint(ptr, amount) \
 	os_atomic_increment_ulint(ptr, -(amount))
+
+# define os_atomic_decrement_uint32(ptr, amount) \
+	os_atomic_increment_uint32(ptr, -(amount))
 
 # define os_atomic_decrement_uint64(ptr, amount) \
 	os_atomic_increment_uint64(ptr, -(amount))
@@ -220,9 +211,9 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 # define HAVE_ATOMIC_BUILTINS
 
-# ifndef _WIN32
+# ifdef _WIN64
 #  define HAVE_ATOMIC_BUILTINS_64
-# endif /* _WIN32 */
+# endif /* _WIN64 */
 
 /**********************************************************//**
 Atomic compare and exchange of signed integers (both 32 and 64 bit).
@@ -281,14 +272,14 @@ compare to, new_val is the value to swap in. */
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
-# define os_compare_and_swap_uint32(ptr, old_val, new_val) \
-	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
+# define os_compare_and_swap_lint(ptr, old_val, new_val) \
+	(win_cmp_and_xchg_lint(ptr, new_val, old_val) == old_val)
 
 # define os_compare_and_swap_ulint(ptr, old_val, new_val) \
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
-# define os_compare_and_swap_lint(ptr, old_val, new_val) \
-	(win_cmp_and_xchg_lint(ptr, new_val, old_val) == old_val)
+# define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
 
 /* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
@@ -302,40 +293,51 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
-# define os_atomic_increment_lint(ptr, amount) \
+# define os_atomic_increment_lint(ptr, amount)			\
 	(win_xchg_and_add(ptr, amount) + amount)
 
-# define os_atomic_increment_uint32(ptr, amount) \
-	((ulint) _InterlockedExchangeAdd((long*) ptr, amount))
+# define os_atomic_increment_ulint(ptr, amount)			\
+	(static_cast<ulint>(win_xchg_and_add(			\
+		reinterpret_cast<volatile lint*>(ptr),		\
+		static_cast<lint>(amount)))			\
+	+ static_cast<ulint>(amount))
 
-# define os_atomic_increment_ulint(ptr, amount) \
-	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
-
-# define os_atomic_fetch_and_increment_uint64(ptr, amount)	\
-	((ib_uint64_t) (InterlockedExchangeAdd64(		\
-				(ib_int64_t*) ptr,		\
-				(ib_int64_t) amount)))
+# define os_atomic_increment_uint32(ptr, amount)		\
+	(static_cast<ulint>(_InterlockedExchangeAdd(		\
+		reinterpret_cast<long*>(ptr),			\
+		static_cast<long>(amount)))			\
+	+ static_cast<ulint>(amount))
 
 # define os_atomic_increment_uint64(ptr, amount)		\
-	(os_atomic_fetch_and_increment_uint64(ptr, amount) + amount)
+	(static_cast<ib_uint64_t>(InterlockedExchangeAdd64(	\
+		reinterpret_cast<LONGLONG*>(ptr),		\
+		static_cast<LONGLONG>(amount)))			\
+	+ static_cast<ib_uint64_t>(amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. There is no atomic substract function on Windows */
 
-# define os_atomic_decrement_uint32(ptr, amount) \
-	((ulint) _InterlockedExchangeAdd((long*) ptr, (-amount)))
+# define os_atomic_decrement_lint(ptr, amount)			\
+	(win_xchg_and_add(ptr, -(static_cast<lint>(amount))) - amount)
 
-# define os_atomic_decrement_lint(ptr, amount) \
-	(win_xchg_and_add(ptr, -(lint) amount) - amount)
+# define os_atomic_decrement_ulint(ptr, amount)			\
+	(static_cast<ulint>(win_xchg_and_add(			\
+		reinterpret_cast<volatile lint*>(ptr),		\
+		-(static_cast<lint>(amount))))			\
+	- static_cast<ulint>(amount))
 
-# define os_atomic_decrement_ulint(ptr, amount) \
-	((ulint) (win_xchg_and_add((lint*) ptr, -(lint) amount) - amount))
+# define os_atomic_decrement_uint32(ptr, amount)		\
+	(static_cast<ib_uint32_t>(_InterlockedExchangeAdd(	\
+		reinterpret_cast<long*>(ptr),			\
+		-(static_cast<long>(amount))))			\
+	- static_cast<ib_uint32_t>(amount))
 
 # define os_atomic_decrement_uint64(ptr, amount)		\
-	((ib_uint64_t) (InterlockedExchangeAdd64(		\
-				(ib_int64_t*) ptr,		\
-				-(ib_int64_t) amount) - amount))
+	(static_cast<ib_uint64_t>(InterlockedExchangeAdd64(	\
+		reinterpret_cast<LONGLONG*>(ptr),		\
+		-(static_cast<LONGLONG>(amount))))		\
+	- static_cast<ib_uint64_t>(amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
