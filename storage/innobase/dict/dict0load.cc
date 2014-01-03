@@ -878,7 +878,8 @@ dict_update_filepath(
 }
 
 /********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES.
+Insert records into SYS_TABLESPACES and SYS_DATAFILES using an
+independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
@@ -905,7 +906,7 @@ dict_insert_tablespace_and_filepath(
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
-	SYS_TABLESPACES.  Insert records onto them both. */
+	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_create_add_tablespace_to_dictionary(
 		space, name, fsp_flags, filepath, trx, false);
 
