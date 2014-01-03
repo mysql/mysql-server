@@ -7100,6 +7100,9 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
 
+ER_NO_FT_MATERIALIZED_SUBQUERY
+  eng "Cannot create FULLTEXT index on materialized subquery"
+
 ER_INNODB_UNDO_LOG_FULL
   eng "Undo Log error: %s"
 
