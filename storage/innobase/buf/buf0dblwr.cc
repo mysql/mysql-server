@@ -354,17 +354,17 @@ buf_dblwr_init_or_load_pages(
 /*==========================*/
 	bool load_corrupt_pages)
 {
-	byte*	buf;
-	byte*	read_buf;
-	byte*	unaligned_read_buf;
-	ulint	block1;
-	ulint	block2;
-	byte*	page;
-	ibool	reset_space_ids = FALSE;
-	byte*	doublewrite;
-	ulint	space_id;
-	ulint	i;
-	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
+	byte*		buf;
+	byte*		read_buf;
+	byte*		unaligned_read_buf;
+	ulint		block1;
+	ulint		block2;
+	byte*		page;
+	ibool		reset_space_ids = FALSE;
+	byte*		doublewrite;
+	ulint		space_id;
+	ulint		i;
+	recv_dblwr_t&	recv_dblwr = recv_sys->dblwr;
 
 	/* We do the file i/o past the buffer pool */
 
@@ -393,7 +393,8 @@ buf_dblwr_init_or_load_pages(
 
 		buf = buf_dblwr->write_buf;
 	} else {
-		goto leave_func;
+		ut_free(unaligned_read_buf);
+		return;
 	}
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
@@ -463,7 +464,6 @@ buf_dblwr_init_or_load_pages(
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-leave_func:
 	ut_free(unaligned_read_buf);
 }
 
@@ -473,13 +473,13 @@ void
 buf_dblwr_process()
 /*===============*/
 {
-	ulint	space_id;
-	ulint	page_no;
-	ulint	page_no_dblwr = 0;
-	byte*	page;
-	byte*	read_buf;
-	byte*	unaligned_read_buf;
-	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
+	ulint		space_id;
+	ulint		page_no;
+	ulint		page_no_dblwr = 0;
+	byte*		page;
+	byte*		read_buf;
+	byte*		unaligned_read_buf;
+	recv_dblwr_t&	recv_dblwr = recv_sys->dblwr;
 
 	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
