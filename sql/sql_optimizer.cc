@@ -5150,6 +5150,13 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
        */
       if (!eq_func)
         return;
+
+      /*
+        Check if the field and value are comparable in the index.
+        @todo: This code is almost identical to comparable_in_index()
+        in opt_range.cc. Consider replacing the checks below with a
+        function call to comparable_in_index()
+      */
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
