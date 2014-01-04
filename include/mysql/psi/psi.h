@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -281,6 +281,14 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #define DISABLE_PSI_TRANSACTION
 #endif
 
+#ifndef DISABLE_PSI_SP
+#define DISABLE_PSI_SP
+#endif
+
+#ifndef DISABLE_PSI_PS
+#define DISABLE_PSI_PS
+#endif
+
 #endif
 
 /**
@@ -392,8 +400,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   Compiling option to disable the prepared statement instrumentation.
   @sa DISABLE_PSI_MUTEX
 */
+#ifndef DISABLE_PSI_STATEMENT
 #ifndef DISABLE_PSI_PS
 #define HAVE_PSI_PS_INTERFACE
+#endif
 #endif
 
 /**
