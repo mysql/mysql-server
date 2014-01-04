@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4360,7 +4360,7 @@ fil_user_tablespace_find_space_id(
 		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size: %lu, Possible space_id "
-			"count:%lu", page_size, verify.size());
+			"count:%"PRIuPTR, page_size, verify.size());
 
 		const ulint pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
