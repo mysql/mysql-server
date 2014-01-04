@@ -15,10 +15,10 @@ include/stop_slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-change master to relay_log_file='slave-relay-bin.000001';
-change master to relay_log_pos=4;
-change master to master_auto_position= 1;
-change master to master_auto_position= 0;
+CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
+CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 
 With receiver stopped and applier running, we should be able to change
 receiver options. Setting applier options should throw the correct error
@@ -30,15 +30,15 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
-CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000001';
+CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-CHANGE MASTER TO RELAY_LOG_POS= 4;
+CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 CHANGE MASTER TO MASTER_DELAY= 10;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_FILE= 'slave-relay-bin.000001';
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
-CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_POS= 4;
+CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_POS= RELAY_LOG_POS;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1, MASTER_DELAY=10;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
@@ -49,8 +49,8 @@ message.
 
 include/stop_slave_sql.inc
 include/start_slave_io.inc
-CHANGE MASTER TO RELAY_LOG_FILE= 'slave-relay-bin.000001';
-CHANGE MASTER TO RELAY_LOG_POS= 4;
+CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
+CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE MASTER TO MASTER_DELAY= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first

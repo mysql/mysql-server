@@ -9,6 +9,10 @@
 #
 # This test script does the following:
 
+#  - If at least one of the receiver or applier threads is running, relay logs
+#    should not be purged.
+#  - If relay_log_file/relay_log_pos options are used, relay logs should
+#    not be purged.
 #  - If both receiver and applier threads are stopped, relay logs should be
 #    purged.
 #  - If at least one of the receiver or applier is running, relay logs should
@@ -24,21 +28,33 @@
 
 --connection slave
 
+--source include/stop_slave.inc
+RESET SLAVE;
+--source include/start_slave.inc
+
+#first rotate relaylog to a bigger index.
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS;
+
 --echo
---echo List all the relay log files
+--echo We now stop the IO thread and ensure that the relaylog files
+--echo are not deleted on doing a change master with a running SQL thread.
 --echo
 
--- let $datadir= `SELECT @@datadir`
--- let $index=$datadir/slave-relay-bin.index
--- chmod 0644 $index
+#Note down the current relaylog file.
+let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
-# Since replace_regex doesnt work for cat_file, we display contents of index
-# using the below hack. The same code snippet is used below instead of cat_file.
+#Execute change master command with running SQL thread.
+--source include/stop_slave_io.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]slave/slave/
-SELECT @index;
+#Note down the active relaylog after change master
+let $relay_log_file1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= The relaylog file should not change if change master command was executed while SQL thread was running.
+--let $assert_cond= "$relay_log_file1"= "$relay_log_file"
+--source include/assert.inc
 
 --echo
 --echo We now stop the SQL thread and ensure that the relaylog files
@@ -46,54 +62,48 @@ SELECT @index;
 --echo
 
 --source include/stop_slave_sql.inc
+--source include/start_slave_io.inc
 CHANGE MASTER TO MASTER_DELAY= 20;
 
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]slave/slave/
-SELECT @index;
+#Note down the active relaylog after change master
+let $relay_log_file1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
---echo
---echo We now stop the IO thread and ensure that the relaylog files
---echo are not deleted on doing a change master with a running SQL thread.
---echo
-
---source include/start_slave_sql.inc
---source include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
-
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]slave/slave/
-SELECT @index;
+--let $assert_text= The relaylog file should not change if change master command was executed while IO thread was running.
+--let $assert_cond= "$relay_log_file1"= "$relay_log_file"
+--source include/assert.inc
 
 --echo
 --echo If the relay_log_file and relay_log_pos options are used, we dont purge
 --echo relaylogs.
 --echo
 
---source include/stop_slave.inc
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+replace_result $relay_log_file RELAY_LOG_FILE;
 eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
 let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+replace_result $relay_log_pos RELAY_LOG_POS;
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]slave/slave/
-SELECT @index;
+let $relay_log_file1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= The relaylog file should not change if change master command contained relay_log_file or relay_log_pos option.
+--let $assert_cond= "$relay_log_file1"= "$relay_log_file"
+--source include/assert.inc
 
 --echo
---echo With both the threads stopped, relay logs should be deleted.
+--echo With both the threads stopped and no use of relay_log_file or
+--echo relay_log_pos options, the relaylogs should be deleted.
 --echo
 
+--source include/stop_slave_io.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]slave/slave/
-SELECT @index;
+let $relay_log_file1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= With both the threads stopped and no use of relay_log_file or relay_log_pos options in change master command, the relaylogs should be deleted.
+--let $assert_cond= "$relay_log_file1" != "$relay_log_file"
+--source include/assert.inc
 
 --echo
 --echo cleanup
