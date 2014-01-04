@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ inline_mysql_create_prepared_stmt(void *identity,
                                   PSI_statement_locker *locker,
                                   char *sqltext, uint sqltext_length)
 {
+  if (locker == NULL)
+    return NULL;
   return PSI_PS_CALL(create_prepared_stmt)(identity, locker,
                                            sqltext, sqltext_length);
 }
@@ -74,6 +76,8 @@ static inline struct PSI_prepared_stmt_locker*
 inline_mysql_start_prepare_stmt(PSI_prepared_stmt_locker_state *state,
                                 PSI_prepared_stmt* prepared_stmt)
 {
+  if (prepared_stmt == NULL)
+    return NULL;
   return PSI_PS_CALL(start_prepare_stmt)(state, prepared_stmt);
 }
 
@@ -88,6 +92,8 @@ static inline struct PSI_prepared_stmt_locker*
 inline_mysql_start_prepared_stmt_execute(PSI_prepared_stmt_locker_state *state,
                                          PSI_prepared_stmt* prepared_stmt)
 {
+  if (prepared_stmt == NULL)
+    return NULL;
   return PSI_PS_CALL(start_prepared_stmt_execute)(state, prepared_stmt);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2441,13 +2441,15 @@ void mysql_sql_stmt_prepare(THD *thd)
   {
     /* Statement map deletes the statement on erase */
     thd->stmt_map.erase(stmt);
+    /* Mayank TODO: Do we need to delete this stmt stats from PS table. */
   }
   else
+  {
     my_ok(thd, 0L, 0L, "Statement prepared");
-
 #ifdef HAVE_PSI_PS_INTERFACE
-  MYSQL_END_PS(locker);
+    MYSQL_END_PS(locker);
 #endif
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2666,7 +2668,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   thd->protocol= &thd->protocol_binary;
 
 #ifdef HAVE_PSI_PS_INTERFACE
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
   //PSI_prepared_stmt_locker_state state;
   //PSI_prepared_stmt_locker *locker;
   //locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
@@ -2679,16 +2680,13 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
                                               thd->charset(), NULL,
                                               stmt->m_prepared_stmt);
 #endif
-#endif
 
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
 
 #ifdef HAVE_PSI_PS_INTERFACE
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
   //MYSQL_END_PS_EXECUTE(locker);
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= parent_locker;
-#endif
 #endif
 
   thd->protocol= save_protocol;
@@ -2746,7 +2744,6 @@ void mysql_sql_stmt_execute(THD *thd)
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
 #ifdef HAVE_PSI_PS_INTERFACE
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
   //PSI_prepared_stmt_locker_state state;
   //PSI_prepared_stmt_locker *locker;
   //locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
@@ -2758,7 +2755,6 @@ void mysql_sql_stmt_execute(THD *thd)
                                               thd->db, thd->db_length,
                                               thd->charset(), NULL,
                                               stmt->m_prepared_stmt);
-#endif
 #endif
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
@@ -2932,7 +2928,7 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
 #ifdef HAVE_PSI_PS_INTERFACE
-    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
+  MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
 #endif
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 

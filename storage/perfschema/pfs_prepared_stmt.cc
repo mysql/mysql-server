@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ create_prepared_stmt(void *identity,
     return NULL;
   }
 
-  /* Else create a new record in prepared stmt stat array. */
+  /* Create a new record in prepared stmt stat array. */
   while (++attempts <= prepared_stmt_max)
   {
     index= PFS_atomic::add_u32(& prepared_stmt_monotonic_index, 1) % prepared_stmt_max;
@@ -139,27 +139,20 @@ create_prepared_stmt(void *identity,
         pfs->m_sqltext_length= sqltext_length;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
-        /* 
-          Ideally pfs_stmt should not be NULL, but there are cases where I was
-          getting it as NULL. Need to investigate it.
-        */
-        //DBUG_ASSERT(pfs_stmt != NULL);
-        if(pfs_stmt)
+        DBUG_ASSERT(pfs_stmt != NULL);
+        /* If this statement prepare is called from a SP. */
+        if (pfs_stmt->m_schema_name_length > 0)
         {
-          /* If this statement prepare is called from a SP. */
-          if (pfs_stmt->m_schema_name_length > 0)
-          {
-            pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
-            pfs->m_owner_object_type= pfs_stmt->m_sp_type;
-            strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
-            pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
-            strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
-            pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
-          }
-          else
-            pfs->m_owner_event_id= pfs_stmt->m_event_id;
+          pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
+          pfs->m_owner_object_type= pfs_stmt->m_sp_type;
+          strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
+          pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
+          strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
+          pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
         }
-      
+        else
+          pfs->m_owner_event_id= pfs_stmt->m_event_id;
+ 
         /* Insert this record. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
         return pfs;
@@ -174,5 +167,6 @@ create_prepared_stmt(void *identity,
 void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps)
 {
   pfs_ps->m_lock.allocated_to_free();
+  prepared_stmt_full= false;
   return;
 }
