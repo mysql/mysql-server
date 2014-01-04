@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -5948,11 +5948,11 @@ pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker,
 {
   PFS_events_statements *pfs_stmt= NULL;
 
-  if (locker)
-  {
-    PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-    pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-  }
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+
+  if (pfs_stmt == NULL)
+    return NULL;
 
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
