@@ -8360,7 +8360,7 @@ err:
   @retval TRUE  At least one receive option was there.
 */
 
-bool change_master_receive_option(LEX_MASTER_INFO* lex_mi)
+static bool change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
 {
   bool have_receive_option= false;
 
@@ -8406,7 +8406,7 @@ bool change_master_receive_option(LEX_MASTER_INFO* lex_mi)
   @retval TRUE  At least one execute option was there.
 */
 
-bool change_master_execute_option(LEX_MASTER_INFO* lex_mi)
+static bool change_master_execute_option(const LEX_MASTER_INFO* lex_mi)
 {
   bool have_execute_option= false;
 
@@ -8443,8 +8443,8 @@ bool change_master_execute_option(LEX_MASTER_INFO* lex_mi)
   @retval TRUE  At least one execute option was there.
 */
 
-bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi, Master_info* mi,
-                            bool need_relay_log_purge)
+static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
+                                   Master_info* mi, bool need_relay_log_purge)
 {
   bool ret= false; /* return value. Set if there is an error. */
 
@@ -8648,14 +8648,14 @@ bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi, Master_info* mi,
      mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
 
-sql_print_information("'CHANGE MASTER TO executed'. "
-  "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
-  "master_log_pos= %ld, master_bind='%s'. "
-  "New state master_host='%s', master_port= %u, master_log_file='%s', "
-  "master_log_pos= %ld, master_bind='%s'.",
-  saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
-  saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-  (ulong) mi->get_master_log_pos(), mi->bind_addr);
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'. "
+    "New state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'.",
+    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
 err:
   DBUG_RETURN(ret);
@@ -8680,8 +8680,8 @@ err:
                               used, we say that we wont delete relaylogs.
 */
 
-void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
-                            bool &need_relay_log_purge)
+static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
+                                   bool &need_relay_log_purge)
 {
   DBUG_ENTER("change_execute_options");
 
@@ -8738,7 +8738,7 @@ bool change_master(THD* thd, Master_info* mi)
   bool ret= false;
   /* If there are no mts gaps, we delete the rows in this table. */
   bool mts_remove_worker_info= false;
-  /* used as a bit mask to indicate running/stopped threads. */
+  /* used as a bit mask to indicate running slave threads. */
   int thread_mask;
   /*
     Relay logs are purged only if both receive and execute threads are
@@ -8747,7 +8747,12 @@ bool change_master(THD* thd, Master_info* mi)
   */
   bool need_relay_log_purge= 1;
 
+  /* used as a temporary variable while logs are being purged */
+  bool save_relay_log_purge;
+
   DBUG_ENTER("change_master");
+
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   /*
     When we change master, we first decide which thread is running and
@@ -8766,8 +8771,6 @@ bool change_master(THD* thd, Master_info* mi)
     returns stands for running threads.
   */
   init_thread_mask(&thread_mask, mi, 0);
-
-  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   /*
     change master with master_auto_position=1 requires stopping both
@@ -8868,22 +8871,25 @@ bool change_master(THD* thd, Master_info* mi)
 
   THD_STAGE_INFO(thd, stage_changing_master);
 
+  int thread_mask_stopped_threads;
+
   /*
-    Before global_init_info() call, set thread_mask to indicate
-    stopped threads in thread_mask. Since the third argguement is 1,
-    thread_mask when the function stands for stopped threads.
+    Before global_init_info() call, get a bit mask to indicate stopped threads
+    in thread_mask_stopped_threads. Since the third argguement is 1,
+    thread_mask when the function returns stands for stopped threads.
   */
-  init_thread_mask(&thread_mask, mi, 1);
+
+  init_thread_mask(&thread_mask_stopped_threads, mi, 1);
 
   /* Do the initializations for stopped slave thread(s). */
-  if (global_init_info(mi, false, thread_mask))
+  if (global_init_info(mi, false, thread_mask_stopped_threads))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     ret= true;
     goto err;
   }
 
-  if (thread_mask & SLAVE_SQL) // If execute threads are stopped
+  if ((thread_mask & SLAVE_SQL) == 0) // If execute threads are stopped
   {
     if (mi->rli->mts_recovery_group_cnt)
     {
@@ -8910,9 +8916,6 @@ bool change_master(THD* thd, Master_info* mi)
         mts_remove_worker_info= true;
     }
   }
-
-  /* Change thread_mask to indicate running threads again. */
-  init_thread_mask(&thread_mask, mi, 0);
 
   /*
     If the receiver/applier is running and the slave has open temporary
@@ -8962,79 +8965,79 @@ bool change_master(THD* thd, Master_info* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (flush_master_info(mi, true))
+  if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     ret= TRUE;
     goto err;
   }
 
-  if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
+  /*
+    The following code for purging logs can be improved. We currently use
+    3 flags- need_relay_log_purge, relay_log_purge(global) and
+    save_relay_log_purge. The use of the global variable 'relay_log_purge'
+    is bad. Apparently it is set here and not being used in the following
+    function at all. So, when refactoring the code, please improve this code.
+
+    We dont mi->rli->data_lock here but since the same is already taken
+    in purge_relay_logs(), we deffer taking the lock here.
+    We also offer init_relay_log_pos() to take the lock.
+  */
+
+  save_relay_log_purge= relay_log_purge;
+
+  if (need_relay_log_purge)//implicitly states that both threads are stopped.
+  {
+    /* purge_relay_log() returns pointer to an error message here. */
+    const char* errmsg= 0;
+    /*
+      purge_relay_log() assumes that we have run_lock and no slave threads
+      are running.
+    */
+    relay_log_purge= 1;
+    THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
+    if (mi->rli->purge_relay_logs(thd,
+                                  0 /* not only reset, but also reinit */,
+                                  &errmsg))
+    {
+      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
+      ret= TRUE;
+      goto err;
+    }
+  }
+  else if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
     /*
-      The following code for purging logs can be improved. We currently use
-      3 flags- need_relay_log_purge, relay_log_purge(global) and
-      save_relay_log_purge. The use of the global variable 'relay_log_purge'
-      is bad. Apparently it is set here and not being used in the following
-      function at all. So, when refactoring the code, please improve this code.
+       If applier module is stopped that means we either want to
+       change only receiver configuration or we stick to the old method
+       of STOP SLAVE followed by CHANGE MASTER.
 
-      We dont mi->rli->data_lock here but since the same is already taken
-      in purge_relay_logs(), we deffer taking the lock here.
-      We also offer init_relay_log_pos() to take the lock.
+       If our applier module is executing and we want to switch to another
+       master without disturbing it, relay log position need not be disturbed.
+       The SQL/coordinator thread will finish events from the old master and
+       then start with the new relay log containing events from new master
+       on its own.
     */
 
-    bool save_relay_log_purge= relay_log_purge;
+    const char* msg;
+    relay_log_purge= 0;
+    /* Relay log is already initialized */
 
-    if ((thread_mask & SLAVE_IO) == 0 && need_relay_log_purge)//both threads stopped
+    if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
+                                    mi->rli->get_group_relay_log_pos(),
+                                    true/*we do need mi->rli->data_lock*/,
+                                    &msg, 0))
     {
-      /* purge_relay_log() returns pointer to an error message here. */
-      const char* errmsg= 0;
-      /*
-        purge_relay_log() assumes that we have run_lock and no slave threads
-        are running.
-      */
-      relay_log_purge= 1;
-      THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
-      if (mi->rli->purge_relay_logs(thd,
-                                    0 /* not only reset, but also reinit */,
-                                    &errmsg))
-      {
-        my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
-        ret= TRUE;
-        goto err;
-      }
+      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
+      ret= TRUE;
+      goto err;
     }
-    else
-    {
-      /*
-         If applier module is stopped that means we either want to
-         change only receiver configuration or we stick to the old method
-         of STOP SLAVE followed by CHANGE MASTER.
+  }
 
-         If our applier module is executing and we want to switch to another
-         master without disturbing it, relay log position need not be disturbed.
-         The SQL/coordinator thread will finish events from the old master and
-         then start with the new relay log containing events from new master
-         on its own.
-      */
+  relay_log_purge= save_relay_log_purge;
 
-      const char* msg;
-      relay_log_purge= 0;
-      /* Relay log is already initialized */
-
-      if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
-                                      mi->rli->get_group_relay_log_pos(),
-                                      true/*we do need mi->rli->data_lock*/,
-                                      &msg, 0))
-      {
-        my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
-        ret= TRUE;
-        goto err;
-      }
-    }
-
-    relay_log_purge= save_relay_log_purge;
-
+  if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
+  {
     /* Now we need mi->rli->data_lock we deffered earlier. */
     mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -9048,7 +9051,7 @@ bool change_master(THD* thd, Master_info* mi)
       ''/0: we have lost all copies of the original good coordinates.
       That's why we always save good coords in rli.
     */
-    if ((thread_mask & SLAVE_SQL) == 0 && need_relay_log_purge)
+    if (need_relay_log_purge)
     {
       mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
@@ -9056,7 +9059,8 @@ bool change_master(THD* thd, Master_info* mi)
     }
 
     char *var_group_master_log_name= NULL;
-    var_group_master_log_name=  const_cast<char *>(mi->rli->get_group_master_log_name());
+    var_group_master_log_name=
+      const_cast<char *>(mi->rli->get_group_master_log_name());
 
     if (!var_group_master_log_name[0]) // uninitialized case
       mi->rli->set_group_master_log_pos(0);

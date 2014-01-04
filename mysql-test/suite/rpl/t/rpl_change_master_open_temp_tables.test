@@ -11,13 +11,12 @@
 
 #  - Temporary table(s) should NOT be dropped if applier is running during
 #    CHANGE MASTER.
+#  - If there are open temporary tables and there is a STOP SLAVE/
+#    STOP SLAVE[IO_THREAD/SQL_THREAD]there should be a warning.
 #  - If there are open temporary tables and there is a CHANGE MASTER,
-#    there should be a warning. Note there there is no warning if the
-#    change master option only changes connection or execution configuration.
-#  - If there are open temporary tables and there is a STOP SLAVE,
 #    there should be a warning.
-#  - Ensure that CHANGE MASTER is allowed if there are open temporary
-#    tables.
+#  - There is no warning if the change master option only changes connection
+#    or execution configuration.
 #
 #  ==== Related Worklog(s) And Bug(s)====
 #
@@ -27,32 +26,34 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
-create temporary table t1(a int);
+CREATE TEMPORARY TABLE t1(a int);
 sync_slave_with_master;
 
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
 STOP SLAVE SQL_THREAD;
 --source include/wait_for_slave_sql_to_stop.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
 STOP SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 
-# no warning here
+# no warning here since we are changing a configuration parameter only.
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
+replace_result $master_log_file MASTER_LOG_FILE;
 let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 eval CHANGE MASTER TO MASTER_LOG_FILE= '$master_log_file';
 
+replace_result $master_log_pos MASTER_LOG_POS;
 let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 eval CHANGE MASTER TO MASTER_LOG_POS= $master_log_pos;
 
+replace_result $relay_log_file RELAY_LOG_FILE
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
+replace_result $relay_log_pos RELAY_LOG_POS
 let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 

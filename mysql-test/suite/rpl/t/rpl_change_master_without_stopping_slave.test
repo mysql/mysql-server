@@ -61,6 +61,8 @@ let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
 
 --connection slave
 --disable_query_log
+replace_result $master_log_file MASTER_LOG_FILE;
+replace_result $master_log_pos MASTER_LOG_POS;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval CHANGE MASTER TO
@@ -84,15 +86,17 @@ eval CHANGE MASTER TO
 
 --enable_query_log
 
-let $relay_log_file=query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
-eval change master to relay_log_file='$relay_log_file';
+let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+--replace_result $relay_log_file RELAY_LOG_FILE
+eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
-let $relay_log_pos=query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
-eval change master to relay_log_pos=$relay_log_pos;
+let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+--replace_result $relay_log_pos RELAY_LOG_POS
+eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
-change master to master_auto_position= 1;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 #Re-setting auto_position=0 to continue testing position related options.
-change master to master_auto_position= 0;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 
 --echo
 --echo  With receiver stopped and applier running, we should be able to change
@@ -102,6 +106,8 @@ change master to master_auto_position= 0;
 
 --source include/start_slave_sql.inc
 --disable_query_log
+replace_result $master_log_file MASTER_LOG_FILE;
+replace_result $master_log_pos MASTER_LOG_POS;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval CHANGE MASTER TO
@@ -129,9 +135,11 @@ eval CHANGE MASTER TO
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 
 # Since the applier is running, using the applier options should error out.
+--replace_result $relay_log_file RELAY_LOG_FILE
 --error ER_SLAVE_SQL_THREAD_MUST_STOP
 eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
+--replace_result $relay_log_pos RELAY_LOG_POS
 --error ER_SLAVE_SQL_THREAD_MUST_STOP
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
@@ -139,9 +147,11 @@ eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 CHANGE MASTER TO MASTER_DELAY= 10;
 
 # Using an allowed option and a not allowed option should throw an error.
+--replace_result $relay_log_file RELAY_LOG_FILE
 --error ER_SLAVE_SQL_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_FILE= '$relay_log_file';
 
+--replace_result $relay_log_pos RELAY_LOG_POS
 --error ER_SLAVE_SQL_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_POS= $relay_log_pos;
 
@@ -157,8 +167,10 @@ CHANGE MASTER TO MASTER_RETRY_COUNT= 1, MASTER_DELAY=10;
 --source include/stop_slave_sql.inc
 --source include/start_slave_io.inc
 
+--replace_result $relay_log_file RELAY_LOG_FILE
 eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
 
+--replace_result $relay_log_pos RELAY_LOG_POS
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
 CHANGE MASTER TO MASTER_DELAY= 10;
@@ -187,8 +199,10 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY= 20;
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1;
 
 --disable_query_log
+--replace_result $master_log_file MASTER_LOG_FILE
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_LOG_FILE= '$master_log_file';
+--replace_result $master_log_pos MASTER_LOG_POS
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_LOG_POS= $master_log_pos;
 --enable_query_log
@@ -230,8 +244,10 @@ CHANGE MASTER TO MASTER_DELAY=10, MASTER_CONNECT_RETRY= 20;
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_RETRY_COUNT= 1;
 
 --disable_query_log
+--replace_result $master_log_file MASTER_LOG_FILE
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_DELAY= 10, MASTER_LOG_FILE= '$master_log_file';
+--replace_result $master_log_pos MASTER_LOG_POS
 --error ER_SLAVE_IO_THREAD_MUST_STOP
 eval CHANGE MASTER TO MASTER_DELAY= 10, MASTER_LOG_POS= $master_log_pos;
 --enable_query_log
