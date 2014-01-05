@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +28,8 @@ extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 #endif
 
 extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
+extern PSI_stage_info stage_waiting_for_semi_sync_slave;
+extern PSI_stage_info stage_reading_semi_sync_ack;
 
 extern unsigned int rpl_semi_sync_master_wait_for_slave_count;
 
@@ -683,6 +684,10 @@ public:
 
   /* Is the slave servered by the thread requested semi-sync */
   bool is_semi_sync_slave();
+
+  /* It parses a reply packet and call reportReplyBinlog to handle it. */
+  int reportReplyPacket(uint32 server_id, const uchar *packet,
+                        ulong packet_len);
 
   /* In semi-sync replication, reports up to which binlog position we have
    * received replies from the slave indicating that it already get the events
