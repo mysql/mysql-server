@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ public:
     if (trace_level_ & kTraceFunction)
       sql_print_information("---> %s enter", func_name);
   }
+
   inline int  function_exit(const char *func_name, int exit_code)
   {
     if (trace_level_ & kTraceFunction)
@@ -57,7 +58,21 @@ public:
     return exit_code;
   }
 
-  Trace()
+  inline bool function_exit(const char *func_name, bool exit_code)
+  {
+    if (trace_level_ & kTraceFunction)
+      sql_print_information("<--- %s exit (%s)", func_name,
+                            exit_code ? "True" : "False");
+    return exit_code;
+  }
+
+  inline void function_exit(const char *func_name)
+  {
+    if (trace_level_ & kTraceFunction)
+      sql_print_information("<--- %s exit", func_name);
+  }
+
+Trace()
     :trace_level_(0L)
   {}
   Trace(unsigned long trace_level)
@@ -86,6 +101,8 @@ public:
 #define REPLY_MAGIC_NUM_LEN 1
 #define REPLY_BINLOG_POS_LEN 8
 #define REPLY_BINLOG_NAME_LEN (FN_REFLEN + 1)
+#define REPLY_MESSAGE_MAX_LENGTH \
+  (REPLY_MAGIC_NUM_LEN + REPLY_MAGIC_NUM_LEN + REPLY_BINLOG_NAME_LEN)
 #define REPLY_MAGIC_NUM_OFFSET 0
 #define REPLY_BINLOG_POS_OFFSET (REPLY_MAGIC_NUM_OFFSET + REPLY_MAGIC_NUM_LEN)
 #define REPLY_BINLOG_NAME_OFFSET (REPLY_BINLOG_POS_OFFSET + REPLY_BINLOG_POS_LEN)
