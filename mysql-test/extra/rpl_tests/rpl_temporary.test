@@ -1,11 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
 source include/add_anonymous_users.inc;
--- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -13,7 +7,7 @@ source include/add_anonymous_users.inc;
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not
 # been explicitly deleted, or it has but the slave hasn't had
-# enough time to catch it before STOP SLAVE, 
+# enough time to catch it before STOP SLAVE,
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
@@ -33,7 +27,7 @@ reset master;
 #
 #  This test checks that both reported issues (assertion failure and
 #  crash) go away. It is implemented as follows:
-#    
+#
 #    case 1: assertion failure
 #      i) create and insert into temporary table on master
 #     ii) sync slave with master
@@ -50,8 +44,8 @@ reset master;
 #     iv) insert into master more values
 #      v) sync slave with master
 
-# case 1: Assertion in Field_string::store() failed because current 
-#         thread reference differed from table->in_use after slave 
+# case 1: Assertion in Field_string::store() failed because current
+#         thread reference differed from table->in_use after slave
 #         restart
 
 connection master;
@@ -74,7 +68,7 @@ connection master;
 INSERT INTO t1 VALUES ('b');
 sync_slave_with_master;
 
-# case 2: crash on sp_rcontext::find_handler because it used 
+# case 2: crash on sp_rcontext::find_handler because it used
 #         reference to invalid THD object after slave restart
 
 connection master;
@@ -284,7 +278,7 @@ sync_slave_with_master;
 #connection slave;
 select * from t1 /* must be 1 */;
 
-connection master; 
+connection master;
 drop table t1;
 
 #
@@ -293,9 +287,9 @@ drop table t1;
 --write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 create table t1 (a int);
 set names latin1;
-create temporary table `äöüÄÖÜ` (a int);
-insert into `äöüÄÖÜ` values (1);
-insert into t1 select * from `äöüÄÖÜ`
+create temporary table `\E4\F6\FC\C4\D6\DC` (a int);
+insert into `\E4\F6\FC\C4\D6\DC` values (1);
+insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
 --exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
@@ -303,7 +297,7 @@ sync_slave_with_master;
 #connection slave;
 select * from t1;
 
-connection master; 
+connection master;
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 --sync_slave_with_master
@@ -345,8 +339,3 @@ disconnect cont43748;
 connection slave;
 
 DROP USER user43748@127.0.0.1;
-
-
---echo End of 5.1 tests
---let $rpl_only_running_threads= 1
---source include/rpl_end.inc

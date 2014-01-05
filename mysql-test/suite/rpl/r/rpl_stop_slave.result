@@ -40,8 +40,6 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
@@ -70,8 +68,6 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
