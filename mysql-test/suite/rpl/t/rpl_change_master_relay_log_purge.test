@@ -26,16 +26,11 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
---connection slave
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
 
---source include/stop_slave.inc
-RESET SLAVE;
---source include/start_slave.inc
-
-#first rotate relaylog to a bigger index.
-FLUSH RELAY LOGS;
-FLUSH RELAY LOGS;
-FLUSH RELAY LOGS;
+sync_slave_with_master;
 
 --echo
 --echo We now stop the IO thread and ensure that the relaylog files

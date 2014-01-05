@@ -8236,19 +8236,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
 
   /*
-    If the slave has open temp tables and there is a following CHANGE MASTER
-    there is a possibility that the temporary tables are left open forever.
-    Though we dont restrict failover here, we do warn users. In future, we
-    should have a command to delete open temp tables the slave has replicated.
-    See WL#7441 regarding this command.
-  */
-
-  if (slave_open_temp_tables)
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
-                 ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
-
-  /*
     Below we will stop all running threads.
     But if the user wants to stop only one thread, do as if the other thread
     was stopped (as we don't wan't to touch the other thread), so set the
@@ -8269,6 +8256,20 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
     push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
+
+  /*
+    If the slave has open temp tables and there is a following CHANGE MASTER
+    there is a possibility that the temporary tables are left open forever.
+    Though we dont restrict failover here, we do warn users. In future, we
+    should have a command to delete open temp tables the slave has replicated.
+    See WL#7441 regarding this command.
+  */
+
+  if (slave_open_temp_tables)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
+                 ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
+
   unlock_slave_threads(mi);
 
   if (slave_errno)
