@@ -1670,10 +1670,14 @@ when it try to get the value of TIME_ZONE global variable from master.";
 
       if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
       {
-        // this is tolerable as OM -> NS is supported
-        mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                   "Notifying master by %s failed with "
-                   "error: %s", query, mysql_error(mysql));
+        /* Ignore this expected error if not a high error level */
+        if (global_system_variables.log_warnings > 1)
+        {
+          // this is tolerable as OM -> NS is supported
+          mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                     "Notifying master by %s failed with "
+                     "error: %s", query, mysql_error(mysql));
+        }
       }
       else
       {
