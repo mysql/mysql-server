@@ -1502,37 +1502,6 @@ void Stage_manager::clear_preempt_status(THD *head)
 
 
 /**
-  Generate gtid for transaction and save gtid into table.
-
-  @param thd Session to commit
-
-  @retval 0    success
-  @retval 1    error
- */
-
-int generate_and_save_gtid(THD *thd)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::generate_and_save_gtid(THD *thd)");
-  int error= 0;
-  bool is_gtid_generated= false;
-
-  /* Generate gtid for transaction. */
-  if (thd->owned_gtid.is_null() &&
-      thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-  {
-    if (!(error= gtid_state->generate_automatic_gtid(thd)))
-      is_gtid_generated= true;
-  }
-
-  /* Save gtid into mysql.gtid_executed table. */
-  if (is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP)
-    error= gtid_state->save_gtid_into_table(thd);
-
-  DBUG_RETURN(error);
-}
-
-
-/**
   Write a rollback record of the transaction to the binary log.
 
   For binary log group commit, the rollback is separated into three
@@ -1601,7 +1570,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
       error= cache_mngr->trx_cache.write_event(thd, &end_evt);
     }
-    error|= generate_and_save_gtid(thd);
+    error|= gtid_state->generate_and_save_gtid(thd);
   }
 
   /*
@@ -6680,7 +6649,7 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
       gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /* Generate gtid and save it into table before transaction prepare. */
-    if (generate_and_save_gtid(thd))
+    if (gtid_state->generate_and_save_gtid(thd))
       DBUG_RETURN(1);
   }
   error= ha_prepare_low(thd, all);
@@ -6766,7 +6735,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       Generate gtid and save it into table before transaction commit
       if the transaction does not need to be prepared.
     */
-    if (generate_and_save_gtid(thd))
+    if (gtid_state->generate_and_save_gtid(thd))
       DBUG_RETURN(RESULT_ABORTED);
   }
 

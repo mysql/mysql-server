@@ -1438,7 +1438,6 @@ static void init_thd(THD **p_thd)
   DBUG_ENTER("init_thd");
   THD *thd= *p_thd;
   thd->thread_stack= reinterpret_cast<char *>(p_thd);
-  //thd->set_command(COM_COMPRESS_GTID_TABLE);
   thd->set_command(COM_DAEMON);
   thd->security_ctx->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
