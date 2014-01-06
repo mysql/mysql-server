@@ -365,8 +365,8 @@ env_fs_init(DB_ENV *env) {
 static int
 env_fs_init_minicron(DB_ENV *env) {
     int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time*1000, env_fs_poller, env); 
-    assert(r == 0);
-    env->i->fs_poller_is_init = true;
+    if (r == 0)
+        env->i->fs_poller_is_init = true;
     return r;
 }
 
@@ -402,11 +402,12 @@ env_change_fsync_log_period(DB_ENV* env, uint32_t period_ms) {
     }
 }
 
-static void
+static int
 env_fsync_log_cron_init(DB_ENV *env) {
     int r = toku_minicron_setup(&env->i->fsync_log_cron, env->i->fsync_log_period_ms, env_fsync_log_on_minicron, env);
-    assert(r == 0);
-    env->i->fsync_log_cron_is_init = true;
+    if (r == 0)
+        env->i->fsync_log_cron_is_init = true;
+    return r;
 }
 
 static void
@@ -994,7 +995,11 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
 
     if (env->i->cachetable==NULL) {
         // If we ran recovery then the cachetable should be set here.
-        toku_cachetable_create(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        r = toku_cachetable_create(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        if (r != 0) {
+            r = toku_ydb_do_error(env, r, "Cant create a cachetable\n");
+            goto cleanup;
+        }
     }
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
@@ -1009,7 +1014,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
             bool create_new_rollback_file = newenv | upgrade_in_progress;
             r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
             if (r != 0) {
-                r = toku_ydb_do_error(env, r, "cant open rollback");
+                r = toku_ydb_do_error(env, r, "Cant open rollback\n");
                 goto cleanup;
             }
         }
@@ -1027,7 +1032,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = toku_db_open_iname(env->i->persistent_environment, txn, toku_product_name_strings.environmentdictionary, DB_CREATE, mode);
         if (r != 0) {
-            r = toku_ydb_do_error(env, r, "cant open persistent env");
+            r = toku_ydb_do_error(env, r, "Cant open persistent env\n");
             goto cleanup;
         }
         if (newenv) {
@@ -1065,20 +1070,29 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = toku_db_open_iname(env->i->directory, txn, toku_product_name_strings.fileopsdirectory, DB_CREATE, mode);
         if (r != 0) {
-            r = toku_ydb_do_error(env, r, "cant open %s", toku_product_name_strings.fileopsdirectory);
+            r = toku_ydb_do_error(env, r, "Cant open %s\n", toku_product_name_strings.fileopsdirectory);
             goto cleanup;
         }
     }
     if (using_txns) {
         r = locked_txn_commit(txn, 0);
         assert_zero(r);
+        txn = NULL;
     }
     cp = toku_cachetable_get_checkpointer(env->i->cachetable);
     r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert_zero(r);
     env_fs_poller(env);          // get the file system state at startup
-    env_fs_init_minicron(env);
-    env_fsync_log_cron_init(env);
+    r = env_fs_init_minicron(env);
+    if (r != 0) {
+        r = toku_ydb_do_error(env, r, "Cant create fs minicron\n");
+        goto cleanup;
+    }
+    r = env_fsync_log_cron_init(env);
+    if (r != 0) {
+        r = toku_ydb_do_error(env, r, "Cant create fsync log minicron\n");
+        goto cleanup;
+    }
 cleanup:
     if (r!=0) {
         if (txn) {

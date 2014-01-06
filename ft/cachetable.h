@@ -122,7 +122,7 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
 // create and initialize a cache table
 // size_limit is the upper limit on the size of the size of the values in the table
 // pass 0 if you want the default
-void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
+int toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
 
 // Create a new cachetable.
 // Effects: a new cachetable is created and initialized.

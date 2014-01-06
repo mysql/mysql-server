@@ -113,7 +113,9 @@ static void dowork (void *idv) {
 }
 
 static void kibbutz_test (void) {
-    KIBBUTZ k = toku_kibbutz_create(1);
+    KIBBUTZ k = NULL;
+    int r = toku_kibbutz_create(1, &k);
+    assert(r == 0);
     if (verbose) printf("create\n");
     int ids[ND];
     for (int i=0; i<ND; i++) {

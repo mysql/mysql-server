@@ -116,7 +116,9 @@ void evictor_unit_test::init() {
     ZERO_STRUCT(m_cf_list);
     m_pl.init();
     m_cf_list.init();
-    m_kb = toku_kibbutz_create(1);
+    m_kb = NULL;
+    int r =  toku_kibbutz_create(1, &m_kb);
+    assert(r == 0);
 }
 
 // destroy class after tests have run
