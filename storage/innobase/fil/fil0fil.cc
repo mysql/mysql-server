@@ -4360,7 +4360,7 @@ fil_user_tablespace_find_space_id(
 		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size: %lu, Possible space_id "
-			"count:%"PRIuPTR, page_size, verify.size());
+			"count:%lu", page_size, verify.size());
 
 		const ulint pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
