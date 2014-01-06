@@ -158,7 +158,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Reset Connection") },
-  { C_STRING_WITH_LEN("Compress") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 

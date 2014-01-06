@@ -92,8 +92,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
                MYSQL_OPEN_IGNORE_FLUSH |
                MYSQL_LOCK_IGNORE_TIMEOUT |
-               MYSQL_OPEN_IGNORE_KILLED |
-               MYSQL_LOCK_RPL_INFO_TABLE); // remove and test the option later
+               MYSQL_OPEN_IGNORE_KILLED);
 
   /*
     This is equivalent to a new "statement". For that reason, we call both
