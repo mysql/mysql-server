@@ -159,9 +159,7 @@ typedef uint32_t node_idx;
 
 namespace dmt_internal {
 
-template<bool subtree_supports_marks>
-class subtree_templated {
-    static_assert(!subtree_supports_marks, "Not yet supported");
+class subtree {
 private:
     uint32_t m_index;
 public:
@@ -184,29 +182,19 @@ public:
     }
 } __attribute__((__packed__,aligned(4)));
 
-template<typename dmtdata_t, bool subtree_supports_marks>
-class dmt_base_node_templated {
-    static_assert(!subtree_supports_marks, "Not yet supported");
+template<typename dmtdata_t>
+class dmt_node_templated {
 public:
     uint32_t weight;
-    subtree_templated<subtree_supports_marks> left;
-    subtree_templated<subtree_supports_marks> right;
-
-    // this needs to be in both implementations because we don't have
-    // a "static if" the caller can use
-    inline void clear_stolen_bits(void) {}
-};
-
-template<typename dmtdata_t, bool subtree_supports_marks, bool store_value_length>
-class dmt_node_templated {
-    static_assert(store_value_length, "Not yet supported");
-public:
-    dmt_base_node_templated<dmtdata_t, subtree_supports_marks> b;
+    subtree left;
+    subtree right;
     uint32_t value_length;
     dmtdata_t value;
-};// __attribute__((__packed__,aligned(4)));
+} __attribute__((__packed__,aligned(4)));
 
 }
+
+using namespace toku::dmt_internal;
 
 // Each data type used in a dmt requires a dmt_functor (allows you to insert/etc with dynamic sized types).
 // There is no default implementation.
@@ -225,12 +213,7 @@ template<typename dmtdata_t,
         >
 class dmt {
 private:
-    typedef dmt_internal::subtree_templated<false> subtree;
-    typedef dmt_internal::dmt_base_node_templated<dmtdata_t, false> dmt_base_node;
-    template<bool with_length>
-        using dmt_mnode = dmt_internal::dmt_node_templated<dmtdata_t, false, with_length>;
-    typedef dmt_mnode<true> dmt_dnode;
-
+    typedef dmt_node_templated<dmtdata_t> dmt_node;
     typedef dmt_functor<dmtdata_t> dmtdatain_t;
 
 public:
@@ -520,8 +503,8 @@ public:
     void prepare_for_serialize(void);
 
 private:
-    static_assert(sizeof(dmt_dnode) - sizeof(dmtdata_t) == __builtin_offsetof(dmt_dnode, value), "value is not last field in node");
-    static_assert(4 * sizeof(uint32_t) == __builtin_offsetof(dmt_dnode, value), "dmt_node is padded");
+    static_assert(sizeof(dmt_node) - sizeof(dmtdata_t) == __builtin_offsetof(dmt_node, value), "value is not last field in node");
+    static_assert(4 * sizeof(uint32_t) == __builtin_offsetof(dmt_node, value), "dmt_node is padded");
     ENSURE_POD(subtree);
 
     struct dmt_array {
@@ -549,18 +532,15 @@ private:
 
     void create_internal_no_alloc(bool as_tree);
 
-    template<typename node_type>
-    node_type & get_node(const subtree &subtree) const;
+    dmt_node & get_node(const subtree &subtree) const;
 
-    template<typename node_type>
-    node_type & get_node(const node_idx offset) const;
+    dmt_node & get_node(const node_idx offset) const;
 
     uint32_t nweight(const subtree &subtree) const;
 
-    template<bool with_sizes>
     node_idx node_malloc_and_set_value(const dmtdatain_t &value);
 
-    void node_set_value(dmt_mnode<true> *n, const dmtdatain_t &value);
+    void node_set_value(dmt_node *n, const dmtdatain_t &value);
 
     void node_free(const subtree &st);
 
@@ -568,7 +548,7 @@ private:
 
     void convert_to_tree(void);
 
-    void maybe_resize_dtree(const dmtdatain_t * value);
+    void maybe_resize_tree(const dmtdatain_t * value);
 
     bool will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const;
 
@@ -588,12 +568,8 @@ private:
 
     dmtdata_t * get_array_value_internal(const struct mempool *mempool, const uint32_t real_idx) const;
 
-    void convert_to_dtree(void);
-
-    template<bool with_sizes>
     void convert_from_array_to_tree(void);
 
-    template<bool with_sizes>
     void convert_from_tree_to_array(void);
 
     __attribute__((nonnull(2,5)))
@@ -635,10 +611,10 @@ private:
     void rebalance(subtree *const subtree);
 
     __attribute__((nonnull))
-    static void copyout(uint32_t *const outlen, dmtdata_t *const out, const dmt_dnode *const n);
+    static void copyout(uint32_t *const outlen, dmtdata_t *const out, const dmt_node *const n);
 
     __attribute__((nonnull))
-    static void copyout(uint32_t *const outlen, dmtdata_t **const out, dmt_dnode *const n);
+    static void copyout(uint32_t *const outlen, dmtdata_t **const out, dmt_node *const n);
 
     __attribute__((nonnull))
     static void copyout(uint32_t *const outlen, dmtdata_t *const out, const uint32_t len, const dmtdata_t *const stored_value_ptr);
