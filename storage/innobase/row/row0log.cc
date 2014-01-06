@@ -69,11 +69,12 @@ struct row_log_buf_t {
 	mrec_buf_t	buf;	/*!< buffer for accessing a record
 				that spans two blocks */
 	ulint		blocks; /*!< current position in blocks */
-	ulint		bytes;	/*!< current position within buf */
+	ulint		bytes;	/*!< current position within block */
 	ulonglong	total;	/*!< logical position, in bytes from
 				the start of the row_log_table log;
 				0 for row_log_online_op() and
 				row_log_apply(). */
+	ulint		size;	/*!< allocated size of block */
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -184,8 +185,46 @@ struct row_log_t {
 				or by index->lock X-latch only */
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
-	ulint		size;	/*!< allocated size */
 };
+
+
+/** Allocate the memory for the log buffer.
+@param[in,out]	log_buf	Buffer used for log operation
+@return TRUE if success, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_log_block_allocate(
+	row_log_buf_t&	log_buf)
+{
+	DBUG_ENTER("row_log_block_allocate");
+	if (log_buf.block == NULL) {
+		log_buf.size = srv_sort_buf_size;
+		log_buf.block = (byte*) os_mem_alloc_large(&log_buf.size);
+		DBUG_EXECUTE_IF("simulate_row_log_allocation_failure",
+			if (log_buf.block)
+				os_mem_free_large(log_buf.block, log_buf.size);
+			log_buf.block = NULL;);
+		if (!log_buf.block) {
+			DBUG_RETURN(false);
+		}
+	}
+	DBUG_RETURN(true);
+}
+
+/** Free the log buffer.
+@param[in,out]	log_buf	Buffer used for log operation */
+static
+void
+row_log_block_free(
+	row_log_buf_t&	log_buf)
+{
+	DBUG_ENTER("row_log_block_free");
+	if (log_buf.block != NULL) {
+		os_mem_free_large(log_buf.block, log_buf.size);
+		log_buf.block = NULL;
+	}
+	DBUG_VOID_RETURN;
+}
 
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
@@ -236,6 +275,11 @@ row_log_online_op(
 
 	if (trx_id > log->max_trx) {
 		log->max_trx = trx_id;
+	}
+
+	if (!row_log_block_allocate(log->tail)) {
+		log->error = DB_OUT_OF_MEMORY;
+		goto err_exit;
 	}
 
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
@@ -309,6 +353,7 @@ write_failed:
 	}
 
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -343,8 +388,14 @@ row_log_table_open(
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	if (log->error != DB_SUCCESS) {
+err_exit:
 		mutex_exit(&log->mutex);
 		return(NULL);
+	}
+
+	if (!row_log_block_allocate(log->tail)) {
+		log->error = DB_OUT_OF_MEMORY;
+		goto err_exit;
 	}
 
 	ut_ad(log->tail.bytes < srv_sort_buf_size);
@@ -2246,8 +2297,9 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		fprintf(stderr, "InnoDB: unexpected end of temporary file"
-			" for table %s\n", index->table_name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unexpected end of temporary file"
+			" for table %s", index->table_name);
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2295,14 +2347,20 @@ all_done:
 
 		ut_ad(dict_index_is_online_ddl(index));
 
+		if (!row_log_block_allocate(index->online_log->head)) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
+
 		success = os_file_read_no_error_handling(
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for table %s\n", index->table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for table %s", index->table_name);
 			goto corruption;
 		}
 
@@ -2498,6 +2556,7 @@ func_exit:
 
 	mem_heap_free(offsets_heap);
 	mem_heap_free(heap);
+	row_log_block_free(index->online_log->head);
 	ut_free(offsets);
 	return(error);
 }
@@ -2571,9 +2630,7 @@ row_log_allocate(
 	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
 {
-	byte*		buf;
 	row_log_t*	log;
-	ulint		size;
 	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2585,18 +2642,15 @@ row_log_allocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	size = 2 * srv_sort_buf_size + sizeof *log;
-	buf = (byte*) os_mem_alloc_large(&size);
-	if (!buf) {
+	log = (row_log_t*) ut_malloc(sizeof *log);
+	if (!log) {
 		DBUG_RETURN(false);
 	}
 
-	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
-	log->size = size;
 	log->fd = row_merge_file_create_low();
 
 	if (log->fd < 0) {
-		os_mem_free_large(buf, size);
+		ut_free(log);
 		DBUG_RETURN(false);
 	}
 
@@ -2609,10 +2663,9 @@ row_log_allocate(
 	log->col_map = col_map;
 	log->error = DB_SUCCESS;
 	log->max_trx = 0;
-	log->head.block = buf;
-	log->tail.block = buf + srv_sort_buf_size;
 	log->tail.blocks = log->tail.bytes = 0;
 	log->tail.total = 0;
+	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
@@ -2637,9 +2690,11 @@ row_log_free(
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
 	delete log->blobs;
+	row_log_block_free(log->tail);
+	row_log_block_free(log->head);
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
-	os_mem_free_large(log->head.block, log->size);
+	ut_free(log);
 	log = 0;
 }
 
@@ -3062,6 +3117,11 @@ next_block:
 		goto interrupted;
 	}
 
+	error = index->online_log->error;
+	if (error != DB_SUCCESS) {
+		goto func_exit;
+	}
+
 	if (dict_index_is_corrupted(index)) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
@@ -3071,7 +3131,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"unexpected end of temporary file for index %s",
+			"Unexpected end of temporary file for index %s",
 			index->name + 1);
 corruption:
 		error = DB_CORRUPTION;
@@ -3116,14 +3176,20 @@ all_done:
 
 		log_free_check();
 
+		if (!row_log_block_allocate(index->online_log->head)) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
+
 		success = os_file_read_no_error_handling(
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for index %s\n", index->name + 1);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for index %s", index->name + 1);
 			goto corruption;
 		}
 
@@ -3316,6 +3382,7 @@ func_exit:
 
 	mem_heap_free(heap);
 	mem_heap_free(offsets_heap);
+	row_log_block_free(index->online_log->head);
 	ut_free(offsets);
 	return(error);
 }

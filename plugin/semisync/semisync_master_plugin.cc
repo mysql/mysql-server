@@ -189,6 +189,11 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
 					  void *ptr,
 					  const void *val);
 
+static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
+				      SYS_VAR *var,
+				      void *ptr,
+				      const void *val);
+
 static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
 				      SYS_VAR *var,
 				      void *ptr,
@@ -217,7 +222,7 @@ static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
   PLUGIN_VAR_OPCMDARG,
  "Wait until timeout when no semi-synchronous replication slave available (enabled by default). ",
   NULL, 			// check
-  NULL,                         // update
+  &fix_rpl_semi_sync_master_wait_no_slave,  // update
   1);
 
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
@@ -318,6 +323,19 @@ static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
                                                           const void *val)
 {
   (void) repl_semisync.setWaitSlaveCount(*(unsigned int*) val);
+  return;
+}
+
+static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
+				      SYS_VAR *var,
+				      void *ptr,
+				      const void *val)
+{
+  if (rpl_semi_sync_master_wait_no_slave != *(char *)val)
+  {
+    *(char *)ptr= *(char *)val;
+    repl_semisync.set_wait_no_slave(val);
+  }
   return;
 }
 

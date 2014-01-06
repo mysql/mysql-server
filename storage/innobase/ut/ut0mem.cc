@@ -109,20 +109,19 @@ retry:
 
 	if (ret == NULL && retry_count < 60) {
 		if (retry_count == 0) {
-			ut_print_timestamp(stderr);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot allocate %lu bytes of memory with "
-				"malloc! Total allocated memory by InnoDB "
-				"is %lu bytes. Operating system errno: %lu "
-				"Check if you should increase the swap file "
-				"or ulimits of your operating system. "
-				"On FreeBSD check that you have compiled the "
-				"OS with a big enough maximum process size. "
-				"Note that on most 32-bit computers the "
-				"process memory space is limited to 2 GB "
-				"or 4 GB. We keep retrying the allocation "
-				"for 60 seconds...",
+				"Cannot allocate %lu bytes of memory with"
+				" malloc! Total allocated memory by InnoDB"
+				" is %lu bytes. Operating system errno: %lu"
+				" Check if you should increase the swap file"
+				" or ulimits of your operating system."
+				" On FreeBSD check that you have compiled the"
+				" OS with a big enough maximum process size."
+				" Note that on most 32-bit computers the"
+				" process memory space is limited to 2 GB"
+				" or 4 GB. We keep retrying the allocation"
+				" for 60 seconds...",
 				(ulong) n,
 				(ulong) ut_total_allocated_memory,
 #ifdef _WIN32
@@ -324,7 +323,7 @@ ut_free_all_mem(void)
 
 	if (ut_total_allocated_memory != 0) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"after shutdown total allocated memory is %lu",
+			"After shutdown total allocated memory is %lu",
 			(ulong) ut_total_allocated_memory);
 	}
 

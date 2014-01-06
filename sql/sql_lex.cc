@@ -198,8 +198,8 @@ void struct_slave_connection::reset()
 */
 
 bool Lex_input_stream::init(THD *thd,
-			    char* buff,
-			    unsigned int length)
+			    const char* buff,
+			    size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -228,14 +228,25 @@ bool Lex_input_stream::init(THD *thd,
 */
 
 void
-Lex_input_stream::reset(char *buffer, unsigned int length)
+Lex_input_stream::reset(const char *buffer, size_t length)
 {
   yylineno= 1;
   yytoklen= 0;
   yylval= NULL;
   lookahead_token= -1;
   lookahead_yylval= NULL;
-  m_ptr= buffer;
+  /*
+    Lex_input_stream modifies the query string in one special case (sic!).
+    yyUnput() modifises the string when patching version comments.
+    This is done to prevent newer slaves from executing a different
+    statement than older masters.
+
+    For now, cast away const here. This means that e.g. SHOW PROCESSLIST
+    can see partially patched query strings. It would be better if we
+    could replicate the query string as is and have the slave take the
+    master version into account.
+  */
+  m_ptr= const_cast<char*>(buffer);
   m_tok_start= NULL;
   m_tok_end= NULL;
   m_end_of_query= buffer + length;
@@ -1733,19 +1744,14 @@ static int lex_one_token(void *arg, void *yythd)
           50114 -> 5.1.14
         */
         char version_str[6];
-        version_str[0]= lip->yyPeekn(0);
-        version_str[1]= lip->yyPeekn(1);
-        version_str[2]= lip->yyPeekn(2);
-        version_str[3]= lip->yyPeekn(3);
-        version_str[4]= lip->yyPeekn(4);
-        version_str[5]= 0;
-        if (  my_isdigit(cs, version_str[0])
-           && my_isdigit(cs, version_str[1])
-           && my_isdigit(cs, version_str[2])
-           && my_isdigit(cs, version_str[3])
-           && my_isdigit(cs, version_str[4])
+        if (  my_isdigit(cs, (version_str[0]= lip->yyPeekn(0)))
+           && my_isdigit(cs, (version_str[1]= lip->yyPeekn(1)))
+           && my_isdigit(cs, (version_str[2]= lip->yyPeekn(2)))
+           && my_isdigit(cs, (version_str[3]= lip->yyPeekn(3)))
+           && my_isdigit(cs, (version_str[4]= lip->yyPeekn(4)))
            )
         {
+          version_str[5]= 0;
           ulong version;
           version=strtol(version_str, NULL, 10);
 
@@ -2634,6 +2640,21 @@ Index_hint::print(THD *thd, String *str)
     case INDEX_HINT_USE:    str->append(STRING_WITH_LEN("USE INDEX")); break;
     case INDEX_HINT_FORCE:  str->append(STRING_WITH_LEN("FORCE INDEX")); break;
   }
+  switch (clause)
+  {
+    case INDEX_HINT_MASK_ALL:
+      break;
+    case INDEX_HINT_MASK_JOIN:
+      str->append(STRING_WITH_LEN(" FOR JOIN"));
+      break;
+    case INDEX_HINT_MASK_ORDER:
+      str->append(STRING_WITH_LEN(" FOR ORDER BY"));
+      break;
+    case INDEX_HINT_MASK_GROUP:
+      str->append(STRING_WITH_LEN(" FOR GROUP BY"));
+      break;
+  }
+
   str->append (STRING_WITH_LEN(" ("));
   if (key_name.length)
   {

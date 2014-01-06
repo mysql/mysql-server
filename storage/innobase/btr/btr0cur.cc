@@ -2427,11 +2427,11 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			fputs("InnoDB: Error: cannot insert tuple ", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Cannot insert tuple");
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
 			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			fprintf(stderr, "\nInnoDB: max insert size %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR, "Max insert size %lu",
 				(ulong) max_size);
 			ut_error;
 		}
@@ -6294,22 +6294,18 @@ btr_copy_zblob_prefix(
 		bpage = buf_page_get_zip(space_id, zip_size, page_no);
 
 		if (UNIV_UNLIKELY(!bpage)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Cannot load"
-				" compressed BLOB"
-				" page %lu space %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load compressed BLOB"
+				" page %lu space %lu",
 				(ulong) page_no, (ulong) space_id);
 			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
 		    (fil_page_get_type(bpage->zip.data) != page_type)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Unexpected type %lu of"
-				" compressed BLOB"
-				" page %lu space %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unexpected type %lu of compressed BLOB"
+				" page %lu space %lu",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
 			ut_ad(0);
@@ -6344,11 +6340,9 @@ btr_copy_zblob_prefix(
 			/* fall through */
 		default:
 inflate_error:
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: inflate() of"
-				" compressed BLOB"
-				" page %lu space %lu returned %d (%s)\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"inflate() of compressed BLOB"
+				" page %lu space %lu returned %d (%s)",
 				(ulong) page_no, (ulong) space_id,
 				err, d_stream.msg);
 		case Z_BUF_ERROR:
@@ -6357,11 +6351,9 @@ inflate_error:
 
 		if (next_page_no == FIL_NULL) {
 			if (!d_stream.avail_in) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: unexpected end of"
-					" compressed BLOB"
-					" page %lu space %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Unexpected end of compressed BLOB"
+					" page %lu space %lu",
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {

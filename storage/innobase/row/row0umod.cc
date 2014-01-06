@@ -644,7 +644,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			      " to http://bugs.mysql.com\n", stderr);
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"record in index %s was not found"
+				"Record in index %s was not found"
 				" on rollback, trying to insert",
 				index->name);
 		}
@@ -653,7 +653,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		    || btr_cur->low_match >= dict_index_get_n_unique(index)) {
 			if (*index->name != TEMP_INDEX_PREFIX) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"record in index %s was not found on"
+					"Record in index %s was not found on"
 					" rollback, and a duplicate exists",
 					index->name);
 			}

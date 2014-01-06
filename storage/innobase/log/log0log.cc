@@ -264,8 +264,8 @@ log_reserve_and_open(
 		/* log_buffer is too small. try to extend instead of crash. */
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"The transaction log size is too large"
-			" for innodb_log_buffer_size (%lu >= %lu / 2). "
-			"Trying to extend it.",
+			" for innodb_log_buffer_size (%lu >= %lu / 2)."
+			" Trying to extend it.",
 			len, LOG_BUFFER_SIZE);
 
 		log_buffer_extend((len + 1) * 2);
@@ -453,8 +453,8 @@ log_close(void)
 			log_last_warning_time = time(NULL);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The age of the last checkpoint is "
-				LSN_PF ", which exceeds the log group"
+				"The age of the last checkpoint is"
+				" " LSN_PF ", which exceeds the log group"
 				" capacity " LSN_PF ".  If you are using"
 				" big BLOB or TEXT rows, you must set the"
 				" combined size of log files at least 10"
@@ -723,7 +723,7 @@ failure:
 
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot continue operation.  ib_logfiles are too"
+			"Cannot continue operation. ib_logfiles are too"
 			" small for innodb_thread_concurrency %lu. The"
 			" combined size of ib_logfiles should be bigger than"
 			" 200 kB * innodb_thread_concurrency. To get mysqld"
@@ -731,7 +731,7 @@ failure:
 			" my.cnf to a lower value, for example, to 8. After"
 			" an ERROR-FREE shutdown of mysqld you can adjust"
 			" the size of ib_logfiles, as explained in " REFMAN
-			"adding-and-removing.html.",
+			" adding-and-removing.html.",
 			(ulong) srv_thread_concurrency);
 	}
 
@@ -1461,7 +1461,7 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
+	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
@@ -2168,8 +2168,8 @@ loop:
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for page_cleaner to "
-				"finish flushing of buffer pool");
+				"Waiting for page_cleaner to"
+				" finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -2182,8 +2182,8 @@ loop:
 	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Pending checkpoint_writes: %lu. "
-				"Pending log flush writes: %lu",
+				"Pending checkpoint_writes: %lu."
+				" Pending log flush writes: %lu",
 				(ulong) log_sys->n_pending_checkpoint_writes,
 				(ulong) log_sys->n_pending_flushes);
 			count = 0;
@@ -2207,10 +2207,10 @@ loop:
 	if (srv_fast_shutdown == 2) {
 		if (!srv_read_only_mode) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"MySQL has requested a very fast shutdown "
-				"without flushing the InnoDB buffer pool to "
-				"data files. At the next mysqld startup "
-				"InnoDB will do a crash recovery!");
+				"MySQL has requested a very fast shutdown"
+				" without flushing the InnoDB buffer pool to"
+				" data files. At the next mysqld startup"
+				" InnoDB will do a crash recovery!");
 
 			/* In this fastest shutdown we do not flush the
 			buffer pool:
@@ -2229,8 +2229,8 @@ loop:
 
 			if (thread_name != NULL) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Background thread %s woke up "
-					"during shutdown", thread_name);
+					"Background thread %s woke up"
+					" during shutdown", thread_name);
 				goto loop;
 			}
 		}
@@ -2310,8 +2310,8 @@ loop:
 
 	if (lsn < srv_start_lsn) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Log sequence number at shutdown " LSN_PF " "
-			"is lower than at startup " LSN_PF "!",
+			"Log sequence number at shutdown " LSN_PF
+			" is lower than at startup " LSN_PF "!",
 			lsn, srv_start_lsn);
 	}
 
