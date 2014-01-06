@@ -168,9 +168,9 @@ void *toku_mempool_get_pointer_from_base_and_offset(const struct mempool *mp, si
     return reinterpret_cast<void*>(reinterpret_cast<char*>(mp->base) + offset);
 }
 
-size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, void* p) {
+size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, const void* p) {
     paranoid_invariant(p >= mp->base);
-    return reinterpret_cast<char*>(p) - reinterpret_cast<char*>(mp->base);
+    return reinterpret_cast<const char*>(p) - reinterpret_cast<const char*>(mp->base);
 }
 
 size_t toku_mempool_get_size(const struct mempool *mp) {

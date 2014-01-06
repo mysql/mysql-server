@@ -170,6 +170,7 @@ const unsigned int random_seed = 0xFEADACBA;
 static void fail_one_verify(uint32_t len, uint32_t num, vdmt *v) {
     val_type* fetched_data;
     int count = 0;
+    v->verify();
     for (uint32_t i = 0; i < num; i++) {
         uint32_t fetched_len;
         int r = v->fetch(i-count, &fetched_len, &fetched_data);
@@ -182,6 +183,7 @@ static void fail_one_verify(uint32_t len, uint32_t num, vdmt *v) {
 }
 
 static void verify(uint32_t len, uint32_t num, vdmt *v) {
+    v->verify();
     val_type* fetched_data;
     for (uint32_t i = 0; i < num; i++) {
         uint32_t fetched_len;

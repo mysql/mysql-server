@@ -95,6 +95,7 @@ PATENT RIGHTS GRANT:
 #include <toku_race_tools.h>
 #include "growable_array.h"
 #include "../ft/wbuf.h"
+#include <vector>
 
 namespace toku {
 typedef uint32_t node_idx;
@@ -201,7 +202,9 @@ using namespace toku::dmt_internal;
 template<typename dmtdata_t>
 class dmt_functor {
     // Ensures that if you forget to use partial specialization this compile error will remind you to use it.
-    static_assert(!std::is_same<dmtdata_t, dmtdata_t>::value, "Must use partial specialization on dmt_functor");
+    // We would use static_assert(false, ...) here except that it would cause a compile error even if dmt_functor<>
+    // We instead use an expression that evaluates to false that the compiler won't evaluate unless dmt_functor<> is used.
+    static_assert(!std::is_same<dmtdata_t, dmtdata_t>::value, "Cannot use default dmt_functor<>. Use partial specialization.");
     // Defines the interface:
     static size_t get_dmtdata_t_size(const dmtdata_t &) { return 0; }
     size_t get_dmtdatain_t_size(void) { return 0; }
@@ -377,6 +380,7 @@ public:
              int (*f)(const uint32_t, const dmtdata_t &, const uint32_t, iterate_extra_t *const)>
     int iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const;
 
+    // Attempt to verify this dmt is well formed.  (Crashes/asserts/aborts if not well formed)
     void verify(void) const;
 
     /**
@@ -503,9 +507,14 @@ public:
     void prepare_for_serialize(void);
 
 private:
+    // Do a bit of verification that subtree and nodes act like packed c structs and do not introduce unnecessary padding for alignment.
+    ENSURE_POD(subtree);
+    static_assert(ALIGNMENT > 0, "ALIGNMENT <= 0");
+    static_assert((ALIGNMENT & (ALIGNMENT - 1)) == 0, "ALIGNMENT not a power of 2");
     static_assert(sizeof(dmt_node) - sizeof(dmtdata_t) == __builtin_offsetof(dmt_node, value), "value is not last field in node");
     static_assert(4 * sizeof(uint32_t) == __builtin_offsetof(dmt_node, value), "dmt_node is padded");
-    ENSURE_POD(subtree);
+    static_assert(__builtin_offsetof(dmt_node, value) % ALIGNMENT == 0, "dmt_node requires padding for alignment");
+    ENSURE_POD(dmt_node);
 
     struct dmt_array {
         uint32_t start_idx;
@@ -515,7 +524,6 @@ private:
     struct dmt_tree {
         subtree root;
     };
-
 
     bool values_same_size;
     uint32_t value_length;
@@ -528,7 +536,7 @@ private:
 
     uint32_t get_fixed_length_alignment_overhead(void) const;
 
-    void verify_internal(const subtree &subtree) const;
+    void verify_internal(const subtree &subtree, std::vector<bool> *touched) const;
 
     void create_internal_no_alloc(bool as_tree);
 
@@ -647,6 +655,7 @@ private:
     int find_internal_minus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const;
 
     node_idx* alloc_temp_node_idxs(uint32_t num_idxs);
+
     uint32_t align(const uint32_t x) const;
 };
 
