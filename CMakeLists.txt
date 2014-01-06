@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -521,10 +521,11 @@ ENDIF()
 ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(sql/share)
-ADD_SUBDIRECTORY(scripts)
+
 IF(UNIX)
   ADD_SUBDIRECTORY(man)
 ENDIF()
+
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
   ADD_SUBDIRECTORY(sql)
@@ -534,7 +535,13 @@ IF(NOT WITHOUT_SERVER)
    ADD_SUBDIRECTORY(libmysqld)
    ADD_SUBDIRECTORY(libmysqld/examples)
   ENDIF(WITH_EMBEDDED_SERVER)
+ENDIF()
 
+# scripts/mysql_config depends on client and server targets loaded above.
+# It is referenced by some of the directories below, so we insert it here.
+ADD_SUBDIRECTORY(scripts)
+
+IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
