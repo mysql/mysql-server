@@ -9,3 +9,20 @@ if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
 
 # The main testing script
 --source suite/opt_trace/include/range.inc
+
+--echo
+--echo # BUG#18023222 OPTIMIZER TRACE ERROR ON RANGE ANALYSIS OF
+--echo #              INDEX ON A BINARY COLUMN
+--echo
+
+CREATE TABLE t(i INT PRIMARY KEY, b BINARY(16), INDEX i_b(b));
+INSERT INTO t VALUES (1, x'D95B94336A9946A39CF5B58CFE772D8C');
+INSERT INTO t VALUES (2, NULL);
+
+EXPLAIN SELECT * FROM t WHERE b IN (0xD95B94336A9946A39CF5B58CFE772D8C);
+SELECT trace FROM information_schema.optimizer_trace;
+
+EXPLAIN SELECT * FROM t WHERE b IS NULL;
+SELECT trace FROM information_schema.optimizer_trace;
+
+drop table t;
