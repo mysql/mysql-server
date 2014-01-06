@@ -265,7 +265,7 @@ void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
 int slap_connect(MYSQL *mysql);
-static int run_query(MYSQL *mysql, const char *query, int len);
+static int run_query(MYSQL *mysql, const char *query, size_t len);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -1511,17 +1511,17 @@ get_options(int *argc,char ***argv)
 }
 
 
-static int run_query(MYSQL *mysql, const char *query, int len)
+static int run_query(MYSQL *mysql, const char *query, size_t len)
 {
   if (opt_only_print)
   {
-    printf("%.*s;\n", len, query);
+    printf("%.*s;\n", (int)len, query);
     return 0;
   }
 
   if (verbose >= 3)
-    printf("%.*s;\n", len, query);
-  return mysql_real_query(mysql, query, len);
+    printf("%.*s;\n", (int)len, query);
+  return mysql_real_query(mysql, query, (ulong)len);
 }
 
 
@@ -1612,7 +1612,7 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
   char query[HUGE_STRING_LENGTH];
   statement *ptr;
   statement *after_create;
-  int len;
+  size_t len;
   ulonglong count;
   DBUG_ENTER("create_schema");
 
@@ -1704,7 +1704,7 @@ static int
 drop_schema(MYSQL *mysql, const char *db)
 {
   char query[HUGE_STRING_LENGTH];
-  int len;
+  size_t len;
   DBUG_ENTER("drop_schema");
   len= snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
 
@@ -1892,7 +1892,7 @@ limit_not_met:
       if ((ptr->type == UPDATE_TYPE_REQUIRES_PREFIX) ||
           (ptr->type == SELECT_TYPE_REQUIRES_PREFIX))
       {
-        int length;
+        size_t length;
         unsigned int key_val;
         char *key;
         char buffer[HUGE_STRING_LENGTH];

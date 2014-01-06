@@ -201,7 +201,7 @@ static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
-static uint delimiter_length= 1;
+static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -1564,7 +1564,8 @@ void kill_query(const char *reason)
   if (verbose)
     tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", reason,
                 kill_buffer);
-  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
+  mysql_real_query(kill_mysql, kill_buffer,
+                   static_cast<ulong>(strlen(kill_buffer)));
   tee_fprintf(stdout, "%s -- query aborted\n", reason);
 
 err:

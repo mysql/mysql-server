@@ -173,7 +173,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (!silent && !error)
   {
-    binlog_error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    binlog_error= write_bin_log(thd, true,
+                                thd->query().str, thd->query().length);
     if (!binlog_error)
       my_ok(thd);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,6 +77,8 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
@@ -904,6 +906,8 @@ static int binlog_init(void *p)
   binlog_hton->close_connection= binlog_close_connection;
   binlog_hton->savepoint_set= binlog_savepoint_set;
   binlog_hton->savepoint_rollback= binlog_savepoint_rollback;
+  binlog_hton->savepoint_rollback_can_release_mdl=
+                                     binlog_savepoint_rollback_can_release_mdl;
   binlog_hton->commit= binlog_commit;
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
@@ -1847,6 +1851,29 @@ static uint purge_log_get_error_code(int res)
   }
 
   return errcode;
+}
+
+/**
+  Check whether binlog state allows to safely release MDL locks after
+  rollback to savepoint.
+
+  @param hton  The binlog handlerton.
+  @param thd   The client thread that executes the transaction.
+
+  @return true  - It is safe to release MDL locks.
+          false - If it is not.
+*/
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd)
+{
+  DBUG_ENTER("binlog_savepoint_rollback_can_release_mdl");
+  /**
+    If we have not updated any non-transactional tables rollback
+    to savepoint will simply truncate binlog cache starting from
+    SAVEPOINT command. So it should be safe to release MDL acquired
+    after SAVEPOINT command in this case.
+  */
+  DBUG_RETURN(!trans_cannot_safely_rollback(thd));
 }
 
 #ifdef HAVE_REPLICATION
@@ -4805,7 +4832,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
 
         DBUG_PRINT("info",("purging %s",log_info.log_file_name));
-        if (!my_delete(log_info.log_file_name, MYF(0)))
+        if (!mysql_file_delete(key_file_binlog, log_info.log_file_name, MYF(0)))
         {
           if (decrease_log_space)
             *decrease_log_space-= s.st_size;
@@ -7764,11 +7791,11 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
   binlog_cache_data *cache_data=
     cache_mngr->get_binlog_cache_data(is_transactional);
 
-  if (binlog_rows_query && this->query())
+  if (binlog_rows_query && this->query().str)
   {
     /* Write the Rows_query_log_event into binlog before the table map */
     Rows_query_log_event
-      rows_query_ev(this, this->query(), this->query_length());
+      rows_query_ev(this, this->query().str, this->query().length);
     if ((error= cache_data->write_event(this, &rows_query_ev)))
       DBUG_RETURN(error);
   }
@@ -8044,7 +8071,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
 int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
-  DBUG_PRINT("info", ("query: %s", query()));
+  DBUG_PRINT("info", ("query: %s", query().str));
   DBUG_PRINT("info", ("variables.binlog_format: %lu",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
@@ -9127,7 +9154,7 @@ static void reset_binlog_unsafe_suppression()
   Auxiliary function to print warning in the error log.
 */
 static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
-                                 char* query)
+                                        const char* query)
 {
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -9149,7 +9176,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   TODO: Remove this function and implement a general service for all warnings
   that would prevent flooding the error log. => switch to log_throttle class?
 */
-static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
+static void do_unsafe_limit_checkout(char* buf, int unsafe_type, const char* query)
 {
   ulonglong now;
   DBUG_ENTER("do_unsafe_limit_checkout");
@@ -9264,9 +9291,9 @@ void THD::issue_unsafe_warnings()
       if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
-          do_unsafe_limit_checkout( buf, unsafe_type, query());
+          do_unsafe_limit_checkout( buf, unsafe_type, query().str);
         else //cases other than LIMIT unsafety
-          print_unsafe_warning_to_log(unsafe_type, buf, query());
+          print_unsafe_warning_to_log(unsafe_type, buf, query().str);
       }
     }
   }
@@ -9346,8 +9373,8 @@ Logical_clock::~Logical_clock()
   @retval nonzero If there is a failure when writing the query (e.g.,
   write failure), then the error code is returned.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
-                      ulong query_len, bool is_trans, bool direct, 
+int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
+                      size_t query_len, bool is_trans, bool direct,
                       bool suppress_use, int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
