@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,9 @@
 #include <NdbTick.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
+#include <EventLogger.hpp>
+
+extern EventLogger * g_eventLogger;
 
 
 static void dumpJobQueues(void);
@@ -1525,6 +1528,16 @@ check_real_time_break(NDB_TICKS now,
                       NdbThread *thread,
                       enum ThreadTypes type)
 {
+  if (unlikely(NdbTick_Compare(now, *yield_time) < 0))
+  {
+    /**
+     * Timer was adjusted backwards, or the monotonic timer implementation
+     * on this platform is unstable. Best we can do is to restart
+     * RT-yield timers from new current time.
+     */
+    *yield_time = now;
+  }
+
   const Uint64 micros_passed =
     NdbTick_Elapsed(*yield_time, now).microSec();
 
@@ -1551,6 +1564,16 @@ check_yield(NDB_TICKS now,
   {
     /**
      * We haven't started spinning yet, start spin timer.
+     */
+    *start_spin_ticks = now;
+    return false;
+  }
+  if (unlikely(NdbTick_Compare(now, *start_spin_ticks) < 0))
+  {
+    /**
+     * Timer was adjusted backwards, or the monotonic timer implementation
+     * on this platform is unstable. Best we can do is to restart
+     * spin timers from new current time.
      */
     *start_spin_ticks = now;
     return false;
@@ -1929,19 +1952,88 @@ handle_time_wrap(struct thr_data* selfptr)
   }
 }
 
+/**
+ * FUNCTION: scan_time_queues(), scan_time_queues_impl(),
+ *           scan_time_queues_backtick()
+ *
+ * scan_time_queues() Implements the part we want to be inlined
+ * into the scheduler loops, while *_impl() & *_backtick() is
+ * the more unlikely part we don't call unless the timer has 
+ * ticked backward or forward more than 1ms since last 'scan_time.
+ * 
+ * Check if any delayed signals has expired and should be sent now.
+ * The time_queues will be checked every time we detect a change
+ * in current time of >= 1ms. If idle we will sleep for max 10ms
+ * before rechecking the time_queue.
+ *
+ * However, some situations need special attention:
+ * - Even if we prefer monotonic timers, they are not available, or
+ *   implemented in our abstraction layer, for all platforms.
+ *   A non-monotonic timer may leap when adjusted by the user, both
+ *   forward or backwards.
+ * - Early implementation of monotonic timers had bugs where time 
+ *   could jump. Similar problems has been reported for several VMs.
+ * - There might be CPU contention or system swapping where we might 
+ *   sleep for significantly longer that 10ms, causing long forward 
+ *   leaps in perceived time.
+ *
+ * In order to adapt to this non-perfect clock behaviour, the
+ * scheduler has its own 'm_ticks' which is the current time
+ * as perceived by the scheduler. On entering this function, 'now'
+ * is the 'real' current time fetched from NdbTick_getCurrentTime().
+ * 'selfptr->m_ticks' is the previous tick seen by the scheduler,
+ * and as such is the timestamp which reflects the current time
+ * as seen by the timer queues.
+ *
+ * Normally only a few milliseconds will elapse between each ticks
+ * as seen by the diff between 'now' and 'selfthr->m_ticks'.
+ * However, if there are larger leaps in the current time,
+ * we breaks this up in several small(20ms) steps
+ * by gradually increasing schedulers 'm_ticks' time. This ensure
+ * that delayed signals will arrive in correct relative order, 
+ * and repeated signals (pace signals) are received with
+ * the expected frequence. However, each individual signal may
+ * be delayed or arriving to fast. Where excact timing is critical,
+ * these signals should do their own time calculation by reading 
+ * the clock, instead of trusting that the signal is delivered as
+ * specified by the 'delay' argument
+ *
+ * If there are leaps larger than 1500ms, we try a hybrid
+ * solution by moving the 'm_ticks' forward, close to the
+ * actuall current time, then continue as above from that
+ * point in time. A 'time leap Warning' will also be printed
+ * in the logs.
+ */
 static
-void
-scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
+Uint32
+scan_time_queues_impl(struct thr_data* selfptr, Uint32 diff)
 {
-  struct thr_tq * tq = &selfptr->m_tq;
-  const NDB_TICKS last = selfptr->m_ticks;
+  NDB_TICKS last = selfptr->m_ticks;
+  Uint32 step = diff;
 
+  if (unlikely(diff > 20))     // Break up into max 20ms steps
+  {
+    if (unlikely(diff > 1500)) // Time leaped more than 1500ms
+    {
+      /**
+       * There was a long leap in the time since last checking
+       * of the time_queues. The clock could have been adjusted, or we
+       * are CPU starved. Anyway, we can never make up for the lost 
+       * CPU cycles, so we forget about them and start fresh from 
+       * a point in time 1000ms behind our current time.
+       */
+      g_eventLogger->warning("thr: %u: Overslept %u ms, expected ~10ms",
+                             selfptr->m_thr_no, diff);
+    
+      last = NdbTick_AddMilliseconds(last, diff-1000);
+    }
+    step = 20;  // Max expire intervall handled is 20ms 
+  }
+
+  struct thr_tq * tq = &selfptr->m_tq;
   Uint32 curr = tq->m_current_time;
   Uint32 cnt0 = tq->m_cnt[0];
   Uint32 cnt1 = tq->m_cnt[1];
-
-  Uint64 diff = NdbTick_Elapsed(last, now).milliSec();
-  Uint32 step = (Uint32)((diff > 20) ? 20 : diff);
   Uint32 end = (curr + step);
   if (end >= 32767)
   {
@@ -1958,14 +2050,56 @@ scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
   tq->m_cnt[0] = cnt0 - tmp0;
   tq->m_cnt[1] = cnt1 - tmp1;
   selfptr->m_ticks = NdbTick_AddMilliseconds(last, step);
+  return (diff - step);
+}
+
+/**
+ * Clock has ticked backwards. We try to handle this
+ * as best we can.
+ */
+static
+void
+scan_time_queues_backtick(struct thr_data* selfptr, NDB_TICKS now)
+{
+  const NDB_TICKS last = selfptr->m_ticks;
+  assert(NdbTick_Compare(now, last) < 0);
+
+  const Uint64 backward = NdbTick_Elapsed(now, last).milliSec();
+
+  /**
+   * Silently ignore sub millisecond backticks.
+   * Such 'noise' is unfortunately common, even for monotonic timers.
+   */
+  if (backward > 0)
+  {
+    g_eventLogger->warning("thr: %u Time ticked backwards %llu ms.",
+		           selfptr->m_thr_no, backward);
+
+    /* Long backticks should never happen for monotonic timers */
+    assert(backward < 100 || !NdbTick_IsMonotonic()); 
+
+    /* Accept new time as current */
+    selfptr->m_ticks = now;
+  }
 }
 
 static inline
-void
+Uint32
 scan_time_queues(struct thr_data* selfptr, NDB_TICKS now)
 {
-  if (NdbTick_Compare(selfptr->m_ticks,now) != 0)
-    scan_time_queues_impl(selfptr, now);
+  const NDB_TICKS last = selfptr->m_ticks;
+  if (unlikely(NdbTick_Compare(now, last) < 0))
+  {
+    scan_time_queues_backtick(selfptr, now);
+    return 0;
+  }
+
+  const Uint32 diff = (Uint32)NdbTick_Elapsed(last, now).milliSec();
+  if (unlikely(diff > 0))
+  {
+    return scan_time_queues_impl(selfptr, diff);
+  }
+  return 0;
 }
 
 static
@@ -1998,8 +2132,6 @@ retry:
       struct thr_job_buffer *jb = seize_buffer(rep, thr_no, false);
       Uint32 * page = reinterpret_cast<Uint32*>(jb);
       tq->m_delayed_signals[i] = page;
-
-      ndbout_c("saving %p at %p (%d)", page, tq->m_delayed_signals+i, i);
 
       /**
        * Init page
@@ -3954,7 +4086,7 @@ mt_receiver_thread_main(void *thr_arg)
     watchDogCounter = 2;
 
     now = NdbTick_getCurrentTicks();
-    scan_time_queues(selfptr, now);
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
 
@@ -3968,8 +4100,6 @@ mt_receiver_thread_main(void *thr_arg)
 
     watchDogCounter = 7;
 
-    has_received = false;
-
     if (real_time)
     {
       check_real_time_break(now,
@@ -3978,15 +4108,23 @@ mt_receiver_thread_main(void *thr_arg)
                             ReceiveThread);
     }
 
+    /**
+     * Only allow to sleep in pollReceive when:
+     * 1) We are not lagging behind in handling timer events.
+     * 2) There are no 'min_spin' configured or min_spin has elapsed
+     */
     Uint32 delay = 0;
-    if (min_spin_timer == 0 ||
-        check_yield(now,
-                    &start_spin_ticks,
-                    min_spin_timer))
+
+    if (lagging_timers == 0 &&       // 1)
+        (min_spin_timer == 0 ||      // 2)
+         check_yield(now,
+                     &start_spin_ticks,
+                     min_spin_timer)))
     {
       delay = 1;
     }
 
+    has_received = false;
     if (globalTransporterRegistry.pollReceive(delay, recvdata))
     {
       watchDogCounter = 8;
@@ -4234,7 +4372,7 @@ mt_job_thread_main(void *thr_arg)
     }
 
     watchDogCounter = 2;
-    scan_time_queues(selfptr, now);
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
     
@@ -4261,7 +4399,11 @@ mt_job_thread_main(void *thr_arg)
         do_flush(selfptr);
       }
     }
-    else
+    /**
+     * Scheduler is not allowed to yield until its internal
+     * time has caught up on real time.
+     */
+    else if (lagging_timers == 0)
     {
       /* No signals processed, prepare to sleep to wait for more */
       if ((pending_send + send_sum) > 0)
