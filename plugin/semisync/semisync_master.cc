@@ -783,6 +783,25 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
   return function_exit(kWho, 0);
 }
+void ReplSemiSyncMaster::set_wait_no_slave(const void *val)
+{
+  char set_switch= *(char *)val;
+  if (set_switch == 0)
+  {
+    if ((rpl_semi_sync_master_clients == 0) && (is_on()))
+      switch_off();
+  }
+  else
+  {
+    if (!is_on())
+      force_switch_on();
+  }
+}
+
+void ReplSemiSyncMaster::force_switch_on()
+{
+  state_= true;
+}
 
 /* Indicate that semi-sync replication is OFF now.
  * 
