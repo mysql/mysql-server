@@ -509,3 +509,24 @@ int Gtid_state::save_gtid_into_table(THD *thd)
   DBUG_RETURN(error);
 }
 
+
+int Gtid_state::generate_and_save_gtid(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::generate_and_save_gtid(THD *thd)");
+  int error= 0;
+  bool is_gtid_generated= false;
+
+  /* Generate gtid for transaction. */
+  if (thd->owned_gtid.is_null() &&
+      thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+  {
+    if (!(error= generate_automatic_gtid(thd)))
+      is_gtid_generated= true;
+  }
+
+  /* Save gtid into mysql.gtid_executed table. */
+  if (is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP)
+    error= save_gtid_into_table(thd);
+
+  DBUG_RETURN(error);
+}

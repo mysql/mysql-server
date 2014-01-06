@@ -2385,15 +2385,25 @@ public:
   int generate_automatic_gtid(THD *thd);
   /**
     Save gtid owned by the thd into executed_gtids variable
-    and gtid_executed table.
+    and gtid table.
 
-    @param thd    Current thread
+    @param thd Session to commit
     @retval
         0    OK
     @retval
       1    Error
   */
   int save_gtid_into_table(THD *thd);
+  /**
+    Generate automatic gtid for transaction and save
+    the generated or specified gtid into gtid table.
+
+    @param thd Session to commit
+
+    @retval 0    success
+    @retval 1    error
+  */
+  int generate_and_save_gtid(THD *thd);
   /*
     Return the count of ongoing transactions' gtids.
   */

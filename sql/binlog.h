@@ -828,7 +828,6 @@ bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
 bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
-int generate_and_save_gtid(THD *thd);
 
 int log_loaded_block(IO_CACHE* file);
 
