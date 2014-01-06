@@ -1500,7 +1500,6 @@ void Stage_manager::clear_preempt_status(THD *head)
 }
 #endif
 
-
 /**
   Write a rollback record of the transaction to the binary log.
 
@@ -4016,8 +4015,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   if (!is_relay_log)
   {
-    m_is_resetting= true;
     mysql_mutex_lock(&LOCK_reset_binlog);
+    m_is_resetting= true;
     while (true)
     {
       global_sid_lock->wrlock();
