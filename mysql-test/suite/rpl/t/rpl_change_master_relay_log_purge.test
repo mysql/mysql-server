@@ -15,8 +15,6 @@
 #    not be purged.
 #  - If both receiver and applier threads are stopped, relay logs should be
 #    purged.
-#  - If at least one of the receiver or applier is running, relay logs should
-#    not be purged.
 #
 #  ==== Related Worklog(s) And Bug(s)====
 #
