@@ -448,6 +448,10 @@ fts_ast_text_set_distance(
 	ulint		distance)		/*!< in: the text proximity
 						distance */
 {
+	if (node == NULL) {
+		return;
+	}
+
 	ut_a(node->type == FTS_AST_TEXT);
 	ut_a(node->text.distance == ULINT_UNDEFINED);
 
@@ -605,7 +609,7 @@ fts_ast_visit(
 	     node && (error == DB_SUCCESS);
 	     node = node->next) {
 
-		switch(node->type) {
+		switch (node->type) {
 		case FTS_AST_LIST:
 			if (visit_pass != FTS_PASS_FIRST) {
 				break;

@@ -45,13 +45,10 @@
 using std::max;
 using std::min;
 
-static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
-                                 bool first_optimization);
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
 static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
                                             uint n_tables,
                                             Semijoin_mat_optimize *sjm);
-static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join, Item *item);
 static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
@@ -72,9 +69,6 @@ static bool record_join_nest_info(st_select_lex *select,
                                   List<TABLE_LIST> *tables);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
-static ORDER *remove_const(JOIN *join,ORDER *first_order, Item *cond,
-                           bool change_list, bool *simple_order,
-                           const char *clause_type);
 static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where);
 static void trace_table_dependencies(Opt_trace_context * trace,
                                      JOIN_TAB *join_tabs,
@@ -85,12 +79,10 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables);
 static bool pull_out_semijoin_tables(JOIN *join);
-static void set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
 				      const key_map *keys,ha_rows limit);
-static void optimize_keyuse(JOIN *join);
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
@@ -118,7 +110,7 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
         implicit grouping.
       - ORDER BY optimization.
     -# Perform cost-based optimization of table order and access path
-       selection. See make_join_statistics()
+       selection. See JOIN::make_join_plan()
     -# Post-join order optimization:
        - Create optimal table conditions from the where clause and the
          join conditions.
@@ -382,12 +374,11 @@ JOIN::optimize()
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
-  /* Calculate how to do the join */
+  // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
-  if (make_join_statistics(this, select_lex->leaf_tables, conds,
-      first_optimization))
+  if (make_join_plan(first_optimization))
   {
-    DBUG_PRINT("error",("Error: make_join_statistics() failed"));
+    DBUG_PRINT("error",("Error: JOIN::make_join_plan() failed"));
     DBUG_RETURN(1);
   }
 
@@ -444,7 +435,7 @@ JOIN::optimize()
   if (outer_join)
   {
     reset_nj_counters(join_list);
-    make_outerjoin_info(this);
+    make_outerjoin_info();
   }
   // Assign map of "available" tables to all tables belonging to query block
   if (!plan_is_const())
@@ -503,7 +494,7 @@ JOIN::optimize()
   }
 
   // Update table dependencies after assigning ref access fields
-  update_depend_map(this);
+  update_depend_map();
 
   THD_STAGE_INFO(thd, stage_preparing);
   if (result->initialize_tables(this))
@@ -524,7 +515,9 @@ JOIN::optimize()
   /* Optimize DISTINCT away if possible */
   {
     ORDER *org_order= order;
-    order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
+    order= ORDER_with_src(remove_const(order, conds, 1, &simple_order,
+                                       "ORDER BY"),
+                          order.src);
     if (thd->is_error())
     {
       error= 1;
@@ -694,7 +687,7 @@ JOIN::optimize()
   simple_group= 0;
   {
     ORDER *old_group_list= group_list;
-    group_list= ORDER_with_src(remove_const(this, group_list, conds,
+    group_list= ORDER_with_src(remove_const(group_list, conds,
                                             rollup.state == ROLLUP::STATE_NONE,
                                             &simple_group, "GROUP BY"),
                                group_list.src);
@@ -779,7 +772,7 @@ JOIN::optimize()
   /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
-    const items after make_join_statisctics(for example
+    const items after JOIN::make_join_plan (for example
     when Item is a reference to cost table field from
     outer join).
     This check is performed only for those conditions
@@ -2936,25 +2929,22 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 
 /** Update the dependency map for the tables. */
 
-void update_depend_map(JOIN *join)
+void JOIN::update_depend_map()
 {
-  for (uint tableno = 0; tableno < join->tables; tableno++)
+  for (uint tableno = 0; tableno < tables; tableno++)
   {
-    JOIN_TAB *const join_tab= join->join_tab + tableno;
-    TABLE_REF *const ref= &join_tab->ref;
-    table_map depend_map=0;
-    Item **item=ref->items;
-    uint i;
-    for (i=0 ; i < ref->key_parts ; i++,item++)
-      depend_map|=(*item)->used_tables();
+    JOIN_TAB *const tab= join_tab + tableno;
+    TABLE_REF *const ref= &tab->ref;
+    table_map depend_map= 0;
+    Item **item= ref->items;
+    for (uint i = 0; i < ref->key_parts; i++, item++)
+      depend_map|= (*item)->used_tables();
     depend_map&= ~PSEUDO_TABLE_BITS;
     ref->depend_map= depend_map;
-    for (JOIN_TAB **tab=join->map2table;
-	 depend_map ;
-	 tab++,depend_map>>=1 )
+    for (JOIN_TAB **tab2= map2table; depend_map; tab2++, depend_map >>= 1)
     {
       if (depend_map & 1)
-	ref->depend_map|=(*tab)->ref.depend_map;
+	ref->depend_map|= (*tab2)->ref.depend_map;
     }
   }
 }
@@ -2962,7 +2952,7 @@ void update_depend_map(JOIN *join)
 
 /** Update the dependency map for the sort order. */
 
-static void update_depend_map(JOIN *join, ORDER *order)
+void JOIN::update_depend_map(ORDER *order)
 {
   for (; order ; order=order->next)
   {
@@ -2974,9 +2964,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
         && !order->item[0]->with_sum_func)
     {
-      for (JOIN_TAB **tab=join->map2table;
-	   depend_map ;
-	   tab++, depend_map>>=1)
+      for (JOIN_TAB **tab= map2table; depend_map; tab++, depend_map >>= 1)
       {
 	if (depend_map & 1)
 	  order->depend_map|=(*tab)->ref.depend_map;
@@ -3161,15 +3149,16 @@ void JOIN::set_prefix_tables()
 /**
   Calculate best possible join order and initialize the join structure.
 
-  @param join[in,out]       Execution plan and context for the current query
-                            block.
-  @param tables_arg         List of tables referenced by this query block.
-  @param conds              Query search condition (derived version of the
-                            WHERE clause.) 
-  @param first_optimization True if this is the first optimization of this
-                            query.
+  @param first_optimization True if first optimization of this query.
 
-  @return True if success, false if error .
+  @return true if success, false if error.
+
+  The JOIN object is populated with statistics about the query,
+  and a plan with table order and access method selection is made.
+
+  The list of tables to be optimized is taken from select_lex->leaf_tables.
+  JOIN::conds is also used in the optimization.
+  As a side-effect, JOIN::keyuse_array is populated with key_use information.  
 
   Here is an overview of the logic of this function:
 
@@ -3200,218 +3189,342 @@ void JOIN::set_prefix_tables()
   - Fill in remaining information for the generated join order.
 */
 
-static bool
-make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
-                     bool first_optimization)
+bool JOIN::make_join_plan(bool first_optimization)
 {
-  int error;
-  THD *const thd= join->thd;
-  TABLE_LIST *tables= tables_arg;
-  uint i,const_count,key;
-  const uint table_count= join->tables;
-  table_map found_ref, refs;
-  JOIN_TAB *stat,*stat_end,*s,**stat_ref;
-  Key_use *keyuse, *start_keyuse;
-  table_map outer_join= 0;
-  SARGABLE_PARAM *sargables= 0;
-  JOIN_TAB *stat_vector[MAX_TABLES+1];
-  Opt_trace_context * const trace= &join->thd->opt_trace;
-  DBUG_ENTER("make_join_statistics");
+  DBUG_ENTER("JOIN::make_join_plan");
 
-  stat= new (thd->mem_root) JOIN_TAB[table_count];
-  stat_ref= (JOIN_TAB**) thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  if (!stat || !stat_ref)
+  SARGABLE_PARAM *sargables= NULL;
+
+  Opt_trace_context * const trace= &thd->opt_trace;
+
+  // Initialize some join members
+  const_table_map= 0;                  // No const tables found yet
+  found_const_table_map= 0;            // Map of const tables with a single row
+  all_table_map= 0;                    // Map of all tables involved in the join
+  outer_join= 0;                       // Tables on inner side of an outer join
+
+  if (init_planner_arrays())           // Create and initialize the arrays
     DBUG_RETURN(true);
 
-  if (!(join->positions=
-        new (thd->mem_root) POSITION[table_count+1]))
-    DBUG_RETURN(true);
-
-  // Up to one extra slot per semi-join nest is needed (if materialized)
-  uint sj_nests= join->select_lex->sj_nests.elements;
-  if (!(join->best_positions=
-      new (thd->mem_root) POSITION[table_count + sj_nests + 1]))
-    DBUG_RETURN(true);
-
-  join->best_ref= stat_vector;
-
-  stat_end= stat+table_count;
-  join->const_table_map= 0;
-  join->found_const_table_map= 0;
-  join->all_table_map= 0;
-  const_count= 0;
-
-  /*
-    Initialize data structures for tables to be joined.
-    Initialize dependencies between tables.
-  */
-  for (s= stat, i= 0;
-       tables;
-       s++, tables= tables->next_leaf, i++)
-  {
-    stat_vector[i]=s;
-    TABLE *const table= tables->table;
-    s->table= table;
-    table->pos_in_table_list= tables;
-    error= tables->fetch_number_of_rows();
-
-    DBUG_EXECUTE_IF("bug11747970_raise_error",
-                    {
-                      if (!error)
-                      {
-                        my_error(ER_UNKNOWN_ERROR, MYF(0));
-                        goto error;
-                      }
-                    });
-
-    if (error)
-    {
-      table->file->print_error(error, MYF(0));
-      goto error;
-    }
-    table->quick_keys.clear_all();
-    table->possible_quick_keys.clear_all();
-    table->reginfo.join_tab=s;
-    table->reginfo.not_exists_optimize=0;
-    memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
-    join->all_table_map|= table->map;
-    s->join=join;
-
-    s->dependent= tables->dep_tables;
-    if (tables->schema_table)
-      table->file->stats.records= 2;
-    table->quick_condition_rows= table->file->stats.records;
-
-    s->on_expr_ref= tables->join_cond_ref();
-
-    if (tables->outer_join_nest())
-    {
-      /* s belongs to a nested join, maybe to several embedding joins */
-      s->embedding_map= 0;
-      for (TABLE_LIST *embedding= tables->embedding;
-           embedding;
-           embedding= embedding->embedding)
-      {
-        NESTED_JOIN *nested_join= embedding->nested_join;
-        s->embedding_map|=nested_join->nj_map;
-        s->dependent|= embedding->dep_tables;
-        if (embedding->join_cond())
-          outer_join|= nested_join->used_tables;
-      }
-    }
-    else if (*s->on_expr_ref)
-    {
-      /* s is the only inner table of an outer join */
-      outer_join|= table->map;
-      s->embedding_map= 0;
-      for (TABLE_LIST *embedding= tables->embedding;
-           embedding;
-           embedding= embedding->embedding)
-        s->embedding_map|= embedding->nested_join->nj_map;
-    }
-  }
-  stat_vector[i]=0;
-  join->outer_join=outer_join;
-
-  if (join->outer_join)
-  {
-    /* 
-       Complete the dependency analysis.
-       Build transitive closure for relation 'to be dependent on'.
-       This will speed up the plan search for many cases with outer joins,
-       as well as allow us to catch illegal cross references.
-       Warshall's algorithm is used to build the transitive closure.
-       As we may restart the outer loop upto 'table_count' times, the
-       complexity of the algorithm is O((number of tables)^3).
-       However, most of the iterations will be shortcircuited when
-       there are no pedendencies to propogate.
-    */
-    for (i= 0 ; i < table_count ; i++)
-    {
-      TABLE *const table= stat[i].table;
-
-      if (!table->reginfo.join_tab->dependent)
-        continue;
-
-      uint j;
-      /* Add my dependencies to other tables depending on me */
-      for (j= 0, s= stat ; j < table_count ; j++, s++)
-      {
-        if (s->dependent & table->map)
-        {
-          table_map was_dependent= s->dependent;
-          s->dependent |= table->reginfo.join_tab->dependent;
-          /*
-            If we change dependencies for a table we already have
-            processed: Redo dependency propagation from this table.
-          */
-          if (i > j && s->dependent != was_dependent)
-          {
-            i = j-1;
-            break;
-          }
-        }
-      }
-    }
-
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
-    {
-      /* Catch illegal cross references for outer joins */
-      if (s->dependent & s->table->map)
-      {
-        join->tables=0;			// Don't use join->table
-        join->primary_tables= 0;
-        my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
-        goto error;
-      }
-
-      if (outer_join & s->table->map)
-      {
-        /*
-          Semijoin inner tables in ON condition of outer join have been moved
-          into outer join nest, but after setup_table_map(), so maybe_null is
-          not yet set for them:
-        */
-        s->table->maybe_null= 1;
-      }
-      s->key_dependent= s->dependent;
-    }
-  }
+  // Outer join dependencies were initialized above, now complete the analysis.
+  if (outer_join)
+    propagate_dependencies();
 
   if (unlikely(trace->is_started()))
-    trace_table_dependencies(trace, stat, table_count);
+    trace_table_dependencies(trace, join_tab, primary_tables);
 
+  // Build the key access information, which is the basis for ref access.
   if (conds || outer_join)
-    if (update_ref_and_keys(thd, &join->keyuse_array, stat, join->tables,
-                            conds, join->cond_equal,
-                            ~outer_join, join->select_lex, &sargables))
-      goto error;
+  {
+    if (update_ref_and_keys(thd, &keyuse_array, join_tab, tables, conds,
+                            cond_equal, ~outer_join, select_lex, &sargables))
+      DBUG_RETURN(true);
+  }
 
   /*
     Pull out semi-join tables based on dependencies. Dependencies are valid
     throughout the lifetime of a query, so this operation can be performed
     on the first optimization only.
   */
-  if (first_optimization && sj_nests)
+  if (first_optimization && select_lex->sj_nests.elements &&
+      pull_out_semijoin_tables(this))
+    DBUG_RETURN(true);
+
+  const uint sj_nests= select_lex->sj_nests.elements; // Changed by pull-out
+
+  if (!no_const_tables)
   {
-    if (pull_out_semijoin_tables(join))
+    // Detect tables that are const (0 or 1 row) and read their contents. 
+    if (extract_const_tables())
       DBUG_RETURN(true);
-    sj_nests= join->select_lex->sj_nests.elements;
+
+    // Detect tables that are functionally dependent on const values.
+    if (extract_func_dependent_tables())
+      DBUG_RETURN(true);
   }
+  // Possibly able to create more sargable predicates from const rows.
+  if (const_tables && sargables)
+    update_sargable_from_const(sargables);
+
+  // Make a first estimate of the fanout for each table in the query block.
+  if (estimate_rowcount())
+    DBUG_RETURN(true);
+
+  if (sj_nests)
+    set_semijoin_embedding();
+
+  if (!plan_is_const())
+    optimize_keyuse();
+
+  allow_outer_refs= true;
+
+  if (sj_nests && optimize_semijoin_nests_for_materialization(this))
+    DBUG_RETURN(true);
+
+  // Choose the table order based on analysis done so far.
+  if (Optimize_table_order(thd, this, NULL).choose_table_order())
+    DBUG_RETURN(true);
+
+  DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
+  if (thd->killed || thd->is_error())
+    DBUG_RETURN(true);
+
+  // If this is a subquery, decide between In-to-exists and materialization
+  if (unit->item && decide_subquery_strategy())
+    DBUG_RETURN(true);
+
+  refine_best_rowcount();
+
+  // Only best_positions should be needed from now on.
+  positions= NULL;
+  best_ref= NULL;
 
   /*
-    Extract const tables based on row counts, must be done for each execution.
-    Tables containing exactly zero or one rows are marked as const, but
-    notice the additional constraints checked below.
-    Tables that are extracted have their rows read before actual execution
-    starts and are placed in the beginning of the join_tab array.
-    Thus, they do not take part in join order optimization process,
-    which can significantly reduce the optimization time.
-    The data read from these tables can also be regarded as "constant"
-    throughout query execution, hence the column values can be used for
-    additional constant propagation and extraction of const tables based
-    on eq-ref properties.
+    Store the cost of this query into a user variable
+    Don't update last_query_cost for statements that are not "flat joins" :
+    i.e. they have subqueries, unions or call stored procedures.
+    TODO: calculate a correct cost for a query with subqueries and UNIONs.
   */
+  if (thd->lex->is_single_level_stmt())
+    thd->status_var.last_query_cost= best_read;
+
+  // Generate an execution plan from the found optimal join order.
+  if (get_best_combination())
+    DBUG_RETURN(true);
+
+  // No need for this struct after new JOIN_TAB array is set up.
+  best_positions= NULL;
+
+  // Some called function may still set thd->is_fatal_error unnoticed
+  if (thd->is_fatal_error)
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Initialize scratch arrays for the join order optimization
+
+  @returns false if success, true if error
+
+  @note If something fails during initialization, JOIN::cleanup()
+        will free anything that has been partially allocated and set up.
+        Arrays are created in the execution mem_root, so they will be
+        deleted automatically when the mem_root is re-initialized.
+*/
+
+bool JOIN::init_planner_arrays()
+{
+  // Up to one extra slot per semi-join nest is needed (if materialized)
+  const uint sj_nests= select_lex->sj_nests.elements;
+  const uint table_count= tables;
+
+  primary_tables= 0;                   // Count the number of initialized tables
+  tables= 0;
+
+  if (!(join_tab= new (thd->mem_root) JOIN_TAB[table_count]))
+    return true;
+
+  if (!(best_ref= (JOIN_TAB **) thd->alloc(sizeof(JOIN_TAB *) *
+                                           (table_count + sj_nests + 1))))
+    return true;
+
+  if (!(map2table= (JOIN_TAB **) thd->alloc(sizeof(JOIN_TAB *) *
+                                           (table_count + sj_nests))))
+    return true;
+
+  if (!(positions= new (thd->mem_root) POSITION[table_count + 1]))
+    return true;
+
+  if (!(best_positions= new (thd->mem_root) POSITION[table_count+sj_nests+1]))
+    return true;
+
+  /*
+    Initialize data structures for tables to be joined.
+    Initialize dependencies between tables.
+  */
+  JOIN_TAB **best_ref_p= best_ref;
+  TABLE_LIST *tl= select_lex->leaf_tables;
+
+  for (JOIN_TAB *tab= join_tab;
+       tl;
+       tab++, tl= tl->next_leaf, best_ref_p++)
+  {
+    *best_ref_p= tab;
+    TABLE *const table= tl->table;
+    tab->table= table;
+    table->pos_in_table_list= tl;
+    const int error= tl->fetch_number_of_rows();
+
+    DBUG_EXECUTE_IF("bug11747970_raise_error",
+                    {
+                      if (!error)
+                      {
+                        my_error(ER_UNKNOWN_ERROR, MYF(0));
+                        return true;
+                      }
+                    });
+
+    if (error)
+    {
+      table->file->print_error(error, MYF(0));
+      return true;
+    }
+    table->quick_keys.clear_all();
+    table->possible_quick_keys.clear_all();
+    table->reginfo.join_tab= tab;
+    table->reginfo.not_exists_optimize= false;
+    memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
+    all_table_map|= table->map;
+    tab->join= this;
+
+    tab->dependent= tl->dep_tables;  // Initialize table dependencies
+    if (tl->schema_table)
+      table->file->stats.records= 2;
+    table->quick_condition_rows= table->file->stats.records;
+
+    tab->on_expr_ref= tl->join_cond_ref();
+
+    if (tl->outer_join_nest())
+    {
+      // tab belongs to a nested join, maybe to several embedding joins
+      tab->embedding_map= 0;
+      for (TABLE_LIST *embedding= tl->embedding;
+           embedding;
+           embedding= embedding->embedding)
+      {
+        NESTED_JOIN *const nested_join= embedding->nested_join;
+        tab->embedding_map|= nested_join->nj_map;
+        tab->dependent|= embedding->dep_tables;
+        if (embedding->join_cond())
+          outer_join|= nested_join->used_tables;
+      }
+    }
+    else if (*tab->on_expr_ref)
+    {
+      // tab is the only inner table of an outer join
+      outer_join|= table->map;
+      tab->embedding_map= 0;
+      for (TABLE_LIST *embedding= tl->embedding;
+           embedding;
+           embedding= embedding->embedding)
+        tab->embedding_map|= embedding->nested_join->nj_map;
+    }
+    tables++;                     // Count number of initialized tables
+  }
+
+  primary_tables= tables;
+  *best_ref_p= NULL;              // Last element of array must be NULL
+
+  return false;
+}
+
+
+/** 
+  Propagate dependencies between tables due to outer join relations.
+
+  @returns false if success, true if error
+
+  Build transitive closure for relation 'to be dependent on'.
+  This will speed up the plan search for many cases with outer joins,
+  as well as allow us to catch illegal cross references.
+  Warshall's algorithm is used to build the transitive closure.
+  As we may restart the outer loop upto 'table_count' times, the
+  complexity of the algorithm is O((number of tables)^3).
+  However, most of the iterations will be shortcircuited when
+  there are no dependencies to propagate.
+*/
+
+bool JOIN::propagate_dependencies()
+{
+  for (uint i= 0; i < tables; i++)
+  {
+    TABLE *const table= join_tab[i].table;
+
+    if (!table->reginfo.join_tab->dependent)
+      continue;
+
+    // Add my dependencies to other tables depending on me
+    uint j;
+    JOIN_TAB *tab;
+    for (j= 0, tab= join_tab; j < tables; j++, tab++)
+    {
+      if (tab->dependent & table->map)
+      {
+        const table_map was_dependent= tab->dependent;
+        tab->dependent|= table->reginfo.join_tab->dependent;
+        /*
+          If we change dependencies for a table we already have
+          processed: Redo dependency propagation from this table.
+        */
+        if (i > j && tab->dependent != was_dependent)
+        {
+          i= j-1;
+          break;
+        }
+      }
+    }
+  }
+
+  JOIN_TAB *const tab_end= join_tab + tables;
+  for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+  {
+    /*
+      Catch illegal cross references for outer joins.
+      This could happen before WL#2486 was implemented in 5.0, but should no
+      longer be possible.
+      Thus, an assert has been added should this happen again.
+      @todo Remove the error check below.
+    */
+    DBUG_ASSERT(!(tab->dependent & tab->table->map));
+
+    if (tab->dependent & tab->table->map)
+    {
+      tables= 0;               // Don't use join->table
+      primary_tables= 0;
+      my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
+      return true;
+    }
+
+    if (outer_join & tab->table->map)
+    {
+      /*
+        Semijoin inner tables in ON condition of outer join have been moved
+        into outer join nest, but after setup_table_map(), so maybe_null is
+        not yet set for them:
+      */
+      tab->table->maybe_null= true;
+    }
+    tab->key_dependent= tab->dependent;
+  }
+
+  return false;
+}
+
+
+/**
+  Extract const tables based on row counts.
+
+  @returns false if success, true if error
+
+  This extraction must be done for each execution.
+  Tables containing exactly zero or one rows are marked as const, but
+  notice the additional constraints checked below.
+  Tables that are extracted have their rows read before actual execution
+  starts and are placed in the beginning of the join_tab array.
+  Thus, they do not take part in join order optimization process,
+  which can significantly reduce the optimization time.
+  The data read from these tables can also be regarded as "constant"
+  throughout query execution, hence the column values can be used for
+  additional constant propagation and extraction of const tables based
+  on eq-ref properties.
+
+  The tables are given the type JT_SYSTEM.
+*/
+
+bool JOIN::extract_const_tables()
+{
   enum enum_const_table_extraction
   {
      extract_no_table=    0,
@@ -3419,13 +3532,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
      extract_const_table= 2
   };
 
-  if (join->no_const_tables)
-    goto const_table_extraction_done;
-
-  for (i= 0, s= stat; i < table_count; i++, s++)
+  JOIN_TAB *const tab_end= join_tab + tables;
+  for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    TABLE      *const table= s->table;
-    TABLE_LIST *const tables= table->pos_in_table_list;
+    TABLE      *const table= tab->table;
+    TABLE_LIST *const tl= table->pos_in_table_list;
     enum enum_const_table_extraction extract_method= extract_const_table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -3434,14 +3545,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     const bool all_partitions_pruned_away= false;
 #endif
 
-    if (tables->outer_join_nest())
+    if (tl->outer_join_nest())
     {
       /*
         Table belongs to a nested join, no candidate for const table extraction.
       */
       extract_method= extract_no_table;
     }
-    else if (tables->embedding && tables->embedding->sj_on_expr)
+    else if (tl->embedding && tl->embedding->sj_on_expr)
     {
       /*
         Table belongs to a semi-join.
@@ -3449,9 +3560,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       */
       extract_method= extract_no_table;
     }
-    else if (*s->on_expr_ref)
+    else if (*tab->on_expr_ref)
     {
-      /* s is the only inner table of an outer join, extract empty tables */
+      // tab is the only inner table of an outer join, extract empty tables
       extract_method= extract_empty_table;
     }
     switch (extract_method)
@@ -3460,11 +3571,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       break;
 
     case extract_empty_table:
-      /* Extract tables with zero rows, but only if statistics are exact */
+      // Extract tables with zero rows, but only if statistics are exact
       if ((table->file->stats.records == 0 ||
            all_partitions_pruned_away) &&
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
-        set_position(join, const_count++, s, NULL);
+        mark_const_table(tab, NULL);
       break;
 
     case extract_const_table:
@@ -3477,62 +3588,78 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       if ((table->s->system ||
            table->file->stats.records <= 1 ||
            all_partitions_pruned_away) &&
-          !s->dependent &&                                               // 1
+          !tab->dependent &&                                             // 1
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 2
           !table->fulltext_searched)                                     // 3
-        set_position(join, const_count++, s, NULL);
+        mark_const_table(tab, NULL);
       break;
     }
   }
-  /* Read const tables (tables matching no more than 1 rows) */
 
-  for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
-       p_pos < p_end ;
+  // Read const tables (tables matching no more than 1 rows)
+  if (!const_tables)
+    return false;
+
+  for (POSITION *p_pos= positions, *p_end= p_pos + const_tables;
+       p_pos < p_end;
        p_pos++)
   {
-    int tmp;
-    s= p_pos->table;
-    s->type=JT_SYSTEM;
-    join->const_table_map|=s->table->map;
-    if ((tmp=join_read_const_table(s, p_pos)))
+    JOIN_TAB *const tab= p_pos->table;
+    const int status= join_read_const_table(tab, p_pos);
+    if (status > 0)
+      return true;
+    else if (status == 0)
     {
-      if (tmp > 0)
-	goto error;		// Fatal error
-    }
-    else
-    {
-      join->found_const_table_map|= s->table->map;
-      s->table->pos_in_table_list->optimized_away= TRUE;
+      found_const_table_map|= tab->table->map;
+      tab->table->pos_in_table_list->optimized_away= true;
     }
   }
 
-const_table_extraction_done:
-  /*
-    Constant table analysis. Discover and read all constant tables
-    until no more constant tables can be found.
-  */
-  int ref_changed;
+  return false;
+}
+
+/**
+  Extract const tables based on functional dependencies.
+
+  @returns false if success, true if error
+
+  This extraction must be done for each execution.
+
+  Mark as const the tables that
+   - are functionally dependent on constant values, or
+   - are inner tables of an outer join and contain exactly zero or one rows
+
+  Tables that are extracted have their rows read before actual execution
+  starts and are placed in the beginning of the join_tab array, just as
+  described for JOIN::extract_const_tables().
+
+  The tables are given the type JT_CONST.
+*/
+
+bool JOIN::extract_func_dependent_tables()
+{
+  // loop until no more const tables are found
+  bool ref_changed;
+  table_map found_ref;
   do
   {
   more_const_tables_found:
-    ref_changed = 0;
-    found_ref=0;
+    ref_changed = false;
+    found_ref= 0;
 
-    /*
-      We only have to loop from stat_vector + const_count as
-      set_position() will move all const_tables first in stat_vector
-    */
-
-    for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
+    // Loop over all tables that are not already determined to be const
+    for (JOIN_TAB **pos= best_ref + const_tables; *pos; pos++)
     {
-      TABLE *const table= s->table;
+      JOIN_TAB *const tab= *pos;
+      TABLE *const table= tab->table;
       TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
         substitution of a const table the key value happens to be null
         then we can state that there are no matches for this equi-join.
-      */  
-      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map)
+      */
+      Key_use *keyuse= tab->keyuse;
+      if (keyuse && *tab->on_expr_ref && !tab->embedding_map)
       {
         /* 
           When performing an outer join operation if there are no matching rows
@@ -3546,25 +3673,23 @@ const_table_extraction_done:
 	*/              
         while (keyuse->table == table)
         {
-          if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
+          if (!(keyuse->val->used_tables() & ~const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
-            s->type= JT_CONST;
             mark_as_null_row(table);
-            join->found_const_table_map|= table->map;
-	    join->const_table_map|= table->map;
-	    set_position(join, const_count++, s, NULL);
+            found_const_table_map|= table->map;
+            mark_const_table(tab, keyuse);
             goto more_const_tables_found;
            }
 	  keyuse++;
         }
       }
 
-      if (s->dependent)				// If dependent on some table
+      if (tab->dependent)              // If dependent on some table
       {
-	// All dep. must be constants
-        if (s->dependent & ~(join->const_table_map))
-	  continue;
+        // All dependent tables must be const
+        if (tab->dependent & ~const_table_map)
+          continue;
         /*
           Mark a dependent table as constant if
            1. it has exactly zero or one rows (it is a system table), and
@@ -3578,46 +3703,43 @@ const_table_extraction_done:
 	if (table->file->stats.records <= 1L &&                            // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
             !tl->outer_join_nest() &&                                      // 2
-            !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()))       // 3
-	{					// system table
-	  int tmp= 0;
-	  s->type=JT_SYSTEM;
-	  join->const_table_map|=table->map;
-	  set_position(join, const_count++, s, NULL);
-	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
-	  {
-	    if (tmp > 0)
-	      goto error;			// Fatal error
-	  }
-	  else
-	    join->found_const_table_map|= table->map;
-	  continue;
-	}
+            !(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()))   // 3
+	{                              // system table
+          mark_const_table(tab, NULL);
+          const int status=
+            join_read_const_table(tab, positions + const_tables - 1);
+          if (status > 0)
+            return true;
+          else if (status == 0)
+            found_const_table_map|= table->map;
+          continue;
+        }
       }
-      /* check if table can be read by key or table only uses const refs */
-      if ((keyuse=s->keyuse))
-      {
-	s->type= JT_REF;
-	while (keyuse->table == table)
-	{
-	  start_keyuse=keyuse;
-	  key=keyuse->key;
-	  s->keys.set_bit(key);               // QQ: remove this ?
 
-	  refs=0;
+      // Check if table can be read by key or table only uses const refs
+
+      if ((keyuse= tab->keyuse))
+      {
+        while (keyuse->table == table)
+        {
+          Key_use *const start_keyuse= keyuse;
+          const uint key= keyuse->key;
+          tab->keys.set_bit(key);               // QQ: remove this ?
+
+          table_map refs= 0;
           key_map const_ref, eq_part;
-	  do
-	  {
-	    if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
-	    {
-	      if (!((~join->found_const_table_map) & keyuse->used_tables))
-		const_ref.set_bit(keyuse->keypart);
-	      else
-		refs|=keyuse->used_tables;
-	      eq_part.set_bit(keyuse->keypart);
-	    }
-	    keyuse++;
-	  } while (keyuse->table == table && keyuse->key == key);
+          do
+          {
+            if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
+            {
+              if (!((~found_const_table_map) & keyuse->used_tables))
+                const_ref.set_bit(keyuse->keypart);
+              else
+                refs|= keyuse->used_tables;
+              eq_part.set_bit(keyuse->keypart);
+            }
+            keyuse++;
+          } while (keyuse->table == table && keyuse->key == key);
 
           /*
             Extract const tables with proper key dependencies.
@@ -3628,247 +3750,194 @@ const_table_extraction_done:
              4. have an expensive outer join condition.
              5. are blocked by handler for const table optimize.
           */
-	  if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
+          if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
-              !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()) &&// 4
+              !(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()) &&// 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))  // 5
-	  {
+          {
             if (table->key_info[key].flags & HA_NOSAME)
             {
-	      if (const_ref == eq_part)
-	      {					// Found everything for ref.
-	        int tmp;
-	        ref_changed = 1;
-	        s->type= JT_CONST;
-	        join->const_table_map|=table->map;
-	        set_position(join,const_count++,s,start_keyuse);
-	        if (create_ref_for_key(join, s, start_keyuse,
-				       join->found_const_table_map))
-                  goto error;
-	        if ((tmp=join_read_const_table(s,
-                                               join->positions+const_count-1)))
-	        {
-		  if (tmp > 0)
-		    goto error;			// Fatal error
-	        }
-	        else
-		  join->found_const_table_map|= table->map;
-	        break;
-	      }
-	      else
-	        found_ref|= refs;      // Table is const if all refs are const
-	    }
+              if (const_ref == eq_part)
+              {                        // Found everything for ref.
+                ref_changed = true;
+                mark_const_table(tab, start_keyuse);
+                if (create_ref_for_key(this, tab, start_keyuse,
+                                       found_const_table_map))
+                  return true;
+                const int status=
+                  join_read_const_table(tab, positions + const_tables - 1);
+                if (status > 0)
+                  return true;
+                else if (status == 0)
+                  found_const_table_map|= table->map;
+                break;
+              }
+              else
+                found_ref|= refs;       // Table is const if all refs are const
+            }
             else if (const_ref == eq_part)
-              s->const_keys.set_bit(key);
+              tab->const_keys.set_bit(key);
           }
 	}
       }
     }
-  } while (join->const_table_map & found_ref && ref_changed);
- 
-  /* 
-    Update info on indexes that can be used for search lookups as
-    reading const tables may has added new sargable predicates. 
-  */
-  if (const_count && sargables)
+  } while ((const_table_map & found_ref) && ref_changed);
+
+  return false;
+}
+
+/**
+  Update info on indexes that can be used for search lookups as
+  reading const tables may has added new sargable predicates.
+*/
+
+void JOIN::update_sargable_from_const(SARGABLE_PARAM *sargables)
+{
+  for ( ; sargables->field; sargables++)
   {
-    for( ; sargables->field ; sargables++)
+    Field *const field= sargables->field;
+    JOIN_TAB *const tab= field->table->reginfo.join_tab;
+    key_map possible_keys= field->key_start;
+    possible_keys.intersect(field->table->keys_in_use_for_query);
+    bool is_const= true;
+    for (uint j= 0; j < sargables->num_values; j++)
+      is_const&= sargables->arg_value[j]->const_item();
+    if (is_const)
     {
-      Field *field= sargables->field;
-      JOIN_TAB *join_tab= field->table->reginfo.join_tab;
-      key_map possible_keys= field->key_start;
-      possible_keys.intersect(field->table->keys_in_use_for_query);
-      bool is_const= 1;
-      for (uint j=0; j < sargables->num_values; j++)
-        is_const&= sargables->arg_value[j]->const_item();
-      if (is_const)
-      {
-        join_tab->const_keys.merge(possible_keys);
-        join_tab->keys.merge(possible_keys);
-      }
+      tab->const_keys.merge(possible_keys);
+      tab->keys.merge(possible_keys);
     }
   }
+}
 
+
+/**
+  Estimate the number of matched rows for each joined table.
+  Set up range scan for tables that have proper predicates.
+
+  @returns false if success, true if error
+*/
+
+bool JOIN::estimate_rowcount()
+{
+  Opt_trace_context *const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_array trace_records(trace, "rows_estimation");
+
+  JOIN_TAB *const tab_end= join_tab + tables;
+  for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    Opt_trace_object trace_wrapper(trace);
-    /* Calc how many (possible) matched records in each table */
-    Opt_trace_array trace_records(trace, "rows_estimation");
-
-    for (s= stat ; s < stat_end ; s++)
+    Opt_trace_object trace_table(trace);
+    trace_table.add_utf8_table(tab->table);
+    if (tab->type == JT_SYSTEM || tab->type == JT_CONST)
     {
-      Opt_trace_object trace_table(trace);
-      trace_table.add_utf8_table(s->table);
-      if (s->type == JT_SYSTEM || s->type == JT_CONST)
+      trace_table.add("rows", 1).add("cost", 1)
+        .add_alnum("table_type", (tab->type == JT_SYSTEM) ? "system": "const")
+        .add("empty", static_cast<bool>(tab->table->null_row));
+
+      // Only one matching row
+      tab->found_records= tab->records= tab->read_time= 1;
+      tab->worst_seeks= 1.0;
+      continue;
+    }
+    // Approximate number of found rows and cost to read them
+    tab->found_records= tab->records= tab->table->file->stats.records;
+    tab->read_time= (ha_rows) tab->table->file->scan_time();
+
+    /*
+      Set a max range of how many seeks we can expect when using keys
+      This is can't be to high as otherwise we are likely to use table scan.
+    */
+    tab->worst_seeks= min((double) tab->found_records / 10,
+                          (double) tab->read_time * 3);
+    if (tab->worst_seeks < 2.0)      // Fix for small tables
+      tab->worst_seeks= 2.0;
+
+    /*
+      Add to tab->const_keys those indexes for which all group fields or
+      all select distinct fields participate in one index.
+    */
+    add_group_and_distinct_keys(this, tab);
+
+    /*
+      Perform range analysis if there are keys it could use (1).
+      Don't do range analysis if on the inner side of an outer join (2).
+      Do range analysis if on the inner side of a semi-join (3).
+    */
+    TABLE_LIST *const tl= tab->table->pos_in_table_list;
+    if (!tab->const_keys.is_clear_all() &&                        // (1)
+        (!tl->embedding ||                                        // (2)
+         (tl->embedding && tl->embedding->sj_on_expr)))           // (3)
+    {
+      ha_rows records;
+      SQL_SELECT *select;
+      int error;
+      select= make_select(tab->table, found_const_table_map,
+                          found_const_table_map,
+                          *tab->on_expr_ref ? *tab->on_expr_ref : conds,
+                          1, &error);
+      if (!select)
+        return true;
+      records= get_quick_record_count(thd, select, tab->table,
+                                      &tab->const_keys, row_limit);
+
+      if (records == 0 && thd->is_fatal_error)
+        return true;
+
+      tab->quick= select->quick;
+      tab->needed_reg= select->needed_reg;
+      select->quick= 0;
+      /*
+        Check for "impossible range", but make sure that we do not attempt
+        to mark semi-joined tables as "const" (only semi-joined tables that
+        are functionally dependent can be marked "const", and subsequently
+        pulled out of their semi-join nests).
+      */
+      if (records == 0 &&
+          tab->table->reginfo.impossible_range &&
+          (!(tl->embedding && tl->embedding->sj_on_expr)))
       {
-        trace_table.add("rows", 1).add("cost", 1)
-          .add_alnum("table_type", (s->type == JT_SYSTEM) ? "system": "const")
-          .add("empty", static_cast<bool>(s->table->null_row));
-
-        /* Only one matching row */
-        s->found_records= s->records= s->read_time=1; s->worst_seeks= 1.0;
-        continue;
-      }
-      /* Approximate found rows and time to read them */
-      s->found_records= s->records= s->table->file->stats.records;
-      s->read_time= (ha_rows) s->table->file->scan_time();
-
-      /*
-        Set a max range of how many seeks we can expect when using keys
-        This is can't be to high as otherwise we are likely to use
-        table scan.
-      */
-      s->worst_seeks= min((double) s->found_records / 10,
-                          (double) s->read_time * 3);
-      if (s->worst_seeks < 2.0)                 // Fix for small tables
-        s->worst_seeks= 2.0;
-
-      /*
-        Add to stat->const_keys those indexes for which all group fields or
-        all select distinct fields participate in one index.
-      */
-      add_group_and_distinct_keys(join, s);
-
-      /*
-        Perform range analysis if there are keys it could use (1).
-        Don't do range analysis if on the inner side of an outer join (2).
-        Do range analysis if on the inner side of a semi-join (3).
-      */
-      TABLE_LIST *const tl= s->table->pos_in_table_list;
-      if (!s->const_keys.is_clear_all() &&                        // (1)
-          (!tl->embedding ||                                      // (2)
-           (tl->embedding && tl->embedding->sj_on_expr)))         // (3)
-      {
-        ha_rows records;
-        SQL_SELECT *select;
-        select= make_select(s->table, join->found_const_table_map,
-                            join->found_const_table_map,
-                            *s->on_expr_ref ? *s->on_expr_ref : conds,
-                            1, &error);
-        if (!select)
-          goto error;
-        records= get_quick_record_count(thd, select, s->table,
-                                        &s->const_keys, join->row_limit);
-
-        if (records == 0 && thd->is_fatal_error)
-          DBUG_RETURN(true);
-
-        s->quick= select->quick;
-        s->needed_reg= select->needed_reg;
-        select->quick= 0;
         /*
-          Check for "impossible range", but make sure that we do not attempt
-          to mark semi-joined tables as "const" (only semi-joined tables that
-          are functionally dependent can be marked "const", and subsequently
-          pulled out of their semi-join nests).
+          Impossible WHERE condition or join condition
+          In case of join cond, mark that one empty NULL row is matched.
+          In case of WHERE, don't set found_const_table_map to get the
+          caller to abort with a zero row result.
         */
-        if (records == 0 &&
-            s->table->reginfo.impossible_range &&
-            (!(tl->embedding && tl->embedding->sj_on_expr)))
+        mark_const_table(tab, NULL);
+        tab->type= JT_CONST;  // Override setting made in mark_const_table()
+        if (*tab->on_expr_ref)
         {
-          /*
-            Impossible WHERE or ON expression
-            In case of ON, we mark that the we match one empty NULL row.
-            In case of WHERE, don't set found_const_table_map to get the
-            caller to abort with a zero row result.
-          */
-          join->const_table_map|= s->table->map;
-          set_position(join, const_count++, s, NULL);
-          s->type= JT_CONST;
-          if (*s->on_expr_ref)
-          {
-            /* Generate empty row */
-            s->info= ET_IMPOSSIBLE_ON_CONDITION;
-            trace_table.add("returning_empty_null_row", true).
-              add_alnum("cause", "impossible_on_condition");
-            join->found_const_table_map|= s->table->map;
-            s->type= JT_CONST;
-            mark_as_null_row(s->table);         // All fields are NULL
-          }
-          else
-          {
-            trace_table.add("rows", 0).
-              add_alnum("cause", "impossible_where_condition");
-          }
+          // Generate an empty row
+          tab->info= ET_IMPOSSIBLE_ON_CONDITION;
+          trace_table.add("returning_empty_null_row", true).
+            add_alnum("cause", "impossible_on_condition");
+          found_const_table_map|= tab->table->map;
+          mark_as_null_row(tab->table);  // All fields are NULL
         }
-        if (records != HA_POS_ERROR)
+        else
         {
-          s->found_records= records;
-          s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
+          trace_table.add("rows", 0).
+            add_alnum("cause", "impossible_where_condition");
         }
-        delete select;
       }
-      else
-        Opt_trace_object(trace, "table_scan").
-          add("rows", s->found_records).
-          add("cost", s->read_time);
+      if (records != HA_POS_ERROR)
+      {
+        tab->found_records= records;
+        tab->read_time= (ha_rows) (tab->quick ? tab->quick->read_time : 0.0);
+      }
+      delete select;
+    }
+    else
+    {
+      Opt_trace_object(trace, "table_scan").
+        add("rows", tab->found_records).
+        add("cost", tab->read_time);
     }
   }
 
-  join->join_tab=stat;
-  join->map2table=stat_ref;
-  join->const_tables=const_count;
-
-  if (sj_nests)
-    join->set_semijoin_embedding();
-
-  if (!join->plan_is_const())
-    optimize_keyuse(join);
-
-  join->allow_outer_refs= true;
-
-  if (sj_nests && optimize_semijoin_nests_for_materialization(join))
-    DBUG_RETURN(true);
-
-  if (Optimize_table_order(thd, join, NULL).choose_table_order())
-    DBUG_RETURN(true);
-
-  DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
-  if (thd->killed || thd->is_error())
-    DBUG_RETURN(true);
-
-  if (join->unit->item && join->decide_subquery_strategy())
-    DBUG_RETURN(true);
-
-  join->refine_best_rowcount();
-
-  // Only best_positions should be needed from now on.
-  join->positions= NULL;
-  join->best_ref= NULL;
-
-  /*
-    Store the cost of this query into a user variable
-    Don't update last_query_cost for statements that are not "flat joins" :
-    i.e. they have subqueries, unions or call stored procedures.
-    TODO: calculate a correct cost for a query with subqueries and UNIONs.
-  */
-  if (thd->lex->is_single_level_stmt())
-    thd->status_var.last_query_cost= join->best_read;
-
-  /* Generate an execution plan from the found optimal join order. */
-  if (join->get_best_combination())
-    DBUG_RETURN(true);
-
-  // No need for this struct after new JOIN_TAB array is set up.
-  join->best_positions= NULL;
-
-  /* Some called function may still set thd->is_fatal_error unnoticed */
-  if (thd->is_fatal_error)
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
-
-error:
-  /*
-    Need to clean up join_tab from TABLEs in case of error.
-    They won't get cleaned up by JOIN::cleanup() because JOIN::join_tab
-    may not be assigned yet by this function (which is building join_tab).
-    Dangling TABLE::reginfo.join_tab may cause part_of_refkey to choke. 
-  */
-  for (tables= tables_arg; tables; tables= tables->next_leaf)
-    tables->table->reginfo.join_tab= NULL;
-  DBUG_RETURN(true);
+  return false;
 }
 
 
@@ -3892,13 +3961,13 @@ void JOIN::set_semijoin_embedding()
 
   for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    for (TABLE_LIST *tr= tab->table->pos_in_table_list;
-         tr->embedding;
-         tr= tr->embedding)
+    for (TABLE_LIST *tl= tab->table->pos_in_table_list;
+         tl->embedding;
+         tl= tl->embedding)
     {
-      if (tr->embedding->sj_on_expr)
+      if (tl->embedding->sj_on_expr)
       {
-        tab->emb_sj_nest= tr->embedding;
+        tab->emb_sj_nest= tl->embedding;
         break;
       }
     }
@@ -4800,7 +4869,7 @@ merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
           it can return FALSE where it is feasible to make it return TRUE.
           
           The cause is as follows: Some of the tables are already known to be
-          const tables (the detection code is in make_join_statistics(),
+          const tables (the detection code is in JOIN::make_join_plan(),
           above the update_ref_and_keys() call), but we didn't propagate 
           information about this: TABLE::const_table is not set to TRUE, and
           Item::update_used_tables() hasn't been called for each item.
@@ -5081,6 +5150,13 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
        */
       if (!eq_func)
         return;
+
+      /*
+        Check if the field and value are comparable in the index.
+        @todo: This code is almost identical to comparable_in_index()
+        in opt_range.cc. Consider replacing the checks below with a
+        function call to comparable_in_index()
+      */
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -6322,32 +6398,46 @@ Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
 }
 
 
-/** Save const tables first as used tables. */
+/**
+  Move const tables first in the position array.
 
-static void
-set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key)
+  Increment the number of const tables and set same basic properties for the
+  const table.
+  A const table looked up by a key has type JT_CONST.
+  A const table with a single row has type JT_SYSTEM.
+
+  @param tab    Table that is designated as a const table
+  @param key    The key definition to use for this table (NULL if table scan)
+*/
+
+void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
 {
-  join->positions[idx].table= table;
-  join->positions[idx].key=key;
-  join->positions[idx].fanout=1.0;         /* This is a const table */
-  join->positions[idx].prefix_record_count= 1.0;
-  join->positions[idx].read_cost= 0.0;
-  join->positions[idx].ref_depend_map= 0;
+  POSITION *const position= positions + const_tables;
+  position->table= tab;
+  position->key= key;
+  position->fanout= 1.0;               // This is a const table
+  position->prefix_record_count= 1.0;
+  position->read_cost= 0.0;
+  position->ref_depend_map= 0;
+  position->loosescan_key= MAX_KEY;    // Not a LooseScan
+  position->sj_strategy= SJ_OPT_NONE;
+  positions->use_join_buffer= false;
 
-  join->positions[idx].loosescan_key= MAX_KEY; /* Not a LooseScan */
-  join->positions[idx].sj_strategy= SJ_OPT_NONE;
-  join->positions[idx].use_join_buffer= FALSE;
-
-  /* Move the const table as down as possible in best_ref */
-  JOIN_TAB **pos=join->best_ref+idx+1;
-  JOIN_TAB *next=join->best_ref[idx];
-  for (;next != table ; pos++)
+  // Move the const table as far down as possible in best_ref
+  JOIN_TAB **pos= best_ref + const_tables + 1;
+  for (JOIN_TAB *next= best_ref[const_tables]; next != tab; pos++)
   {
-    JOIN_TAB *tmp=pos[0];
-    pos[0]=next;
-    next=tmp;
+    JOIN_TAB *const tmp= pos[0];
+    pos[0]= next;
+    next= tmp;
   }
-  join->best_ref[idx]=table;
+  best_ref[const_tables]= tab;
+
+  tab->type= key ? JT_CONST : JT_SYSTEM;
+
+  const_table_map|= tab->table->map;
+
+  const_tables++;
 }
 
 
@@ -6393,18 +6483,15 @@ set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key)
     has been chosen.
 */
 
-static void
-make_outerjoin_info(JOIN *join)
+void JOIN::make_outerjoin_info()
 {
-  DBUG_ENTER("make_outerjoin_info");
+  DBUG_ENTER("JOIN::make_outerjoin_info");
 
-  DBUG_ASSERT(join->outer_join);
+  DBUG_ASSERT(outer_join);
 
-  for (uint i= join->const_tables; i < join->tables; i++)
+  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables; tab++)
   {
-    JOIN_TAB   *const tab= join->join_tab + i;
-    TABLE      *const table= tab->table;
-
+    TABLE *const table= tab->table;
     if (!table)
       continue;
 
@@ -6454,7 +6541,7 @@ make_outerjoin_info(JOIN *join)
         tab->first_inner= nested_join->first_nested;
       if (++nested_join->nj_counter < nested_join->nj_total)
         break;
-      /* Table tab is the last inner table for nested join. */
+      // Table tab is the last inner table for nested join.
       nested_join->first_nested->last_inner= tab;
     }
   }
@@ -8546,7 +8633,6 @@ static bool duplicate_order(const ORDER *first_order,
   simple_order is set to 1 if sort_order only uses fields from head table
   and the head table is not a LEFT JOIN table.
 
-  @param join                   Join handler
   @param first_order            List of SORT or GROUP order
   @param cond                   WHERE statement
   @param change_list            Set to 1 if we should remove things from list.
@@ -8559,14 +8645,13 @@ static bool duplicate_order(const ORDER *first_order,
     Returns new sort order
 */
 
-static ORDER *
-remove_const(JOIN *join,ORDER *first_order, Item *cond,
-             bool change_list, bool *simple_order, const char *clause_type)
+ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
+                          bool *simple_order, const char *clause_type)
 {
-  if (join->plan_is_const())
+  if (plan_is_const())
     return change_list ? 0 : first_order;		// No need to sort
 
-  Opt_trace_context * const trace= &join->thd->opt_trace;
+  Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_disable_I_S trace_disabled(trace, first_order == NULL);
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_simpl(trace, "clause_processing");
@@ -8583,19 +8668,19 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
   Opt_trace_array trace_each_item(trace, "items");
 
   ORDER *order,**prev_ptr;
-  table_map first_table= join->join_tab[join->const_tables].table->map;
-  table_map not_const_tables= ~join->const_table_map;
+  table_map first_table= join_tab[const_tables].table->map;
+  table_map not_const_tables= ~const_table_map;
   table_map ref;
   // Caches to avoid repeating eq_ref_table() calls, @see eq_ref_table()
   table_map eq_ref_tables= 0, cached_eq_ref_tables= 0;
-  DBUG_ENTER("remove_const");
+  DBUG_ENTER("JOIN::remove_const");
 
   prev_ptr= &first_order;
-  *simple_order= *join->join_tab[join->const_tables].on_expr_ref ? 0 : 1;
+  *simple_order= *join_tab[const_tables].on_expr_ref ? 0 : 1;
 
   /* NOTE: A variable of not_const_tables ^ first_table; breaks gcc 2.7 */
 
-  update_depend_map(join, first_order);
+  update_depend_map(first_order);
   for (order=first_order; order ; order=order->next)
   {
     Opt_trace_object trace_one_item(trace);
@@ -8612,15 +8697,15 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
           table for all queries containing more than one table, ROLLUP, and an
           outer join.
          */
-        (join->primary_tables > 1 &&
-         join->rollup.state == ROLLUP::STATE_INITED &&
-         join->outer_join))
-      *simple_order=0;				// Must do a temp table to sort
+        (primary_tables > 1 &&
+         rollup.state == ROLLUP::STATE_INITED &&
+         outer_join))
+      *simple_order= 0;                // Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
       if (order->item[0]->has_subquery())
       {
-        if (!(join->select_lex->options & SELECT_DESCRIBE))
+        if (!(select_lex->options & SELECT_DESCRIBE))
         {
           Opt_trace_array trace_subselect(trace, "subselect_evaluation");
           order->item[0]->val_str(&order->item[0]->str_value);
@@ -8628,7 +8713,7 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
         order->item[0]->mark_subqueries_optimized_away();
       }
       trace_one_item.add("uses_only_constant_tables", true);
-      continue;					// skip const item
+      continue;                        // skip const item
     }
     else if (duplicate_order(first_order, order))
     {
@@ -8663,7 +8748,7 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
 	  if (!(order_tables & first_table) &&
-              only_eq_ref_tables(join, first_order, ref,
+              only_eq_ref_tables(this, first_order, ref,
                                  &cached_eq_ref_tables, &eq_ref_tables))
 	  {
             trace_one_item.add("eq_ref_to_preceding_items", true);
@@ -9509,19 +9594,16 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 
   @todo Check if this is the real meaning of ref_table_rows.
 
-  @param join          Current (incomplete) join plan.
   @param keyuse_array  Array of Key_use elements being updated.
 
   
 */
 
-static void optimize_keyuse(JOIN *join)
+void JOIN::optimize_keyuse()
 {
-  Key_use_array *keyuse_array= &join->keyuse_array;
-
-  for (size_t ix= 0; ix < keyuse_array->size(); ++ix)
+  for (size_t ix= 0; ix < keyuse_array.size(); ++ix)
   {
-    Key_use *keyuse= &keyuse_array->at(ix);
+    Key_use *keyuse= &keyuse_array.at(ix);
     table_map map;
     /*
       If we find a ref, assume this table matches a proportional
@@ -9533,14 +9615,14 @@ static void optimize_keyuse(JOIN *join)
     */
     keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
     if (keyuse->used_tables &
-	(map= (keyuse->used_tables & ~join->const_table_map &
-	       ~OUTER_REF_TABLE_BIT)))
+	(map= (keyuse->used_tables & ~const_table_map & ~OUTER_REF_TABLE_BIT)))
     {
-      uint tablenr;
-      for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
+      uint tableno;
+      for (tableno= 0; ! (map & 1) ; map>>=1, tableno++)
+      {}
       if (map == 1)			// Only one table
       {
-	TABLE *tmp_table= join->join_tab[tablenr].table;
+	TABLE *tmp_table= join_tab[tableno].table;
 
 	keyuse->ref_table_rows= max<ha_rows>(tmp_table->file->stats.records, 100);
       }

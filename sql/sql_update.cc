@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1024,7 +1024,7 @@ bool mysql_update(THD *thd,
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_table, FALSE, FALSE, errcode))
       {
         error=1;				// Rollback update
@@ -1463,6 +1463,24 @@ int mysql_multi_update_prepare(THD *thd)
   {
     bool not_used= false;
     if (multi_update_check_table_access(thd, tl, tables_for_update, &not_used))
+      DBUG_RETURN(TRUE);
+  }
+
+  /*
+    When using a multi-table UPDATE command as a prepared statement,
+    1) We must validate values (the right argument 'expr' of 'SET col1=expr')
+    during PREPARE, so that:
+    - bad columns are reported by PREPARE
+    - cached_table is set for fields before query transformations (semijoin,
+    view merging...) are done and make resolution more difficult.
+    2) This validation is done by multi_update::prepare() but it is not called
+    by PREPARE.
+    3) So we do it below.
+  */
+  if (thd->stmt_arena->is_stmt_prepare())
+  {
+    if (setup_fields(thd, Ref_ptr_array(), lex->value_list, MARK_COLUMNS_NONE,
+                     NULL, false))
       DBUG_RETURN(TRUE);
   }
 
@@ -2272,8 +2290,8 @@ void multi_update::abort_result_set()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* the error of binary logging is ignored */
       (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, FALSE, errcode);
+                              thd->query().str, thd->query().length,
+                              transactional_tables, false, false, errcode);
     }
   }
   DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.cannot_safely_rollback());
@@ -2529,7 +2547,7 @@ bool multi_update::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_tables, FALSE, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update

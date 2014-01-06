@@ -29,6 +29,10 @@ Created 11/17/1995 Heikki Tuuri
 #include "os0event.h"
 #include "ut0mutex.h"
 
+#if defined(PAGE_ATOMIC_REF_COUNT) && !defined(HAVE_ATOMIC_BUILTINS)
+#undef PAGE_ATOMIC_REF_COUNT
+#endif /* PAGE_ATOMIC_REF_COUNT && !HAVE_ATOMIC_BUILTINS */
+
 /** Buffer page (uncompressed or compressed) */
 struct buf_page_t;
 /** Buffer block for which an uncompressed page exists */

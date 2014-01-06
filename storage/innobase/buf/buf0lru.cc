@@ -498,26 +498,22 @@ buf_flush_or_remove_page(
 
 		processed = true;
 
-	} else if (buf_flush_ready_for_flush(bpage,
-					     BUF_FLUSH_SINGLE_PAGE)) {
+	} else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
 
 		/* The following call will release the buffer pool
 		and block mutex. */
-		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
-		ut_ad(!mutex_own(block_mutex));
+		processed = buf_flush_page(
+			buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
 
-		/* Wake possible simulated aio thread to actually
-		post the writes to the operating system */
-		os_aio_simulated_wake_handler_threads();
-
-		buf_pool_mutex_enter(buf_pool);
-
-		processed = true;
+		if (processed) {
+			/* Wake possible simulated aio thread to actually
+			post the writes to the operating system */
+			os_aio_simulated_wake_handler_threads();
+			buf_pool_mutex_enter(buf_pool);
+		} else {
+			mutex_exit(block_mutex);
+		}
 	} else {
-		/* Not ready for flush. It can't be IO fixed because we
-		checked for that at the start of the function. It must
-		be buffer fixed. */
-		ut_ad(bpage->buf_fix_count > 0);
 		mutex_exit(block_mutex);
 	}
 
@@ -1184,20 +1180,15 @@ buf_LRU_check_size_of_non_data_objects(
 			heaps or the adaptive hash index. This may be a memory
 			leak! */
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: WARNING: over 67 percent of"
-				" the buffer pool is occupied by\n"
-				"InnoDB: lock heaps or the adaptive"
-				" hash index! Check that your\n"
-				"InnoDB: transactions do not set too many"
-				" row locks.\n"
-				"InnoDB: Your buffer pool size is %lu MB."
-				" Maybe you should make\n"
-				"InnoDB: the buffer pool bigger?\n"
-				"InnoDB: Starting the InnoDB Monitor to print"
-				" diagnostics, including\n"
-				"InnoDB: lock heap and hash index sizes.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Over 67 percent of the buffer pool is occupied"
+				" by lock heaps or the adaptive hash index!"
+				" Check that your transactions do not set too"
+				" many row locks. Your buffer pool size is %lu"
+				" MB. Maybe you should make the buffer pool"
+				" bigger?. Starting the InnoDB Monitor to print"
+				" diagnostics, including lock heap and hash"
+				" index sizes.",
 				(ulong) (buf_pool->curr_size
 					 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
@@ -1304,18 +1295,18 @@ loop:
 
 	if (n_iterations > 20) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Difficult to find free blocks in the buffer pool "
-			"(%lu search iterations)! %lu failed attempts to "
-			"flush a page! Consider increasing the buffer pool "
-			"size. It is also possible that in your Unix version "
-			"fsync is very slow, or completely frozen inside "
-			"the OS kernel. Then upgrading to a newer version "
-			"of your operating system may help. Look at the "
-			"number of fsyncs in diagnostic info below. "
-			"Pending flushes (fsync) log: %lu; buffer pool: "
-			"%lu. %lu OS file reads, %lu OS file writes, "
-			"%lu OS fsyncs. Starting InnoDB Monitor to print "
-			"further diagnostics to the standard output.",
+			"Difficult to find free blocks in the buffer pool"
+			" (%lu search iterations)! %lu failed attempts to"
+			" flush a page! Consider increasing the buffer pool"
+			" size. It is also possible that in your Unix version"
+			" fsync is very slow, or completely frozen inside"
+			" the OS kernel. Then upgrading to a newer version"
+			" of your operating system may help. Look at the"
+			" number of fsyncs in diagnostic info below."
+			" Pending flushes (fsync) log: %lu; buffer pool:"
+			" %lu. %lu OS file reads, %lu OS file writes,"
+			" %lu OS fsyncs. Starting InnoDB Monitor to print"
+			" further diagnostics to the standard output.",
 			(ulong) n_iterations,
 			(ulong)	flush_failures,
 			(ulong) fil_n_pending_log_flushes,
@@ -1334,11 +1325,11 @@ loop:
 	find a free block then we should sleep here to let the
 	page_cleaner do an LRU batch for us. */
 
-	if (n_iterations > 1) {
+	if (!srv_read_only_mode) {
+		os_event_set(buf_flush_event);
+	}
 
-		if (!srv_read_only_mode) {
-			os_event_set(buf_flush_event);
-		}
+	if (n_iterations > 1) {
 
 		os_thread_sleep(10000);
 	}
@@ -1833,7 +1824,7 @@ buf_LRU_free_page(
 
 	if (!buf_page_can_relocate(bpage)) {
 
-		/* Do not free buffer-fixed or I/O-fixed blocks. */
+		/* Do not free buffer fixed and I/O-fixed blocks. */
 		goto func_exit;
 	}
 
@@ -1848,12 +1839,10 @@ buf_LRU_free_page(
 		if (bpage->oldest_modification) {
 			goto func_exit;
 		}
-	} else if ((bpage->oldest_modification)
-		   && (buf_page_get_state(bpage)
-		       != BUF_BLOCK_FILE_PAGE)) {
+	} else if (bpage->oldest_modification > 0
+		   && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 
-		ut_ad(buf_page_get_state(bpage)
-		      == BUF_BLOCK_ZIP_DIRTY);
+		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY);
 
 func_exit:
 		rw_lock_x_unlock(hash_lock);
@@ -1910,7 +1899,7 @@ func_exit:
 		mutex_enter(block_mutex);
 
 		ut_a(!buf_page_hash_get_low(
-				buf_pool, bpage->space, bpage->offset, fold));
+				buf_pool, b->space, b->offset, fold));
 
 		b->state = b->oldest_modification
 			? BUF_BLOCK_ZIP_DIRTY
@@ -2235,9 +2224,9 @@ buf_LRU_block_remove_hashed(
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: ERROR: The compressed page"
-				      " to be evicted seems corrupt:", stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The compressed page to be evicted"
+					" seems corrupt:");
 				ut_print_buf(stderr, page, zip_size);
 				fputs("\nInnoDB: Possibly older version"
 				      " of the page:", stderr);
@@ -2269,16 +2258,15 @@ buf_LRU_block_remove_hashed(
 		buf_pool, bpage->space, bpage->offset, fold);
 
 	if (bpage != hashed_bpage) {
-		fprintf(stderr,
-			"InnoDB: Error: page %lu %lu not found"
-			" in the hash table\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page %lu %lu not found in the hash table",
 			(ulong) bpage->space,
 			(ulong) bpage->offset);
 
 		if (hashed_bpage) {
-			fprintf(stderr,
-				"InnoDB: In hash table we find block"
-				" %p of %lu %lu which is not %p\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"In hash table we find block"
+				" %p of %lu %lu which is not %p",
 				(const void*) hashed_bpage,
 				(ulong) hashed_bpage->space,
 				(ulong) hashed_bpage->offset,
@@ -2335,6 +2323,11 @@ buf_LRU_block_remove_hashed(
 		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
+
+		if (buf_pool->flush_rbt == NULL) {
+			bpage->space = ULINT32_UNDEFINED;
+			bpage->offset = ULINT32_UNDEFINED;
+		}
 
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:

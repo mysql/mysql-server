@@ -415,8 +415,8 @@ public:
 				ret = false;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open truncate log file %s. "
-				"If server crashes before truncate log is"
+				"Failed to open truncate log file %s."
+				" If server crashes before truncate log is"
 				" removed make sure it is manually removed"
 				" before restarting server",
 				m_log_file_name);
@@ -1414,10 +1414,10 @@ row_truncate_update_system_tables(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to assign a new identifier to table %s "
-			"after truncating it. Marked the table as corrupted. "
-			"In-memory representation is now different from the "
-			"on-disk representation.", table_name);
+			"Unable to assign a new identifier to table %s"
+			" after truncating it. Marked the table as corrupted."
+			" In-memory representation is now different from the"
+			" on-disk representation.", table_name);
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
@@ -1540,8 +1540,8 @@ row_truncate_foreign_key_checks(
 			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot truncate table %s because there is a "
-			"foreign key check running on it.", table_name);
+			"Cannot truncate table %s because there is a"
+			" foreign key check running on it.", table_name);
 
 		return(DB_ERROR);
 	}
@@ -1561,10 +1561,10 @@ row_truncate_sanity_checks(
 	if (srv_sys_space.created_new_raw()) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"A new raw disk partition was initialized: "
-			"we do not allow database modifications by the "
-			"user. Shut down mysqld and edit my.cnf so that "
-			"newraw is replaced with raw.");
+			"A new raw disk partition was initialized:"
+			" we do not allow database modifications by the"
+			" user. Shut down mysqld and edit my.cnf so that"
+			" newraw is replaced with raw.");
 
 		return(DB_ERROR);
 
@@ -1722,13 +1722,11 @@ row_truncate_table_for_mysql(
 	/* Check if memcached DML is running on this table. if is, we don't
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Cannot truncate table ", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(" by DROP+CREATE\n"
-		      "InnoDB: because there are memcached operations"
-		      " running on it.\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot truncate table %s by DROP+CREATE"
+			" because there are memcached operations"
+			" running on it.",
+			ut_get_name(trx, TRUE, table->name).c_str());
 		err = DB_ERROR;
 		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, logger, err));
@@ -2515,11 +2513,11 @@ truncate_t::create_index(
 	if (root_page_no == FIL_NULL) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though "
-			"we failed to create index %llu for "
-			"compressed table '%s' with tablespace "
-			"%lu during recovery",
+			"innodb_force_recovery was set to %lu."
+			" Continuing crash recovery even though"
+			" we failed to create index %llu for"
+			" compressed table '%s' with tablespace"
+			" %lu during recovery",
 			srv_force_recovery,
 			(ullint) index_id, table_name, (ulong) space_id);
 	}

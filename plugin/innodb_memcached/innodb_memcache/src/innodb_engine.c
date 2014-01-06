@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1104,8 +1104,9 @@ innodb_allocate(
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	innodb_conn_data_t*	conn_data;
 	hash_item*		it = NULL;
+	meta_cfg_info_t*	meta_info = innodb_eng->meta_info;
 
-	len = sizeof(*it) + nkey + nbytes + sizeof(uint64_t);
+
 	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (!conn_data) {
@@ -1117,6 +1118,21 @@ innodb_allocate(
 		}
 	}
 
+	/* If system configured to use Memcached default engine (instead
+	of InnoDB engine), continue to use Memcached's default memory
+	allocation */
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
+            || meta_info->set_option == META_CACHE_OPT_MIX) {
+		conn_data->use_default_mem = true;
+		conn_data->in_use = false;
+		return(def_eng->engine.allocate(
+			innodb_eng->default_engine,
+			cookie, item, key, nkey, nbytes,
+			flags, exptime));
+	}
+
+	conn_data->use_default_mem = false;
+	len = sizeof(*it) + nkey + nbytes + sizeof(uint64_t);
 	if (len > conn_data->cmd_buf_len) {
 		free(conn_data->cmd_buf);
 		conn_data->cmd_buf = malloc(len);
@@ -1131,6 +1147,7 @@ innodb_allocate(
 	it->nkey = nkey;
 	it->nbytes = nbytes;
 	it->flags = flags;
+	it->slabs_clsid = 1;
 	/* item_get_key() is a memcached code, here we cast away const return */
 	memcpy((void*) item_get_key(it), key, nkey);
 	it->exptime = exptime;
@@ -1403,8 +1420,19 @@ innodb_release(
 
 	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
 
-	if (conn_data) {
-		conn_data->result_in_use = false;
+	if (!conn_data) {
+		return;
+	}
+
+	conn_data->result_in_use = false;
+
+	/* If item's memory comes from Memcached default engine, release it
+	through Memcached APIs */
+	if (conn_data->use_default_mem) {
+		struct default_engine*  def_eng = default_handle(innodb_eng);
+
+		item_release(def_eng, (hash_item *) item);
+		conn_data->use_default_mem = false;
 	}
 
 	return;

@@ -21,6 +21,12 @@ IF(CMAKE_VERSION VERSION_GREATER "2.8.8")
   CMAKE_POLICY(SET CMP0018 OLD)
 ENDIF()
 
+# We use PROPERTIES LINK_INTERFACE_LIBRARIES. See cmake --help-policy CMP0022
+IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
+   CMAKE_VERSION VERSION_GREATER "2.8.12")
+ CMAKE_POLICY(SET CMP0022 OLD)
+ENDIF()
+
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
@@ -350,9 +356,6 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
-OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
-MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
-
 #
 # Options related to client-side protocol tracing
 #
@@ -430,6 +433,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
+OPTION(TMPDIR
+"PATH to MySQL TMP dir. If unspecified, defaults to P_tmpdir in <stdio.h>" OFF)
+IF(TMPDIR)
+  # Quote it, to make it a const char string.
+  SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
+ELSE()
+  # Do not quote it, to refer to the P_tmpdir macro in <stdio.h>.
+  SET(DEFAULT_TMPDIR "P_tmpdir")
+ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)

@@ -142,8 +142,8 @@ Tablespace::parse(
 			if (!supports_raw) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace doesn't support raw "
-					"devices");
+					"Tablespace doesn't support raw"
+					" devices");
 
 				::free(new_str);
 				return(false);
@@ -158,8 +158,8 @@ Tablespace::parse(
 			if (!supports_raw) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace doesn't support raw "
-					"devices");
+					"Tablespace doesn't support raw"
+					" devices");
 
 				::free(new_str);
 				return(false);
@@ -349,12 +349,9 @@ Tablespace::get_sum_of_sizes() const
 		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"File size must be < 4 GB "
-				"with this MySQL binary.");
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Operating system combination, in some "
-				"OS's < 2 GB");
+				"File size must be < 4 GB with this MySQL"
+				" binary. Operating system combination, in some"
+				" OS's < 2 GB");
 
 			return(ULINT_UNDEFINED);
 		}
@@ -416,11 +413,11 @@ Tablespace::check_size(
 			&& m_last_file_size_max < rounded_size_pages)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"auto-extending %sdata file %s is of a "
-				"different size %lu pages (rounded "
-				"down to MB) than specified in the .cnf "
-				"file: initial %lu pages, max %lu "
-				"(relevant if non-zero) pages!",
+				"auto-extending %sdata file %s is of a"
+				" different size %lu pages (rounded"
+				" down to MB) than specified in the .cnf"
+				" file: initial %lu pages, max %lu"
+				" (relevant if non-zero) pages!",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				file.m_filename,
 				rounded_size_pages,
@@ -436,10 +433,10 @@ Tablespace::check_size(
 	if (rounded_size_pages != file.m_size) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"%sData file %s is of a different "
-			"size %lu pages (rounded down to MB) "
-			"than specified in the .cnf file "
-			"%lu pages!",
+			"%sData file %s is of a different"
+			" size %lu pages (rounded down to MB)"
+			" than specified in the .cnf file"
+			" %lu pages!",
 			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 			file.m_filename, rounded_size_pages, file.m_size);
 
@@ -513,8 +510,8 @@ Tablespace::set_size(
 	if (!success) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"During create of \"%s\": probably out of "
-			"disk space", file.m_filename);
+			"During create of \"%s\": probably out of"
+			" disk space", file.m_filename);
 
 		return(DB_ERROR);
 	}
@@ -588,8 +585,8 @@ Tablespace::open_file(
 
 		if (srv_read_only_mode) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Can't open a raw device \"%s\" when "
-				"--innodb-read-only is set",
+				"Can't open a raw device \"%s\" when"
+				" --innodb-read-only is set",
 				file.m_filename);
 
 			return(DB_ERROR);
@@ -651,7 +648,7 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
-		const char* check_msg = fil_read_first_page(
+		const char*	check_msg = fil_read_first_page(
 			it->m_handle, !check_tablespace_attributes,
 			&flags, &space, min_flushed_lsn, max_flushed_lsn);
 
@@ -660,31 +657,35 @@ Tablespace::read_lsn_and_check_flags(
 
 		it->m_handle = os_file_t(~0);
 
-		/* The first file of the system tablespace must have space
-		ID = TRX_SYS_SPACE.  The FSP_SPACE_ID field in files greater
-		than ibdata1 are unreliable. */
-
-		ut_a(!check_tablespace_attributes || space == TRX_SYS_SPACE);
-
 		/* Check the flags for the first system tablespace file only. */
 
-		if (check_tablespace_attributes && check_msg) {
+		if (!check_tablespace_attributes) {
+			continue;
+		}
+
+		if (check_msg != NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%s in %sData file \"%s\"",
+				"%s in %s \"%s\"",
 				check_msg,
-				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				((m_space_id == TRX_SYS_SPACE)
+				 ? "data file" : "temp-data file"),
 				it->m_filename);
 			return(DB_ERROR);
 		}
 
-		if (check_tablespace_attributes
-		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
+		/* The first file of the system tablespace has the correct
+		space ID. The FSP_SPACE_ID field in files greater than
+		ibdata1 are unreliable. */
+		ut_a(space == m_space_id);
+
+		if (UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%sData file \"%s\" uses page size %lu, "
-				"but the start-up parameter is "
-				"--innodb-page-size=%lu",
-				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				"%s \"%s\" uses page size %lu,"
+				" but the start-up parameter is"
+				" --innodb-page-size=%lu",
+				((m_space_id == TRX_SYS_SPACE)
+				 ? "data file" : "temp-data file"),
 				it->m_filename,
 				fsp_flags_get_page_size(flags),
 				UNIV_PAGE_SIZE);
@@ -721,8 +722,8 @@ Tablespace::check_file_status(
 	switch (err) {
 	case DB_FAIL:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_get_status() failed on \"%s\". "
-			"Can't determine file permissions",
+			"os_file_get_status() failed on \"%s\"."
+			" Can't determine file permissions",
 			file.m_filename);
 
 		err = DB_ERROR;
@@ -786,8 +787,8 @@ Tablespace::file_not_found(
 	if (srv_read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't create file \"%s\" when "
-			"--innodb-read-only is set",
+			"Can't create file \"%s\" when"
+			" --innodb-read-only is set",
 			file.m_name);
 
 		return(DB_ERROR);
@@ -800,8 +801,8 @@ Tablespace::file_not_found(
 
 		if (m_space_id == TRX_SYS_SPACE) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The first specified data file \"%s\" "
-				"did not exist : a new database to be created!",
+				"The first specified data file \"%s\" did not"
+				" exist: a new database to be created!",
 				file.m_name);
 		}
 
@@ -813,7 +814,7 @@ Tablespace::file_not_found(
 	}
 
 	/* Set the file create mode. */
-	switch(file.m_type) {
+	switch (file.m_type) {
 	case SRV_NOT_RAW:
 		file.m_open_flags = OS_FILE_CREATE;
 		break;
@@ -840,7 +841,7 @@ Tablespace::file_found(
 	file.m_exists = true;
 
 	/* Set the file open mode */
-	switch(file.m_type) {
+	switch (file.m_type) {
 	case SRV_NOT_RAW:
 	case SRV_NEW_RAW:
 		file.m_open_flags =
@@ -872,8 +873,8 @@ Tablespace::check_file_spec(
 	if (m_files.size() >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can only have < 1000 %sdata files, you have "
-			"defined %lu",
+			"Can only have < 1000 %sdata files, you have"
+			" defined %lu",
 			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 			(ulint) m_files.size());
 
@@ -933,9 +934,9 @@ Tablespace::check_file_spec(
 
 		} else if (*create_new_db) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"First %sdata file \"%s\" of tablespace not "
-				"found but one of the other data files \"%s\" "
-				"exists.",
+				"First %sdata file \"%s\" of tablespace not"
+				" found but one of the other data files \"%s\""
+				" exists.",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				begin->m_name, it->m_name);
 
@@ -1061,8 +1062,8 @@ Tablespace::get_increment() const
 		if (!is_valid_size()) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Last %sdata file size is %lu, max "
-				"size allowed %lu",
+				"Last %sdata file size is %lu, max"
+				" size allowed %lu",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				last_file_size(),
 				m_last_file_size_max);
@@ -1135,8 +1136,8 @@ Tablespace::delete_files()
 
 		if (success && file_pre_exists) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Removed temporary tablespace data file: "
-				"\"%s\"", it->m_name);
+				"Removed temporary tablespace data file:"
+				" \"%s\"", it->m_name);
 		}
 	}
 }
