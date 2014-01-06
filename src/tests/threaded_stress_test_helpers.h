@@ -1158,7 +1158,9 @@ static void scan_op_worker(void *arg) {
 static int UU() scan_op_no_check_parallel(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     const int num_cores = toku_os_get_number_processors();
     const int num_workers = arg->cli->num_DBs < num_cores ? arg->cli->num_DBs : num_cores;
-    KIBBUTZ kibbutz = toku_kibbutz_create(num_workers);
+    KIBBUTZ kibbutz = NULL;
+    int r = toku_kibbutz_create(num_workers, &kibbutz);
+    assert(r == 0);
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         struct scan_op_worker_info *XCALLOC(info);
         info->db = arg->dbp[i];
@@ -2111,7 +2113,9 @@ static int fill_tables_default(DB_ENV *env, DB **dbs, struct cli_args *args, boo
     // be used for internal engine work (ie: flushes, loader threads, etc).
     const int max_num_workers = (num_cores + 1) / 2;
     const int num_workers = args->num_DBs < max_num_workers ? args->num_DBs : max_num_workers;
-    KIBBUTZ kibbutz = toku_kibbutz_create(num_workers);
+    KIBBUTZ kibbutz = NULL;
+    int r = toku_kibbutz_create(num_workers, &kibbutz);
+    assert(r == 0);
     for (int i = 0; i < args->num_DBs; i++) {
         struct fill_table_worker_info *XCALLOC(info);
         info->env = env;

@@ -291,7 +291,10 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct) {
 // reserve 25% as "unreservable".  The loader cannot have it.
 #define unreservable_memory(size) ((size)/4)
 
-void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
+int toku_cachetable_create(CACHETABLE *ct_result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
+    int result = 0;
+    int r;
+
     if (size_limit == 0) {
         size_limit = 128*1024*1024;
     }
@@ -301,16 +304,46 @@ void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN UU(initial_
     ct->cf_list.init();
 
     int num_processors = toku_os_get_number_active_processors();
-    ct->client_kibbutz = toku_kibbutz_create(num_processors);
-    ct->ct_kibbutz = toku_kibbutz_create(2*num_processors);
     int checkpointing_nworkers = (num_processors/4) ? num_processors/4 : 1;
-    ct->checkpointing_kibbutz = toku_kibbutz_create(checkpointing_nworkers);
+    r = toku_kibbutz_create(num_processors, &ct->client_kibbutz);
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
+    r = toku_kibbutz_create(2*num_processors, &ct->ct_kibbutz);
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
+    r = toku_kibbutz_create(checkpointing_nworkers, &ct->checkpointing_kibbutz);
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
     // must be done after creating ct_kibbutz
-    ct->ev.init(size_limit, &ct->list, &ct->cf_list, ct->ct_kibbutz, EVICTION_PERIOD);
-    ct->cp.init(&ct->list, logger, &ct->ev, &ct->cf_list);
-    ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
+    r = ct->ev.init(size_limit, &ct->list, &ct->cf_list, ct->ct_kibbutz, EVICTION_PERIOD);
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
+    r = ct->cp.init(&ct->list, logger, &ct->ev, &ct->cf_list);
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
+    r = ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
+    if (r != 0) {
+        result = r;
+        goto cleanup;
+    }
     ct->env_dir = toku_xstrdup(".");
-    *result = ct;
+cleanup:
+    if (result == 0) {
+        *ct_result = ct;
+    } else {
+        toku_cachetable_close(&ct);
+    }
+    return result;
 }
 
 // Returns a pointer to the checkpoint contained within
@@ -2584,9 +2617,12 @@ void toku_cachetable_close (CACHETABLE *ctp) {
     ct->list.destroy();
     ct->cf_list.destroy();
     
-    toku_kibbutz_destroy(ct->client_kibbutz);
-    toku_kibbutz_destroy(ct->ct_kibbutz);
-    toku_kibbutz_destroy(ct->checkpointing_kibbutz);
+    if (ct->client_kibbutz)
+        toku_kibbutz_destroy(ct->client_kibbutz);
+    if (ct->ct_kibbutz)
+        toku_kibbutz_destroy(ct->ct_kibbutz);
+    if (ct->checkpointing_kibbutz)
+        toku_kibbutz_destroy(ct->checkpointing_kibbutz);
     toku_free(ct->env_dir);
     toku_free(ct);
     *ctp = 0;
@@ -3071,20 +3107,29 @@ int toku_cleaner_thread (void *cleaner_v) {
 //
 ENSURE_POD(cleaner);
 
-void cleaner::init(uint32_t _cleaner_iterations, pair_list* _pl, CACHETABLE _ct) {
+int cleaner::init(uint32_t _cleaner_iterations, pair_list* _pl, CACHETABLE _ct) {
     // default is no cleaner, for now
-    toku_minicron_setup(&m_cleaner_cron, 0, toku_cleaner_thread, this); 
+    m_cleaner_cron_init = false;
+    int r = toku_minicron_setup(&m_cleaner_cron, 0, toku_cleaner_thread, this);
+    if (r == 0) {
+        m_cleaner_cron_init = true;
+    }
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_cleaner_iterations, sizeof m_cleaner_iterations);
     m_cleaner_iterations = _cleaner_iterations;
     m_pl = _pl;
     m_ct = _ct;
+    m_cleaner_init = true;
+    return r;
 }
 
 // this function is allowed to be called multiple times
 void cleaner::destroy(void) {
-    if (!toku_minicron_has_been_shutdown(&m_cleaner_cron)) {
+    if (!m_cleaner_init) {
+        return;
+    }
+    if (m_cleaner_cron_init && !toku_minicron_has_been_shutdown(&m_cleaner_cron)) {
         // for test code only, production code uses toku_cachetable_minicron_shutdown()
-        int  r = toku_minicron_shutdown(&m_cleaner_cron);
+        int r = toku_minicron_shutdown(&m_cleaner_cron);
         assert(r==0);
     }
 }
@@ -3659,7 +3704,7 @@ static void *eviction_thread(void *evictor_v) {
 // Starts the eviction thread, assigns external object references,
 // and initializes all counters and condition variables.
 //
-void evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period) {
+int evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
 
@@ -3713,8 +3758,13 @@ void evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, K
     // start the background thread    
     m_run_thread = true;
     m_num_eviction_thread_runs = 0;
+    m_ev_thread_init = false;
     r = toku_pthread_create(&m_ev_thread, NULL, eviction_thread, this); 
-    assert_zero(r);
+    if (r == 0) {
+        m_ev_thread_init = true;
+    }
+    m_evictor_init = true;
+    return r;
 }
 
 //
@@ -3722,7 +3772,10 @@ void evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, K
 //
 // NOTE: This should only be called if there are no evictions in progress.
 //
-void evictor::destroy() {    
+void evictor::destroy() { 
+    if (!m_evictor_init) {
+        return;
+    }
     assert(m_size_evicting == 0);
     //
     // commented out of Ming, because we could not finish
@@ -3731,16 +3784,16 @@ void evictor::destroy() {
     //assert(m_size_current == 0);
 
     // Stop the eviction thread.
-    toku_mutex_lock(&m_ev_thread_lock);
-    m_run_thread = false;
-    this->signal_eviction_thread();
-    toku_mutex_unlock(&m_ev_thread_lock);
-
-    void *ret;
-    int r = toku_pthread_join(m_ev_thread, &ret); 
-    assert_zero(r);
-    assert(!m_ev_thread_is_running);
-
+    if (m_ev_thread_init) {
+        toku_mutex_lock(&m_ev_thread_lock);
+        m_run_thread = false;
+        this->signal_eviction_thread();
+        toku_mutex_unlock(&m_ev_thread_lock);
+        void *ret;
+        int r = toku_pthread_join(m_ev_thread, &ret); 
+        assert_zero(r);
+        assert(!m_ev_thread_is_running);
+    }
     destroy_partitioned_counter(m_size_nonleaf);
     m_size_nonleaf = NULL;
     destroy_partitioned_counter(m_size_leaf);
@@ -4345,7 +4398,7 @@ ENSURE_POD(checkpointer);
 //
 // Sets the cachetable reference in this checkpointer class, this is temporary.
 //
-void checkpointer::init(pair_list *_pl, 
+int checkpointer::init(pair_list *_pl, 
                         TOKULOGGER _logger,
                         evictor *_ev,
                         cachefile_list *files) {
@@ -4356,11 +4409,20 @@ void checkpointer::init(pair_list *_pl,
     bjm_init(&m_checkpoint_clones_bjm);
     
     // Default is no checkpointing.
-    toku_minicron_setup(&m_checkpointer_cron, 0, checkpoint_thread, this);
+    m_checkpointer_cron_init = false;
+    int r = toku_minicron_setup(&m_checkpointer_cron, 0, checkpoint_thread, this);
+    if (r == 0) {
+        m_checkpointer_cron_init = true;
+    }
+    m_checkpointer_init = true;
+    return r;
 }
 
 void checkpointer::destroy() {
-    if (!this->has_been_shutdown()) {
+    if (!m_checkpointer_init) {
+        return;
+    }
+    if (m_checkpointer_cron_init && !this->has_been_shutdown()) {
         // for test code only, production code uses toku_cachetable_minicron_shutdown()
         int r = this->shutdown();
         assert(r == 0);

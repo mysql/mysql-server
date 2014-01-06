@@ -118,7 +118,9 @@ struct kibbutz {
 
 static void *work_on_kibbutz (void *);
 
-KIBBUTZ toku_kibbutz_create (int n_workers) {
+int toku_kibbutz_create (int n_workers, KIBBUTZ *kb_ret) {
+    int r = 0;
+    *kb_ret = NULL;
     KIBBUTZ XCALLOC(k);
     toku_mutex_init(&k->mutex, NULL);
     toku_cond_init(&k->cond, NULL);
@@ -128,12 +130,19 @@ KIBBUTZ toku_kibbutz_create (int n_workers) {
     k->n_workers = n_workers;
     XMALLOC_N(n_workers, k->workers);
     XMALLOC_N(n_workers, k->ids);
-    for (int i=0; i<n_workers; i++) {
+    for (int i = 0; i < n_workers; i++) {
         k->ids[i].k = k;
-        int r = toku_pthread_create(&k->workers[i], NULL, work_on_kibbutz, &k->ids[i]);
-        assert(r==0);
+        r = toku_pthread_create(&k->workers[i], NULL, work_on_kibbutz, &k->ids[i]);
+        if (r != 0) {
+            k->n_workers = i;
+            toku_kibbutz_destroy(k);
+            break;
+        }
     }
-    return k;
+    if (r == 0) {
+        *kb_ret = k;
+    }
+    return r;
 }
 
 static void klock (KIBBUTZ k) {
