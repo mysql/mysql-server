@@ -1,4 +1,4 @@
-# Copyright 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # MySQL-shared-compat.spec
 #
