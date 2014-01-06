@@ -1,7 +1,7 @@
 #ifndef ATOMIC_NOLOCK_INCLUDED
 #define ATOMIC_NOLOCK_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved. reserved.
    reserved.
 
    This program is free software; you can redistribute it and/or modify
