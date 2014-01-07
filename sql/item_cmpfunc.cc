@@ -2697,6 +2697,18 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
       a= args[1]->val_int();
       b= args[2]->val_int();
     }
+
+    if (args[0]->unsigned_flag)
+    {
+      /*
+        value BETWEEN <some negative number> AND <some number>
+        rewritten to
+        value BETWEEN 0 AND <some number>
+      */
+      if (!args[1]->unsigned_flag && (longlong) a < 0)
+        a = 0;
+    }
+
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong) ((value >= a && value <= b) != negated);
     if (args[1]->null_value && args[2]->null_value)
