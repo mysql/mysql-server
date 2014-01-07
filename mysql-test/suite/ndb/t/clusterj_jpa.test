@@ -63,5 +63,7 @@ drop table if exists timetypes;
 drop table if exists datetypes;
 drop table if exists datetimetypes;
 drop table if exists OPENJPA_SEQUENCE_TABLE;
+drop table if exists shortpk;
+drop table if exists bytepk;
 
 exit;
