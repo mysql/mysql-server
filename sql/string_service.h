@@ -1,4 +1,4 @@
-/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
 #define MY_STRING_SERVICE_INCLUDED
 
 #include "sql_string.h"
-
-String temp_str;
 
 /* mysql_string_itrerator structure to provide service to plugins */
 typedef struct st_string_iterator

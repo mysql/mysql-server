@@ -13991,16 +13991,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     return;
   }
 
-  char buff[128];
-  String tmp(buff, sizeof(buff), system_charset_info);
-  tmp.length(0);
-
-  TABLE *table= field->table;
-  my_bitmap_map *old_sets[2];
-
-  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
-                           table->write_set);
-
   uint store_length= key_part->store_length;
 
   if (field->real_maybe_null())
@@ -14013,11 +14003,38 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     if (*key)
     {
       out->append(STRING_WITH_LEN("NULL"));
-      goto restore_col_map;
+      return;
     }
     key++;                                    // Skip null byte
     store_length--;
   }
+
+  /*
+    Binary data cannot be converted to UTF8 which is what the
+    optimizer trace expects. If the column is binary, the hex
+    representation is printed to the trace instead.
+   */
+  if (field->flags & BINARY_FLAG)
+  {
+    out->append("0x");
+    for (uint i= 0; i < store_length; i++)
+    {
+      out->append(_dig_vec_lower[*(key+i) >> 4]);
+      out->append(_dig_vec_lower[*(key+i) & 0x0F]);
+    }
+    return;
+  }    
+
+  char buff[128];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  tmp.length(0);
+
+  TABLE *table= field->table;
+  my_bitmap_map *old_sets[2];
+
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
+                           table->write_set);
+
   field->set_key_image(key, key_part->length);
   if (field->type() == MYSQL_TYPE_BIT)
     (void) field->val_int_as_str(&tmp, 1); // may change tmp's charset
@@ -14025,7 +14042,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     field->val_str(&tmp); // may change tmp's charset
   out->append(tmp.ptr(), tmp.length(), tmp.charset());
 
-restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 

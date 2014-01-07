@@ -2317,6 +2317,22 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
+int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
+{
+  int error= index_init(index, 0);
+  if (error)
+    return error;
+  error= index_read_map(buf, key, keypart_map, find_flag);
+  if(!error && stored_result)
+  {
+    uchar *dummy_arg=NULL;
+    position(dummy_arg);
+  }
+  int error1= index_end();
+  return error ?  error : error1;
+}
 
 /*
   Positions an index cursor to the index specified in the handle. Fetches the

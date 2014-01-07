@@ -1392,7 +1392,6 @@ innobase_start_or_create_for_mysql(void)
 			    + 1 /* dict_stats_thread */
 			    + 1 /* fts_optimize_thread */
 			    + 1 /* recv_writer_thread */
-			    + 1 /* buf_flush_page_cleaner_thread */
 			    + 1 /* trx_rollback_or_clean_all_recovered */
 			    + 128 /* added as margin, for use of
 				  InnoDB Memcached etc. */
@@ -1400,6 +1399,7 @@ innobase_start_or_create_for_mysql(void)
 			    + srv_n_read_io_threads
 			    + srv_n_write_io_threads
 			    + srv_n_purge_threads
+			    + srv_n_page_cleaners
 			    /* FTS Parallel Sort */
 			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
 			      * max_connections;
@@ -2277,7 +2277,15 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
-		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
+		buf_flush_page_cleaner_init();
+
+		os_thread_create(buf_flush_page_cleaner_coordinator,
+				 NULL, NULL);
+
+		for (i = 1; i < srv_n_page_cleaners; ++i) {
+			os_thread_create(buf_flush_page_cleaner_worker,
+					 NULL, NULL);
+		}
 	}
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();

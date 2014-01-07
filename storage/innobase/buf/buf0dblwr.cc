@@ -775,32 +775,10 @@ buf_dblwr_write_block_to_datafile(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
-	/* The debug point ib_corrupt_page0 is used to corrupt the first half
-	of the first page (page_no == 0) of the single table tablespace
-	(space_id != 0).  This is to simulate a torn page write. */
-#ifndef DBUG_OFF
-	bool corrupted = false;
-#endif /* !DBUG_OFF */
-	DBUG_EXECUTE_IF("ib_corrupt_page0", {
-		if (buf_block_get_space(block) != 0
-		    && buf_block_get_page_no(block) == 0) {
-			memset(block->frame, 0x8228, UNIV_PAGE_SIZE/2);
-			ib_logf(IB_LOG_LEVEL_INFO, "Corrupting space:%lu",
-				buf_block_get_space(block));
-			corrupted = true;
-			sync = true;
-		}
-	});
-
 	fil_io(flags, sync, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 	       (void*) block->frame, (void*) block);
 
-	DBUG_EXECUTE_IF("ib_corrupt_page0", {
-		if (corrupted) {
-			DBUG_SUICIDE();
-		}
-	});
 }
 
 /********************************************************************//**
