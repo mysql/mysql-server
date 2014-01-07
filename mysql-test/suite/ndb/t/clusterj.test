@@ -43,6 +43,7 @@ DROP TABLE charsetbig5;
 DROP TABLE charsetlatin1;
 DROP TABLE charsetsjis;
 DROP TABLE charsetutf8;
+DROP TABLE conversation_summary;
 DROP TABLE datetimetypes;
 DROP TABLE datetypes;
 DROP TABLE decimaltypes;

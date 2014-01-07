@@ -643,7 +643,6 @@ set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1
 set @v11000 = concat(@v10000, @v1000);
 insert into t1 (c1,c500) values (1,@v11000), (2,@v11000), (3,@v11000);
 drop table t1;
-# Trying to start another backup as nowait with same id should not return error
 # Trying to start another backup as wait started with same id should return error
 Waiting for started, this may take several minutes
 Backup failed
@@ -654,3 +653,4 @@ Waiting for completed, this may take several minutes
 Backup failed
 *  3001: Could not start backup
 *        Backup failed: file already exists (use 'START BACKUP <backup id>'): Temporary error: Temporary Resource error
+# Trying to start another backup as nowait with same id should not return error

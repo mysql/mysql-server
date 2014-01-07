@@ -26,6 +26,7 @@
 
 #include "Properties.hpp"
 #include "hrt_utils.h"
+#include "Load.hpp"
 
 using std::ofstream;
 using std::ostringstream;
@@ -35,54 +36,60 @@ using std::vector;
 using utils::Properties;
 
 class Driver {
+    Driver(const Driver&);
+    Driver& operator=(const Driver&);
+
 public:
 
-    /**
-     * Parses the benchmark's command-line arguments.
-     */
+    // usage
     static void parseArguments(int argc, const char* argv[]);
-
-    /**
-     * Creates an instance.
-     */
     Driver() {}
-
-    /**
-     * Deletes an instance.
-     */
     virtual ~Driver() {}
+    virtual void run();
 
-    /**
-     * Runs the benchmark.
-     */
-    void run();
+    // settings
+    int nRuns;
+    bool logRealTime;
+    bool logCpuTime;
+    bool logSumOfOps;
+    bool failOnError;
+    vector< string > loadClassNames;
+
+    // resources
+    virtual Properties& getProperties() { return props; }
+    virtual void setIgnoredSettings() { hasIgnoredSettings = true; };
+    virtual void addLoad(Load& load) { loads.push_back(&load); }
+
+    // operations
+    virtual void logError(const string& load, const string& msg);
+    virtual void logWarning(const string& load, const string& msg);
+    virtual void beginOp(const string& name);
+    virtual void finishOp(const string& name, int nOps);
 
 protected:
 
-    // command-line arguments
+    // usage
     static vector< string > propFileNames;
     static string logFileName;
-
     static void exitUsage();
 
-    // driver settings
+    // resources
     Properties props;
-    bool logRealTime;
-    bool logCpuTime;
-    int nRuns;
-
-    // driver resources
+    bool hasIgnoredSettings;
     ofstream log;
     string descr;
     bool logHeader;
     ostringstream header;
     ostringstream rtimes;
     ostringstream ctimes;
+    ostringstream errors;
     int s0, s1;
     hrt_tstamp t0, t1;
     long rta, cta;
+    typedef vector< Load * > Loads;
+    Loads loads;
 
-    // driver intializers/finalizers
+    // intializers/finalizers
     virtual void init();
     virtual void close();
     virtual void loadProperties();
@@ -90,11 +97,19 @@ protected:
     virtual void printProperties();
     virtual void openLogFile();
     virtual void closeLogFile();
+    virtual void initLoads();
+    virtual void closeLoads();
+    virtual void addLoads();
+    virtual bool createLoad(const string& name) = 0;
 
-    // benchmark operations
-    virtual void runTests() = 0;
-    virtual void begin(const string& name);
-    virtual void finish(const string& name);
+    // operations
+    virtual void runLoad(Load& load) = 0;
+    virtual void runLoads();
+    virtual void abortIfErrors();
+    virtual void clearLogBuffers();
+    virtual void writeLogBuffers(const string& prefix);
+    virtual void beginOps(int nOps);
+    virtual void finishOps(int nOps);
 };
 
 #endif // Driver_hpp
