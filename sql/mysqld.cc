@@ -701,6 +701,7 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 pthread_t signal_thread_id= 0;
+pthread_t compress_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
@@ -1173,13 +1174,23 @@ public:
 static void terminate_compress_gtid_table_thread()
 {
   DBUG_ENTER("terminate_compress_gtid_table_thread");
+  DBUG_ASSERT(compress_thread_id != 0);
+  int error= 0;
   terminate_compress_thread= true;
   /* Notify suspended compression thread. */
   mysql_cond_signal(&COND_compress_gtid_table);
-  /* Waiting for until compression is completed. */
-  mysql_mutex_lock(&LOCK_compress_gtid_table);
-  mysql_cond_wait(&COND_terminate_compress_thread, &LOCK_compress_gtid_table);
-  mysql_mutex_unlock(&LOCK_compress_gtid_table);
+
+#ifdef _WIN32
+  HANDLE handle= pthread_get_handle(compress_thread_id);
+  error= pthread_join_with_handle(handle);
+#else
+  error= pthread_join(compress_thread_id, NULL);
+#endif
+
+  if (0 != error)
+    sql_print_warning("Could not join gtid table compression thread. "
+                      "error:%d", error);
+  compress_thread_id= 0;
 
   DBUG_VOID_RETURN;
 }
@@ -2493,7 +2504,9 @@ pthread_handler_t compress_gtid_table(void *arg)
   deinit_thd(thd);
   DBUG_LEAVE;
   my_thread_end();
-  mysql_cond_signal(&COND_terminate_compress_thread);
+  //sql_print_information("before signal COND_terminate_compress_thread");
+  //mysql_cond_signal(&COND_terminate_compress_thread);
+  //sql_print_information("after signal COND_terminate_compress_thread");
   pthread_exit(0);
   return 0;
 }
@@ -4264,7 +4277,7 @@ static void create_shutdown_thread()
 
 static void create_compress_gtid_table_thread()
 {
-  pthread_t hThread;
+  pthread_attr_t attr;
   int error;
   THD *thd;
   if (!(thd=new THD))
@@ -4276,11 +4289,16 @@ static void create_compress_gtid_table_thread()
   thd->thread_id= thd->variables.pseudo_thread_id= pthread_self();
   THD_CHECK_SENTRY(thd);
 
-  if ((error= mysql_thread_create(key_thread_compress_gtid_table,
-                                  &hThread, &connection_attrib,
+  if ((error= pthread_attr_init(&attr)) ||
+      (error= pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE)) ||
+      (error= pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM)) ||
+      (error= mysql_thread_create(key_thread_compress_gtid_table,
+                                  &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
     sql_print_warning("Can't create thread to compress gtid table "
                       "(errno= %d)", error);
+
+    (void) pthread_attr_destroy(&attr);
 }
 
 
