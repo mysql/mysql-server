@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 /********************
  * GCC
  *******************/
-#if defined(__x86_64__) || defined (__i386__)
+#if defined(__x86_64__) || defined (__i386__) /* 64 or 32 bit x86 */
 
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
@@ -114,7 +114,7 @@ extern void cpu_pause();
  * TODO check that asm ("") implies a compiler barrier
  *      i.e that it clobbers memory
  */
-#if defined(__x86_64__)
+#if defined(__x86_64) || defined (__i386) /* 64 or 32 bit x86 */
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
@@ -139,9 +139,10 @@ extern void cpu_pause();
 #define read_barrier_depends()  do {} while(0)
 #else
 #define NDB_NO_ASM "Unsupported architecture (sun studio)"
+#error "Unsupported architecture (sun studio)"
 #endif
 
-#if defined(__x86_64__) || defined(__sparc)
+#if defined(__x86_64) || defined (__i386) || defined(__sparc)
 /**
  * we should probably use assembler for x86 aswell...
  *   but i'm not really sure how you do this in sun-studio :-(
@@ -164,7 +165,7 @@ xcng(volatile unsigned * addr, int val)
   return ret;
 }
 #define cpu_pause()
-#elif defined(__x86_64__)
+#elif defined(__x86_64) || defined (__i386)
 static inline
 int
 xcng(volatile unsigned * addr, int val)
