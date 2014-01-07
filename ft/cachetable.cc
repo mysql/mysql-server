@@ -651,39 +651,6 @@ static void cachetable_free_pair(PAIR p) {
     ctpair_destroy(p);
 }
 
-// Maybe remove a pair from the cachetable and free it, depending on whether
-// or not there are any threads interested in the pair.  The flush callback
-// is called with write_me and keep_me both false, and the pair is destroyed.
-// The sole purpose of this function is to remove the node, so the write_me 
-// argument to the flush callback is false, and the flush callback won't do
-// anything except destroy the node.
-//
-// on input, pair_list's write lock is held and PAIR's mutex is held
-// on exit, only the pair_list's write lock is still held
-//
-static void cachetable_maybe_remove_and_free_pair (
-    pair_list* pl, 
-    evictor* ev, 
-    PAIR p
-    ) 
-{
-    // this ensures that a clone running in the background first completes
-    if (p->value_rwlock.users() == 0 && p->refcount == 0) {
-        // assumption is that if we are about to remove the pair
-        // that no one has grabbed the disk_nb_mutex,
-        // and that there is no cloned_value_data, because
-        // no one is writing a cloned value out.
-        assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
-        assert(p->cloned_value_data == NULL);
-        cachetable_remove_pair(pl, ev, p);
-        pair_unlock(p);
-        cachetable_free_pair(p);
-    }
-    else {
-        pair_unlock(p);
-    }
-}
-
 // assumes value_rwlock and disk_nb_mutex held on entry
 // responsibility of this function is to only write a locked PAIR to disk
 // and NOTHING else. We do not manipulate the state of the PAIR
@@ -2458,10 +2425,10 @@ static void remove_pair_for_close(PAIR p, CACHETABLE ct, bool completely) {
     assert(p->dirty == CACHETABLE_CLEAN);
     assert(p->refcount == 0);
     if (completely) {
-        // TODO: maybe break up this function
-        // so that write lock does not need to be held for entire
-        // free
-        cachetable_maybe_remove_and_free_pair(&ct->list, &ct->ev, p);
+        cachetable_remove_pair(&ct->list, &ct->ev, p);
+        pair_unlock(p);
+        // TODO: Eventually, we should not hold the write list lock during free
+        cachetable_free_pair(p);
     }
     else {
         // if we are not evicting completely,
@@ -4235,8 +4202,25 @@ void evictor::evict_pair(PAIR p, bool for_checkpoint) {
     nb_mutex_unlock(&p->disk_nb_mutex);
     // at this point, we have the pair list's write list lock
     // and we have the pair's mutex (p->mutex) held
-    cachetable_maybe_remove_and_free_pair(m_pl, this, p);
+    
+    // this ensures that a clone running in the background first completes
+    bool removed = false;
+    if (p->value_rwlock.users() == 0 && p->refcount == 0) {
+        // assumption is that if we are about to remove the pair
+        // that no one has grabbed the disk_nb_mutex,
+        // and that there is no cloned_value_data, because
+        // no one is writing a cloned value out.
+        assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
+        assert(p->cloned_value_data == NULL);
+        cachetable_remove_pair(m_pl, this, p);
+        removed = true;
+    }
+    pair_unlock(p);
     m_pl->write_list_unlock();
+    // do not want to hold the write list lock while freeing a pair
+    if (removed) {
+        cachetable_free_pair(p);
+    }
 }
 
 //
