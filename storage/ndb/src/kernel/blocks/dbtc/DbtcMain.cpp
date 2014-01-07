@@ -10297,26 +10297,71 @@ void Dbtc::initApiConnectFail(Signal* signal)
   if(LqhTransConf::getMarkerFlag(treqinfo)){
     jam();
     CommitAckMarkerPtr tmp;
-    m_commitAckMarkerHash.seize(tmp);
-    
-    ndbrequire(tmp.i != RNIL);
+
+    {
+      CommitAckMarker key;
+      key.transid1 = ttransid1;
+      key.transid2 = ttransid2;
+      if (m_commitAckMarkerHash.find(tmp, key))
+      {
+        /**
+         * We found a "lingering" marker...
+         *   most probably from earlier node failure
+         *   check consistency using lots of it-statements
+         */
+        jam();
+        if (tmp.p->apiConnectPtr == RNIL)
+        {
+          jam();
+          // ok - marker had no transaction, use it...
+        }
+        else
+        {
+          ApiConnectRecordPtr transPtr;
+          transPtr.i = tmp.p->apiConnectPtr;
+          ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
+          if (transPtr.p->commitAckMarker == RNIL)
+          {
+            jam();
+            // ok - marker had a transaction that had moved on, use it...
+          }
+          else if (transPtr.p->commitAckMarker != tmp.i)
+          {
+            jam();
+            // ok - marker had a transaction that had moved on, use it...
+          }
+          else
+          {
+            jam();
+            /**
+             * marker pointed to a transaction that was pointing to marker...
+             *   i.e both transaction + marker lingering...
+             *   treat this as an updateApiStateFail and release already seize trans
+             */
+            releaseApiConnectFail(signal);
+            apiConnectptr = transPtr;
+            updateApiStateFail(signal);
+            return;
+          }
+        }
+      }
+      else
+      {
+        jam();
+        m_commitAckMarkerHash.seize(tmp);
+        ndbrequire(tmp.i != RNIL);
+        new (tmp.p) CommitAckMarker();
+        tmp.p->transid1      = ttransid1;
+        tmp.p->transid2      = ttransid2;
+        m_commitAckMarkerHash.add(tmp);
+      }
+    }
+
     apiConnectptr.p->commitAckMarker = tmp.i;
-   
-    new (tmp.p) CommitAckMarker();
-    tmp.p->transid1      = ttransid1;
-    tmp.p->transid2      = ttransid2;
     tmp.p->apiNodeId     = refToNode(tapplRef);
     tmp.p->apiConnectPtr = apiConnectptr.i;
     ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
-
-#if defined VM_TRACE || defined ERROR_INSERT
-    {
-      CommitAckMarkerPtr check;
-      ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
-    }
-#endif
-    m_commitAckMarkerHash.add(tmp);
-  } 
+  }
 }//Dbtc::initApiConnectFail()
 
 /*------------------------------------------------------------*/
@@ -10484,8 +10529,8 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.i = marker;
       tmp.p = m_commitAckMarkerHash.getPtr(marker);
 
-      ndbassert(tmp.p->transid1 == ttransid1);
-      ndbassert(tmp.p->transid2 == ttransid2);
+      ndbrequire(tmp.p->transid1 == ttransid1);
+      ndbrequire(tmp.p->transid2 == ttransid2);
     }
     ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
   }
