@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <portlib/ndb_localtime.h>
 
 #include <NDBT.hpp>
 
@@ -246,25 +247,24 @@ getStatus(){
   return -1;
 }
 
+static
 char*
-getTimeAsString(char* pStr)
+getTimeAsString(char* pStr, size_t len)
 {
+  // Get current time
   time_t now;
-  now= ::time((time_t*)NULL);
+  time(&now);
 
-  struct tm* tm_now;
-#ifdef NDB_WIN32
-  tm_now = localtime(&now);
-#else
-  tm_now = ::localtime(&now); //uses the "current" timezone
-#endif
+  // Convert to local timezone
+  tm tm_buf;
+  ndb_localtime_r(&now, &tm_buf);
 
-  BaseString::snprintf(pStr, 9,
-	   "%02d:%02d:%02d",
-	   tm_now->tm_hour,
-	   tm_now->tm_min,
-	   tm_now->tm_sec);
-
+  // Print to string buffer
+  BaseString::snprintf(pStr, len,
+                       "%02d:%02d:%02d",
+                       tm_buf.tm_hour,
+                       tm_buf.tm_min,
+                       tm_buf.tm_sec);
   return pStr;
 }
 
@@ -376,8 +376,8 @@ waitClusterStatus(const char* _addr,
     }
 
     if (!allInState) {
-      char time[9];
-      g_info << "[" << getTimeAsString(time) << "] "
+      char timestamp[9];
+      g_info << "[" << getTimeAsString(timestamp, sizeof(timestamp)) << "] "
              << "Waiting for cluster enter state "
              << ndb_mgm_get_node_status_string(_status) << endl;
     }
