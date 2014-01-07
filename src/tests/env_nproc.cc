@@ -93,8 +93,7 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include <sys/resource.h>
 
-static int env_open_close(void) {
-    int result = 0;
+static void env_open_close(void) {
     int r;
 
     DB_ENV *env = NULL;
@@ -104,11 +103,9 @@ static int env_open_close(void) {
     r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK+DB_INIT_MPOOL+DB_INIT_TXN+DB_INIT_LOG + DB_CREATE + DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
     if (r != 0) {
         fprintf(stderr, "%s:%u r=%d\n", __FILE__, __LINE__, r);
-        result = r;
     }
     r = env->close(env, 0);
     assert(r == 0);
-    return result;
 }
 
 int test_main (int argc, char * const argv[]) {
@@ -127,7 +124,7 @@ int test_main (int argc, char * const argv[]) {
         }
         limit = atoi(argv[i]);
         continue;
-    }   
+    }
 
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -135,13 +132,12 @@ int test_main (int argc, char * const argv[]) {
     struct rlimit nproc_rlimit;
     r = getrlimit(RLIMIT_NPROC, &nproc_rlimit);
     assert(r == 0);
+
     nproc_rlimit.rlim_cur = limit;
     r = setrlimit(RLIMIT_NPROC, &nproc_rlimit);
     assert(r == 0);
 
-    printf("nproc %lu\n", nproc_rlimit.rlim_cur);
-
-    (void) env_open_close();
+    env_open_close();
 
     return 0;
 }
