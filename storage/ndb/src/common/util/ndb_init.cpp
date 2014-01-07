@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,14 @@ ndb_init()
       (void)res;
       exit(1);
     }
+    /*
+      Initialize time conversion information
+       - the "time conversion information" structures are primarily
+         used by localtime_r() when converting epoch time into
+         broken-down local time representation.
+    */
+    tzset();
+
     ndb_init_internal();
   }
   return 0;

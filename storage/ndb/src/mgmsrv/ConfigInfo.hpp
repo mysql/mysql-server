@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,11 @@
 #ifndef ConfigInfo_H
 #define ConfigInfo_H
 
-#ifndef NDB_MGMAPI
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include "InitConfigFileParser.hpp"
-#endif /* NDB_MGMAPI */
 
 // Parameter must be specified in config file
 #define MANDATORY ((char*)~(UintPtr)0)
@@ -151,7 +149,6 @@ public:
     const ParamInfo* next(void);
   };
 
-#ifndef NDB_MGMAPI
   struct AliasPair{
     const char * name;
     const char * alias;
@@ -234,17 +231,14 @@ private:
   static const AliasPair   m_sectionNameAliases[];
   static const char*       m_sectionNames[];
   static const int         m_noOfSectionNames;
-#endif /* NDB_MGMAPI */
 
 public:
   static const ParamInfo   m_ParamInfo[];
   static const int         m_NoOfParams;
   
-#ifndef NDB_MGMAPI
   static const SectionRule m_SectionRules[];
   static const ConfigRule  m_ConfigRules[];
   static const int         m_NoOfRules;
-#endif /* NDB_MGMAPI */
 };
 
 #endif // ConfigInfo_H
