@@ -1,3 +1,4 @@
+--source include/have_ndb.inc
 --source include/not_windows.inc
 --source suite/ndb/include/ndb_error_reporter.inc
 
