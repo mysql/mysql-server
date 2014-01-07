@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -177,36 +177,6 @@ HAVE_LINUX_FUTEX)
 
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)
-
-IF(WITH_NDBMTD)
-  # checking atomic.h needed for spinlock's on sparc and Sun Studio
-  CHECK_INCLUDE_FILES(atomic.h HAVE_ATOMIC_H)
-
-  # checking assembler needed for ndbmtd
-  CHECK_CXX_SOURCE_RUNS("
-  #define HAVE_ATOMIC_H ${HAVE_ATOMIC_H}
-  #include \"${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt-asm.h\"
-  int main()
-  {
-    unsigned int a = 0;
-    volatile unsigned int *ap = (volatile unsigned int*)&a;
-    #ifdef NDB_HAVE_XCNG
-      a = xcng(ap, 1);
-      cpu_pause();
-    #endif
-    mb();
-    * ap = 2;
-    rmb();
-    * ap = 1;
-    wmb();
-    * ap = 0;
-    read_barrier_depends();
-    return a;
-  }"
-  NDB_BUILD_NDBMTD)
-ELSE()
-  SET(NDB_BUILD_NDBMTD CACHE INTERNAL "")
-ENDIF()
 
 SET(WITH_NDB_PORT "" CACHE INTEGER
   "Default port used by MySQL Cluster management server")
