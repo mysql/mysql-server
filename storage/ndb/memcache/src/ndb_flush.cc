@@ -127,7 +127,10 @@ bool scan_delete(NdbInstance *inst, QueryPlan *plan) {
     rescan = false;
     
     NdbTransaction *scanTx = inst->db->startTransaction();
+    if(! scanTx) return false;
+    
     NdbScanOperation *scan = scanTx->getNdbScanOperation(plan->table);
+    if(! scan) return false;
     
     /* Express intent to read with exclusive lock; execute NoCommit */
     scan->readTuplesExclusive();
@@ -244,7 +247,9 @@ bool scan_delete_ext_val(ndb_pipeline *pipeline, NdbInstance *inst,
   op.readColumn(COL_STORE_EXT_SIZE);
   op.readColumn(COL_STORE_EXT_ID);
     
+  if(! scanTx) return false;
   NdbScanOperation *scan = op.scanTable(scanTx, NdbOperation::LM_Exclusive, &opts);
+  if(! scan) return false;
   r = scanTx->execute(NdbTransaction::NoCommit); 
   
   if(r == 0) {   /* Here's the scan loop */

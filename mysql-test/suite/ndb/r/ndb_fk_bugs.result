@@ -618,3 +618,39 @@ primary key using hash(c1)
 ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 create table t1(a int primary key) engine = ndb;
 drop table t1, t1_parent;
+# bug#17591531 - ERROR ON DROP INDEX WHEN REFERENCING FOREIGN KEYS
+create table t1 (
+a int not null,
+b int not null,
+unique key t1x1 (b) using hash,
+primary key using hash (a)
+) engine=ndb;
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+key (c),
+key t2x1 (b),
+primary key using hash (a),
+foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+# try to drop indexes
+alter table t1 drop index t1x1;
+ERROR HY000: Cannot drop index 't1x1': needed in a foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21081 'Drop index not allowed in NDB - used as parent index of a foreign key' from NDB
+Error	1553	Cannot drop index 't1x1': needed in a foreign key constraint
+alter table t2 drop index t2x1;
+ERROR HY000: Cannot drop index 't2x1': needed in a foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21082 'Drop index not allowed in NDB - used as child index of a foreign key' from NDB
+Error	1553	Cannot drop index 't2x1': needed in a foreign key constraint
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10,100),(2,20,200),(3,30,300);
+insert into t2 values (4,40,400);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+delete from t1 where a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table t2, t1;

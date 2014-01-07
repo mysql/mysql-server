@@ -40,13 +40,26 @@ ELSEIF(BISON_EXECUTABLE AND NOT BISON_USABLE)
 ENDIF()
 
 # Use bison to generate C++ and header file
-MACRO (RUN_BISON input_yy output_cc output_h)
+# MCP_BUG16877045 -->
+MACRO (RUN_BISON input_yy output_cc output_h input_cc input_h)
+# MCP_BUG16877045 <--
   IF(BISON_TOO_OLD)
     IF(EXISTS ${output_cc} AND EXISTS ${output_h})
       SET(BISON_USABLE FALSE)
     ENDIF()
   ENDIF()
   IF(BISON_USABLE)
+# MCP_BUG16877045 -->
+    # When using bison, make sure that output files distributed
+    # with source is not present so that the bison generated
+    # files will be used for sure.
+    IF(EXISTS ${output_cc})
+      FILE(RENAME ${output_cc} ${output_cc}.dist)
+    ENDIF()
+    IF(EXISTS ${output_h})
+      FILE(RENAME ${output_h} ${output_h}.dist)
+    ENDIF()
+# MCP_BUG16877045 <--
     ADD_CUSTOM_COMMAND(
       OUTPUT ${output_cc}
              ${output_h}
@@ -57,6 +70,17 @@ MACRO (RUN_BISON input_yy output_cc output_h)
         DEPENDS ${input_yy}
 	)
   ELSE()
+# MCP_BUG16877045 -->
+    # Handle out-of-source build from source package with possibly broken 
+    # bison. Copy bison output to from source to build directory, if not already 
+    # there
+    IF(EXISTS ${input_cc})
+      IF(NOT EXISTS ${output_cc})
+        CONFIGURE_FILE(${input_cc} ${output_cc} COPYONLY)
+        CONFIGURE_FILE(${input_h} ${output_h} COPYONLY)
+      ENDIF()
+    ENDIF()
+# MCP_BUG16877045 <--
     # Bison is missing or not usable, e.g too old
     IF(EXISTS  ${output_cc} AND EXISTS ${output_h})
       IF(${input_yy} IS_NEWER_THAN ${output_cc}  OR  ${input_yy} IS_NEWER_THAN ${output_h})

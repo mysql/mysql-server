@@ -56,6 +56,7 @@ runClusterMgr_C(void * me)
 
 ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   theStop(0),
+  m_sent_API_REGREQ_to_myself(false),
   theFacade(_facade),
   theArbitMgr(NULL),
   m_connect_count(0),
@@ -419,13 +420,16 @@ ClusterMgr::threadMain()
 	continue;
       }
       
-      if (nodeId == getOwnNodeId() && theNode.is_confirmed())
+      if (nodeId == getOwnNodeId())
       {
         /**
          * Don't send HB to self more than once
          * (once needed to avoid weird special cases in e.g ConfigManager)
          */
-        continue;
+        if (m_sent_API_REGREQ_to_myself)
+        {
+          continue;
+        }
       }
 
       cm_node.hbCounter += (Uint32)timeSlept;
@@ -449,6 +453,11 @@ ClusterMgr::threadMain()
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
+        if (nodeId == getOwnNodeId())
+        {
+          /* Set flag to ensure we only send once to ourself */
+          m_sent_API_REGREQ_to_myself = true;
+        }
 	raw_sendSignal(&signal, nodeId);
       }//if
       
