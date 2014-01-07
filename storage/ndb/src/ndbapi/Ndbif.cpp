@@ -355,7 +355,9 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
         tCon = lookupTransactionFromOperation(keyConf);
         if (tCon == NULL) goto InvalidSignal;
       }
+
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
+      const bool marker = TcKeyConf::getMarkerFlag(keyConf->confInfo);
 
       if ((tCon->checkMagicNumber() == 0) &&
           (tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
@@ -364,18 +366,29 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
           completedTransaction(tCon);
         }//if
 
-	if(TcKeyConf::getMarkerFlag(keyConf->confInfo)){
-	  NdbTransaction::sendTC_COMMIT_ACK(theImpl,
+        if (marker)
+        {
+          NdbTransaction::sendTC_COMMIT_ACK(theImpl,
                                             theCommitAckSignal,
-                                            keyConf->transId1, 
+                                            keyConf->transId1,
                                             keyConf->transId2,
                                             aTCRef);
-	}
-      
-	return;
+        }
+        return;
       }//if
+
+      if (marker)
+      {
+        /**
+         * We must send the TC_COMMIT_ACK even if we "reject" signal!
+         */
+        NdbTransaction::sendTC_COMMIT_ACK(theImpl,
+                                          theCommitAckSignal,
+                                          keyConf->transId1,
+                                          keyConf->transId2,
+                                          aTCRef);
+      }
       goto InvalidSignal;
-      
       return;
     }
   case GSN_TRANSID_AI:{
@@ -552,11 +565,14 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   case GSN_TC_COMMITCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-
       const TcCommitConf * const commitConf = (TcCommitConf *)tDataPtr;
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
-      
+
+      if (tFirstDataPtr == 0)
+      {
+        goto invalid0;
+      }
+
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
 	  (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT)) {
@@ -573,6 +589,18 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
                                             aTCRef);
 	}
 	return;
+      }
+  invalid0:
+      if(tFirstData & 1)
+      {
+        /**
+         * We must send TC_COMMIT_ACK regardless if we "reject" signal!
+         */
+        NdbTransaction::sendTC_COMMIT_ACK(theImpl,
+                                          theCommitAckSignal,
+                                          commitConf->transId1,
+                                          commitConf->transId2,
+                                          aTCRef);
       }
       goto InvalidSignal;
       return;
