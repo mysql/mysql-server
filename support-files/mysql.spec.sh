@@ -291,14 +291,14 @@ Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
 Obsoletes:      mysql MySQL mysql-server MySQL-server
 %if 0%{?commercial}
-Obsoletes:      MySQL-Cluster-server
+Obsoletes:      MySQL-Cluster-server-gpl
 %else
-Obsoletes:      MySQL-server-advanced
+Obsoletes:      MySQL-Cluster-server-advanced
 %endif
-Obsoletes:      mysql-server < %{version}-%{release}
-Obsoletes:      mysql-server-advanced
-Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
-Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
+Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
+Obsoletes:      mysql-server mysql-server-advanced MySQL-server
+Provides:       mysql-server
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -329,16 +329,14 @@ package "MySQL-Cluster-client%{product_suffix}" as well!
 Summary:        MySQL Cluster - Client
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-Cluster-client
+Obsoletes:      MySQL-Cluster-client-gpl
 %else
-Obsoletes:      MySQL-client-advanced
+Obsoletes:      MySQL-Cluster-client-advanced
 %endif
-Obsoletes:      mysql < %{version}-%{release}
-Obsoletes:      mysql-advanced < %{version}-%{release}
+Obsoletes:      mysql mysql-advanced 
 Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
-Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
-Provides:       mysql = %{version}-%{release} 
-Provides:       mysql%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl MySQL-client
+Provides:       mysql
 
 %description -n MySQL-Cluster-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -347,22 +345,19 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-Cluster-test%{product_suffix}
-Requires:       MySQL-Cluster-client%{product_suffix} perl
 Summary:        MySQL Cluster - Test suite
 Group:          Applications/Databases
 %if 0%{?commercial}
-Requires:       MySQL-client-advanced perl
-Obsoletes:      MySQL-Cluster-test
+Requires:       MySQL-Cluster-client-advanced perl
+Obsoletes:      MySQL-Cluster-test-gpl
 %else
-Requires:       MySQL-client perl
-Obsoletes:      MySQL-test-advanced
+Requires:       MySQL-Cluster-client-gpl perl
+Obsoletes:      MySQL-Cluster-test-advanced
 %endif
-Obsoletes:      mysql-test < %{version}-%{release}
-Obsoletes:      mysql-test-advanced
+Obsoletes:      mysql-test mysql-test-advanced 
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
 Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
-Provides:       mysql-test = %{version}-%{release}
-Provides:       mysql-test%{?_isa} = %{version}-%{release}
+Provides:       mysql-test 
 AutoReqProv:    no
 
 %description -n MySQL-Cluster-test%{product_suffix}
@@ -377,16 +372,15 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-devel
 Obsoletes:      MySQL-Cluster-devel
 %if 0%{?commercial}
-Obsoletes:      MySQL-Cluster-devel
+Obsoletes:      MySQL-Cluster-devel-gpl
 %else
-Obsoletes:      MySQL-devel-advanced
+Obsoletes:      MySQL-Cluster-devel-advanced
 %endif
-Obsoletes:      mysql-devel < %{version}-%{release}
-Obsoletes:      mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
+Obsoletes:      mysql-devel mysql-devel-advanced
+Obsoletes:      mysql-embedded-devel mysql-embedded-devel-advanced
 Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
 Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
-Provides:       mysql-devel = %{version}-%{release}
-Provides:       mysql-devel%{?_isa} = %{version}-%{release}
+Provides:       mysql-devel 
 
 %description -n MySQL-Cluster-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -401,9 +395,9 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-shared
 Obsoletes:      MySQL-Cluster-shared
 %if 0%{?commercial}
-Obsoletes:      MySQL-Cluster-shared
+Obsoletes:      MySQL-Cluster-shared-gpl
 %else
-Obsoletes:      MySQL-shared-advanced
+Obsoletes:      MySQL-Cluster-shared-advanced
 %endif
 Obsoletes:      MySQL-shared-standard MySQL-shared-pro
 Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
@@ -423,17 +417,17 @@ Requires:       MySQL-Cluster-devel%{product_suffix}
 Provides:       MySQL-Cluster-embedded
 Obsoletes:      MySQL-Cluster-embedded
 %if 0%{?commercial}
-Requires:       MySQL-devel-advanced
-Obsoletes:      MySQL-Cluster-embedded
+Requires:       MySQL-Cluster-devel-advanced
+Obsoletes:      MySQL-Cluster-embedded-gpl
 %else
-Requires:       MySQL-devel
-Obsoletes:      MySQL-embedded-advanced
+Requires:       MySQL-Cluster-devel-gpl
+Obsoletes:      MySQL-Cluster-embedded-advanced
 %endif
-Obsoletes:      mysql-embedded < %{version}-%{release}
-Obsoletes:      mysql-embedded-advanced
+Obsoletes:      mysql-embedded mysql-embedded-advanced 
 Obsoletes:      MySQL-embedded-pro
 Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
 Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+Provides:       mysql-emdedded
 
 %description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -608,6 +602,31 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/ndb_blob_tool.1*
+rm -f $RBR%{_mandir}/man1/ndb_config.1*
+rm -f $RBR%{_mandir}/man1/ndb_cpcd.1*
+rm -f $RBR%{_mandir}/man1/ndb_delete_all.1*
+rm -f $RBR%{_mandir}/man1/ndb_desc.1*
+rm -f $RBR%{_mandir}/man1/ndb_drop_index.1*
+rm -f $RBR%{_mandir}/man1/ndb_drop_table.1*
+rm -f $RBR%{_mandir}/man1/ndb_error_reporter.1*
+rm -f $RBR%{_mandir}/man1/ndb_index_stat.1*
+rm -f $RBR%{_mandir}/man1/ndb_mgm.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_backup_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_schema_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_sys_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_restore.1*
+rm -f $RBR%{_mandir}/man1/ndb_select_all.1*
+rm -f $RBR%{_mandir}/man1/ndb_select_count.1*
+rm -f $RBR%{_mandir}/man1/ndb_show_tables.1*
+rm -f $RBR%{_mandir}/man1/ndb_size.pl.1*
+rm -f $RBR%{_mandir}/man1/ndb_waiter.1*
+rm -f $RBR%{_mandir}/man1/ndbd_redo_log_reader.1*
+rm -f $RBR%{_mandir}/man8/ndb_mgmd.8*
+rm -f $RBR%{_mandir}/man8/ndbd.8*
+rm -f $RBR%{_mandir}/man8/ndbmtd.8*
+rm -f $RBR%{_mandir}/man1/ndbinfo_select_all.1*
+rm -f $RBR%{_mandir}/man1/ndb-common-options.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1297,6 +1316,9 @@ echo "====="                                                       >> $STATUS_HI
 %changelog
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
+
+* Mon Oct 21 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated spec file for Cluster release
 
 * Thu Sep 12 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Added logic to ignore mysqld_safe.pid file created by mysqld_safe script
