@@ -642,6 +642,8 @@ class ReplSemiSyncMaster
   /* Switch semi-sync off because of timeout in transaction waiting. */
   int switch_off();
 
+  void force_switch_on();
+
   /* Switch semi-sync on when slaves catch up. */
   int try_switch_on(const char *log_file_name, my_off_t log_file_pos);
 public:
@@ -658,6 +660,9 @@ public:
     if (active_tranxs_)
       active_tranxs_->trace_level_ = trace_level;
   }
+
+  /* Set if the master has to wait for an ack from the salve or not. */
+  void set_wait_no_slave(const void *val);
 
   /* Set the transaction wait timeout period, in milliseconds. */
   void setWaitTimeout(unsigned long wait_timeout) {

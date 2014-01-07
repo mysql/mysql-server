@@ -1079,7 +1079,7 @@ disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
-eq-range-index-dive-limit 10
+eq-range-index-dive-limit 200
 event-scheduler OFF
 executed-gtids-compression-period 1000
 expire-logs-days 0
