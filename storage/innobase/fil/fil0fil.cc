@@ -4420,6 +4420,11 @@ fil_user_tablespace_restore_page0(
 	page = recv_sys->dblwr.find_first_page(fsp->id);
 
 	if (!page) {
+		/* If the first page of the given user tablespace is not there
+		in the doublewrite buffer, then the recovery is going to fail
+		now.  Hence this is treated as an error. */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Doublewrite does not have page0: %lu", fsp->id);
 		err = false;
 		goto out;
 	}
