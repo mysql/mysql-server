@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 #include <portlib/NdbEnv.h>
+#include <logger/Logger.hpp>
 
 static int opt_stop_on_error = 0;
 
@@ -329,12 +330,12 @@ Ndb* NDBT_Step::getNdb() const {
 int NDBT_Step::execute(NDBT_Context* ctx) {
   assert(ctx != NULL);
 
-  int result;  
-
-  g_info << "  |- " << name << " started [" << ctx->suite->getDate() << "]" 
+  char buf[64]; // For timestamp string
+  g_info << "  |- " << name << " started ["
+         << ctx->suite->getDate(buf, sizeof(buf)) << "]"
 	 << endl;
   
-  result = setUp(ctx->m_cluster_connection);
+  int result = setUp(ctx->m_cluster_connection);
   if (result != NDBT_OK){
     return result;
   }
@@ -342,12 +343,14 @@ int NDBT_Step::execute(NDBT_Context* ctx) {
   result = func(ctx, this);
 
   if (result != NDBT_OK) {
-    g_err << "  |- " << name << " FAILED [" << ctx->suite->getDate() 
-	   << "]" << endl;
+    g_err << "  |- " << name << " FAILED ["
+          << ctx->suite->getDate(buf, sizeof(buf))
+          << "]" << endl;
   }	 
    else {
-    g_info << "  |- " << name << " PASSED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    g_info << "  |- " << name << " PASSED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   
   tearDown();
@@ -623,10 +626,11 @@ void NDBT_TestCaseImpl1::reportStepResult(const NDBT_Step* pStep, int result){
 }
 
 
-int NDBT_TestCase::execute(NDBT_Context* ctx){
-  int res;
-
-  ndbout << "- " << _name << " started [" << ctx->suite->getDate()
+int NDBT_TestCase::execute(NDBT_Context* ctx)
+{
+  char buf[64]; // For timestamp string
+  ndbout << "- " << _name << " started ["
+         << ctx->suite->getDate(buf, sizeof(buf))
 	 << "]" << endl;
 
   ctx->setCase(this);
@@ -660,6 +664,7 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
   // test case consist only of initializer
   startTimer(ctx);
   
+  int res;
   if ((res = runInit(ctx)) == NDBT_OK){
     // If initialiser is ok, run steps
     
@@ -678,12 +683,14 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
   runFinal(ctx); 
 
   if (res == NDBT_OK) {
-    ndbout << "- " << _name << " PASSED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    ndbout << "- " << _name << " PASSED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   else {
-    ndbout << "- " << _name << " FAILED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    ndbout << "- " << _name << " FAILED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   return res;
 }
@@ -908,7 +915,8 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
   if(tests.size() == 0)
     return NDBT_FAILED;
 
-  ndbout << name << " started [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
   testSuiteTimer.doStart();
   if(!runonce)
@@ -978,7 +986,8 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
   if (tests.size() == 0 && explicitTests.size() == 0)
     return NDBT_FAILED;
 
-  ndbout << name << " started [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
   const NdbDictionary::Table* ptab = NDBT_Tables::getTable(_tabname);
   if (ptab == NULL)
@@ -1020,7 +1029,9 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       break;
     }
 
-    ndbout << name << " started [" << getDate() << "]" << endl;
+    char buf[64]; // For timestamp string
+    ndbout << name
+           << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
     ndbout << "|- " << ptab->getName() << endl;
 
     if (_testname == NULL)
@@ -1280,7 +1291,9 @@ runEmptyDropTable(NDBT_Context* ctx, NDBT_Step* step)
 int 
 NDBT_TestSuite::report(const char* _tcname){
   int result;
-  ndbout << "Completed " << name << " [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << "Completed " << name
+         << " [" << getDate(buf, sizeof(buf)) << "]" << endl;
   printTestCaseSummary(_tcname);
   ndbout << numTestsExecuted << " test(s) executed" << endl;
   ndbout << numTestsOk << " test(s) OK" 
@@ -1318,7 +1331,10 @@ void NDBT_TestSuite::printTestCaseSummary(const char* _tcname){
 
 int NDBT_TestSuite::reportAllTables(const char* _testname){
   int result;
-  ndbout << "Completed running test [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << "Completed running test ["
+         << getDate(buf, sizeof(buf))
+         << "]" << endl;
   const int totalNumTests = numTestsExecuted;
   printTestCaseSummary(_testname);
   ndbout << numTestsExecuted<< " test(s) executed" << endl;
@@ -1449,6 +1465,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
+  // Save pointer to memory allocated by 'ndb_load_defaults'
+  char** defaults_argv= _argv;
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -1458,6 +1476,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 			       ndb_std_get_one_option)))
   {
     usage();
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -1578,22 +1597,26 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_print == true){
     printExecutionTree();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_html == true){
     printExecutionTreeHTML();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_cases == true){
     printCases();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -1609,6 +1632,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
+  ndb_free_defaults(defaults_argv);
   return NDBT_ProgramExit(res);
 }
 
@@ -1651,27 +1675,16 @@ void NDBT_TestSuite::printCases(){
   } 
 }
 
-const char* NDBT_TestSuite::getDate(){
-  static char theTime[128];
-  struct tm* tm_now;
+const char* NDBT_TestSuite::getDate(char* str, size_t len)
+{
+  // Get current time
   time_t now;
-  now = time((time_t*)NULL);
-#ifdef NDB_WIN32
-  tm_now = localtime(&now);
-#else
-  tm_now = gmtime(&now);
-#endif
-  
-  BaseString::snprintf(theTime, 128,
-	   "%d-%.2d-%.2d %.2d:%.2d:%.2d",
-	   tm_now->tm_year + 1900, 
-	   tm_now->tm_mon + 1, 
-	   tm_now->tm_mday,
-	   tm_now->tm_hour,
-	   tm_now->tm_min,
-	   tm_now->tm_sec);
+  time(&now);
 
-  return theTime;
+  // Print as timestamp to buf
+  Logger::format_timestamp(now, str, len);
+
+  return str;
 }
 
 void NDBT_TestCaseImpl1::printHTML(){
