@@ -2691,11 +2691,15 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         index_name= index->getName();
         DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));  
         // Drop ordered index from ndb
-        error= dict->dropIndexGlobal(*index);
-        if (!error)
+        if (dict->dropIndexGlobal(*index) == 0)
         {
           dict->removeIndexGlobal(*index, 1);
           m_index[i].index= NULL;
+        }
+        else
+        {
+          error= ndb_to_mysql_error(&dict->getNdbError());
+          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
         }
       }
       if (!error && unique_index)
@@ -2703,11 +2707,15 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         index_name= unique_index->getName();
         DBUG_PRINT("info", ("Dropping unique index %u: %s", i, index_name));
         // Drop unique index from ndb
-        error= dict->dropIndexGlobal(*unique_index);
-        if (!error)
+        if (dict->dropIndexGlobal(*unique_index) == 0)
         {
           dict->removeIndexGlobal(*unique_index, 1);
           m_index[i].unique_index= NULL;
+        }
+        else
+        {
+          error=ndb_to_mysql_error(&dict->getNdbError());
+          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
         }
       }
       if (error)
@@ -7132,7 +7140,7 @@ int ha_ndbcluster::info(uint flag)
   }
   if (flag & HA_STATUS_ERRKEY)
   {
-    DBUG_PRINT("info", ("HA_STATUS_ERRKEY"));
+    DBUG_PRINT("info", ("HA_STATUS_ERRKEY dupkey=%u", m_dupkey));
     errkey= m_dupkey;
   }
   if (flag & HA_STATUS_AUTO)

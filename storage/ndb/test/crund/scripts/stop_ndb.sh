@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
@@ -30,7 +30,7 @@ echo shut down NDB...
 timeout=60
 echo
 echo "waiting ($timeout s) for ndb to shut down..."
-./waiter.sh -t $timeout --no-contact
+"$MYSQL_BIN/ndb_waiter" -c "$NDB_CONNECT" -t $timeout --no-contact
 
 # need some extra time for ndb_mgmd to terminate
 for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo

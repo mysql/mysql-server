@@ -1858,6 +1858,12 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
         NDB_SF_PAGE_ENTRIES;
       resizeSchemaFile(xsf, noOfPages);
 
+      if (c_at_restart_skip_indexes || c_at_restart_skip_fks)
+      {
+        jam();
+        modifySchemaFileAtRestart(xsf);
+      }
+
       c_writeSchemaRecord.inUse = true;
       c_writeSchemaRecord.pageId = c_schemaRecord.oldSchemaPage;
       c_writeSchemaRecord.newFile = true;
@@ -1996,7 +2002,9 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
   c_opRecordSequence(0),
-  c_restart_enable_fks(false)
+  c_restart_enable_fks(false),
+  c_at_restart_skip_indexes(0),
+  c_at_restart_skip_fks(0)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
 
@@ -2711,6 +2719,10 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_indexStatAutoUpdate = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
                             &c_indexStatAutoUpdate);
+  ndb_mgm_get_int_parameter(p, CFG_DB_AT_RESTART_SKIP_INDEXES,
+                            &c_at_restart_skip_indexes);
+  ndb_mgm_get_int_parameter(p, CFG_DB_AT_RESTART_SKIP_FKS,
+                            &c_at_restart_skip_fks);
 
   c_default_hashmap_size = 0;
   ndb_mgm_get_int_parameter(p, CFG_DEFAULT_HASHMAP_SIZE, &c_default_hashmap_size);
@@ -21337,6 +21349,33 @@ Dbdict::resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages)
     xsf->noOfPages = noOfPages;
     initSchemaFile(xsf, 0, xsf->noOfPages, false);
   }
+}
+
+void
+Dbdict::modifySchemaFileAtRestart(XSchemaFile * xsf)
+{
+  D("modifySchemaFileAtRestart" << V(c_at_restart_skip_indexes) << V(c_at_restart_skip_fks));
+  const Uint32 noOfEntries = xsf->noOfPages * NDB_SF_PAGE_ENTRIES;
+  for (Uint32 i = 0; i < noOfEntries; i++)
+  {
+    SchemaFile::TableEntry * entry = getTableEntry(xsf, i);
+    bool zap = false;
+    if (c_at_restart_skip_indexes)
+      if (entry->m_tableType == DictTabInfo::UniqueHashIndex ||
+          entry->m_tableType == DictTabInfo::OrderedIndex ||
+          entry->m_tableType == DictTabInfo::ForeignKey)
+        zap = true;
+    if (c_at_restart_skip_fks)
+      if (entry->m_tableType == DictTabInfo::ForeignKey)
+        zap = true;
+    if (zap)
+    {
+      D("zap entry " << i << " " << *entry);
+      entry->init();
+    }
+  }
+  for (Uint32 n = 0; n < xsf->noOfPages; n++)
+    computeChecksum(xsf, n);
 }
 
 void
