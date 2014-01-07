@@ -67,6 +67,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       dump-env
       env_loader_memory
       env-put-multiple
+      env_nproc
       env_startup
       execute-updates
       filesize
