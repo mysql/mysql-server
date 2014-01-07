@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,15 +52,13 @@ ADD_CONVENIENCE_LIBRARY(ndbsched
     dummy_nonmt.cpp
 )
 
-IF(NDB_BUILD_NDBMTD)
-  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
-    SimulatedBlock_mt.cpp
-    TransporterCallback_mt.cpp
-    LongSignal_mt.cpp
-    SimplePropertiesSection_mt.cpp
-    mt.cpp
-    dummy_mt.cpp)
-ENDIF()
+ADD_CONVENIENCE_LIBRARY(ndbsched_mt
+  SimulatedBlock_mt.cpp
+  TransporterCallback_mt.cpp
+  LongSignal_mt.cpp
+  SimplePropertiesSection_mt.cpp
+  mt.cpp
+  dummy_mt.cpp)
 
 ADD_CONVENIENCE_LIBRARY(ndbtest
     test_context.cpp
