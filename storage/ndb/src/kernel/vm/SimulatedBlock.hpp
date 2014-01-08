@@ -962,7 +962,9 @@ protected:
   void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
   const CallbackEntry& getCallbackEntry(Uint32 ci);
   void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
-                        CallbackPtr& cptr, Uint32 returnCode);
+                        CallbackPtr& cptr,
+                        Uint32 senderData, Uint32 callbackInfo,
+                        Uint32 returnCode);
   void execCALLBACK_CONF(Signal* signal);
 
   // Variable for storing inserted errors, see pc.H
@@ -1284,20 +1286,14 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
 #ifdef VM_TRACE_TIME
-  Uint32 us1, us2;
-  Uint64 ms1, ms2;
-  NdbTick_CurrentMicrosecond(&ms1, &us1);
+  const NDB_TICKS t1 = NdbTick_getCurrentTicks();
   Uint32 tGsn = m_currentGsn;
   b->m_currentGsn = gsn;
 #endif
   b->executeFunction(gsn, signal);
 #ifdef VM_TRACE_TIME
-  NdbTick_CurrentMicrosecond(&ms2, &us2);
-  Uint64 diff = ms2;
-  diff -= ms1;
-  diff *= 1000000;
-  diff += us2;
-  diff -= us1;
+  const NDB_TICKS t2 = NdbTick_getCurrentTicks();
+  const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
   b->addTime(gsn, diff);
   m_currentGsn = tGsn;
   subTime(tGsn, diff);

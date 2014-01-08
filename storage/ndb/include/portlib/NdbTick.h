@@ -18,52 +18,221 @@
 #ifndef NDB_TICK_H
 #define NDB_TICK_H
 
+#include <assert.h>
 #include <ndb_types.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
-typedef Uint64 NDB_TICKS; 
+void NdbTick_Init();
+
 
 /**
- * Returns the current millisecond since 1970
- */
-NDB_TICKS NdbTick_CurrentMillisecond(void);
-
-/**
- * Get current micro second
- * Second method is simply abstraction on top of the first
+ * NDB_TICKS is a high resolution monotonic timer representing
+ * timer 'ticks' from some epoch start like boot time, 1/1 -1970 or 
+ * whatever.
+ * Its actual resolution and duration of a 'tick' is platform 
+ * dependent. Make no assumption about it representing a specific time.
+ * Functions are provided to compare ticks and calculate time 
+ * interval between ticks
  * 
- * Returns 0 - Success
+ * NOTE: Even if the platform specific implementation of 'ticks'
+ *       should be in nanoseconds, the 64bit NDB_TICK will not wrap until
+ *       ~585 years has passed. So it should be pretty safe....
  */
-int NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros);
+typedef struct NDB_TICKS {
 
-struct MicroSecondTimer {
-  NDB_TICKS seconds;
-  NDB_TICKS micro_seconds;
-};
+  Uint64 t;
+
+public:
+  NDB_TICKS()
+  { t = 0; };
+
+  /**
+   * Provide functionality for fetch and reconstruct of tick value.
+   * Usefull when a 'tick' is sent as part of a signal, or when
+   * the clock is used to generate a pseudo random number.
+   */
+  Uint64 getUint64() const
+  { return t; };
+
+  explicit NDB_TICKS(Uint64 val)
+  { t = val; };
+
+} NDB_TICKS; 
+
 
 /**
- * Get time between start and stop time in microseconds
- * Abstraction to get time in struct
+ * Returns whether the 'ticks' are provided by a monotonic timer.
+ * Must be called after NdbTick_Init()
+ */
+bool
+NdbTick_IsMonotonic();
+
+/**
+ * Returns number of 'ticks' since some 
+ * platforms dependent epoch start.
+ */
+const NDB_TICKS 
+NdbTick_getCurrentTicks(void);
+
+/**
+ * Add specified number of milliseconds to a 'ticks' value.
+ */
+const NDB_TICKS NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms);
+
+static void NdbTick_Invalidate(NDB_TICKS *ticks);
+static int  NdbTick_IsValid(NDB_TICKS ticks);
+
+/**
+ * Compare ticks and return an integer greater than, 
+ * equal to, or less than 0, if the  'tick value' in t1
+ * is greater than, equal to, or less than the t2 tick
+ * respectively.
+ */
+static int NdbTick_Compare(NDB_TICKS t1, NDB_TICKS t2);
+
+/**
+ * Get time elapsed between start and end time.
+ */
+static const class NdbDuration
+NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end);
+
+/**
+ * Returns the current millisecond since some epoch start.
  *
- * 0 means stop happened at or before start time
+ * Treat this function as deprecated. Elapsed time intervals
+ * should be calculated by using the pattern
+ * start/end = NdbTick_getCurrentTicks() and
+ * elapsed = NdbTick_Elapsed...(start,end).
+ *
+ * All usage except in test utilties, should be considdered
+ * a bug.
  */
-NDB_TICKS NdbTick_getMicrosPassed(struct MicroSecondTimer start,
-                            struct MicroSecondTimer stop);
-int NdbTick_getMicroTimer(struct MicroSecondTimer* time_now);
+static Uint64 NdbTick_CurrentMillisecond(void);
 
-NDB_TICKS NdbTick_getMillisecond(struct MicroSecondTimer *time);
+
+class NdbDuration {
+
+public:
+  Uint64 seconds() const;
+  Uint64 milliSec() const;
+  Uint64 microSec() const;
+  Uint64 nanoSec() const;
+
+private:
+  Uint64 t;
+  static Uint64 tick_frequency;
+
+  friend const NdbDuration
+    NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end);
+
+  friend Uint64
+    NdbTick_CurrentMillisecond(void);
+
+  friend const NDB_TICKS
+    NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms);
+
+  friend void NdbTick_Init();
+
+}; //class NdbDuration
+
+
+/******************************************************
+ * Implementation of NdbTick_foo functions.
+ ******************************************************/
+inline
+void NdbTick_Invalidate(NDB_TICKS *ticks)
+{
+  ticks->t = 0;
+}
+
+static inline
+int NdbTick_IsValid(NDB_TICKS ticks)
+{
+  return(ticks.t != 0);
+}
+
+static inline
+int NdbTick_Compare(NDB_TICKS t1, NDB_TICKS t2)
+{
+  assert(NdbTick_IsValid(t1));
+  assert(NdbTick_IsValid(t2));
+  return  (t1.t > t2.t) ?  1
+         :(t1.t < t2.t) ? -1
+                        :  0;
+}
+
+static inline
+const NdbDuration
+NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end)
+{
+  assert(NdbTick_IsValid(start));
+  assert(NdbTick_IsValid(end));
+  assert(end.t >= start.t || !NdbTick_IsMonotonic());
+
+  /**
+   * Even if asserted above, we protect agains backward leaping
+   * timers by returning 0 if such are detected. This is likely less
+   * harmfull than returning a huge Uint which would be the result
+   * of that subtraction. Even the monotonic clock is known buggy
+   * on some older BIOS and virtualized platforms.
+   */
+  NdbDuration elapsed;
+  elapsed.t = (end.t > start.t) ? (end.t - start.t) : 0;
+  return elapsed;
+}
+
+static inline Uint64
+NdbTick_CurrentMillisecond(void)
+{
+  const Uint64 ticks = NdbTick_getCurrentTicks().t;
+  if (ticks < (UINT_MAX64 / 1000))
+    return ((ticks*1000) / NdbDuration::tick_frequency); // Best precision
+  else
+    return (ticks / (NdbDuration::tick_frequency/1000)); // Avoids oveflow,
+}
+
+/******************************************************
+ * Implementation of NdbDuration methods.
+ *
+ * In order to avoid precision loss, we multiply ticks
+ * by the scale factor before dividing by the frequency.
+ ******************************************************/
+inline
+Uint64 NdbDuration::seconds() const
+{
+  return (t / tick_frequency);
+}
+
+inline
+Uint64 NdbDuration::milliSec() const
+{
+  assert(t < (UINT_MAX64 / 1000)); //Overflow?
+  return ((t*1000) / tick_frequency);
+}
+
+inline
+Uint64 NdbDuration::microSec() const
+{
+  assert(t < (UINT_MAX64 / (1000*1000))); //Overflow?
+  return ((t*1000*1000) / tick_frequency);
+}
 
 /**
- * Returns the current nanosecond
+ * If 'tick_frequency' is nanosecs (~2^30), multiplying
+ * with 'nanoScale' (2^30) leaves only 4 bits for seconds 
+ * before we would overflow if calculated as above.
+ * Thus we do the nanoSec calculation in an upper and lower
+ * Uint64 part which effectively gives 96 bit precision.
  */
-NDB_TICKS NdbTick_CurrentNanosecond(void);
-
-#ifdef	__cplusplus
+inline
+Uint64 NdbDuration::nanoSec() const
+{
+  static const Uint64 nanoScale = 1000*1000*1000;
+  return ((((t >> 32)        * nanoScale) / tick_frequency) << 32) +
+          (((t & 0xFFFFFFFF) * nanoScale) / tick_frequency);
 }
-#endif
 
 #endif
+
+
 
