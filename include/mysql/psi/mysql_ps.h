@@ -30,8 +30,8 @@
 #ifdef HAVE_PSI_PS_INTERFACE
   #define MYSQL_CREATE_PS(IDENTITY, LOCKER, SQLTEXT, SQLTEXT_LENGTH) \
     inline_mysql_create_prepared_stmt(IDENTITY, LOCKER, SQLTEXT, SQLTEXT_LENGTH)
-  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT) \
-    inline_mysql_start_prepare_stmt(PS_STATE, PREPARED_STMT)
+  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT, KEY) \
+    inline_mysql_start_prepare_stmt(PS_STATE, PREPARED_STMT, KEY)
   #define MYSQL_START_PS_EXECUTE(PS_STATE, PREPARED_STMT) \
     inline_mysql_start_prepared_stmt_execute(PS_STATE, PREPARED_STMT) 
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
@@ -39,7 +39,7 @@
 #else
   #define MYSQL_CREATE_PS(IDENTITY, LOCKER, SQLTEXT, SQLTEXT_LENGTH) \
     do {} while (0)
-  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT) \
+  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT, KEY) \
     do {} while (0)
   #define MYSQL_START_PS_EXECUTE(PS_STATE, PREPARED_STMT) \
     do {} while (0)
@@ -74,11 +74,12 @@ inline_mysql_create_prepared_stmt(void *identity,
 
 static inline struct PSI_prepared_stmt_locker*
 inline_mysql_start_prepare_stmt(PSI_prepared_stmt_locker_state *state,
-                                PSI_prepared_stmt* prepared_stmt)
+                                PSI_prepared_stmt* prepared_stmt,
+                                PSI_statement_key key)
 {
   if (prepared_stmt == NULL)
     return NULL;
-  return PSI_PS_CALL(start_prepare_stmt)(state, prepared_stmt);
+  return PSI_PS_CALL(start_prepare_stmt)(state, prepared_stmt, key);
 }
 
 static inline void 

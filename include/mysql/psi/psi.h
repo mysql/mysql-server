@@ -2303,7 +2303,8 @@ typedef void (*destroy_prepared_stmt_v1_t)
   @param current thread.
 */
 typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt);
+  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt,
+   PSI_statement_key key);
 
 /**
   Record a prepare statement instrumentation end event.
