@@ -383,10 +383,13 @@ public:
         uint64_t m_long_wait_escalation_time;
 
         toku_mutex_t m_escalator_mutex;
+#define DO_ESCALATOR_THREAD 0
+#if DO_ESCALATOR_THREAD
         toku_cond_t m_escalator_work;    // signal the escalator to run
         toku_cond_t m_escalator_done;    // signal that escalation is done
         bool m_escalator_killed;
         toku_pthread_t m_escalator_id;
+#endif
 
         friend class manager_unit_test;
 
