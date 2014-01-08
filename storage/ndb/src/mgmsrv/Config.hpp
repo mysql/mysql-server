@@ -41,7 +41,7 @@ public:
   Config(const Config*);
   virtual ~Config();
 
-  void print(const char* section_filter = NULL, NodeId nodeid_filter = NULL,
+  void print(const char* section_filter = NULL, NodeId nodeid_filter = 0,
              const char* param_filter = NULL,
              NdbOut& out = ndbout) const;
 

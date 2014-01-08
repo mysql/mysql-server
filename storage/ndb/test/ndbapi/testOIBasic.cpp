@@ -547,7 +547,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       continue;
     }
     // normalize
-    memset(xbytes, 0, sizeof(xbytes));
+    memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
     // currently returns buffer size always
     size_t xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
     // check we got something
