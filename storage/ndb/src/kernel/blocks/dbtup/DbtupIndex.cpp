@@ -784,7 +784,11 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
     (const BuildIndxImplReq*)&buildPtr.p->m_request;
 
   AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
-  bzero(req, sizeof(req));
+  /**
+   * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
+   * up was undefined.
+   */
+  bzero(req, sizeof(*req));
   req->senderRef = reference();
   req->senderData = buildPtrI;
   req->tableId = buildReq->tableId;
@@ -885,7 +889,11 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
   {
     jam();
     AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
-    bzero(req, sizeof(req));
+    /**
+     * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
+     * up was undefined.
+     */
+    bzero(req, sizeof(*req));
     req->senderRef = reference();
     req->senderData = buildPtrI;
     req->tableId = buildReq->tableId;
