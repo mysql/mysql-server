@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -845,7 +845,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             }
         }
         try {
-            clusterTransaction.executeCommit(false, true);
+            clusterTransaction.executeCommit();
         } finally {
             // always close the transaction
             clusterTransaction.close();
@@ -1021,8 +1021,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         public TransactionState commit() {
             try {
                 // flush unwritten changes
-                flush();
-                internalCommit();
+                flush(true);
             } catch (ClusterJException ex) {
                 transactionException = ex;
             }
@@ -1378,7 +1377,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
        }
    }
 
-    public void flush() {
+    public void flush(boolean commit) {
         if (logger.isDetailEnabled()) logger.detail("flush changes with changeList size: " + changeList.size());
         if (!changeList.isEmpty()) {
             for (StateManager sm: changeList) {
@@ -1388,8 +1387,17 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
         // now flush changes to the back end
         if (clusterTransaction != null) {
-            executeNoCommit();
+            if (commit) {
+                internalCommit();
+            } else {
+                executeNoCommit();
+                handleTransactionException();
+            }
         }
+    }
+
+    public void flush() {
+        flush(false);
     }
 
     public List getChangeList() {
@@ -1448,7 +1456,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public void executeNoCommit(boolean abort, boolean force) {
         if (clusterTransaction != null) {
+            try {
             clusterTransaction.executeNoCommit(abort, force);
+            } catch (ClusterJException cjex) {
+                transactionException = cjex;
+            }
         }
     }
 

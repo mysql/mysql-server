@@ -78,7 +78,7 @@ public:
 
   struct StartRecord {
     StartRecord() {}
-    Uint64 m_startTime;
+    NDB_TICKS m_startTime;
     
     void reset();
     NdbNodeBitmask m_starting;
@@ -89,7 +89,8 @@ public:
     Uint32 m_lastGci;
     Uint32 m_lastGciNodeId;
 
-    Uint64 m_startPartialTimeout;
+    // Timeouts in ms since 'm_startTime' 
+    Uint64 m_startPartialTimeout;  // UNUSED!
     Uint64 m_startPartitionedTimeout;
     Uint64 m_startFailureTimeout;
     struct {

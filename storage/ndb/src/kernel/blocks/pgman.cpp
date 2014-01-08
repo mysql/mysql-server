@@ -1063,8 +1063,8 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 #ifdef ERROR_INSERT
       if (req_ptr.p->m_flags & Page_request::DELAY_REQ)
       {
-	Uint64 now = NdbTick_CurrentMillisecond();
-	if (now < req_ptr.p->m_delay_until_time)
+	const NDB_TICKS now = NdbTick_getCurrentTicks();
+	if (NdbTick_Compare(now,req_ptr.p->m_delay_until_time) < 0)
 	{
 	  break;
 	}

@@ -168,8 +168,8 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
 
   int ret = -1;
   bool first = true;
-  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
-  NDB_TICKS maxTime = currTime + (NDB_TICKS) timeout_millis;
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  const int maxTime = timeout_millis;
   {
     PollGuard pg(*wakeNdb->theImpl);
     do
@@ -198,7 +198,8 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
         ret = 0;
         break;
       }
-      timeout_millis = (int) (maxTime - NdbTick_CurrentMillisecond());
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      timeout_millis = (maxTime - (int)NdbTick_Elapsed(start,now).milliSec());
       if (timeout_millis <= 0)
       {
         ignore_wakeups();

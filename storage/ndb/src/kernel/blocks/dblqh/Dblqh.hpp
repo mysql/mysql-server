@@ -1100,8 +1100,8 @@ public:
   struct LCPFragWatchdog
   {
     STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
-    Uint32 WarnPeriodsWithNoProgress;
-    Uint32 MaxPeriodsWithNoProgress;
+    Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
+    Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
 
     SimulatedBlock* block;
     
@@ -1117,8 +1117,9 @@ public:
     Uint32 fragId;
     Uint64 completionStatus;
 
-    /* Number of periods with no LCP progress observed */ 
-    Uint32 pollCount;
+    /* Total elapsed milliseconds with no LCP progress observed */ 
+    Uint32 elapsedNoProgressMillis; /* milliseconds */
+    NDB_TICKS lastChecked;          /* Last time LCP progress checked */
 
     /* Reinitialise the watchdog */
     void reset();
@@ -2239,7 +2240,7 @@ public:
   Uint32 logMBytesInitDone;
 
   Uint32 m_startup_report_frequency;
-  NDB_TICKS m_next_report_time;
+  NDB_TICKS m_last_report_time;
  
 public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);

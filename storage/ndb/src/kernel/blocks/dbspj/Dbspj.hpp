@@ -38,18 +38,6 @@ struct QueryNodeParameters;
 
 //#define SPJ_TRACE_TIME
 
-#ifdef SPJ_TRACE_TIME
-static
-inline
-Uint64 spj_now()
-{
-  NDB_TICKS sec;
-  Uint32 micro;
-  NdbTick_CurrentMicrosecond(&sec, &micro);
-  return Uint64(sec * 1000000 + micro);
-}
-#endif
-
 class Dbspj: public SimulatedBlock {
 public:
   Dbspj(Block_context& ctx, Uint32 instanceNumber = 0);
@@ -1125,7 +1113,7 @@ public:
     Uint32 m_sum_rows;
     Uint32 m_sum_running;
     Uint32 m_sum_waiting;
-    Uint64 m_save_time;
+    NDB_TICKS m_save_time;
 #endif
 
     bool isScan() const { return (m_bits & RT_SCAN) != 0;}
@@ -1414,12 +1402,13 @@ private:
                  DABuffer & tree, Uint32 treeBits,
                  DABuffer & param, Uint32 paramBits);
 
-  Uint32 createEmptySection(Uint32 & ptrI);
-
   Uint32 getResultRef(Ptr<Request> requestPtr);
 
   Uint32 checkTableError(Ptr<TreeNode> treeNodePtr) const;
   Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
+
+  void common_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
+			     const RowPtr&);
 
   /**
    * Lookup
@@ -1434,11 +1423,15 @@ private:
 			     const RowPtr&);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
   void lookup_parent_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 lookup_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                NdbNodeBitmask);
+
+  void lookup_sendLeafCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,
+                           Uint32 node);
   void lookup_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
   Uint32 handle_special_hash(Uint32 tableId, Uint32 dstHash[4],

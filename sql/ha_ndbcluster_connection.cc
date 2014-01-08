@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,15 +38,13 @@ extern int global_flag_skip_waiting_for_clean_cache;
 
 int
 ndbcluster_connect(int (*connect_callback)(void),
-                   ulong wait_connected,
+                   ulong wait_connected, // Timeout in seconds
                    uint connection_pool_size,
                    bool optimized_node_select,
                    const char* connect_string,
                    uint force_nodeid,
                    uint recv_thread_activation_threshold)
 {
-  NDB_TICKS end_time;
-
 #ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
 #else
@@ -97,12 +94,12 @@ ndbcluster_connect(int (*connect_callback)(void),
 
   /* Connect to management server */
 
-  end_time= NdbTick_CurrentMillisecond();
-  end_time+= 1000 * wait_connected;
+  const NDB_TICKS start= NdbTick_getCurrentTicks();
 
   while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
   {
-    if (NdbTick_CurrentMillisecond() > end_time)
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    if (NdbTick_Elapsed(start,now).seconds() > wait_connected)
       break;
     do_retry_sleep(100);
     if (abort_loop)
@@ -164,12 +161,13 @@ ndbcluster_connect(int (*connect_callback)(void),
                   g_pool[i]->get_connected_host(),
                   g_pool[i]->get_connected_port()));
 
-      NDB_TICKS now_time;
+      Uint64 waited;
       do
       {
         res= g_pool[i]->wait_until_ready(1, 1);
-        now_time= NdbTick_CurrentMillisecond();
-      } while (res != 0 && now_time < end_time);
+        const NDB_TICKS now = NdbTick_getCurrentTicks();
+        waited = NdbTick_Elapsed(start,now).seconds();
+      } while (res != 0 && waited < wait_connected);
 
       const char *msg= 0;
       if (res == 0)

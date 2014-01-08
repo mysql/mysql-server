@@ -1440,17 +1440,15 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     ndb_mgm_get_int_parameter(p, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
                               &param);
    
-    /* Convert to next-largest whole number of polling periods */ 
-    Uint32 resolutionInSeconds = LCPFragWatchdog::PollingPeriodMillis/1000;
-    ndbassert(resolutionInSeconds >= 1);
-    param = (param + (resolutionInSeconds - 1)) / resolutionInSeconds;
-    c_lcpFragWatchdog.MaxPeriodsWithNoProgress = param;
+    /* LCP fail when LCP_SCAN_WATCHDOG_LIMIT exceeded */
+    param *= 1000;  // Convert to milliseconds
+    c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis = param;
     
     /* Warn when stalled for roughly 1/3 time, */  
-    c_lcpFragWatchdog.WarnPeriodsWithNoProgress = (param + 2)/3;
+    c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis = (param + 2)/3;
     
-    ndbrequire(c_lcpFragWatchdog.MaxPeriodsWithNoProgress >= 
-               c_lcpFragWatchdog.WarnPeriodsWithNoProgress);
+    ndbrequire(c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis >= 
+               c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis);
 
     /* Dump LCPFragWatchdog parameter values */
     signal->theData[0] = 2395;
@@ -14985,7 +14983,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   CRASH_INSERTION(5052);
 
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_save[0]);
+  globalData.gcp_timer_save[0] = NdbTick_getCurrentTicks();
 #endif
 
   ccurrentGcprec = 0;
@@ -15260,7 +15258,7 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   }//for
 
 #ifdef GCP_TIMER_HACK
-  NdbTick_getMicroTimer(&globalData.gcp_timer_save[1]);
+  globalData.gcp_timer_save[1] = NdbTick_getCurrentTicks();
 #endif
 
   GCPSaveConf * const saveConf = (GCPSaveConf *)&signal->theData[0];
@@ -23918,9 +23916,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == 2395)
   {
-    ndbout_c("LCPFragWatchdog : WarnPeriods : %u MaxPeriods %u : period millis : %u",
-             c_lcpFragWatchdog.WarnPeriodsWithNoProgress,
-             c_lcpFragWatchdog.MaxPeriodsWithNoProgress,
+    ndbout_c("LCPFragWatchdog : WarnElapsed : %u(ms) MaxElapsed %u(ms) "
+             ": period millis : %u",
+             c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis,
+             c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis,
              LCPFragWatchdog::PollingPeriodMillis);
     return;
   }
@@ -24251,6 +24250,8 @@ Dblqh::startLcpFragWatchdog(Signal* signal)
   /* Thread could still be active from a previous run */
   ndbrequire(c_lcpFragWatchdog.scan_running == false);
   c_lcpFragWatchdog.scan_running = true;
+  c_lcpFragWatchdog.elapsedNoProgressMillis = 0;
+  c_lcpFragWatchdog.lastChecked = NdbTick_getCurrentTicks();
   
   /* If thread is not already active, start it */
   if (! c_lcpFragWatchdog.thread_active)
@@ -24334,7 +24335,8 @@ Dblqh::LCPFragWatchdog::reset()
   tableId = ~Uint32(0);
   fragId = ~Uint32(0);
   completionStatus = ~Uint64(0);
-  pollCount = 0;
+  elapsedNoProgressMillis = 0;
+  NdbTick_Invalidate(&lastChecked);
 }
 
 void
@@ -24354,9 +24356,10 @@ Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
     {
       jamBlock(block);
       /* Something moved since last time, reset
-       * poll counter and data.
+       * progress monitor and data.
        */
-      pollCount = 0;
+      elapsedNoProgressMillis = 0;
+      lastChecked = NdbTick_getCurrentTicks();
       lcpState = repLcpState;
       tableId = repTableId;
       fragId = repFragId;
@@ -24386,12 +24389,37 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
     return;
   }
 
-  c_lcpFragWatchdog.pollCount++;
+  // Calculate real time elapsed since last check
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const NDB_TICKS last = c_lcpFragWatchdog.lastChecked;
+  c_lcpFragWatchdog.lastChecked = now;
+
+  /**
+   * Avoid false LCP failures if timers misbehaves, 
+   * (timer is non-monotonic, or OS/VM bugs which there are some of)
+   * or we have scheduler problems due to being CPU starved:
+   *
+   * - If we overslept 'PollingPeriodMillis', (CPU startved?) or 
+   *   timer leapt forward for other reasons (Adjusted, or OS-bug)
+   *   we never calculate an elapsed periode of more than 
+   *   the requested sleep 'PollingPeriodMillis'
+   * - Else we add the real measured elapsed time to total.
+   *   (Timers may fire prior to requested 'PollingPeriodMillis')
+   *
+   * Note: If timer for some reason ticked backwards such that
+   *       'now < last', NdbTick_Elapsed() will return '0' such
+   *       that this is 'absorbed'
+   */
+  Uint32 elapsed = (Uint32)NdbTick_Elapsed(last,now).milliSec();
+  if (elapsed > LCPFragWatchdog::PollingPeriodMillis)
+    elapsed = LCPFragWatchdog::PollingPeriodMillis;
+
+  c_lcpFragWatchdog.elapsedNoProgressMillis += elapsed;
 
   /* Check how long we've been waiting for progress on this scan */
-  if ((c_lcpFragWatchdog.MaxPeriodsWithNoProgress > 0) &&
-      ((c_lcpFragWatchdog.pollCount >=
-        c_lcpFragWatchdog.WarnPeriodsWithNoProgress)))
+  if ((c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis > 0) &&
+      ((c_lcpFragWatchdog.elapsedNoProgressMillis >=
+        c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis)))
   {
     jam();
     const char* completionStatusString = 
@@ -24403,21 +24431,19 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
                  "  %llu %s",
                  c_lcpFragWatchdog.tableId,
                  c_lcpFragWatchdog.fragId,
-                 (LCPFragWatchdog::PollingPeriodMillis * 
-                  c_lcpFragWatchdog.pollCount) / 1000,
+                 c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
                  c_lcpFragWatchdog.completionStatus,
                  completionStatusString);
     ndbout_c("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
              "  %llu %s",
              c_lcpFragWatchdog.tableId,
              c_lcpFragWatchdog.fragId,
-             (LCPFragWatchdog::PollingPeriodMillis * 
-              c_lcpFragWatchdog.pollCount) / 1000,
+             c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
              c_lcpFragWatchdog.completionStatus,
              completionStatusString);
     
-    if (c_lcpFragWatchdog.pollCount >= 
-        c_lcpFragWatchdog.MaxPeriodsWithNoProgress)
+    if (c_lcpFragWatchdog.elapsedNoProgressMillis >=
+        c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis)
     {
       jam();
       /* Too long with no progress... */
@@ -24426,14 +24452,12 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
                    "too slow (no progress for > %u s).",
                    c_lcpFragWatchdog.tableId,
                    c_lcpFragWatchdog.fragId,
-                   (LCPFragWatchdog::PollingPeriodMillis * 
-                    c_lcpFragWatchdog.MaxPeriodsWithNoProgress) / 1000);
+                   c_lcpFragWatchdog.elapsedNoProgressMillis / 1000);
       ndbout_c("LCP Frag watchdog : Checkpoint of table %u fragment %u "
                "too slow (no progress for > %u s).",
                c_lcpFragWatchdog.tableId,
                c_lcpFragWatchdog.fragId,
-               (LCPFragWatchdog::PollingPeriodMillis * 
-                c_lcpFragWatchdog.MaxPeriodsWithNoProgress) / 1000);
+               c_lcpFragWatchdog.elapsedNoProgressMillis / 1000);
       
       /* Dump some LCP state for debugging... */
       {
@@ -24637,21 +24661,19 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
 }
 
 void Dblqh::initReportStatus(Signal* signal){
-  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-  m_next_report_time = current_time + 
-                       ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
+  m_last_report_time = NdbTick_getCurrentTicks();
 }
 
 void Dblqh::checkReportStatus(Signal* signal){
   if (m_startup_report_frequency == 0)
     return;
 
-  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
-  if (current_time > m_next_report_time)
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 elapsed = NdbTick_Elapsed(m_last_report_time, now).seconds();
+  if (elapsed > m_startup_report_frequency)
   {
     reportStatus(signal);
-    m_next_report_time = current_time +
-                         ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
+    m_last_report_time = now;
   }
 }
 

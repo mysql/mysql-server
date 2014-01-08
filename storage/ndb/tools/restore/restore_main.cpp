@@ -58,7 +58,7 @@ const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 unsigned int opt_progress_frequency;
-NDB_TICKS g_report_next;
+NDB_TICKS g_report_prev;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 Vector<BaseString> g_include_tables, g_exclude_tables;
@@ -1128,8 +1128,7 @@ static void exitHandler(int code)
 
 static void init_progress()
 {
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  g_report_next = now + opt_progress_frequency;
+  g_report_prev = NdbTick_getCurrentTicks();
 }
 
 static int check_progress()
@@ -1137,11 +1136,11 @@ static int check_progress()
   if (!opt_progress_frequency)
     return 0;
 
-  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   
-  if (now  >= g_report_next)
+  if (NdbTick_Elapsed(g_report_prev, now).seconds() >= opt_progress_frequency)
   {
-    g_report_next = now + opt_progress_frequency;
+    g_report_prev = now;
     return 1;
   }
   return 0;

@@ -648,7 +648,7 @@ public:
     Uint32 toCurrentTabref;
     Uint32 toFailedNode;
     Uint32 toStartingNode;
-    Uint64 toStartTime;
+    NDB_TICKS toStartTime;
     ToSlaveStatus toSlaveStatus;
     ToMasterStatus toMasterStatus;
    
@@ -1403,7 +1403,7 @@ private:
       State m_state;
       Uint32 m_new_gci;
       Uint32 m_time_between_gcp;   /* Delay between global checkpoints */
-      Uint64 m_start_time;
+      NDB_TICKS m_start_time;
     } m_master;
   } m_gcp_save;
 
@@ -1436,7 +1436,7 @@ private:
       State m_state;
       Uint32 m_time_between_gcp;
       Uint64 m_new_gci;
-      Uint64 m_start_time;
+      NDB_TICKS m_start_time;
     } m_master;
   } m_micro_gcp;
 
@@ -1445,16 +1445,18 @@ private:
     struct
     {
       Uint32 m_gci;
-      Uint32 m_counter;
-      Uint32 m_max_lag;
+      Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
+      Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
     } m_gcp_save;
 
     struct
     {
       Uint64 m_gci;
-      Uint32 m_counter;
-      Uint32 m_max_lag;
+      Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
+      Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
     } m_micro_gcp;
+
+    NDB_TICKS m_last_check; //Time GCP monitor last checked
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/
@@ -1552,9 +1554,9 @@ private:
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
     Uint32 oldestRestorableGci;
     
-    Uint64 m_start_time; // When last LCP was started
-    Uint64 m_lcp_time;   // How long last LCP took
-    Uint32 m_lcp_trylock_timeout;
+    NDB_TICKS m_start_time; // When last LCP was started
+    Uint64    m_lcp_time;   // How long last LCP took
+    Uint32    m_lcp_trylock_timeout;
 
     struct CurrentFragment {
       Uint32 tableId;
@@ -1619,7 +1621,7 @@ private:
   Uint32 csystemnodes;
   Uint32 c_newest_restorable_gci;
   Uint32 c_set_initial_start_flag;
-  Uint64 c_current_time; // Updated approx. every 10ms
+  NDB_TICKS c_current_time; // Updated approx. every 10ms
 
   /* Limit the number of concurrent table definition writes during LCP
    * This avoids exhausting the DIH page pool
