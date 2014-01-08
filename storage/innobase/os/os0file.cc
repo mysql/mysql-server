@@ -3082,7 +3082,7 @@ retry:
 	if (!os_has_said_disk_full) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset "UINT64PF"."
+			"Write to file %s failed at offset " UINT64PF "."
 			" %lu bytes should have been written,"
 			" only %ld were written."
 			" Operating system error number %lu."

@@ -65,6 +65,8 @@ struct innodb_conn_data_struct {
 	ib_ulint_t	cmd_buf_len;	/*!< cmd buffer len */
 	bool		result_in_use;	/*!< result set or above row_buf
 					contain active result set */
+	bool		use_default_mem;/*!<  whether to use default engine
+					(memcached) memory */
 	void*		mul_col_buf;	/*!< buffer to construct final result
 					from multiple mapped column */
 	ib_ulint_t	mul_col_buf_len;/*!< mul_col_buf len */

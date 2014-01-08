@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -189,25 +189,6 @@ IF(WITH_DEFAULT_COMPILER_OPTIONS)
 ENDIF()
 IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
-ENDIF()
-
-#
-# Control aspects of the development environment which are
-# specific to MySQL maintainers and developers.
-#
-INCLUDE(maintainer)
-
-OPTION(MYSQL_MAINTAINER_MODE
-       "MySQL maintainer-specific development environment" OFF)
-
-# Whether the maintainer mode compiler options should be enabled.
-IF(MYSQL_MAINTAINER_MODE)
-  IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
-  ENDIF()
 ENDIF()
 
 # Add macros
@@ -467,21 +448,10 @@ MYSQL_CHECK_LIBEVENT()
 # Why doesn't these flags affect the entire build?
 # Because things may already have been included with ADD_SUBDIRECTORY
 #
-IF(MYSQL_MAINTAINER_MODE)
-  # Set compiler flags required under maintainer mode.
-  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
-  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
-ENDIF()
+OPTION(MYSQL_MAINTAINER_MODE
+       "MySQL maintainer-specific development environment" OFF)
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  STRING(REGEX MATCH "-Werror"
-    BUILD_WITH_WERROR ${CMAKE_CXX_FLAGS})
-  IF(BUILD_WITH_WERROR)
-    SET("COMPILE_FLAG_WERROR" 1)
-  ENDIF()
-ENDIF()
+INCLUDE(maintainer)
 
 IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
@@ -521,10 +491,11 @@ ENDIF()
 ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(sql/share)
-ADD_SUBDIRECTORY(scripts)
+
 IF(UNIX)
   ADD_SUBDIRECTORY(man)
 ENDIF()
+
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
   ADD_SUBDIRECTORY(sql)
@@ -534,7 +505,13 @@ IF(NOT WITHOUT_SERVER)
    ADD_SUBDIRECTORY(libmysqld)
    ADD_SUBDIRECTORY(libmysqld/examples)
   ENDIF(WITH_EMBEDDED_SERVER)
+ENDIF()
 
+# scripts/mysql_config depends on client and server targets loaded above.
+# It is referenced by some of the directories below, so we insert it here.
+ADD_SUBDIRECTORY(scripts)
+
+IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
