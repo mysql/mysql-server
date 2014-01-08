@@ -321,7 +321,6 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
 
-PSI_cond_key key_COND_terminate_compress_thread;
 static PSI_thread_key key_thread_compress_gtid_table;
 
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
@@ -708,7 +707,6 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_binlog;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
-mysql_cond_t COND_terminate_compress_thread;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -1174,23 +1172,27 @@ public:
 static void terminate_compress_gtid_table_thread()
 {
   DBUG_ENTER("terminate_compress_gtid_table_thread");
-  DBUG_ASSERT(compress_thread_id != 0);
+  DBUG_ASSERT(compress_thread_id != 0); // remove later
   int error= 0;
   terminate_compress_thread= true;
   /* Notify suspended compression thread. */
   mysql_cond_signal(&COND_compress_gtid_table);
 
+  if (compress_thread_id != 0)
+  {
 #ifdef _WIN32
-  HANDLE handle= pthread_get_handle(compress_thread_id);
-  error= pthread_join_with_handle(handle);
+    HANDLE handle= pthread_get_handle(compress_thread_id);
+    if (handle)
+      error= pthread_join_with_handle(handle);
 #else
-  error= pthread_join(compress_thread_id, NULL);
+    error= pthread_join(compress_thread_id, NULL);
 #endif
+    compress_thread_id= 0;
+  }
 
   if (0 != error)
     sql_print_warning("Could not join gtid table compression thread. "
                       "error:%d", error);
-  compress_thread_id= 0;
 
   DBUG_VOID_RETURN;
 }
@@ -2504,9 +2506,6 @@ pthread_handler_t compress_gtid_table(void *arg)
   deinit_thd(thd);
   DBUG_LEAVE;
   my_thread_end();
-  //sql_print_information("before signal COND_terminate_compress_thread");
-  //mysql_cond_signal(&COND_terminate_compress_thread);
-  //sql_print_information("after signal COND_terminate_compress_thread");
   pthread_exit(0);
   return 0;
 }
@@ -3393,8 +3392,6 @@ static int init_thread_environment()
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table, NULL);
-  mysql_cond_init(key_COND_terminate_compress_thread,
-                  &COND_terminate_compress_thread, NULL);
   sp_cache_init();
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
@@ -8014,8 +8011,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL},
-  { &key_COND_terminate_compress_thread, "COND_terminate_compress_thread", PSI_FLAG_GLOBAL}
+  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
