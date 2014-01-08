@@ -5972,11 +5972,17 @@ pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker,
 
 PSI_prepared_stmt_locker*
 pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
-                          PSI_prepared_stmt* prepared_stmt)
+                          PSI_prepared_stmt* prepared_stmt,
+                          PSI_statement_key key)
 {
   DBUG_ASSERT(state != NULL);
 
   if (! flag_global_instrumentation)
+    return NULL;
+  PFS_statement_class *klass= find_statement_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  if (! klass->m_enabled)
     return NULL;
 
   if (flag_thread_instrumentation)
@@ -5990,7 +5996,7 @@ pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
 
   state->m_flags= 0;
 
-  if(1)//if timed)
+  if(klass->m_timed)
   {
     state->m_flags|= STATE_FLAG_TIMED;
     state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
@@ -6015,7 +6021,7 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   ulonglong wait_time;
   PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_stat;
 
-  if (1)//state->m_flags & STATE_FLAG_TIMED)
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
