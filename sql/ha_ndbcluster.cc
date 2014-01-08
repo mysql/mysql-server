@@ -15340,12 +15340,12 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     }
   }
 
-  if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
+  if (alter_flags->is_set(HA_CHANGE_AUTOINCREMENT_VALUE))
   {
     /* Check that only auto_increment value was changed */
-    HA_ALTER_FLAGS change_auto_flags=
-      change_auto_flags | HA_CHANGE_AUTOINCREMENT_VALUE;
-    if ((*alter_flags & ~change_auto_flags).is_set())
+    HA_ALTER_FLAGS changed_flags = *alter_flags;
+    changed_flags.clear_bit(HA_CHANGE_AUTOINCREMENT_VALUE);
+    if (!changed_flags.is_clear_all())
     {
       DBUG_PRINT("info", ("Not only auto_increment value changed"));
       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
