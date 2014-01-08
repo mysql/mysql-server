@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,25 +60,6 @@ IF(NOT SYSTEM_TYPE)
   ELSE()
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
-ENDIF()
-
-# Always enable -Wall for gnu C/C++
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-ENDIF()
-
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
-ENDIF()
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
