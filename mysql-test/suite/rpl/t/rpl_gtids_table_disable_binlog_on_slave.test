@@ -1,14 +1,14 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
 # ==== Purpose ====
 #
 # WL#6559 Optimize GTIDs for passive slave - store GTIDs in table
 #
-# Verify that we can store gtids into gtid_executed table for transactions
+# Verify that we can store gtids into gtid_executed table for XA transactions
 # and report GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED correctly on
-# master and slave when binlog is enabled.
+# master and slave when binlog is disabled on slave.
 #
 
 --source include/master-slave.inc
