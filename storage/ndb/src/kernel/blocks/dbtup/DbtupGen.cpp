@@ -194,7 +194,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   { // 7
     CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
-    ce.m_flags = 0;
+    ce.m_flags = CALLBACK_ACK;
   }
   {
     CallbackTable& ct = m_callbackTable;

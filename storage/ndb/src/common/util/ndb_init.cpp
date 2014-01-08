@@ -26,18 +26,15 @@ NdbMutex *g_ndb_connection_mutex = NULL;
 extern class EventLogger * create_event_logger();
 extern void destroy_event_logger(class EventLogger ** g_eventLogger);
 
-// Turn on monotonic timers and conditions by setting
-// this flag before calling ndb_init 
-int g_ndb_init_need_monotonic = 0;
-
 static int ndb_init_called = 0;
 
 extern "C" void NdbMutex_SysInit();
 extern "C" void NdbMutex_SysEnd();
-extern "C" void NdbCondition_initialize(int need_monotonic);
-extern "C" void NdbTick_Init(int need_monotonic);
+extern "C" void NdbCondition_initialize();
 extern "C" int NdbThread_Init();
 extern "C" void NdbThread_End();
+
+extern void NdbTick_Init();
 extern void NdbOut_Init();
 
 extern "C"
@@ -61,12 +58,8 @@ ndb_init_internal()
       exit(1);
     }
   }
-  /* Always turn on monotonic unless on Solaris */  
-#ifndef __sun
-  g_ndb_init_need_monotonic = 1;
-#endif
-  NdbTick_Init(g_ndb_init_need_monotonic);
-  NdbCondition_initialize(g_ndb_init_need_monotonic);
+  NdbTick_Init();
+  NdbCondition_initialize();
   NdbThread_Init();
 }
 

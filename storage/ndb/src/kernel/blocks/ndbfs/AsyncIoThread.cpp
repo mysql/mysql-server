@@ -126,8 +126,7 @@ AsyncIoThread::run()
 {
   bool first_flag = true;
   Request *request;
-  struct MicroSecondTimer last_yield_timer;
-  int res = 0;
+  NDB_TICKS last_yield_ticks;
 
   // Create theMemoryChannel in the thread that will wait for it
   NdbMutex_Lock(theStartMutexPtr);
@@ -151,8 +150,7 @@ AsyncIoThread::run()
        * file system where lots of CPU is used by this thread.
        */
       bool yield_flag = false;
-      struct MicroSecondTimer current_timer;
-      int res1 = NdbTick_getMicroTimer(&current_timer);
+      const NDB_TICKS current_ticks = NdbTick_getCurrentTicks();
 
       if (first_flag)
       {
@@ -161,18 +159,11 @@ AsyncIoThread::run()
       }
       else
       {
-        if (res || res1)
+        Uint64 micros_passed =
+          NdbTick_Elapsed(last_yield_ticks, current_ticks).microSec();
+        if (micros_passed > 10000)
         {
           yield_flag = true;
-        }
-        else
-        {
-          NDB_TICKS micros_passed =
-            NdbTick_getMicrosPassed(last_yield_timer, current_timer);
-          if (micros_passed > 10000)
-          {
-            yield_flag = true;
-          }
         }
       }
       if (yield_flag)
@@ -181,8 +172,7 @@ AsyncIoThread::run()
         {
           m_real_time = false;
         }
-        last_yield_timer = current_timer;
-        res = res1;
+        last_yield_ticks = current_ticks;
       }
     }
     request = theMemoryChannelPtr->readChannel();

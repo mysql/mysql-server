@@ -243,7 +243,7 @@ private:
   struct ArbitSignal {
     GlobalSignalNumber gsn;
     ArbitSignalData data;
-    NDB_TICKS timestamp;
+    NDB_TICKS startticks;
 
     ArbitSignal() {}
 
@@ -256,12 +256,14 @@ private:
     }
 
     inline void setTimestamp() {
-      timestamp = NdbTick_CurrentMillisecond();
+      startticks = NdbTick_getCurrentTicks();
     }
 
-    inline NDB_TICKS getTimediff() {
-      NDB_TICKS now = NdbTick_CurrentMillisecond();
-      return now < timestamp ? 0 : now - timestamp;
+    inline Uint64 getTimediff() {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      return NdbTick_Compare(now,startticks) > 0 //Ticked forwards? 
+	? NdbTick_Elapsed(startticks,now).milliSec()
+        : 0;
     }
   };
 

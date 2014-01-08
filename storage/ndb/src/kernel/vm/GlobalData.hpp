@@ -27,11 +27,9 @@
 #include <NodeState.hpp>
 #include <NodeInfo.hpp>
 #include "ArrayPool.hpp"
+#include <NdbTick.h>
 
 // #define GCP_TIMER_HACK
-#ifdef GCP_TIMER_HACK
-#include <NdbTick.h>
-#endif
 
 
 #define JAM_FILE_ID 277
@@ -50,7 +48,7 @@ struct GlobalData {
   Uint32     m_restart_seq;           //
   NodeVersionInfo m_versionInfo;
   
-  Uint64     internalMillisecCounter; // Owned by ThreadConfig::
+  NDB_TICKS  internalTicksCounter;    // Owned by ThreadConfig::
   Uint32     highestAvailablePrio;    // Owned by FastScheduler::
   Uint32     JobCounter;              // Owned by FastScheduler
   Uint64     JobLap;                  // Owned by FastScheduler
@@ -135,11 +133,11 @@ public:
   // timings are local to the node
 
   // from prepare to commit (DIH, TC)
-  MicroSecondTimer gcp_timer_commit[2];
+  NDB_TICKS gcp_timer_commit[2];
   // from GCP_SAVEREQ to GCP_SAVECONF (LQH)
-  MicroSecondTimer gcp_timer_save[2];
+  NDB_TICKS gcp_timer_save[2];
   // sysfile update (DIH)
-  MicroSecondTimer gcp_timer_copygci[2];
+  NDB_TICKS gcp_timer_copygci[2];
 
   // report threshold in ms, if 0 guessed, set with dump 7901 <limit>
   Uint32 gcp_timer_limit;
