@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -702,7 +702,8 @@ create_prepare_stmt_noop(void *identity NNN,
 
 static PSI_prepared_stmt_locker*
 start_prepare_stmt_noop(PSI_prepared_stmt_locker_state *state NNN,
-                        PSI_prepared_stmt *prepared_stmt NNN)
+                        PSI_prepared_stmt *prepared_stmt NNN,
+                        PSI_statement_key key NNN)
 {
   return NULL;
 }

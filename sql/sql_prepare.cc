@@ -2247,7 +2247,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
   else
     stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)packet, (uint)packet_length);
    
-  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt); 
+  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt, com_statement_info[thd->lex->sql_command].m_key);
 #endif
 
   if (stmt->prepare(packet, packet_length))
@@ -2434,7 +2434,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   else
     stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)query, query_len);
    
-  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt); 
+  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt, sql_statement_info[thd->lex->sql_command].m_key); 
 #endif
 
   if (stmt->prepare(query, query_len))
