@@ -8415,23 +8415,25 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
       if (c_lcpState.m_participatingLQH.get(nodePtr.i))
       {
 
-	Uint32 index = 0;
 	Uint32 count = nodePtr.p->noOfQueuedChkpt;
-	while(index < count){
-	  if(nodePtr.p->queuedChkpt[index].tableId == tabPtr.i){
-	    jam();
-	    //	    g_eventLogger->info("Unqueuing %d", index);
-
-	    count--;
-	    for(Uint32 i = index; i<count; i++){
-	      jam();
-	      nodePtr.p->queuedChkpt[i] = nodePtr.p->queuedChkpt[i + 1];
-	    }
-	  } else {
-	    index++;
-	  }
-	}
-	nodePtr.p->noOfQueuedChkpt = count;
+        Uint32 newindex = 0;
+        for (Uint32 index = 0 ; index < count ; index ++ )
+        {
+          if (nodePtr.p->queuedChkpt[index].tableId != tabPtr.i)
+          {
+            if (newindex != index)
+            {
+              nodePtr.p->queuedChkpt[newindex] = nodePtr.p->queuedChkpt[index];
+            }
+            ++ newindex;
+          }
+          else
+          {
+            jam();
+            // g_eventLogger->info("Unqueuing %d", index);
+  	  }
+        }
+        nodePtr.p->noOfQueuedChkpt = newindex;
       }
     }
   }
