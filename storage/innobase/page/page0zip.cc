@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -23,6 +23,9 @@ Compressed page interface
 
 Created June 2005 by Marko Makela
 *******************************************************/
+
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 
 #include <map>
 using namespace std;
