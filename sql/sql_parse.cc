@@ -5126,8 +5126,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                 Save gtid into table for a DDL statement
                 when binlog is disabled.
               */
-              error= gtid_state->save_gtid_into_table(thd);
-              if (error)
+              if ((error= gtid_state->save_gtid_into_table(thd)))
                 gtid_state->update_on_rollback(thd);
               else
                 gtid_state->update_on_commit(thd);

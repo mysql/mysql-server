@@ -79,7 +79,7 @@ public:
   */
   int compress();
   /**
-    Reset the table.
+    Delete all rows from the table.
 
     @retval
       0    OK
