@@ -147,7 +147,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
-Convert a numeric string that optionally ends in G or M, to a number
+Convert a numeric string that optionally ends in G or M or K, to a number
 containing megabytes.
 @return	next character in string */
 static
@@ -169,6 +169,10 @@ srv_parse_megabytes(
 		size *= 1024;
 		/* fall through */
 	case 'M': case 'm':
+		str++;
+		break;
+	case 'K': case 'k':
+		size /= 1024;
 		str++;
 		break;
 	default:
