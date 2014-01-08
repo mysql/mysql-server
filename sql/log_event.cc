@@ -9666,9 +9666,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
-  // Allocate one extra byte, in case we have to do uint3korr!
   m_rows_buf= (uchar*) my_malloc(key_memory_log_event,
-                                 data_size + 1, MYF(MY_WME)); // didrik
+                                 data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9774,10 +9773,9 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    // Allocate one extra byte, in case we have to do uint3korr!
     uchar* const new_buf=
       (uchar*)my_realloc(key_memory_log_event,
-                         (uchar*)m_rows_buf, (uint) new_alloc + 1,
+                         (uchar*)m_rows_buf, (uint) new_alloc,
                          MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
