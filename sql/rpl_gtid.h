@@ -2876,12 +2876,6 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
 */
 void gtid_post_statement_checks(THD *thd);
 
-/**
-  When a transaction is rolled back, this function releases ownership
-  of any GTIDs that the transaction owns.
-*/
-int gtid_rollback(THD *thd);
-
 int gtid_acquire_ownership_single(THD *thd);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);

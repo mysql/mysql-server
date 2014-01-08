@@ -5127,12 +5127,10 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                 when binlog is disabled.
               */
               error= gtid_state->save_gtid_into_table(thd);
-              global_sid_lock->rdlock();
               if (error)
                 gtid_state->update_on_rollback(thd);
               else
                 gtid_state->update_on_commit(thd);
-              global_sid_lock->unlock();
             }
           }
           MYSQL_QUERY_EXEC_DONE(error);

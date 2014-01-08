@@ -221,7 +221,7 @@ static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
 
-  gtid_rollback(thd);
+  gtid_state->update_on_rollback(thd);
 }
 
 

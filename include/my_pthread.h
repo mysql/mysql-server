@@ -161,6 +161,15 @@ int pthread_create_get_handle(pthread_t *thread_id,
                               HANDLE *out_handle);
 
 /**
+  Get thread HANDLE.
+  @param thread      reference to pthread object
+  @return int
+    @retval !NULL    valid thread handle
+    @retval NULL     failure
+*/
+HANDLE pthread_get_handle(pthread_t thread_id);
+
+/**
   Wait for thread termination.
 
   @param handle       handle of the thread to wait for
@@ -212,7 +221,7 @@ extern int pthread_dummy(int);
 
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
-#define pthread_attr_setscope(A,B)
+#define pthread_attr_setscope(A,B) pthread_dummy(0)
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 #define pthread_yield() SwitchToThread()

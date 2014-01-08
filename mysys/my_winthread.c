@@ -150,6 +150,24 @@ int pthread_create_get_handle(pthread_t *thread_id,
   return pthread_create_base(thread_id, attr, func, param, out_handle);
 }
 
+/**
+   Get thread HANDLE.
+   @param thread      reference to pthread object
+   @return int
+     @retval !NULL    valid thread handle
+     @retval NULL     failure
+
+*/
+HANDLE pthread_get_handle(pthread_t thread_id)
+{
+  HANDLE handle;
+
+  handle= OpenThread(SYNCHRONIZE, FALSE, thread_id);
+  if (!handle)
+    my_osmaperr(GetLastError());
+  return handle;
+}
+
 void pthread_exit(void *a)
 {
   _endthreadex(0);
