@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2682,7 +2682,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!records)
     records++;					/* purecov: inspected */
   scan_time= records * ROW_EVALUATE_COST + 1;
-  read_time= head->file->scan_time() + scan_time + 1.1;
+  const Cost_estimate table_scan_time= head->file->table_scan_cost();
+  read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -2804,10 +2805,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->covering_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
-      double key_read_time= 
-        param.table->file->index_only_read_time(key_for_use, 
-                                                rows2double(records)) +
-        records * ROW_EVALUATE_COST;
+      const Cost_estimate index_read_time= 
+        param.table->file->index_scan_cost(key_for_use, 1, records);
+      const double key_read_time= index_read_time.total_cost() +
+                                  records * ROW_EVALUATE_COST;
 
       bool chosen= false;
       if (key_read_time < read_time)
@@ -4599,10 +4600,11 @@ skip_to_ror_scan:
     if ((*cur_child)->is_ror)
     {
       /* Ok, we have index_only cost, now get full rows scan cost */
-      cost= param->table->file->
-        read_time(param->real_keynr[(*cur_child)->key_idx], 1,
-                  (*cur_child)->records) +
-        rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
+      const Cost_estimate read_cost=
+        param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
+                                      1, (*cur_child)->records);
+      cost= read_cost.total_cost() +
+            rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
     }
     else
       cost= read_time;
@@ -4737,7 +4739,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 
   double rows= rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost=
-    param->table->file->index_only_read_time(ror_scan->keynr, rows);
+    param->table->file->index_scan_cost(ror_scan->keynr, 1, rows).total_cost();
   DBUG_RETURN(ror_scan);
 }
 
