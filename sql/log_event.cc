@@ -13670,10 +13670,8 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   rpl_sidno sidno= get_sidno(true);
   if (sidno < 0)
     DBUG_RETURN(1); // out of memory
-  if (thd->owned_gtid.sidno)
-  {
-    gtid_rollback(thd);
-  }
+  /* Gtid rollback */
+  gtid_state->update_on_rollback(thd);
   thd->variables.gtid_next.set(sidno, spec.gtid.gno);
 
   /*

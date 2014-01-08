@@ -1704,7 +1704,7 @@ end:
     implicitly, so the same should happen to its GTID.
   */
   if (!thd->in_active_multi_stmt_transaction())
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
@@ -7262,12 +7262,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
   */
-  if (!thd->owned_gtid.is_null())
-  {
-    global_sid_lock->rdlock();
-    gtid_state->update_on_commit(thd);
-    global_sid_lock->unlock();
-  }
+  gtid_state->update_on_commit(thd);
 
   DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());

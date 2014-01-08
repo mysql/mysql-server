@@ -1519,12 +1519,10 @@ end:
   {
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     /* Release the owned GTID when binlog is disabled. */
-    global_sid_lock->rdlock();
     if (error)
       gtid_state->update_on_rollback(thd);
     else
       gtid_state->update_on_commit(thd);
-    global_sid_lock->unlock();
   }
 
   DBUG_RETURN(error);
@@ -1716,7 +1714,7 @@ int ha_rollback_trans(THD *thd, bool all)
     complete transaction is being rollback or autocommit=1.
   */
   if (is_real_trans)
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this

@@ -487,17 +487,3 @@ void gtid_post_statement_checks(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-
-int gtid_rollback(THD *thd)
-{
-  DBUG_ENTER("gtid_rollback");
-
-  if (!thd->owned_gtid.is_null())
-  {
-    global_sid_lock->rdlock();
-    gtid_state->update_on_rollback(thd);
-    global_sid_lock->unlock();
-  }
-
-  DBUG_RETURN(0);
-}

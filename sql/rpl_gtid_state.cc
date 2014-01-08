@@ -176,7 +176,12 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
 void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
-  update_owned_gtids_impl(thd, true);
+  if (!thd->owned_gtid.is_null())
+  {
+    global_sid_lock->rdlock();
+    update_owned_gtids_impl(thd, true);
+    global_sid_lock->unlock();
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -186,6 +191,7 @@ void Gtid_state::update_on_rollback(THD *thd)
   DBUG_ENTER("Gtid_state::update_on_rollback");
   if (!thd->owned_gtid.is_null())
   {
+    global_sid_lock->rdlock();
     /*
       Remove the gtid from executed_gtids variable if
       the transation was rollbacked.
@@ -205,9 +211,11 @@ void Gtid_state::update_on_rollback(THD *thd)
       if (lost_gtids->contains_gtid(thd->owned_gtid))
         lost_gtids->_remove_gtid(thd->owned_gtid.sidno, thd->owned_gtid.gno);
     }
+
+    update_owned_gtids_impl(thd, false);
+    global_sid_lock->unlock();
   }
 
-  update_owned_gtids_impl(thd, false);
   DBUG_VOID_RETURN;
 }
 
