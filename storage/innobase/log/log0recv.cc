@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -23,6 +23,10 @@ Recovery
 
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
+
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <stdio.h>                              // Solaris/x86 header file bug
 
 #include <vector>
 #include "log0recv.h"
