@@ -1258,7 +1258,7 @@ Thd_ndb::~Thd_ndb()
       {
         sql_print_information("tid %u: node[%u] "
                               "transaction_hint=%u, transaction_no_hint=%u",
-                              (unsigned)current_thd->thread_id, i,
+                              (unsigned)m_thd->thread_id, i,
                               m_transaction_hint_count[i],
                               m_transaction_no_hint_count[i]);
       }
