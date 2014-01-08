@@ -7410,59 +7410,47 @@ cleanup:
 // auto-increment field (if auto-increment field is the first field of a key).
 //
 void ha_tokudb::init_auto_increment() {
-    DBT key;
-    DBT value;
     int error;
-    HA_METADATA_KEY key_val = hatoku_max_ai;
-    memset(&key, 0, sizeof(key));
-    memset(&value, 0, sizeof(value));
-    key.data = &key_val;
-    key.size = sizeof(key_val);
-    value.flags = DB_DBT_USERMEM;
     DB_TXN* txn = NULL;
 
     error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) {
         share->last_auto_increment = 0;    
-    }
-    else {
-        //
-        // First retrieve hatoku_max_ai, which is max value used by auto increment
-        // column so far, the max value could have been auto generated (e.g. insert (NULL))
-        // or it could have been manually inserted by user (e.g. insert (345))
-        //
-        value.ulen = sizeof(share->last_auto_increment);
-        value.data = &share->last_auto_increment;
-        error = share->status_block->get(
-            share->status_block, 
-            txn, 
-            &key, 
-            &value, 
-            0
-            );
-        
-        if (error || value.size != sizeof(share->last_auto_increment)) {
-            share->last_auto_increment = 0;
-        }
+    } else {
+        HA_METADATA_KEY key_val;
+        DBT key; 
+        memset(&key, 0, sizeof(key));
+        key.data = &key_val;
+        key.size = sizeof(key_val);
+        DBT value; 
+        memset(&value, 0, sizeof(value));
+        value.flags = DB_DBT_USERMEM;
 
-        //
-        // Now retrieve the initial auto increment value, as specified by create table
+        // Retrieve the initial auto increment value, as specified by create table
         // so if a user does "create table t1 (a int auto_increment, primary key (a)) auto_increment=100",
         // then the value 100 should be stored here
-        //
         key_val = hatoku_ai_create_value;
         value.ulen = sizeof(share->auto_inc_create_value);
         value.data = &share->auto_inc_create_value;
-        error = share->status_block->get(
-            share->status_block, 
-            txn, 
-            &key, 
-            &value, 
-            0
-            );
+        error = share->status_block->get(share->status_block, txn, &key, &value, 0);
         
         if (error || value.size != sizeof(share->auto_inc_create_value)) {
             share->auto_inc_create_value = 0;
+        }
+
+        // Retrieve hatoku_max_ai, which is max value used by auto increment
+        // column so far, the max value could have been auto generated (e.g. insert (NULL))
+        // or it could have been manually inserted by user (e.g. insert (345))
+        key_val = hatoku_max_ai;
+        value.ulen = sizeof(share->last_auto_increment);
+        value.data = &share->last_auto_increment;
+        error = share->status_block->get(share->status_block, txn, &key, &value, 0);
+        
+        if (error || value.size != sizeof(share->last_auto_increment)) {
+            if (share->auto_inc_create_value)
+                share->last_auto_increment = share->auto_inc_create_value - 1;
+            else
+                share->last_auto_increment = 0;
         }
 
         commit_txn(txn, 0);
