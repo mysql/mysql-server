@@ -323,6 +323,7 @@ void locktree::manager::run_escalation_for_test(void) {
 
 void locktree::manager::run_escalation(void) {
     uint64_t t0 = toku_current_time_microsec();
+#if DO_ESCALATOR_THREAD
     // run escalation on the background thread
     int r;
     toku_mutex_lock(&m_escalator_mutex);
@@ -337,8 +338,10 @@ void locktree::manager::run_escalation(void) {
     wakeup_time.tv_nsec = (t % 1000000) * 1000;
     r = toku_cond_timedwait(&m_escalator_done, &m_escalator_mutex, &wakeup_time);
     toku_mutex_unlock(&m_escalator_mutex);
+#else
     // else run escalation on this thread
-    // mutex_lock(); escalate_all_locktrees(); mutex_unlock();
+    mutex_lock(); escalate_all_locktrees(); mutex_unlock();
+#endif
     uint64_t t1 = toku_current_time_microsec();
     add_escalator_wait_time(t1 - t0);
 }
@@ -403,18 +406,22 @@ int locktree::manager::iterate_pending_lock_requests(
     return r;
 }
 
+#if DO_ESCALATOR_THREAD
 static void *escalator_thread(void *arg) {
     locktree::manager *mgr = reinterpret_cast<locktree::manager*>(arg);
     mgr->escalator_work();
     return arg;
 }
+#endif
 
 void locktree::manager::escalator_init(void) {
     ZERO_STRUCT(m_escalator_mutex);
     toku_mutex_init(&m_escalator_mutex, nullptr);
+#if DO_ESCALATOR_THREAD
     toku_cond_init(&m_escalator_work, nullptr);
     toku_cond_init(&m_escalator_done, nullptr);
     m_escalator_killed = false;
+#endif
     m_escalation_count = 0;
     m_escalation_time = 0;
     m_wait_escalation_count = 0;
@@ -422,11 +429,14 @@ void locktree::manager::escalator_init(void) {
     m_long_wait_escalation_count = 0;
     m_long_wait_escalation_time = 0;
     m_escalation_latest_result = 0;
+#if DO_ESCALATOR_THREAD
     int r = toku_pthread_create(&m_escalator_id, nullptr, escalator_thread, this);
     assert_zero(r);
+#endif
 }
 
 void locktree::manager::escalator_destroy(void) {
+#if DO_ESCALATOR_THREAD
     toku_mutex_lock(&m_escalator_mutex);
     m_escalator_killed = true;
     toku_cond_broadcast(&m_escalator_work);
@@ -434,9 +444,12 @@ void locktree::manager::escalator_destroy(void) {
     void *ret;
     int r = toku_pthread_join(m_escalator_id, &ret);
     assert_zero(r);
+#endif
     toku_mutex_destroy(&m_escalator_mutex);
+#if DO_ESCALATOR_THREAD
     toku_cond_destroy(&m_escalator_work);
     toku_cond_destroy(&m_escalator_done);
+#endif
 }
 
 void locktree::manager::escalate_all_locktrees(void) {
@@ -475,6 +488,7 @@ void locktree::manager::add_escalator_wait_time(uint64_t t) {
     toku_mutex_unlock(&m_escalator_mutex);
 }
 
+#if DO_ESCALATOR_THREAD
 void locktree::manager::escalator_work(void) {
     toku_mutex_lock(&m_escalator_mutex);
     while (!m_escalator_killed) {
@@ -490,6 +504,7 @@ void locktree::manager::escalator_work(void) {
     }
     toku_mutex_unlock(&m_escalator_mutex);
 }
+#endif
 
 #define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
 
