@@ -1171,9 +1171,9 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     int r = toku_fifo_create(&cn->buffer); assert_zero(r);
-    cn->fresh_message_tree.create();
-    cn->stale_message_tree.create();
-    cn->broadcast_list.create();
+    cn->fresh_message_tree.create_no_array();
+    cn->stale_message_tree.create_no_array();
+    cn->broadcast_list.create_no_array();
     memset(cn->flow, 0, sizeof cn->flow);
     return cn;
 }
