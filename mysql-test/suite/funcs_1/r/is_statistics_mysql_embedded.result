@@ -19,6 +19,8 @@ def	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE
 def	mysql	event	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	event	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	func	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	gtid_executed	0	mysql	PRIMARY	1	sid	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	gtid_executed	0	mysql	PRIMARY	2	gno_start	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_category	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_keyword	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
@@ -87,6 +89,8 @@ def	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE
 def	mysql	event	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	event	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	func	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	gtid_executed	0	mysql	PRIMARY	1	sid	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	gtid_executed	0	mysql	PRIMARY	2	gno_start	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_category	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	help_keyword	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
