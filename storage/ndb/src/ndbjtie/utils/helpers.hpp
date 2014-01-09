@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright 2010 Sun Microsystems, Inc.
+ All rights reserved. Use is subject to license terms.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #ifndef helpers_hpp
 #define helpers_hpp
 
-#include <ndb_global.h>
 #include <stdio.h> // not using namespaces yet
 #include <stdlib.h> // not using namespaces yet
 
