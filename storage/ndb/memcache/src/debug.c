@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,7 +18,6 @@
  02110-1301  USA
  */
 
-#include <ndb_global.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>

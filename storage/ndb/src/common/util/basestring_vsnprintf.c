@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 /* define on IRIX to get posix compliant vsnprintf */
 #define _XOPEN_SOURCE 500
 #endif
-
-#include <ndb_global.h>
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
 

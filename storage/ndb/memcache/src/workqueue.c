@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@
    has access to the worklist. 
 */
 
-#include <ndb_global.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
