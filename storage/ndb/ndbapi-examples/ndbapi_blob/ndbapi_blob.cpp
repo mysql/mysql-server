@@ -29,6 +29,8 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
+#include <stdlib.h>
+#include <string.h>
 /* Used for cout. */
 #include <iostream>
 #include <stdio.h>

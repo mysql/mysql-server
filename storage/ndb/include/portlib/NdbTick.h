@@ -133,6 +133,7 @@ private:
 
   friend void NdbTick_Init();
 
+  NdbDuration(Uint64 ticks) : t(ticks) {};
 }; //class NdbDuration
 
 
@@ -167,18 +168,27 @@ NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end)
 {
   assert(NdbTick_IsValid(start));
   assert(NdbTick_IsValid(end));
-  assert(end.t >= start.t || !NdbTick_IsMonotonic());
+
+  if (end.t >= start.t)
+  {
+    return NdbDuration(end.t - start.t);
+  }
 
   /**
-   * Even if asserted above, we protect agains backward leaping
-   * timers by returning 0 if such are detected. This is likely less
-   * harmfull than returning a huge Uint which would be the result
-   * of that subtraction. Even the monotonic clock is known buggy
+   * Clock has ticked backwards! 
+   * We protect agains backward leaping timers by returning 0
+   * if detected. This is less harmfull than returning a huge
+   * Uint64 which would be the result of that subtraction.
+   * Even the monotonic clock is known buggy
    * on some older BIOS and virtualized platforms.
    */
-  NdbDuration elapsed;
-  elapsed.t = (end.t > start.t) ? (end.t - start.t) : 0;
-  return elapsed;
+  else if (NdbTick_IsMonotonic())
+  {
+    /* Don't accept more than 10ms 'noise' if monotonic */
+    assert(NdbDuration(start.t-end.t).milliSec() <= 10);
+  }
+
+  return NdbDuration(0);
 }
 
 static inline Uint64
