@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ SET(NDBD_LIBS ndbblocks ndbkernel ndberror ndbtransport
 )
 
 IF(WIN32)
-  # Add the rseource files for logging to event log
+  # Add the resource files for logging to event log
   SET(NDBD_EXTRA_SRC
     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin)
@@ -59,10 +59,8 @@ MYSQL_ADD_EXECUTABLE(ndbd
   COMPONENT ClusterDataNode)
 TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched ${LIBDL})
 
-IF(NDB_BUILD_NDBMTD)
-  MYSQL_ADD_EXECUTABLE(ndbmtd
-    main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
-    DESTINATION ${INSTALL_SBINDIR}
-    COMPONENT ClusterDataNode)
-  TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})
-ENDIF()
+MYSQL_ADD_EXECUTABLE(ndbmtd
+  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
+  DESTINATION ${INSTALL_SBINDIR}
+  COMPONENT ClusterDataNode)
+TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})

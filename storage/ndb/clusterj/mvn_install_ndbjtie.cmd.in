@@ -1,0 +1,1 @@
+mvn.cmd install:install-file -Dfile=/Users/clr/ndb/bzr-repo/mysql-5.5-cluster-7.2/storage/ndb/src/ndbjtie/ndbjtie-@JAVA_NDB_VERSION@.jar -DgroupId=ndbjtie -DartifactId=ndbjtie -Dversion=@JAVA_NDB_VERSION@@JAVA_MVN_VERSION@ -Dpackaging=jar -DgeneratePom=true

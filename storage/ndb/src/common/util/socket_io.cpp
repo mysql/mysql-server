@@ -40,7 +40,6 @@ poll_socket(ndb_socket_t socket, bool read, bool write,
   // Calculate elapsed time in this function
   const NDB_TICKS now = NdbTick_getCurrentTicks();
   const int elapsed_millis = (int)(NdbTick_Elapsed(start,now).milliSec());
-  assert(NdbTick_Compare(start,now) <= 0);
 
   // Update the total elapsed time
   *total_elapsed_millis += elapsed_millis;
