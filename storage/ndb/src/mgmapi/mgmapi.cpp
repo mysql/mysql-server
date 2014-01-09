@@ -126,56 +126,82 @@ struct ndb_mgm_handle {
 
 
 /*
-  Check if version "curr" is greater than or equal to
-  a list of given versions
+  Check if version "curr" is new relative a list of given versions.
+
+  curr is regarded new relative a list of versions if
+  either, curr is greater than or equal a version in list
+  with same major and minor version, or, curr is greater
+  than all versions in list.
 
   NOTE! The list of versions to check against must be listed
-  with the highest version first and terminated with version 0
+  with the highest version first, and at most one entry per
+  major and minor version, and terminated with version 0
 */
 static inline
-bool check_version_ge(Uint32 curr, ...)
+bool check_version_new(Uint32 curr, ...)
 {
-  Uint32 version, last = ~0;
+  Uint32 version, last = ~0U;
 
   va_list versions;
   va_start(versions, curr);
-  while ((version= va_arg(versions, Uint32)))
+  while ((version= va_arg(versions, Uint32)) != 0U)
   {
+    // check that version list is descending
+    assert(version < last);
+    // check at most one entry per major.minor
+    assert(!(ndbGetMajor(version) == ndbGetMajor(last) && ndbGetMinor(version) == ndbGetMinor(last)));
+
     if (curr >= version)
     {
       va_end(versions);
-      return true;
+      if (last == ~0U)
+      {
+        return true; // curr is greater than all versions in list (or equal the first and greatest)
+      }
+      return ndbGetMajor(curr) == ndbGetMajor(version) && ndbGetMinor(curr) == ndbGetMinor(version); 
     }
-    assert(version < last); // check that version list is descending
+
     last = version;
   }
-
   va_end(versions);
+
   return false;
 }
 
 static inline void
-test_check_version_ge(void)
+test_check_version_new(void)
 {
-  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
-                          NDB_MAKE_VERSION(7,0,20),
-                          0) == false);
-  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
-                          NDB_MAKE_VERSION(7,1,6),
-                          NDB_MAKE_VERSION(7,0,20),
-                          0) == false);
-  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
-                          NDB_MAKE_VERSION(7,1,6),
-                          NDB_MAKE_VERSION(7,0,18),
-                          0));
-  assert(check_version_ge(NDB_MAKE_VERSION(7,1,8),
-                          NDB_MAKE_VERSION(7,1,6),
-                          NDB_MAKE_VERSION(7,0,18),
-                          0));
-  assert(check_version_ge(NDB_MAKE_VERSION(5,5,6),
-                          NDB_MAKE_VERSION(7,1,6),
-                          NDB_MAKE_VERSION(7,0,18),
-                          0) == false);
+  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
+                           NDB_MAKE_VERSION(7,0,20),
+                           0) == false);
+  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,20),
+                           0) == false);
+  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,18),
+                           0));
+  assert(check_version_new(NDB_MAKE_VERSION(7,1,5),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,20),
+                           0) == false);
+  assert(check_version_new(NDB_MAKE_VERSION(7,1,8),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,18),
+                           0));
+  assert(check_version_new(NDB_MAKE_VERSION(7,2,3),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,18),
+                           0));
+  assert(check_version_new(NDB_MAKE_VERSION(7,1,3),
+                           NDB_MAKE_VERSION(7,2,6),
+                           NDB_MAKE_VERSION(7,0,18),
+                           0) == false);
+  assert(check_version_new(NDB_MAKE_VERSION(5,5,6),
+                           NDB_MAKE_VERSION(7,1,6),
+                           NDB_MAKE_VERSION(7,0,18),
+                           0) == false);
 }
 
 #define SET_ERROR(h, e, s) setError((h), (e), __LINE__, (s))
@@ -1393,10 +1419,10 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   
   args.put("node", node_list_str.c_str());
   args.put("abort", abort);
-  if (check_version_ge(handle->mgmd_version(),
-                       NDB_MAKE_VERSION(7,1,8),
-                       NDB_MAKE_VERSION(7,0,19),
-                       0))
+  if (check_version_new(handle->mgmd_version(),
+                        NDB_MAKE_VERSION(7,1,8),
+                        NDB_MAKE_VERSION(7,0,19),
+                        0))
     args.put("force", force);
   else
     SET_ERROR(handle, NDB_MGM_STOP_FAILED,
@@ -1544,10 +1570,10 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   args.put("initialstart", initial);
   args.put("nostart", nostart);
 
-  if (check_version_ge(handle->mgmd_version(),
-                       NDB_MAKE_VERSION(7,1,8),
-                       NDB_MAKE_VERSION(7,0,19),
-                       0))
+  if (check_version_new(handle->mgmd_version(),
+                        NDB_MAKE_VERSION(7,1,8),
+                        NDB_MAKE_VERSION(7,0,19),
+                        0))
     args.put("force", force);
   else
     SET_ERROR(handle, NDB_MGM_RESTART_FAILED,
@@ -2540,10 +2566,10 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
 
   if (from_node != 0)
   {
-    if (check_version_ge(handle->mgmd_version(),
-                         NDB_MAKE_VERSION(7,1,16),
-                         NDB_MAKE_VERSION(7,0,27),
-                         0))
+    if (check_version_new(handle->mgmd_version(),
+                          NDB_MAKE_VERSION(7,1,16),
+                          NDB_MAKE_VERSION(7,0,27),
+                          0))
     {
       args.put("from_node", from_node);
     }
@@ -3751,12 +3777,12 @@ ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
   if (!get_mgmd_version(handle))
     DBUG_RETURN(-1);
 
-  if (check_version_ge(handle->mgmd_version(),
-                       NDB_MAKE_VERSION(7,3,3),
-                       NDB_MAKE_VERSION(7,2,14),
-                       NDB_MAKE_VERSION(7,1,28),
-                       NDB_MAKE_VERSION(7,0,40),
-                       0))
+  if (check_version_new(handle->mgmd_version(),
+                        NDB_MAKE_VERSION(7,3,3),
+                        NDB_MAKE_VERSION(7,2,14),
+                        NDB_MAKE_VERSION(7,1,28),
+                        NDB_MAKE_VERSION(7,0,40),
+                        0))
   {
     // The ndb_mgmd supports reporting all ports at once
     DBUG_RETURN(set_dynamic_ports_batched(handle, nodeid,
