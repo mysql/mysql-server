@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef NDB_SAFE_MUTEX_HPP
 #define NDB_SAFE_MUTEX_HPP
 
-#ifdef _WIN32
 #include <ndb_global.h>
+
+#ifdef _WIN32
 #include <my_pthread.h>
 #else
 #include <pthread.h>
