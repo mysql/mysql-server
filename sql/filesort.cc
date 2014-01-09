@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1530,8 +1530,9 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
         log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
+      const Cost_estimate scan_cost= table->file->table_scan_cost();
       const double pq_io_cost=
-        param->max_rows * table->file->scan_time() / 2.0;
+        param->max_rows * scan_cost.total_cost() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
       trace_addon.add("priority_queue_cost", pq_cost);
 
