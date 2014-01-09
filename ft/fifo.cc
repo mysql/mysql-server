@@ -135,6 +135,11 @@ int toku_fifo_create(FIFO *ptr) {
     return 0;
 }
 
+void toku_fifo_resize(FIFO fifo, size_t new_size) {
+    XREALLOC_N(new_size, fifo->memory);
+    fifo->memory_size = new_size;
+}
+
 void toku_fifo_free(FIFO *ptr) {
     FIFO fifo = *ptr;
     if (fifo->memory) toku_free(fifo->memory);
@@ -162,16 +167,10 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
                           + xids_get_size(xids)
                           - sizeof(XIDS_S); //Prevent double counting
     int need_space_total = fifo->memory_used+need_space_here;
-    if (fifo->memory == NULL) {
-        fifo->memory_size = next_power_of_two(need_space_total);
-        XMALLOC_N(fifo->memory_size, fifo->memory);
-    }
-    if (need_space_total > fifo->memory_size) {
-        // Out of memory at the end.
+    if (fifo->memory == NULL || need_space_total > fifo->memory_size) {
+        // resize the fifo to the next power of 2 greater than the needed space
         int next_2 = next_power_of_two(need_space_total);
-        // resize the fifo
-        XREALLOC_N(next_2, fifo->memory);
-        fifo->memory_size = next_2;
+        toku_fifo_resize(fifo, next_2);
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_used);
     fifo_entry_set_msg_type(entry, type);
