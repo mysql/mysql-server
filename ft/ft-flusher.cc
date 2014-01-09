@@ -544,11 +544,13 @@ ct_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_ext
 // a leaf node that is not entirely in memory. If so, then
 // we cannot be sure if the node is reactive.
 //
-static bool may_node_be_reactive(FTNODE node)
+static bool may_node_be_reactive(FT ft, FTNODE node)
 {
-    if (node->height == 0) return true;
+    if (node->height == 0) {
+        return true;
+    }
     else {
-        return (get_nonleaf_reactivity(node) != RE_STABLE);
+        return (get_nonleaf_reactivity(node, ft->h->fanout) != RE_STABLE);
     }
 }
 
@@ -1589,7 +1591,7 @@ static void ft_flush_some_child(
     // Let's do a quick check to see if the child may be reactive
     // If the child cannot be reactive, then we can safely unlock
     // the parent before finishing reading in the entire child node.
-    bool may_child_be_reactive = may_node_be_reactive(child);
+    bool may_child_be_reactive = may_node_be_reactive(ft, child);
 
     paranoid_invariant(child->thisnodename.b!=0);
     //VERIFY_NODE(brt, child);
@@ -1631,7 +1633,7 @@ static void ft_flush_some_child(
     // we wont be splitting/merging child
     // and we have already replaced the bnc
     // for the root with a fresh one
-    enum reactivity child_re = get_node_reactivity(child, ft->h->nodesize);
+    enum reactivity child_re = get_node_reactivity(ft, child);
     if (parent && child_re == RE_STABLE) {
         toku_unpin_ftnode_off_client_thread(ft, parent);
         parent = NULL;
@@ -1661,7 +1663,7 @@ static void ft_flush_some_child(
     // let's get the reactivity of the child again,
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
-    child_re = get_node_reactivity(child, ft->h->nodesize);
+    child_re = get_node_reactivity(ft, child);
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
@@ -1971,7 +1973,7 @@ void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
         //
         // successfully locked child
         //
-        bool may_child_be_reactive = may_node_be_reactive(child);
+        bool may_child_be_reactive = may_node_be_reactive(h, child);
         if (!may_child_be_reactive) {
             // We're going to unpin the parent, so before we do, we must
             // check to see if we need to blow away the basement nodes to

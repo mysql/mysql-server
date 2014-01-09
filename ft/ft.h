@@ -130,13 +130,14 @@ void toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_
 
 void
 toku_ft_init(
-    FT h,
+    FT ft,
     BLOCKNUM root_blocknum_on_disk,
     LSN checkpoint_lsn,
     TXNID root_xid_that_created,
     uint32_t target_nodesize,
     uint32_t target_basementnodesize,
-    enum toku_compression_method compression_method
+    enum toku_compression_method compression_method,
+    uint32_t fanout
     );
 
 int toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
@@ -186,6 +187,8 @@ void toku_ft_set_basementnodesize(FT ft, unsigned int basementnodesize);
 void toku_ft_get_basementnodesize(FT ft, unsigned int *basementnodesize);
 void toku_ft_set_compression_method(FT ft, enum toku_compression_method method);
 void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp);
+void toku_ft_set_fanout(FT ft, unsigned int fanout);
+void toku_ft_get_fanout(FT ft, unsigned int *fanout);
 void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p);
 
 // mark the ft as a blackhole. any message injections will be a no op.

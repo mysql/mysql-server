@@ -355,7 +355,8 @@ test_serialize_nonleaf(void) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -438,7 +439,8 @@ test_serialize_leaf(void) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);

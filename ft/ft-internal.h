@@ -117,15 +117,10 @@ PATENT RIGHTS GRANT:
 #include <util/omt.h>
 #include "bndata.h"
 
-#ifndef FT_FANOUT
-#define FT_FANOUT 16
-#endif
-enum { TREE_FANOUT = FT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN))     // the type plus freshness plus MSN
-};
-
-enum { FT_DEFAULT_NODE_SIZE = 1 << 22 };
+enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
+enum { FT_DEFAULT_FANOUT = 16 };
+enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
 
 //
@@ -238,11 +233,9 @@ void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID ol
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
 bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
-
-enum reactivity get_nonleaf_reactivity (FTNODE node);
-enum reactivity get_node_reactivity (FTNODE node, uint32_t nodesize);
+enum reactivity get_nonleaf_reactivity(FTNODE node, unsigned int fanout);
+enum reactivity get_node_reactivity(FT ft, FTNODE node);
 uint32_t get_leaf_num_entries(FTNODE node);
-
 
 // data of an available partition of a leaf ftnode
 struct ftnode_leaf_basement_node {
@@ -336,7 +329,7 @@ struct ftnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     uint32_t fullhash;
-    int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
+    int n_children; //for internal nodes, if n_children==fanout+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
     DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
@@ -509,6 +502,7 @@ struct ft_header {
     unsigned int nodesize; 
     unsigned int basementnodesize;
     enum toku_compression_method compression_method;
+    unsigned int fanout;
 
     // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
     // This is decremented from our currnt MIN_MSN so as not to clash
@@ -590,6 +584,7 @@ struct ft_options {
     unsigned int nodesize;
     unsigned int basementnodesize;
     enum toku_compression_method compression_method;
+    unsigned int fanout;
     unsigned int flags;
     ft_compare_func compare_fun;
     ft_update_func update_fun;

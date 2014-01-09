@@ -137,6 +137,8 @@ void toku_ft_handle_set_basementnodesize(FT_HANDLE, unsigned int basementnodesiz
 void toku_ft_handle_get_basementnodesize(FT_HANDLE, unsigned int *basementnodesize);
 void toku_ft_handle_set_compression_method(FT_HANDLE, enum toku_compression_method);
 void toku_ft_handle_get_compression_method(FT_HANDLE, enum toku_compression_method *);
+void toku_ft_handle_set_fanout(FT_HANDLE, unsigned int fanout);
+void toku_ft_handle_get_fanout(FT_HANDLE, unsigned int *fanout);
 
 void toku_ft_set_bt_compare(FT_HANDLE, ft_compare_func);
 ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt);
