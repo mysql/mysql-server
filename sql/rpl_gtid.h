@@ -2672,7 +2672,6 @@ public:
     @param thd The THD that this Gtid_state belongs to.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
-  //enum_return_status generate_automatic_gno(THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
     Return true if this Group_cache contains the given GTID.
