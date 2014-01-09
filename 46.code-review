@@ -1,3 +1,11 @@
+Notes during 2014-01-08 Leif/Yoni
+-Should verify (dmt?omt?bndata?) crash or return error on failed verify
+
+DECISIONS:
+    Replace dmt_functor with implicit interface only.  Instead of (for data type x) requiring the name to be dmt_functor<x> just pass the writer's class name into the dmt's template as a new parameter.
+    Replace dmt_functor<default> with comments explaining the "interface"
+
+-==========================================-
 
 See wiki:
 https://github.com/Tokutek/ft-index/wiki/Improving-in-memory-query-performance---Design
