@@ -1,8 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# Test needs myisam for bug#11940249 
+--source include/have_myisam.inc
 --source include/force_myisam_default.inc
-
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 

@@ -1,13 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 # this test needs multithreaded mysqltest
 -- source include/not_embedded.inc
 #
 # Basic log tables test
 #
+# Test needs myisam for some myisam specific testcases
+--source include/have_myisam.inc 
 
 SET @old_general_log_state = @@global.general_log;
 SET @old_log_output=       @@global.log_output;
