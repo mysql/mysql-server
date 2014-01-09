@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5552,7 +5552,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
       fanout*= jt->position->fanout; // fanout is always >= 1
   }
   else
-    read_time= table->file->scan_time();
+    read_time= table->file->table_scan_cost().total_cost();
 
   /*
     Calculate the selectivity of the ref_key for REF_ACCESS. For
@@ -5670,8 +5670,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           to calculate the cost of accessing data rows for one 
           index entry.
         */
+        const Cost_estimate table_scan_time= table->file->table_scan_cost();
         index_scan_time= select_limit/rec_per_key *
-                         min(rec_per_key, table->file->scan_time());
+                         min(rec_per_key, table_scan_time.total_cost());
         if ((ref_key < 0 && is_covering) || 
             (ref_key < 0 && (group || table->force_index)) ||
             index_scan_time < read_time)
