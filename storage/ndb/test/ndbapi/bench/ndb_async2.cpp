@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (C) 2005, 2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +18,6 @@
 
 //#define DEBUG_ON
 
-#include <ndb_global.h>
 #include <string.h>
 #include "userInterface.h"
 

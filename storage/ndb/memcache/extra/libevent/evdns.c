@@ -34,11 +34,10 @@
  * Version: 0.1b
  */
 
+#include <sys/types.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-#include <sys/types.h>
 
 #ifdef WIN32
 #include "misc.h"
