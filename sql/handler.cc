@@ -5414,10 +5414,6 @@ int ha_binlog_end(THD* thd)
     performs a random seek, thus the cost is proportional to the number of
     blocks read.
 
-  @todo
-    Consider joining this function and handler::read_time() into one
-    handler::read_time(keynr, records, ranges, bool index_only) function.
-
   @return
     Estimated cost of 'index only' scan
 */
@@ -5479,11 +5475,11 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
                          can't efficiently determine it
-  @param bufsz    INOUT  IN:  Size of the buffer available for use
+  @param bufsz[in,out]   IN:  Size of the buffer available for use
                          OUT: Size of the buffer that is expected to be actually
                               used, or 0 if buffer is not needed.
-  @param flags    INOUT  A combination of HA_MRR_* flags
-  @param cost     OUT    Estimated cost of MRR access
+  @param flags[in,out]   A combination of HA_MRR_* flags
+  @param cost[out]       Estimated cost of MRR access
 
   @note
     This method (or an overriding one in a derived class) must check for
@@ -5589,11 +5585,9 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
     DBUG_ASSERT(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
-      cost->add_io(index_only_read_time(keyno, total_rows) *
-                   Cost_estimate::IO_BLOCK_READ_COST());
+      *cost= index_scan_cost(keyno, n_ranges, total_rows);
     else
-      cost->add_io(read_time(keyno, n_ranges, total_rows) *
-                   Cost_estimate::IO_BLOCK_READ_COST());
+      *cost= read_cost(keyno, n_ranges, total_rows);
     cost->add_cpu(total_rows * ROW_EVALUATE_COST + 0.01);
   }
   return total_rows;
@@ -5621,11 +5615,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                          range sequence.
   @param n_rows          Estimated total number of records contained within all
                          of the ranges
-  @param bufsz    INOUT  IN:  Size of the buffer available for use
+  @param bufsz[in,out]   IN:  Size of the buffer available for use
                          OUT: Size of the buffer that will be actually used, or
                               0 if buffer is not needed.
-  @param flags    INOUT  A combination of HA_MRR_* flags
-  @param cost     OUT    Estimated cost of MRR access
+  @param flags[in,out]   A combination of HA_MRR_* flags
+  @param cost[out]       Estimated cost of MRR access
 
   @retval
     0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan
@@ -5647,11 +5641,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
   /* Produce the same cost as non-MRR code does */
   if (*flags & HA_MRR_INDEX_ONLY)
-    cost->add_io(index_only_read_time(keyno, n_rows) * 
-                 Cost_estimate::IO_BLOCK_READ_COST());
+    *cost= index_scan_cost(keyno, n_ranges, n_rows);
   else
-    cost->add_io(read_time(keyno, n_ranges, n_rows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
+    *cost= read_cost(keyno, n_ranges, n_rows);
   return 0;
 }
 
@@ -6369,7 +6361,6 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 {
   ha_rows rows_in_last_step;
   uint n_full_steps;
-  double index_read_cost;
 
   const uint elem_size= h->ref_length + 
                         sizeof(void*) * (!MY_TEST(flags & HA_MRR_NO_ASSOCIATION));
@@ -6422,8 +6413,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   cost->add_mem(*buffer_size);
 
   /* Total cost of all index accesses */
-  index_read_cost= h->index_only_read_time(keynr, rows);
-  cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
+  (*cost)+= h->index_scan_cost(keynr, 1, rows);
 
   /*
     Add CPU cost for processing records (see
