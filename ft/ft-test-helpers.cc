@@ -142,7 +142,6 @@ int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char 
 int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, char **keys, int *keylens) {
     FTNODE node;
     assert(testsetup_initialized);
-    assert(n_children<=FT_FANOUT);
     toku_create_new_ftnode(brt, &node, height, n_children);
     int i;
     for (i=0; i<n_children; i++) {

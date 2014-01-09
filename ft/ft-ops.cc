@@ -428,21 +428,21 @@ get_leaf_reactivity (FTNODE node, uint32_t nodesize) {
 }
 
 enum reactivity
-get_nonleaf_reactivity (FTNODE node) {
+get_nonleaf_reactivity(FTNODE node, unsigned int fanout) {
     paranoid_invariant(node->height>0);
     int n_children = node->n_children;
-    if (n_children > TREE_FANOUT) return RE_FISSIBLE;
-    if (n_children*4 < TREE_FANOUT) return RE_FUSIBLE;
+    if (n_children > (int) fanout) return RE_FISSIBLE;
+    if (n_children*4 < (int) fanout) return RE_FUSIBLE;
     return RE_STABLE;
 }
 
 enum reactivity
-get_node_reactivity (FTNODE node, uint32_t nodesize) {
+get_node_reactivity(FT ft, FTNODE node) {
     toku_assert_entire_node_in_memory(node);
     if (node->height==0)
-        return get_leaf_reactivity(node, nodesize);
+        return get_leaf_reactivity(node, ft->h->nodesize);
     else
-        return get_nonleaf_reactivity(node);
+        return get_nonleaf_reactivity(node, ft->h->fanout);
 }
 
 unsigned int
@@ -2689,7 +2689,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
 //  true if relocking is needed
 //  false otherwise
 {
-    enum reactivity re = get_node_reactivity(child, ft->h->nodesize);
+    enum reactivity re = get_node_reactivity(ft, child);
     enum reactivity newre;
     BLOCKNUM child_blocknum;
     uint32_t child_fullhash;
@@ -2723,7 +2723,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             child_blocknum = BP_BLOCKNUM(newparent, childnum);
             child_fullhash = compute_child_fullhash(ft->cf, newparent, childnum);
             toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, PL_WRITE_CHEAP, 1, &newparent, &newchild);
-            newre = get_node_reactivity(newchild, ft->h->nodesize);
+            newre = get_node_reactivity(ft, newchild);
             if (newre == RE_FISSIBLE) {
                 enum split_mode split_mode;
                 if (newparent->height == 1 && (loc & LEFT_EXTREME) && childnum == 0) {
@@ -2769,7 +2769,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             child_blocknum = BP_BLOCKNUM(newparent, childnum);
             child_fullhash = compute_child_fullhash(ft->cf, newparent, childnum);
             toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, PL_READ, 1, &newparent, &newchild);
-            newre = get_node_reactivity(newchild, ft->h->nodesize);
+            newre = get_node_reactivity(ft, newchild);
             if (newre == RE_FUSIBLE && newparent->n_children >= 2) {
                 toku_unpin_ftnode_read_only(ft, newchild);
                 toku_ft_merge_child(ft, newparent, childnum);
@@ -3059,7 +3059,7 @@ void toku_ft_root_put_cmd(
     // injection thread to change lock type back and forth, when only one
     // of them needs to in order to handle the split.  That's not great,
     // but root splits are incredibly rare.
-    enum reactivity re = get_node_reactivity(node, ft->h->nodesize);
+    enum reactivity re = get_node_reactivity(ft, node);
     switch (re) {
     case RE_STABLE:
     case RE_FUSIBLE: // cannot merge anything at the root
@@ -3429,6 +3429,7 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *ft_handle_
     toku_ft_handle_set_nodesize(brt, nodesize);
     toku_ft_handle_set_basementnodesize(brt, basementnodesize);
     toku_ft_handle_set_compression_method(brt, compression_method);
+    toku_ft_handle_set_fanout(brt, 16);
     toku_ft_set_bt_compare(brt, compare_fun);
 
     int r = toku_ft_handle_open(brt, fname, is_create, only_create, cachetable, txn);
@@ -3516,6 +3517,27 @@ toku_ft_handle_get_compression_method(FT_HANDLE t, enum toku_compression_method 
     }
 }
 
+void
+toku_ft_handle_set_fanout(FT_HANDLE ft_handle, unsigned int fanout)
+{
+    if (ft_handle->ft) {
+        toku_ft_set_fanout(ft_handle->ft, fanout);
+    }
+    else {
+        ft_handle->options.fanout = fanout;
+    }
+}
+
+void
+toku_ft_handle_get_fanout(FT_HANDLE ft_handle, unsigned int *fanout)
+{
+    if (ft_handle->ft) {
+        toku_ft_get_fanout(ft_handle->ft, fanout);
+    }
+    else {
+        *fanout = ft_handle->options.fanout;
+    }
+}
 static int
 verify_builtin_comparisons_consistent(FT_HANDLE t, uint32_t flags) {
     if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->options.compare_fun != toku_builtin_compare_fun))
@@ -3582,6 +3604,7 @@ toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
         .nodesize = ft->h->nodesize,
         .basementnodesize = ft->h->basementnodesize,
         .compression_method = ft->h->compression_method,
+        .fanout = ft->h->fanout,
         .flags = ft->h->flags,
         .compare_fun = ft->compare_fun,
         .update_fun = ft->update_fun
@@ -3937,6 +3960,7 @@ void toku_ft_handle_create(FT_HANDLE *ft_handle_ptr) {
     brt->options.nodesize = FT_DEFAULT_NODE_SIZE;
     brt->options.basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
     brt->options.compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
+    brt->options.fanout = FT_DEFAULT_FANOUT;
     brt->options.compare_fun = toku_builtin_compare_fun;
     brt->options.update_fun = NULL;
     *ft_handle_ptr = brt;

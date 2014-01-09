@@ -688,6 +688,29 @@ toku_db_get_compression_method(DB *db, enum toku_compression_method *compression
     return 0;
 }
 
+static int 
+toku_db_change_fanout(DB *db, unsigned int fanout) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    toku_ft_handle_set_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
+static int 
+toku_db_set_fanout(DB *db, unsigned int fanout) {
+    HANDLE_PANICKED_DB(db);
+    if (db_opened(db)) return EINVAL;
+    toku_ft_handle_set_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
+static int 
+toku_db_get_fanout(DB *db, unsigned int *fanout) {
+    HANDLE_PANICKED_DB(db);
+    toku_ft_handle_get_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
 static int
 toku_db_get_fractal_tree_info64(DB *db, uint64_t *num_blocks_allocated, uint64_t *num_blocks_in_use, uint64_t *size_allocated, uint64_t *size_in_use) {
     HANDLE_PANICKED_DB(db);
@@ -1034,6 +1057,9 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(set_compression_method);
     USDB(get_compression_method);
     USDB(change_compression_method);
+    USDB(set_fanout);
+    USDB(get_fanout);
+    USDB(change_fanout);
     USDB(set_flags);
     USDB(get_flags);
     USDB(fd);

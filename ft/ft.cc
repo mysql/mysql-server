@@ -431,6 +431,7 @@ ft_header_create(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that
         .nodesize = options->nodesize,
         .basementnodesize = options->basementnodesize,
         .compression_method = options->compression_method,
+        .fanout = options->fanout,
         .highest_unused_msn_for_upgrade = { .msn = (MIN_MSN.msn - 1) },
         .max_msn_in_ft = ZERO_MSN,
         .time_of_last_optimize_begin = 0,
@@ -606,13 +607,16 @@ toku_ft_init(FT ft,
              TXNID root_xid_that_created,
              uint32_t target_nodesize,
              uint32_t target_basementnodesize,
-             enum toku_compression_method compression_method)
+             enum toku_compression_method compression_method,
+             uint32_t fanout
+             )
 {
     memset(ft, 0, sizeof *ft);
     struct ft_options options = {
         .nodesize = target_nodesize,
         .basementnodesize = target_basementnodesize,
         .compression_method = compression_method,
+        .fanout = fanout,
         .flags = 0,
         .compare_fun = NULL,
         .update_fun = NULL
@@ -633,6 +637,7 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     toku_ft_handle_set_nodesize(t, old_h->h->nodesize);
     toku_ft_handle_set_basementnodesize(t, old_h->h->basementnodesize);
     toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
+    toku_ft_handle_set_fanout(t, old_h->h->fanout);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     int r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
     if (r != 0) {
@@ -1019,6 +1024,19 @@ void toku_ft_set_compression_method(FT ft, enum toku_compression_method method) 
 void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp) {
     toku_ft_lock(ft);
     *methodp = ft->h->compression_method;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_set_fanout(FT ft, unsigned int fanout) {
+    toku_ft_lock(ft);
+    ft->h->fanout = fanout;
+    ft->h->dirty = 1;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_get_fanout(FT ft, unsigned int *fanout) {
+    toku_ft_lock(ft);
+    *fanout = ft->h->fanout;
     toku_ft_unlock(ft);
 }
 

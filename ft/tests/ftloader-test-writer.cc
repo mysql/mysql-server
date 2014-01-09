@@ -262,7 +262,7 @@ static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNI
     assert(fd>=0);
 
     if (verbose) traceit("write to file");
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD);
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 16);
     assert(r==0);
 
     r = queue_destroy(q2);
