@@ -261,9 +261,7 @@ private:
 
     inline Uint64 getTimediff() {
       const NDB_TICKS now = NdbTick_getCurrentTicks();
-      return NdbTick_Compare(now,startticks) > 0 //Ticked forwards? 
-	? NdbTick_Elapsed(startticks,now).milliSec()
-        : 0;
+      return NdbTick_Elapsed(startticks,now).milliSec();
     }
   };
 
