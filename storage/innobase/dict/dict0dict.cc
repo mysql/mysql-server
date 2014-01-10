@@ -963,11 +963,10 @@ dict_table_open_on_name(
 				mutex_exit(&dict_sys->mutex);
 			}
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table %s is corrupted. Please drop the table"
 				" and recreate",
 				ut_get_name(NULL, TRUE, table->name).c_str());
-
 			DBUG_RETURN(NULL);
 		}
 
