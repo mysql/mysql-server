@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ my $opt_build = 1;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
+my $opt_valgrind;
 my $opt_distcheck;
 my $opt_parse_log;
 Getopt::Long::Configure("pass_through");
@@ -54,6 +55,7 @@ GetOptions(
   'n|just-print' => \$opt_just_print,
   'vanilla' => \$opt_vanilla,
   'autotest' => \$opt_autotest,
+  'valgrind' => \$opt_valgrind,
   'distcheck' => \$opt_distcheck,
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
@@ -159,6 +161,17 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
     push(@args, "-DWITH_EMBEDDED_SERVER=1");
+  }
+
+  if ($opt_valgrind)
+  {
+    print("compile-cluster: valgrind build requested, adjusting the knobs\n");
+    # Add HAVE_purify to compiler flags in order to silence
+    # inspected warnings
+    push(@args, "-DCMAKE_C_FLAGS='-DHAVE_purify'");
+    push(@args, "-DCMAKE_CXX_FLAGS='-DHAVE_purify'");
+    # Turn on use of the valgrind headers to enhance detection
+    push(@args, "-DWITH_VALGRIND=1");
   }
 
   # The cmake generator to use
