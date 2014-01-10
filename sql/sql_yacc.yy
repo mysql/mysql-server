@@ -7315,6 +7315,13 @@ alter:
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
             DBUG_ASSERT(!lex->m_sql_cmd);
+            if (lex->ignore)
+            {
+              push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                  ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                                  ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                                  "IGNORE");
+            }
           }
           alter_commands
           {
