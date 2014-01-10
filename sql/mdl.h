@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
+typedef struct st_lf_pins LF_PINS;
 
 /**
   @def ENTER_COND(C, M, S, O)
@@ -927,6 +928,13 @@ private:
     readily available to the wait-for graph iterator.
    */
   MDL_wait_for_subgraph *m_waiting_for;
+  /**
+    Thread's pins (a.k.a. hazard pointers) to be used by lock-free
+    implementation of MDL_map::m_locks container. NULL if pins are
+    not yet allocated from container's pinbox.
+  */
+  LF_PINS *m_pins;
+
 private:
   THD *get_thd() const { return m_owner->get_thd(); }
   MDL_ticket *find_ticket(MDL_request *mdl_req,
@@ -936,6 +944,7 @@ private:
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
   void materialize_fast_path_locks();
+  inline bool fix_pins();
 
 public:
   void find_deadlock();
@@ -991,21 +1000,6 @@ void mdl_destroy();
 extern mysql_mutex_t LOCK_open;
 #endif
 
-
-/*
-  Start-up parameter for the maximum size of the unused MDL_lock objects cache
-  and a constant for its default value.
-*/
-extern ulong mdl_locks_cache_size;
-static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
-
-/*
-  Start-up parameter for the number of partitions of the hash
-  containing all the MDL_lock objects and a constant for
-  its default value.
-*/
-extern ulong mdl_locks_hash_partitions;
-static const ulong MDL_LOCKS_HASH_PARTITIONS_DEFAULT = 8;
 
 /*
   Metadata locking subsystem tries not to grant more than

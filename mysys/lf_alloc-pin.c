@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -438,28 +438,32 @@ static void alloc_free(uchar *first,
                              (void **)&tmp.ptr, first) && LF_BACKOFF);
 }
 
-/*
-  initialize lock-free allocator
+/**
+  Initialize lock-free allocator.
 
-  SYNOPSYS
-    allocator           -
-    size                a size of an object to allocate
-    free_ptr_offset     an offset inside the object to a sizeof(void *)
-                        memory that is guaranteed to be unused after
-                        the object is put in the purgatory. Unused by ANY
-                        thread, not only the purgatory owner.
-                        This memory will be used to link waiting-to-be-freed
-                        objects in a purgatory list.
+  @param  allocator           Allocator structure to initialize.
+  @param  size                A size of an object to allocate.
+  @param  free_ptr_offset     An offset inside the object to a sizeof(void *)
+                              memory that is guaranteed to be unused after
+                              the object is put in the purgatory. Unused by
+                              ANY thread, not only the purgatory owner.
+                              This memory will be used to link
+                              waiting-to-be-freed objects in a purgatory list.
+  @param ctor                 Function to be called after object was
+                              malloc()'ed.
+  @param dtor                 Function to be called before object is free()'d.
 */
-void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
+
+void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
+                    lf_allocator_func *ctor, lf_allocator_func *dtor)
 {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
                  (lf_pinbox_free_func *)alloc_free, allocator);
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
-  allocator->constructor= 0;
-  allocator->destructor= 0;
+  allocator->constructor= ctor;
+  allocator->destructor= dtor;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
