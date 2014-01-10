@@ -23,6 +23,7 @@ DictTabInfo.cpp : .*invalid access to non-static.*
 DictTabInfo.cpp : .*macro was used incorrectly.*
 DbdihMain.cpp : .*unused variable.* : 6666-7013
 DbtupExecQuery.cpp : .*unused variable.* : 1823
+DbtuxMeta.cpp: .*-Warray-bounds.*: 672-673
 kernel_types.h : .*only defines private constructors and has no friends.* : 51
 Dbtup.hpp:   .*only defines private constructors and has no friends.*
 diskpage.hpp:   .*only defines private constructors and has no friends.*
