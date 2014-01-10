@@ -1174,6 +1174,7 @@ alter table t1 modify col1 datetime;
 ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col1' at row 1
 alter ignore table t1 modify col1 datetime;
 Warnings:
+Warning	1681	'IGNORE' is deprecated and will be removed in a future release.
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col1' at row 2
 insert into t1 select * from t1;
