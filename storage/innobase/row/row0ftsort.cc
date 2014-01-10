@@ -869,7 +869,9 @@ func_exit:
 	mutex_exit(&psort_info->mutex);
 
 	if (UT_LIST_GET_LEN(psort_info->fts_doc_list) > 0) {
-		ut_ad(error != DB_SUCCESS);
+		/* child can exit either with error or told by parent. */
+		ut_ad(error != DB_SUCCESS
+		      || psort_info->state == FTS_PARENT_EXITING);
 	}
 
 	/* Free fts doc list in case of error. */
