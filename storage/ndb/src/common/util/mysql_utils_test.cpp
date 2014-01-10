@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "my_global.h"
 #include <string.h> // not using namespaces yet
 #include <stdio.h> // not using namespaces yet
 #include <stdlib.h> // not using namespaces yet
@@ -25,7 +26,6 @@
 #include "decimal_utils.hpp"
 #include "CharsetMap.hpp"
 
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysql.h"
 
