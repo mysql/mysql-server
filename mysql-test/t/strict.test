@@ -1031,7 +1031,12 @@ insert ignore into t1 (col1) values (cast('0000-00-00' as date));
 insert into t1 select * from t1;
 --error 1292
 alter table t1 modify col1 datetime;
-alter ignore table t1 modify col1 datetime;
+select * from t1;
+drop table t1;
+create table t1 (col1 datetime);
+insert ignore into t1 values ('0000-00-00 00:00:00'),
+                             ('0000-00-00 00:00:00'),
+                             (NULL);
 --error 1292
 insert into t1 select * from t1;
 select * from t1;
