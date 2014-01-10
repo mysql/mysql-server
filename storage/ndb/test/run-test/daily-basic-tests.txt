@@ -1991,3 +1991,11 @@ max-time : 600
 cmd: testNodeRestart
 args: -n Bug16766493 D1
 
+max-time : 300
+cmd: testDict
+args: -n FK_TRANS1 T1
+
+max-time : 300
+cmd: testDict
+args: -n FK_TRANS2 T1
+
