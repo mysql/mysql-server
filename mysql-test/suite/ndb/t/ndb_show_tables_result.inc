@@ -1,8 +1,13 @@
 --disable_query_log
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_show_tables.txt;
 
-# Dump the output of ndb_show_tables to file
---exec $NDB_SHOW_TABLES --no-defaults --p > $dump_file
+# Build the string used for executing ndb_show_tables
+let $show_cmd = $NDB_SHOW_TABLES --no-defaults;
+let $show_cmd = $show_cmd -p;  # parsable format
+let $show_cmd = $show_cmd --ndb-nodeid=255;  # fixed nodeid to avoid "steal"
+
+# Run ndb_show_tables and dump output to file
+--exec $show_cmd > $dump_file
 
 TRUNCATE ndb_show_tables_results;
 
