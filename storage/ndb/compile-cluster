@@ -456,6 +456,7 @@ sub suppress_warning {
   # regexes. If both expressions match, the warning is suppressed.
   my @suppressions = (
     # [ qr/<dirname+filename regex>/, qr/<warning regex>/ ],
+    [ qr/DbtuxMeta.cpp/, qr/Warray-bounds/ ],
   );
 
   foreach my $sup ( @suppressions )
