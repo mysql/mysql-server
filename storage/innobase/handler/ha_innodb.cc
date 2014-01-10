@@ -7442,9 +7442,8 @@ ha_innobase::change_active_index(
 				table_name, sizeof table_name,
 				prebuilt->index->table->name, FALSE);
 
-			ut_ad(prebuilt->index->table->corrupted);
-
 			if (dict_index_is_clust(prebuilt->index)) {
+				ut_ad(prebuilt->index->table->corrupted);
 				push_warning_printf(
 					user_thd, Sql_condition::SL_WARNING,
 					HA_ERR_TABLE_CORRUPT,
