@@ -113,7 +113,7 @@ void lock_request_unit_test::test_start_pending(void) {
     const DBT *two = get_dbt(2);
 
     // take a range lock using txnid b
-    r = lt->acquire_write_lock(txnid_b, zero, two, nullptr);
+    r = lt->acquire_write_lock(txnid_b, zero, two, nullptr, false);
     invariant_zero(r);
 
     locktree::lt_lock_request_info *info = lt->get_lock_request_info();
@@ -121,7 +121,7 @@ void lock_request_unit_test::test_start_pending(void) {
     // start a lock request for 1,1
     // it should fail. the request should be stored and in the pending state.
     request.create();
-    request.set(lt, txnid_a, one, one, lock_request::type::WRITE);
+    request.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
     r = request.start();
     invariant(r == DB_LOCK_NOTGRANTED);
     invariant(info->pending_lock_requests.size() == 1);

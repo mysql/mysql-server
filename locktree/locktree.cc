@@ -119,6 +119,7 @@ namespace toku {
 void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_id,
         DESCRIPTOR desc, ft_compare_func cmp) {
     m_mem_tracker = mem_tracker;
+    m_mgr = mem_tracker->get_manager();
     m_dict_id = dict_id;
 
     // the only reason m_cmp is malloc'd here is to prevent gdb from printing
@@ -410,8 +411,8 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
 }
 
 int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
-    int r = m_mem_tracker->check_current_lock_constraints();
+        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+    int r = m_mgr->check_current_lock_constraints(big_txn);
     if (r == 0) {
         r = acquire_lock(is_write_request, txnid, left_key, right_key, conflicts);
     }
@@ -420,13 +421,13 @@ int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
 
 // the locktree silently upgrades read locks to write locks for simplicity
 int locktree::acquire_read_lock(TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
-    return acquire_write_lock(txnid, left_key, right_key, conflicts);
+        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+    return acquire_write_lock(txnid, left_key, right_key, conflicts, big_txn);
 }
 
 int locktree::acquire_write_lock(TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
-    return try_acquire_lock(true, txnid, left_key, right_key, conflicts);
+        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+    return try_acquire_lock(true, txnid, left_key, right_key, conflicts, big_txn);
 }
 
 void locktree::get_conflicts(bool is_write_request, TXNID txnid,

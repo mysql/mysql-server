@@ -323,7 +323,7 @@ static int locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
     if (!toku_txn_is_read_only(tokutxn)) {
         // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
-        if (toku_txn_has_spilled_rollback(tokutxn)) {
+        if (toku_is_big_tokutxn(tokutxn)) {
             low_priority = true;
             toku_low_priority_multi_operation_client_lock();
         } else {
@@ -351,7 +351,7 @@ static int locked_txn_abort_with_progress(DB_TXN *txn,
     if (!toku_txn_is_read_only(tokutxn)) {
         // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
-        if (toku_txn_has_spilled_rollback(tokutxn)) {
+        if (toku_is_big_tokutxn(tokutxn)) {
             low_priority = true;
             toku_low_priority_multi_operation_client_lock();
         } else {
@@ -601,4 +601,12 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
 // Test-only function
 void toku_increase_last_xid(DB_ENV *env, uint64_t increment) {
     toku_txn_manager_increase_last_xid(toku_logger_get_txn_manager(env->i->logger), increment);
+}
+
+bool toku_is_big_txn(DB_TXN *txn) {
+    return toku_is_big_tokutxn(db_txn_struct_i(txn)->tokutxn);
+}
+
+bool toku_is_big_tokutxn(TOKUTXN tokutxn) {
+    return toku_txn_has_spilled_rollback(tokutxn);
 }

@@ -125,9 +125,7 @@ void lock_request::destroy(void) {
 }
 
 // set the lock request parameters. this API allows a lock request to be reused.
-void lock_request::set(locktree *lt, TXNID txnid,
-        const DBT *left_key, const DBT *right_key,
-        lock_request::type lock_type) {
+void lock_request::set(locktree *lt, TXNID txnid, const DBT *left_key, const DBT *right_key, lock_request::type lock_type, bool big_txn) {
     invariant(m_state != state::PENDING);
     m_lt = lt;
     m_txnid = txnid;
@@ -138,6 +136,7 @@ void lock_request::set(locktree *lt, TXNID txnid,
     m_type = lock_type;
     m_state = state::INITIALIZED;
     m_info = lt->get_lock_request_info();
+    m_big_txn = big_txn;
 }
 
 // get rid of any stored left and right key copies and
@@ -207,10 +206,10 @@ int lock_request::start(void) {
     txnid_set conflicts;
     conflicts.create();
     if (m_type == type::WRITE) {
-        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts);
+        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts, m_big_txn);
     } else {
         invariant(m_type == type::READ);
-        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts);
+        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts, m_big_txn);
     }
 
     // if the lock is not granted, save it to the set of lock requests
@@ -310,9 +309,9 @@ int lock_request::retry(void) {
 
     invariant(m_state == state::PENDING);
     if (m_type == type::WRITE) {
-        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, nullptr);
+        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, nullptr, m_big_txn);
     } else {
-        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, nullptr);
+        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, nullptr, m_big_txn);
     }
 
     // if the acquisition succeeded then remove ourselves from the

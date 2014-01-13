@@ -133,8 +133,7 @@ public:
 
     // effect: Resets the lock request parameters, allowing it to be reused.
     // requires: Lock request was already created at some point
-    void set(locktree *lt, TXNID txnid,
-            const DBT *left_key, const DBT *right_key, type lock_type);
+    void set(locktree *lt, TXNID txnid, const DBT *left_key, const DBT *right_key, type lock_type, bool big_txn);
 
     // effect: Tries to acquire a lock described by this lock request.
     // returns: The return code of locktree::acquire_[write,read]_lock()
@@ -197,6 +196,8 @@ private:
     state m_state;
 
     toku_cond_t m_wait_cond;
+
+    bool m_big_txn;
 
     // the lock request info state stored in the
     // locktree that this lock request is for.

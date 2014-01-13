@@ -106,6 +106,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       loader-stress-del
       loader-stress-test
       loader-tpch-load
+      locktree_escalation_stalls
       lock-pressure
       manyfiles
       maxsize-for-loader
