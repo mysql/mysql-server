@@ -146,6 +146,9 @@ size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, c
 /* get the a pointer of the first free byte (if any) */
 void* toku_mempool_get_next_free_ptr(const struct mempool *mp);
 
+/* get the limit of valid offsets.  (anything later was not allocated) */
+size_t toku_mempool_get_offset_limit(const struct mempool *mp);
+
 /* get the size of the memory pool */
 size_t toku_mempool_get_size(const struct mempool *mp);
 

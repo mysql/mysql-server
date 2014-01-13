@@ -430,7 +430,6 @@ int dmt<dmtdata_t, dmtdataout_t>::iterate_on_range(const uint32_t left, const ui
     return this->iterate_internal<iterate_extra_t, f>(left, right, this->d.t.root, 0, iterate_extra);
 }
 
-//TODO(yoni) determine where this is used and if it should crash or return an error on bad verify
 template<typename dmtdata_t, typename dmtdataout_t>
 void dmt<dmtdata_t, dmtdataout_t>::verify(void) const {
     uint32_t num_values = this->size();

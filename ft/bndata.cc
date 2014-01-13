@@ -530,9 +530,32 @@ uint64_t bn_data::get_disk_size() {
            toku_mempool_get_used_space(&m_buffer_mempool);
 }
 
+struct verify_le_in_mempool_state {
+    size_t offset_limit;
+    class bn_data *bd;
+};
+
+static int verify_le_in_mempool (const uint32_t, klpair_struct *klpair, const uint32_t idx UU(), struct verify_le_in_mempool_state * const state) {
+    invariant(klpair->le_offset < state->offset_limit);
+
+    LEAFENTRY le = state->bd->get_le_from_klpair(klpair);
+    uint32_t size = leafentry_memsize(le);
+
+    size_t end_offset = klpair->le_offset+size;
+
+    invariant(end_offset <= state->offset_limit);
+    return 0;
+}
+
+//This is a debug-only (paranoid) verification.
+//Verifies the omt is valid, and all leafentries are entirely in the mempool's memory.
 void bn_data::verify_mempool(void) {
-    // TODO: implement something
-    // TODO: check 7.0 code and see if there was anything there?
+    //Verify the omt itself <- paranoid and slow
+    m_buffer.verify();
+
+    verify_le_in_mempool_state state = { .offset_limit = toku_mempool_get_offset_limit(&m_buffer_mempool), .bd = this };
+    //Verify every leafentry pointed to by the keys in the dmt are fully inside the mempool
+    m_buffer.iterate_ptr< decltype(state), verify_le_in_mempool >(&state);
 }
 
 uint32_t bn_data::omt_size(void) const {

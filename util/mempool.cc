@@ -194,6 +194,10 @@ void* toku_mempool_get_next_free_ptr(const struct mempool *mp) {
     return toku_mempool_get_pointer_from_base_and_offset(mp, mp->free_offset);
 }
 
+size_t toku_mempool_get_offset_limit(const struct mempool *mp) {
+    return mp->free_offset;
+}
+
 size_t toku_mempool_get_free_space(const struct mempool *mp) {
     return mp->size - mp->free_offset;
 }
