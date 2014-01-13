@@ -1375,9 +1375,11 @@ SELECT CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3));
 --echo # and other crashes
 --echo #
 CREATE TABLE t1 ( a TEXT );
-SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'bug58165.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug58165.txt';
 SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
-LOAD DATA INFILE 'bug58165.txt' INTO TABLE t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug58165.txt' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
