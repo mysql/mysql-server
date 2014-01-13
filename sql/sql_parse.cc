@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1206,7 +1206,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
                                                   thd->charset(), NULL);
-      THD_STAGE_INFO(thd, stage_init);
+      THD_STAGE_INFO(thd, stage_starting);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
       thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
