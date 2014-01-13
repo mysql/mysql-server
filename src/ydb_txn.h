@@ -107,6 +107,9 @@ int locked_txn_abort(DB_TXN *txn);
 
 void toku_keep_prepared_txn_callback(DB_ENV *env, TOKUTXN tokutxn);
 
+bool toku_is_big_txn(DB_TXN *txn);
+bool toku_is_big_tokutxn(TOKUTXN tokutxn);
+
 // Test-only function
 extern "C" void toku_increase_last_xid(DB_ENV *env, uint64_t increment) __attribute__((__visibility__("default")));
 

@@ -247,7 +247,7 @@ int toku_db_start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT
         toku::lock_request::type lock_type, toku::lock_request *request) {
     DB_TXN *txn_anc = txn_oldest_ancester(txn);
     TXNID txn_anc_id = txn_anc->id64(txn_anc);
-    request->set(db->i->lt, txn_anc_id, left_key, right_key, lock_type);
+    request->set(db->i->lt, txn_anc_id, left_key, right_key, lock_type, toku_is_big_txn(txn_anc));
 
     const int r = request->start();
     if (r == 0) {
@@ -297,7 +297,7 @@ void toku_db_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
     // This lock request must succeed, so we do not want to wait
     toku::lock_request request;
     request.create();
-    request.set(db->i->lt, txn_anc_id, key, key, toku::lock_request::type::WRITE);
+    request.set(db->i->lt, txn_anc_id, key, key, toku::lock_request::type::WRITE, toku_is_big_txn(txn_anc));
     int r = request.start();
     invariant_zero(r);
     db_txn_note_row_lock(db, txn_anc, key, key);

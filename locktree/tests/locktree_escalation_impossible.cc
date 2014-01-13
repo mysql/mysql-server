@@ -89,85 +89,116 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "lock_request_unit_test.h"
+#include <stdio.h>
+#include "locktree.h"
+#include "test.h"
 
-namespace toku {
+// Two big txn's grab alternating locks in a single lock tree.
+// Eventually lock escalation runs.
+// Since the locks can not be consolidated, the out of locks error should be returned.
 
-// make sure deadlocks are detected when a lock request starts
-void lock_request_unit_test::test_start_deadlock(void) {
+using namespace toku;
+
+static int verbose = 0;
+
+static inline void locktree_release_lock(locktree *lt, TXNID txn_id, int64_t left_k, int64_t right_k) {
+    range_buffer buffer;
+    buffer.create();
+    DBT left; toku_fill_dbt(&left, &left_k, sizeof left_k);
+    DBT right; toku_fill_dbt(&right, &right_k, sizeof right_k);
+    buffer.append(&left, &right);
+    lt->release_locks(txn_id, &buffer);
+    buffer.destroy();
+}
+
+// grab a write range lock on int64 keys bounded by left_k and right_k
+static int locktree_write_lock(locktree *lt, TXNID txn_id, int64_t left_k, int64_t right_k, bool big_txn) {
+    DBT left; toku_fill_dbt(&left, &left_k, sizeof left_k);
+    DBT right; toku_fill_dbt(&right, &right_k, sizeof right_k);
+    return lt->acquire_write_lock(txn_id, &left, &right, nullptr, big_txn);
+}
+
+static void e_callback(TXNID txnid, const locktree *lt, const range_buffer &buffer, void *extra) {
+    if (verbose)
+        printf("%u %s %" PRIu64 " %p %d %p\n", toku_os_gettid(), __FUNCTION__, txnid, lt, buffer.get_num_ranges(), extra);
+}
+
+static uint64_t get_escalation_count(locktree::manager &mgr) {
+    LTM_STATUS_S ltm_status;
+    mgr.get_status(&ltm_status);
+
+    TOKU_ENGINE_STATUS_ROW key_status = NULL;
+    // lookup keyname in status
+    for (int i = 0; ; i++) {
+        TOKU_ENGINE_STATUS_ROW status = &ltm_status.status[i];
+        if (status->keyname == NULL)
+            break;
+        if (strcmp(status->keyname, "LTM_ESCALATION_COUNT") == 0) {
+            key_status = status;
+            break;
+        }
+    }
+    assert(key_status);
+    return key_status->value.num;
+}
+
+int main(int argc, const char *argv[]) {
+    uint64_t max_lock_memory = 1000000;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
+            verbose++;
+            continue;
+        }
+        if (strcmp(argv[i], "--max_lock_memory") == 0 && i+1 < argc) {
+            max_lock_memory = atoll(argv[++i]);
+            continue;
+        }
+    }
+
     int r;
+
+    // create a manager
     locktree::manager mgr;
-    locktree *lt;
-    // something short
-    const uint64_t lock_wait_time = 10;
+    mgr.create(nullptr, nullptr, e_callback, nullptr);
+    mgr.set_max_lock_memory(max_lock_memory);
 
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
+    const TXNID txn_a = 10;
+    const TXNID txn_b = 100;
+
+    // create lock trees
+    DESCRIPTOR desc = nullptr;
     DICTIONARY_ID dict_id = { 1 };
-    lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
 
-    TXNID txnid_a = 1001;
-    TXNID txnid_b = 2001;
-    TXNID txnid_c = 3001;
-    lock_request request_a;
-    lock_request request_b;
-    lock_request request_c;
-    request_a.create();
-    request_b.create();
-    request_c.create();
+    int64_t last_i = -1;
+    for (int64_t i = 0; ; i++) {
+        if (verbose)
+            printf("%" PRId64 "\n", i);
+        int64_t k = 2*i;
+        r = locktree_write_lock(lt, txn_a, k, k, true);
+        if (r != 0) {
+            assert(r == TOKUDB_OUT_OF_LOCKS);
+            break;
+        }
+        last_i = i;
+        r = locktree_write_lock(lt, txn_b, k+1, k+1, true);
+        if (r != 0) {
+            assert(r == TOKUDB_OUT_OF_LOCKS);
+            break;
+        }
+    }
 
-    const DBT *one = get_dbt(1);
-    const DBT *two = get_dbt(2);
+    // wait for an escalation to occur
+    assert(get_escalation_count(mgr) > 0);
 
-    // start and succeed 1,1 for A and 2,2 for B.
-    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
-    r = request_a.start();
-    invariant_zero(r);
-    request_b.set(lt, txnid_b, two, two, lock_request::type::WRITE, false);
-    r = request_b.start();
-    invariant_zero(r);
+    if (last_i != -1) {
+        locktree_release_lock(lt, txn_a, 0, 2*last_i);
+        locktree_release_lock(lt, txn_b, 0, 2*last_i+1);
+    }
 
-    // txnid A should not be granted a lock on 2,2, so it goes pending.
-    request_a.set(lt, txnid_a, two, two, lock_request::type::WRITE, false);
-    r = request_a.start();
-    invariant(r == DB_LOCK_NOTGRANTED);
-
-    // if txnid B wants a lock on 1,1 it should deadlock with A
-    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE, false);
-    r = request_b.start();
-    invariant(r == DB_LOCK_DEADLOCK);
-
-    // txnid C should not deadlock on either of these - it should just time out.
-    request_c.set(lt, txnid_c, one, one, lock_request::type::WRITE, false);
-    r = request_c.start();
-    invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait(lock_wait_time);
-    invariant(r == DB_LOCK_NOTGRANTED);
-    request_c.set(lt, txnid_c, two, two, lock_request::type::WRITE, false);
-    r = request_c.start();
-    invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait(lock_wait_time);
-    invariant(r == DB_LOCK_NOTGRANTED);
-
-    // release locks for A and B, then wait on A's request which should succeed
-    // since B just unlocked and should have completed A's pending request.
-    release_lock_and_retry_requests(lt, txnid_a, one, one);
-    release_lock_and_retry_requests(lt, txnid_b, two, two);
-    r = request_a.wait(lock_wait_time);
-    invariant_zero(r);
-    release_lock_and_retry_requests(lt, txnid_a, two, two);
-
-    request_a.destroy();
-    request_b.destroy();
-    request_c.destroy();
     mgr.release_lt(lt);
     mgr.destroy();
-}
 
-} /* namespace toku */
-
-int main(void) {
-    toku::lock_request_unit_test test;
-    test.test_start_deadlock();
     return 0;
 }
-

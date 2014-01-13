@@ -123,12 +123,12 @@ void lock_request_unit_test::test_wait_time_callback(void) {
     const DBT *two = get_dbt(2);
 
     // a locks 'one'
-    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE);
+    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
     r = request_a.start();
     assert_zero(r);
 
     // b tries to lock 'one'
-    request_b.set(lt, txnid_b, one, two, lock_request::type::WRITE);
+    request_b.set(lt, txnid_b, one, two, lock_request::type::WRITE, false);
     r = request_b.start();
     assert(r == DB_LOCK_NOTGRANTED);
     assert(my_calls == 0);
