@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -277,6 +277,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool gtid_rollback_must_be_skipped=
+         (!thd->lex->no_write_to_binlog &&
+         (thd->variables.gtid_next.type == GTID_GROUP) &&
+         (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -299,6 +303,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   close_thread_tables(thd);
   for (table= tables; table; table= table->next_local)
     table->table= NULL;
+
+  /*
+    If this statement goes to binlog and GTID_NEXT was set to a GTID_GROUP
+    (like SQL thread do when applying statements from the relay log of a
+    master server with GTIDs enabled) we have to avoid losing the ownership of
+    the GTID_GROUP by some trans_rollback_stmt() when processing individual
+    tables.
+  */
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= true;
 
   for (table= tables; table; table= table->next_local)
   {
@@ -416,9 +430,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+            if (gtid_rollback_must_be_skipped)
+              thd->skip_gtid_rollback= false;
             DBUG_RETURN(TRUE);
           }
-          
+
           if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
@@ -956,9 +972,16 @@ send_result_message:
   }
 
   my_eof(thd);
+
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= false;
+
   DBUG_RETURN(FALSE);
 
 err:
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= false;
+
   trans_rollback_stmt(thd);
   trans_rollback(thd);
   /* Make sure this table instance is not reused after the operation. */
