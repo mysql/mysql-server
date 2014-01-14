@@ -26438,10 +26438,10 @@ Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
     switch(dropFKRecPtr.p->m_sub_drop_trigger) {
     case 0:
-      fk_ptr.p->m_parentTriggerId = RNIL;
+      jam();
       break;
     case 1:
-      fk_ptr.p->m_childTriggerId = RNIL;
+      jam();
       break;
     default:
       ndbrequire(false);
