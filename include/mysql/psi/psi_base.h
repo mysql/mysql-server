@@ -52,6 +52,12 @@ extern "C" {
 #define PSI_FLAG_THREAD (1 << 2)
 
 /**
+  Shared Exclusive flag.
+  Indicates that rwlock support the shared exclusive state.
+*/
+#define PSI_RWLOCK_FLAG_SX (1 << 3)
+
+/**
   @def PSI_VERSION_1
   Performance Schema Interface number for version 1.
   This version is supported.
