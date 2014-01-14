@@ -16,19 +16,21 @@
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security")
 
-# Requires GCC 4.3+ or Clang
-MY_CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA)
-IF(HAVE_WVLA)
-  SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wvla")
-ENDIF()
-
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
+MY_CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA_C) # Requires GCC 4.3+ or Clang
+IF(HAVE_WVLA_C)
+  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Wvla")
+ENDIF()
 
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
+MY_CHECK_CXX_COMPILER_FLAG("-Wvla" HAVE_WVLA_CXX) # Requires GCC 4.3+ or Clang
+IF(HAVE_WVLA_CXX)
+  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wvla")
+ENDIF()
 
 # Extra warning flags for Clang++
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
