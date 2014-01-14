@@ -282,7 +282,7 @@ static bool only_flags(ulong bits, ulong mask) {
 //                           must set WRITE_ALLOW_WRITE lock type in the external lock method to avoid deadlocks
 //                           with the MDL lock and the table lock
 enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("check_if_supported_alter");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
         print_alter_info(altered_table, ha_alter_info);
@@ -437,7 +437,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
 
 // Prepare for the alter operations
 bool ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(transaction); // transaction must exist after table is locked
     ctx->alter_txn = transaction;
@@ -447,7 +447,7 @@ bool ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_
 
 // Execute the alter operations.
 bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
@@ -674,7 +674,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
 // If commit then write the new frm data to the status using the alter transaction.
 // If abort then abort the alter transaction and try to rollback the non-transactional changes.
 bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
-    TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     bool result = false; // success

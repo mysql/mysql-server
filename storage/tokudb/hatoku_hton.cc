@@ -292,7 +292,7 @@ static void handle_ydb_error(int error) {
 }
 
 static int tokudb_init_func(void *p) {
-    TOKUDB_DBUG_ENTER("tokudb_init_func");
+    TOKUDB_DBUG_ENTER("");
     int r;
 
 #if defined(_WIN64)
@@ -381,7 +381,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) { // QQQ
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
-            TOKUDB_TRACE("%s:WARNING: flags=%x r=%d\n", __FUNCTION__, tokudb_env_flags, r); 
+            TOKUDB_TRACE("%s:WARNING: flags=%x r=%d", __FUNCTION__, tokudb_env_flags, r); 
         // goto error;
     }
 
@@ -454,15 +454,15 @@ static int tokudb_init_func(void *p) {
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
-            TOKUDB_TRACE("%s:tokudb_cache_size=%lld\n", __FUNCTION__, ((unsigned long long) gbytes << 30) + bytes);
+            TOKUDB_TRACE("%s:tokudb_cache_size=%lld", __FUNCTION__, ((unsigned long long) gbytes << 30) + bytes);
 
     if (db_env->set_redzone) {
         r = db_env->set_redzone(db_env, tokudb_fs_reserve_percent);
         if (r && (tokudb_debug & TOKUDB_DEBUG_INIT))
-            TOKUDB_TRACE("%s:%d r=%d\n", __FUNCTION__, __LINE__, r);
+            TOKUDB_TRACE("%s:%d r=%d", __FUNCTION__, __LINE__, r);
     }
 
-    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
+    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x", __FUNCTION__, tokudb_init_flags);
 
     r = db_env->set_generate_row_callback_for_put(db_env,generate_row_for_put);
     assert(r == 0);
@@ -476,10 +476,10 @@ static int tokudb_init_func(void *p) {
 
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
-    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
+    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d", __FUNCTION__, r);
 
     if (r) {
-        DBUG_PRINT("info", ("env->open %d\n", r));
+        DBUG_PRINT("info", ("env->open %d", r));
         goto error;
     }
 
@@ -523,7 +523,7 @@ error:
 }
 
 static int tokudb_done_func(void *p) {
-    TOKUDB_DBUG_ENTER("tokudb_done_func");
+    TOKUDB_DBUG_ENTER("");
     tokudb_my_free(toku_global_status_variables);
     toku_global_status_variables = NULL;
     tokudb_my_free(toku_global_status_rows);
@@ -541,7 +541,7 @@ static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, ME
 }
 
 int tokudb_end(handlerton * hton, ha_panic_function type) {
-    TOKUDB_DBUG_ENTER("tokudb_end");
+    TOKUDB_DBUG_ENTER("");
     int error = 0;
     
     // 3938: if we finalize the storage engine plugin, it is no longer
@@ -578,7 +578,7 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
 }
 
 bool tokudb_flush_logs(handlerton * hton) {
-    TOKUDB_DBUG_ENTER("tokudb_flush_logs");
+    TOKUDB_DBUG_ENTER("");
     int error;
     bool result = 0;
 
@@ -654,7 +654,7 @@ static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
 }
 
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
-    TOKUDB_DBUG_ENTER("tokudb_commit");
+    TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
@@ -662,7 +662,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("commit %u %p\n", all, this_txn);
+            TOKUDB_TRACE("commit %u %p", all, this_txn);
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
@@ -677,21 +677,21 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         trx->sub_sp_level = NULL;
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_TRACE("nothing to commit %d\n", all);
+        TOKUDB_TRACE("nothing to commit %d", all);
     }
     reset_stmt_progress(&trx->stmt_progress);
     TOKUDB_DBUG_RETURN(0);
 }
 
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
-    TOKUDB_DBUG_ENTER("tokudb_rollback");
+    TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("rollback %u %p\n", all, this_txn);
+            TOKUDB_TRACE("rollback %u %p", all, this_txn);
         }
         tokudb_cleanup_handlers(trx, this_txn);
         abort_txn_with_progress(this_txn, thd);
@@ -703,7 +703,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     } 
     else {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("abort0\n");
+            TOKUDB_TRACE("abort0");
         }
     }
     reset_stmt_progress(&trx->stmt_progress);
@@ -713,14 +713,14 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 #if TOKU_INCLUDE_XA
 
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
-    TOKUDB_DBUG_ENTER("tokudb_xa_prepare");
+    TOKUDB_DBUG_ENTER("");
     int r = 0;
     DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN* txn = all ? trx->all : trx->stmt;
     if (txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("doing txn prepare:%d:%p\n", all, txn);
+            TOKUDB_TRACE("doing txn prepare:%d:%p", all, txn);
         }
         // a TOKU_XA_XID is identical to a MYSQL_XID
         TOKU_XA_XID thd_xid;
@@ -732,13 +732,13 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
         DBUG_EXECUTE_IF("tokudb_crash_prepare_after", DBUG_SUICIDE(););
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_TRACE("nothing to prepare %d\n", all);
+        TOKUDB_TRACE("nothing to prepare %d", all);
     }
     TOKUDB_DBUG_RETURN(r);
 }
 
 static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
-    TOKUDB_DBUG_ENTER("tokudb_xa_recover");
+    TOKUDB_DBUG_ENTER("");
     int r = 0;
     if (len == 0 || xid_list == NULL) {
         TOKUDB_DBUG_RETURN(0);
@@ -756,7 +756,7 @@ static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
 }
 
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
-    TOKUDB_DBUG_ENTER("tokudb_commit_by_xid");
+    TOKUDB_DBUG_ENTER("");
     int r = 0;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
@@ -773,7 +773,7 @@ cleanup:
 }
 
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
-    TOKUDB_DBUG_ENTER("tokudb_rollback_by_xid");
+    TOKUDB_DBUG_ENTER("");
     int r = 0;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
@@ -792,7 +792,7 @@ cleanup:
 #endif
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("tokudb_savepoint");
+    TOKUDB_DBUG_ENTER("");
     int error;
     SP_INFO save_info = (SP_INFO)savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
@@ -820,7 +820,7 @@ cleanup:
 }
 
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("tokudb_rollback_to_savepoint");
+    TOKUDB_DBUG_ENTER("");
     int error;
     SP_INFO save_info = (SP_INFO)savepoint;
     DB_TXN* parent = NULL;
@@ -841,7 +841,7 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
 }
 
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("tokudb_release_savepoint");
+    TOKUDB_DBUG_ENTER("");
     int error;
 
     SP_INFO save_info = (SP_INFO)savepoint;
@@ -868,7 +868,7 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db, const cha
 
 static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name,
                             uchar **frmblob, size_t *frmlen) {
-    TOKUDB_DBUG_ENTER("tokudb_discover");
+    TOKUDB_DBUG_ENTER("");
     int error;
     DB* status_db = NULL;
     DB_TXN* txn = NULL;
@@ -926,7 +926,7 @@ cleanup:
 extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
 
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
-    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    TOKUDB_DBUG_ENTER("");
     int error;
     uint64_t panic;
     const int panic_string_len = 1024;
@@ -1101,7 +1101,7 @@ static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, con
 }
 
 static void tokudb_cleanup_log_files(void) {
-    TOKUDB_DBUG_ENTER("tokudb_cleanup_log_files");
+    TOKUDB_DBUG_ENTER("");
     char **names;
     int error;
 
@@ -1119,7 +1119,7 @@ static void tokudb_cleanup_log_files(void) {
         for (np = names; *np; ++np) {
 #if 1
             if (tokudb_debug)
-                TOKUDB_TRACE("%s:cleanup:%s\n", __FUNCTION__, *np);
+                TOKUDB_TRACE("%s:cleanup:%s", __FUNCTION__, *np);
 #else
             my_delete(*np, MYF(MY_WME));
 #endif
@@ -1368,7 +1368,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) 
 #else
 static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     TABLE *table = tables->table;
 
@@ -1513,7 +1513,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, Ite
 #else
 static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     TABLE *table = tables->table;
 
@@ -1725,7 +1725,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
 #else
 static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     TABLE *table = tables->table;
 
@@ -1838,7 +1838,7 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {
-            fprintf(stderr, "tokudb_lock_timeout: %s\n", log_str.c_ptr());
+            fprintf(stderr, "tokudb_lock_timeout: %s", log_str.c_ptr());
         }
     }
 }
@@ -1871,7 +1871,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
 static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -1942,7 +1942,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, Item *cond
 #else
 static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -2019,7 +2019,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
 static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
-    TOKUDB_DBUG_ENTER("%s", __FUNCTION__);
+    TOKUDB_DBUG_ENTER("");
     int error;
     
     rw_rdlock(&tokudb_hton_initialized_lock);
@@ -2053,7 +2053,7 @@ enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
 static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
-    TOKUDB_DBUG_ENTER("show_tokudb_vars");
+    TOKUDB_DBUG_ENTER("");
 
     int error;
     uint64_t panic;

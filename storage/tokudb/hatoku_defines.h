@@ -241,8 +241,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ANALYZE (1<<15)
 
 #define TOKUDB_TRACE(f, ...) \
-    fprintf(stderr, "%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
-
+    fprintf(stderr, "%u %s:%u " f "\n", my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
 
 static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
@@ -251,17 +250,33 @@ static inline unsigned int my_tid() {
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
-        TOKUDB_TRACE(f "\n", ##__VA_ARGS__); \
+        TOKUDB_TRACE("%s " f, __FUNCTION__, ##__VA_ARGS__);      \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
-
 
 #define TOKUDB_DBUG_RETURN(r) \
 { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
-        TOKUDB_TRACE("%s:return %d\n", __FUNCTION__, rr); \
+        TOKUDB_TRACE("%s return %d", __FUNCTION__, rr); \
+    } \
+    DBUG_RETURN(rr); \
+}
+
+#define TOKUDB_HANDLER_DBUG_ENTER(f, ...)      \
+{ \
+    if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
+        fprintf(stderr, "%u %p %s:%u ha_tokudb::%s " f "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
+    } \
+} \
+    DBUG_ENTER(__FUNCTION__);
+
+#define TOKUDB_HANDLER_DBUG_RETURN(r) \
+{ \
+    int rr = (r); \
+    if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
+        fprintf(stderr, "%u %p %s:%u ha_tokudb::%s return %d" "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, rr); \
     } \
     DBUG_RETURN(rr); \
 }
@@ -353,14 +368,14 @@ static inline int txn_begin(DB_ENV *env, DB_TXN *parent, DB_TXN **txn, uint32_t 
         this_txn->set_client_id(this_txn, thd_get_thread_id(thd));
     }
     if ((tokudb_debug & TOKUDB_DEBUG_TXN)) {
-        TOKUDB_TRACE("begin txn %p %p %u r=%d\n", parent, *txn, flags, r);
+        TOKUDB_TRACE("begin txn %p %p %u r=%d", parent, *txn, flags, r);
     }
     return r;
 }
 
 static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
     if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("commit txn %p\n", txn);
+        TOKUDB_TRACE("commit txn %p", txn);
     int r = txn->commit(txn, flags);
     if (r != 0) {
         sql_print_error("tried committing transaction %p and got error code %d", txn, r);
@@ -370,7 +385,7 @@ static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
 
 static inline void abort_txn(DB_TXN* txn) {
     if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("abort txn %p\n", txn);
+        TOKUDB_TRACE("abort txn %p", txn);
     int r = txn->abort(txn);
     if (r != 0) {
         sql_print_error("tried aborting transaction %p and got error code %d", txn, r);

@@ -252,7 +252,7 @@ static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint i
 // of where conditions (conds).  The function returns 0 if the update is handled in the storage engine.
 // Otherwise, an error is returned.
 int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::fast_update");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
 
     if (tokudb_debug & TOKUDB_DEBUG_UPSERT) {
@@ -287,7 +287,7 @@ check_error:
     }
 
 return_error:
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 // Return true if an expression is a simple int expression or a simple function of +- int expression.
@@ -856,7 +856,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
 // An upsert consists of a row and a list of update expressions (update_fields[i] = update_values[i]).
 // The function returns 0 if the upsert is handled in the storage engine.  Otherwise, an error code is returned.
 int ha_tokudb::upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::upsert");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error = 0;
 
@@ -890,7 +890,7 @@ check_error:
     }
 
 return_error:
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 // Check if an upsert can be handled by this storage engine.  Return trus if it can.
