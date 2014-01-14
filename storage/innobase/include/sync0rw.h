@@ -190,6 +190,22 @@ unlocking, not the corresponding function. */
 #  define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L)
 # endif
 
+#define rw_lock_sx_lock(L)					\
+	rw_lock_sx_lock_func((L), 0, __FILE__, __LINE__)
+
+#define rw_lock_sx_lock_inline(M, P, F, L)			\
+	rw_lock_sx_lock_func((M), (P), (F), (L))
+
+#define rw_lock_sx_lock_gen(M, P)				\
+	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+
+# ifdef UNIV_SYNC_DEBUG
+#  define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
+#  define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(P, L)
+# else /* UNIV_SYNC_DEBUG */
+#  define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(L)
+#  define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(L)
+# endif /* UNIV_SYNC_DEBUG */
 
 # define rw_lock_x_lock(M)					\
 	rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
@@ -252,6 +268,23 @@ unlocking, not the corresponding function. */
 #  define rw_lock_s_unlock_gen(L, P)	pfs_rw_lock_s_unlock_func(L)
 # endif
 
+# define rw_lock_sx_lock(M)					\
+	pfs_rw_lock_sx_lock_func((M), 0, __FILE__, __LINE__)
+
+# define rw_lock_sx_lock_inline(M, P, F, L)			\
+	pfs_rw_lock_sx_lock_func((M), (P), (F), (L))
+
+# define rw_lock_sx_lock_gen(M, P)				\
+	pfs_rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+
+# ifdef UNIV_SYNC_DEBUG
+#  define rw_lock_sx_unlock(L)		pfs_rw_lock_sx_unlock_func(0, L)
+#  define rw_lock_sx_unlock_gen(L, P)	pfs_rw_lock_sx_unlock_func(P, L)
+# else
+#  define rw_lock_sx_unlock(L)		pfs_rw_lock_sx_unlock_func(L)
+#  define rw_lock_sx_unlock_gen(L, P)	pfs_rw_lock_sx_unlock_func(L)
+# endif
+
 # define rw_lock_x_lock(M)					\
 	pfs_rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
 
@@ -280,6 +313,7 @@ unlocking, not the corresponding function. */
 #define rw_lock_s_unlock(L)		rw_lock_s_unlock_gen(L, 0)
 #define rw_lock_x_unlock(L)		rw_lock_x_unlock_gen(L, 0)
 
+#ifdef NEVER
 /* TODO: PFS doesn't treat the new lock state for now. */
 #define rw_lock_sx_lock(L)					\
 	rw_lock_sx_lock_func((L), 0, __FILE__, __LINE__)
@@ -294,6 +328,7 @@ unlocking, not the corresponding function. */
 # define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(L)
 # define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(L)
 #endif /* UNIV_SYNC_DEBUG */
+#endif
 
 /******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -755,6 +790,8 @@ rw_lock_s_lock()
 rw_lock_s_lock_gen()
 rw_lock_s_lock_nowait()
 rw_lock_s_unlock_gen()
+rw_lock_sx_lock()
+rw_lock_sx_unlock_gen()
 rw_lock_free()
 */
 
@@ -860,12 +897,39 @@ pfs_rw_lock_s_unlock_func(
 #endif /* UNIV_SYNC_DEBUG */
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
 /******************************************************************//**
-Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+Performance schema instrumented wrap function for rw_lock_x_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
 this function! */
 UNIV_INLINE
 void
 pfs_rw_lock_x_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif /* UNIV_SYNC_DEBUG */
+	rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_lock_func()
+NOTE! Please use the corresponding macro rw_lock_sx_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_sx_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_sx_unlock_func(
 /*======================*/
 #ifdef UNIV_SYNC_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the

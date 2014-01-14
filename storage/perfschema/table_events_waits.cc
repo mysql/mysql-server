@@ -573,11 +573,19 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("lock") },
   { C_STRING_WITH_LEN("try_lock") },
 
-  /* RWLock operations */
+  /* RWLock operations (RW-lock) */
   { C_STRING_WITH_LEN("read_lock") },
   { C_STRING_WITH_LEN("write_lock") },
   { C_STRING_WITH_LEN("try_read_lock") },
   { C_STRING_WITH_LEN("try_write_lock") },
+
+  /* RWLock operations (SX-lock) */
+  { C_STRING_WITH_LEN("shared_lock") },
+  { C_STRING_WITH_LEN("shared_exclusive_lock") },
+  { C_STRING_WITH_LEN("exclusive_lock") },
+  { C_STRING_WITH_LEN("try_shared_lock") },
+  { C_STRING_WITH_LEN("try_shared_exclusive_lock") },
+  { C_STRING_WITH_LEN("try_exclusive_lock") },
 
   /* Condition operations */
   { C_STRING_WITH_LEN("wait") },

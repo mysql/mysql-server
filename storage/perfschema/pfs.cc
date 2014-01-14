@@ -1335,7 +1335,14 @@ static enum_operation_type rwlock_operation_map[]=
   OPERATION_TYPE_READLOCK,
   OPERATION_TYPE_WRITELOCK,
   OPERATION_TYPE_TRYREADLOCK,
-  OPERATION_TYPE_TRYWRITELOCK
+  OPERATION_TYPE_TRYWRITELOCK,
+
+  OPERATION_TYPE_SHAREDLOCK,
+  OPERATION_TYPE_SHAREDEXCLUSIVELOCK,
+  OPERATION_TYPE_EXCLUSIVELOCK,
+  OPERATION_TYPE_TRYSHAREDLOCK,
+  OPERATION_TYPE_TRYSHAREDEXCLUSIVELOCK,
+  OPERATION_TYPE_TRYEXCLUSIVELOCK,
 };
 
 /**
@@ -2514,10 +2521,10 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   @sa PSI_v1::start_rwlock_wrwait
 */
 PSI_rwlock_locker*
-pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
-                           PSI_rwlock *rwlock,
-                           PSI_rwlock_operation op,
-                           const char *src_file, uint src_line)
+pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
+                         PSI_rwlock *rwlock,
+                         PSI_rwlock_operation op,
+                         const char *src_file, uint src_line)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
@@ -2603,7 +2610,22 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
 
   state->m_flags= flags;
   state->m_rwlock= rwlock;
+  state->m_operation= op;
   return reinterpret_cast<PSI_rwlock_locker*> (state);
+}
+
+PSI_rwlock_locker*
+pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
+                           PSI_rwlock *rwlock,
+                           PSI_rwlock_operation op,
+                           const char *src_file, uint src_line)
+{
+  DBUG_ASSERT((op == PSI_RWLOCK_READLOCK) ||
+              (op == PSI_RWLOCK_TRYREADLOCK) ||
+              (op == PSI_RWLOCK_SHAREDLOCK) ||
+              (op == PSI_RWLOCK_TRYSHAREDLOCK));
+
+  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
 }
 
 PSI_rwlock_locker*
@@ -2612,7 +2634,14 @@ pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state *state,
                            PSI_rwlock_operation op,
                            const char *src_file, uint src_line)
 {
-  return pfs_start_rwlock_rdwait_v1(state, rwlock, op, src_file, src_line);
+  DBUG_ASSERT((op == PSI_RWLOCK_WRITELOCK) ||
+              (op == PSI_RWLOCK_TRYWRITELOCK) ||
+              (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_EXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
+
+  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
 }
 
 /**
@@ -3870,9 +3899,14 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     /* Thread safe : we are protected by the instrumented rwlock */
     rwlock->m_writer= thread;
     rwlock->m_last_written= timer_end;
-    /* Reset the readers stats, they could be off */
-    rwlock->m_readers= 0;
-    rwlock->m_last_read= 0;
+
+    if ((state->m_operation != PSI_RWLOCK_SHAREDEXCLUSIVELOCK) &&
+        (state->m_operation != PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK))
+    {
+      /* Reset the readers stats, they could be off */
+      rwlock->m_readers= 0;
+      rwlock->m_last_read= 0;
+    }
   }
 
   if (state->m_flags & STATE_FLAG_THREAD)
