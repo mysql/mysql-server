@@ -10,7 +10,7 @@ replicate = 2.master:2.slave
 NoOfReplicas= 2
 IndexMemory= 10M
 DataMemory= 50M
-MaxNoOfConcurrentScans= 100
+MaxNoOfConcurrentScans= 300
 Diskless = 1
 
 [cluster_config.master]
