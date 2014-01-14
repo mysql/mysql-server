@@ -1,8 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/have_null_audit_plugin.inc
---source include/force_myisam_default.inc
 # Test for WL#3771 (audit null plugin)
 # Created by HHunger 2009-09-02
 #
