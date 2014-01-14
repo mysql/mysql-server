@@ -127,7 +127,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
 }
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::analyze");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
     DB_TXN *txn = transaction;
@@ -165,7 +165,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     }
     if (result == HA_ADMIN_OK)
         tokudb::set_card_in_status(share->status_block, txn, table_share->key_parts, rec_per_key);    
-    TOKUDB_DBUG_RETURN(result);
+    TOKUDB_HANDLER_DBUG_RETURN(result);
 }
 
 static int hot_poll_fun(void *extra, float progress) {
@@ -192,7 +192,7 @@ static int hot_poll_fun(void *extra, float progress) {
 
 // flatten all DB's in this table, to do so, peform hot optimize on each db
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
@@ -233,7 +233,7 @@ cleanup:
     thd_progress_end(thd);
 #endif
 
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 struct check_context {
@@ -262,7 +262,7 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
 }
 
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_DBUG_ENTER("check");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     const char *old_proc_info = thd->proc_info;
     thd_proc_info(thd, "tokudb::check");
@@ -319,5 +319,5 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         }
     }
     thd_proc_info(thd, old_proc_info);
-    TOKUDB_DBUG_RETURN(result);
+    TOKUDB_HANDLER_DBUG_RETURN(result);
 }
