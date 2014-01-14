@@ -278,9 +278,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
-         (!thd->lex->no_write_to_binlog &&
-         (thd->variables.gtid_next.type == GTID_GROUP) &&
-         (!thd->skip_gtid_rollback));
+    ((thd->variables.gtid_next.type == GTID_GROUP) &&
+    (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
