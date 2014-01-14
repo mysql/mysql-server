@@ -197,43 +197,40 @@ public:
 
 using namespace toku::dmt_internal;
 
-// Each data type used in a dmt requires a dmt_functor (allows you to insert/etc with dynamic sized types).
+// Each data type used in a dmt requires a dmt_writer class (allows you to insert/etc with dynamic sized types).
 // There is no default implementation.
-template<typename dmtdata_t>
-class dmt_functor {
-    // Ensures that if you forget to use partial specialization this compile error will remind you to use it.
-    // We would use static_assert(false, ...) here except that it would cause a compile error even if dmt_functor<>
-    // We instead use an expression that evaluates to false that the compiler won't evaluate unless dmt_functor<> is used.
-    static_assert(!std::is_same<dmtdata_t, dmtdata_t>::value, "Cannot use default dmt_functor<>. Use partial specialization.");
-    // Defines the interface:
-    static size_t get_dmtdata_t_size(const dmtdata_t &) { return 0; }
-    size_t get_dmtdatain_t_size(void) { return 0; }
-    void write_dmtdata_t_to(dmtdata_t *const dest) {}
-};
+// A dmtwriter instance handles reading/writing 'dmtdata_t's to/from the dmt.
+// The class must implement the following functions:
+//      The size required in a dmt for the dmtdata_t represented:
+//          size_t get_size(void) const;  
+//      Write the dmtdata_t to memory owned by a dmt:
+//          void write_to(dmtdata_t *const dest) const;
+//      Constructor (others are allowed, but this one is required)
+//          dmtwriter(const uint32_t dmtdata_t_len, dmtdata_t *const src)
 
 template<typename dmtdata_t,
-         typename dmtdataout_t=dmtdata_t
+         typename dmtdataout_t,
+         typename dmtwriter_t
         >
 class dmt {
 private:
     typedef dmt_node_templated<dmtdata_t> dmt_node;
-    typedef dmt_functor<dmtdata_t> dmtdatain_t;
 
 public:
     static const uint8_t ALIGNMENT = 4;
 
     class builder {
     public:
-        void append(const dmtdatain_t &value);
+        void append(const dmtwriter_t &value);
         void create(uint32_t n_values, uint32_t n_value_bytes);
         bool value_length_is_fixed(void);
-        void build(dmt<dmtdata_t, dmtdataout_t> *dest);
+        void build(dmt<dmtdata_t, dmtdataout_t, dmtwriter_t> *dest);
     private:
         uint32_t max_values;
         uint32_t max_value_bytes;
         node_offset *sorted_node_offsets;
         bool temp_valid;
-        dmt<dmtdata_t, dmtdataout_t> temp;
+        dmt<dmtdata_t, dmtdataout_t, dmtwriter_t> temp;
     };
 
     /**
@@ -306,7 +303,7 @@ public:
      * Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
      */
     template<typename dmtcmp_t, int (*h)(const uint32_t size, const dmtdata_t &, const dmtcmp_t &)>
-    int insert(const dmtdatain_t &value, const dmtcmp_t &v, uint32_t *const idx);
+    int insert(const dmtwriter_t &value, const dmtcmp_t &v, uint32_t *const idx);
 
     /**
      * Effect: Increases indexes of all items at slot >= idx by 1.
@@ -318,7 +315,7 @@ public:
      * Performance: time=O(\log N) amortized time.
      * Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
      */
-    int insert_at(const dmtdatain_t &value, const uint32_t idx);
+    int insert_at(const dmtwriter_t &value, const uint32_t idx);
 
     /**
      * Effect: Delete the item in slot idx.
@@ -557,9 +554,9 @@ private:
 
     uint32_t nweight(const subtree &subtree) const;
 
-    node_offset node_malloc_and_set_value(const dmtdatain_t &value);
+    node_offset node_malloc_and_set_value(const dmtwriter_t &value);
 
-    void node_set_value(dmt_node *n, const dmtdatain_t &value);
+    void node_set_value(dmt_node *n, const dmtwriter_t &value);
 
     void node_free(const subtree &st);
 
@@ -567,15 +564,15 @@ private:
 
     void convert_to_tree(void);
 
-    void maybe_resize_tree(const dmtdatain_t * value);
+    void maybe_resize_tree(const dmtwriter_t * value);
 
     bool will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const;
 
     __attribute__((nonnull))
-    void insert_internal(subtree *const subtreep, const dmtdatain_t &value, const uint32_t idx, subtree **const rebalance_subtree);
+    void insert_internal(subtree *const subtreep, const dmtwriter_t &value, const uint32_t idx, subtree **const rebalance_subtree);
 
     template<bool with_resize>
-    int insert_at_array_end(const dmtdatain_t& value_in);
+    int insert_at_array_end(const dmtwriter_t& value_in);
 
     dmtdata_t * alloc_array_value_end(void);
 

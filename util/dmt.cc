@@ -96,8 +96,8 @@ PATENT RIGHTS GRANT:
 
 namespace toku {
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::create(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::create(void) {
     toku_mempool_zero(&this->mp);
     this->values_same_size = true;
     this->value_length = 0;
@@ -115,8 +115,8 @@ void dmt<dmtdata_t, dmtdataout_t>::create(void) {
  * Also all current uses (as of Jan 12, 2014) of this function would require mallocing a new array
  * in order to allow stealing.
  */
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::create_from_sorted_memory_of_fixed_size_elements(
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::create_from_sorted_memory_of_fixed_size_elements(
         const void *mem,
         const uint32_t numvalues,
         const uint32_t mem_length,
@@ -149,14 +149,14 @@ void dmt<dmtdata_t, dmtdataout_t>::create_from_sorted_memory_of_fixed_size_eleme
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::clone(const dmt &src) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::clone(const dmt &src) {
     *this = src;
     toku_mempool_clone(&src.mp, &this->mp);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::clear(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::clear(void) {
     this->is_array = true;
     this->d.a.num_values = 0;
     this->values_same_size = true;  // Reset state
@@ -166,14 +166,14 @@ void dmt<dmtdata_t, dmtdataout_t>::clear(void) {
     toku_mempool_reset(&this->mp);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::destroy(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::destroy(void) {
     this->clear();
     toku_mempool_destroy(&this->mp);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-uint32_t dmt<dmtdata_t, dmtdataout_t>::size(void) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+uint32_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::size(void) const {
     if (this->is_array) {
         return this->d.a.num_values;
     } else {
@@ -181,8 +181,8 @@ uint32_t dmt<dmtdata_t, dmtdataout_t>::size(void) const {
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-uint32_t dmt<dmtdata_t, dmtdataout_t>::nweight(const subtree &subtree) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+uint32_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::nweight(const subtree &subtree) const {
     if (subtree.is_null()) {
         return 0;
     } else {
@@ -191,9 +191,9 @@ uint32_t dmt<dmtdata_t, dmtdataout_t>::nweight(const subtree &subtree) const {
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t, int (*h)(const uint32_t size, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::insert(const dmtdatain_t &value, const dmtcmp_t &v, uint32_t *const idx) {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::insert(const dmtwriter_t &value, const dmtcmp_t &v, uint32_t *const idx) {
     int r;
     uint32_t insert_idx;
 
@@ -210,11 +210,11 @@ int dmt<dmtdata_t, dmtdataout_t>::insert(const dmtdatain_t &value, const dmtcmp_
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-int dmt<dmtdata_t, dmtdataout_t>::insert_at(const dmtdatain_t &value, const uint32_t idx) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::insert_at(const dmtwriter_t &value, const uint32_t idx) {
     if (idx > this->size()) { return EINVAL; }
 
-    bool same_size = this->values_same_size && (this->size() == 0 || value.get_dmtdatain_t_size() == this->value_length);
+    bool same_size = this->values_same_size && (this->size() == 0 || value.get_size() == this->value_length);
     if (this->is_array) {
         if (same_size && idx == this->d.a.num_values) {
             return this->insert_at_array_end<true>(value);
@@ -237,26 +237,26 @@ int dmt<dmtdata_t, dmtdataout_t>::insert_at(const dmtdatain_t &value, const uint
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<bool with_resize>
-int dmt<dmtdata_t, dmtdataout_t>::insert_at_array_end(const dmtdatain_t& value_in) {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::insert_at_array_end(const dmtwriter_t& value_in) {
     paranoid_invariant(this->is_array);
     paranoid_invariant(this->values_same_size);
     if (this->d.a.num_values == 0) {
-        this->value_length = value_in.get_dmtdatain_t_size();
+        this->value_length = value_in.get_size();
     }
-    paranoid_invariant(this->value_length == value_in.get_dmtdatain_t_size());
+    paranoid_invariant(this->value_length == value_in.get_size());
 
     if (with_resize) {
         this->maybe_resize_array_for_insert();
     }
     dmtdata_t *dest = this->alloc_array_value_end();
-    value_in.write_dmtdata_t_to(dest);
+    value_in.write_to(dest);
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-dmtdata_t * dmt<dmtdata_t, dmtdataout_t>::alloc_array_value_end(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+dmtdata_t * dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::alloc_array_value_end(void) {
     paranoid_invariant(this->is_array);
     paranoid_invariant(this->values_same_size);
     this->d.a.num_values++;
@@ -269,8 +269,8 @@ dmtdata_t * dmt<dmtdata_t, dmtdataout_t>::alloc_array_value_end(void) {
     return n;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-dmtdata_t * dmt<dmtdata_t, dmtdataout_t>::get_array_value(const uint32_t idx) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+dmtdata_t * dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_array_value(const uint32_t idx) const {
     paranoid_invariant(this->is_array);
     paranoid_invariant(this->values_same_size);
 
@@ -278,16 +278,16 @@ dmtdata_t * dmt<dmtdata_t, dmtdataout_t>::get_array_value(const uint32_t idx) co
     return get_array_value_internal(&this->mp, idx);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-dmtdata_t * dmt<dmtdata_t, dmtdataout_t>::get_array_value_internal(const struct mempool *mempool, const uint32_t idx) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+dmtdata_t * dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_array_value_internal(const struct mempool *mempool, const uint32_t idx) const {
     void* ptr = toku_mempool_get_pointer_from_base_and_offset(mempool, idx * align(this->value_length));
     dmtdata_t *CAST_FROM_VOIDP(value, ptr);
     return value;
 }
 
 //TODO(leif) write microbenchmarks to compare growth factor.  Note:  growth factor here is actually 2.5 because of mempool_construct
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::maybe_resize_array_for_insert(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_array_for_insert(void) {
     bool space_available = toku_mempool_get_free_space(&this->mp) >= align(this->value_length);
 
     if (!space_available) {
@@ -311,20 +311,20 @@ void dmt<dmtdata_t, dmtdataout_t>::maybe_resize_array_for_insert(void) {
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-uint32_t dmt<dmtdata_t, dmtdataout_t>::align(const uint32_t x) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+uint32_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::align(const uint32_t x) const {
     return roundup_to_multiple(ALIGNMENT, x);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::prepare_for_serialize(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::prepare_for_serialize(void) {
     if (!this->is_array) {
         this->convert_from_tree_to_array();
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::convert_from_tree_to_array(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::convert_from_tree_to_array(void) {
     paranoid_invariant(!this->is_array);
     paranoid_invariant(this->values_same_size);
     
@@ -358,8 +358,8 @@ void dmt<dmtdata_t, dmtdataout_t>::convert_from_tree_to_array(void) {
     if (malloced) toku_free(tmp_array);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::convert_from_array_to_tree(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::convert_from_array_to_tree(void) {
     paranoid_invariant(this->is_array);
     paranoid_invariant(this->values_same_size);
     
@@ -379,8 +379,8 @@ void dmt<dmtdata_t, dmtdataout_t>::convert_from_array_to_tree(void) {
     toku_mempool_construct(&this->mp, mem_needed);
 
     for (uint32_t i = 0; i < num_values; i++) {
-        dmtdatain_t functor(this->value_length, get_array_value_internal(&old_mp, i));
-        tmp_array[i] = node_malloc_and_set_value(functor);
+        dmtwriter_t writer(this->value_length, get_array_value_internal(&old_mp, i));
+        tmp_array[i] = node_malloc_and_set_value(writer);
     }
     this->is_array = false;
     this->rebuild_subtree_from_offsets(&this->d.t.root, tmp_array, num_values);
@@ -389,8 +389,8 @@ void dmt<dmtdata_t, dmtdataout_t>::convert_from_array_to_tree(void) {
     toku_mempool_destroy(&old_mp);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-int dmt<dmtdata_t, dmtdataout_t>::delete_at(const uint32_t idx) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::delete_at(const uint32_t idx) {
     uint32_t n = this->size();
     if (idx >= n) { return EINVAL; }
 
@@ -412,17 +412,17 @@ int dmt<dmtdata_t, dmtdataout_t>::delete_at(const uint32_t idx) {
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, const dmtdata_t &, const uint32_t, iterate_extra_t *const)>
-int dmt<dmtdata_t, dmtdataout_t>::iterate(iterate_extra_t *const iterate_extra) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate(iterate_extra_t *const iterate_extra) const {
     return this->iterate_on_range<iterate_extra_t, f>(0, this->size(), iterate_extra);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, const dmtdata_t &, const uint32_t, iterate_extra_t *const)>
-int dmt<dmtdata_t, dmtdataout_t>::iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
     if (right > this->size()) { return EINVAL; }
     if (left == right) { return 0; }
     if (this->is_array) {
@@ -431,8 +431,8 @@ int dmt<dmtdata_t, dmtdataout_t>::iterate_on_range(const uint32_t left, const ui
     return this->iterate_internal<iterate_extra_t, f>(left, right, this->d.t.root, 0, iterate_extra);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::verify(void) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::verify(void) const {
     uint32_t num_values = this->size();
     invariant(num_values < UINT32_MAX);
     size_t pool_used = toku_mempool_get_used_space(&this->mp);
@@ -469,8 +469,8 @@ void dmt<dmtdata_t, dmtdataout_t>::verify(void) const {
 }
 
 // Verifies all weights are internally consistent.
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::verify_internal(const subtree &subtree, std::vector<bool> *touched) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::verify_internal(const subtree &subtree, std::vector<bool> *touched) const {
     if (subtree.is_null()) {
         return;
     }
@@ -499,10 +499,10 @@ void dmt<dmtdata_t, dmtdataout_t>::verify_internal(const subtree &subtree, std::
     verify_internal(node.right, touched);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, dmtdata_t *, const uint32_t, iterate_extra_t *const)>
-void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr(iterate_extra_t *const iterate_extra) {
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_ptr(iterate_extra_t *const iterate_extra) {
     if (this->is_array) {
         this->iterate_ptr_internal_array<iterate_extra_t, f>(0, this->size(), iterate_extra);
     } else {
@@ -510,8 +510,8 @@ void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr(iterate_extra_t *const iterate_ex
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-int dmt<dmtdata_t, dmtdataout_t>::fetch(const uint32_t idx, uint32_t *const value_len, dmtdataout_t *const value) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::fetch(const uint32_t idx, uint32_t *const value_len, dmtdataout_t *const value) const {
     if (idx >= this->size()) { return EINVAL; }
     if (this->is_array) {
         this->fetch_internal_array(idx, value_len, value);
@@ -521,10 +521,10 @@ int dmt<dmtdata_t, dmtdataout_t>::fetch(const uint32_t idx, uint32_t *const valu
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_zero(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_zero(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     uint32_t tmp_index;
     uint32_t *const child_idxp = (idxp != nullptr) ? idxp : &tmp_index;
     int r;
@@ -537,10 +537,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_zero(const dmtcmp_t &extra, uint32_t *con
     return r;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find(const dmtcmp_t &extra, int direction, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find(const dmtcmp_t &extra, int direction, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     uint32_t tmp_index;
     uint32_t *const child_idxp = (idxp != nullptr) ? idxp : &tmp_index;
     paranoid_invariant(direction != 0);
@@ -559,33 +559,33 @@ int dmt<dmtdata_t, dmtdataout_t>::find(const dmtcmp_t &extra, int direction, uin
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-size_t dmt<dmtdata_t, dmtdataout_t>::memory_size(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+size_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::memory_size(void) {
     return (sizeof *this) + toku_mempool_get_size(&this->mp);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-dmt_node_templated<dmtdata_t> & dmt<dmtdata_t, dmtdataout_t>::get_node(const subtree &subtree) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+dmt_node_templated<dmtdata_t> & dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_node(const subtree &subtree) const {
     paranoid_invariant(!subtree.is_null());
     return get_node(subtree.get_offset());
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-dmt_node_templated<dmtdata_t> & dmt<dmtdata_t, dmtdataout_t>::get_node(const node_offset offset) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+dmt_node_templated<dmtdata_t> & dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_node(const node_offset offset) const {
     void* ptr = toku_mempool_get_pointer_from_base_and_offset(&this->mp, offset);
     dmt_node *CAST_FROM_VOIDP(node, ptr);
     return *node;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::node_set_value(dmt_node * n, const dmtdatain_t &value) {
-    n->value_length = value.get_dmtdatain_t_size();
-    value.write_dmtdata_t_to(&n->value);
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::node_set_value(dmt_node * n, const dmtwriter_t &value) {
+    n->value_length = value.get_size();
+    value.write_to(&n->value);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-node_offset dmt<dmtdata_t, dmtdataout_t>::node_malloc_and_set_value(const dmtdatain_t &value) {
-    size_t val_size = value.get_dmtdatain_t_size();
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+node_offset dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::node_malloc_and_set_value(const dmtwriter_t &value) {
+    size_t val_size = value.get_size();
     size_t size_to_alloc = __builtin_offsetof(dmt_node, value) + val_size;
     size_to_alloc = align(size_to_alloc);
     void* np = toku_mempool_malloc(&this->mp, size_to_alloc, 1);
@@ -596,22 +596,22 @@ node_offset dmt<dmtdata_t, dmtdataout_t>::node_malloc_and_set_value(const dmtdat
     return toku_mempool_get_offset_from_pointer_and_base(&this->mp, np);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::node_free(const subtree &st) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::node_free(const subtree &st) {
     dmt_node &n = get_node(st);
     size_t size_to_free = __builtin_offsetof(dmt_node, value) + n.value_length;
     size_to_free = align(size_to_free);
     toku_mempool_mfree(&this->mp, &n, size_to_free);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::maybe_resize_tree(const dmtdatain_t * value) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_tree(const dmtwriter_t * value) {
     const ssize_t curr_capacity = toku_mempool_get_size(&this->mp);
     const ssize_t curr_free = toku_mempool_get_free_space(&this->mp);
     const ssize_t curr_used = toku_mempool_get_used_space(&this->mp);
     ssize_t add_size = 0;
     if (value) {
-        add_size = __builtin_offsetof(dmt_node, value) + value->get_dmtdatain_t_size();
+        add_size = __builtin_offsetof(dmt_node, value) + value->get_size();
         add_size = align(add_size);
     }
 
@@ -662,8 +662,8 @@ void dmt<dmtdata_t, dmtdataout_t>::maybe_resize_tree(const dmtdatain_t * value) 
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-bool dmt<dmtdata_t, dmtdataout_t>::will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+bool dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const {
     if (subtree.is_null()) { return false; }
     const dmt_node &n = get_node(subtree);
     // one of the 1's is for the root.
@@ -675,8 +675,8 @@ bool dmt<dmtdata_t, dmtdataout_t>::will_need_rebalance(const subtree &subtree, c
             (1+weight_right < (1+1+weight_left)/2));
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::insert_internal(subtree *const subtreep, const dmtdatain_t &value, const uint32_t idx, subtree **const rebalance_subtree) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::insert_internal(subtree *const subtreep, const dmtwriter_t &value, const uint32_t idx, subtree **const rebalance_subtree) {
     if (subtreep->is_null()) {
         paranoid_invariant_zero(idx);
         const node_offset newoffset = this->node_malloc_and_set_value(value);
@@ -703,8 +703,8 @@ void dmt<dmtdata_t, dmtdataout_t>::insert_internal(subtree *const subtreep, cons
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::delete_internal(subtree *const subtreep, const uint32_t idx, subtree *const subtree_replace, subtree **const rebalance_subtree) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::delete_internal(subtree *const subtreep, const uint32_t idx, subtree *const subtree_replace, subtree **const rebalance_subtree) {
     paranoid_invariant_notnull(subtreep);
     paranoid_invariant_notnull(rebalance_subtree);
     paranoid_invariant(!subtreep->is_null());
@@ -766,10 +766,10 @@ void dmt<dmtdata_t, dmtdataout_t>::delete_internal(subtree *const subtreep, cons
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, const dmtdata_t &, const uint32_t, iterate_extra_t *const)>
-int dmt<dmtdata_t, dmtdataout_t>::iterate_internal_array(const uint32_t left, const uint32_t right,
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_internal_array(const uint32_t left, const uint32_t right,
                                                          iterate_extra_t *const iterate_extra) const {
     int r;
     for (uint32_t i = left; i < right; ++i) {
@@ -781,10 +781,10 @@ int dmt<dmtdata_t, dmtdataout_t>::iterate_internal_array(const uint32_t left, co
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, dmtdata_t *, const uint32_t, iterate_extra_t *const)>
-void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr_internal(const uint32_t left, const uint32_t right,
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_ptr_internal(const uint32_t left, const uint32_t right,
                                                         const subtree &subtree, const uint32_t idx,
                                                         iterate_extra_t *const iterate_extra) {
     if (!subtree.is_null()) { 
@@ -803,10 +803,10 @@ void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr_internal(const uint32_t left, con
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, dmtdata_t *, const uint32_t, iterate_extra_t *const)>
-void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr_internal_array(const uint32_t left, const uint32_t right,
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_ptr_internal_array(const uint32_t left, const uint32_t right,
                                                               iterate_extra_t *const iterate_extra) {
     for (uint32_t i = left; i < right; ++i) {
         int r = f(this->value_length, get_array_value(i), i, iterate_extra);
@@ -814,10 +814,10 @@ void dmt<dmtdata_t, dmtdataout_t>::iterate_ptr_internal_array(const uint32_t lef
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename iterate_extra_t,
          int (*f)(const uint32_t, const dmtdata_t &, const uint32_t, iterate_extra_t *const)>
-int dmt<dmtdata_t, dmtdataout_t>::iterate_internal(const uint32_t left, const uint32_t right,
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::iterate_internal(const uint32_t left, const uint32_t right,
                                                    const subtree &subtree, const uint32_t idx,
                                                    iterate_extra_t *const iterate_extra) const {
     if (subtree.is_null()) { return 0; }
@@ -838,13 +838,13 @@ int dmt<dmtdata_t, dmtdataout_t>::iterate_internal(const uint32_t left, const ui
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::fetch_internal_array(const uint32_t i, uint32_t *const value_len, dmtdataout_t *const value) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::fetch_internal_array(const uint32_t i, uint32_t *const value_len, dmtdataout_t *const value) const {
     copyout(value_len, value, this->value_length, get_array_value(i));
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::fetch_internal(const subtree &subtree, const uint32_t i, uint32_t *const value_len, dmtdataout_t *const value) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::fetch_internal(const subtree &subtree, const uint32_t i, uint32_t *const value_len, dmtdataout_t *const value) const {
     dmt_node &n = get_node(subtree);
     const uint32_t leftweight = this->nweight(n.left);
     if (i < leftweight) {
@@ -856,8 +856,8 @@ void dmt<dmtdata_t, dmtdataout_t>::fetch_internal(const subtree &subtree, const 
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::fill_array_with_subtree_offsets(node_offset *const array, const subtree &subtree) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::fill_array_with_subtree_offsets(node_offset *const array, const subtree &subtree) const {
     if (!subtree.is_null()) {
         const dmt_node &tree = get_node(subtree);
         this->fill_array_with_subtree_offsets(&array[0], tree.left);
@@ -866,8 +866,8 @@ void dmt<dmtdata_t, dmtdataout_t>::fill_array_with_subtree_offsets(node_offset *
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::rebuild_subtree_from_offsets(subtree *const subtree, const node_offset *const offsets, const uint32_t numvalues) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::rebuild_subtree_from_offsets(subtree *const subtree, const node_offset *const offsets, const uint32_t numvalues) {
     if (numvalues==0) {
         subtree->set_to_null();
     } else {
@@ -882,8 +882,8 @@ void dmt<dmtdata_t, dmtdataout_t>::rebuild_subtree_from_offsets(subtree *const s
 }
 
 //TODO(leif): Note that this can mess with our memory_footprint calculation (we may touch past what is marked as 'used' in the mempool)
-template<typename dmtdata_t, typename dmtdataout_t>
-node_offset* dmt<dmtdata_t, dmtdataout_t>::alloc_temp_node_offsets(uint32_t num_offsets) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+node_offset* dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::alloc_temp_node_offsets(uint32_t num_offsets) {
     size_t mem_needed = num_offsets * sizeof(node_offset);
     size_t mem_free;
     mem_free = toku_mempool_get_free_space(&this->mp);
@@ -894,8 +894,8 @@ node_offset* dmt<dmtdata_t, dmtdataout_t>::alloc_temp_node_offsets(uint32_t num_
     return nullptr;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::rebalance(subtree *const subtree) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::rebalance(subtree *const subtree) {
     paranoid_invariant(!subtree->is_null());
 
     // There is a possible "optimization" here:
@@ -920,8 +920,8 @@ void dmt<dmtdata_t, dmtdataout_t>::rebalance(subtree *const subtree) {
     if (malloced) toku_free(tmp_array);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t *const out, const dmt_node *const n) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::copyout(uint32_t *const outlen, dmtdata_t *const out, const dmt_node *const n) {
     if (outlen) {
         *outlen = n->value_length;
     }
@@ -930,8 +930,8 @@ void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t *co
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t **const out, dmt_node *const n) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::copyout(uint32_t *const outlen, dmtdata_t **const out, dmt_node *const n) {
     if (outlen) {
         *outlen = n->value_length;
     }
@@ -940,8 +940,8 @@ void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t **c
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t *const out, const uint32_t len, const dmtdata_t *const stored_value_ptr) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::copyout(uint32_t *const outlen, dmtdata_t *const out, const uint32_t len, const dmtdata_t *const stored_value_ptr) {
     if (outlen) {
         *outlen = len;
     }
@@ -950,8 +950,8 @@ void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t *co
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t **const out, const uint32_t len, dmtdata_t *const stored_value_ptr) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::copyout(uint32_t *const outlen, dmtdata_t **const out, const uint32_t len, dmtdata_t *const stored_value_ptr) {
     if (outlen) {
         *outlen = len;
     }
@@ -960,10 +960,10 @@ void dmt<dmtdata_t, dmtdataout_t>::copyout(uint32_t *const outlen, dmtdata_t **c
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_zero_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_zero_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     uint32_t min = 0;
     uint32_t limit = this->d.a.num_values;
@@ -996,10 +996,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_zero_array(const dmtcmp_t &extra
     return DB_NOTFOUND;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_zero(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_zero(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         *idxp = 0;
@@ -1024,10 +1024,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_zero(const subtree &subtree, con
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_plus_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_plus_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     uint32_t min = 0;
     uint32_t limit = this->d.a.num_values;
@@ -1049,10 +1049,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_plus_array(const dmtcmp_t &extra
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_plus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_plus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         return DB_NOTFOUND;
@@ -1076,10 +1076,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_plus(const subtree &subtree, con
     return r;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_minus_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_minus_array(const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     uint32_t min = 0;
     uint32_t limit = this->d.a.num_values;
@@ -1101,10 +1101,10 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_minus_array(const dmtcmp_t &extr
     return 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 template<typename dmtcmp_t,
          int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
-int dmt<dmtdata_t, dmtdataout_t>::find_internal_minus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
+int dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::find_internal_minus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const {
     paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         return DB_NOTFOUND;
@@ -1126,23 +1126,23 @@ int dmt<dmtdata_t, dmtdataout_t>::find_internal_minus(const subtree &subtree, co
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-uint32_t dmt<dmtdata_t, dmtdataout_t>::get_fixed_length(void) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+uint32_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_fixed_length(void) const {
     return this->values_same_size ? this->value_length : 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-uint32_t dmt<dmtdata_t, dmtdataout_t>::get_fixed_length_alignment_overhead(void) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+uint32_t dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_fixed_length_alignment_overhead(void) const {
     return this->values_same_size ? align(this->value_length) - this->value_length : 0;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-bool dmt<dmtdata_t, dmtdataout_t>::value_length_is_fixed(void) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+bool dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::value_length_is_fixed(void) const {
     return this->values_same_size;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::serialize_values(uint32_t expected_unpadded_memory, struct wbuf *wb) const {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::serialize_values(uint32_t expected_unpadded_memory, struct wbuf *wb) const {
     invariant(this->is_array);
     invariant(this->values_same_size);
     const uint8_t pad_bytes = get_fixed_length_alignment_overhead();
@@ -1166,8 +1166,8 @@ void dmt<dmtdata_t, dmtdataout_t>::serialize_values(uint32_t expected_unpadded_m
     }
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::builder::create(uint32_t _max_values, uint32_t _max_value_bytes) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::create(uint32_t _max_values, uint32_t _max_value_bytes) {
     this->max_values = _max_values;
     this->max_value_bytes = _max_value_bytes;
     this->temp.create();
@@ -1180,11 +1180,11 @@ void dmt<dmtdata_t, dmtdataout_t>::builder::create(uint32_t _max_values, uint32_
     toku_mempool_construct(&this->temp.mp, initial_space);  // Adds 25%
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::builder::append(const dmtdatain_t &value) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::append(const dmtwriter_t &value) {
     paranoid_invariant(this->temp_valid);
     //NOTE: Always use d.a.num_values for size because we have not yet created root.
-    if (this->temp.values_same_size && (this->temp.d.a.num_values == 0 || value.get_dmtdatain_t_size() == this->temp.value_length)) {
+    if (this->temp.values_same_size && (this->temp.d.a.num_values == 0 || value.get_size() == this->temp.value_length)) {
         this->temp.insert_at_array_end<false>(value);
         return;
     }
@@ -1201,8 +1201,8 @@ void dmt<dmtdata_t, dmtdataout_t>::builder::append(const dmtdatain_t &value) {
 
         // Copy over and get node_offsets
         for (uint32_t i = 0; i < num_values; i++) {
-            dmtdatain_t functor(this->temp.value_length, this->temp.get_array_value_internal(&old_mp, i));
-            this->sorted_node_offsets[i] = this->temp.node_malloc_and_set_value(functor);
+            dmtwriter_t writer(this->temp.value_length, this->temp.get_array_value_internal(&old_mp, i));
+            this->sorted_node_offsets[i] = this->temp.node_malloc_and_set_value(writer);
         }
         this->temp.is_array = false;
         this->temp.values_same_size = false;
@@ -1213,14 +1213,14 @@ void dmt<dmtdata_t, dmtdataout_t>::builder::append(const dmtdatain_t &value) {
     this->sorted_node_offsets[this->temp.d.a.num_values++] = this->temp.node_malloc_and_set_value(value);
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-bool dmt<dmtdata_t, dmtdataout_t>::builder::value_length_is_fixed(void) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+bool dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::value_length_is_fixed(void) {
     paranoid_invariant(this->temp_valid);
     return this->temp.values_same_size;
 }
 
-template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::builder::build(dmt<dmtdata_t, dmtdataout_t> *dest) {
+template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
+void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::build(dmt<dmtdata_t, dmtdataout_t, dmtwriter_t> *dest) {
     invariant(this->temp_valid);
     //NOTE: Always use d.a.num_values for size because we have not yet created root.
     invariant(this->temp.d.a.num_values <= this->max_values);

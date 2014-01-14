@@ -131,27 +131,26 @@ struct val_type {
 };
 
 namespace toku {
-template<>
-class dmt_functor<val_type> {
+class vwriter {
     public:
-        size_t get_dmtdatain_t_size(void) const {
+        size_t get_size(void) const {
             size_t len = strlen(v.c);
             invariant(len < sizeof(val_type));
             return len + 1;
         }
-        void write_dmtdata_t_to(val_type *const dest) const {
+        void write_to(val_type *const dest) const {
             strcpy(dest->c, v.c);
         }
 
-        dmt_functor(const char* c) {
+        vwriter(const char* c) {
             invariant(strlen(c) < sizeof(val_type));
             strcpy(v.c, c);
         }
 
-        dmt_functor(const uint32_t klpair_len, val_type *const src) {
+        vwriter(const uint32_t klpair_len, val_type *const src) {
             invariant(strlen(src->c) < sizeof(val_type));
             strcpy(v.c, src->c);
-            invariant(klpair_len == get_dmtdatain_t_size());
+            invariant(klpair_len == get_size());
         }
     private:
         val_type v;
@@ -159,8 +158,7 @@ class dmt_functor<val_type> {
 }
 
 /* Globals */
-typedef toku::dmt<val_type, val_type*> vdmt;
-typedef toku::dmt_functor<val_type> vfunctor;
+typedef toku::dmt<val_type, val_type*, toku::vwriter> vdmt;
 
 const unsigned int random_seed = 0xFEADACBA;
 
@@ -211,7 +209,7 @@ static void test_builder_fixed(uint32_t len, uint32_t num) {
     builder.create(num, num * len);
 
     for (uint32_t i = 0; i < num; i++) {
-        vfunctor vfun(data[i]);
+        vwriter vfun(data[i]);
         builder.append(vfun);
     }
     invariant(builder.value_length_is_fixed());
@@ -230,7 +228,7 @@ static void test_builder_fixed(uint32_t len, uint32_t num) {
         v2.delete_at(change);
         fail_one_verify(len, num, &v2);
 
-        vfunctor vfun(data[change]);
+        vwriter vfun(data[change]);
         v2.insert_at(vfun, change);
         verify(len, num, &v2);
         v2.destroy();
@@ -258,7 +256,7 @@ static void test_builder_variable(uint32_t len, uint32_t len2, uint32_t num) {
     builder.create(num, (num-1) * len + len2);
 
     for (uint32_t i = 0; i < num; i++) {
-        vfunctor vfun(data[i]);
+        vwriter vfun(data[i]);
         builder.append(vfun);
     }
     invariant(!builder.value_length_is_fixed());
