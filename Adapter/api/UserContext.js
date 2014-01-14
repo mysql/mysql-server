@@ -205,7 +205,9 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
 
 Promise.prototype.fulfill = function(result) {
   var name = this?this.name: 'no this';
-  udebug.log_detail(new Error(name, 'Promise.fulfill').stack);
+  if (udebug.is_detail()) {
+    udebug.log_detail(new Error(name, 'Promise.fulfill').stack);
+  }
   if (this.resolved) {
     throw new Error('Fatal User Exception: fulfill called after fulfill or reject');
   }
