@@ -6112,6 +6112,12 @@ cleanup:
     return error;
 }
 
+static const char *lock_type_str(int lock_type) {
+    if (lock_type == F_RDLCK) return "F_RDLCK";
+    if (lock_type == F_WRLCK) return "F_WRLCK";
+    if (lock_type == F_UNLCK) return "F_UNLCK";
+    return "?";
+}
 
 /*
   As MySQL will execute an external lock for every new table it uses
@@ -6130,9 +6136,9 @@ cleanup:
 //      error otherwise
 //
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
-    TOKUDB_HANDLER_DBUG_ENTER("cmd=%d %d", thd_sql_command(thd), lock_type);
+    TOKUDB_HANDLER_DBUG_ENTER("cmd=%d %d %s", thd_sql_command(thd), lock_type, lock_type_str(lock_type));
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
-        TOKUDB_TRACE("%s cmd=%d %d", __FUNCTION__, thd_sql_command(thd), lock_type);
+        TOKUDB_TRACE("%s cmd=%d %d %s", __FUNCTION__, thd_sql_command(thd), lock_type, lock_type_str(lock_type));
 
     int error = 0;
     tokudb_trx_data *trx = NULL;
