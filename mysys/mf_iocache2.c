@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   else if (info->type == WRITE_CACHE)
   {
     /* If write is in current buffer, reuse it */
-    if ((ulonglong) offset <
+    if ((ulonglong) offset <=
 	(ulonglong) (info->write_end - info->write_buffer))
     {
       info->write_pos = info->write_buffer + offset;

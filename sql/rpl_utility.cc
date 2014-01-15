@@ -40,6 +40,7 @@ static int compare(size_t a, size_t b)
     return 1;
   return 0;
 }
+#endif //MYSQL_CLIENT
 
 
 /**
@@ -169,7 +170,7 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
   }
 }
 
-
+#ifndef MYSQL_CLIENT
 /*
   Compare the pack lengths of a source field (on the master) and a
   target field (on the slave).
@@ -196,7 +197,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
   DBUG_PRINT("result", ("%d", result));
   DBUG_RETURN(result);
 }
-
+#endif //MYSQL_CLIENT
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -208,7 +209,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 */
 uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
-  uint32 length;
+  uint32 length= 0;
 
   switch (type(col)) {
   case MYSQL_TYPE_NEWDECIMAL:
@@ -316,17 +317,6 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
   {
-#if 1
-    /*
-      BUG#29549: 
-      This is currently broken for NDB, which is using big-endian
-      order when packing length of BLOB. Once they have decided how to
-      fix the issue, we can enable the code below to make sure to
-      always read the length in little-endian order.
-    */
-    Field_blob fb(m_field_metadata[col]);
-    length= fb.get_packed_size(master_data, TRUE);
-#else
     /*
       Compute the length of the data. We cannot use get_length() here
       since it is dependent on the specific table (and also checks the
@@ -352,7 +342,6 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
     }
 
     length+= m_field_metadata[col];
-#endif
     break;
   }
   default:
@@ -361,7 +350,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   return length;
 }
 
-
+#ifndef MYSQL_CLIENT
 /**
  */
 static void show_sql_type(enum_field_types type, uint16 metadata, String *str,

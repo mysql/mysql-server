@@ -1,6 +1,9 @@
 drop table if exists t1;
 CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
 insert into t1 values ('000000000001'),('000000000002');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where id=000000000001;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	2	100.00	Using where; Using index
@@ -64,9 +67,12 @@ CONCAT(b,c)	CONCAT(b,c) = '0101'
 0102	0
 0101	1
 0202	0
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN EXTENDED SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (concat('01',`test`.`t1`.`c`) = '0101'))
@@ -82,14 +88,20 @@ FROM t2 ORDER BY a;
 a	x
 1	1
 2	0
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN EXTENDED 
 SELECT a, 
 (SELECT COUNT(*) FROM t1 
 WHERE b = t2.a AND CONCAT(b,c) = CONCAT('0',t2.a,'01')) x 
 FROM t2 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using filesort
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1

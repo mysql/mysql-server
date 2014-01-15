@@ -1535,7 +1535,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   {
     delete rows_query_ev;
     rows_query_ev= NULL;
-    info_thd->set_query(NULL, 0);
+    info_thd->reset_query();
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);

@@ -1,6 +1,10 @@
 #
 # This test shows DISCARD/IMPORT of a remote tablespace.
 #
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 SET default_storage_engine=InnoDB;
 SET GLOBAL innodb_file_per_table=ON;
 DROP TABLE IF EXISTS t5980;

@@ -223,7 +223,7 @@ private:
   QUERY_PROFILE(PROFILING *profiling_arg, const char *status_arg);
   ~QUERY_PROFILE();
 
-  void set_query_source(char *query_source_arg, uint query_length_arg);
+  void set_query_source(const char *query_source_arg, size_t query_length_arg);
 
   /* Add a profile status change to the current profile. */
   void new_status(const char *status_arg,
@@ -264,7 +264,7 @@ private:
 public:
   PROFILING();
   ~PROFILING();
-  void set_query_source(char *query_source_arg, uint query_length_arg);
+  void set_query_source(const char *query_source_arg, size_t query_length_arg);
 
   void start_new_query(const char *initial_state= "starting");
 
