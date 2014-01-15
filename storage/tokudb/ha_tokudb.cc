@@ -1195,7 +1195,6 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     rec_buff = NULL;
     rec_update_buff = NULL;
     transaction = NULL;
-    is_fast_alter_running = false;
     cursor = NULL;
     fixed_cols_for_query = NULL;
     var_cols_for_query = NULL;
@@ -6055,7 +6054,6 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         }
 #endif
         if ((error = txn_begin(db_env, NULL, &trx->all, txn_begin_flags, thd))) {
-            trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
         }
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
@@ -6092,7 +6090,6 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     }
     if ((error = txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags, thd))) {
         /* We leave the possible master transaction open */
-        trx->tokudb_lock_count--;  // We didn't get the lock
         goto cleanup;
     }
     trx->sub_sp_level = trx->stmt;
@@ -6145,7 +6142,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         trx->sp_level = NULL;
     }
     if (lock_type != F_UNLCK) {
-        is_fast_alter_running = false;
         use_write_locks = false;
         if (lock_type == F_WRLCK) {
             use_write_locks = true;
@@ -6155,6 +6151,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             transaction = NULL;    // Safety
             error = create_txn(thd, trx);
             if (error) {
+                trx->tokudb_lock_count--;  // We didn't get the lock
                 goto cleanup;
             }
         }
@@ -6182,18 +6179,12 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                  */
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 reset_stmt_progress(&trx->stmt_progress);
-                if (!is_fast_alter_running) {
-                    commit_txn(trx->stmt, 0);
-                    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                        TOKUDB_TRACE("commit:%p:%d", trx->stmt, error);
-                    }
-                    trx->stmt = NULL;
-                    trx->sub_sp_level = NULL;
-                }
+                commit_txn(trx->stmt, 0);
+                trx->stmt = NULL;
+                trx->sub_sp_level = NULL;
             }
         }
         transaction = NULL;
-        is_fast_alter_running = false;
     }
 cleanup:
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
