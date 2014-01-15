@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -995,9 +995,11 @@ log_group_file_header_flush(
 
 		srv_stats.os_log_pending_writes.inc();
 
+		const ulint	page_no
+			= (ulint) (dest_offset / univ_page_size.physical());
+
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
-		       page_id_t(group->space_id,
-				 dest_offset / univ_page_size.physical()),
+		       page_id_t(group->space_id, page_no),
 		       univ_page_size,
 		       (ulint) (dest_offset % univ_page_size.physical()),
 		       OS_FILE_LOG_BLOCK_SIZE, buf, group);
@@ -1122,9 +1124,11 @@ loop:
 
 		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
+		const ulint	page_no
+			= (ulint) (next_offset / univ_page_size.physical());
+
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
-		       page_id_t(group->space_id,
-				 next_offset / univ_page_size.physical()),
+		       page_id_t(group->space_id, page_no),
 		       univ_page_size,
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
@@ -2008,9 +2012,11 @@ loop:
 
 	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
+	const ulint	page_no
+		= (ulint) (source_offset / univ_page_size.physical());
+
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync,
-	       page_id_t(group->space_id,
-			 source_offset / univ_page_size.physical()),
+	       page_id_t(group->space_id, page_no),
 	       univ_page_size,
 	       (ulint) (source_offset % univ_page_size.physical()),
 	       len, buf, NULL);
