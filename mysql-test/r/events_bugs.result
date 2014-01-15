@@ -728,6 +728,10 @@ DROP USER mysqltest_u1@localhost;
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;

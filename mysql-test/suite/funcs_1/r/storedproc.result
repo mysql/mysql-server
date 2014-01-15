@@ -21772,6 +21772,8 @@ DROP PROCEDURE IF EXISTS sp4;
 set @@sql_mode = 'ansi, error_for_division_by_zero';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of ' error_for_division_by_zero'
 set @@sql_mode = 'ansi,error_for_division_by_zero';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,ERROR_FOR_DIVISION_BY_ZERO

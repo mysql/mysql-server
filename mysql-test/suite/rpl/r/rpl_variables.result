@@ -35,6 +35,8 @@ SET @@global.lc_time_names = 'zh_HK';
 SET @@local.lc_time_names = 'zh_TW';
 SET @@global.sql_mode = 'ALLOW_INVALID_DATES';
 SET @@local.sql_mode = 'ANSI_QUOTES,ERROR_FOR_DIVISION_BY_ZERO,HIGH_NOT_PRECEDENCE';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 SET @user_num = 10;
 SET @user_text = 'Alunda';
 include/stop_slave.inc

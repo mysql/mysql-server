@@ -28,6 +28,8 @@ ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
 INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('2004-0-30');
 ERROR 22007: Incorrect date value: '2004-0-30' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
@@ -37,6 +39,8 @@ INSERT IGNORE INTO t1 VALUES('2004-0-29');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
@@ -188,8 +192,12 @@ INSERT INTO t1 VALUES('2004-02-30 15:30:04');
 ERROR 22007: Incorrect datetime value: '2004-02-30 15:30:04' for column 'col1' at row 1
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
 set @@sql_mode='ansi,traditional';
@@ -351,6 +359,8 @@ ERROR 22003: Out of range value for column 'col2' at row 3
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
 set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 INSERT INTO t1 values (1/0,1/0);
 Warnings:
 Warning	1365	Division by 0
@@ -1144,6 +1154,8 @@ ERROR 22007: Incorrect datetime value: '0000-00-00'
 insert into t1 (col1) values (cast('0000-00-00' as date));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 set sql_mode='no_zero_date';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 insert into t1 values (0,0,0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -1497,6 +1509,8 @@ ERROR HY000: Column 'f1' has duplicated value 'a' in SET
 create table t1 (f1 enum('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
 set @@sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 create table t1(a datetime not null);
 select count(*) from t1 where a is null;
 count(*)
@@ -1513,6 +1527,8 @@ End of 5.0 tests
 # STR_TO_DATE with NO_ZERO_DATE did not return NULL (with warning)
 # in get_date(). Only did in val_str() and val_int().
 SET sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 SELECT
 STR_TO_DATE('2001','%Y'),
 CONCAT(STR_TO_DATE('2001','%Y')),

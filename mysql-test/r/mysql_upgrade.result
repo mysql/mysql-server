@@ -117,6 +117,8 @@ Warning: Using a password on the command line interface can be insecure.
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK

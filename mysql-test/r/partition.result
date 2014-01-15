@@ -2185,6 +2185,8 @@ count(*)
 drop table t1, t2;
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (c1 INT)
 PARTITION BY LIST(1 DIV c1) (
 PARTITION p0 VALUES IN (NULL),
