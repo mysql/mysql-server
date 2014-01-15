@@ -759,7 +759,7 @@ handle_new_error:
 			" dump all InnoDB tables and recreate the whole"
 			" tablespace. If the mysqld server crashes after"
 			" the startup or when you dump the tables, look at"
-			REFMAN "forcing-innodb-recovery.html for help.");
+			" "REFMAN"forcing-innodb-recovery.html for help.");
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1731,9 +1731,9 @@ row_update_for_mysql(
 			" file for table %s does not exist. Have you deleted"
 			" the .ibd file from the database directory under"
 			" the MySQL datadir, or have you used DISCARD"
-			" TABLESPACE?  Please refer to " REFMAN
-			"innodb-troubleshooting.html to see how you can"
-			" resolve the problem.",
+			" TABLESPACE?  Please refer to"
+			" "REFMAN"innodb-troubleshooting.html to see"
+			" how you can resolve the problem.",
 			prebuilt->table->name);
 		DBUG_RETURN(DB_ERROR);
 	}
@@ -3354,8 +3354,8 @@ row_drop_table_for_mysql(
 				" drop it. Have you copied the .frm file"
 				" of the table to the MySQL database directory"
 				" from another database? You can look for"
-				" further help from " REFMAN ""
-				" innodb-troubleshooting.html",
+				" further help from"
+				" "REFMAN"innodb-troubleshooting.html",
 				ut_get_name(trx, TRUE, name).c_str());
 		}
 		goto funct_exit;
@@ -4334,7 +4334,7 @@ row_rename_table_for_mysql(
 			" table. Have you copied the .frm file of the table to"
 			" the MySQL database directory from another database?"
 			" You can look for further help from"
-			" " REFMAN "innodb-troubleshooting.html",
+			" "REFMAN"innodb-troubleshooting.html",
 			ut_get_name(trx, TRUE, old_name).c_str());
 		goto funct_exit;
 
@@ -4345,7 +4345,7 @@ row_rename_table_for_mysql(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Table %s does not have an .ibd file in the database"
-			" directory. See " REFMAN "innodb-troubleshooting.html",
+			" directory. See "REFMAN"innodb-troubleshooting.html",
 			old_name);
 
 		goto funct_exit;
@@ -4614,7 +4614,7 @@ end:
 				ut_get_name(trx, TRUE, old_name).c_str());
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"You can look for further help from"
-				REFMAN "innodb-troubleshooting.html.");
+				" "REFMAN"innodb-troubleshooting.html.");
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"If table %s is a temporary table #sql..., then"
 				" it can be that there are still queries"

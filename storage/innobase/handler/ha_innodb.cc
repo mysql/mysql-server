@@ -3166,7 +3166,7 @@ innobase_change_buffering_inited_ok:
 			"Using innodb_locks_unsafe_for_binlog is DEPRECATED."
 			" This option may be removed in future releases."
 			" Please use READ COMMITTED transaction isolation"
-			" level instead, see " REFMAN "set-transaction.html.");
+			" level instead, see "REFMAN"set-transaction.html.");
 	}
 
 	if (innobase_open_files < 10) {
@@ -4679,7 +4679,7 @@ ha_innobase::open(
 			"table %s contains %lu user defined columns"
 			" in InnoDB, but %lu columns in MySQL. Please"
 			" check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and"
-			" " REFMAN "innodb-troubleshooting.html"
+			" "REFMAN"innodb-troubleshooting.html"
 			" for how to resolve it",
 			norm_name, (ulong) dict_table_get_n_user_cols(ib_table),
 			(ulong) table->s->fields);
@@ -4770,7 +4770,7 @@ ha_innobase::open(
 			"Cannot open table %s from the internal data"
 			" dictionary of InnoDB though the .frm file"
 			" for the table exists. See"
-			" " REFMAN "innodb-troubleshooting.html for how"
+			" "REFMAN"innodb-troubleshooting.html for how"
 			" you can resolve the problem.", norm_name);
 
 		free_share(share);
@@ -7442,13 +7442,23 @@ ha_innobase::change_active_index(
 				table_name, sizeof table_name,
 				prebuilt->index->table->name, FALSE);
 
-			push_warning_printf(
-				user_thd, Sql_condition::SL_WARNING,
-				HA_ERR_INDEX_CORRUPT,
-				"InnoDB: Index %s for table %s is"
-				" marked as corrupted",
-				index_name, table_name);
-			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
+			if (dict_index_is_clust(prebuilt->index)) {
+				ut_ad(prebuilt->index->table->corrupted);
+				push_warning_printf(
+					user_thd, Sql_condition::SL_WARNING,
+					HA_ERR_TABLE_CORRUPT,
+					"InnoDB: Table %s is corrupted.",
+					table_name);
+				DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
+			} else {
+				push_warning_printf(
+					user_thd, Sql_condition::SL_WARNING,
+					HA_ERR_INDEX_CORRUPT,
+					"InnoDB: Index %s for table %s is"
+					" marked as corrupted",
+					index_name, table_name);
+				DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
+			}
 		} else {
 			push_warning_printf(
 				user_thd, Sql_condition::SL_WARNING,
@@ -10986,7 +10996,7 @@ ha_innobase::info_low(
 						" .frm file. Have you mixed up"
 						" .frm files from different"
 						" installations? See"
-						" " REFMAN
+						" "REFMAN
 						"innodb-troubleshooting.html\n",
 						ib_table->name);
 				break;
@@ -11005,12 +11015,11 @@ ha_innobase::info_low(
 					sql_print_error(
 						"Index %s of %s has %lu columns"
 					        " unique inside InnoDB, but"
-						" MySQL is asking statistics for"
-					        " %lu columns. Have you mixed"
-						" up .frm files from different"
-					       	" installations?"
-						" See"
-						" " REFMAN
+						" MySQL is asking statistics"
+						" for %lu columns. Have you"
+						" mixed up .frm files from"
+						" different installations? See"
+						" "REFMAN
 						"innodb-troubleshooting.html\n",
 						index->name,
 						ib_table->name,

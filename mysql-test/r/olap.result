@@ -86,6 +86,9 @@ TV	2	2000	200
 TV	2	NULL	200
 TV	NULL	NULL	600
 NULL	NULL	NULL	7785
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain extended select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using filesort
@@ -711,7 +714,7 @@ End of 5.0 tests
 #
 # Bug#13011553 CRASH IN SORTCMP OR CACHED_ITEM_STR::CMP IF GROUP BY SUBQUERY WITH ROLLUP
 #
-CREATE TABLE t1 (f1 DATETIME) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 DATETIME);
 INSERT INTO  t1 VALUES ('2012-12-20 00:00:00'), (NULL);
 SELECT f1 FROM t1 GROUP BY
 (SELECT f1 FROM t1 HAVING f1 < '2012-12-21 00:00:00') WITH ROLLUP;
@@ -719,7 +722,7 @@ f1
 2012-12-20 00:00:00
 2012-12-20 00:00:00
 DROP TABLE t1;
-CREATE TABLE t1 (f1 DATE) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 DATE);
 INSERT INTO  t1 VALUES ('2012-12-20'), (NULL);
 SELECT f1 FROM t1 GROUP BY
 (SELECT f1 FROM t1 HAVING f1 < '2012-12-21') WITH ROLLUP;
@@ -727,7 +730,7 @@ f1
 2012-12-20
 2012-12-20
 DROP TABLE t1;
-CREATE TABLE t1 (f1 TIME) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 TIME);
 INSERT INTO  t1 VALUES ('11:11:11'), (NULL);
 SELECT f1 FROM t1 GROUP BY
 (SELECT f1 FROM t1 HAVING f1 < '12:12:12') WITH ROLLUP;

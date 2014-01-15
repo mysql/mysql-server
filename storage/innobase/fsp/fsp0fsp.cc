@@ -3151,7 +3151,7 @@ fseg_free_page_low(
 			" recreate the whole database!", (ulong) page);
 crash:
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Please refer to " REFMAN "forcing-innodb-recovery.html"
+			"Please refer to "REFMAN"forcing-innodb-recovery.html"
 			" about forcing recovery.");
 	}
 

@@ -730,8 +730,8 @@ failure:
 			" to start up, set innodb_thread_concurrency in"
 			" my.cnf to a lower value, for example, to 8. After"
 			" an ERROR-FREE shutdown of mysqld you can adjust"
-			" the size of ib_logfiles, as explained in " REFMAN
-			" adding-and-removing.html.",
+			" the size of ib_logfiles, as explained in"
+			" "REFMAN"adding-and-removing.html",
 			(ulong) srv_thread_concurrency);
 	}
 
