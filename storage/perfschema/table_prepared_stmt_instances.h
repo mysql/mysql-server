@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,6 +37,13 @@ struct row_prepared_stmt_instances
 {
   /** Column OBJECT_INSTANCE_BEGIN. */
   const void *m_identity;
+
+  /** Column STMT_ID. */
+  ulonglong m_stmt_id;
+
+  /** Column STMT_NAME. */
+  char m_stmt_name[COL_INFO_SIZE];
+  int m_stmt_name_length;
 
   /** Column SQL_TEXT. */
   char m_sql_text[COL_INFO_SIZE];

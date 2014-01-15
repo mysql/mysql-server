@@ -5943,7 +5943,9 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 }
 
 PSI_prepared_stmt*
-pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker, 
+pfs_create_prepare_stmt_v1(void *identity, uint stmt_id, 
+                           PSI_statement_locker *locker, 
+                           char *stmt_name, uint stmt_name_length,
                            char *sql_text, uint sql_text_length)
 {
   PFS_events_statements *pfs_stmt= NULL;
@@ -5953,6 +5955,8 @@ pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker,
 
   if (pfs_stmt == NULL)
     return NULL;
+
+  printf("\n *********** stmt_id[%d], stmt_name[%s]\n", stmt_id, stmt_name);
 
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
@@ -5964,9 +5968,9 @@ pfs_create_prepare_stmt_v1(void *identity, PSI_statement_locker *locker,
 
   PFS_prepared_stmt *pfs= create_prepared_stmt(identity,
                                                pfs_thread,
-                                               pfs_stmt,
-                                               sql_text,
-                                               sql_text_length);
+                                               pfs_stmt, stmt_id,
+                                               stmt_name, stmt_name_length,
+                                               sql_text, sql_text_length);
   return reinterpret_cast<PSI_prepared_stmt*>(pfs);
 }
 

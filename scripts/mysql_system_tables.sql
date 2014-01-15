@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -2066,13 +2066,19 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.prepared_statement_instances("
   "OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,"
+  "STATEMENT_ID bigint(20) unsigned NOT NULL,"
+  "STATEMENT_NAME varchar(64) default NULL,"
   "SQL_TEXT longtext NOT NULL,"
   "OWNER_THREAD_ID bigint(20) unsigned NOT NULL,"
   "OWNER_EVENT_ID bigint(20) unsigned NOT NULL,"
   "OWNER_OBJECT_TYPE enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER') DEFAULT NULL,"
   "OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,"
   "OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,"
-  "TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "COUNT_PREPARE bigint(20) unsigned NOT NULL,"
+  "SUM_TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "MIN_TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "AVG_TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "MAX_TIMER_PREPARE bigint(20) unsigned NOT NULL,"
   "COUNT_EXECUTE bigint(20) unsigned NOT NULL,"
   "SUM_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
   "MIN_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"

@@ -693,9 +693,10 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
 }
 
 static PSI_prepared_stmt*
-create_prepare_stmt_noop(void *identity NNN,
-                            PSI_statement_locker *locker NNN, 
-                            char *name NNN, uint length NNN)
+create_prepare_stmt_noop(void *identity NNN, uint stmt_id NNN,
+                         PSI_statement_locker *locker NNN, 
+                         char *stmt_name NNN, uint stmt_name_length NNN,
+                         char *name NNN, uint length NNN)
 {
   return NULL;
 }

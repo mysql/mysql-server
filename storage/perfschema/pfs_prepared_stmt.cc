@@ -105,7 +105,8 @@ void reset_prepared_stmt_instances()
 PFS_prepared_stmt*
 create_prepared_stmt(void *identity,
                      PFS_thread *thread,
-                     PFS_events_statements *pfs_stmt,
+                     PFS_events_statements *pfs_stmt, uint stmt_id,
+                     char* stmt_name, uint stmt_name_length,
                      char* sqltext, uint sqltext_length)
 {
   if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
@@ -137,6 +138,9 @@ create_prepared_stmt(void *identity,
         pfs->m_identity= identity;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
         pfs->m_sqltext_length= sqltext_length;
+        strncpy(pfs->m_stmt_name, stmt_name, stmt_name_length);
+        pfs->m_stmt_name_length= stmt_name_length;
+        pfs->m_stmt_id= stmt_id;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
         DBUG_ASSERT(pfs_stmt != NULL);
