@@ -96,7 +96,8 @@ static const char *handler_error_messages[]=
   "Operation not allowed when innodb_forced_recovery > 0",
   "Foreign key cascade delete/update exceeds max depth",
   "Required Create option missing",
-  "Out of memory in storage engine"
+  "Out of memory in storage engine",
+  "Table corrupted"
 };
 
 extern void my_handler_error_register(void);

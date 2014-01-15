@@ -963,11 +963,10 @@ dict_table_open_on_name(
 				mutex_exit(&dict_sys->mutex);
 			}
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table %s is corrupted. Please drop the table"
 				" and recreate",
 				ut_get_name(NULL, TRUE, table->name).c_str());
-
 			DBUG_RETURN(NULL);
 		}
 
@@ -3337,7 +3336,7 @@ dict_foreign_error_report(
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
 		fputs("\n"
-		      "See " REFMAN "innodb-foreign-key-constraints.html\n"
+		      "See "REFMAN"innodb-foreign-key-constraints.html\n"
 		      "for correct foreign key definition.\n",
 		      file);
 	}
@@ -4372,7 +4371,7 @@ col_loop1:
 		ut_print_name(ef, NULL, TRUE, name);
 		fprintf(ef, " where the columns appear\n"
 			"as the first columns. Constraint:\n%s\n"
-			"See " REFMAN "innodb-foreign-key-constraints.html\n"
+			"See "REFMAN"innodb-foreign-key-constraints.html\n"
 			"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -4656,7 +4655,7 @@ try_find_index:
 				" and such columns in old tables\n"
 				"cannot be referenced by such columns"
 				" in new tables.\n"
-				"See " REFMAN
+				"See "REFMAN
 				"innodb-foreign-key-constraints.html\n"
 				"for correct foreign key definition.\n",
 				start_of_latest_foreign);

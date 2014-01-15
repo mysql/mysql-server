@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -459,6 +459,12 @@ void gtid_post_statement_checks(THD *thd)
 int gtid_rollback(THD *thd)
 {
   DBUG_ENTER("gtid_rollback");
+
+  if (thd->skip_gtid_rollback)
+  {
+    DBUG_PRINT("info",("skipping the gtid_rollback"));
+    DBUG_RETURN(0);
+  }
 
   global_sid_lock->rdlock();
   gtid_state->update_on_rollback(thd);
