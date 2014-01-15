@@ -148,7 +148,7 @@ extern	ibool	srv_start_raw_disk_in_use;
 
 
 /** Shutdown state */
-enum srv_shutdown_state {
+enum srv_shutdown_t {
 	SRV_SHUTDOWN_NONE = 0,	/*!< Database running normally */
 	SRV_SHUTDOWN_CLEANUP,	/*!< Cleaning up in
 				logs_empty_and_mark_files_at_shutdown() */
@@ -165,7 +165,7 @@ enum srv_shutdown_state {
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-extern	enum srv_shutdown_state	srv_shutdown_state;
+extern	enum srv_shutdown_t	srv_shutdown_state;
 #endif /* !UNIV_HOTBACKUP */
 
 #endif

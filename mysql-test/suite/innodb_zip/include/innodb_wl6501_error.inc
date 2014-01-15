@@ -20,9 +20,6 @@ call mtr.add_suppression("Flagged corruption of .* in table "
 			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 call mtr.add_suppression("Parent table of FTS auxiliary table "
 			 ".*\/.* not found");
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"test\"\.\"t\" is corrupted.");
---enable_query_log
 ################################################################################
 #
 # Will test following scenarios:
@@ -127,7 +124,7 @@ truncate table t;
 set session debug = "-d,ib_err_trunc_drop_index";
 #
 #check table t;
---error ER_INDEX_CORRUPT
+--error ER_TABLE_CORRUPT
 select * from t;
 drop table t;
 #
@@ -152,7 +149,7 @@ truncate table t;
 set session debug = "-d,ib_err_trunc_create_index";
 #
 #check table t;
---error ER_INDEX_CORRUPT
+--error ER_TABLE_CORRUPT
 select * from t;
 drop table t;
 #
@@ -177,7 +174,7 @@ truncate table t;
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 #
 #check table t;
---error ER_INDEX_CORRUPT
+--error ER_TABLE_CORRUPT
 select * from t;
 drop table t;
 
@@ -207,7 +204,7 @@ truncate table t;
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 #
 #check table t;
---error ER_INDEX_CORRUPT
+--error ER_TABLE_CORRUPT
 select * from t;
 drop table t;
 
@@ -237,7 +234,7 @@ truncate table t;
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 #
 #check table t;
---error ER_INDEX_CORRUPT
+--error ER_TABLE_CORRUPT
 select * from t order by i;
 drop table t;
 
@@ -247,4 +244,3 @@ drop table t;
 #
 eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;
-

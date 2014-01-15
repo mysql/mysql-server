@@ -618,7 +618,7 @@ recv_find_max_checkpoint(
 			" to create the InnoDB data files,"
 			" but log file creation failed."
 			" If that is the case, please refer to"
-			" " REFMAN "error-creating-innodb.html");
+			" "REFMAN"error-creating-innodb.html");
 		return(DB_ERROR);
 	}
 
@@ -2111,7 +2111,7 @@ recv_report_corrupt_log(
 		" that the log scan did not proceed far enough in recovery!"
 		" Please run CHECK TABLE on your InnoDB tables to check"
 		" that they are ok! If mysqld crashes after this recovery,"
-		" look at " REFMAN "forcing-innodb-recovery.html"
+		" look at "REFMAN"forcing-innodb-recovery.html"
 		" about forcing recovery.");
 
 	fflush(stderr);
