@@ -341,20 +341,21 @@ void locktree::manager::escalate_all_locktrees(void) {
     if (0) fprintf(stderr, "%d %s:%u\n", toku_os_gettid(), __PRETTY_FUNCTION__, __LINE__);
     uint64_t t0 = toku_current_time_microsec();
 
-    mutex_lock();
-
     // get all locktrees
+    mutex_lock();
     int num_locktrees = m_locktree_map.size();
     locktree **locktrees = new locktree *[num_locktrees];
     for (int i = 0; i < num_locktrees; i++) {
         int r = m_locktree_map.fetch(i, &locktrees[i]);
         invariant_zero(r);
+        reference_lt(locktrees[i]);
     }
+    mutex_unlock();
         
     // escalate them
     escalate_locktrees(locktrees, num_locktrees);
+
     delete [] locktrees;
-    mutex_unlock();
 
     uint64_t t1 = toku_current_time_microsec();
     add_escalator_wait_time(t1 - t0);
@@ -483,6 +484,7 @@ void locktree::manager::escalate_locktrees(locktree **locktrees, int num_locktre
     tokutime_t t0 = toku_time_now();
     for (int i = 0; i < num_locktrees; i++) {
         locktrees[i]->escalate(m_lt_escalate_callback, m_lt_escalate_callback_extra);
+        release_lt(locktrees[i]);
     }
     tokutime_t t1 = toku_time_now();
 
@@ -510,6 +512,7 @@ void locktree::manager::escalate_lock_trees_for_txn(TXNID txnid UU(), locktree *
     // get lock trees for txnid
     const int num_locktrees = 1;
     locktree *locktrees[1] = { lt };
+    reference_lt(lt);
 
     // escalate these lock trees
     locktree::escalator this_escalator;
