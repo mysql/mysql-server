@@ -2916,10 +2916,16 @@ call bug6129()|
 @@sql_mode
 ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode= "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"|
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 call bug6129()|
 @@sql_mode
 ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode= "NO_ZERO_IN_DATE"|
+Warnings:
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 call bug6129()|
 @@sql_mode
 ERROR_FOR_DIVISION_BY_ZERO
@@ -6872,6 +6878,10 @@ DROP FUNCTION f1;
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();

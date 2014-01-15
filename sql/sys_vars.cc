@@ -2724,8 +2724,51 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
+void sql_mode_deprecation_warnings(sql_mode_t sql_mode)
+{
+  /**
+    If sql_mode is set throught the client, the deprecation warning should
+    go to the client connection. If it is used as server startup option,
+    it will go the error-log if the deprecated sql_modes are used.
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          "MODE_ERROR_FOR_DIVISION_BY_ZERO");
+
+    if (sql_mode & MODE_NO_ZERO_DATE)
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          "MODE_NO_ZERO_DATE");
+
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          "MODE_NO_ZERO_IN_DATE");
+  }
+  else
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+      sql_print_warning("'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated "
+                        "and will be removed in a future release.");
+    if (sql_mode & MODE_NO_ZERO_DATE)
+      sql_print_warning("'MODE_NO_ZERO_DATE' is deprecated "
+                        "and will be removed in a future release.");
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+      sql_print_warning("'MODE_NO_ZERO_IN_DATE' is deprecated "
+                        "and will be removed in a future release.");
+   }
+}
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
+  sql_mode_deprecation_warnings(sql_mode);
   if (sql_mode & MODE_ANSI)
   {
     /*

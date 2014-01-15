@@ -7337,6 +7337,8 @@ DROP TABLE t1;
 # Testing values with zeros in dates
 #
 SET sql_mode=no_zero_in_date;
+Warnings:
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:

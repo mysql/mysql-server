@@ -67,6 +67,8 @@ Note	1003	/* select#1 */ select DATE'2010-01-01' AS `DATE'2010-01-01'`
 # Testing DATE literals in non-default sql_mode
 #
 SET sql_mode=no_zero_in_date;
+Warnings:
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 SELECT DATE'2001-00-00';
 ERROR HY000: Incorrect DATE value: '2001-00-00'
 SELECT DATE'2001-01-00';
@@ -75,6 +77,8 @@ SELECT DATE'0000-00-00';
 DATE'0000-00-00'
 0000-00-00
 SET sql_mode=no_zero_date;
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 SELECT DATE'0000-00-00';
 ERROR HY000: Incorrect DATE value: '0000-00-00'
 SET sql_mode=default;

@@ -850,6 +850,8 @@ id
 drop table t1;
 set @orig_sql_mode = @@sql_mode;
 set sql_mode="no_zero_date";
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
 create table t1(f1 int);
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
