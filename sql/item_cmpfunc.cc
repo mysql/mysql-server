@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2506,16 +2506,32 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
   thd->lex->current_select()->between_count++;
 
-  /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
   if (pred_level && !negated)
     return 0;
 
-  /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
   not_null_tables_cache= (args[0]->not_null_tables() |
                           (args[1]->not_null_tables() &
                            args[2]->not_null_tables()));
 
   return 0;
+}
+
+
+void Item_func_between::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
+  if (pred_level && !negated)
+    return;
+
+  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
+  not_null_tables_cache= args[0]->not_null_tables() |
+                         (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
 }
 
 
@@ -2638,8 +2654,80 @@ void Item_func_between::fix_length_and_dec()
 }
 
 
+/**
+  A helper function for Item_func_between::val_int() to avoid
+  over/underflow when comparing large values.
+
+  @tparam LLorULL ulonglong or longlong
+
+  @param  compare_as_temporal_dates copy of Item_func_between member variable
+  @param  compare_as_temporal_times copy of Item_func_between member variable
+  @param  negated                   copy of Item_func_between member variable
+  @param  args                      copy of Item_func_between member variable
+  @param  null_value [out]          set to true if result is not true/false
+
+  @retval true if: args[1] <= args[0] <= args[2]
+ */
+template<typename LLorULL>
+longlong compare_between_int_result(bool compare_as_temporal_dates,
+                                    bool compare_as_temporal_times,
+                                    bool negated,
+                                    Item **args,
+                                    my_bool *null_value)
+{
+  {
+    LLorULL a, b, value;
+    value= compare_as_temporal_times ? args[0]->val_time_temporal() :
+           compare_as_temporal_dates ? args[0]->val_date_temporal() :
+           args[0]->val_int();
+    if ((*null_value= args[0]->null_value))
+      return 0;                               /* purecov: inspected */
+    if (compare_as_temporal_times)
+    {
+      a= args[1]->val_time_temporal();
+      b= args[2]->val_time_temporal();
+    }
+    else if (compare_as_temporal_dates)
+    {
+      a= args[1]->val_date_temporal();
+      b= args[2]->val_date_temporal();
+    }
+    else
+    {
+      a= args[1]->val_int();
+      b= args[2]->val_int();
+    }
+
+    if (args[0]->unsigned_flag)
+    {
+      /*
+        value BETWEEN <some negative number> AND <some number>
+        rewritten to
+        value BETWEEN 0 AND <some number>
+      */
+      if (!args[1]->unsigned_flag && (longlong) a < 0)
+        a = 0;
+    }
+
+    if (!args[1]->null_value && !args[2]->null_value)
+      return (longlong) ((value >= a && value <= b) != negated);
+    if (args[1]->null_value && args[2]->null_value)
+      *null_value= 1;
+    else if (args[1]->null_value)
+    {
+      *null_value= value <= b;                  // not null if false range.
+    }
+    else
+    {
+      *null_value= value >= a;
+    }
+    return value;
+  }
+}
+
+
 longlong Item_func_between::val_int()
-{						// ANSI BETWEEN
+{                                               // ANSI BETWEEN
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates_with_strings)
   {
@@ -2654,7 +2742,7 @@ longlong Item_func_between::val_int()
       return (longlong) ((ge_res >= 0 && le_res <=0) != negated);
     else if (args[1]->null_value)
     {
-      null_value= le_res > 0;			// not null if false range.
+      null_value= le_res > 0;                   // not null if false range.
     }
     else
     {
@@ -2688,46 +2776,30 @@ longlong Item_func_between::val_int()
   }
   else if (cmp_type == INT_RESULT)
   {
-    longlong a, b, value;
-    value= compare_as_temporal_times ? args[0]->val_time_temporal() :
-           compare_as_temporal_dates ? args[0]->val_date_temporal() :
-           args[0]->val_int();
-    if ((null_value=args[0]->null_value))
-      return 0;					/* purecov: inspected */
-    if (compare_as_temporal_times)
-    {
-      a= args[1]->val_time_temporal();
-      b= args[2]->val_time_temporal();
-    }
-    else if (compare_as_temporal_dates)
-    {
-      a= args[1]->val_date_temporal();
-      b= args[2]->val_date_temporal();
-    }
+    longlong value;
+    if (args[0]->unsigned_flag)
+      value= compare_between_int_result<ulonglong>(compare_as_temporal_dates,
+                                                   compare_as_temporal_times,
+                                                   negated,
+                                                   args,
+                                                   &null_value);
     else
-    {
-      a= args[1]->val_int();
-      b= args[2]->val_int();
-    }
+      value= compare_between_int_result<longlong>(compare_as_temporal_dates,
+                                                  compare_as_temporal_times,
+                                                  negated,
+                                                  args,
+                                                  &null_value);
+    if (args[0]->null_value)
+      return 0;                                 /* purecov: inspected */
     if (!args[1]->null_value && !args[2]->null_value)
-      return (longlong) ((value >= a && value <= b) != negated);
-    if (args[1]->null_value && args[2]->null_value)
-      null_value=1;
-    else if (args[1]->null_value)
-    {
-      null_value= value <= b;			// not null if false range.
-    }
-    else
-    {
-      null_value= value >= a;
-    }
+      return value;
   }
   else if (cmp_type == DECIMAL_RESULT)
   {
     my_decimal dec_buf, *dec= args[0]->val_decimal(&dec_buf),
                a_buf, *a_dec, b_buf, *b_dec;
     if ((null_value=args[0]->null_value))
-      return 0;					/* purecov: inspected */
+      return 0;                                 /* purecov: inspected */
     a_dec= args[1]->val_decimal(&a_buf);
     b_dec= args[2]->val_decimal(&b_buf);
     if (!args[1]->null_value && !args[2]->null_value)
@@ -2960,6 +3032,15 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
   return 0;
 }
 
+
+void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func::fix_after_pullout(parent_select, removed_select);
+
+  not_null_tables_cache= (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
+}
 
 void Item_func_if::cache_type_info(Item *source)
 {
@@ -4361,24 +4442,41 @@ bool Item_func_in::list_contains_null()
     1   got error
 */
 
-bool
-Item_func_in::fix_fields(THD *thd, Item **ref)
+bool Item_func_in::fix_fields(THD *thd, Item **ref)
 {
-  Item **arg, **arg_end;
-
   if (Item_func_opt_neg::fix_fields(thd, ref))
-    return 1;
+    return true;
 
-  /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
   if (pred_level && negated)
-    return 0;
+    return false;
 
-  /* not_null_tables_cache = union(T1(e),intersection(T1(ei))) */
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
   not_null_tables_cache= ~(table_map) 0;
-  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end; arg++)
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
     not_null_tables_cache&= (*arg)->not_null_tables();
   not_null_tables_cache|= (*args)->not_null_tables();
-  return 0;
+
+  return false;
+}
+
+
+void Item_func_in::fix_after_pullout(st_select_lex *parent_select,
+                                     st_select_lex *removed_select)
+{
+  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+
+  // not_null_tables_cache == union(T1(e),union(T1(ei)))
+  if (pred_level && negated)
+    return;
+
+  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
+  not_null_tables_cache= ~(table_map) 0;
+  Item **arg_end= args + arg_count;
+  for (Item **arg= args + 1; arg != arg_end; arg++)
+    not_null_tables_cache&= (*arg)->not_null_tables();
+  not_null_tables_cache|= (*args)->not_null_tables();
 }
 
 

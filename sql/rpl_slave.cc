@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1528,7 +1528,7 @@ io_thread_init_command(Master_info *mi, const char *query, int allowed_error,
   DBUG_ENTER("io_thread_init_command");
   DBUG_PRINT("info", ("IO thread initialization command: '%s'", query));
   MYSQL *mysql= mi->mysql;
-  int ret= mysql_real_query(mysql, query, strlen(query));
+  int ret= mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
   if (io_slave_killed(mi->info_thd, mi))
   {
     sql_print_information("The slave IO thread was killed while executing "
@@ -1593,7 +1593,7 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
   int ret= 0;
 
   sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
-  if (mysql_real_query(mysql, query, strlen(query))
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))
       && !check_io_slave_killed(mi->info_thd, mi, NULL))
     goto err;
 
@@ -2124,7 +2124,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
 
-    if (mysql_real_query(mysql, query, strlen(query)))
+    if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))))
     {
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
@@ -2169,7 +2169,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       Once the first FD will be received its alg descriptor will replace
       the being queried one.
     */
-    rc= mysql_real_query(mysql, query, strlen(query));
+    rc= mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
     if (rc != 0)
     {
       mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
@@ -2903,9 +2903,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     // Last_SQL_Error_Timestamp
     protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
     // Master_Ssl_Crl
-    protocol->store(mi->ssl_ca, &my_charset_bin);
+    protocol->store(mi->ssl_crl, &my_charset_bin);
     // Master_Ssl_Crlpath
-    protocol->store(mi->ssl_capath, &my_charset_bin);
+    protocol->store(mi->ssl_crlpath, &my_charset_bin);
     // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
     // Executed_Gtid_Set

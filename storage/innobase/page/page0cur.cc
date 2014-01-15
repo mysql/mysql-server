@@ -785,9 +785,9 @@ page_cur_parse_insert_rec(
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Is short %lu, info_and_status_bits %lu, offset %lu, "
-			"o_offset %lu, mismatch index %lu, end_seg_len %lu"
-			"parsed len %lu",
+			"is_short %lu, info_and_status_bits %lu, offset %lu,"
+			" o_offset %lu, mismatch index %lu, end_seg_len %lu"
+			" parsed len %lu",
 			(ulong) is_short, (ulong) info_and_status_bits,
 			(ulong) page_offset(cursor_rec),
 			(ulong) origin_offset,
@@ -1961,7 +1961,7 @@ page_cur_delete_rec(
 	/* rec now points to the record of the previous directory slot. Look
 	for the immediate predecessor of current_rec in a loop. */
 
-	while(current_rec != rec) {
+	while (current_rec != rec) {
 		prev_rec = rec;
 		rec = page_rec_get_next(rec);
 	}

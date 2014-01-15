@@ -201,7 +201,7 @@ DROP TABLE articles;
 create table articles(`FTS_DOC_ID` serial,
 `col32` timestamp not null,`col115` text) engine=innodb;
 create fulltext index `idx5` on articles(`col115`)  ;
-alter ignore table articles add primary key  (`col32`)  ;
+alter table articles add primary key  (`col32`)  ;
 drop table articles;
 CREATE TABLE articles (
 id INT UNSIGNED NOT NULL,

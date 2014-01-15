@@ -6,8 +6,10 @@
 --disable_warnings
 drop table if exists t2,t1;
 --enable_warnings
-
 set names utf8;
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -57,6 +59,9 @@ INSERT INTO t2 (a2,b2) VALUES
 # error on delete from parent table
 --error 1451
 DELETE FROM t1;
+
+ANALYZE TABLE t1; 
+ANALYZE TABLE t2;
 
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ORDER BY id2;
@@ -220,6 +225,7 @@ DROP TABLE IF EXISTS t2,t1;
 --enable_warnings
 
 SET NAMES utf8;
+call mtr.add_suppression("\\[ERROR\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
 
 # Create FTS table
 CREATE TABLE t1 (

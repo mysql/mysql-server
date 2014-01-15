@@ -199,6 +199,9 @@ unlocking, not the corresponding function. */
 #define rw_lock_sx_lock_gen(M, P)				\
 	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
 
+#define rw_lock_sx_lock_nowait(M, P)				\
+	rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
 #  define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(P, L)
@@ -277,6 +280,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_sx_lock_gen(M, P)				\
 	pfs_rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
 
+#define rw_lock_sx_lock_nowait(M, P)				\
+	pfs_rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_sx_unlock(L)		pfs_rw_lock_sx_unlock_func(0, L)
 #  define rw_lock_sx_unlock_gen(L, P)	pfs_rw_lock_sx_unlock_func(P, L)
@@ -321,6 +327,9 @@ unlocking, not the corresponding function. */
 	rw_lock_sx_lock_func((M), (P), (F), (L))
 #define rw_lock_sx_lock_gen(M, P)				\
 	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+#define rw_lock_sx_lock_nowait(M, P)				\
+	rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+
 #ifdef UNIV_SYNC_DEBUG
 # define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
 # define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(P, L)
@@ -434,6 +443,18 @@ an s-lock, locking does not succeed! */
 
 void
 rw_lock_x_lock_func(
+/*================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Low-level function for acquiring an sx lock.
+@return FALSE if did not succeed, TRUE if success. */
+
+ibool
+rw_lock_sx_lock_low(
 /*================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
@@ -918,6 +939,19 @@ UNIV_INLINE
 void
 pfs_rw_lock_sx_lock_func(
 /*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
+NOTE! Please use the corresponding macro, not directly
+this function! */
+UNIV_INLINE
+ibool
+pfs_rw_lock_sx_lock_low(
+/*================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */

@@ -6873,7 +6873,8 @@ ER_FK_COLUMN_CANNOT_CHANGE
 ER_FK_COLUMN_CANNOT_CHANGE_CHILD
   eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s' of table '%-.192s'"
 
-ER_FK_CANNOT_DELETE_PARENT
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED5
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
 
 ER_MALFORMED_PACKET
@@ -6927,7 +6928,8 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
   eng "Adding foreign keys needs foreign_key_checks=OFF"
 
-ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED6
   eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
@@ -7039,6 +7041,8 @@ ER_INNODB_FT_AUX_NOT_HEX_ID
 ER_OLD_TEMPORALS_UPGRADED
   eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
 
+ER_INNODB_FORCED_RECOVERY
+  eng "Operation not allowed when innodb_forced_recovery > 0."
 #
 #  End of 5.6 error messages.
 #
@@ -7097,6 +7101,9 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
+
+ER_NO_FT_MATERIALIZED_SUBQUERY
+  eng "Cannot create FULLTEXT index on materialized subquery"
 
 ER_INNODB_UNDO_LOG_FULL
   eng "Undo Log error: %s"

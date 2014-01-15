@@ -70,7 +70,7 @@ const char *primary_key_name="PRIMARY";
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
-                                    List<Create_field> &create, bool ignore,
+                                    List<Create_field> &create,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
                                     Alter_info::enum_enable_or_disable keys_onoff,
@@ -2007,7 +2007,7 @@ end:
 */
 
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length, bool is_trans)
+                  const char *query, size_t query_length, bool is_trans)
 {
   int error= 0;
   if (mysql_bin_log.is_open())
@@ -5034,7 +5034,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
     {
       thd->add_to_binlog_accessed_dbs(create_table->db);
-      result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+      result= write_bin_log(thd, true,
+                            thd->query().str, thd->query().length, is_trans);
     }
   }
 
@@ -5399,14 +5400,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
       }
       else                                      // Case 1
-        if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+        if (write_bin_log(thd, true, thd->query().str, thd->query().length))
           goto err;
     }
     /*
       Case 3 and 4 does nothing under RBR
     */
   }
-  else if (write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans))
+  else if (write_bin_log(thd, true,
+                         thd->query().str, thd->query().length, is_trans))
     goto err;
 
 err:
@@ -5470,7 +5472,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     error=1;
   if (error)
     goto err;
-  error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
 
 err:
   thd->tablespace_op=FALSE;
@@ -7578,25 +7580,20 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
   @param[in]  table        Table to be altered.
   @param[in]  alter_info   Lists of fields, keys to be changed, added
                            or dropped.
-  @param[out] alter_ctx    ALTER TABLE runtime context.
-                           Alter_table_ctx::fk_error_if_delete flag
-                           is set if deletion during alter can break
-                           foreign key integrity.
 
   @retval false  Success.
   @retval true   Error, ALTER - tries to do change which is not compatible
                  with foreign key definitions on the table.
 */
 
-static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
-                                        Alter_info *alter_info,
-                                        Alter_table_ctx *alter_ctx)
+static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
+                                      Alter_info *alter_info)
 {
   List <FOREIGN_KEY_INFO> fk_parent_key_list;
   List <FOREIGN_KEY_INFO> fk_child_key_list;
   FOREIGN_KEY_INFO *f_key;
 
-  DBUG_ENTER("fk_prepare_copy_alter_table");
+  DBUG_ENTER("fk_check_copy_alter_table");
 
   table->file->get_parent_foreign_key_list(thd, &fk_parent_key_list);
 
@@ -7635,16 +7632,6 @@ static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
         fk_parent_key_it.remove();
     }
   }
-
-  /*
-    If there are FKs in which this table is parent which were not
-    dropped we need to prevent ALTER deleting rows from the table,
-    as it might break referential integrity. OTOH it is OK to do
-    so if foreign_key_checks are disabled.
-  */
-  if (!fk_parent_key_list.is_empty() &&
-      !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
-    alter_ctx->set_fk_error_if_delete_row(fk_parent_key_list.head());
 
   fk_parent_key_it.rewind();
   while ((f_key= fk_parent_key_it++))
@@ -7846,7 +7833,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
   if (!error)
   {
-    error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    error= write_bin_log(thd, true, thd->query().str, thd->query().length);
     if (!error)
       my_ok(thd);
   }
@@ -7883,7 +7870,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
                           or dropped.
   @param order_num        How many ORDER BY fields has been specified.
   @param order            List of fields to ORDER BY.
-  @param ignore           Whether we have ALTER IGNORE TABLE
 
   @retval   true          Error
   @retval   false         Success
@@ -7912,7 +7898,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore)
+                       uint order_num, ORDER *order)
 {
   DBUG_ENTER("mysql_alter_table");
 
@@ -8317,7 +8303,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
   /* We can abort alter table for any table type */
-  thd->abort_on_warning= !ignore && thd->is_strict_mode();
+  thd->abort_on_warning= thd->is_strict_mode();
 
   /*
     Promote first timestamp column, when explicit_defaults_for_timestamp
@@ -8362,11 +8348,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     Alter_inplace_info ha_alter_info(create_info, alter_info,
                                      key_info, key_count,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-                                     thd->work_part_info,
+                                     thd->work_part_info
 #else
-                                     NULL,
+                                     NULL
 #endif
-                                     ignore);
+                                     );
     TABLE *altered_table= NULL;
     bool use_inplace= true;
 
@@ -8504,7 +8490,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* ALTER TABLE using copy algorithm. */
 
   /* Check if ALTER TABLE is compatible with foreign key definitions. */
-  if (fk_prepare_copy_alter_table(thd, table, alter_info, &alter_ctx))
+  if (fk_check_copy_alter_table(thd, table, alter_info))
     goto err_new_table_cleanup;
 
   if (!table->s->tmp_table)
@@ -8602,7 +8588,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         goto err_new_table_cleanup;
       });
     if (copy_data_between_tables(table, new_table,
-                                 alter_info->create_list, ignore,
+                                 alter_info->create_list,
                                  order_num, order, &copied, &deleted,
                                  alter_info->keys_onoff,
                                  &alter_ctx))
@@ -8652,7 +8638,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err_new_table_cleanup;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->is_current_stmt_binlog_format_row() &&
-        write_bin_log(thd, true, thd->query(), thd->query_length()))
+        write_bin_log(thd, true, thd->query().str, thd->query().length))
       DBUG_RETURN(true);
     goto end_temporary;
   }
@@ -8768,13 +8754,13 @@ end_inplace:
   DEBUG_SYNC(thd, "alter_table_before_main_binlog");
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
-                      thd->query(), thd->query_length(),
+                      thd->query().str, thd->query().length,
                       alter_ctx.db, alter_ctx.table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  if (write_bin_log(thd, true, thd->query(), thd->query_length()))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
     DBUG_RETURN(true);
 
   if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
@@ -8929,7 +8915,6 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<Create_field> &create,
-                         bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
@@ -8948,7 +8933,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ha_rows found_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
-  ulonglong prev_insert_id;
   DBUG_ENTER("copy_data_between_tables");
 
   if (mysql_trans_prepare_alter_copy_data(thd))
@@ -8964,7 +8948,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->abort_on_warning= !ignore && thd->is_strict_mode();
+  thd->abort_on_warning= thd->is_strict_mode();
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
@@ -9041,8 +9025,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error= 1;
     goto err;
   }
-  if (ignore && !alter_ctx->fk_error_if_delete_row)
-    to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->get_stmt_da()->reset_current_row_for_condition();
 
   set_column_defaults(to, create);
@@ -9073,7 +9055,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       copy_ptr->do_copy(copy_ptr);
     }
-    prev_insert_id= to->file->next_insert_id;
 
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
@@ -9087,47 +9068,22 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       }
       else
       {
-        /* Duplicate key error. */
-        if (alter_ctx->fk_error_if_delete_row)
+        /* Report duplicate key error. */
+        uint key_nr= to->file->get_dup_key(error);
+        if ((int) key_nr >= 0)
         {
-          /*
-            We are trying to omit a row from the table which serves as parent
-            in a foreign key. This might have broken referential integrity so
-            emit an error. Note that we can't ignore this error even if we are
-            executing ALTER IGNORE TABLE. IGNORE allows to skip rows, but
-            doesn't allow to break unique or foreign key constraints,
-          */
-          my_error(ER_FK_CANNOT_DELETE_PARENT, MYF(0),
-                   alter_ctx->fk_error_id,
-                   alter_ctx->fk_error_table);
-          break;
-        }
-
-        if (ignore)
-        {
-          /* This ALTER IGNORE TABLE. Simply skip row and continue. */
-          to->file->restore_auto_increment(prev_insert_id);
-          delete_count++;
+          const char *err_msg= ER(ER_DUP_ENTRY_WITH_KEY_NAME);
+          if (key_nr == 0 &&
+              (to->key_info[0].key_part[0].field->flags &
+               AUTO_INCREMENT_FLAG))
+            err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
+          print_keydup_error(to, key_nr == MAX_KEY ? NULL :
+                             &to->key_info[key_nr],
+                             err_msg, MYF(0));
         }
         else
-        {
-          /* Ordinary ALTER TABLE. Report duplicate key error. */
-          uint key_nr= to->file->get_dup_key(error);
-          if ((int) key_nr >= 0)
-          {
-            const char *err_msg= ER(ER_DUP_ENTRY_WITH_KEY_NAME);
-            if (key_nr == 0 &&
-                (to->key_info[0].key_part[0].field->flags &
-                 AUTO_INCREMENT_FLAG))
-              err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-            print_keydup_error(to, key_nr == MAX_KEY ? NULL :
-                                   &to->key_info[key_nr],
-                               err_msg, MYF(0));
-          }
-          else
-            to->file->print_error(error, MYF(0));
-          break;
-        }
+          to->file->print_error(error, MYF(0));
+        break;
       }
     }
     else
@@ -9143,7 +9099,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->file->print_error(my_errno,MYF(0));
     error= 1;
   }
-  to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   if (mysql_trans_commit_alter_copy_data(thd))
     error= 1;
@@ -9194,7 +9149,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
                      Alter_info::ALTER_RECREATE);
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
-                                (ORDER *) 0, 0));
+                                (ORDER *) 0));
 }
 
 

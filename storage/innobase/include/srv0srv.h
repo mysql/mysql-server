@@ -308,6 +308,8 @@ extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
+extern ulong	srv_n_page_cleaners;
+
 extern ulong	srv_max_dirty_pages_pct;
 extern ulong	srv_max_dirty_pages_pct_lwm;
 
@@ -344,15 +346,9 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern ibool	srv_print_innodb_monitor;
-extern ibool	srv_print_innodb_lock_monitor;
-extern ibool	srv_print_innodb_tablespace_monitor;
+extern my_bool	srv_print_innodb_monitor;
+extern my_bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
-#define DEPRECATED_MSG_INNODB_TABLE_MONITOR \
-	"Using innodb_table_monitor is deprecated and it may be removed " \
-	"in future releases. Please use the InnoDB INFORMATION_SCHEMA " \
-	"tables instead, see " REFMAN "innodb-i_s-tables.html"
-extern ibool	srv_print_innodb_table_monitor;
 
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Tests for the partition storage engine in connection with the
 # storage engine CSV.
 #
@@ -13,6 +8,8 @@
 #
 
 --source include/have_partition.inc
+# This test needs MyISAM for subtests for Bug#27816 and Bug#40281
+--source include/have_myisam.inc
 
 call mtr.add_suppression("Failed to write to mysql.general_log");
 

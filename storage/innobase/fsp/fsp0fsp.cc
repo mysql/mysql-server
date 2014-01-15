@@ -780,8 +780,8 @@ fsp_header_get_space_id(
 
 	if (id != fsp_id) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Space id in fsp header %lu,but in the page header "
-			"%lu", fsp_id, id);
+			"Space id in fsp header %lu,but in the page header %lu",
+			fsp_id, id);
 
 		return(ULINT_UNDEFINED);
 	}
@@ -942,11 +942,9 @@ fsp_try_extend_data_file(
 		error requires server restart. */
 		if (!srv_sys_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"InnoDB: Error: Data file(s) ran"
-				" out of space."
-				"Please add another data file or"
-				" use \'autoextend\' for the last"
-				" data file.");
+				"Data file(s) ran out of space. Please add"
+				" another data file or use 'autoextend'"
+				" for the last data file.");
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -961,7 +959,7 @@ fsp_try_extend_data_file(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Temp-Data file(s) ran out of space."
 				" Please add another temp-data file or"
-				" use \'autoextend\' for the last data file");
+				" use 'autoextend' for the last data file");
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -1472,11 +1470,10 @@ fsp_alloc_free_page(
 
 		ut_a(!Tablespace::is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
-			fprintf(stderr,
-				"InnoDB: Error: trying to extend a"
-				" single-table tablespace %lu\n"
-				"InnoDB: by single page(s) though the"
-				" space size %lu. Page no %lu.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to extend a single-table tablespace"
+				" %lu, by single page(s) though the space size"
+				" %lu. Page no %lu.",
 				(ulong) space, (ulong) space_size,
 				(ulong) page_no);
 			return(NULL);
@@ -1521,9 +1518,9 @@ fsp_free_page(
 	state = xdes_get_state(descr, mtr);
 
 	if (state != XDES_FREE_FRAG && state != XDES_FULL_FRAG) {
-		fprintf(stderr,
-			"InnoDB: Error: File space extent descriptor"
-			" of page %lu has state %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File space extent descriptor of"
+			" page %lu has state %lu",
 			(ulong) page,
 			(ulong) state);
 		fputs("InnoDB: Dump of descriptor: ", stderr);
@@ -1546,10 +1543,9 @@ fsp_free_page(
 	if (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
 			     page % FSP_EXTENT_SIZE, mtr)) {
 
-		fprintf(stderr,
-			"InnoDB: Error: File space extent descriptor"
-			" of page %lu says it is free\n"
-			"InnoDB: Dump of descriptor: ", (ulong) page);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File space extent descriptor of page %lu says it is"
+			" free. Dump of descriptor: ", (ulong) page);
 		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
 		/* Crash in debug version, so that we get a core dump
@@ -2610,11 +2606,11 @@ take_hinted_page:
 			tablespace whose size is still < 64 pages */
 
 			if (ret_page >= FSP_EXTENT_SIZE) {
-				fprintf(stderr,
-					"InnoDB: Error (2): trying to extend"
-					" a single-table tablespace %lu\n"
-					"InnoDB: by single page(s) though"
-					" the space size %lu. Page no %lu.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error (2): trying to extend"
+					" a single-table tablespace %lu"
+					" by single page(s) though"
+					" the space size %lu. Page no %lu.",
 					(ulong) space, (ulong) space_size,
 					(ulong) ret_page);
 				ut_ad(!has_done_reservation);
@@ -3148,14 +3144,14 @@ fseg_free_page_low(
 		ut_print_buf(stderr, descr, 40);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Fatal Error! InnoDB is trying to free page %lu"
+			"InnoDB is trying to free page %lu"
 			" though it is already marked as free in the"
 			" tablespace! The tablespace free space info is"
 			" corrupt. You may need to dump your tables and"
 			" recreate the whole database!", (ulong) page);
 crash:
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Please refer to " REFMAN "forcing-innodb-recovery.html"
+			"Please refer to "REFMAN"forcing-innodb-recovery.html"
 			" about forcing recovery.");
 	}
 
@@ -3200,12 +3196,10 @@ crash:
 		ut_print_buf(stderr, seg_inode, 40);
 		putc('\n', stderr);
 
-		fprintf(stderr,
-			"InnoDB: Serious error: InnoDB is trying to"
-			" free space %lu page %lu,\n"
-			"InnoDB: which does not belong to"
-			" segment %llu but belongs\n"
-			"InnoDB: to segment %llu.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"InnoDB is trying to free space %lu page %lu,"
+			" which does not belong to segment %llu but belongs"
+			" to segment %llu.",
 			(ulong) space, (ulong) page,
 			(ullint) descr_id,
 			(ullint) seg_id);
@@ -3442,7 +3436,8 @@ fseg_free_step(
 	inode = fseg_inode_try_get(header, space, zip_size, mtr);
 
 	if (UNIV_UNLIKELY(inode == NULL)) {
-		fprintf(stderr, "double free of inode from %u:%u\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Double free of inode from %u:%u",
 			(unsigned) space, (unsigned) header_page);
 		return(TRUE);
 	}
@@ -3595,6 +3590,7 @@ fseg_get_first_extent(
 	return(descr);
 }
 
+#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
@@ -3701,7 +3697,6 @@ fseg_validate_low(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
@@ -3731,6 +3726,7 @@ fseg_validate(
 }
 #endif /* UNIV_DEBUG */
 
+#ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
 static
@@ -3766,11 +3762,10 @@ fseg_print_low(
 	n_not_full = flst_get_len(inode + FSEG_NOT_FULL, mtr);
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
-	fprintf(stderr,
-		"SEGMENT id %llu space %lu; page %lu;"
-		" res %lu used %lu; full ext %lu\n"
-		"fragm pages %lu; free extents %lu;"
-		" not full extents %lu: pages %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"SEGMENT id %llu space %lu; page %lu; res %lu used %lu;"
+		" full ext %lu; fragm pages %lu; free extents %lu;"
+		" not full extents %lu: pages %lu",
 		(ullint) seg_id,
 		(ulong) space, (ulong) page_no,
 		(ulong) reserved, (ulong) used, (ulong) n_full,
@@ -3779,7 +3774,6 @@ fseg_print_low(
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 }
 
-#ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
 
@@ -3804,408 +3798,4 @@ fseg_print(
 	fseg_print_low(inode, mtr);
 }
 #endif /* UNIV_BTR_PRINT */
-
-/*******************************************************************//**
-Validates the file space system and its segments.
-@return TRUE if ok */
-
-ibool
-fsp_validate(
-/*=========*/
-	ulint	space)	/*!< in: space id */
-{
-	fsp_header_t*	header;
-	fseg_inode_t*	seg_inode;
-	page_t*		seg_inode_page;
-	rw_lock_t*	latch;
-	ulint		size;
-	ulint		flags;
-	ulint		zip_size;
-	ulint		free_limit;
-	ulint		frag_n_used;
-	mtr_t		mtr;
-	mtr_t		mtr2;
-	xdes_t*		descr;
-	fil_addr_t	node_addr;
-	fil_addr_t	next_node_addr;
-	ulint		descr_count	= 0;
-	ulint		n_used		= 0;
-	ulint		n_used2		= 0;
-	ulint		n_full_frag_pages;
-	ulint		n;
-	ulint		seg_inode_len_free;
-	ulint		seg_inode_len_full;
-
-	latch = fil_space_get_latch(space, &flags);
-	zip_size = fsp_flags_get_zip_size(flags);
-	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
-	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
-
-	/* Start first a mini-transaction mtr2 to lock out all other threads
-	from the fsp system */
-	mtr_start(&mtr2);
-	mtr_x_lock(latch, &mtr2);
-
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, &mtr);
-	free_limit = mtr_read_ulint(header + FSP_FREE_LIMIT,
-				    MLOG_4BYTES, &mtr);
-	frag_n_used = mtr_read_ulint(header + FSP_FRAG_N_USED,
-				     MLOG_4BYTES, &mtr);
-
-	n_full_frag_pages = FSP_EXTENT_SIZE
-		* flst_get_len(header + FSP_FULL_FRAG, &mtr);
-
-	if (UNIV_UNLIKELY(free_limit > size)) {
-
-		ut_a(!Tablespace::is_system_tablespace(space));
-		ut_a(size < FSP_EXTENT_SIZE);
-	}
-
-	flst_validate(header + FSP_FREE, &mtr);
-	flst_validate(header + FSP_FREE_FRAG, &mtr);
-	flst_validate(header + FSP_FULL_FRAG, &mtr);
-
-	mtr_commit(&mtr);
-
-	/* Validate FSP_FREE list */
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-	node_addr = flst_get_first(header + FSP_FREE, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		mtr_x_lock(latch, &mtr);
-
-		descr_count++;
-		descr = xdes_lst_get_descriptor(space, zip_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) == 0);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FREE);
-
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-		mtr_commit(&mtr);
-	}
-
-	/* Validate FSP_FREE_FRAG list */
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-	node_addr = flst_get_first(header + FSP_FREE_FRAG, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		mtr_x_lock(latch, &mtr);
-
-		descr_count++;
-		descr = xdes_lst_get_descriptor(space, zip_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) > 0);
-		ut_a(xdes_get_n_used(descr, &mtr) < FSP_EXTENT_SIZE);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FREE_FRAG);
-
-		n_used += xdes_get_n_used(descr, &mtr);
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-
-		mtr_commit(&mtr);
-	}
-
-	/* Validate FSP_FULL_FRAG list */
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-	node_addr = flst_get_first(header + FSP_FULL_FRAG, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		mtr_x_lock(latch, &mtr);
-
-		descr_count++;
-		descr = xdes_lst_get_descriptor(space, zip_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) == FSP_EXTENT_SIZE);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FULL_FRAG);
-
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-		mtr_commit(&mtr);
-	}
-
-	/* Validate segments */
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	node_addr = flst_get_first(header + FSP_SEG_INODES_FULL, &mtr);
-
-	seg_inode_len_full = flst_get_len(header + FSP_SEG_INODES_FULL, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-
-		n = 0;
-		do {
-			mtr_start(&mtr);
-			mtr_x_lock(latch, &mtr);
-
-			seg_inode_page = fut_get_ptr(
-				space, zip_size, node_addr, RW_SX_LATCH, &mtr)
-				- FSEG_INODE_PAGE_NODE;
-
-			seg_inode = fsp_seg_inode_page_get_nth_inode(
-				seg_inode_page, n, zip_size, &mtr);
-			ut_a(mach_read_from_8(seg_inode + FSEG_ID) != 0);
-			fseg_validate_low(seg_inode, &mtr);
-
-			descr_count += flst_get_len(seg_inode + FSEG_FREE,
-						    &mtr);
-			descr_count += flst_get_len(seg_inode + FSEG_FULL,
-						    &mtr);
-			descr_count += flst_get_len(seg_inode + FSEG_NOT_FULL,
-						    &mtr);
-
-			n_used2 += fseg_get_n_frag_pages(seg_inode, &mtr);
-
-			next_node_addr = flst_get_next_addr(
-				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
-			mtr_commit(&mtr);
-		} while (++n < FSP_SEG_INODES_PER_PAGE(zip_size));
-
-		node_addr = next_node_addr;
-	}
-
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	node_addr = flst_get_first(header + FSP_SEG_INODES_FREE, &mtr);
-
-	seg_inode_len_free = flst_get_len(header + FSP_SEG_INODES_FREE, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-
-		n = 0;
-
-		do {
-			mtr_start(&mtr);
-			mtr_x_lock(latch, &mtr);
-
-			seg_inode_page = fut_get_ptr(
-				space, zip_size, node_addr, RW_SX_LATCH, &mtr)
-				- FSEG_INODE_PAGE_NODE;
-
-			seg_inode = fsp_seg_inode_page_get_nth_inode(
-				seg_inode_page, n, zip_size, &mtr);
-			if (mach_read_from_8(seg_inode + FSEG_ID)) {
-				fseg_validate_low(seg_inode, &mtr);
-
-				descr_count += flst_get_len(
-					seg_inode + FSEG_FREE, &mtr);
-				descr_count += flst_get_len(
-					seg_inode + FSEG_FULL, &mtr);
-				descr_count += flst_get_len(
-					seg_inode + FSEG_NOT_FULL, &mtr);
-				n_used2 += fseg_get_n_frag_pages(
-					seg_inode, &mtr);
-			}
-
-			next_node_addr = flst_get_next_addr(
-				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
-			mtr_commit(&mtr);
-		} while (++n < FSP_SEG_INODES_PER_PAGE(zip_size));
-
-		node_addr = next_node_addr;
-	}
-
-	ut_a(descr_count * FSP_EXTENT_SIZE == free_limit);
-	if (!zip_size) {
-		ut_a(n_used + n_full_frag_pages
-		     == n_used2 + 2 * ((free_limit + (UNIV_PAGE_SIZE - 1))
-				       / UNIV_PAGE_SIZE)
-		     + seg_inode_len_full + seg_inode_len_free);
-	} else {
-		ut_a(n_used + n_full_frag_pages
-		     == n_used2 + 2 * ((free_limit + (zip_size - 1))
-				       / zip_size)
-		     + seg_inode_len_full + seg_inode_len_free);
-	}
-	ut_a(frag_n_used == n_used);
-
-	mtr_commit(&mtr2);
-
-	return(TRUE);
-}
-
-/*******************************************************************//**
-Prints info of a file space. */
-
-void
-fsp_print(
-/*======*/
-	ulint	space)	/*!< in: space id */
-{
-	fsp_header_t*	header;
-	fseg_inode_t*	seg_inode;
-	page_t*		seg_inode_page;
-	rw_lock_t*	latch;
-	ulint		flags;
-	ulint		zip_size;
-	ulint		size;
-	ulint		free_limit;
-	ulint		frag_n_used;
-	fil_addr_t	node_addr;
-	fil_addr_t	next_node_addr;
-	ulint		n_free;
-	ulint		n_free_frag;
-	ulint		n_full_frag;
-	ib_id_t		seg_id;
-	ulint		n;
-	ulint		n_segs		= 0;
-	mtr_t		mtr;
-	mtr_t		mtr2;
-
-	latch = fil_space_get_latch(space, &flags);
-	zip_size = fsp_flags_get_zip_size(flags);
-
-	/* Start first a mini-transaction mtr2 to lock out all other threads
-	from the fsp system */
-
-	mtr_start(&mtr2);
-
-	mtr_x_lock(latch, &mtr2);
-
-	mtr_start(&mtr);
-
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, &mtr);
-
-	free_limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES,
-				    &mtr);
-	frag_n_used = mtr_read_ulint(header + FSP_FRAG_N_USED, MLOG_4BYTES,
-				     &mtr);
-	n_free = flst_get_len(header + FSP_FREE, &mtr);
-	n_free_frag = flst_get_len(header + FSP_FREE_FRAG, &mtr);
-	n_full_frag = flst_get_len(header + FSP_FULL_FRAG, &mtr);
-
-	seg_id = mach_read_from_8(header + FSP_SEG_ID);
-
-	fprintf(stderr,
-		"FILE SPACE INFO: id %lu\n"
-		"size %lu, free limit %lu, free extents %lu\n"
-		"not full frag extents %lu: used pages %lu,"
-		" full frag extents %lu\n"
-		"first seg id not used %llu\n",
-		(ulong) space,
-		(ulong) size, (ulong) free_limit, (ulong) n_free,
-		(ulong) n_free_frag, (ulong) frag_n_used, (ulong) n_full_frag,
-		(ullint) seg_id);
-
-	mtr_commit(&mtr);
-
-	/* Print segments */
-
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	node_addr = flst_get_first(header + FSP_SEG_INODES_FULL, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-
-		n = 0;
-
-		do {
-
-			mtr_start(&mtr);
-			mtr_x_lock(latch, &mtr);
-
-			seg_inode_page = fut_get_ptr(
-				space, zip_size, node_addr, RW_SX_LATCH, &mtr)
-				- FSEG_INODE_PAGE_NODE;
-
-			seg_inode = fsp_seg_inode_page_get_nth_inode(
-				seg_inode_page, n, zip_size, &mtr);
-			ut_a(mach_read_from_8(seg_inode + FSEG_ID) != 0);
-			fseg_print_low(seg_inode, &mtr);
-
-			n_segs++;
-
-			next_node_addr = flst_get_next_addr(
-				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
-			mtr_commit(&mtr);
-		} while (++n < FSP_SEG_INODES_PER_PAGE(zip_size));
-
-		node_addr = next_node_addr;
-	}
-
-	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
-
-	header = fsp_get_space_header(space, zip_size, &mtr);
-
-	node_addr = flst_get_first(header + FSP_SEG_INODES_FREE, &mtr);
-
-	mtr_commit(&mtr);
-
-	while (!fil_addr_is_null(node_addr)) {
-
-		n = 0;
-
-		do {
-
-			mtr_start(&mtr);
-			mtr_x_lock(latch, &mtr);
-
-			seg_inode_page = fut_get_ptr(
-				space, zip_size, node_addr, RW_SX_LATCH, &mtr)
-				- FSEG_INODE_PAGE_NODE;
-
-			seg_inode = fsp_seg_inode_page_get_nth_inode(
-				seg_inode_page, n, zip_size, &mtr);
-			if (mach_read_from_8(seg_inode + FSEG_ID)) {
-
-				fseg_print_low(seg_inode, &mtr);
-				n_segs++;
-			}
-
-			next_node_addr = flst_get_next_addr(
-				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
-			mtr_commit(&mtr);
-		} while (++n < FSP_SEG_INODES_PER_PAGE(zip_size));
-
-		node_addr = next_node_addr;
-	}
-
-	mtr_commit(&mtr2);
-
-	fprintf(stderr, "NUMBER of file segments: %lu\n", (ulong) n_segs);
-}
 #endif /* !UNIV_HOTBACKUP */

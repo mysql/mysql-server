@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2682,7 +2682,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!records)
     records++;					/* purecov: inspected */
   scan_time= records * ROW_EVALUATE_COST + 1;
-  read_time= head->file->scan_time() + scan_time + 1.1;
+  const Cost_estimate table_scan_time= head->file->table_scan_cost();
+  read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -2804,10 +2805,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->covering_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
-      double key_read_time= 
-        param.table->file->index_only_read_time(key_for_use, 
-                                                rows2double(records)) +
-        records * ROW_EVALUATE_COST;
+      const Cost_estimate index_read_time= 
+        param.table->file->index_scan_cost(key_for_use, 1, records);
+      const double key_read_time= index_read_time.total_cost() +
+                                  records * ROW_EVALUATE_COST;
 
       bool chosen= false;
       if (key_read_time < read_time)
@@ -4599,10 +4600,11 @@ skip_to_ror_scan:
     if ((*cur_child)->is_ror)
     {
       /* Ok, we have index_only cost, now get full rows scan cost */
-      cost= param->table->file->
-        read_time(param->real_keynr[(*cur_child)->key_idx], 1,
-                  (*cur_child)->records) +
-        rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
+      const Cost_estimate read_cost=
+        param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
+                                      1, (*cur_child)->records);
+      cost= read_cost.total_cost() +
+            rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
     }
     else
       cost= read_time;
@@ -4737,7 +4739,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 
   double rows= rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost=
-    param->table->file->index_only_read_time(ror_scan->keynr, rows);
+    param->table->file->index_scan_cost(ror_scan->keynr, 1, rows).total_cost();
   DBUG_RETURN(ror_scan);
 }
 
@@ -6658,6 +6660,89 @@ bool is_spatial_operator(Item_func::Functype op_type)
   }
 }
 
+/**
+  Test if 'value' is comparable to 'field' when setting up range
+  access for predicate "field OP value". 'field' is a field in the
+  table being optimized for while 'value' is whatever 'field' is
+  compared to.
+
+  @param cond_func   the predicate item that compares 'field' with 'value'
+  @param field       field in the predicate
+  @param itype       itMBR if indexed field is spatial, itRAW otherwise
+  @param comp_type   comparator for the predicate
+  @param value       whatever 'field' is compared to
+
+  @return true if 'field' and 'value' are comparable, false otherwise
+*/
+
+static bool comparable_in_index(Item *cond_func,
+                                const Field *field,
+                                const Field::imagetype itype,
+                                Item_func::Functype comp_type,
+                                const Item *value)
+{
+  /*
+    Usually an index cannot be used if the column collation differs
+    from the operation collation. However, a case insensitive index
+    may be used for some binary searches:
+
+       WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
+       WHERE latin1_swedish_ci_colimn = BINARY 'a '
+  */
+  if ((field->result_type() == STRING_RESULT &&
+       field->match_collation_to_optimize_range() &&
+       value->result_type() == STRING_RESULT &&
+       itype == Field::itRAW &&
+       field->charset() != cond_func->compare_collation() &&
+       !(cond_func->compare_collation()->state & MY_CS_BINSORT &&
+         (comp_type == Item_func::EQUAL_FUNC ||
+          comp_type == Item_func::EQ_FUNC))))
+    return false;
+
+  /*
+    Temporal values: Cannot use range access if:
+       'indexed_varchar_column = temporal_value'
+    because there are many ways to represent the same date as a
+    string. A few examples: "01-01-2001", "1-1-2001", "2001-01-01",
+    "2001#01#01". The same problem applies to time. Thus, we cannot
+    create a useful range predicate for temporal values into VARCHAR
+    column indexes. @see add_key_field()
+  */
+  if (!field->is_temporal() && value->is_temporal())
+    return false;
+
+  /*
+    Temporal values: Cannot use range access if 
+       'indexed_time = temporal_value_with_date_part'
+    because: 
+      - without index, a TIME column with value '48:00:00' is 
+        equal to a DATETIME column with value 
+        'CURDATE() + 2 days' 
+      - with range access into the TIME column, CURDATE() + 2 
+        days becomes "00:00:00" (Field_timef::store_internal() 
+        simply extracts the time part from the datetime) which 
+        is a lookup key which does not match "48:00:00". On the other
+        hand, we can do ref access for IndexedDatetimeComparedToTime
+        because Field_temporal_with_date::store_time() will convert
+        48:00:00 to CURDATE() + 2 days which is the correct lookup
+        key.
+  */
+  if (field_time_cmp_date(field, value))
+    return false;
+
+  /*
+    We can't always use indexes when comparing a string index to a
+    number. cmp_type() is checked to allow comparison of dates and
+    numbers.
+  */
+  if (field->result_type() == STRING_RESULT &&
+      value->result_type() != STRING_RESULT &&
+      field->cmp_type() != value->result_type())
+    return false;
+
+  return true;
+}
+
 static SEL_TREE *
 get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
@@ -6702,9 +6787,20 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
       }
       else
       {
-        // This key may be used later
+        /*
+          The index may not be used by dynamic range access unless
+          'field' and 'value' are comparable.
+        */
+        if (!comparable_in_index(cond_func, key_part->field,
+                                 key_part->image_type,
+                                 type, value))
+        {
+          if_explain_warn_index_not_applicable(param, key_part->key, field);
+          DBUG_RETURN(NULL);
+        }
+
         if (!(sel_arg= new SEL_ARG(SEL_ARG::MAYBE_KEY)))
-          DBUG_RETURN(0); // OOM
+          DBUG_RETURN(NULL);  //OOM
       }
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
@@ -6982,53 +7078,12 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   }
 
   /*
-    1. Usually we can't use an index if the column collation
-       differ from the operation collation.
-
-    2. However, we can reuse a case insensitive index for
-       the binary searches:
-
-       WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
-
-       WHERE latin1_swedish_ci_colimn = BINARY 'a '
+    The range access method cannot be used unless 'field' and 'value'
+    are comparable in the index. Examples of non-comparable
+    field/values: different collation, DATETIME vs TIME etc.
   */
-  if ((field->result_type() == STRING_RESULT &&
-       field->match_collation_to_optimize_range() &&
-       value->result_type() == STRING_RESULT &&
-       key_part->image_type == Field::itRAW &&
-       field->charset() != conf_func->compare_collation() &&
-       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
-  {
-    if_explain_warn_index_not_applicable(param, key_part->key, field);
-    goto end;
-  }
-
-  /*
-    Temporal values: Cannot use range access if:
-      1) 'temporal_value = indexed_varchar_column' because there are
-         many ways to represent the same date as a string. A few
-         examples: "01-01-2001", "1-1-2001", "2001-01-01",
-         "2001#01#01". The same problem applies to time. Thus, we
-         cannot create a usefull range predicate for temporal values
-         into VARCHAR column indexes. @see add_key_field()
-      2) 'temporal_value_with_date_part = indexed_time' because: 
-         - without index, a TIME column with value '48:00:00' is 
-           equal to a DATETIME column with value 
-           'CURDATE() + 2 days' 
-         - with range access into the TIME column, CURDATE() + 2 
-           days becomes "00:00:00" (Field_timef::store_internal() 
-           simply extracts the time part from the datetime) which 
-           is a lookup key which does not match "48:00:00"; so 
-           ref access is not be able to give the same result as 
-           On the other hand, we can do ref access for
-           IndexedDatetimeComparedToTime because
-           Field_temporal_with_date::store_time() will convert
-           48:00:00 to CURDATE() + 2 days which is the correct
-           lookup key.
-   */
-  if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
-      field_time_cmp_date(field, value))                   // 2)
+  if (!comparable_in_index(conf_func, field, key_part->image_type,
+                           type, value))
   {
     if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
@@ -7146,18 +7201,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     goto end;                                   // Can't optimize this
-
-  /*
-    We can't always use indexes when comparing a string index to a number
-    cmp_type() is checked to allow compare of dates to numbers
-  */
-  if (field->result_type() == STRING_RESULT &&
-      value->result_type() != STRING_RESULT &&
-      field->cmp_type() != value->result_type())
-  {
-    if_explain_warn_index_not_applicable(param, key_part->key, field);
-    goto end;
-  }
 
   if (save_value_and_handle_conversion(&tree, value, type, field,
                                        &impossible_cond_cause, alloc))
@@ -13950,16 +13993,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     return;
   }
 
-  char buff[128];
-  String tmp(buff, sizeof(buff), system_charset_info);
-  tmp.length(0);
-
-  TABLE *table= field->table;
-  my_bitmap_map *old_sets[2];
-
-  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
-                           table->write_set);
-
   uint store_length= key_part->store_length;
 
   if (field->real_maybe_null())
@@ -13972,11 +14005,38 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     if (*key)
     {
       out->append(STRING_WITH_LEN("NULL"));
-      goto restore_col_map;
+      return;
     }
     key++;                                    // Skip null byte
     store_length--;
   }
+
+  /*
+    Binary data cannot be converted to UTF8 which is what the
+    optimizer trace expects. If the column is binary, the hex
+    representation is printed to the trace instead.
+   */
+  if (field->flags & BINARY_FLAG)
+  {
+    out->append("0x");
+    for (uint i= 0; i < store_length; i++)
+    {
+      out->append(_dig_vec_lower[*(key+i) >> 4]);
+      out->append(_dig_vec_lower[*(key+i) & 0x0F]);
+    }
+    return;
+  }    
+
+  char buff[128];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  tmp.length(0);
+
+  TABLE *table= field->table;
+  my_bitmap_map *old_sets[2];
+
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
+                           table->write_set);
+
   field->set_key_image(key, key_part->length);
   if (field->type() == MYSQL_TYPE_BIT)
     (void) field->val_int_as_str(&tmp, 1); // may change tmp's charset
@@ -13984,7 +14044,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     field->val_str(&tmp); // may change tmp's charset
   out->append(tmp.ptr(), tmp.length(), tmp.charset());
 
-restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
