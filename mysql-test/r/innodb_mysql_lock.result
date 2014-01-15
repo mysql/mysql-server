@@ -185,21 +185,3 @@ CREATE INDEX t1ba ON t1(b,a);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
-#
-# Bug#11750045 - 40344: ALTER IGNORE TABLE T ADD INDEX DOES NOT IGNORE
-#                IN FAST INDEX CREATION
-#
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT NOT NULL, b INT) engine = innodb;
-INSERT INTO t1 VALUES (1,1), (2,1), (3,1);
-# Should give error
-ALTER TABLE t1 ADD UNIQUE INDEX (b);
-ERROR 23000: Duplicate entry '1' for key 'b'
-# Should not give error
-# Also check that copy algorithm is used
-ALTER IGNORE TABLE t1 ADD UNIQUE INDEX (b);
-affected rows: 3
-info: Records: 3  Duplicates: 2  Warnings: 0
-SHOW WARNINGS;
-Level	Code	Message
-DROP TABLE t1;

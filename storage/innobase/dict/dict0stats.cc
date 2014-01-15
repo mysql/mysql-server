@@ -2854,7 +2854,7 @@ dict_stats_update(
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Cannot calculate statistics for table %s"
 			" because the .ibd file is missing. For help, please"
-			" refer to "REFMAN"innodb-troubleshooting.html",
+			" refer to " REFMAN "innodb-troubleshooting.html",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);

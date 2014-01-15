@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6090,6 +6090,7 @@ void do_reset_connection()
     mysql_stmt_close(cur_con->stmt);
     cur_con->stmt= NULL;
   }
+  DBUG_VOID_RETURN;
 }
 
 my_bool match_delimiter(int c, const char *delim, size_t length)
