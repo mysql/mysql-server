@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_sys.h>
+#include <my_dbug.h>
 
 /**
    A wrapper class which provides array bounds checking.
@@ -112,120 +112,6 @@ public:
 private:
   Element_type *m_array;
   size_t        m_size;
-};
-
-/*
-  A typesafe wrapper around DYNAMIC_ARRAY
-*/
-
-template <class Elem> class Dynamic_array
-{
-  DYNAMIC_ARRAY  array;
-public:
-  Dynamic_array(uint prealloc=16, uint increment=16)
-  {
-    init(prealloc, increment);
-  }
-
-  void init(uint prealloc=16, uint increment=16)
-  {
-    my_init_dynamic_array(&array, sizeof(Elem), prealloc, increment);
-  }
-
-  /**
-     @note Though formally this could be declared "const" it would be
-     misleading at it returns a non-const pointer to array's data.
-  */
-  Elem& at(int idx)
-  {
-    return *(((Elem*)array.buffer) + idx);
-  }
-  /// Const variant of at(), which cannot change data
-  const Elem& at(int idx) const
-  {
-    return *(((Elem*)array.buffer) + idx);
-  }
-
-  /// @returns pointer to first element; undefined behaviour if array is empty
-  Elem *front()
-  {
-    DBUG_ASSERT(array.elements >= 1);
-    return (Elem*)array.buffer;
-  }
-
-  /// @returns pointer to first element; undefined behaviour if array is empty
-  const Elem *front() const
-  {
-    DBUG_ASSERT(array.elements >= 1);
-    return (const Elem*)array.buffer;
-  }
-
-  /// @returns pointer to last element; undefined behaviour if array is empty.
-  Elem *back()
-  {
-    DBUG_ASSERT(array.elements >= 1);
-    return ((Elem*)array.buffer) + (array.elements - 1);
-  }
-
-  /// @returns pointer to last element; undefined behaviour if array is empty.
-  const Elem *back() const
-  {
-    DBUG_ASSERT(array.elements >= 1);
-    return ((const Elem*)array.buffer) + (array.elements - 1);
-  }
-
-  /**
-     @retval false ok
-     @retval true  OOM, @c my_error() has been called.
-  */
-  bool append(const Elem &el)
-  {
-    return insert_dynamic(&array, &el);
-  }
-
-  /// Pops the last element; undefined behaviour if array is empty.
-  Elem& pop()
-  {
-    return *((Elem*)pop_dynamic(&array));
-  }
-
-  void del(uint idx)
-  {
-    delete_dynamic_element(&array, idx);
-  }
-
-  int elements() const
-  {
-    return array.elements;
-  }
-
-  void elements(uint num_elements)
-  {
-    DBUG_ASSERT(num_elements <= array.max_element);
-    array.elements= num_elements;
-  }
-
-  void clear()
-  {
-    elements(0);
-  }
-
-  void set(uint idx, const Elem &el)
-  {
-    set_dynamic(&array, &el, idx);
-  }
-
-  ~Dynamic_array()
-  {
-    delete_dynamic(&array);
-  }
-
-  typedef int (*CMP_FUNC)(const Elem *el1, const Elem *el2);
-
-  void sort(CMP_FUNC cmp_func)
-  {
-    my_qsort(array.buffer, array.elements, sizeof(Elem), (qsort_cmp)cmp_func);
-  }
 };
 
 #endif /* SQL_ARRAY_INCLUDED */
