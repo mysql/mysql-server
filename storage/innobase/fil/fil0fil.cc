@@ -3853,7 +3853,7 @@ fil_report_bad_tablespace(
 			"Error %s in file '%s',"
 			"tablespace id=%lu, flags=%lu."
 			" Please refer to"
-			" "REFMAN"innodb-troubleshooting-datadict.html"
+			" " REFMAN "innodb-troubleshooting-datadict.html"
 			" for how to resolve the issue.",
 			check_msg, filepath,
 			(ulong) expected_id, (ulong) expected_flags);
@@ -3866,7 +3866,7 @@ fil_report_bad_tablespace(
 		" Have you moved InnoDB .ibd files around without using the"
 		" commands DISCARD TABLESPACE and IMPORT TABLESPACE?"
 		" Please refer to"
-		" "REFMAN"innodb-troubleshooting-datadict.html"
+		" " REFMAN "innodb-troubleshooting-datadict.html"
 		" for how to resolve the issue.",
 		filepath, (ulong) found_id, (ulong) found_flags,
 		(ulong) expected_id, (ulong) expected_flags);
@@ -4087,7 +4087,7 @@ fil_open_single_table_tablespace(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not find a valid tablespace file for '%s'."
-			" See "REFMAN"innodb-troubleshooting-datadict.html"
+			" See " REFMAN "innodb-troubleshooting-datadict.html"
 			" for how to resolve the issue.",
 			tablename);
 
@@ -5175,8 +5175,8 @@ fil_space_for_table_exists_in_mem(
 		}
 error_exit:
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Please refer to"
-			" "REFMAN"innodb-troubleshooting-datadict.html"
+			"Please refer to " REFMAN ""
+			" innodb-troubleshooting-datadict.html"
 			" for how to resolve the issue.");
 
 		mutex_exit(&fil_system->mutex);
