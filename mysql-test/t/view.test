@@ -4873,6 +4873,51 @@ deallocate prepare stmt;
 drop view v1;
 drop table t1,t2;
 
+#
+# MDEV-5414: RAND() in a subselect : different behavior in MariaDB and MySQL
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+
+create view v1 (a,r) as select a,rand() from t1;
+
+
+create table t2 select a, r as r1, r as r2, r as r3 from v1;
+
+select a, r1 = r2, r2 = r3 from t2;
+
+drop view v1;
+drop table t1,t2;
+
+--echo #
+--echo # MDEV-5515: 2nd execution of a prepared statement returns wrong results
+--echo #
+CREATE TABLE t1 (i1 INT, j1 INT NOT NULL, PRIMARY KEY (i1));
+
+INSERT INTO t1 VALUES (30,300),(40,400);
+
+CREATE TABLE t2 (i2 INT);
+INSERT INTO t2 VALUES (50),(60);
+
+CREATE TABLE t3 (c3 VARCHAR(20), i3 INT);
+INSERT INTO t3 VALUES ('a',10),('b',2);
+
+CREATE TABLE t4 (i4 INT);
+INSERT INTO t4 VALUES (1),(2);
+
+DROP VIEW IF EXISTS v1;
+CREATE VIEW v1 AS select coalesce(j1,i3) AS v1_field1 from t2 join t3 left join t1 on ( i1 = i2 );
+
+CREATE VIEW v2 AS select v1_field1 from t4 join v1;
+
+prepare my_stmt from "select v1_field1 from v2";
+execute my_stmt;
+execute my_stmt;
+deallocate prepare my_stmt;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

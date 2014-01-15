@@ -2665,6 +2665,7 @@ struct LEX: public Query_tables_list
       sl->uncacheable|= cause;
       un->uncacheable|= cause;
     }
+    select_lex.uncacheable|= cause;
   }
   void set_trg_event_type_for_tables();
 

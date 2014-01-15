@@ -647,7 +647,10 @@ bool st_select_lex_unit::exec()
     {
       ha_rows records_at_start= 0;
       thd->lex->current_select= sl;
-      fake_select_lex->uncacheable|= sl->uncacheable;
+      if (sl != &thd->lex->select_lex)
+        fake_select_lex->uncacheable|= sl->uncacheable;
+      else
+        fake_select_lex->uncacheable= 0;
 
       {
         set_limit(sl);

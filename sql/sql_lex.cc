@@ -2589,7 +2589,9 @@ bool LEX::can_be_merged()
   // TODO: do not forget implement case when select_lex.table_list.elements==0
 
   /* find non VIEW subqueries/unions */
-  bool selects_allow_merge= select_lex.next_select() == 0;
+  bool selects_allow_merge= (select_lex.next_select() == 0 &&
+                             !(select_lex.uncacheable &
+                               UNCACHEABLE_RAND));
   if (selects_allow_merge)
   {
     for (SELECT_LEX_UNIT *tmp_unit= select_lex.first_inner_unit();

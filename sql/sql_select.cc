@@ -988,8 +988,9 @@ JOIN::optimize()
     if (select_lex->handle_derived(thd->lex, DT_MERGE))
       DBUG_RETURN(TRUE);  
     table_count= select_lex->leaf_tables.elements;
-    select_lex->update_used_tables();
   }
+  // Update used tables after all handling derived table procedures
+  select_lex->update_used_tables();
 
   if (transform_max_min_subquery())
     DBUG_RETURN(1); /* purecov: inspected */
