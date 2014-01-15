@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,13 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
 {
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
+
+  /** STATEMENT_ID */
+  ulonglong m_stmt_id;
+
+  /** STATEMENT_NAME */
+  char m_stmt_name[COL_INFO_SIZE];
+  uint m_stmt_name_length;
 
   /** SQL_TEXT */
   char m_sqltext[COL_INFO_SIZE];
@@ -80,7 +87,8 @@ void reset_prepared_stmt_instances();
 PFS_prepared_stmt*
 create_prepared_stmt(void *identity,
                      PFS_thread *thread,
-                     PFS_events_statements *pfs_stmt,
+                     PFS_events_statements *pfs_stmt, uint stmt_id,
+                     char* stmt_name, uint stmt_name_length,
                      char* sqltext, uint sqltext_length);
 void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps);
 #endif

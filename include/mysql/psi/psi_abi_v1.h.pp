@@ -638,7 +638,8 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
-  (void *identity, PSI_statement_locker *locker, char *name, uint length);
+  (void *identity, uint stmt_id, PSI_statement_locker *locker,
+   char *stmt_name, uint stmt_name_length, char *name, uint length);
 typedef void (*destroy_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
 typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)

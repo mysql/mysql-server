@@ -2289,7 +2289,8 @@ typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
   @param current thread.
 */
 typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
-  (void *identity, PSI_statement_locker *locker, char *name, uint length);
+  (void *identity, uint stmt_id, PSI_statement_locker *locker,
+   char *stmt_name, uint stmt_name_length, char *name, uint length);
 
 /**
   destroy a prepare statement.
