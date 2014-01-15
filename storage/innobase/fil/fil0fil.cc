@@ -818,7 +818,7 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		node->size = size_bytes / page_size.physical();
+		node->size = (ulint) (size_bytes / page_size.physical());
 
 #ifdef UNIV_HOTBACKUP
 add_size:
