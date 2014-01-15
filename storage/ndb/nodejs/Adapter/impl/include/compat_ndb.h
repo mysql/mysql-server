@@ -48,7 +48,8 @@
 #endif
 
 #else
-#error "What NDB Version?"
+
+#define MULTIWAIT_ENABLED 1
 
 #endif
 
