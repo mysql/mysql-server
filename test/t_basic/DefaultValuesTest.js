@@ -160,7 +160,7 @@ t6.run = function() {
       if (!err) {
         testCase.appendErrorMessage('t6 Expected error not received for not null no default undefined');
       } else {
-        udebug.log_detail('t6 Expected error received:', err);
+        udebug.log('t6 Expected error received:', err);
       }
       testCase.failOnError();
     }, session);
