@@ -7443,7 +7443,7 @@ string_list:
 */
 
 alter:
-          ALTER opt_ignore TABLE_SYM table_ident
+          ALTER TABLE_SYM table_ident
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -7451,7 +7451,7 @@ alter:
             lex->name.length= 0;
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
-            if (!lex->select_lex->add_table_to_list(thd, $4, NULL,
+            if (!lex->select_lex->add_table_to_list(thd, $3, NULL,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_UPGRADABLE))
