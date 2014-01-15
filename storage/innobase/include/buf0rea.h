@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -154,8 +154,7 @@ buf_read_recv_pages(
 
 /** The size in pages of the area which the read-ahead algorithms read if
 invoked */
-#define	BUF_READ_AHEAD_AREA(b)					\
-	ut_min(64, ut_2_power_up((b)->curr_size / 32))
+#define	BUF_READ_AHEAD_AREA(b)		((b)->read_ahead_area)
 
 /** @name Modes used in read-ahead @{ */
 /** read only pages belonging to the insert buffer tree */
