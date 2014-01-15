@@ -522,8 +522,8 @@ buf_page_is_corrupted(
 				"Your database may be corrupt or"
 				" you may have copied the InnoDB"
 				" tablespace but not the InnoDB"
-				" log files. See " REFMAN ""
-				" forcing-innodb-recovery.html"
+				" log files. See"
+				" "REFMAN"forcing-innodb-recovery.html"
 				" for more information.");
 
 		}
@@ -4320,8 +4320,8 @@ corrupt:
 				" by dumping, dropping, and reimporting"
 				" the corrupt table. You can use CHECK"
 				" TABLE to scan your table for corruption."
-				" See also" REFMAN ""
-				" forcing-innodb-recovery.html"
+				" See also"
+				" "REFMAN"forcing-innodb-recovery.html"
 				" about forcing recovery.");
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {

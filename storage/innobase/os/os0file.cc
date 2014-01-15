@@ -445,8 +445,8 @@ os_file_get_last_error_low(
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Some operating system error numbers"
-				" are described at" REFMAN
-				" operating-system-error-codes.html");
+				" are described at"
+				" "REFMAN"operating-system-error-codes.html");
 		}
 	}
 
@@ -506,9 +506,9 @@ os_file_get_last_error_low(
 			}
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers are"
-				" described at " REFMAN ""
-				" operating-system-error-codes.html");
+				"Some operating system error"
+				" numbers are described at"
+				" "REFMAN"operating-system-error-codes.html");
 		}
 	}
 
@@ -909,7 +909,7 @@ next_file:
 			/* TODO: MySQL has apparently its own symlink
 			implementation in Windows, dbname.sym can
 			redirect a database directory:
-			REFMAN "windows-symbolic-links.html" */
+			REFMAN"windows-symbolic-links.html" */
 			info->type = OS_FILE_TYPE_LINK;
 		} else if (lpFindFileData->dwFileAttributes
 			   & FILE_ATTRIBUTE_DIRECTORY) {
@@ -2997,8 +2997,8 @@ retry:
 			" file %s failed at offset %llu."
 			" Operating system error number %lu."
 			" Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html",
+			" are described at "
+			REFMAN"operating-system-error-codes.html",
 			name, offset, (ulong) GetLastError());
 
 		return(false);
@@ -3062,8 +3062,8 @@ retry:
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html");
+			" are described at "
+			REFMAN"operating-system-error-codes.html");
 
 		os_has_said_disk_full = true;
 	}
@@ -3082,7 +3082,7 @@ retry:
 	if (!os_has_said_disk_full) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset "UINT64PF"."
+			"Write to file %s failed at offset " UINT64PF "."
 			" %lu bytes should have been written,"
 			" only %ld were written."
 			" Operating system error number %lu."
@@ -3100,8 +3100,8 @@ retry:
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Some operating system error numbers"
-			" are described at" REFMAN ""
-			" operating-system-error-codes.html");
+			" are described at"
+			" "REFMAN"operating-system-error-codes.html");
 
 		os_has_said_disk_full = true;
 	}

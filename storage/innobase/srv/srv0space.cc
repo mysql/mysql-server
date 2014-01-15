@@ -36,8 +36,8 @@ Tablespace srv_sys_space;
 /** The control info of a temporary table shared tablespace. */
 Tablespace srv_tmp_space;
 
-/** Convert a numeric string that optionally ends in G or M, to a number
-containing megabytes.
+/** Convert a numeric string that optionally ends in G or M or K,
+    to a number containing megabytes.
 @param str string with a quantity in bytes
 @param megs out the number in megabytes
 @return next character in string */
@@ -59,6 +59,10 @@ Tablespace::parse_units(
 		*megs *= 1024;
 		/* fall through */
 	case 'M': case 'm':
+		++ptr;
+		break;
+	case 'K': case 'k':
+		*megs /= 1024;
 		++ptr;
 		break;
 	default:
@@ -94,7 +98,7 @@ Tablespace::parse(
 
 	/*---------------------- PASS 1 ---------------------------*/
 	/* First calculate the number of data files and check syntax:
-	path:size[M | G];path:size[M | G]... . Note that a Windows path may
+	path:size[K |M | G];path:size[K |M | G]... . Note that a Windows path may
 	contain a drive name and a ':'. */
 	while (*str != '\0') {
 		path = str;
@@ -108,6 +112,10 @@ Tablespace::parse(
 
 		if (*str == '\0') {
 			::free(new_str);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"syntax error in file path or size specified"
+				" is less than 1 megabyte");
+
 			return(false);
 		}
 
@@ -130,6 +138,9 @@ Tablespace::parse(
 
 			if (*str != '\0') {
 				::free(new_str);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"syntax error in file path or size specified"
+					" is less than 1 megabyte");
 				return(false);
 			}
 		}
@@ -168,6 +179,9 @@ Tablespace::parse(
 
 		if (size == 0) {
 			::free(new_str);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"syntax error in file path or size specified"
+				" is less than 1 megabyte");
 			return(false);
 		}
 
@@ -184,6 +198,9 @@ Tablespace::parse(
 	if (n_files == 0) {
 		/* file_path must contain at least one data file definition */
 		::free(new_str);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"syntax error in file path or size specified"
+			" is less than 1 megabyte");
 		return(false);
 	}
 
@@ -231,6 +248,9 @@ Tablespace::parse(
 
 			if (*str != '\0') {
 				::free(new_str);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"syntax error in file path or size"
+					" specified is less than 1 megabyte");
 				return(false);
 			}
 		}
