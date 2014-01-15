@@ -1,5 +1,8 @@
-# This is a Myisam engine specific testcase
+# This tests GIS functionality with Myisam engine
+# These tests are also exists in Innodb
+# All tests are required to run with Myisam.
 # Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
@@ -872,6 +875,24 @@ SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
 
 DROP TABLE g1;
+
+--echo #
+--echo # Bug#16451878 GEOMETRY QUERY CRASHES SERVER
+--echo #
+
+--echo # should not crash
+SELECT ASTEXT(0x0100000000030000000100000000000010);
+
+--echo #should not crash
+SELECT ENVELOPE(0x0100000000030000000100000000000010);
+
+--echo #should not crash
+SELECT
+  GEOMETRYN(0x0100000000070000000100000001030000000200000000000000ffff0000, 1);
+
+--echo #should not crash
+SELECT
+  GEOMETRYN(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
 
 --echo End of 5.5 tests
 

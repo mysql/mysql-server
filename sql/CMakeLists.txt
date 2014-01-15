@@ -220,6 +220,15 @@ IF(WIN32)
       )
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+# See comments in filesort_compare-t.cc about __builtin_memcmp
+IF(HAVE_NO_BUILTIN_MEMCMP)
+  SET_SOURCE_FILES_PROPERTIES(
+    filesort_utils.cc
+    PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+  )
+ENDIF()
+
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
     ../sql-common/client_authentication.cc

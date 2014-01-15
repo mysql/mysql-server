@@ -1379,12 +1379,12 @@ EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR JOIN (PRIMARY,i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`i2`) IGNORE INDEX (PRIMARY)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR JOIN (`i2`) IGNORE INDEX FOR JOIN (PRIMARY)
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`i2`) IGNORE INDEX (PRIMARY) group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR GROUP BY (`i2`) IGNORE INDEX FOR GROUP BY (PRIMARY) group by `test`.`t1`.`a`
 FLUSH STATUS;
 SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a;
 SHOW SESSION STATUS LIKE 'Sort_scan%';
@@ -1394,7 +1394,7 @@ EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	144	100.00	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`i2`) IGNORE INDEX (PRIMARY) order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR ORDER BY (`i2`) IGNORE INDEX FOR ORDER BY (PRIMARY) order by `test`.`t1`.`a`
 FLUSH STATUS;
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 SHOW SESSION STATUS LIKE 'Sort_scan%';
@@ -1551,12 +1551,12 @@ IGNORE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`i2`) IGNORE INDEX (PRIMARY) group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR GROUP BY (`i2`) IGNORE INDEX FOR ORDER BY (PRIMARY) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY) IGNORE INDEX FOR ORDER BY (i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i2	9	NULL	144	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`i2`) IGNORE INDEX (PRIMARY)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR ORDER BY (`i2`) IGNORE INDEX (PRIMARY)
 EXPLAIN SELECT a FROM t1 FORCE INDEX (i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i2	9	NULL	144	100.00	Using index
@@ -1592,13 +1592,13 @@ USE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	#	PRIMARY,i2	i2	#	NULL	#	100.00	#
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX (`i2`) USE INDEX (`i2`) group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX FOR GROUP BY (`i2`) USE INDEX FOR JOIN (`i2`) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
 FORCE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,i2	i2	9	NULL	144	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` FORCE INDEX (`i2`) FORCE INDEX (`i2`) group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` FORCE INDEX FOR GROUP BY (`i2`) FORCE INDEX FOR JOIN (`i2`) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 USE INDEX () IGNORE INDEX (i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
@@ -1616,7 +1616,7 @@ USE INDEX FOR JOIN (i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i2	9	NULL	144	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX (`i2`) USE INDEX (`i2`) USE INDEX (`i2`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX FOR JOIN (`i2`) USE INDEX FOR ORDER BY (`i2`) USE INDEX FOR GROUP BY (`i2`)
 EXPLAIN SELECT a FROM t1 
 USE INDEX FOR JOIN (i2) 
 USE INDEX FOR JOIN (i2) 
@@ -1624,7 +1624,7 @@ USE INDEX FOR JOIN (i2,i2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i2	9	NULL	144	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX (`i2`) USE INDEX (`i2`) USE INDEX (`i2`) USE INDEX (`i2`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX FOR JOIN (`i2`) USE INDEX FOR JOIN (`i2`) USE INDEX FOR JOIN (`i2`) USE INDEX FOR JOIN (`i2`)
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

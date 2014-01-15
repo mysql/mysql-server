@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
+typedef struct st_lf_pins LF_PINS;
 
 /**
   @def ENTER_COND(C, M, S, O)
@@ -620,6 +621,7 @@ private:
 #endif
      m_ctx(ctx_arg),
      m_lock(NULL),
+     m_is_fast_path(false),
      m_psi(NULL)
   {}
 
@@ -653,6 +655,14 @@ private:
     Pointer to the lock object for this lock ticket. Externally accessible.
   */
   MDL_lock *m_lock;
+
+  /**
+    Indicates that ticket corresponds to lock acquired using "fast path"
+    algorithm. Particularly this means that it was not included into
+    MDL_lock::m_granted bitmap/list and instead is accounted for by
+    MDL_lock::m_fast_path_locks_granted_counter
+  */
+  bool m_is_fast_path;
 
   PSI_metadata_lock *m_psi;
 
@@ -812,11 +822,22 @@ public:
             will see the new value eventually.
     */
     m_needs_thr_lock_abort= needs_thr_lock_abort;
+
+    if (m_needs_thr_lock_abort)
+    {
+      /*
+        For MDL_object_lock::notify_conflicting_locks() to work properly
+        all context requiring thr_lock aborts should not have any "fast
+        path" locks.
+      */
+      materialize_fast_path_locks();
+    }
   }
   bool get_needs_thr_lock_abort() const
   {
     return m_needs_thr_lock_abort;
   }
+
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -907,6 +928,13 @@ private:
     readily available to the wait-for graph iterator.
    */
   MDL_wait_for_subgraph *m_waiting_for;
+  /**
+    Thread's pins (a.k.a. hazard pointers) to be used by lock-free
+    implementation of MDL_map::m_locks container. NULL if pins are
+    not yet allocated from container's pinbox.
+  */
+  LF_PINS *m_pins;
+
 private:
   THD *get_thd() const { return m_owner->get_thd(); }
   MDL_ticket *find_ticket(MDL_request *mdl_req,
@@ -915,6 +943,8 @@ private:
   void release_lock(enum_mdl_duration duration, MDL_ticket *ticket);
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
+  void materialize_fast_path_locks();
+  inline bool fix_pins();
 
 public:
   void find_deadlock();
@@ -924,6 +954,18 @@ public:
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
   void will_wait_for(MDL_wait_for_subgraph *waiting_for_arg)
   {
+    /*
+      Before starting wait for any resource we need to materialize
+      all "fast path" tickets belonging to this thread. Otherwise
+      locks acquired which are represented by these tickets won't
+      be present in wait-for graph and could cause missed deadlocks.
+
+      It is OK for context which doesn't wait for any resource to
+      have "fast path" tickets, as such context can't participate
+      in any deadlock.
+    */
+    materialize_fast_path_locks();
+
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for=  waiting_for_arg;
     mysql_prlock_unlock(&m_LOCK_waiting_for);
@@ -958,21 +1000,6 @@ void mdl_destroy();
 extern mysql_mutex_t LOCK_open;
 #endif
 
-
-/*
-  Start-up parameter for the maximum size of the unused MDL_lock objects cache
-  and a constant for its default value.
-*/
-extern ulong mdl_locks_cache_size;
-static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
-
-/*
-  Start-up parameter for the number of partitions of the hash
-  containing all the MDL_lock objects and a constant for
-  its default value.
-*/
-extern ulong mdl_locks_hash_partitions;
-static const ulong MDL_LOCKS_HASH_PARTITIONS_DEFAULT = 8;
 
 /*
   Metadata locking subsystem tries not to grant more than

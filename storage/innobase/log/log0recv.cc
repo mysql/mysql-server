@@ -26,6 +26,7 @@ Created 9/20/1997 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include <vector>
 #include "log0recv.h"
 
 #ifdef UNIV_NONINL
@@ -53,6 +54,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "row0merge.h"
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
+
 
 /** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
@@ -303,7 +305,7 @@ DECLARE_THREAD(recv_writer_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "InnoDB: recv_writer thread running, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "recv_writer thread running, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -321,7 +323,7 @@ DECLARE_THREAD(recv_writer_thread)(
 		}
 
 		/* Flush pages from end of LRU if required */
-		buf_flush_LRU_tail();
+		buf_flush_LRU_lists();
 
 		mutex_exit(&recv_sys->writer_mutex);
 	}
@@ -392,6 +394,9 @@ recv_sys_init(
 
 	recv_max_page_lsn = 0;
 
+	/* Call the constructor for recv_sys_t::dblwr member */
+	new (&recv_sys->dblwr) recv_dblwr_t();
+
 	mutex_exit(&(recv_sys->mutex));
 }
 
@@ -406,8 +411,8 @@ recv_sys_empty_hash(void)
 
 	if (recv_sys->n_addrs != 0) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"%lu pages with log records were left unprocessed! "
-			"Maximum page number with log records on it is %lu",
+			"%lu pages with log records were left unprocessed!"
+			" Maximum page number with log records on it is %lu",
 			(ulong) recv_sys->n_addrs,
 			(ulong) recv_max_parsed_page_no);
 	}
@@ -567,8 +572,8 @@ recv_find_max_checkpoint(
 
 			if (!recv_check_cp_is_consistent(buf)) {
 				DBUG_PRINT("ib_log",
-					   ("invalid checkpoint, "
-					    "group %u at %u, checksum %#x",
+					   ("invalid checkpoint,"
+					    " group %u at %u, checksum %#x",
 					    (unsigned) group->id,
 					    (unsigned) field,
 					    (unsigned) mach_read_from_4(
@@ -613,7 +618,7 @@ recv_find_max_checkpoint(
 			" to create the InnoDB data files,"
 			" but log file creation failed."
 			" If that is the case, please refer to"
-			" " REFMAN "error-creating-innodb.html");
+			" "REFMAN"error-creating-innodb.html");
 		return(DB_ERROR);
 	}
 
@@ -1498,8 +1503,8 @@ recv_recover_page_func(
 			}
 
 			DBUG_PRINT("ib_log",
-				   ("apply " LSN_PF ": %u len %u "
-				    "page %u:%u", recv->start_lsn,
+				   ("apply " LSN_PF ": %u len %u"
+				    " page %u:%u", recv->start_lsn,
 				    (unsigned) recv->type,
 				    (unsigned) recv->len,
 				    (unsigned) recv_addr->space,
@@ -1771,7 +1776,7 @@ loop:
 	recv_sys_empty_hash();
 
 	if (has_printed) {
-		fprintf(stderr, "InnoDB: Apply batch completed\n");
+		ib_logf(IB_LOG_LEVEL_INFO, "Apply batch completed");
 	}
 
 	mutex_exit(&(recv_sys->mutex));
@@ -2053,12 +2058,13 @@ recv_report_corrupt_log(
 	ulint	space,	/*!< in: space id, this may also be garbage */
 	ulint	page_no)/*!< in: page number, this may also be garbage */
 {
-	fprintf(stderr,
-		"InnoDB: ############### CORRUPT LOG RECORD FOUND\n"
-		"InnoDB: Log record type %lu, space id %lu, page number %lu\n"
-		"InnoDB: Log parsing proceeded successfully up to " LSN_PF "\n"
-		"InnoDB: Previous log record type %lu, is multi %lu\n"
-		"InnoDB: Recv offset %lu, prev %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"############### CORRUPT LOG RECORD FOUND ##################");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Log record type %lu, space id %lu, page number %lu."
+		" Log parsing proceeded successfully up to " LSN_PF "."
+		" Previous log record type %lu, is multi %lu"
+		" Recv offset %lu, prev %lu",
 		(ulong) type, (ulong) space, (ulong) page_no,
 		recv_sys->recovered_lsn,
 		(ulong) recv_previous_parsed_rec_type,
@@ -2098,7 +2104,7 @@ recv_report_corrupt_log(
 		" that the log scan did not proceed far enough in recovery!"
 		" Please run CHECK TABLE on your InnoDB tables to check"
 		" that they are ok! If mysqld crashes after this recovery,"
-		" look at " REFMAN "forcing-innodb-recovery.html"
+		" look at "REFMAN"forcing-innodb-recovery.html"
 		" about forcing recovery.");
 
 	fflush(stderr);
@@ -2182,8 +2188,8 @@ loop:
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
 		DBUG_PRINT("ib_log",
-			   ("scan " LSN_PF ": log rec %u len %u "
-			    "page %u:%u", old_lsn,
+			   ("scan " LSN_PF ": log rec %u len %u"
+			    " page %u:%u", old_lsn,
 			    (unsigned) type, (unsigned) len,
 			    (unsigned) space, (unsigned) page_no));
 
@@ -2218,8 +2224,7 @@ loop:
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"
 						" %lu space %lu not complete"
-						" in the replay phase."
-						" Path %s",
+						" in the replay phase. Path %s",
 						(ulint) type, space,
 						(char*)(body + 2));
 				}
@@ -2271,8 +2276,8 @@ loop:
 #endif /* UNIV_LOG_DEBUG */
 
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": multi-log rec %u "
-				    "len %u page %u:%u",
+				   ("scan " LSN_PF ": multi-log rec %u"
+				    " len %u page %u:%u",
 				    recv_sys->recovered_lsn,
 				    (unsigned) type, (unsigned) len,
 				    (unsigned) space, (unsigned) page_no));
@@ -2496,11 +2501,11 @@ recv_scan_log_recs(
 			if (no == log_block_convert_lsn_to_no(scanned_lsn)
 			    && !log_block_checksum_is_ok_or_old_format(
 				    log_block)) {
-				fprintf(stderr,
-					"InnoDB: Log block no %lu at"
-					" lsn " LSN_PF " has\n"
-					"InnoDB: ok header, but checksum field"
-					" contains %lu, should be %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Log block no %lu at"
+					" lsn " LSN_PF " has"
+					" ok header, but checksum field"
+					" contains %lu, should be %lu",
 					(ulong) no,
 					scanned_lsn,
 					(ulong) log_block_get_checksum(
@@ -2579,16 +2584,16 @@ recv_scan_log_recs(
 
 				if (!srv_read_only_mode) {
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Log scan progressed past the "
-						"checkpoint lsn " LSN_PF "",
+						"Log scan progressed past the"
+						" checkpoint lsn " LSN_PF "",
 						recv_sys->scanned_lsn);
 
 					recv_init_crash_recovery();
 				} else {
 
 					ib_logf(IB_LOG_LEVEL_WARN,
-						"Recovery skipped, "
-						"--innodb-read-only set!");
+						"Recovery skipped,"
+						" --innodb-read-only set!");
 
 					return(TRUE);
 				}
@@ -2643,9 +2648,9 @@ recv_scan_log_recs(
 
 		if (finished || (recv_scan_print_counter % 80 == 0)) {
 
-			fprintf(stderr,
-				"InnoDB: Doing recovery: scanned up to"
-				" log sequence number " LSN_PF "\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Doing recovery: scanned up to"
+				" log sequence number " LSN_PF "",
 				*group_scanned_lsn);
 		}
 	}
@@ -2739,6 +2744,8 @@ recv_init_crash_recovery(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
+	buf_dblwr_init_or_load_pages(true);
+
 	fil_load_single_table_tablespaces();
 
 	/* If we are using the doublewrite method, we will
@@ -2754,7 +2761,7 @@ recv_init_crash_recovery(void)
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"from the doublewrite buffer...");
 
-		buf_dblwr_init_or_restore_pages(TRUE);
+		buf_dblwr_process();
 
 		/* Spawn the background thread to flush dirty pages
 		from the buffer pools. */
@@ -2792,8 +2799,8 @@ recv_recovery_from_checkpoint_start(
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The user has set SRV_FORCE_NO_LOG_REDO on, "
-			"skipping log redo");
+			"The user has set SRV_FORCE_NO_LOG_REDO on,"
+			" skipping log redo");
 
 		return(DB_SUCCESS);
 	}
@@ -2835,8 +2842,8 @@ recv_recovery_from_checkpoint_start(
 		if (srv_read_only_mode) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot restore from ibbackup, InnoDB running "
-				"in read-only mode!");
+				"Cannot restore from ibbackup, InnoDB running"
+				" in read-only mode!");
 
 			return(DB_ERROR);
 		}
@@ -2845,9 +2852,9 @@ recv_recovery_from_checkpoint_start(
 		a note to the user about it */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The log file was created by ibbackup --apply-log "
-			"at %s. The following crash recovery is part of a "
-			"normal restore.",
+			"The log file was created by ibbackup --apply-log"
+			" at %s. The following crash recovery is part of a"
+			" normal restore.",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
 
 		/* Wipe over the label now */
@@ -2900,17 +2907,14 @@ recv_recovery_from_checkpoint_start(
 		if (checkpoint_lsn < max_flushed_lsn) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"The log sequence number "
-				"in the ibdata files is higher "
-				"than the log sequence number "
-				"in the ib_logfiles! Are you sure "
-				"you are using the right "
-				"ib_logfiles to start up the database. "
-				"Log sequence number in the "
-				"ib_logfiles is " LSN_PF ", log"
-				"sequence numbers stamped "
-				"to ibdata file headers are between "
-				"" LSN_PF " and " LSN_PF ".",
+				"The log sequence number in the ibdata files is"
+				" higher than the log sequence number in the"
+				" ib_logfiles! Are you sure you are using the"
+				" right ib_logfiles to start up the database."
+				" Log sequence number in the ib_logfiles is"
+				LSN_PF ", log sequence numbers stamped to"
+				" ibdata file headers are between"
+				" " LSN_PF " and " LSN_PF ".",
 				checkpoint_lsn,
 				min_flushed_lsn,
 				max_flushed_lsn);
@@ -2918,11 +2922,9 @@ recv_recovery_from_checkpoint_start(
 
 		if (!recv_needed_recovery) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The log sequence numbers "
-				LSN_PF " and " LSN_PF
-				" in ibdata files do not match"
-				" the log sequence number "
-				LSN_PF
+				"The log sequence numbers " LSN_PF " and"
+				" " LSN_PF " in ibdata files do not match"
+				" the log sequence number " LSN_PF
 				" in the ib_logfiles!",
 				min_flushed_lsn,
 				max_flushed_lsn,
@@ -2932,16 +2934,15 @@ recv_recovery_from_checkpoint_start(
 				recv_init_crash_recovery();
 			} else {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Can't initiate database "
-					"recovery, running "
-					"in read-only-mode.");
+					"Can't initiate database recovery,"
+					" running in read-only-mode.");
 				return(DB_READ_ONLY);
 			}
 		}
 
 		if (!recv_needed_recovery && !srv_read_only_mode) {
 			/* Init the doublewrite buffer memory structure */
-			buf_dblwr_init_or_restore_pages(FALSE);
+			buf_dblwr_init_or_load_pages(false);
 		}
 	}
 
@@ -2949,10 +2950,10 @@ recv_recovery_from_checkpoint_start(
 	if (group_scanned_lsn < checkpoint_lsn
 	    || group_scanned_lsn < recv_max_page_lsn) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"We scanned the log up to "
-			LSN_PF ". A checkpoint was at " LSN_PF
-			" and the maximum LSN on a database page was " LSN_PF
-			". It is possible that the database is now corrupt!",
+			"We scanned the log up to " LSN_PF ". A checkpoint"
+			" was at " LSN_PF " and the maximum LSN on a database"
+			" page was " LSN_PF ". It is possible that the"
+			" database is now corrupt!",
 			group_scanned_lsn, checkpoint_lsn, recv_max_page_lsn);
 	}
 
@@ -3042,18 +3043,14 @@ recv_recovery_from_checkpoint_finish(void)
 
 	if (recv_sys->found_corrupt_log) {
 
-		fprintf(stderr,
-			"InnoDB: WARNING: the log file may have been"
-			" corrupt and it\n"
-			"InnoDB: is possible that the log scan or parsing"
-			" did not proceed\n"
-			"InnoDB: far enough in recovery. Please run"
-			" CHECK TABLE\n"
-			"InnoDB: on your InnoDB tables to check that"
-			" they are ok!\n"
-			"InnoDB: It may be safest to recover your"
-			" InnoDB database from\n"
-			"InnoDB: a backup!\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The log file may have been corrupt and it"
+			" is possible that the log scan or parsing"
+			" did not proceed far enough in recovery."
+			" Please run CHECK TABLE on your InnoDB tables"
+			" to check that they are ok!"
+			" It may be safest to recover your"
+			" InnoDB database from a backup!");
 	}
 
 	/* Make sure that the recv_writer thread is done. This is
@@ -3078,8 +3075,8 @@ recv_recovery_from_checkpoint_finish(void)
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for recv_writer to "
-				"finish flushing of buffer pool");
+				"Waiting for recv_writer to"
+				" finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -3266,4 +3263,45 @@ recv_reset_log_files_for_backup(
 	ut_free(buf);
 }
 #endif /* UNIV_HOTBACKUP */
+
+void recv_dblwr_t::add(byte* page)
+{
+	pages.push_back(page);
+}
+
+byte* recv_dblwr_t::find_first_page(ulint space_id)
+{
+	std::vector<byte*> matches;
+	byte*	result = 0;
+
+	for (std::list<byte*>::iterator i = pages.begin();
+	     i != pages.end(); ++i) {
+
+		if ((page_get_space_id(*i) == space_id)
+		    && (page_get_page_no(*i) == 0)) {
+			matches.push_back(*i);
+		}
+	}
+
+	if (matches.size() == 1) {
+		result = matches[0];
+	} else if (matches.size() > 1) {
+
+		lsn_t max_lsn	= 0;
+		lsn_t page_lsn	= 0;
+
+		for (std::vector<byte*>::iterator i = matches.begin();
+		     i != matches.end(); ++i) {
+
+			page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);
+
+			if (page_lsn > max_lsn) {
+				max_lsn = page_lsn;
+				result = *i;
+			}
+		}
+	}
+
+	return(result);
+}
 

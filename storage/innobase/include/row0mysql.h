@@ -586,16 +586,6 @@ row_scan_index_for_mysql(
 						seen in the consistent read */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Determines if a table is a magic monitor table.
-@return true if monitor table */
-
-bool
-row_is_magic_monitor_table(
-/*=======================*/
-	const char*	table_name)	/*!< in: name of the table, in the
-					form database/table_name */
-	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
 Initialize this module */
 
 void

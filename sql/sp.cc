@@ -1152,7 +1152,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 
     store_failed= store_failed ||
       table->field[MYSQL_PROC_FIELD_DEFINER]->
-        store(definer, (uint)strlen(definer), system_charset_info);
+        store(definer, strlen(definer), system_charset_info);
 
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
@@ -1338,7 +1338,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   if (ret == SP_OK)
   {
     thd->add_to_binlog_accessed_dbs(name->m_db.str);
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
 
@@ -1463,7 +1463,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   if (ret == SP_OK)
   {
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
   }

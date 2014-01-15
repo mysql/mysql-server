@@ -1484,6 +1484,9 @@ call mtr.add_suppression("but tablespace with that id or name does not exist");
 call mtr.add_suppression("Failed to find tablespace for table \"test_wl5522\".\"t1\" in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
 call mtr.add_suppression("while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the .ibd file is missing.");
 --enable_query_log
 
 #cleanup

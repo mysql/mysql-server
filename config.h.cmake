@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -368,11 +368,6 @@
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
 
-/*
-   InnoDB config options
-*/
-#cmakedefine INNODB_COMPILER_HINTS
-
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
@@ -423,7 +418,6 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Important storage engines (those that really need define 
@@ -442,6 +436,7 @@
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+#cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 

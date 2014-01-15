@@ -428,15 +428,11 @@ rw_lock_s_lock_func(
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+	if (!rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
-		return; /* Success */
-	} else {
 		/* Did not succeed, try spin wait */
 
 		rw_lock_s_lock_spin(lock, pass, file_name, line);
-
-		return;
 	}
 }
 
@@ -894,6 +890,44 @@ pfs_rw_lock_s_lock_low(
 		}
 	} else {
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
+	}
+
+	return(ret);
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
+NOTE! Please use the corresponding macro, not
+directly this function!
+@return TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_sx_lock_low(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name, /*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	ibool		ret;
+
+	if (lock->pfs_psi != NULL) {
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
+
+		/* Instrumented to inform we are aquiring a shared exclusive rwlock */
+		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+			&state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK,
+			file_name, (uint) line);
+
+		ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
+
+		if (locker != NULL) {
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, int(ret));
+		}
+	} else {
+		ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
 	}
 
 	return(ret);

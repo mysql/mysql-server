@@ -522,7 +522,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns, TRUE);
-  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
+  table->field[2]->store(u_d->dl, strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->ha_write_row(table->record[0]);
@@ -538,7 +538,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
-  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -630,7 +630,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
-  if (!write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (!write_bin_log(thd, true, thd->query().str, thd->query().length))
     error= 0;
 exit:
   /* Restore the state of binlog format */

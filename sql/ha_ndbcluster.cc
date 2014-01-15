@@ -10049,7 +10049,7 @@ cleanup_failed:
       if (share && !do_event_op)
         set_binlog_nologging(share);
       ndbcluster_log_schema_op(thd,
-                               thd->query(), thd->query_length(),
+                               thd->query().str, thd->query().length,
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
@@ -10366,7 +10366,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
     if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
       DBUG_RETURN(my_errno= ER_NOT_SUPPORTED_YET);
     }
   }
@@ -10507,7 +10507,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!is_old_table_tmpfile)
     {
       /* "real" rename table */
-      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
+      ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
@@ -10516,7 +10516,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     else
     {
       /* final phase of offline alter table */
-      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
+      ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                                m_dbname, new_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_ALTER_TABLE_COMMIT,
@@ -10816,7 +10816,7 @@ retry_temporary_error1:
       thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd,
-                             thd->query(), thd->query_length(),
+                             thd->query().str, thd->query().length,
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, NULL, NULL);
@@ -11724,7 +11724,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   table_id = (uint32)rand();
   table_version = (uint32)rand();
   ndbcluster_log_schema_op(thd,
-                           thd->query(), thd->query_length(),
+                           thd->query().str, thd->query().length,
                            db, "", table_id, table_version,
                            SOT_DROP_DB, NULL, NULL);
   DBUG_VOID_RETURN;
@@ -17044,7 +17044,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
     table_id= alter_data->table_id;
     table_version= alter_data->old_table_version;
   }
-  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
+  ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
@@ -17122,7 +17122,7 @@ void ha_ndbcluster::notify_table_changed()
     all mysqld's will switch to using the new_op, and delete the old
     event operation
   */
-  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
+  ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_COMMIT,
@@ -17473,13 +17473,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   }
   if (is_tablespace)
     ndbcluster_log_schema_op(thd,
-                             thd->query(), thd->query_length(),
+                             thd->query().str, thd->query().length,
                              "", alter_info->tablespace_name,
                              table_id, table_version,
                              SOT_TABLESPACE, NULL, NULL);
   else
     ndbcluster_log_schema_op(thd,
-                             thd->query(), thd->query_length(),
+                             thd->query().str, thd->query().length,
                              "", alter_info->logfile_group_name,
                              table_id, table_version,
                              SOT_LOGFILE_GROUP, NULL, NULL);

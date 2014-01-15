@@ -330,7 +330,7 @@ select -(-(9223372036854775808));
 select --9223372036854775808, ---9223372036854775808, ----9223372036854775808;
 select -(-9223372036854775808), -(-(-9223372036854775808));
 
-# Bug #28005 Partitions: can't use -9223372036854775808 
+# Bug #28005 Partitions: cannot use -9223372036854775808 
 create table t1 select -9223372036854775808 bi;
 describe t1;
 drop table t1;
@@ -419,3 +419,31 @@ SELECT * FROM t1 WHERE a=0.9;
 SELECT * FROM t1 WHERE a IN (0.8,0.9);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#17606942 ERROR RESULT WHEN USE BETWEEN...AND
+--echo #              AGAINEST BIGINT UNSIGNED
+--echo #
+--echo # Bug#70622 error result when use between...and againest bigint unsigned 
+
+create table t (id bigint unsigned, b int);
+
+insert into t values(8894754949779693574,1);
+insert into t values(8894754949779693579,2);
+insert into t values(17790886498483827171,3);
+
+select count(*) from t 
+where id>=8894754949779693574 and id <=17790886498483827171;
+
+select count(*) from t 
+where id between 8894754949779693574 and 17790886498483827171;
+
+alter table t add primary key (id);
+
+select count(*) from t 
+where id>=8894754949779693574 and id <=17790886498483827171;
+
+select count(*) from t 
+where id between 8894754949779693574 and 17790886498483827171;
+
+drop table t;

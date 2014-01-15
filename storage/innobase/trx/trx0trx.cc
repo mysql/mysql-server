@@ -488,8 +488,8 @@ trx_validate_state_before_free(trx_t* trx)
 	if (trx->declared_to_be_inside_innodb) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared "
-			"to be processing inside InnoDB", trx, trx->id);
+			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
+			" to be processing inside InnoDB", trx, trx->id);
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -503,9 +503,9 @@ trx_validate_state_before_free(trx_t* trx)
 	    || trx->mysql_n_tables_locked != 0) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"MySQL is freeing a thd though "
-			"trx->n_mysql_tables_in_use is %lu and "
-			"trx->mysql_n_tables_locked is %lu.",
+			"MySQL is freeing a thd though"
+			" trx->n_mysql_tables_in_use is %lu and"
+			" trx->mysql_n_tables_locked is %lu.",
 			(ulong) trx->n_mysql_tables_in_use,
 			(ulong) trx->mysql_n_tables_locked);
 
@@ -731,8 +731,8 @@ trx_resurrect_insert(
 		if (undo->state == TRX_UNDO_PREPARED) {
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " was in the XA "
-				"prepared state.", trx->id);
+				"Transaction " TRX_ID_FMT " was in the XA"
+				" prepared state.", trx->id);
 
 			if (srv_force_recovery == 0) {
 
@@ -742,8 +742,8 @@ trx_resurrect_insert(
 			} else {
 
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"Since innodb_force_recovery > 0, we "
-					"will force a rollback.");
+					"Since innodb_force_recovery > 0, we"
+					" will force a rollback.");
 
 				trx->state = TRX_STATE_ACTIVE;
 			}
@@ -766,6 +766,13 @@ trx_resurrect_insert(
 		field inited to TRX_ID_MAX */
 
 		trx->no = TRX_ID_MAX;
+	}
+
+	/* trx_start_low() is not called with resurrect, so need to initialize
+	start time here.*/
+	if (trx->state == TRX_STATE_ACTIVE
+	    || trx->state == TRX_STATE_PREPARED) {
+		trx->start_time = ut_time();
 	}
 
 	if (undo->dict_operation) {
@@ -796,8 +803,8 @@ trx_resurrect_update_in_prepared_state(
 
 	if (undo->state == TRX_UNDO_PREPARED) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transaction " TRX_ID_FMT " was in the XA "
-			"prepared state.", trx->id);
+			"Transaction " TRX_ID_FMT " was in the XA"
+			" prepared state.", trx->id);
 
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
@@ -810,8 +817,8 @@ trx_resurrect_update_in_prepared_state(
 			trx->state = TRX_STATE_PREPARED;
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Since innodb_force_recovery > 0, we will "
-				"rollback it anyway.");
+				"Since innodb_force_recovery > 0, we will"
+				" rollback it anyway.");
 
 			trx->state = TRX_STATE_ACTIVE;
 		}
@@ -854,6 +861,13 @@ trx_resurrect_update(
 		TRX_ID_MAX */
 
 		trx->no = TRX_ID_MAX;
+	}
+
+	/* trx_start_low() is not called with resurrect, so need to initialize
+	start time here.*/
+	if (trx->state == TRX_STATE_ACTIVE
+	    || trx->state == TRX_STATE_PREPARED) {
+		trx->start_time = ut_time();
 	}
 
 	if (undo->dict_operation) {
@@ -1004,7 +1018,7 @@ get_next_redo_rseg(
 	bool look_for_rollover = false;
 #endif /* UNIV_DEBUG */
 
-	for(;;) {
+	for (;;) {
 		rseg = trx_sys->rseg_array[slot];
 
 #ifdef UNIV_DEBUG
@@ -1062,7 +1076,7 @@ get_next_noredo_rseg(
 		slot = (slot + 1) % max_undo_logs;
 	}
 
-	for(;;) {
+	for (;;) {
 		rseg = trx_sys->rseg_array[slot];
 
 		slot = (slot + 1) % max_undo_logs;
@@ -2669,22 +2683,19 @@ trx_recover_for_mysql(
 			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Starting recovery for"
-					" XA transactions...\n");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Starting recovery for"
+					" XA transactions...");
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Transaction " TRX_ID_FMT " in"
-				" prepared state after recovery\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Transaction " TRX_ID_FMT " in"
+				" prepared state after recovery",
 				trx->id);
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Transaction contains changes"
-				" to " TRX_ID_FMT " rows\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Transaction contains changes"
+				" to " TRX_ID_FMT " rows",
 				trx->undo_no);
 
 			count++;
@@ -2698,10 +2709,9 @@ trx_recover_for_mysql(
 	trx_sys_mutex_exit();
 
 	if (count > 0){
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: %d transactions in prepared state"
-			" after recovery\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"%d transactions in prepared state"
+			" after recovery",
 			int (count));
 	}
 
