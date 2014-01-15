@@ -219,9 +219,9 @@ performance_schema	events_statements_summary_by_program.memory	3520000
 performance_schema	session_connect_attrs.size	402
 performance_schema	session_connect_attrs.count	512
 performance_schema	session_connect_attrs.memory	205824
-performance_schema	prepared_statement_instances.size	1856
+performance_schema	prepared_statement_instances.size	2880
 performance_schema	prepared_statement_instances.count	5000
-performance_schema	prepared_statement_instances.memory	9280000
+performance_schema	prepared_statement_instances.memory	14400000
 performance_schema	(account_hash).count	2
 performance_schema	(account_hash).size	100
 performance_schema	(digest_hash).count	0
@@ -280,17 +280,17 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	100
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
-performance_schema	performance_schema.memory	478174312
+performance_schema	performance_schema.memory	483294312
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	60
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	478174312
+SUM_NUMBER_OF_BYTES_ALLOC	483294312
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	60
 CURRENT_COUNT_USED	60
 HIGH_COUNT_USED	60
-LOW_NUMBER_OF_BYTES_USED	478174312
-CURRENT_NUMBER_OF_BYTES_USED	478174312
-HIGH_NUMBER_OF_BYTES_USED	478174312
+LOW_NUMBER_OF_BYTES_USED	483294312
+CURRENT_NUMBER_OF_BYTES_USED	483294312
+HIGH_NUMBER_OF_BYTES_USED	483294312

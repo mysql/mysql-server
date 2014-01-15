@@ -2939,10 +2939,10 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
     in use is from within Dynamic SQL.
   */
   DBUG_ASSERT(! stmt->is_in_use());
-  stmt->deallocate();
 #ifdef HAVE_PSI_PS_INTERFACE
   MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
 #endif
+  stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
@@ -2975,10 +2975,10 @@ void mysql_sql_stmt_close(THD *thd)
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
   {
-    stmt->deallocate();
 #ifdef HAVE_PSI_PS_INTERFACE
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
 #endif
+    stmt->deallocate();
     my_ok(thd);
   }
 }

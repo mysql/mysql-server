@@ -5024,7 +5024,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
                                                     thd->charset(), NULL, NULL);
-        THD_STAGE_INFO(thd, stage_init);
+        THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                  thd->query().length);
 
