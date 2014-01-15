@@ -3995,14 +3995,14 @@ int ha_tokudb::write_row(uchar * record) {
             // if we have a duplicate key error, let's check the primary key to see
             // if there is a duplicate there. If so, set last_dup_key to the pk
             if (error == DB_KEYEXIST && !tokudb_test(hidden_primary_key) && last_dup_key != primary_key) {
-                int r = share->file->getf_set(share->file, txn, 0, &prim_key, smart_dbt_do_nothing, NULL);
+                int r = share->file->getf_set(share->file, txn, DB_SERIALIZABLE, &prim_key, smart_dbt_do_nothing, NULL);
                 if (r == 0) {
                     // if we get no error, that means the row
                     // was found and this is a duplicate key,
                     // so we set last_dup_key
                     last_dup_key = primary_key;
                 }
-                else if (r != DB_NOTFOUND && r != TOKUDB_MVCC_DICTIONARY_TOO_NEW) {
+                else if (r != DB_NOTFOUND) {
                     // if some other error is returned, return that to the user.
                     error = r;
                 }
@@ -7172,7 +7172,7 @@ cleanup:
 //      error otherwise
 //
 int ha_tokudb::delete_table(const char *name) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%s", name);
     int error;
     error = delete_or_rename_table(name, NULL, true);
     if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
