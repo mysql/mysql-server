@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("STATEMENT_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("STATEMENT_NAME") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("SQL_TEXT") },
     { C_STRING_WITH_LEN("longtext") },
     { NULL, 0}
@@ -70,7 +80,27 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("TIMER_PREPARE") },
+    { C_STRING_WITH_LEN("COUNT_PREPARE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_TIMER_PREPARE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("MIN_TIMER_PREPARE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("AVG_TIMER_PREPARE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("MAX_TIMER_PREPARE") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -198,7 +228,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_prepared_stmt_instances::m_field_def=
-{ 32, field_types };
+{ 38, field_types };
 
 PFS_engine_table_share
 table_prepared_stmt_instances::m_share=
@@ -292,9 +322,16 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
   prepared_stmt->m_lock.begin_optimistic_lock(&lock);
   
   m_row.m_identity= prepared_stmt->m_identity;
+ 
+  m_row.m_stmt_id= prepared_stmt->m_stmt_id;
 
   m_row.m_owner_thread_id= prepared_stmt->m_owner_thread_id;
   m_row.m_owner_event_id= prepared_stmt->m_owner_event_id;
+
+  m_row.m_stmt_name_length= prepared_stmt->m_stmt_name_length;
+  if(m_row.m_stmt_name_length > 0)
+    memcpy(m_row.m_stmt_name, prepared_stmt->m_stmt_name,
+           m_row.m_stmt_name_length);
 
   m_row.m_sql_text_length= prepared_stmt->m_sqltext_length;
   if(m_row.m_sql_text_length > 0)
@@ -351,47 +388,61 @@ int table_prepared_stmt_instances
       case 0: /* OBJECT_INSTANCE_BEGIN */
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
-      case 1: /* SQL_TEXT */
+      case 1: /* STATEMENT_ID */
+        set_field_ulonglong(f, m_row.m_stmt_id);
+        break;
+      case 2: /* STATEMENT_NAME */
+        if(m_row.m_stmt_name_length > 0)
+          set_field_varchar_utf8(f, m_row.m_stmt_name,
+                                 m_row.m_stmt_name_length);
+        else
+          f->set_null();
+        break;
+      case 3: /* SQL_TEXT */
         if(m_row.m_sql_text_length > 0)
           set_field_longtext_utf8(f, m_row.m_sql_text,
                                  m_row.m_sql_text_length);
         else
           f->set_null();
         break;
-      case 2: /* OWNER_THREAD_ID */
+      case 4: /* OWNER_THREAD_ID */
         set_field_ulonglong(f, m_row.m_owner_thread_id);
         break;
-      case 3: /* OWNER_EVENT_ID */
+      case 5: /* OWNER_EVENT_ID */
         if(m_row.m_owner_event_id > 0)
           set_field_ulonglong(f, m_row.m_owner_event_id);
         else
           f->set_null();
         break;
-      case 4: /* OWNER_OBJECT_TYPE */
+      case 6: /* OWNER_OBJECT_TYPE */
         if(m_row.m_owner_object_type != 0)
           set_field_enum(f, m_row.m_owner_object_type); 
         else
           f->set_null();
         break;
-      case 5: /* OWNER_OBJECT_SCHEMA */
+      case 7: /* OWNER_OBJECT_SCHEMA */
         if(m_row.m_owner_object_schema_length > 0)
           set_field_varchar_utf8(f, m_row.m_owner_object_schema,
                                  m_row.m_owner_object_schema_length);
         else
           f->set_null();
         break;
-      case 6: /* OWNER_OBJECT_NAME */
+      case 8: /* OWNER_OBJECT_NAME */
         if(m_row.m_owner_object_name_length > 0)
           set_field_varchar_utf8(f, m_row.m_owner_object_name,
                                  m_row.m_owner_object_name_length);
         else
           f->set_null();
         break;
-      case 7: /* Mayank TODO, TIMER_PREPARE */
-        m_row.m_prepared_stmt_stat.set_field(1, f);
+      case 9:   /* COUNT_PREPARE */
+      case 10:  /* SUM_TIMER_PREPARE */
+      case 11:  /* MIN_TIMER_PREPARE */
+      case 12:  /* AVG_TIMER_PREPARE */
+      case 13:  /* MAX_PREPARE */
+        m_row.m_prepared_stmt_stat.set_field(f->field_index - 9, f);
         break;
-      default: /* 8, ... COUNT/SUM/MIN/AVG/MAX */
-        m_row.m_prepared_stmt_execute_stat.set_field(f->field_index - 8, f);
+      default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
+        m_row.m_prepared_stmt_execute_stat.set_field(f->field_index - 14, f);
         break;
       }
     }

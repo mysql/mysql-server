@@ -2243,11 +2243,18 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   /* If this prepare statement is called from a SP. */
   if (thd->m_sp_statement_psi)
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_sp_statement_psi, (char*)packet, (uint)packet_length);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                           thd->m_sp_statement_psi,
+                                           (char*)stmt->name.str, stmt->name.length,
+                                           (char*)packet, (uint)packet_length);
   else
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)packet, (uint)packet_length);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                           thd->m_statement_psi,
+                                           (char*)stmt->name.str, stmt->name.length,
+                                           (char*)packet, (uint)packet_length);
    
-  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt, com_statement_info[thd->lex->sql_command].m_key);
+  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt,
+                         com_statement_info[thd->lex->sql_command].m_key);
 #endif
 
   if (stmt->prepare(packet, packet_length))
@@ -2430,9 +2437,15 @@ void mysql_sql_stmt_prepare(THD *thd)
 
   /* If this prepare statement is called from a SP. */
   if (thd->m_sp_statement_psi)
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_sp_statement_psi, (char*)query, query_len);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                           thd->m_sp_statement_psi,
+                                           (char*)stmt->name.str, stmt->name.length,
+                                           (char*)query, query_len);
   else
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, thd->m_statement_psi, (char*)query, query_len);
+    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                           thd->m_statement_psi,
+                                           (char*)stmt->name.str, stmt->name.length,
+                                           (char*)query, query_len);
    
   locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt, sql_statement_info[thd->lex->sql_command].m_key); 
 #endif
