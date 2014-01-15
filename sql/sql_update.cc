@@ -1466,6 +1466,24 @@ int mysql_multi_update_prepare(THD *thd)
       DBUG_RETURN(TRUE);
   }
 
+  /*
+    When using a multi-table UPDATE command as a prepared statement,
+    1) We must validate values (the right argument 'expr' of 'SET col1=expr')
+    during PREPARE, so that:
+    - bad columns are reported by PREPARE
+    - cached_table is set for fields before query transformations (semijoin,
+    view merging...) are done and make resolution more difficult.
+    2) This validation is done by multi_update::prepare() but it is not called
+    by PREPARE.
+    3) So we do it below.
+  */
+  if (thd->stmt_arena->is_stmt_prepare())
+  {
+    if (setup_fields(thd, Ref_ptr_array(), lex->value_list, MARK_COLUMNS_NONE,
+                     NULL, false))
+      DBUG_RETURN(TRUE);
+  }
+
   /* check single table update for view compound from several tables */
   for (tl= table_list; tl; tl= tl->next_local)
   {
