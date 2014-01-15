@@ -70,18 +70,18 @@ ERROR 1050 (42S01) at line 1470: Table 'memory_summary_by_host_by_event_name' al
 ERROR 1050 (42S01) at line 1488: Table 'memory_summary_by_user_by_event_name' already exists
 ERROR 1050 (42S01) at line 1523: Table 'events_statements_summary_by_digest' already exists
 ERROR 1050 (42S01) at line 1561: Table 'events_statements_summary_by_program' already exists
-ERROR 1050 (42S01) at line 1599: Table 'prepared_statement_instances' already exists
-ERROR 1050 (42S01) at line 1621: Table 'replication_connection_configuration' already exists
-ERROR 1050 (42S01) at line 1634: Table 'replication_connection_status' already exists
-ERROR 1050 (42S01) at line 1641: Table 'replication_execute_configuration' already exists
-ERROR 1050 (42S01) at line 1649: Table 'replication_execute_status' already exists
-ERROR 1050 (42S01) at line 1660: Table 'replication_execute_status_by_coordinator' already exists
-ERROR 1050 (42S01) at line 1673: Table 'replication_execute_status_by_worker' already exists
-ERROR 1050 (42S01) at line 1683: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1689: Table 'session_account_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1703: Table 'table_handles' already exists
-ERROR 1050 (42S01) at line 1719: Table 'metadata_locks' already exists
-ERROR 1644 (HY000) at line 2456: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1605: Table 'prepared_statement_instances' already exists
+ERROR 1050 (42S01) at line 1627: Table 'replication_connection_configuration' already exists
+ERROR 1050 (42S01) at line 1640: Table 'replication_connection_status' already exists
+ERROR 1050 (42S01) at line 1647: Table 'replication_execute_configuration' already exists
+ERROR 1050 (42S01) at line 1655: Table 'replication_execute_status' already exists
+ERROR 1050 (42S01) at line 1666: Table 'replication_execute_status_by_coordinator' already exists
+ERROR 1050 (42S01) at line 1679: Table 'replication_execute_status_by_worker' already exists
+ERROR 1050 (42S01) at line 1689: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1695: Table 'session_account_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1709: Table 'table_handles' already exists
+ERROR 1050 (42S01) at line 1725: Table 'metadata_locks' already exists
+ERROR 1644 (HY000) at line 2462: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name

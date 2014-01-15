@@ -138,8 +138,14 @@ create_prepared_stmt(void *identity,
         pfs->m_identity= identity;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
         pfs->m_sqltext_length= sqltext_length;
-        strncpy(pfs->m_stmt_name, stmt_name, stmt_name_length);
-        pfs->m_stmt_name_length= stmt_name_length;
+        if (stmt_name != NULL)
+        {
+          strncpy(pfs->m_stmt_name, stmt_name, stmt_name_length);
+          pfs->m_stmt_name_length= stmt_name_length;
+        }
+        else
+          pfs->m_stmt_name_length= 0;
+
         pfs->m_stmt_id= stmt_id;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
