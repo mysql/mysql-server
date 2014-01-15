@@ -1728,8 +1728,6 @@ buf_flush_stats(
 	ulint		page_count_flush,
 	ulint		page_count_LRU)
 {
-	buf_dblwr_flush_buffered_writes();
-
 	DBUG_PRINT("ib_buf", ("flush completed, from flush_list %u pages, "
 			      "from LRU_list %u pages",
 			      unsigned(page_count_flush),
@@ -1793,6 +1791,8 @@ buf_flush_end(
 	}
 
 	buf_pool_mutex_exit(buf_pool);
+
+	buf_dblwr_flush_buffered_writes();
 }
 
 /******************************************************************//**

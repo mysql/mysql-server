@@ -498,7 +498,8 @@ is the global server default. */
 #define HA_ERR_FK_DEPTH_EXCEEDED  191    /* FK cascade depth exceeded */
 #define HA_MISSING_CREATE_OPTION  192    /* Option Missing during Create */
 #define HA_ERR_SE_OUT_OF_MEMORY   193    /* Out of memory in storage engine */
-#define HA_ERR_LAST               193    /* Copy of last error nr */
+#define HA_ERR_TABLE_CORRUPT      194    /* Table/Clustered index is corrupted. */
+#define HA_ERR_LAST               194    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
