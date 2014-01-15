@@ -5956,8 +5956,6 @@ pfs_create_prepare_stmt_v1(void *identity, uint stmt_id,
   if (pfs_stmt == NULL)
     return NULL;
 
-  printf("\n *********** stmt_id[%d], stmt_name[%s]\n", stmt_id, stmt_name);
-
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
