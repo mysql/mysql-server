@@ -328,7 +328,6 @@ private:
     // transaction used by ha_tokudb's cursor
     //
     DB_TXN *transaction;
-    bool is_fast_alter_running;
 
     // external_lock will set this true for read operations that will be closely followed by write operations.
     bool use_write_locks; // use write locks for reads
