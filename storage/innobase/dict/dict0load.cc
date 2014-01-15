@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2181,12 +2181,8 @@ dict_save_data_dir_path(
 
 		table->data_dir_path = mem_heap_strdup(table->heap, filepath);
 		os_file_make_data_dir_path(table->data_dir_path);
-	} else {
-		/* This does not change SYS_DATAFILES or SYS_TABLES
-		or FSP_FLAGS on the header page of the tablespace,
-		but it makes dict_table_t consistent */
-		table->flags &= ~DICT_TF_MASK_DATA_DIR;
 	}
+
 	ut_free(default_filepath);
 }
 
@@ -2208,6 +2204,7 @@ dict_get_and_save_data_dir_path(
 		if (!dict_mutex_own) {
 			dict_mutex_enter_for_mysql();
 		}
+
 		if (!path) {
 			path = dict_get_first_path(
 				table->space, table->name);
@@ -2216,6 +2213,14 @@ dict_get_and_save_data_dir_path(
 		if (path) {
 			dict_save_data_dir_path(table, path);
 			ut_free(path);
+		}
+
+		if (table->data_dir_path == NULL) {
+			/* Since we did not set the table data_dir_path,
+			unset the flag.  This does not change SYS_DATAFILES
+			or SYS_TABLES or FSP_FLAGS on the header page of the
+			tablespace, but it makes dict_table_t consistent. */
+			table->flags &= ~DICT_TF_MASK_DATA_DIR;
 		}
 
 		if (!dict_mutex_own) {
