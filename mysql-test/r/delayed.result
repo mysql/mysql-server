@@ -334,6 +334,8 @@ id	f1
 0	test1
 1	ab
 SET SQL_MODE='ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 INSERT DELAYED INTO t1 VALUES(mod(1,0),"test3");
 ERROR 22012: Division by 0
 CREATE TABLE t2 (
@@ -341,6 +343,9 @@ CREATE TABLE t2 (
 `f1` date
 );
 SET SQL_MODE='NO_ZERO_DATE,STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+Warnings:
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 INSERT DELAYED INTO t2 VALUES (0,'0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'f1' at row 1
 INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');

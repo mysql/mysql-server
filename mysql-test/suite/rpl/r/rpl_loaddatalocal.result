@@ -75,6 +75,10 @@ LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql'/* empty */INTO TA
 LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO/* empty */TABLE t1;
 LOAD/*!99999 special comments that do not expand */DATA/*!99999 code from the future */LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql'/*!99999 have flux capacitor */INTO/*!99999 will travel */TABLE t1;
 SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	1681	'MODE_NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
 LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
 [slave]
 

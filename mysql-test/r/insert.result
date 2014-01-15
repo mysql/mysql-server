@@ -664,6 +664,8 @@ End of 5.0 tests.
 drop table if exists t1;
 create table t1 (data varchar(4) not null);
 set sql_mode='error_for_division_by_zero';
+Warnings:
+Warning	1681	'MODE_ERROR_FOR_DIVISION_BY_ZERO' is deprecated and will be removed in a future release.
 #
 # Demonstrate that the number of warnings matches
 # the information in mysql_info().
