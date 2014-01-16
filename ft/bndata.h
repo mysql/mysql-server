@@ -344,6 +344,11 @@ public:
         + 0;
 private:
 
+    // move_leafentry_extra should be a local class in move_leafentries_to, but
+    // the dmt template parameter for iterate needs linkage, so it has to be a
+    // separate class, but we want it to be able to call e.g. add_key
+    friend class move_leafentry_extra;
+
     // Allocates space in the mempool.
     // If there is insufficient space, the mempool is enlarged and leafentries may be shuffled to reduce fragmentation.
     // If shuffling happens, the offsets stored in the dmt are updated.
