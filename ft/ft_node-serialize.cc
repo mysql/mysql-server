@@ -284,31 +284,6 @@ serialize_node_header(FTNODE node, FTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
     invariant(wbuf->ndone == wbuf->size);
 }
 
-static int
-wbufwriteleafentry(const void* key, const uint32_t keylen, const LEAFENTRY &le, const uint32_t UU(idx), struct wbuf * const wb) {
-    // need to pack the leafentry as it was in versions
-    // where the key was integrated into it
-    uint32_t begin_spot UU() = wb->ndone;
-    uint32_t le_disk_size = leafentry_disksize(le);
-    wbuf_nocrc_uint8_t(wb, le->type);
-    wbuf_nocrc_uint32_t(wb, keylen);
-    if (le->type == LE_CLEAN) {
-        wbuf_nocrc_uint32_t(wb, le->u.clean.vallen);
-        wbuf_nocrc_literal_bytes(wb, key, keylen);
-        wbuf_nocrc_literal_bytes(wb, le->u.clean.val, le->u.clean.vallen);
-    }
-    else {
-        paranoid_invariant(le->type == LE_MVCC);
-        wbuf_nocrc_uint32_t(wb, le->u.mvcc.num_cxrs);
-        wbuf_nocrc_uint8_t(wb, le->u.mvcc.num_pxrs);
-        wbuf_nocrc_literal_bytes(wb, key, keylen);
-        wbuf_nocrc_literal_bytes(wb, le->u.mvcc.xrs, le_disk_size - (1 + 4 + 1));
-    }
-    uint32_t end_spot UU() = wb->ndone;
-    paranoid_invariant((end_spot - begin_spot) == keylen + sizeof(keylen) + le_disk_size);
-    return 0;
-}
-
 static uint32_t 
 serialize_ftnode_partition_size (FTNODE node, int i)
 {
@@ -380,16 +355,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
         wbuf_nocrc_char(&wb, ch);
         wbuf_nocrc_uint(&wb, bd->dmt_size());
 
-        bd->prepare_to_serialize();
-        bd->serialize_header(&wb);
-        if (bd->need_to_serialize_each_leafentry_with_key()) {
-            //
-            // iterate over leafentries and place them into the buffer
-            //
-            bd->dmt_iterate<struct wbuf, wbufwriteleafentry>(&wb);
-        } else {
-            bd->serialize_rest(&wb);
-        }
+        bd->serialize_to_wbuf(&wb);
     }
     uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);

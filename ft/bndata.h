@@ -316,6 +316,8 @@ public:
     // Gets a leafentry given a klpair from this basement node.
     LEAFENTRY get_le_from_klpair(const klpair_struct *klpair) const;
 
+    void serialize_to_wbuf(struct wbuf *const wb);
+
     // Prepares this basement node for serialization.
     // Must be called before serializing this basement node.
     // Between calling prepare_to_serialize and actually serializing, the basement node may not be modified
@@ -331,11 +333,6 @@ public:
     // Requires prepare_to_serialize() (and serialize_header()) has been called first.
     // Currently only supported when all keys are fixed-length.
     void serialize_rest(struct wbuf *wb) const;
-
-    // Returns true if we must use the old (version 24) serialization method for this basement node
-    // Requires prepare_to_serialize() to have been called first.
-    // In other words, the bndata does not know how to serialize the keys and leafentries.
-    bool need_to_serialize_each_leafentry_with_key(void) const;
 
     static const uint32_t HEADER_LENGTH = 0
         + sizeof(uint32_t) // key_data_size
