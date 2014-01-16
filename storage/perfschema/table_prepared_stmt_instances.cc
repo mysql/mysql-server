@@ -350,8 +350,6 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
     memcpy(m_row.m_owner_object_schema, prepared_stmt->m_owner_object_schema,
            m_row.m_owner_object_schema_length);
 
-  /*Mayank TODO : Add code to copy remaining statistics values. */
-
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
   /* Get prepared statement stats. */
   m_row.m_prepared_stmt_stat.set(normalizer, & prepared_stmt->m_prepared_stmt_stat);
