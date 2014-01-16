@@ -3,6 +3,7 @@
 
 source include/have_tokudb.inc;
 source include/have_debug.inc;
+set default_storage_engine='tokudb';
 
 disable_warnings;
 drop table if exists t;
