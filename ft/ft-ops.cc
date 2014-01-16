@@ -1719,7 +1719,7 @@ toku_ft_bn_apply_cmd_once (
     if (le) {
         oldsize = leafentry_memsize(le) + key_storage_size;
     }
-    
+
     // toku_le_apply_msg() may call bn_data::mempool_malloc_and_update_dmt() to allocate more space.
     // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is
     // no longer in use.  We'll have to release the old mempool later.

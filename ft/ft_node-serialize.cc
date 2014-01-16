@@ -284,7 +284,7 @@ serialize_node_header(FTNODE node, FTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
     invariant(wbuf->ndone == wbuf->size);
 }
 
-static uint32_t 
+static uint32_t
 serialize_ftnode_partition_size (FTNODE node, int i)
 {
     uint32_t result = 0;
@@ -594,8 +594,6 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
             curr_pivot++;
             num_le_in_curr_bn = 0;
             bn_size_so_far = 0;
-            bn_le_sizes[curr_pivot] = 0;
-            bn_key_sizes[curr_pivot] = 0;
         }
         num_le_in_curr_bn++;
         num_les_this_bn[curr_pivot] = num_le_in_curr_bn;

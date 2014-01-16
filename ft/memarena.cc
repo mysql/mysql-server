@@ -252,7 +252,7 @@ size_t
 memarena_total_size_in_use (MEMARENA m)
 {
     return m->size_of_other_bufs + m->buf_used;
-}    
+}
 
 size_t
 memarena_total_footprint (MEMARENA m)
