@@ -32,7 +32,7 @@ begin;
 # Force abort of transaction with by error injection after
 # next operation, but delay informing Ndb API to simulate
 # a TCROLLBACKREP signal in flight.
---exec $ndb_mgm_cmd -e "all error 8100" >> $NDB_TOOLS_OUTPUT
+--exec $ndb_mgm_cmd -e "all error 8103" >> $NDB_TOOLS_OUTPUT
 select * from t1 where attr1 = 9412 order by pk1;
 disable_query_log;
 while (`select @@error_count = 0`)
