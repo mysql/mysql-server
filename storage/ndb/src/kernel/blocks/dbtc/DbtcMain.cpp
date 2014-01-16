@@ -400,7 +400,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     warningEvent("%s", buf);
 
     jam();
-    if (ERROR_INSERTED(8101))
+    if (ERROR_INSERTED(8104))
     {
       jam();
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
@@ -13511,7 +13511,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
       jam();
       ok = true;
 #ifdef ERROR_INSERT
-      if (ERROR_INSERTED(8101))
+      if (ERROR_INSERTED(8104))
       {
         char buf[128];
         BaseString::snprintf(buf, sizeof(buf), "Sending CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
@@ -15600,10 +15600,10 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
 
 #ifdef ERROR_INSERT
-  if (ERROR_INSERTED(8100))
+  if (ERROR_INSERTED(8103))
   {
     char buf[128];
-    BaseString::snprintf(buf, sizeof(buf), "Inserted 8100, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8103, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
     warningEvent("%s", buf);
     
     if (startFlag == 1)
@@ -15622,15 +15622,15 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       signal->theData[3] = regApiPtr->transid[1];
       signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
       signal->theData[5] = RS_TCROLLBACKREP;
-      signal->theData[6] = 8101;
+      signal->theData[6] = 8104;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
       *signal = s;
     }
   }
-  else if (ERROR_INSERTED(8101))
+  else if (ERROR_INSERTED(8104))
   {
     char buf[128];
-    BaseString::snprintf(buf, sizeof(buf), "Inserted 8101, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8104, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
     warningEvent("%s", buf);
 
     jam();
