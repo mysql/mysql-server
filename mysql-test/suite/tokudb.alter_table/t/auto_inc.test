@@ -1,4 +1,4 @@
-#--source include/have_tokudb.inc
+--source include/have_tokudb.inc
 #
 # Attempt to change row format with and without
 # other ALTER TABLE statements.
