@@ -5178,10 +5178,13 @@ lock_print_info_summary(
 	the state of the variable for display. */
 
 	switch (purge_sys->state){
-	case PURGE_STATE_EXIT:
 	case PURGE_STATE_INIT:
 		/* Should never be in this state while the system is running. */
 		ut_error;
+
+	case PURGE_STATE_EXIT:
+		fprintf(file, "exited");
+		break;
 
 	case PURGE_STATE_DISABLED:
 		fprintf(file, "disabled");
