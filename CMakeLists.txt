@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -329,14 +329,17 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
-OPTION(TMPDIR
-"PATH to MySQL TMP dir. If unspecified, defaults to P_tmpdir in <stdio.h>" OFF)
-IF(TMPDIR)
-  # Quote it, to make it a const char string.
-  SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
-ELSE()
-  # Do not quote it, to refer to the P_tmpdir macro in <stdio.h>.
-  SET(DEFAULT_TMPDIR "P_tmpdir")
+IF(UNIX)
+  SET(TMPDIR "P_tmpdir"
+    CACHE PATH
+    "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+  IF(TMPDIR STREQUAL "P_tmpdir")
+    # Do not quote it, to refer to the P_tmpdir macro.
+    SET(DEFAULT_TMPDIR "P_tmpdir")
+  ELSE()
+    # Quote it, to make it a const char string.
+    SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
+  ENDIF()
 ENDIF()
 
 # Run platform tests
