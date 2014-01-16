@@ -115,6 +115,10 @@ PATENT RIGHTS GRANT:
 // for each FT_DELETE_ANY message sent earlier by the transaction?
 #define TOKU_DO_COMMIT_CMD_DELETE 1
 
+// When a transaction is committed, should we send a FT_COMMIT message
+// for each FT_UPDATE message sent earlier by the transaction?
+#define TOKU_DO_COMMIT_CMD_UPDATE 0
+
 int
 toku_commit_fdelete (FILENUM    filenum,
                      TOKUTXN    txn,
@@ -296,11 +300,15 @@ toku_rollback_cmdinsert (FILENUM    filenum,
 
 int
 toku_commit_cmdupdate(FILENUM    filenum,
-                      BYTESTRING key,
+                      BYTESTRING UU(key),
                       TOKUTXN    txn,
-                      LSN        oplsn)
+                      LSN        UU(oplsn))
 {
+#if TOKU_DO_COMMIT_CMD_UPDATE
     return do_insertion(FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, false);
+#else
+    return do_nothing_with_filenum(txn, filenum);
+#endif
 }
 
 int
