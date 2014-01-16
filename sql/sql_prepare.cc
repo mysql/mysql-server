@@ -2681,9 +2681,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   thd->protocol= &thd->protocol_binary;
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  //PSI_prepared_stmt_locker_state state;
-  //PSI_prepared_stmt_locker *locker;
-  //locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
   PSI_statement_locker_state state;
   PSI_statement_locker *parent_locker;
   PSI_statement_info *psi_info = &sql_statement_info[thd->lex->sql_command];
@@ -2697,7 +2694,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  //MYSQL_END_PS_EXECUTE(locker);
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= parent_locker;
 #endif
@@ -2757,9 +2753,6 @@ void mysql_sql_stmt_execute(THD *thd)
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  //PSI_prepared_stmt_locker_state state;
-  //PSI_prepared_stmt_locker *locker;
-  //locker= MYSQL_START_PS_EXECUTE(&state, stmt->m_prepared_stmt);
   PSI_statement_locker_state state;
   PSI_statement_locker *parent_locker;
   PSI_statement_info *psi_info = &sql_statement_info[thd->lex->sql_command];
@@ -2773,11 +2766,8 @@ void mysql_sql_stmt_execute(THD *thd)
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
 
 #ifdef HAVE_PSI_PS_INTERFACE
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
-  //MYSQL_END_PS_EXECUTE(locker);
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= parent_locker;
-#endif
 #endif
 
   DBUG_VOID_RETURN;
