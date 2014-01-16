@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2856,7 +2856,7 @@ dict_stats_update(
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Cannot calculate statistics for table %s"
 			" because the .ibd file is missing. For help, please"
-			" refer to "REFMAN"innodb-troubleshooting.html",
+			" refer to " REFMAN "innodb-troubleshooting.html",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);

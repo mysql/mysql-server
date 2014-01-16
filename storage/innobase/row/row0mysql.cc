@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -759,7 +759,7 @@ handle_new_error:
 			" dump all InnoDB tables and recreate the whole"
 			" tablespace. If the mysqld server crashes after"
 			" the startup or when you dump the tables, look at"
-			" "REFMAN"forcing-innodb-recovery.html for help.");
+			REFMAN "forcing-innodb-recovery.html for help.");
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1355,6 +1355,18 @@ row_insert_for_mysql(
 		return(DB_READ_ONLY);
 	}
 
+	DBUG_EXECUTE_IF("mark_table_corrupted", {
+		/* Mark the table corrupted for the clustered index */
+		dict_index_t*	index = dict_table_get_first_index(table);
+		ut_ad(dict_index_is_clust(index));
+		dict_set_corrupted(index, trx, "INSERT TABLE"); });
+
+	if (dict_table_is_corrupted(table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s is corrupt.", table->name);
+                return(DB_TABLE_CORRUPT);
+        }
+
 	trx->op_info = "inserting";
 
 	row_mysql_delay_if_needed();
@@ -1731,9 +1743,9 @@ row_update_for_mysql(
 			" file for table %s does not exist. Have you deleted"
 			" the .ibd file from the database directory under"
 			" the MySQL datadir, or have you used DISCARD"
-			" TABLESPACE?  Please refer to"
-			" "REFMAN"innodb-troubleshooting.html to see"
-			" how you can resolve the problem.",
+			" TABLESPACE?  Please refer to " REFMAN
+			"innodb-troubleshooting.html to see how you can"
+			" resolve the problem.",
 			prebuilt->table->name);
 		DBUG_RETURN(DB_ERROR);
 	}
@@ -3354,8 +3366,8 @@ row_drop_table_for_mysql(
 				" drop it. Have you copied the .frm file"
 				" of the table to the MySQL database directory"
 				" from another database? You can look for"
-				" further help from"
-				" "REFMAN"innodb-troubleshooting.html",
+				" further help from " REFMAN ""
+				" innodb-troubleshooting.html",
 				ut_get_name(trx, TRUE, name).c_str());
 		}
 		goto funct_exit;
@@ -3730,8 +3742,10 @@ check_next_foreign:
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
+		/* Make sure the data_dir_path is set. */
+		dict_get_and_save_data_dir_path(table, true);
+
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
-			dict_get_and_save_data_dir_path(table, true);
 			ut_a(table->data_dir_path);
 
 			filepath = os_file_make_remote_pathname(
@@ -4334,7 +4348,7 @@ row_rename_table_for_mysql(
 			" table. Have you copied the .frm file of the table to"
 			" the MySQL database directory from another database?"
 			" You can look for further help from"
-			" "REFMAN"innodb-troubleshooting.html",
+			" " REFMAN "innodb-troubleshooting.html",
 			ut_get_name(trx, TRUE, old_name).c_str());
 		goto funct_exit;
 
@@ -4345,7 +4359,7 @@ row_rename_table_for_mysql(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Table %s does not have an .ibd file in the database"
-			" directory. See "REFMAN"innodb-troubleshooting.html",
+			" directory. See " REFMAN "innodb-troubleshooting.html",
 			old_name);
 
 		goto funct_exit;
@@ -4614,7 +4628,7 @@ end:
 				ut_get_name(trx, TRUE, old_name).c_str());
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"You can look for further help from"
-				" "REFMAN"innodb-troubleshooting.html.");
+				REFMAN "innodb-troubleshooting.html.");
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"If table %s is a temporary table #sql..., then"
 				" it can be that there are still queries"
