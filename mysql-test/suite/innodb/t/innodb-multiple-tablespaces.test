@@ -279,8 +279,9 @@ SHOW CREATE TABLE nolink;
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
---echo # Cleanup after restart
+--echo # Restart the server and DROP the tablespaces.
 --echo #
+--source include/restart_mysqld.inc
 
 DROP TABLE yyy;
 DROP TABLE nyy;
@@ -339,7 +340,7 @@ DROP TABLE nolink;
 --echo # Create some tables again and this time, crash instead of shutdown
 --echo # InnoDB recovery does not have the ability at this time to query
 --echo # the data dictionary in order to determine if the table it is
---echo # openeing is the correct one, or to finde the previous location
+--echo # openeing is the correct one, or to find the previous location
 --echo # of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
 --echo # to tell the truth. But it can compare the current linked location
 --echo # with a tablespace found in the default location and use the most
@@ -353,7 +354,7 @@ DROP TABLE nolink;
 --echo # source of the 'wrong' tablespaces.
 --echo #
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
---echo #    ny              Yes                 Yes
+--echo #    ny              No                  Yes
 --echo #    wy              Wrong               Yes
 --echo #    yn              Yes                 No
 --echo #    yw              Yes                 Wrong
