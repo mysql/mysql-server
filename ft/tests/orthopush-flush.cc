@@ -733,7 +733,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
-        total_messages += BLB_DATA(child, i)->dmt_size();
+        total_messages += BLB_DATA(child, i)->num_klpairs();
     }
     assert(total_messages <= num_parent_messages + num_child_messages);
 
@@ -746,7 +746,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     memset(parent_messages_present, 0, sizeof parent_messages_present);
     memset(child_messages_present, 0, sizeof child_messages_present);
     for (int j = 0; j < 8; ++j) {
-        uint32_t len = BLB_DATA(child, j)->dmt_size();
+        uint32_t len = BLB_DATA(child, j)->num_klpairs();
         for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le;
             DBT keydbt, valdbt;
@@ -968,7 +968,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
-        total_messages += BLB_DATA(child, i)->dmt_size();
+        total_messages += BLB_DATA(child, i)->num_klpairs();
     }
     assert(total_messages <= num_parent_messages + num_child_messages);
 
@@ -1146,8 +1146,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     for (int j = 0; j < 8; ++j) {
         bn_data* first = BLB_DATA(child1, j);
         bn_data* second = BLB_DATA(child2, j);
-        uint32_t len = first->dmt_size();
-        assert(len == second->dmt_size());
+        uint32_t len = first->num_klpairs();
+        assert(len == second->num_klpairs());
         for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le1, le2;
             DBT key1dbt, val1dbt, key2dbt, val2dbt;

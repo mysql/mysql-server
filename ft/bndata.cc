@@ -186,7 +186,7 @@ void bn_data::serialize_to_wbuf(struct wbuf *const wb) {
         //
         // iterate over leafentries and place them into the buffer
         //
-        dmt_iterate<struct wbuf, wbufwriteleafentry>(wb);
+        iterate<struct wbuf, wbufwriteleafentry>(wb);
     }
 }
 
@@ -552,7 +552,7 @@ void bn_data::split_klpairs(
 {
     // We use move_leafentries_to during a split, and the split algorithm should never call this
     // if it's splitting on a boundary, so there must be some leafentries in the range to move.
-    paranoid_invariant(split_at < dmt_size());
+    paranoid_invariant(split_at < num_klpairs());
 
     right_bd->init_zero();
 
@@ -568,7 +568,7 @@ void bn_data::split_klpairs(
     left_dmt_builder.create(split_at, m_disksize_of_keys);  // overkill, but safe (builder will realloc at the end)
 
     klpair_dmt_t::builder right_dmt_builder;
-    right_dmt_builder.create(dmt_size() - split_at, m_disksize_of_keys);  // overkill, but safe (builder will realloc at the end)
+    right_dmt_builder.create(num_klpairs() - split_at, m_disksize_of_keys);  // overkill, but safe (builder will realloc at the end)
 
     split_klpairs_extra extra(this, right_bd, &left_dmt_builder, &right_dmt_builder, &new_left_mp, split_at);
 
@@ -625,7 +625,7 @@ void bn_data::verify_mempool(void) {
     m_buffer.iterate_ptr< decltype(state), verify_le_in_mempool >(&state);
 }
 
-uint32_t bn_data::dmt_size(void) const {
+uint32_t bn_data::num_klpairs(void) const {
     return m_buffer.size();
 }
 
@@ -648,7 +648,7 @@ void bn_data::set_contents_as_clone_of_sorted_array(
 {
     //Enforce "just created" invariant.
     paranoid_invariant_zero(m_disksize_of_keys);
-    paranoid_invariant_zero(dmt_size());
+    paranoid_invariant_zero(num_klpairs());
     paranoid_invariant_null(toku_mempool_get_base(&m_buffer_mempool));
     paranoid_invariant_zero(toku_mempool_get_size(&m_buffer_mempool));
 
