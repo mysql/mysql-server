@@ -25,7 +25,6 @@
 #include "include/mysql/psi/psi.h"
 #include "include/mysql/psi/mysql_ps.h"
 
-#define PREPARED_STMT_HASH_KEY_LENGTH 2046 /* Mayank TODO: write proper value. */
 #define OBJECT_NAME_LENGTH NAME_LEN                                             
 #define SCHEMA_NAME_LENGTH NAME_LEN
 
