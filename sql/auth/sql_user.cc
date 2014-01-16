@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -24,6 +24,7 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
+#include "prealloced_array.h"
 
 
 /**
@@ -550,7 +551,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     Dynamic array acl_grant_name used to store pointers to all
     GRANT_NAME objects
   */
-  Dynamic_array<GRANT_NAME *> acl_grant_name;
+  Prealloced_array<GRANT_NAME *, 16> acl_grant_name(PSI_INSTRUMENT_ME);
   HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
@@ -671,7 +672,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Deleting while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -702,7 +703,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Updating while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -726,9 +727,10 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       Traversing the elements stored in acl_grant_name dynamic array
       to either delete or update them.
     */
-    for (int i= 0; i < acl_grant_name.elements(); ++i)
+    for (GRANT_NAME **iter= acl_grant_name.begin();
+         iter != acl_grant_name.end(); ++iter)
     {
-      grant_name= acl_grant_name.at(i);
+      grant_name= *iter;
 
       if (drop)
       {
