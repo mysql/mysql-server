@@ -325,8 +325,6 @@ public:
     // Between calling prepare_to_serialize and actually serializing, the basement node may not be modified
     void prepare_to_serialize(void);
 
-    //TODO(yoni): go to serialize_ftnode_partition and move prepare/header/etc (and wbufwriteleafentry) into here and add just one external function: serialize_to_wbuf()
-
     // Serialize the basement node header to a wbuf
     // Requires prepare_to_serialize() to have been called first.
     void serialize_header(struct wbuf *wb) const;

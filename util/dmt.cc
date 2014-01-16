@@ -288,7 +288,7 @@ dmtdata_t * dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::get_array_value_internal(
 //TODO(leif) write microbenchmarks to compare growth factor.  Note:  growth factor here is actually 2.5 because of mempool_construct
 template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_array_for_insert(void) {
-    bool space_available = toku_mempool_get_free_space(&this->mp) >= align(this->value_length);
+    bool space_available = toku_mempool_get_free_size(&this->mp) >= align(this->value_length);
 
     if (!space_available) {
         const uint32_t n = this->d.a.num_values + 1;
@@ -299,7 +299,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_array_for_insert(vo
         toku_mempool_construct(&new_kvspace, new_space);
         size_t copy_bytes = this->d.a.num_values * align(this->value_length);
         invariant(copy_bytes + align(this->value_length) <= new_space);
-        paranoid_invariant(copy_bytes <= toku_mempool_get_used_space(&this->mp));
+        paranoid_invariant(copy_bytes <= toku_mempool_get_used_size(&this->mp));
         // Copy over to new mempool
         if (this->d.a.num_values > 0) {
             void* dest = toku_mempool_malloc(&new_kvspace, copy_bytes, 1);
@@ -435,7 +435,7 @@ template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::verify(void) const {
     uint32_t num_values = this->size();
     invariant(num_values < UINT32_MAX);
-    size_t pool_used = toku_mempool_get_used_space(&this->mp);
+    size_t pool_used = toku_mempool_get_used_size(&this->mp);
     size_t pool_size = toku_mempool_get_size(&this->mp);
     size_t pool_frag = toku_mempool_get_frag_size(&this->mp);
     invariant(pool_used <= pool_size);
@@ -607,8 +607,8 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::node_free(const subtree &st) {
 template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_tree(const dmtwriter_t * value) {
     const ssize_t curr_capacity = toku_mempool_get_size(&this->mp);
-    const ssize_t curr_free = toku_mempool_get_free_space(&this->mp);
-    const ssize_t curr_used = toku_mempool_get_used_space(&this->mp);
+    const ssize_t curr_free = toku_mempool_get_free_size(&this->mp);
+    const ssize_t curr_used = toku_mempool_get_used_size(&this->mp);
     ssize_t add_size = 0;
     if (value) {
         add_size = __builtin_offsetof(dmt_node, value) + value->get_size();
@@ -886,7 +886,7 @@ template<typename dmtdata_t, typename dmtdataout_t, typename dmtwriter_t>
 node_offset* dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::alloc_temp_node_offsets(uint32_t num_offsets) {
     size_t mem_needed = num_offsets * sizeof(node_offset);
     size_t mem_free;
-    mem_free = toku_mempool_get_free_space(&this->mp);
+    mem_free = toku_mempool_get_free_size(&this->mp);
     node_offset* CAST_FROM_VOIDP(tmp, toku_mempool_get_next_free_ptr(&this->mp));
     if (mem_free >= mem_needed) {
         return tmp;
@@ -1149,7 +1149,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::serialize_values(uint32_t expect
     const uint32_t fixed_len = this->value_length;
     const uint32_t fixed_aligned_len = align(this->value_length);
     paranoid_invariant(expected_unpadded_memory == this->d.a.num_values * this->value_length);
-    paranoid_invariant(toku_mempool_get_used_space(&this->mp) >=
+    paranoid_invariant(toku_mempool_get_used_size(&this->mp) >=
                        expected_unpadded_memory + pad_bytes * this->d.a.num_values);
     if (this->d.a.num_values == 0) {
         // Nothing to serialize
@@ -1234,7 +1234,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::build(dmt<dmtdata_t, dm
     }
     paranoid_invariant_null(this->sorted_node_offsets);
 
-    const size_t used = toku_mempool_get_used_space(&this->temp.mp);
+    const size_t used = toku_mempool_get_used_size(&this->temp.mp);
     const size_t allocated = toku_mempool_get_size(&this->temp.mp);
     // We want to use no more than (about) the actual used space + 25% overhead for mempool growth.
     // When we know the elements are fixed-length, we use the better dmt constructor.

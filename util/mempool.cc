@@ -183,13 +183,11 @@ size_t toku_mempool_get_size(const struct mempool *mp) {
     return mp->size;
 }
 
-// TODO(yoni): unify the toku_mempool_get*_size and toku_mempool_get*_space functions (use either size or space but not both)
-// use _size for all
 size_t toku_mempool_get_frag_size(const struct mempool *mp) {
     return mp->frag_size;
 }
 
-size_t toku_mempool_get_used_space(const struct mempool *mp) {
+size_t toku_mempool_get_used_size(const struct mempool *mp) {
     return mp->free_offset - mp->frag_size;
 }
 
@@ -201,11 +199,11 @@ size_t toku_mempool_get_offset_limit(const struct mempool *mp) {
     return mp->free_offset;
 }
 
-size_t toku_mempool_get_free_space(const struct mempool *mp) {
+size_t toku_mempool_get_free_size(const struct mempool *mp) {
     return mp->size - mp->free_offset;
 }
 
-size_t toku_mempool_get_allocated_space(const struct mempool *mp) {
+size_t toku_mempool_get_allocated_size(const struct mempool *mp) {
     return mp->free_offset;
 }
 
