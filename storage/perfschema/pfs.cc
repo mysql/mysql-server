@@ -6039,44 +6039,6 @@ void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
   return;
 }
 
-PSI_prepared_stmt_locker*
-pfs_start_prepared_stmt_execute_v1(PSI_prepared_stmt_locker_state *state,
-                                   PSI_prepared_stmt* prepared_stmt)
-{
-  //return pfs_start_prepare_stmt_v1(state, prepared_stmt);
-  return NULL;
-}
-
-void pfs_end_prepared_stmt_execute_v1(PSI_prepared_stmt_locker *locker)
-{
-/*
-  PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(state->m_prepared_stmt);
-  if(pfs_ps == NULL)
-    return;
-
-  ulonglong timer_end;
-  ulonglong wait_time;
-  PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_execute_stat;
-
-  if (1)//state->m_flags & STATE_FLAG_TIMED)
-  {
-    timer_end= state->m_timer();
-    wait_time= timer_end - state->m_timer_start;
-
-    stat->aggregate_value(wait_time);
-  }
-  else
-  {
-    stat->aggregate_counted();
-  }
-*/
-  return;
-}
-
-
 void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
   PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
@@ -6090,7 +6052,6 @@ void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
   delete_prepared_stmt(pfs_thread, pfs_ps);
   return;
 }
-
 
 /**
   Implementation of the thread attribute connection interface
@@ -6614,8 +6575,6 @@ PSI_v1 PFS_v1=
   pfs_destroy_prepared_stmt_v1,
   pfs_start_prepare_stmt_v1,
   pfs_end_prepare_stmt_v1,
-  pfs_start_prepared_stmt_execute_v1,
-  pfs_end_prepared_stmt_execute_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1,
