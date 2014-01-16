@@ -1355,6 +1355,18 @@ row_insert_for_mysql(
 		return(DB_READ_ONLY);
 	}
 
+	DBUG_EXECUTE_IF("mark_table_corrupted", {
+		/* Mark the table corrupted for the clustered index */
+		dict_index_t*	index = dict_table_get_first_index(table);
+		ut_ad(dict_index_is_clust(index));
+		dict_set_corrupted(index, trx, "INSERT TABLE"); });
+
+	if (dict_table_is_corrupted(table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s is corrupt.", table->name);
+                return(DB_TABLE_CORRUPT);
+        }
+
 	trx->op_info = "inserting";
 
 	row_mysql_delay_if_needed();
