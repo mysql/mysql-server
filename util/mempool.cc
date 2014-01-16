@@ -148,7 +148,8 @@ void toku_mempool_reset(struct mempool *mp) {
 }
 
 void toku_mempool_realloc_larger(struct mempool *mp, size_t data_size) {
-    invariant(data_size > mp->free_offset);
+    invariant(data_size >= mp->free_offset);
+
     size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
     void* newmem = toku_xmalloc_aligned(64, mpsize);   // allocate new buffer for mempool
     memcpy(newmem, mp->base, mp->free_offset);  // Copy old info
