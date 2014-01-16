@@ -2315,25 +2315,6 @@ typedef void (*end_prepare_stmt_v1_t)
   (PSI_prepared_stmt_locker *locker);
 
 /**
-  Record a prepared statement execute start event.
-  @param current thread.
-*/
-typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt);
-
-/**
-  Record a prepared statement execute end event.
-  @param current thread.
-*/
-typedef void (*end_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker *locker);
-
-/*
-typedef void (*reprepare_statement_v1_t)
-  (PSI_prepared_statement *ps);
-*/
-
-/**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
@@ -2637,10 +2618,6 @@ struct PSI_v1
   start_prepare_stmt_v1_t start_prepare_stmt;
   /** @sa end_prepare_stmt_v1_t. */
   end_prepare_stmt_v1_t end_prepare_stmt;
-  /** @sa start_prepared_stmt_execute_v1_t. */
-  start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
-  /** @sa end_prepared_stmt_execute_v1_t. */
-  end_prepared_stmt_execute_v1_t end_prepared_stmt_execute;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */

@@ -647,10 +647,6 @@ typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
    PSI_statement_key key);
 typedef void (*end_prepare_stmt_v1_t)
   (PSI_prepared_stmt_locker *locker);
-typedef PSI_prepared_stmt_locker* (*start_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt);
-typedef void (*end_prepared_stmt_execute_v1_t)
-  (PSI_prepared_stmt_locker *locker);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
@@ -798,8 +794,6 @@ struct PSI_v1
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
   start_prepare_stmt_v1_t start_prepare_stmt;
   end_prepare_stmt_v1_t end_prepare_stmt;
-  start_prepared_stmt_execute_v1_t start_prepared_stmt_execute;
-  end_prepared_stmt_execute_v1_t end_prepared_stmt_execute;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
