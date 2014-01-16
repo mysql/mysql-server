@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -3946,10 +3946,7 @@ btr_cur_del_mark_set_clust_rec(
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
-		row_log_table_delete(
-			rec, index, offsets, false,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+		row_log_table_delete(rec, index, offsets, NULL);
 	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
