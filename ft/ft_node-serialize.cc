@@ -2061,13 +2061,18 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
             assert_zero(r);
             // Copy the pointer value straight into the OMT
             LEAFENTRY new_le_in_bn = nullptr;
+            void *maybe_free;
             bn->data_buffer.get_space_for_insert(
                 i,
                 key,
                 keylen,
                 new_le_size,
-                &new_le_in_bn
+                &new_le_in_bn,
+                &maybe_free
                 );
+            if (maybe_free) {
+                toku_free(maybe_free);
+            }
             memcpy(new_le_in_bn, new_le, new_le_size);
             toku_free(new_le);
         }

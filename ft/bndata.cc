@@ -445,15 +445,12 @@ void bn_data::get_space_for_overwrite(
     uint32_t keylen UU(),
     uint32_t old_le_size,
     uint32_t new_size,
-    LEAFENTRY* new_le_space
-    //TODO(yoni): add maybe_free return (caller will free it)
+    LEAFENTRY* new_le_space,
+    void **const maybe_free
     )
 {
-    void* maybe_free = nullptr;
-    LEAFENTRY new_le = mempool_malloc_and_update_dmt(new_size, &maybe_free);
-    if (maybe_free) {
-        toku_free(maybe_free);
-    }
+    *maybe_free = nullptr;
+    LEAFENTRY new_le = mempool_malloc_and_update_dmt(new_size, maybe_free);
     toku_mempool_mfree(&m_buffer_mempool, nullptr, old_le_size);
     klpair_struct* klp = nullptr;
     uint32_t klpair_len;
@@ -477,17 +474,14 @@ void bn_data::get_space_for_insert(
     const void* keyp,
     uint32_t keylen,
     size_t size,
-    LEAFENTRY* new_le_space
-    //TODO(yoni): add maybe_free return (caller will free it).  Also make callers (and tests) use it
+    LEAFENTRY* new_le_space,
+    void **const maybe_free
     )
 {
     add_key(keylen);
 
-    void* maybe_free = nullptr;
-    LEAFENTRY new_le = mempool_malloc_and_update_dmt(size, &maybe_free);
-    if (maybe_free) {
-        toku_free(maybe_free);
-    }
+    *maybe_free = nullptr;
+    LEAFENTRY new_le = mempool_malloc_and_update_dmt(size, maybe_free);
     size_t new_le_offset = toku_mempool_get_offset_from_pointer_and_base(&this->m_buffer_mempool, new_le);
 
     klpair_dmtwriter kl(keylen, new_le_offset, keyp);

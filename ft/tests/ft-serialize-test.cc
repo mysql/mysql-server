@@ -102,13 +102,18 @@ le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const cha
 {
     LEAFENTRY r = NULL;
     uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    void *maybe_free = nullptr;
     bn->get_space_for_insert(
-        idx, 
+        idx,
         key,
         keysize,
         size_needed,
-        &r
+        &r,
+        &maybe_free
         );
+    if (maybe_free) {
+        toku_free(maybe_free);
+    }
     resource_assert(r);
     r->type = LE_CLEAN;
     r->u.clean.vallen = valsize;
