@@ -183,6 +183,7 @@ size_t toku_mempool_get_size(const struct mempool *mp) {
     return mp->size;
 }
 
+// TODO(yoni): unify the toku_mempool_get*_size and toku_mempool_get*_space functions (use either size or space but not both)
 size_t toku_mempool_get_frag_size(const struct mempool *mp) {
     return mp->frag_size;
 }

@@ -236,14 +236,14 @@ static inline size_t uxr_unpack_length_and_bit(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 
 static void get_space_for_le(
-    bn_data* data_buffer, 
+    bn_data* data_buffer,
     uint32_t idx,
     void* keyp,
     uint32_t keylen,
     uint32_t old_le_size,
-    size_t size, 
+    size_t size,
     LEAFENTRY* new_le_space
-    ) 
+    )
 {
     if (data_buffer == NULL) {
         CAST_FROM_VOIDP(*new_le_space, toku_xmalloc(size));
@@ -889,7 +889,7 @@ update_le_status(ULE ule, size_t memsize) {
 }
 
 // Purpose is to return a newly allocated leaf entry in packed format, or
-// return null if leaf entry should be destroyed (if no transaction records 
+// return null if leaf entry should be destroyed (if no transaction records
 // are for inserts).
 // Transaction records in packed le are stored inner to outer (first xr is innermost),
 // with some information extracted out of the transaction records into the header.
@@ -927,7 +927,7 @@ le_pack(ULE ule, // data to be packed into new leafentry
         rval = 0;
         goto cleanup;
     }
-found_insert:;
+found_insert:
     memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry;
     get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry);
@@ -982,7 +982,7 @@ found_insert:;
         for (i = 0; i < ule->num_cuxrs; i++) {
             p += uxr_pack_length_and_bit(ule->uxrs + ule->num_cuxrs - 1 - i, p);
         }
-        
+
         //pack interesting values inner to outer
         if (ule->num_puxrs!=0) {
             UXR innermost = ule->uxrs + ule->num_cuxrs + ule->num_puxrs - 1;
@@ -1020,7 +1020,7 @@ found_insert:;
     size_t bytes_written;
     bytes_written = (size_t)p - (size_t)new_leafentry;
     invariant(bytes_written == memsize);
-         
+
 #if ULE_DEBUG
     if (omt) { //Disable recursive debugging.
         size_t memsize_verify = leafentry_memsize(new_leafentry);

@@ -327,7 +327,7 @@ serialize_ftnode_partition_size (FTNODE node, int i)
     return result;
 }
 
-#define FTNODE_PARTITION_OMT_LEAVES 0xaa
+#define FTNODE_PARTITION_DMT_LEAVES 0xaa
 #define FTNODE_PARTITION_FIFO_MSG 0xbb
 
 static void
@@ -374,7 +374,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
         serialize_nonleaf_childinfo(BNC(node, i), &wb);
     }
     else {
-        unsigned char ch = FTNODE_PARTITION_OMT_LEAVES;
+        unsigned char ch = FTNODE_PARTITION_DMT_LEAVES;
         bn_data* bd = BLB_DATA(node, i);
 
         wbuf_nocrc_char(&wb, ch);
@@ -1553,7 +1553,7 @@ deserialize_ftnode_partition(
         BP_WORKDONE(node, childnum) = 0;
     }
     else {
-        assert(ch == FTNODE_PARTITION_OMT_LEAVES);
+        assert(ch == FTNODE_PARTITION_DMT_LEAVES);
         BLB_SEQINSERT(node, childnum) = 0;
         uint32_t num_entries = rbuf_int(&rb);
         // we are now at the first byte of first leafentry
