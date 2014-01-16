@@ -714,18 +714,6 @@ static void end_prepare_stmt_noop(PSI_prepared_stmt_locker *locker NNN)
   return;
 }
 
-static PSI_prepared_stmt_locker*
-start_prepared_stmt_execute_noop(PSI_prepared_stmt_locker_state *state NNN,
-                                 PSI_prepared_stmt *prepared_stmt NNN)
-{
-  return NULL;
-}
-
-static void end_prepared_stmt_execute_noop(PSI_prepared_stmt_locker *locker NNN)
-{
-  return;
-}
-
 void
 destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
 {
@@ -962,8 +950,6 @@ static PSI PSI_noop=
   destroy_prepared_stmt_noop,
   start_prepare_stmt_noop,
   end_prepare_stmt_noop,
-  start_prepared_stmt_execute_noop,
-  end_prepared_stmt_execute_noop,
   digest_start_noop,
   digest_add_token_noop,
   set_thread_connect_attrs_noop,
