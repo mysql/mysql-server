@@ -177,6 +177,7 @@ struct tokulogger {
     uint64_t num_writes_to_disk;         // how many times did we write to disk?
     uint64_t bytes_written_to_disk;        // how many bytes have been written to disk?
     tokutime_t time_spent_writing_to_disk; // how much tokutime did we spend writing to disk?
+    uint64_t num_wait_buf_long;            // how many times we waited >= 100ms for the in buf
 
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
