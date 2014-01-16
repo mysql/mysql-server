@@ -1,5 +1,6 @@
+set default_storage_engine='tokudb';
 DROP TABLE IF EXISTS s, t;
-CREATE TABLE s (a INT) ENGINE=TokuDB;
+CREATE TABLE s (a INT);
 SHOW CREATE TABLE s;
 Table	Create Table
 s	CREATE TABLE `s` (
