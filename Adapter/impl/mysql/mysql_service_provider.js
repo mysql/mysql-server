@@ -62,6 +62,7 @@ var MysqlDefaultConnectionProperties = {
   "mysql_charset"  : "UTF8MB4",
   "mysql_socket"   : null,
   "debug"          : true,
+  "mysql_trace"    : false,
   "mysql_debug"    : false
 };
 
