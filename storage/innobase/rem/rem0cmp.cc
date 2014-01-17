@@ -834,6 +834,7 @@ order_resolved:
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
 
 void
 test_cmp_data_data(ulint len)
@@ -854,4 +855,6 @@ test_cmp_data_data(ulint len)
 
 	speedo_show(&speedo);
 }
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
+
 #endif /* UNIV_COMPILE_TEST_FUNCS */
