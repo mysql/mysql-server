@@ -8018,8 +8018,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         if (thd->lex->slave_connection.password)
         {
           mi->set_start_user_configured(true);
-          mi->set_password(thd->lex->slave_connection.password,
-                           strlen(thd->lex->slave_connection.password));
+          mi->set_password(thd->lex->slave_connection.password);
         }
         if (thd->lex->slave_connection.plugin_auth)
           mi->set_plugin_auth(thd->lex->slave_connection.plugin_auth);
@@ -8357,38 +8356,38 @@ err:
   @param  lex_mi structure that holds all change master options given on the
           change master command.
 
-  @retval FALSE No change master receive option.
-  @retval TRUE  At least one receive option was there.
+  @retval false No change master receive option.
+  @retval true  At least one receive option was there.
 */
 
-static bool change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
+static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
 {
   bool have_receive_option= false;
 
-  DBUG_ENTER("change_master_receive_option");
+  DBUG_ENTER("have_change_master_receive_option");
 
   /* Check if *at least one* receive option is given on change master command*/
-  if(lex_mi->host ||
-     lex_mi->user ||
-     lex_mi->password ||
-     lex_mi->log_file_name ||
-     lex_mi->pos ||
-     lex_mi->bind_addr ||
-     lex_mi->port ||
-     lex_mi->connect_retry ||
-     lex_mi->server_id ||
-     lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-     lex_mi->ssl_key ||
-     lex_mi->ssl_cert ||
-     lex_mi->ssl_ca ||
-     lex_mi->ssl_capath ||
-     lex_mi->ssl_cipher ||
-     lex_mi->ssl_crl ||
-     lex_mi->ssl_crlpath ||
-     lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+  if (lex_mi->host ||
+      lex_mi->user ||
+      lex_mi->password ||
+      lex_mi->log_file_name ||
+      lex_mi->pos ||
+      lex_mi->bind_addr ||
+      lex_mi->port ||
+      lex_mi->connect_retry ||
+      lex_mi->server_id ||
+      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_key ||
+      lex_mi->ssl_cert ||
+      lex_mi->ssl_ca ||
+      lex_mi->ssl_capath ||
+      lex_mi->ssl_cipher ||
+      lex_mi->ssl_crl ||
+      lex_mi->ssl_crlpath ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     have_receive_option= true;
 
   DBUG_RETURN(have_receive_option);
@@ -8403,21 +8402,32 @@ static bool change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
   @param  lex_mi structure that holds all change master options given on the
           change master command.
 
-  @retval FALSE No change master execute option.
-  @retval TRUE  At least one execute option was there.
+  @param[OUT] need_relay_log_purge
+              - If relay_log_file/relay_log_pos options are used,
+                we wont delete relaylogs. We set this boolean flag to false.
+              - If relay_log_file/relay_log_pos options are NOT used,
+                we return the boolean flag UNCHANGED.
+              - Used in change_receive_options() and change_master().
+
+  @retval false No change master execute option.
+  @retval true  At least one execute option was there.
 */
 
-static bool change_master_execute_option(const LEX_MASTER_INFO* lex_mi)
+static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
+                                              bool* need_relay_log_purge )
 {
   bool have_execute_option= false;
 
-  DBUG_ENTER("change_master_execute_option");
+  DBUG_ENTER("have_change_master_execute_option");
 
   /* Check if *at least one* execute option is given on change master command*/
   if (lex_mi->relay_log_name ||
       lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1)
     have_execute_option= true;
+
+  if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
+    *need_relay_log_purge= 0;
 
   DBUG_RETURN(have_execute_option);
 }
@@ -8440,8 +8450,8 @@ static bool change_master_execute_option(const LEX_MASTER_INFO* lex_mi)
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
 
-  @retval FALSE No change master execute option.
-  @retval TRUE  At least one execute option was there.
+  @retval false no error i.e., success.
+  @retval true  error.
 */
 
 static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
@@ -8529,21 +8539,8 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 
   if (lex_mi->user)
     mi->set_user(lex_mi->user);
-
   if (lex_mi->password)
-  {
-    if (mi->set_password(lex_mi->password, strlen(lex_mi->password)))
-    {
-      /*
-        After implementing WL#5769, we should create a better error message
-        to denote that the call may have failed due to an error while trying
-        to encrypt/store the password in a secure key store.
-      */
-      my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
-      ret= true;
-      goto err;
-    }
-  }
+    mi->set_password(lex_mi->password);
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
@@ -8638,15 +8635,15 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
       need_relay_log_purge)
   {
     /*
-       Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
-       not initialized), so we use a max().
-       What happens to mi->rli->master_log_pos during the initialization stages
-       of replication is not 100% clear, so we guard against problems using
-       max().
+      Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
+      not initialized), so we use a max().
+      What happens to mi->rli->master_log_pos during the initialization stages
+      of replication is not 100% clear, so we guard against problems using
+      max().
     */
-     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
-                                           mi->rli->get_group_master_log_pos()));
-     mi->set_master_log_name(mi->rli->get_group_master_log_name());
+    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                          mi->rli->get_group_master_log_pos()));
+    mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
 
   sql_print_information("'CHANGE MASTER TO executed'. "
@@ -8676,21 +8673,15 @@ err:
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
-
-  @param need_relay_log_purge If relay_log_file/relay_log_pos options are
-                              used, we say that we wont delete relaylogs.
 */
 
-static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
-                                   bool &need_relay_log_purge)
+static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
 {
   DBUG_ENTER("change_execute_options");
 
   if (lex_mi->relay_log_name)
   {
-    need_relay_log_purge= 0;
     char relay_log_name[FN_REFLEN];
-
     mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
     mi->rli->set_group_relay_log_name(relay_log_name);
     mi->rli->set_event_relay_log_name(relay_log_name);
@@ -8699,7 +8690,6 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
 
   if (lex_mi->relay_log_pos)
   {
-    need_relay_log_purge= 0;
     mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
     mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
     mi->rli->is_group_master_log_pos_invalid= true;
@@ -8726,8 +8716,8 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi,
   @param mi Pointer to Master_info object belonging to the slave's IO
             thread.
 
-  @retval FALSE success
-  @retval TRUE error
+  @retval false success
+  @retval true error
 */
 bool change_master(THD* thd, Master_info* mi)
 {
@@ -8735,8 +8725,6 @@ bool change_master(THD* thd, Master_info* mi)
   bool have_receive_option= false;
   /* Do we have at least one execute related (SQL/coord/worker) option? */
   bool have_execute_option= false;
-  /* return value. This is set if there is an error. */
-  bool ret= false;
   /* If there are no mts gaps, we delete the rows in this table. */
   bool mts_remove_worker_info= false;
   /* used as a bit mask to indicate running slave threads. */
@@ -8780,14 +8768,13 @@ bool change_master(THD* thd, Master_info* mi)
   */
   if (thread_mask) /* If any thread is running */
   {
-     if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     {
       my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-      ret= true;
       goto err;
     }
     /*
-      Traditionally, we have imposed the condition that STOP SLAVE is required
+      Prior to WL#6120, we imposed the condition that STOP SLAVE is required
       before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
       fine if we purged relay logs.
 
@@ -8817,7 +8804,6 @@ bool change_master(THD* thd, Master_info* mi)
     {
       my_message(ER_BAD_SLAVE_AUTO_POSITION,
                  ER(ER_BAD_SLAVE_AUTO_POSITION), MYF(0));
-      ret= true;
       goto err;
     }
   }
@@ -8827,22 +8813,21 @@ bool change_master(THD* thd, Master_info* mi)
   {
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
                ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON), MYF(0));
-    ret= true;
     goto err;
   }
 
   /* Check if at least one receive option is given on change master */
-  have_receive_option= change_master_receive_option(lex_mi);
+  have_receive_option= have_change_master_receive_option(lex_mi);
 
   /* Check if at least one execute option is given on change master */
-  have_execute_option= change_master_execute_option(lex_mi);
+  have_execute_option= have_change_master_execute_option(lex_mi,
+                                                         &need_relay_log_purge);
 
   /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO))
   {
     my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP),
                MYF(0));
-    ret= true;
     goto err;
   }
 
@@ -8852,7 +8837,6 @@ bool change_master(THD* thd, Master_info* mi)
     my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
                ER(ER_SLAVE_SQL_THREAD_MUST_STOP),
                MYF(0));
-    ret= true;
     goto err;
   }
 
@@ -8867,7 +8851,7 @@ bool change_master(THD* thd, Master_info* mi)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
     unlock_slave_threads(mi);
-    DBUG_RETURN(TRUE);
+    goto err;
   }
 
   THD_STAGE_INFO(thd, stage_changing_master);
@@ -8882,11 +8866,9 @@ bool change_master(THD* thd, Master_info* mi)
 
   init_thread_mask(&thread_mask_stopped_threads, mi, 1);
 
-  /* Do the initializations for stopped slave thread(s). */
   if (global_init_info(mi, false, thread_mask_stopped_threads))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
-    ret= true;
     goto err;
   }
 
@@ -8902,14 +8884,13 @@ bool change_master(THD* thd, Master_info* mi)
 
       my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
                  ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
-      ret= true;
       goto err;
     }
     else
     {
       /*
         Lack of mts group gaps makes Workers info stale regardless of
-        need_relay_log_purge computation. We set the mts_remove_workers
+        need_relay_log_purge computation. We set the mts_remove_worker_info
         flag here and call reset_workers() later to delete the worker info
         in mysql.slave_worker_info table.
       */
@@ -8919,11 +8900,6 @@ bool change_master(THD* thd, Master_info* mi)
   }
 
   /*
-    If the receiver/applier is running and the slave has open temporary
-    tables, we print a warning on CHANGE MASTER stating that there are open
-    temp tables and that there is a possibility that these could stay
-    forever eating up the memory resources.
-
     When give a warning?
     CHANGE MASTER command is used in three ways:
     a) To change a connection configuration but remain connected to
@@ -8951,25 +8927,17 @@ bool change_master(THD* thd, Master_info* mi)
     mi->set_auto_position(
       (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
 
-
   if (have_receive_option)
-  {
-    ret= change_receive_options(thd, lex_mi, mi, need_relay_log_purge);
-    if(ret)
+    if (change_receive_options(thd, lex_mi, mi, need_relay_log_purge))
       goto err;
-  }
 
   if (have_execute_option)
-    change_execute_options(lex_mi, mi, need_relay_log_purge);
+    change_execute_options(lex_mi, mi);
 
-  /*
-    Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
-    a slave before).
-  */
+  /* If the receiver is stopped, flush master_info to disk. */
   if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
-    ret= TRUE;
     goto err;
   }
 
@@ -8979,10 +8947,6 @@ bool change_master(THD* thd, Master_info* mi)
     save_relay_log_purge. The use of the global variable 'relay_log_purge'
     is bad. Apparently it is set here and not being used in the following
     function at all. So, when refactoring the code, please improve this code.
-
-    We dont mi->rli->data_lock here but since the same is already taken
-    in purge_relay_logs(), we deffer taking the lock here.
-    We also offer init_relay_log_pos() to take the lock.
   */
 
   save_relay_log_purge= relay_log_purge;
@@ -9002,24 +8966,18 @@ bool change_master(THD* thd, Master_info* mi)
                                   &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
-      ret= TRUE;
       goto err;
     }
   }
   else if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
     /*
-       If applier module is stopped that means we either want to
-       change only receiver configuration or we stick to the old method
-       of STOP SLAVE followed by CHANGE MASTER.
-
-       If our applier module is executing and we want to switch to another
-       master without disturbing it, relay log position need not be disturbed.
-       The SQL/coordinator thread will finish events from the old master and
-       then start with the new relay log containing events from new master
-       on its own.
+      If our applier module is executing and we want to switch to another
+      master without disturbing it, relay log position need not be disturbed.
+      The SQL/coordinator thread will finish events from the old master and
+      then start with the new relay log containing events from new master
+      on its own.
     */
-
     const char* msg;
     relay_log_purge= 0;
     /* Relay log is already initialized */
@@ -9030,7 +8988,6 @@ bool change_master(THD* thd, Master_info* mi)
                                     &msg, 0))
     {
       my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
-      ret= TRUE;
       goto err;
     }
   }
@@ -9039,9 +8996,6 @@ bool change_master(THD* thd, Master_info* mi)
 
   if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
-    /* Now we need mi->rli->data_lock we deffered earlier. */
-    mysql_mutex_lock(&mi->rli->data_lock);
-
     /*
       Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
       so restore them to good values. If we left them to ''/0, that would work;
@@ -9059,8 +9013,7 @@ bool change_master(THD* thd, Master_info* mi)
       mi->rli->set_group_master_log_name(mi->get_master_log_name());
     }
 
-    char *var_group_master_log_name= NULL;
-    var_group_master_log_name=
+    char *var_group_master_log_name=
       const_cast<char *>(mi->rli->get_group_master_log_name());
 
     if (!var_group_master_log_name[0]) // uninitialized case
@@ -9090,28 +9043,36 @@ bool change_master(THD* thd, Master_info* mi)
       Notice that the rli table is available exclusively as slave is not
       running.
     */
-    if ((ret= mi->rli->flush_info(true)))
+    if (mi->rli->flush_info(true))
+    {
       my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
-
-    mysql_mutex_unlock(&mi->rli->data_lock);
+      goto err;
+    }
 
   } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
 
-  mysql_cond_broadcast(&mi->data_cond);
-
-err:
-  if (ret == FALSE)
-  {
-    if (!mts_remove_worker_info)
+  if (!mts_remove_worker_info)
+    my_ok(thd);
+  else
+    if (!Rpl_info_factory::reset_workers(mi->rli))
       my_ok(thd);
     else
-      if (!Rpl_info_factory::reset_workers(mi->rli))
-        my_ok(thd);
-      else
-        my_error(ER_MTS_RESET_WORKERS, MYF(0));
-  }
+      my_error(ER_MTS_RESET_WORKERS, MYF(0));
+
+  /*
+    If we have reached here there was no error, so unlock and return
+    false indicating success.
+  */
   unlock_slave_threads(mi);
-  DBUG_RETURN(ret);
+  DBUG_RETURN(false);
+
+err:
+  /*
+    If we are here, there was an error, so unlock and return true
+    indicating a failure.
+  */
+  unlock_slave_threads(mi);
+  DBUG_RETURN(true);
 }
 /**
   @} (end of group Replication)

@@ -57,6 +57,10 @@ let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 replace_result $relay_log_pos RELAY_LOG_POS;
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
+--echo #
+--echo # cleanup
+--echo #
+
 --source include/start_slave.inc
 --connection master
 DROP TEMPORARY TABLE t1;
