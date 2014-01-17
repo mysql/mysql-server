@@ -46,6 +46,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "ut0rnd.h" /* ut_rnd_interval() */
 #include "ut0ut.h" /* ut_format_name(), ut_time() */
 
+#include <map>
 #include <vector>
 
 /* Sampling algorithm description @{
@@ -142,6 +143,17 @@ index: 0,1,2,3,4,5,6,7,8,9,10,11,12
 data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
 typedef std::vector<ib_uint64_t>	boundaries_t;
+
+/* This is used to arrange the index based on the index name.
+@return true if index_name1 is smaller than index_name2. */
+struct index_cmp
+{
+	bool operator()(const char* index_name1, const char* index_name2) const {
+		return(strcmp(index_name1, index_name2) < 0);
+	}
+};
+
+typedef std::map<const char*, dict_index_t*, index_cmp>	index_map_t;
 
 /*********************************************************************//**
 Checks whether an index should be ignored in stats manipulations:
@@ -266,22 +278,24 @@ dict_stats_persistent_storage_check(
 	return(true);
 }
 
-/*********************************************************************//**
-Executes a given SQL statement using the InnoDB internal SQL parser
-in its own transaction and commits it.
+/** Executes a given SQL statement using the InnoDB internal SQL parser.
 This function will free the pinfo object.
+@param[in,out]	pinfo	pinfo to pass to que_eval_sql() must already
+have any literals bound to it
+@param[in]	sql	SQL string to execute
+@param[in,out]	trx	in case of NULL the function will allocate and
+free the trx object. If it is not NULL then it will be rolled back
+only in the case of error, but not freed.
 @return DB_SUCCESS or error code */
 static
 dberr_t
 dict_stats_exec_sql(
-/*================*/
-	pars_info_t*	pinfo,	/*!< in/out: pinfo to pass to que_eval_sql()
-				must already have any literals bound to it */
-	const char*	sql)	/*!< in: SQL string to execute */
+	pars_info_t*	pinfo,
+	const char*	sql,
+	trx_t*		trx)
 {
-	trx_t*	trx;
 	dberr_t	err;
-
+	bool	trx_started = false;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -292,10 +306,23 @@ dict_stats_exec_sql(
 		return(DB_STATS_DO_NOT_EXIST);
 	}
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	if (trx == NULL) {
+		trx = trx_allocate_for_background();
+		trx_start_if_not_started(trx);
+		trx_started = true;
+	}
 
 	err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
+
+	DBUG_EXECUTE_IF("stats_index_error",
+		if (!trx_started) {
+			err = DB_STATS_DO_NOT_EXIST;
+			trx->error_state = DB_STATS_DO_NOT_EXIST;
+		});
+
+	if (!trx_started && err == DB_SUCCESS) {
+		return(DB_SUCCESS);
+	}
 
 	if (err == DB_SUCCESS) {
 		trx_commit_for_mysql(trx);
@@ -308,7 +335,9 @@ dict_stats_exec_sql(
 		ut_a(trx->error_state == DB_SUCCESS);
 	}
 
-	trx_free_for_background(trx);
+	if (trx_started) {
+		trx_free_for_background(trx);
+	}
 
 	return(err);
 }
@@ -2084,20 +2113,28 @@ dict_stats_update_persistent(
 }
 
 #include "mysql_com.h"
-/*********************************************************************//**
-Save an individual index's statistic into the persistent statistics
+/** Save an individual index's statistic into the persistent statistics
 storage.
+@param[in]	index			index to be updated
+@param[in]	last_update		timestamp of the stat
+@param[in]	stat_name		name of the stat
+@param[in]	stat_value		value of the stat
+@param[in]	sample_size		n pages sampled or NULL
+@param[in]	stat_description	description of the stat
+@param[in,out]	trx			in case of NULL the function will
+allocate and free the trx object. If it is not NULL then it will be
+rolled back only in the case of error, but not freed.
 @return DB_SUCCESS or error code */
 static
 dberr_t
 dict_stats_save_index_stat(
-/*=======================*/
-	dict_index_t*	index,		/*!< in: index */
-	lint		last_update,	/*!< in: timestamp of the stat */
-	const char*	stat_name,	/*!< in: name of the stat */
-	ib_uint64_t	stat_value,	/*!< in: value of the stat */
-	ib_uint64_t*	sample_size,	/*!< in: n pages sampled or NULL */
-	const char*	stat_description)/*!< in: description of the stat */
+	dict_index_t*	index,
+	lint		last_update,
+	const char*	stat_name,
+	ib_uint64_t	stat_value,
+	ib_uint64_t*	sample_size,
+	const char*	stat_description,
+	trx_t*		trx)
 {
 	pars_info_t*	pinfo;
 	dberr_t		ret;
@@ -2158,7 +2195,7 @@ dict_stats_save_index_stat(
 		":sample_size,\n"
 		":stat_description\n"
 		");\n"
-		"END;");
+		"END;", trx);
 
 	if (ret != DB_SUCCESS) {
 		char	buf_table[MAX_FULL_NAME_LEN];
@@ -2241,7 +2278,7 @@ dict_stats_save(
 		":clustered_index_size,\n"
 		":sum_of_other_index_sizes\n"
 		");\n"
-		"END;");
+		"END;", NULL);
 
 	if (ret != DB_SUCCESS) {
 		char	buf[MAX_FULL_NAME_LEN];
@@ -2251,14 +2288,34 @@ dict_stats_save(
 			"%s: %s\n",
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
 			ut_strerr(ret));
-		goto end;
+
+		mutex_exit(&dict_sys->mutex);
+		rw_lock_x_unlock(&dict_operation_lock);
+
+		dict_stats_snapshot_free(table);
+
+		return(ret);
 	}
 
+	trx_t*	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
 	dict_index_t*	index;
+
+	index_map_t	indexes;
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		indexes[index->name] = index;
+	}
+
+	index_map_t::const_iterator	it;
+
+	for (it = indexes.begin(); it != indexes.end(); ++it) {
+
+		index = it->second;
 
 		if (only_for_index != NULL && index->id != *only_for_index) {
 			continue;
@@ -2269,24 +2326,6 @@ dict_stats_save(
 		}
 
 		ut_ad(!dict_index_is_univ(index));
-
-		ret = dict_stats_save_index_stat(index, now, "size",
-						 index->stat_index_size,
-						 NULL,
-						 "Number of pages "
-						 "in the index");
-		if (ret != DB_SUCCESS) {
-			goto end;
-		}
-
-		ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
-						 index->stat_n_leaf_pages,
-						 NULL,
-						 "Number of leaf pages "
-						 "in the index");
-		if (ret != DB_SUCCESS) {
-			goto end;
-		}
 
 		for (ulint i = 0; i < index->n_uniq; i++) {
 
@@ -2315,15 +2354,37 @@ dict_stats_save(
 				index, now, stat_name,
 				index->stat_n_diff_key_vals[i],
 				&index->stat_n_sample_sizes[i],
-				stat_description);
+				stat_description, trx);
 
 			if (ret != DB_SUCCESS) {
 				goto end;
 			}
 		}
+
+		ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
+						 index->stat_n_leaf_pages,
+						 NULL,
+						 "Number of leaf pages "
+						 "in the index", trx);
+		if (ret != DB_SUCCESS) {
+			goto end;
+		}
+
+		ret = dict_stats_save_index_stat(index, now, "size",
+						 index->stat_index_size,
+						 NULL,
+						 "Number of pages "
+						 "in the index", trx);
+		if (ret != DB_SUCCESS) {
+			goto end;
+		}
 	}
 
+	trx_commit_for_mysql(trx);
+
 end:
+	trx_free_for_background(trx);
+
 	mutex_exit(&dict_sys->mutex);
 	rw_lock_x_unlock(&dict_operation_lock);
 
@@ -3138,7 +3199,7 @@ dict_stats_drop_index(
 		"database_name = :database_name AND\n"
 		"table_name = :table_name AND\n"
 		"index_name = :index_name;\n"
-		"END;\n");
+		"END;\n", NULL);
 
 	mutex_exit(&dict_sys->mutex);
 	rw_lock_x_unlock(&dict_operation_lock);
@@ -3206,7 +3267,7 @@ dict_stats_delete_from_table_stats(
 		"DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
 		"database_name = :database_name AND\n"
 		"table_name = :table_name;\n"
-		"END;\n");
+		"END;\n", NULL);
 
 	return(ret);
 }
@@ -3244,7 +3305,7 @@ dict_stats_delete_from_index_stats(
 		"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 		"database_name = :database_name AND\n"
 		"table_name = :table_name;\n"
-		"END;\n");
+		"END;\n", NULL);
 
 	return(ret);
 }
@@ -3367,7 +3428,7 @@ dict_stats_rename_in_table_stats(
 		"WHERE\n"
 		"database_name = :old_dbname_utf8 AND\n"
 		"table_name = :old_tablename_utf8;\n"
-		"END;\n");
+		"END;\n", NULL);
 
 	return(ret);
 }
@@ -3413,7 +3474,7 @@ dict_stats_rename_in_index_stats(
 		"WHERE\n"
 		"database_name = :old_dbname_utf8 AND\n"
 		"table_name = :old_tablename_utf8;\n"
-		"END;\n");
+		"END;\n", NULL);
 
 	return(ret);
 }
