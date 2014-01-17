@@ -2483,7 +2483,9 @@ pthread_handler_t compress_gtid_table(void *arg)
     THD_ENTER_COND(thd, &COND_compress_gtid_table,
                    &LOCK_compress_gtid_table,
                    &stage_suspending, NULL);
+    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
     mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
+    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)

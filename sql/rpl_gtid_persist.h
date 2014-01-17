@@ -31,7 +31,7 @@ public:
   static const LEX_STRING TABLE_NAME;
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : need_commit(false), m_count(0) { };
+  Gtid_table_persistor() : m_count(0) { };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -107,11 +107,8 @@ public:
   int fetch_gtids_from_table(Gtid_set *gtid_executed);
 
 private:
-  /* Need to commit current transaction if it is true */
-  bool need_commit;
   /* Count the append size of the table */
   ulong m_count;
-
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table.
@@ -162,6 +159,8 @@ private:
     @param backup Restore the lock info from here
     @param error  If there was an error while updating
                     the table
+    @param need_commit Need to commit current transaction if
+                       it is TRUE, the default value is FALSE.
 
     If there is an error, rolls back the current statement. Otherwise,
     commits it. However, if a new thread was created and there is an
@@ -175,7 +174,7 @@ private:
       @retval TRUE  Failure
   */
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
-                   bool error);
+                   bool error, bool need_commit= FALSE);
   /**
     Write a gtid interval into the gtid_executed table.
 
