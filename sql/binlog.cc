@@ -2500,7 +2500,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
 #endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
-   m_prep_xids(0), m_is_resetting(false),
+   m_prep_xids(0),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
@@ -4043,7 +4043,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!is_relay_log)
   {
     mysql_mutex_lock(&LOCK_reset_binlog);
-    m_is_resetting= true;
     while (true)
     {
       global_sid_lock->wrlock();
@@ -4053,12 +4052,12 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
         my_sleep(1);
       }
       else
-        /* Still hold global_sid_lock after break. */
+      {
+        global_sid_lock->unlock();
         break;
+      }
     }
   }
-  else
-    global_sid_lock->wrlock();
 
   /*
     We need to get both locks to be sure that no one is trying to
@@ -4066,6 +4065,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   */
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
+  global_sid_lock->wrlock();
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -4194,14 +4194,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
+  global_sid_lock->unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
-  global_sid_lock->unlock();
   if (!is_relay_log)
-  {
-    m_is_resetting= false;
     mysql_mutex_unlock(&LOCK_reset_binlog);
-  }
 
   DBUG_RETURN(error);
 }
