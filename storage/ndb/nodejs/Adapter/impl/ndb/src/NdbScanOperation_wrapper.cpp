@@ -19,9 +19,6 @@
 */
 
 
-/* Wrapper for NdbOperation & NdbScanOperation 
-*/
-
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
@@ -37,34 +34,16 @@ typedef Handle<Value> __Method__(const Arguments &);
 extern __Method__ scanNextResult;
 extern __Method__ scanFetchResults;
 
-
-/******** NdbOperation **********************************/
-class NdbOperationEnvelopeClass : public Envelope {
-public:
-  NdbOperationEnvelopeClass() : Envelope("const NdbOperation") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", 
-                       getNdbError<const NdbOperation>);
-  }
-};
-
-NdbOperationEnvelopeClass NdbOperationEnvelope;
-
-Handle<Value> NdbOperation_Wrapper(const NdbOperation *op) {
-  HandleScope scope;
-  if(op) {
-    Local<Object> jsobj = NdbOperationEnvelope.newWrapper();
-    wrapPointerInObject(op, NdbOperationEnvelope, jsobj);
-    return scope.Close(jsobj);
-  }
-  return Null();
-}
-
+/* Implemented here */
+__Method__ NdbScanOperation_close;
 
 
 /******** NdbScanOperation ******************************/
 
 /* NdbOperation * lockCurrentTuple(NdbTransaction* lockTrans)
    IMMEDIATE
+   
+   FIXME: Returns an NdbOperation * which is no longer something we wrap for JS
 */
 Handle<Value> lockCurrentTuple(const Arguments & args) {
   DEBUG_MARKER(UDEB_DETAIL);
@@ -73,10 +52,11 @@ Handle<Value> lockCurrentTuple(const Arguments & args) {
   REQUIRE_ARGS_LENGTH(1);
   typedef NativeMethodCall_1_<NdbOperation *, NdbScanOperation, NdbTransaction *> NCALL;
   NCALL ncall(& NdbScanOperation::lockCurrentTuple, args);
-  ncall.wrapReturnValueAs(& NdbOperationEnvelope);
+  // ncall.wrapReturnValueAs(& NdbOperationEnvelope);
   ncall.run();
   
-  return scope.Close(ncall.jsReturnVal());
+  // return scope.Close(ncall.jsReturnVal());
+  return Null();
 }
 
 
@@ -87,7 +67,8 @@ public:
                        getNdbError<NdbScanOperation>);
     DEFINE_JS_FUNCTION(Envelope::stencil, "fetchResults", scanFetchResults);
     DEFINE_JS_FUNCTION(Envelope::stencil, "nextResult", scanNextResult);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "lockCurrentTuple", lockCurrentTuple);  
+    DEFINE_JS_FUNCTION(Envelope::stencil, "lockCurrentTuple", lockCurrentTuple);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "close", NdbScanOperation_close);  
   }
 };
 
@@ -103,5 +84,14 @@ Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *op) {
   Local<Object> jsobj = NdbScanOperationEnvelope.newWrapper();
   wrapPointerInObject(op, NdbScanOperationEnvelope, jsobj);
   return scope.Close(jsobj);
+}
+
+
+Handle<Value> NdbScanOperation_close(const Arguments & args) {
+  REQUIRE_ARGS_LENGTH(3);
+  typedef NativeVoidMethodCall_2_<NdbScanOperation, bool, bool> NCALL;
+  NCALL * ncallptr = new NCALL(& NdbScanOperation::close, args);
+  ncallptr->runAsync();
+  return Undefined();
 }
 
