@@ -24,6 +24,7 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
 )
 
+message(status "The zlib paths are ${ZLIB_INCLUDE_DIR} and ${ZLIB_INCLUDE_DIRS}")
 find_package(ZLIB REQUIRED)
 if (ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
