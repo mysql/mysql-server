@@ -35,33 +35,34 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
-#include "row0ins.h"
-#include "row0merge.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "que0que.h"
-#include "pars0pars.h"
-#include "dict0dict.h"
-#include "dict0crea.h"
-#include "dict0load.h"
+#include "btr0sea.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "trx0roll.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
-#include "trx0undo.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "log0log.h"
-#include "btr0sea.h"
 #include "fil0fil.h"
-#include "ibuf0ibuf.h"
+#include "fsp0file.h"
+#include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "srv0space.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "rem0cmp.h"
 #include "row0import.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0row.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0undo.h"
 #include <deque>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
@@ -2333,7 +2334,8 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (!Tablespace::is_system_tablespace(table->space)) {
+	if (!is_system_tablespace(table->space)) {
+
 		ut_a(dict_table_use_file_per_table(table));
 
 		if (err == DB_SUCCESS) {
@@ -2350,7 +2352,7 @@ err_exit:
 
 		if (err != DB_SUCCESS) {
 			/* We must delete the link file. */
-			fil_delete_link_file(table->name);
+			RemoteDatafile::delete_link_file(table->name);
 		}
 	}
 
@@ -2922,7 +2924,7 @@ row_discard_tablespace_begin(
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_table(table, trx);
-		ut_a(!Tablespace::is_system_tablespace(table->space));
+		ut_a(!is_system_tablespace(table->space));
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
 
@@ -3365,10 +3367,9 @@ row_drop_table_for_mysql(
 				" data dictionary though MySQL is trying to"
 				" drop it. Have you copied the .frm file"
 				" of the table to the MySQL database directory"
-				" from another database? You can look for"
-				" further help from " REFMAN ""
-				" innodb-troubleshooting.html",
-				ut_get_name(trx, TRUE, name).c_str());
+				" from another database? %s",
+				ut_get_name(trx, TRUE, name).c_str(),
+				TROUBLESHOOTING_MSG);
 		}
 		goto funct_exit;
 	}
@@ -3413,7 +3414,7 @@ row_drop_table_for_mysql(
 
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		fil_delete_link_file(name);
+		RemoteDatafile::delete_link_file(name);
 	}
 
 	if (!dict_table_is_temporary(table)) {
@@ -3512,7 +3513,7 @@ check_next_foreign:
 	}
 
 	/* Remove all locks that are on the table or its records, if there
-	are no refernces to the table but it has record locks, we release
+	are no references to the table but it has record locks, we release
 	the record locks unconditionally. One use case is:
 
 		CREATE TABLE t2 (PRIMARY KEY (a)) SELECT * FROM t1;
@@ -3748,13 +3749,16 @@ check_next_foreign:
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
-			filepath = os_file_make_remote_pathname(
-				table->data_dir_path, table->name, "ibd");
+			filepath = fil_make_filepath(
+				table->data_dir_path,
+				table->name, IBD, true);
 		} else if (table->dir_path_of_temp_table) {
-			filepath = fil_make_ibd_name(
-				table->dir_path_of_temp_table, true);
+			filepath = fil_make_filepath(
+				table->dir_path_of_temp_table,
+				NULL, IBD, false);
 		} else {
-			filepath = fil_make_ibd_name(tablename, false);
+			filepath = fil_make_filepath(
+				NULL, tablename, IBD, false);
 		}
 
 		if (dict_table_has_fts_index(table)
@@ -3813,7 +3817,7 @@ check_next_foreign:
 		print_msg = !(is_temp || ibd_file_missing);
 
 		if (err == DB_SUCCESS
-		    && !Tablespace::is_system_tablespace(space_id)) {
+		    && !is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 				    space_id, tablename,
@@ -4343,13 +4347,12 @@ row_rename_table_for_mysql(
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Table %s does not exist in the InnoDB internal"
-			" data dictionary though MySQL is trying to rename the"
+			"Table %s does not exist in the InnoDB internal data"
+			" dictionary though MySQL is trying to rename the"
 			" table. Have you copied the .frm file of the table to"
-			" the MySQL database directory from another database?"
-			" You can look for further help from"
-			" " REFMAN "innodb-troubleshooting.html",
-			ut_get_name(trx, TRUE, old_name).c_str());
+			" the MySQL database directory from another database? %s",
+			ut_get_name(trx, TRUE, old_name).c_str(),
+			TROUBLESHOOTING_MSG);
 		goto funct_exit;
 
 	} else if (table->ibd_file_missing
@@ -4359,8 +4362,7 @@ row_rename_table_for_mysql(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Table %s does not have an .ibd file in the database"
-			" directory. See " REFMAN "innodb-troubleshooting.html",
-			old_name);
+			" directory. %s", old_name, TROUBLESHOOTING_MSG);
 
 		goto funct_exit;
 
@@ -4419,7 +4421,7 @@ row_rename_table_for_mysql(
 	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
 	which have space IDs > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(table->space)
+	    && !is_system_tablespace(table->space)
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
@@ -4580,7 +4582,7 @@ row_rename_table_for_mysql(
 		err = fts_rename_aux_tables(table, new_name, trx);
 
 		if (err != DB_SUCCESS
-		    && !Tablespace::is_system_tablespace(table->space)) {
+		    && !is_system_tablespace(table->space)) {
 			char*	orig_name = table->name;
 			trx_t*	trx_bg = trx_allocate_for_background();
 
@@ -4626,9 +4628,7 @@ end:
 				" .frm file and not used DROP TABLE?",
 				ut_get_name(trx, TRUE, new_name).c_str(),
 				ut_get_name(trx, TRUE, old_name).c_str());
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"You can look for further help from"
-				REFMAN "innodb-troubleshooting.html.");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s", TROUBLESHOOTING_MSG);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"If table %s is a temporary table #sql..., then"
 				" it can be that there are still queries"

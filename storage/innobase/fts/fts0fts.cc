@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -6641,15 +6641,15 @@ fts_check_and_drop_orphaned_tables(
 			dberr_t err = fts_drop_table(trx, aux_table->name);
 
 			if (err == DB_FAIL) {
-				char*   path;
+				char*	path = fil_make_filepath(
+					NULL, aux_table->name, IBD, false);
 
-				path = fil_make_ibd_name(
-					aux_table->name, false);
+				if (path != NULL) {
+					os_file_delete_if_exists(
+						innodb_data_file_key, path, NULL);
 
-				os_file_delete_if_exists(innodb_data_file_key,
-							 path, NULL);
-
-				ut_free(path);
+					::ut_free(path);
+				}
 			}
 		}
 #ifdef _WIN32
