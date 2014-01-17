@@ -819,7 +819,9 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
 #endif
 
     /* Recode from the buffer into the UTF8 stack */
-    int32_t lengths[2] = { len, recode_size } ;
+    int32_t lengths[2];
+    lengths[0] = len;
+    lengths[1] = recode_size;
     csmap.recode(lengths, 
                  col->getCharsetNumber(),
                  csmap.getUTF8CharsetNumber(),
@@ -892,7 +894,9 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
 #else
     char recode_buffer[recode_size];
 #endif
-    int32_t lengths[2] = { length, recode_size } ;
+    int32_t lengths[2];
+    lengths[0] = length;
+    lengths[1] = recode_size;
     csmap.recode(lengths, 
                  col->getCharsetNumber(), csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);

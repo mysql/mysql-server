@@ -22,6 +22,7 @@
 #include "compat_ndb.h"
 #include "ndb_util/NdbWaitGroup.hpp"
 #include "SharedList.h"
+#include "ConcurrentFlag.h"
 
 /* V1 NdbWaitGroup must be created with a fixed maximum size.
    V2 NdbWaitGroup is created with an initial size and will grow as needed.
@@ -95,12 +96,10 @@ private:
   /* The completed queue holds Ndbs which have returned from execution. 
   */
   SharedList<Ndb> completed_queue;
-#else 
-  /* Shutdown signal 
-  */
-  bool shutdown_flag;
-  uv_rwlock_t shutdown_lock;
 #endif
+  /* Shutdown signal (used only with V2 multiwait but always present)
+  */
+  ConcurrentFlag shutdown_flag;
 
   /* Holds the thread ID of the Listener thread
   */

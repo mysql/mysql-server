@@ -61,7 +61,8 @@ void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
 /* Constructor 
 */
 AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn) :
-  connection(conn)
+  connection(conn),
+  shutdown_flag()
 {
   DEBUG_MARKER(UDEB_DEBUG);
 
@@ -138,18 +139,14 @@ void * AsyncNdbContext::runListenerThread() {
   int wait_timeout_millisec = 100;
   int pct_ready = 50;
   bool running = true;
-  shutdown_flag = false;
-  uv_rwlock_init(& shutdown_lock);
 
   while(running) {
-    uv_rwlock_rdlock(& shutdown_lock);
-    if(shutdown_flag) {
+    if(shutdown_flag.test()) {
       DEBUG_PRINT("MULTIWAIT LISTENER GOT SHUTDOWN.");
       pct_ready = 100;    /* One final read of all outstanding items */
       wait_timeout_millisec = 200;
       running = false;
     }
-    uv_rwlock_rdunlock(& shutdown_lock);
 
     /* Wait for ready Ndbs */
     if(waitgroup->wait(wait_timeout_millisec, pct_ready) > 0) {
@@ -162,9 +159,7 @@ void * AsyncNdbContext::runListenerThread() {
 
 void AsyncNdbContext::shutdown() {
   DEBUG_MARKER(UDEB_DEBUG);
-  uv_rwlock_wrlock(& shutdown_lock);
-  shutdown_flag = true;
-  uv_rwlock_wrunlock(& shutdown_lock);
+  shutdown_flag.set();
   waitgroup->wakeup();
 }
 

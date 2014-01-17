@@ -150,6 +150,20 @@ Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
 }
 
 
+Handle<Value> get_latest_error_msg_wrapper(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(0);
+  
+  typedef NativeConstMethodCall_0_<const char *, Ndb_cluster_connection> MCALL;
+  MCALL mcall(& Ndb_cluster_connection::get_latest_error_msg, args);
+  mcall.run();
+  
+  return scope.Close(mcall.jsReturnVal());
+}
+
+
 void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   Local<FunctionTemplate> JSNdb_cluster_connection;
@@ -164,6 +178,8 @@ void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
                    Ndb_cluster_connection_wait_until_ready);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "node_id",
                    Ndb_cluster_connection_node_id);
+  DEFINE_JS_METHOD(JSNdb_cluster_connection, "get_latest_error_msg",
+                   get_latest_error_msg_wrapper);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "delete",
                    Ndb_cluster_connection_delete_wrapper);
   DEFINE_JS_CONSTRUCTOR(target, "Ndb_cluster_connection", JSNdb_cluster_connection);
