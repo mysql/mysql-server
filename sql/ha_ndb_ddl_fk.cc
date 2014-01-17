@@ -103,7 +103,6 @@ find_matching_index(NDBDICT* dict,
   const int noinvalidate= 0;
   uint best_matching_columns= 0;
   const NDBINDEX* best_matching_index= 0;
-  const NDBINDEX* return_index= 0;
 
   NDBDICT::List index_list;
   dict->listIndexes(index_list, *tab);
@@ -133,10 +132,14 @@ find_matching_index(NDBDICT* dict,
       if (cnt == index->getNoOfColumns())
       {
         /**
-         * Full match...
+         * Full match...return this index, no need to look further
          */
-        return_index= index;
-        goto found;
+        if (best_matching_index)
+        {
+          // release ref to previous best candidate
+          dict->removeIndexGlobal(* best_matching_index, noinvalidate);
+        }
+        return index; // NOTE: also returns reference
       }
       else
       {
@@ -184,16 +187,6 @@ find_matching_index(NDBDICT* dict,
       dict->removeIndexGlobal(* index, noinvalidate);
       continue;
     }
-  }
-found:
-  if (return_index)
-  {
-    // release ref to previous best candidate
-    if (best_matching_index)
-    {
-      dict->removeIndexGlobal(* best_matching_index, noinvalidate);
-    }
-    return return_index; // NOTE: also returns reference
   }
 
   return best_matching_index; // NOTE: also returns reference
