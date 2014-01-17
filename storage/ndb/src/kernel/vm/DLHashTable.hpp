@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003-2006, 2008, 2013, Oracle and/or its affiliates. All 
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved. 
    rights reserved.
 
    This program is free software; you can redistribute it and/or modify

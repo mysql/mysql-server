@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,35 +13,46 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE(CheckCCompilerFlag)
+# Common warning flags for GCC, G++, Clang and Clang++
+SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security")
 
-# Setup GCC (GNU C compiler) warning options.
-MACRO(SET_MYSQL_MAINTAINER_GNU_C_OPTIONS)
-  SET(MY_MAINTAINER_WARNINGS
-      "-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing  -Werror")
+# Common warning flags for GCC and Clang
+SET(MY_C_WARNING_FLAGS
+    "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
+MY_CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA_C) # Requires GCC 4.3+ or Clang
+IF(HAVE_WVLA_C)
+  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Wvla")
+ENDIF()
 
-  CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA)
-  IF(HAVE_WVLA)
-    SET(MY_MAINTAINER_WARNINGS "${MY_MAINTAINER_WARNINGS} -Wvla")
-  ENDIF()
+# Common warning flags for G++ and Clang++
+SET(MY_CXX_WARNING_FLAGS
+    "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
+MY_CHECK_CXX_COMPILER_FLAG("-Wvla" HAVE_WVLA_CXX) # Requires GCC 4.3+ or Clang
+IF(HAVE_WVLA_CXX)
+  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wvla")
+ENDIF()
 
-  CHECK_C_COMPILER_FLAG("-Wdeclaration-after-statement"
-                        HAVE_DECLARATION_AFTER_STATEMENT)
-  IF(HAVE_DECLARATION_AFTER_STATEMENT)
-    SET(MY_MAINTAINER_DECLARATION_AFTER_STATEMENT
-        "-Wdeclaration-after-statement")
-  ENDIF()
-  SET(MY_MAINTAINER_C_WARNINGS
-      "${MY_MAINTAINER_WARNINGS} ${MY_MAINTAINER_DECLARATION_AFTER_STATEMENT}"
-      CACHE STRING "C warning options used in maintainer builds.")
-  # Do not make warnings in checks into errors.
-  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
-ENDMACRO()
+# Extra warning flags for Clang++
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(MY_CXX_WARNING_FLAGS
+      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
 
+# Turn on Werror (warning => error) when using GCC/G++ and maintainer mode.
+IF(CMAKE_COMPILER_IS_GNUCC AND MYSQL_MAINTAINER_MODE)
+  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Werror")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX AND MYSQL_MAINTAINER_MODE)
+  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Werror")
+ENDIF()
 
-# Setup G++ (GNU C++ compiler) warning options.
-MACRO(SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS)
-  SET(MY_MAINTAINER_CXX_WARNINGS
-      "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter -Woverloaded-virtual"
-      CACHE STRING "C++ warning options used in maintainer builds.")
-ENDMACRO()
+# Set warning flags for GCC/Clang
+IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  MESSAGE(STATUS "C warning options: ${MY_C_WARNING_FLAGS}")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_C_WARNING_FLAGS}")
+ENDIF()
+# Set warning flags for G++/Clang++
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MESSAGE(STATUS "C++ warning options: ${MY_CXX_WARNING_FLAGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_CXX_WARNING_FLAGS}")
+ENDIF()

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -137,7 +137,7 @@ static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+enum srv_shutdown_t	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
@@ -1392,7 +1392,6 @@ innobase_start_or_create_for_mysql(void)
 			    + 1 /* dict_stats_thread */
 			    + 1 /* fts_optimize_thread */
 			    + 1 /* recv_writer_thread */
-			    + 1 /* buf_flush_page_cleaner_thread */
 			    + 1 /* trx_rollback_or_clean_all_recovered */
 			    + 128 /* added as margin, for use of
 				  InnoDB Memcached etc. */
@@ -1400,6 +1399,7 @@ innobase_start_or_create_for_mysql(void)
 			    + srv_n_read_io_threads
 			    + srv_n_write_io_threads
 			    + srv_n_purge_threads
+			    + srv_n_page_cleaners
 			    /* FTS Parallel Sort */
 			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
 			      * max_connections;
@@ -2277,7 +2277,15 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
-		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
+		buf_flush_page_cleaner_init();
+
+		os_thread_create(buf_flush_page_cleaner_coordinator,
+				 NULL, NULL);
+
+		for (i = 1; i < srv_n_page_cleaners; ++i) {
+			os_thread_create(buf_flush_page_cleaner_worker,
+					 NULL, NULL);
+		}
 	}
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
@@ -2670,8 +2678,10 @@ srv_get_meta_data_filename(
 	char*			suffix;
 	static const ulint	suffix_len = strlen(".cfg");
 
+	/* Make sure the data_dir_path is set. */
+	dict_get_and_save_data_dir_path(table, false);
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		dict_get_and_save_data_dir_path(table, false);
 		ut_a(table->data_dir_path);
 
 		path = os_file_make_remote_pathname(

@@ -6873,7 +6873,8 @@ ER_FK_COLUMN_CANNOT_CHANGE
 ER_FK_COLUMN_CANNOT_CHANGE_CHILD
   eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s' of table '%-.192s'"
 
-ER_FK_CANNOT_DELETE_PARENT
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED5
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
 
 ER_MALFORMED_PACKET
@@ -6927,7 +6928,8 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
   eng "Adding foreign keys needs foreign_key_checks=OFF"
 
-ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED6
   eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK

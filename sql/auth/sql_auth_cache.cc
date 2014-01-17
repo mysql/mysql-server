@@ -673,11 +673,11 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
-                               host.get_host() ? (uint) host.get_host_len() : 0,
+                               host.get_host() ? host.get_host_len() : 0,
                                system_charset_info);
-    col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
-    col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
-    col_privs->field[3]->store(tname,(uint) strlen(tname), system_charset_info);
+    col_privs->field[1]->store(db, strlen(db), system_charset_info);
+    col_privs->field[2]->store(user, strlen(user), system_charset_info);
+    col_privs->field[3]->store(tname, strlen(tname), system_charset_info);
 
     key_prefix_len= (key_part[0].store_length +
                      key_part[1].store_length +
