@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1025,26 +1025,7 @@ os_file_make_new_pathname(
 /*======================*/
 	const char*	old_path,	/*!< in: pathname */
 	const char*	new_name);	/*!< in: new file name */
-/****************************************************************//**
-This function returns a remote path name by combining a data directory
-path provided in a DATA DIRECTORY clause with the tablename which is
-in the form 'database/tablename'.  It strips the file basename (which
-is the tablename) found after the last directory in the path provided.
-The full filepath created will include the database name as a directory
-under the path provided.  The filename is the tablename with the '.ibd'
-extension. All input and output strings are null-terminated.
 
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@return own: A full pathname; data_dir_path/databasename/tablename.ibd */
-
-char*
-os_file_make_remote_pathname(
-/*=========================*/
-	const char*	data_dir_path,	/*!< in: pathname */
-	const char*	tablename,	/*!< in: tablename */
-	const char*	extension);	/*!< in: file extension; ibd,cfg*/
 /****************************************************************//**
 This function reduces a null-terminated full remote path name into
 the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
@@ -1062,6 +1043,7 @@ void
 os_file_make_data_dir_path(
 /*========================*/
 	char*	data_dir_path);	/*!< in/out: full path/data_dir_path */
+
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return TRUE if call succeeded FALSE otherwise */
@@ -1296,6 +1278,14 @@ os_aio_linux_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 #endif /* LINUX_NATIVE_AIO */
 
+/*********************************************************************//**
+Normalizes a directory path for Windows: converts slashes to backslashes.
+@param[in,out] str A null-terminated Windows directory and file path */
+#ifdef _WIN32
+void os_normalize_path_for_win(char*	str);
+#else
+#define os_normalize_path_for_win(str)
+#endif
 #ifndef UNIV_NONINL
 #include "os0file.ic"
 #endif

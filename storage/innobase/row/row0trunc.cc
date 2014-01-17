@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ Created 2013-04-12 Sunny Bains
 #include "dict0stats_bg.h"
 #include "lock0lock.h"
 #include "fts0fts.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "srv0start.h"
 #include "row0trunc.h"
 #include "os0file.h"
@@ -1183,7 +1183,7 @@ row_truncate_complete(
 
 	if (!dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED
-	    && !Tablespace::is_system_tablespace(table->space)) {
+	    && !is_system_tablespace(table->space)) {
 
 		/* This function will reset back the stop_new_ops
 		and is_being_truncated so that fil-ops can re-start. */
@@ -1458,7 +1458,7 @@ dberr_t
 row_truncate_prepare(dict_table_t* table, ulint* flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
-	ut_ad(!Tablespace::is_system_tablespace(table->space));
+	ut_ad(!is_system_tablespace(table->space));
 
 	*flags = fil_space_get_flags(table->space);
 
@@ -1796,7 +1796,7 @@ row_truncate_table_for_mysql(
 
 	if (!dict_table_is_temporary(table) && !has_internal_doc_id) {
 
-		if (!Tablespace::is_system_tablespace(table->space)) {
+		if (!is_system_tablespace(table->space)) {
 
 			err = row_truncate_prepare(table, &flags);
 
@@ -1907,7 +1907,7 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (!Tablespace::is_system_tablespace(table->space)
+	if (!is_system_tablespace(table->space)
 	    && !dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED) {
 
@@ -2034,7 +2034,7 @@ truncate_t::fixup_tables()
 			(ullint) (*it)->m_old_table_id,
 			(ulong) (*it)->m_space_id);
 
-		if (!Tablespace::is_system_tablespace((*it)->m_space_id)) {
+		if (!is_system_tablespace((*it)->m_space_id)) {
 
 			if (!fil_tablespace_exists_in_mem((*it)->m_space_id)) {
 
@@ -2074,7 +2074,7 @@ truncate_t::fixup_tables()
 				(*it)->m_tablename,
 				**it, log_get_lsn());
 
-		} else if (Tablespace::is_system_tablespace(
+		} else if (is_system_tablespace(
 				(*it)->m_space_id)) {
 
 			/* Only tables residing in ibdata1 are truncated.

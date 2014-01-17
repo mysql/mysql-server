@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,14 +32,12 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "dict0types.h"
 #include "buf0types.h"
-#include "ut0byte.h"
-#include "os0file.h"
+#include "mem0mem.h"
 #ifndef UNIV_HOTBACKUP
-#include "sync0rw.h"
 #include "ibuf0types.h"
 #include "log0log.h"
+#include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "mem0mem.h"
 
 #include <list>
 #include <vector>
@@ -57,6 +55,18 @@ typedef std::list<const char*> space_name_list_t;
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
+
+/** Common InnoDB file extentions */
+enum ib_extention {
+	NO_EXT = 0,
+	IBD = 1,
+	ISL = 2,
+	CFG = 3
+};
+extern const char* dot_ext[];
+#define DOT_IBD dot_ext[IBD]
+#define DOT_ISL dot_ext[ISL]
+#define DOT_CFG dot_ext[CFG]
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
@@ -357,26 +367,6 @@ fil_write_flushed_lsn_to_data_files(
 	ulint	arch_log_no);	/*!< in: latest archived log file number */
 
 /*******************************************************************//**
-Reads the flushed lsn and tablespace flag fields from a data
-file at database startup.
-@retval NULL on success, or if innodb_force_recovery is set
-@return pointer to an error message string */
-
-const char*
-fil_read_first_page(
-/*================*/
-	os_file_t	data_file,		/*!< in: open data file */
-	bool		one_read_already,	/*!< in: true when not reading
-						the first data file of a
-						tablespace */
-	ulint*		flags,			/*!< out: tablespace flags */
-	ulint*		space_id,		/*!< out: tablespace ID */
-	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
-						lsn values in data files */
-	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
-						lsn values in data files */
-	__attribute__((warn_unused_result));
-/*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
 @return true if being deleted, and operation should be skipped */
 
@@ -558,54 +548,20 @@ fil_rename_tablespace(
 					in the normal data directory. */
 
 /*******************************************************************//**
-Allocates a file name for a single-table tablespace. The string must be freed
-by caller with ut_free().
+Allocates and builds a file name from a path, a table or tablespace name
+and a suffix. The string must be freed by caller with ut_free().
+@param[in] path NULL or the direcory path or the full path and filename.
+@param[in] name NULL if path is full, or Table/Tablespace name
+@param[in] suffix NULL or the file extention to use.
 @return own: file name */
 
 char*
-fil_make_ibd_name(
-/*==============*/
-	const char*	name,		/*!< in: table name or a dir path */
-	bool		is_full_path);	/*!< in: true if it is a dir path */
-/*******************************************************************//**
-Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
-The string must be freed by caller with ut_free().
-@return own: file name */
+fil_make_filepath(
+	const char*	path,
+	const char*	name,
+	ib_extention	suffix,
+	bool		strip_name);
 
-char*
-fil_make_isl_name(
-/*==============*/
-	const char*	name);	/*!< in: table name */
-/*******************************************************************//**
-Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
-under the 'datadir' of MySQL. The datadir is the directory of a
-running mysqld program. We can refer to it by simply using the path '.'.
-@return DB_SUCCESS or error code */
-
-dberr_t
-fil_create_link_file(
-/*=================*/
-	const char*	tablename,	/*!< in: tablename */
-	const char*	filepath);	/*!< in: pathname of tablespace */
-/*******************************************************************//**
-Deletes an InnoDB Symbolic Link (ISL) file. */
-
-void
-fil_delete_link_file(
-/*==================*/
-	const char*	tablename);	/*!< in: name of table */
-/*******************************************************************//**
-Reads an InnoDB Symbolic Link (ISL) file.
-It is always created under the 'datadir' of MySQL.  The name is of the
-form {databasename}/{tablename}. and the isl file is expected to be in a
-'{databasename}' directory called '{tablename}.isl'. The caller must free
-the memory of the null-terminated path returned if it is not null.
-@return own: filepath found in link file, NULL if not found. */
-
-char*
-fil_read_link_file(
-/*===============*/
-	const char*	name);		/*!< in: tablespace name */
 /*******************************************************************//**
 Creates a new tablespace in a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
@@ -627,7 +583,7 @@ fil_create_new_single_table_tablespace(
 	ulint		size)		/*!< in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
@@ -649,18 +605,22 @@ a remote tablespace is found it will be changed to true.
 If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
+@param[in] validate True if we should validate the tablespace.
+@param[in] fix_dict True if the dictionary is available to be fixed.
+@param[in] id Tablespace ID
+@param[in] flags Tablespace flags
+@param[in] tablename Table name in the databasename/tablename format.
+@param[in] path_in Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 
 dberr_t
 fil_open_single_table_tablespace(
-/*=============================*/
-	bool		validate,	/*!< in: Do we validate tablespace? */
-	bool		fix_dict,	/*!< in: Can we fix the dictionary? */
-	ulint		id,		/*!< in: space id */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	tablename,	/*!< in: table name in the
-					databasename/tablename format */
-	const char*	filepath)	/*!< in: tablespace filepath */
+	bool		validate,
+	bool		fix_dict,
+	ulint		id,
+	ulint		flags,
+	const char*	tablename,
+	const char*	path_in)
 	__attribute__((nonnull(5), warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
@@ -1012,6 +972,20 @@ fil_tablespace_iterate(
 	PageCallback&		callback)
 	__attribute__((nonnull, warn_unused_result));
 
+/********************************************************************//**
+Looks for a pre-existing fil_space_t with the given tablespace ID
+and, if found, returns the name and filepath in newly allocated buffers that the caller must free.
+@param[in] space_id The tablespace ID to search for.
+@param[out] name Name of the tablespace found.
+@param[out] fileapth The filepath of the first datafile for thtablespace found.
+@return true if tablespace is found, false if not. */
+
+bool
+fil_space_read_name_and_filepath(
+	ulint	space_id,
+	char**	name,
+	char**	filepath);
+
 /*******************************************************************//**
 Checks if a single-table tablespace for a given table name exists in the
 tablespace memory cache.
@@ -1053,5 +1027,10 @@ fil_mtr_rename_log(
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
 
+#ifdef UNIV_COMPILE_TEST_FUNCS
+void test_make_filepath();
+#endif /* UNIV_COMPILE_TEST_FUNCS */
+
 #endif /* !UNIV_INNOCHECKSUM */
+
 #endif /* fil0fil_h */
