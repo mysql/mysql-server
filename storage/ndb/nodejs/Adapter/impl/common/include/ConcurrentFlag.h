@@ -55,7 +55,7 @@ inline bool ConcurrentFlag::test() {
 }
 
 inline void ConcurrentFlag::set() {
-  __sync_fetch_and_and(&flag, 1);
+  __sync_fetch_and_or(&flag, 1);
 }
 
 inline void ConcurrentFlag::clear() {
