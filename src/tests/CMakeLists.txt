@@ -72,6 +72,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       execute-updates
       filesize
       get_key_after_bytes_unit
+      get_last_key
       helgrind1
       helgrind2
       helgrind3
