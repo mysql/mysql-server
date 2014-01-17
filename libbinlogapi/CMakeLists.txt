@@ -19,6 +19,9 @@ endif(GTEST_FOUND)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
+# ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib, when compiled with
+# MySQL server version (< 5.7). It is NULL otherwise.
+  ${ZLIB_INCLUDE_DIR}
 )
 
 find_package(ZLIB REQUIRED)
@@ -32,7 +35,8 @@ CONFIGURE_FILE(config.h.cmake
 add_subdirectory(src)
 
 # Configure installation
+if (NOT HAVE_MYSYS)
 install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
-
+endif (NOT HAVE_MYSYS)
 include(InstallRequiredSystemLibraries)
 
