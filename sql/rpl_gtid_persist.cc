@@ -29,7 +29,7 @@ const LEX_STRING Gtid_table_persistor::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
 bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
                                        Open_tables_backup* backup,
-                                       bool error)
+                                       bool error, bool need_commit)
 {
   Query_tables_list query_tables_list_backup;
 
@@ -54,10 +54,6 @@ bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
         ha_rollback_trans(thd, TRUE);
       else
       {
-        /*
-          To make the commit not to block with global read lock set
-          "ignore_global_read_lock" flag to true.
-        */
         ha_commit_trans(thd, TRUE, TRUE);
       }
     }
@@ -93,16 +89,6 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
                MYSQL_OPEN_IGNORE_FLUSH |
                MYSQL_LOCK_IGNORE_TIMEOUT |
                MYSQL_OPEN_IGNORE_KILLED);
-
-  /*
-    This is equivalent to a new "statement". For that reason, we call both
-    lex_start() and mysql_reset_thd_for_next_command.
-  */
-  if (!current_thd)
-  {
-    lex_start(thd);
-    mysql_reset_thd_for_next_command(thd);
-  }
 
   /*
     We need to use new Open_tables_state in order not to be affected
@@ -203,19 +189,6 @@ int Gtid_table_persistor::write_row(TABLE* table, char *sid,
     goto err;
   }
 
-  /* Do not protect m_count for improving transactions' concurrency */
-  m_count++;
-  if ((executed_gtids_compression_period != 0) &&
-      (m_count >= executed_gtids_compression_period ||
-       DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
-       DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
-       DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
-       DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
-  {
-    m_count= 0;
-    mysql_cond_signal(&COND_compress_gtid_table);
-  }
-
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(-1);
@@ -258,6 +231,22 @@ end:
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
     this->drop_thd(drop_thd_object);
+  /* Do not protect m_count for improving transactions' concurrency */
+  if (0 == error)
+  {
+    m_count++;
+    if ((executed_gtids_compression_period != 0) &&
+        (m_count >= executed_gtids_compression_period ||
+         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
+    {
+      m_count= 0;
+      mysql_cond_signal(&COND_compress_gtid_table);
+    }
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -439,14 +428,12 @@ int Gtid_table_persistor::compress()
   Open_tables_backup backup;
   THD *thd= current_thd, *drop_thd_object= NULL;
 
-  /* The compression will wait until finish resetting binlog files. */
-  mysql_mutex_lock(&LOCK_reset_binlog);
-
   if (!thd)
     thd= drop_thd_object= this->create_thd();
   tmp_disable_binlog(thd);
   saved_mode= thd->variables.sql_mode;
 
+  mysql_mutex_lock(&LOCK_compress_gtid_table);
   if (this->open_table(thd, TL_WRITE, &table, &backup))
   {
     error= 1;
@@ -503,10 +490,8 @@ int Gtid_table_persistor::compress()
   error= save(table, &gtid_deleted);
 
 end:
-  need_commit= true;
-  this->close_table(thd, table, &backup, 0 != error);
-  mysql_mutex_unlock(&LOCK_reset_binlog);
-  need_commit= false;
+  this->close_table(thd, table, &backup, 0 != error, TRUE);
+  mysql_mutex_unlock(&LOCK_compress_gtid_table);
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
                     const char act[]= "now signal complete_compression";
@@ -536,6 +521,7 @@ int Gtid_table_persistor::reset()
   tmp_disable_binlog(thd);
   saved_mode= thd->variables.sql_mode;
 
+  mysql_mutex_lock(&LOCK_compress_gtid_table);
   if (this->open_table(thd, TL_WRITE, &table, &backup))
   {
     error= 1;
@@ -545,9 +531,8 @@ int Gtid_table_persistor::reset()
   error= delete_all(table);
 
 end:
-  need_commit= true;
-  this->close_table(thd, table, &backup, 0 != error);
-  need_commit= false;
+  this->close_table(thd, table, &backup, 0 != error, TRUE);
+  mysql_mutex_unlock(&LOCK_compress_gtid_table);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
@@ -564,7 +549,15 @@ THD *Gtid_table_persistor::create_thd()
   thd->store_globals();
   thd->security_ctx->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
-  need_commit= true;
+  /*
+    This is equivalent to a new "statement". For that reason, we call
+    both lex_start() and mysql_reset_thd_for_next_command.
+  */
+  if (!current_thd)
+  {
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
+  }
 
   return(thd);
 }
@@ -577,7 +570,6 @@ void Gtid_table_persistor::drop_thd(THD *thd)
   thd->restore_globals();
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  NULL);
-  need_commit= false;
 
   DBUG_VOID_RETURN;
 }
@@ -649,9 +641,7 @@ int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
     ret= -1;
 
 end:
-  need_commit= true;
-  this->close_table(thd, table, &backup, 0 != ret);
-  need_commit= false;
+  this->close_table(thd, table, &backup, 0 != ret, TRUE);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)

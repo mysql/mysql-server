@@ -435,14 +435,10 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
   DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
   DBUG_ASSERT(gtid_mode > GTID_MODE_UPGRADE_STEP_1);
   int error= 0;
-  bool need_unlock= false;
 
-  if (opt_bin_log && mysql_bin_log.is_resetting())
-  {
-    /* The transaction will wait until finish resetting binlog files. */
+  /* Wait until finish resetting binlog files. */
+  if (opt_bin_log)
     mysql_mutex_lock(&LOCK_reset_binlog);
-    need_unlock= true;
-  }
 
   global_sid_lock->rdlock();
   Gtid automatic_gtid= { 0, 0 };
@@ -454,10 +450,11 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
     error= 1;
     sql_print_error("Failed to generate automatic gtid.");
   }
-  acquire_ownership(thd, automatic_gtid);
+  else
+    acquire_ownership(thd, automatic_gtid);
   unlock_sidno(automatic_gtid.sidno);
   global_sid_lock->unlock();
-  if (need_unlock)
+  if (opt_bin_log)
     mysql_mutex_unlock(&LOCK_reset_binlog);
 
   DBUG_RETURN(error);
