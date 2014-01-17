@@ -17,11 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
-#include <vector>
-
 #include "row_of_fields.h"
 #include "value.h"
 #include <stdexcept>
+#include <vector>
 
 using namespace binary_log;
 
