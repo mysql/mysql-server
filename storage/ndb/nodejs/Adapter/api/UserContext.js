@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -33,6 +33,217 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
     stats      = stats_module.getWriter(["api", "UserContext"]),
     util       = require("util");
 
+function Promise() {
+  // implement Promises/A+ http://promises-aplus.github.io/promises-spec/
+  // until then is called, this is an empty promise with no performance impact
+}
+
+function emptyFulfilledCallback(result) {
+  return result;
+}
+function emptyRejectedCallback(err) {
+  throw err;
+}
+/** Fulfill or reject the original promise via "The Promise Resolution Procedure".
+ * original_promise is the Promise from this implementation on which "then" was called
+ * new_promise is the Promise from this implementation returned by "then"
+ * if the fulfilled or rejected callback provided by "then" returns a promise, wire the new_result (thenable)
+ *  to fulfill the new_promise when new_result is fulfilled
+ *  or reject the new_promise when new_result is rejected
+ * otherwise, if the callback provided by "then" returns a value, fulfill the new_promise with that value
+ * if the callback provided by "then" throws an Error, reject the new_promise with that Error
+ */
+var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result) {
+  var new_result;
+  try {
+    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected before');
+    new_result = fulfilled_or_rejected_callback.call(undefined, result);
+    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected after', new_result);
+    var new_result_type = typeof new_result;
+    if ((new_result_type === 'object' && new_result_type != null) | new_result_type === 'function') { 
+      // 2.3.3 if result is an object or function
+      // 2.3 The Promise Resolution Procedure
+      // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
+      if (new_result === original_promise) {
+        throw new Error('TypeError: Promise Resolution Procedure 2.3.1');
+      }
+      // 2.3.2 If x is a promise, adopt its state; but we don't care since it's also a thenable
+      var then;
+      try {
+        then = new_result.then;
+      } catch (thenE) {
+        // 2.2.3.2 If retrieving the property x.then results in a thrown exception e, 
+        // reject promise with e as the reason.
+        new_promise.reject(thenE);
+        return;
+      }
+      if (typeof then === 'function') {
+        // 2.3.3.3 If then is a function, call it with x as this, first argument resolvePromise, 
+        // and second argument rejectPromise
+        // 2.3.3.3.3 If both resolvePromise and rejectPromise are called, 
+        // or multiple calls to the same argument are made, the first call takes precedence, 
+        // and any further calls are ignored.
+        try {
+          then.call(new_result,
+            // 2.3.3.3.1 If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).
+            function(result) {
+            udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred fulfill callback', new_result);
+              if (!new_promise.resolved) {
+                new_promise.fulfill(result);
+              }
+            },
+            // 2.3.3.3.2 If/when rejectPromise is called with a reason r, reject promise with r.
+            function(err) {
+              udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred reject callback', new_result);
+              if (!new_promise.resolved) {
+                new_promise.reject(err);
+              }
+            }
+          );
+        } catch (callE) {
+          // 2.3.3.3.4 If calling then throws an exception e,
+          // 2.3.3.3.4.1 If resolvePromise or rejectPromise have been called, ignore it.
+          if (!new_promise.resolved) {
+            // 2.3.3.3.4.2 Otherwise, reject promise with e as the reason.
+            new_promise.reject(callE);
+          }
+        }
+      } else {
+        // 2.3.3.4 If then is not a function, fulfill promise with x.
+        new_promise.fulfill(new_result);
+      }
+    } else {
+      // 2.3.4 If x is not an object or function, fulfill promise with x.
+      new_promise.fulfill(new_result);
+    }
+  } catch (fulfillE) {
+    // 2.2.7.2 If either onFulfilled or onRejected throws an exception e,
+    // promise2 must be rejected with e as the reason.
+    new_promise.reject(fulfillE);
+  }
+  
+};
+
+Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
+  var self = this;
+  if (!self) udebug.log_detail('Promise.then called with no this');
+  // create a new promise to return from the "then" method
+  var new_promise = new Promise();
+  if (typeof self.fulfilled_callbacks === 'undefined') {
+    self.fulfilled_callbacks = [];
+    self.rejected_callbacks = [];
+    self.progress_callbacks = [];
+  }
+  if (self.resolved) {
+    var resolved_result;
+    udebug.log_detail(this.name, 'UserContext.Promise.then resolved; err:', self.err);
+    if (self.err) {
+      // this promise was already rejected
+      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) rejected_callback', rejected_callback);
+      global.setImmediate(function() {
+        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling rejected_callback', fulfilled_callback);
+        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, self.err);
+      });
+    } else {
+      // this promise was already fulfilled, possibly with a null or undefined result
+      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) fulfilled_callback', fulfilled_callback);
+      global.setImmediate(function() {
+        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling fulfilled_callback', fulfilled_callback);
+        thenPromiseFulfilledOrRejected(self, fulfilled_callback, new_promise, self.result);
+      });
+    }
+    return new_promise;
+  }
+  // create a closure for each fulfilled_callback
+  // the closure is a function that when called, calls setImmediate to call the fulfilled_callback with the result
+  if (typeof fulfilled_callback === 'function') {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with fulfilled_callback', fulfilled_callback);
+    // the following function closes (this, fulfilled_callback, new_promise)
+    // and is called asynchronously when this promise is fulfilled
+    this.fulfilled_callbacks.push(function(result) {
+      global.setImmediate(function() {
+        thenPromiseFulfilledOrRejected(self, fulfilled_callback, new_promise, result);
+      });
+    });
+  } else {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with no fulfilled_callback');
+    // create a dummy function for a missing fulfilled callback per 2.2.7.3 
+    // If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value.
+    this.fulfilled_callbacks.push(function(result) {
+      global.setImmediate(function() {
+        thenPromiseFulfilledOrRejected(self, emptyFulfilledCallback, new_promise, result);
+      });
+    });
+  }
+
+  // create a closure for each rejected_callback
+  // the closure is a function that when called, calls setImmediate to call the rejected_callback with the error
+  if (typeof rejected_callback === 'function') {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with rejected_callback', rejected_callback);
+    this.rejected_callbacks.push(function(err) {
+      global.setImmediate(function() {
+        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, err);
+      });
+    });
+  } else {
+    udebug.log_detail(self.name, 'UserContext.Promise.then with no rejected_callback');
+    // create a dummy function for a missing rejected callback per 2.2.7.4 
+    // If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason.
+    this.rejected_callbacks.push(function(err) {
+      global.setImmediate(function() {
+        thenPromiseFulfilledOrRejected(self, emptyRejectedCallback, new_promise, err);
+      });
+    });
+  }
+  // todo: progress_callbacks
+  if (typeof progress_callback === 'function') {
+    this.progress_callbacks.push(progress_callback);
+  }
+
+  return new_promise;
+};
+
+Promise.prototype.fulfill = function(result) {
+  var name = this?this.name: 'no this';
+  if (udebug.is_detail()) {
+    udebug.log_detail(new Error(name, 'Promise.fulfill').stack);
+  }
+  if (this.resolved) {
+    throw new Error('Fatal User Exception: fulfill called after fulfill or reject');
+  }
+  udebug.log_detail(name, 'Promise.fulfill with result', result, 'fulfilled_callbacks length:', 
+      this.fulfilled_callbacks?  this.fulfilled_callbacks.length: 0);
+  this.resolved = true;
+  this.result = result;
+  var fulfilled_callback;
+  if (this.fulfilled_callbacks) {
+    while(this.fulfilled_callbacks.length > 0) {
+      fulfilled_callback = this.fulfilled_callbacks.shift();
+      udebug.log_detail('Promise.fulfill for', result);
+      fulfilled_callback(result);
+    }
+  }
+};
+
+Promise.prototype.reject = function(err) {
+  if (this.resolved) {
+    throw new Error('Fatal User Exception: reject called after fulfill or reject');
+  }
+  var name = this?this.name: 'no this';
+  udebug.log_detail(name, 'Promise.reject with err', err, 'rejected_callbacks length:', 
+      this.rejected_callbacks?  this.rejected_callbacks.length: 0);
+  this.resolved = true;
+  this.err = err;
+  var rejected_callback;
+  if (this.rejected_callbacks) {
+    while(this.rejected_callbacks.length > 0) {
+      rejected_callback = this.rejected_callbacks.shift();
+      udebug.log_detail('Promise.reject for', err);
+      rejected_callback(err);
+    }
+  }
+//  throw err;
+};
 
 /** Create a function to manage the context of a user's asynchronous call.
  * All asynchronous user functions make a callback passing
@@ -60,15 +271,7 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
  */
 exports.UserContext = function(user_arguments, required_parameter_count, returned_parameter_count,
     session, session_factory, execute) {
-  if (arguments.length !== 6) {
-    if (arguments.length === 5) {
-      this.execute = true;
-    } else {
-    throw new Error(
-        'Fatal internal exception: wrong parameter count ' + arguments.length + ' for UserContext constructor' +
-        '; expected 5 or 6)');
-    }
-  }
+  this.execute = (typeof execute === 'boolean' ? execute : true);
   this.user_arguments = user_arguments;
   this.user_callback = user_arguments[required_parameter_count - 1];
   this.required_parameter_count = required_parameter_count;
@@ -82,6 +285,7 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
     this.autocommit = !this.session.tx.isActive();
   }
   this.errorMessages = '';
+  this.promise = new Promise();
 };
 
 exports.UserContext.prototype.appendErrorMessage = function(message) {
@@ -102,6 +306,7 @@ exports.UserContext.prototype.getTableMetadata = function() {
   var dbSession = (this.session)?this.session.dbSession:null;
   this.session_factory.dbConnectionPool.getTableMetadata(
       databaseName, tableName, dbSession, getTableMetadataOnTableMetadata);
+  return userContext.promise;
 };
 
 
@@ -117,6 +322,7 @@ exports.UserContext.prototype.listTables = function() {
   var databaseName = this.user_arguments[0];
   var dbSession = (this.session)?this.session.dbSession:null;
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
+  return userContext.promise;
 };
 
 
@@ -442,40 +648,33 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
   };
   
   var dbConnectionPoolCreated_callback = function(error, dbConnectionPool) {
-    udebug.log('connect dbConnectionPoolCreated for', connectionKey, 'database', database);
-    if(error) {
-      callback(error, null);
-    } else {
-        if (connection.isConnecting) {
-        // the first requester for this connection
-        connection.isConnecting = false;
+    if (connection.isConnecting) {
+      // the first requester for this connection
+      connection.isConnecting = false;
+      if (error) {
+        callback(error, null);
+      } else {
+        udebug.log('dbConnectionPool created for', connectionKey, 'database', database);
         connection.dbConnectionPool = dbConnectionPool;
         factory = createFactory(dbConnectionPool);
         connection.factories[database] = factory;
         connection.count++;
-        udebug.log_detail('dbConnectionPoolCreated_callback created SessionFactory for database', database);
-        // notify all others that the connection is now ready
-        for (i = 0; i < connection.waitingForConnection.length; ++i) {
-          udebug.log_detail('dbConnectionPoolCreated_callback notifying...');
-          connection.waitingForConnection[i](null, dbConnectionPool);
-        }
-      } else {
-        // another created the db connection pool
-        udebug.log('connect dbConnectionPoolCreated checking for database', database);
-        factory = connection.factories[database];
-        if (!factory) {
-          // the first for this database
-          udebug.log('connect dbConnectionPoolCreated creating session factory for database', database);
-          factory = createFactory(dbConnectionPool);
-          connection.factories[database] = factory;
-          connection.count++;
-          udebug.log('connect created SessionFactory with key', database, 'count is', connection.count,
-              'connection\n', connection);          
-        }
+        resolveTableMappingsAndCallback();
       }
-      // resolve all table mappings before returning
-      resolveTableMappingsAndCallback();
-   }
+      // notify all others that the connection is now ready (or an error was signaled)
+      for (i = 0; i < connection.waitingForConnection.length; ++i) {
+        udebug.log_detail('dbConnectionPoolCreated_callback notifying...');
+        connection.waitingForConnection[i](error, dbConnectionPool);
+      }
+    } else {
+      // another user request created the dbConnectionPool and session factory
+      if (error) {
+        callback(error, null);
+      } else {
+        factory = connection.factories[database];
+        resolveTableMappingsAndCallback();
+      }
+    }
   };
 
   // getSessionFactory starts here
@@ -523,21 +722,28 @@ exports.UserContext.prototype.connect = function() {
   };
 
   getSessionFactory(this, this.user_arguments[0], this.user_arguments[1], connectOnSessionFactory);
+  return userContext.promise;
 };
 
 function checkOperation(err, dbOperation) {
+  var sqlstate, message, result, result_code;
+  result = null;
+  result_code = null;
+  message = 'Unknown Error';
+  sqlstate = '22000';
   if (err) {
     return err;
-  } else if (!dbOperation.result.success) {
-    var sqlstate = dbOperation.result.error.sqlstate;
-    var message = dbOperation.result.error.message || 'Operation error';
-    var result = new Error(message);
-    result.code = dbOperation.result.error.code;
+  } else if (dbOperation.result.success !== true) {
+    if(dbOperation.result.error) {
+      sqlstate = dbOperation.result.error.sqlstate;
+      message = dbOperation.result.error.message || 'Operation error';
+      result_code = dbOperation.result.error.code;
+    }
+    result = new Error(message);
+    result.code = result_code;
     result.sqlstate = sqlstate;
-    return result;
-  } else {
-    return null;
   }
+  return result;
 }
 
 /** Find the object by key.
@@ -600,12 +806,13 @@ exports.UserContext.prototype.find = function() {
   // find starts here
   // session.find(prototypeOrTableName, key, callback)
   // validate first two parameters must be defined
-  if (!((userContext.user_arguments[0]) !== undefined) && userContext.user_arguments[1] !== undefined ) {
+  if (userContext.user_arguments[0] === undefined || userContext.user_arguments[1] === undefined) {
     userContext.applyCallback(new Error('User error: find must have at least two arguments.'), null);
   } else {
     // get DBTableHandler for prototype/tableName
     getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
   }
+  return userContext.promise;
 };
 
 
@@ -640,6 +847,8 @@ exports.UserContext.prototype.createQuery = function() {
   userContext.domainObject = typeof(this.user_arguments[0]) !== 'string';
   // get DBTableHandler for constructor/tableName
   getTableHandler(userContext.user_arguments[0], userContext.session, createQueryOnTableHandler);
+
+  return userContext.promise;
 };
 
 /** maximum skip and limit parameters are some large number */
@@ -772,7 +981,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   
   // executeQuery starts here
   // query.execute(parameters, callback)
-  udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate.toString(), 
+  udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate, 
       'with parameters', userContext.user_arguments[0]);
   // execute the query and call back user
   queryType = queryDomainType.mynode_query_domain_type.queryType;
@@ -796,6 +1005,8 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   default: 
     throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported');
   }
+  
+  return userContext.promise;
 };
 
 
@@ -835,7 +1046,6 @@ exports.UserContext.prototype.persist = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       userContext.operation = dbSession.buildInsertOperation(dbTableHandler, userContext.values, transactionHandler,
@@ -863,6 +1073,7 @@ exports.UserContext.prototype.persist = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, persistOnTableHandler);
+  return userContext.promise;
 };
 
 /** Save the object. If the row already exists, overwrite non-pk columns.
@@ -894,7 +1105,6 @@ exports.UserContext.prototype.save = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       indexHandler = dbTableHandler.getIndexHandler(userContext.values);
@@ -928,6 +1138,7 @@ exports.UserContext.prototype.save = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, saveOnTableHandler);
+  return userContext.promise;
 };
 
 /** Update the object.
@@ -959,7 +1170,6 @@ exports.UserContext.prototype.update = function() {
     }
     if (err) {
       userContext.applyCallback(err);
-      return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       indexHandler = dbTableHandler.getIndexHandler(userContext.keys);
@@ -996,6 +1206,7 @@ exports.UserContext.prototype.update = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, updateOnTableHandler);
+  return userContext.promise;
 };
 
 /** Load the object.
@@ -1065,6 +1276,7 @@ exports.UserContext.prototype.load = function() {
   }
   var ctor = userContext.user_arguments[0].mynode.constructor;
   getTableHandler(ctor, userContext.session, loadOnTableHandler);
+  return userContext.promise;
 };
 
 /** Remove the object.
@@ -1132,6 +1344,7 @@ exports.UserContext.prototype.remove = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, removeOnTableHandler);
+  return userContext.promise;
 };
 
 /** Get Mapping
@@ -1149,6 +1362,7 @@ exports.UserContext.prototype.getMapping = function() {
   }
   // getMapping starts here
   getTableHandler(userContext.user_arguments[0], userContext.session, getMappingOnTableHandler);  
+  return userContext.promise;
 };
 
 /** Execute a batch
@@ -1206,6 +1420,7 @@ exports.UserContext.prototype.executeBatch = function(operationContexts) {
     // now execute the operations
     executeBatchOnOperationDefined(0);
   }
+  return userContext.promise;
 };
 
 /** Commit an active transaction. 
@@ -1228,6 +1443,7 @@ exports.UserContext.prototype.commit = function() {
     userContext.applyCallback(
         new Error('Fatal Internal Exception: UserContext.commit with no active transaction.'));
   }
+  return userContext.promise;
 };
 
 
@@ -1252,6 +1468,7 @@ exports.UserContext.prototype.rollback = function() {
     userContext.applyCallback(
         new Error('Fatal Internal Exception: UserContext.rollback with no active transaction.'));
   }
+  return userContext.promise;
 };
 
 
@@ -1297,6 +1514,7 @@ exports.UserContext.prototype.openSession = function() {
     getSessionFactory(userContext, userContext.user_arguments[0], userContext.user_arguments[1], 
         openSessionOnSessionFactory);
   }
+  return userContext.promise;
 };
 
 /** Close a session. Close the dbSession which might put the underlying connection
@@ -1316,6 +1534,7 @@ exports.UserContext.prototype.closeSession = function() {
   };
   // first, close the dbSession
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
+  return userContext.promise;
 };
 
 
@@ -1326,19 +1545,23 @@ exports.UserContext.prototype.closeSession = function() {
  * If there is no user callback, and there is an error (first argument to applyCallback)
  * throw the error.
  */
-exports.UserContext.prototype.applyCallback = function(err) {
+exports.UserContext.prototype.applyCallback = function(err, result) {
   if (arguments.length !== this.returned_parameter_count) {
     throw new Error(
         'Fatal internal exception: wrong parameter count ' + arguments.length +' for UserContext applyCallback' + 
         '; expected ' + this.returned_parameter_count);
   }
+  // notify (either fulfill or reject) the promise
+  if (err) {
+    udebug.log_detail('UserContext.applyCallback.reject', err);
+    this.promise.reject(err);
+  } else {
+    udebug.log_detail('UserContext.applyCallback.fulfill', result);
+    this.promise.fulfill(result);
+  }
   if (typeof(this.user_callback) === 'undefined') {
-    // if there is an error and no user callback for this operation, throw the error instead
-    if (err) {
-      throw err;
-    } else {
-      return;
-    }
+    udebug.log_detail('UserContext.applyCallback with no user_callback.');
+    return;
   }
   var args = [];
   var i, j;
@@ -1350,3 +1573,5 @@ exports.UserContext.prototype.applyCallback = function(err) {
   }
   this.user_callback.apply(null, args);
 };
+
+exports.Promise = Promise;

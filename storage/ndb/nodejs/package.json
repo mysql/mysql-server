@@ -2,7 +2,7 @@
 {
   "name"        : "mysql-js"
   ,
-  "version"     : "0.7.0"
+  "version"     : "0.7.3"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
@@ -10,7 +10,9 @@
   ,
   "homepage"    : "http://github.com/mysql/mysql-js/"
   ,
-  "bugs"        : {}
+  "bugs"        : { "url" : "http://github.com/mysql/mysql-js/issues"}
+  ,
+  "license"     : "GPL2"
   ,
   "contributors": [ "John David Duncan <john.duncan@oracle.com>" ,
                     "Craig Russell <craig.russell@oracle.com>" ]
@@ -24,7 +26,9 @@
   ,
   "dependencies": []
   ,
-  "repository"  : {}
+  "repository"  : {  "type" : "git",
+                     "url": "https://github.com/mysql/mysql-js.git"
+                  }
 }
 
 

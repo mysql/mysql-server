@@ -17,38 +17,19 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
-/* Compatibility wrappers for changing NDBAPI 
-*/
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
-#include <ndb_version.h>
+test.run = function() {
+  var t = this;
+  harness.SQL.drop(this.suite, function(error) {
+    if (error) {
+      t.fail('dropSQL failed: ' + error);
+    } else {
+      t.pass();
+    }
+  });
+};
 
-// 7.1 
-#if (NDB_VERSION_MAJOR == 7 && NDB_VERSION_MINOR == 1)
-
-#define MULTIWAIT_ENABLED 1
-#define USE_OLD_MULTIWAIT_API 1
-
-// 7.2
-#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 2)
-#define MULTIWAIT_ENABLED 1
-
-#if NDB_VERSION_BUILD < 14
-#define USE_OLD_MULTIWAIT_API 1
-#endif
-
-// 7.3
-#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 3)
-
-#if NDB_VERSION_BUILD < 3
-#define USE_OLD_MULTIWAIT_API 1
-#define MULTIWAIT_ENABLED 0
-#else
-#define MULTIWAIT_ENABLED 1
-#endif
-
-#else
-#error "What NDB Version?"
-
-#endif
-
+module.exports.tests = [test];

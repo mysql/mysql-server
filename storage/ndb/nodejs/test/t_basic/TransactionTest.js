@@ -47,25 +47,7 @@ t1.run = function() {
       testCase.fail(new Error('t1 Idle transaction should not be rollback only.'));
       return;
     }
-    tx.setRollbackOnly(function(err) {
-      if (!err) {
-        testCase.fail(new Error('t1 Idle transaction should not allow set rollback only'));
-      } else {
-        tx.commit(function(err) {
-          if (!err) {
-            testCase.fail(new Error('t1 Idle transaction should not allow commit.'));
-          } else {
-            tx.rollback(function(err) {
-              if (!err) {
-                testCase.fail(new Error('t1 Idle transaction should not allow rollback.'));
-              } else {
-                testCase.pass();
-              }
-            });
-          }
-        });
-      }
-    });
+    testCase.pass();
   });
 };
 
@@ -139,136 +121,6 @@ t3.run = function() {
 };
 
 
-/***** Test begin with begin ***/
-var t4 = new harness.ConcurrentTest("testBeginBegin");
-t4.run = function() {
-  var testCase = this;
-  fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
-    try {
-      tx.begin();
-      tx.begin();
-      testCase.fail(new Error('t4 Begin Begin without commit or rollback should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
-  });
-};
-
-/***** Test commit without begin with and without callback ***/
-var t5 = new harness.ConcurrentTest("testCommitWithoutBegin");
-t5.run = function() {
-  var testCase = this;
-  var tx;
-  var t5OnCommit = function(err) {
-    if (err) {
-      // so far so good
-      try {
-        tx.commit();
-        testCase.fail(new Error('t5 Commit without begin and without callback should throw.'));
-      } catch (e) {
-        testCase.pass();
-      }
-    } else {
-      // failed to signal an error
-      testCase.fail(new Error('t5 Commit without begin should fail.'));
-    }
-  };
-
-  fail_openSession(testCase, function(session) {
-    tx = session.currentTransaction();
-    tx.commit(t5OnCommit);
-  });
-};
-
-/***** Test rollback without begin with and without callback ***/
-var t6 = new harness.ConcurrentTest("testRollbackWithoutBegin");
-t6.run = function() {
-  var tx;
-  var testCase = this;
-  var t6OnRollback = function(err) {
-    if (err) {
-      // so far so good
-      try {
-        tx.rollback();
-        testCase.fail(new Error('t6 Rollback without begin and without callback should throw.'));
-      } catch (ex) {
-        testCase.pass();
-      }
-    } else {
-      // failed to signal an error
-      testCase.fail(new Error('t6 Rollback without begin should fail.'));
-    }
-  };
-  fail_openSession(testCase, function(session) {
-    tx = session.currentTransaction();
-    tx.rollback(t6OnRollback);
-  });
-};
-
-
-/***** Test commit with rollback only ***/
-var t7 = new harness.ConcurrentTest("testCommitWithRollbackOnly");
-t7.run = function() {
-  var tx;
-  var testCase = this;
-  var t7OnCommit = function(err) {
-    if (err) {
-      // so far so good
-      try {
-        tx.commit();
-        testCase.fail(new Error('t7 SetRollbackOnly, Commit with callback, Commit with no callback should throw.'));
-      } catch (ex) {
-        tx.rollback();
-        testCase.pass();
-      }
-    } else {
-      // failed to signal an error
-      testCase.fail(new Error('Commit with RollbackOnly should fail.'));
-    }
-  };
-  fail_openSession(testCase, function(session) {
-    tx = session.currentTransaction();
-    tx.begin();
-    tx.setRollbackOnly();
-    tx.commit(t7OnCommit);
-  });
-};
-
-
-/***** Test begin with rollback only ***/
-var t8 = new harness.ConcurrentTest("testBeginWithRollbackOnly");
-t8.run = function() {
-  var testCase = this;
-  fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
-    tx.begin();
-    tx.setRollbackOnly();
-    try {
-      tx.begin();
-      testCase.fail(new Error('t8 Begin with rollback only should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
-  });
-};
-
-
-/***** Test setRollbackOnly without begin ***/
-var t9 = new harness.ConcurrentTest("testSetRollbackOnlyWithoutBegin");
-t9.run = function() {
-  var testCase = this;
-  fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
-    try {
-      tx.setRollbackOnly();
-      testCase.fail(new Error('t9 SetRollbackOnly without begin should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
-  });
-};
-
 var t10 = new harness.SerialTest("testCommit");
 t10.run = function() {
   udebug.log("t10 run");
@@ -339,4 +191,4 @@ t11.run = function() {
   fail_openSession(testCase, t11OnSession);
 };
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11];
+module.exports.tests = [t1, t2, t3, t10, t11];

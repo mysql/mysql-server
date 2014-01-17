@@ -48,18 +48,20 @@ enum {
 class DBScanHelper : public Operation {
 public:
   DBScanHelper(const Arguments &);
+  ~DBScanHelper();
   NdbScanOperation * prepareScan();
   const NdbError & getNdbError();
 private:
   NdbTransaction *tx;
-  NdbIndexScanOperation::IndexBound *bound;
+  int nbounds;
+  NdbIndexScanOperation::IndexBound **bounds;
   bool isIndexScan;
   NdbScanOperation::ScanOptions options;
 };
 
 
 DBScanHelper::DBScanHelper(const Arguments &args) : 
-  bound(0),
+  nbounds(0),
   isIndexScan(false)
 {
   DEBUG_MARKER(UDEB_DEBUG);
@@ -93,10 +95,18 @@ DBScanHelper::DBScanHelper(const Arguments &args) :
     lmode = static_cast<NdbOperation::LockMode>(intLockMode);
   }
 
+  // SCAN_BOUNDS is an array of BoundHelpers  
   v = spec->Get(SCAN_BOUNDS);
-  if(! v->IsNull()) {
+  if(v->IsArray()) {
     Local<Object> o = v->ToObject();
-    bound = unwrapPointer<NdbIndexScanOperation::IndexBound *>(o);
+    while(o->Has(nbounds)) {
+      nbounds++; 
+    }
+    bounds = new NdbIndexScanOperation::IndexBound *[nbounds];
+    for(int i = 0 ; i < nbounds ; i++) {
+      Local<Object> b = o->Get(i)->ToObject();
+      bounds[i] = unwrapPointer<NdbIndexScanOperation::IndexBound *>(b);
+    }
   }
 
   v = spec->Get(SCAN_OPTION_FLAGS);
@@ -134,14 +144,24 @@ DBScanHelper::DBScanHelper(const Arguments &args) :
 }
 
 
+DBScanHelper::~DBScanHelper() {
+  if(bounds) delete[] bounds;
+}
+
+
 /* Async Method: 
 */
 NdbScanOperation * DBScanHelper::prepareScan() {
   DEBUG_MARKER(UDEB_DEBUG);
   NdbScanOperation * scan_op;
+  NdbIndexScanOperation * index_scan_op;
   
   if(isIndexScan) {
-    scan_op = scanIndex(tx, bound);
+    scan_op = index_scan_op = scanIndex(tx);
+    for(int i = 0 ; i < nbounds ; i++) {
+      // SetBound could return an error
+      index_scan_op->setBound(key_record->getNdbRecord(), * bounds[i]);
+    }
   }
   else {
     scan_op = scanTable(tx);
@@ -173,8 +193,9 @@ Handle<Value> DBScanHelper_wrapper(const Arguments &args) {
   HandleScope scope;
   DBScanHelper * helper = new DBScanHelper(args);
   Local<Object> wrapper = dbScanHelperEnvelope.newWrapper();
-  wrapPointerInObject<DBScanHelper *>(helper, dbScanHelperEnvelope, wrapper);
-  freeFromGC<DBScanHelper *>(helper, wrapper);
+  wrapPointerInObject(helper, dbScanHelperEnvelope, wrapper);
+  // freeFromGC: Disabled as it leads to segfaults during garbage collection
+  // freeFromGC(helper, wrapper);
   return scope.Close(wrapper);
 }
 
