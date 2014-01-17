@@ -22,8 +22,7 @@
 
 #include "compat_uv.h"
 
-
-#if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR >= 1 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define CONCURRENTFLAG_USE_GCC_ATOMICS
 #else 
 #define CONCURRENTFLAG_USE_LIBUV
