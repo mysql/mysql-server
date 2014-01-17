@@ -23,13 +23,25 @@
 
 #include <ndb_version.h>
 
-// 7.1 
+// Pre-7.0 
+#if NDB_VERSION_MAJOR < 7
+#error "Node.JS Adapter requires MySQL Cluster 7.1" 
+#endif 
+
+// 7.0 
+#if (NDB_VERSION_MAJOR == 7 && NDB_VERSION_MINOR == 0)
+#error "Node.JS Adapter requires MySQL Cluster 7.1" 
+#endif 
+
+// 7.1
+// Multiwait enabled; old API
 #if (NDB_VERSION_MAJOR == 7 && NDB_VERSION_MINOR == 1)
 
 #define MULTIWAIT_ENABLED 1
 #define USE_OLD_MULTIWAIT_API 1
 
 // 7.2
+// Multiwait enabled; old API prior to 7.2.14
 #elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 2)
 #define MULTIWAIT_ENABLED 1
 
@@ -37,18 +49,15 @@
 #define USE_OLD_MULTIWAIT_API 1
 #endif
 
-// 7.3
-#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 3)
+// 7.3 prior to 7.3.3
+// Multiwait disabled; USE_OLD_MULTIWAIT_API defined to prevent compiler error
+#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 3) && (NDB_VERSION_BUILD < 3) 
 
-#if NDB_VERSION_BUILD < 3
-#define USE_OLD_MULTIWAIT_API 1
 #define MULTIWAIT_ENABLED 0
+#define USE_OLD_MULTIWAIT_API 1
+
+// All other versions
+// Multiwait enabled
 #else
 #define MULTIWAIT_ENABLED 1
 #endif
-
-#else
-#error "What NDB Version?"
-
-#endif
-
