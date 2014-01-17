@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2301,8 +2301,19 @@ dict_stats_save(
 	trx_start_if_not_started(trx);
 
 	dict_index_t*	index;
-
 	index_map_t	indexes;
+
+	/* Below we do all the modifications in innodb_index_stats in a single
+	transaction for performance reasons. Modifying more than one row in a
+	single transaction may deadlock with other transactions if they
+	lock the rows in different order. Other transaction could be for
+	example when we DROP a table and do
+	DELETE FROM innodb_index_stats WHERE database_name = '...'
+	AND table_name = '...'; which will affect more than one row. To
+	prevent deadlocks we always lock the rows in the same order - the
+	order of the PK, which is (database_name, table_name, index_name,
+	stat_name). This is why below we sort the indexes by name and then
+	for each index, do the mods ordered by stat_name. */
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
