@@ -1373,10 +1373,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     if (!parent_primary_key && parent_index == 0)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_CANNOT_ADD_FOREIGN,
-                          "Parent table %s foreign key columns match no index in NDB",
-                          parent_tab.get_table()->getName());
+      my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
+               fk->name.str ? fk->name.str : "",
+               parent_tab.get_table()->getName());
       DBUG_RETURN(err_default);
     }
 

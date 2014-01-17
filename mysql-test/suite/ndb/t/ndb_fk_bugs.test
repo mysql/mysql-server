@@ -209,7 +209,7 @@ create table t1 (
   primary key using hash (a)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -226,7 +226,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -339,7 +339,7 @@ create table t1 (
   unique key using hash (b, c)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -356,7 +356,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
