@@ -53,6 +53,7 @@ function getDriverProperties(props) {
   }
   driver.database = props.database;
   driver.debug = props.mysql_debug;
+  driver.trace = props.mysql_trace;
 
   if (props.mysql_charset) {
     driver.charset = props.mysql_charset;
