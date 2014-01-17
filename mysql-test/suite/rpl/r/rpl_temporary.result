@@ -9,8 +9,6 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
 include/stop_slave.inc
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/start_slave.inc
 INSERT INTO t1 VALUES ('b');
 DROP TABLE IF EXISTS t1;
@@ -20,8 +18,6 @@ Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
 include/stop_slave.inc
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/start_slave.inc
 INSERT INTO `t1` set `a`=128,`b`='128';
 Warnings:
@@ -105,8 +101,6 @@ create temporary table t3 (f int);
 create temporary table t4 (f int);
 create table t5 (f int);
 stop slave;
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 insert into t5 select * from t4;
 start slave;
 select * from t5 /* must be 1 after reconnection */;
@@ -135,8 +129,6 @@ a
 1
 drop table t1;
 include/stop_slave.inc
-Warnings:
-Warning	1901	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/rpl_reset.inc
 -- Bug#43748
 -- make a user on the slave that can list but not kill system threads.
