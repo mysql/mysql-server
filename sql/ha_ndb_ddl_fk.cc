@@ -115,6 +115,10 @@ find_matching_index(NDBDICT* dict,
       uint cnt= 0;
       for (unsigned j = 0; columns[j] != 0; j++)
       {
+        /*
+         * Search for matching columns in any order
+         * since order does not matter for unique index
+         */
         bool found= FALSE;
         for (unsigned c = 0; c < index->getNoOfColumns(); c++)
         {
