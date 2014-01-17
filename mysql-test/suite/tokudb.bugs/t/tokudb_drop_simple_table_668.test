@@ -1,6 +1,7 @@
 # verify that we can drop simple tokudb tables created in tokudb 6.6.8
 
 source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 
 # capture the datadir
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
