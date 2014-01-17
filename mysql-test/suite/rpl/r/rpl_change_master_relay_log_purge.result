@@ -4,8 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 FLUSH BINARY LOGS;
-FLUSH BINARY LOGS;
-FLUSH BINARY LOGS;
 
 We now stop the IO thread and ensure that the relaylog files
 are not deleted on doing a change master with a running SQL thread.
@@ -38,7 +36,5 @@ include/assert.inc [With both the threads stopped and no use of relay_log_file o
 
 cleanup
 
-CHANGE MASTER TO MASTER_DELAY= 0;
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 60;
 include/start_slave.inc
 include/rpl_end.inc
