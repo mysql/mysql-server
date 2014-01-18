@@ -121,6 +121,28 @@ btr_cur_position(
 	rec_t*		rec,	/*!< in: record in tree */
 	buf_block_t*	block,	/*!< in: buffer block of rec */
 	btr_cur_t*	cursor);/*!< in: cursor */
+
+/**
+Optimistically latches the leaf page or pages requested.
+@param[in]	block		guessed buffer block
+@param[in]	modify_clock	modify clock value
+@param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in]	mtr		mini-transaction
+@return true if success */
+
+bool
+btr_cur_optimistic_latch_leaves(
+	buf_block_t*	block,
+	ib_uint64_t	modify_clock,
+	ulint*		latch_mode,
+	btr_cur_t*	cursor,
+	const char*	file,
+	ulint		line,
+	mtr_t*		mtr);
+
 /********************************************************************//**
 Searches an index tree and positions a tree cursor on a given level.
 NOTE: n_fields_cmp in tuple must be set so that it cannot be compared
