@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that select for update is executed with serializable isolation
 
 SET DEFAULT_STORAGE_ENGINE='tokudb';

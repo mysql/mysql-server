@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 SET DEFAULT_STORAGE_ENGINE='tokudb';
 -- source include/have_cp1250_ch.inc
 --disable_warnings

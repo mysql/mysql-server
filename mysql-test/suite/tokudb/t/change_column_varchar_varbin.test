@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar to varbin change is not supported inplace
 
 --disable_warnings

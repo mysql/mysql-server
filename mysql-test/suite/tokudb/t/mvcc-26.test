@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # ticket 895 is a query optimization problem with the primary key
 SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 

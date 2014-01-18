@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that delete only takes write locks when tokudb_use_write_locks is asserted
 # t1 scans all of the rows in a table and deletes 1 of them
 # t1 grabs a write range lock on -infinity +infinity

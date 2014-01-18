@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that deletes work when hot indexing is on
 
 SET DEFAULT_STORAGE_ENGINE='tokudb';

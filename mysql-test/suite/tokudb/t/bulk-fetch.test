@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # Tokutek
 # Test that bulk fetch works with various table types
 

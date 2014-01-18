@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # Tokutek
 # Test that the default sql_mode is NO_ENGINE_SUBSTITUTION
 

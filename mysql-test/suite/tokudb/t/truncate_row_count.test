@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # verify that truncate table leaves the table empty and sets the row count
 # to zero.
 --disable_warnings
