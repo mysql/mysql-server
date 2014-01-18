@@ -39,7 +39,8 @@ exports.loadRequiredModules = function() {
     require("mysql");
   }
   catch(e) {
-    error = new Error("The mysql adapter requires node-mysql version 2.0");
+    error = new Error("Error loading mysql node_module: " + e.message);
+    error.cause = e;
     throw error;
   }
   
