@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar expansion changes the length sum works
 
 --disable_warnings

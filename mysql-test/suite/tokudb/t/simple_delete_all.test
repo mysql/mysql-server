@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # verify that delete from table leaves the table empty
 --disable_warnings
 drop table if exists t;

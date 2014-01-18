@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that expansion of a binary field in a key is not supported
 
 --disable_warnings

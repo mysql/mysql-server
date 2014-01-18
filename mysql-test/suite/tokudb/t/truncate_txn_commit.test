@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test truncate commit
 set autocommit=off;
 --disable_warnings

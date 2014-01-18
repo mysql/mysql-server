@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varbinary expansion is done inplace while varbinary shrinkage is not
 
 --disable_warnings

@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # 9/22/2011
 # Test that getting and setting the value for
 # blocking row lock timeout works correctly.

@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # Tokutek
 # test that read locks are not taken with serializable isolation and
 # autocommit on, refs 3532
