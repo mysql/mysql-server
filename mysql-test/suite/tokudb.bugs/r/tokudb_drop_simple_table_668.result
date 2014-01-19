@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 create table tc (id int, x int, primary key(id), key(x));
 select dictionary_name from information_schema.tokudb_file_map;
 dictionary_name
