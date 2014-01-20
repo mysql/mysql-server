@@ -8,7 +8,6 @@ set(tokuportability_srcs
   portability
   toku_assert
   toku_crash
-  toku_fair_rwlock
   toku_path
   toku_pthread
   toku_time

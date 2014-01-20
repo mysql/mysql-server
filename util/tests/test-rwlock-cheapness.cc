@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 
 #include <toku_portability.h>
 #include <toku_assert.h>
-#include <portability/toku_fair_rwlock.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_time.h>
 #include <util/frwlock.h>
