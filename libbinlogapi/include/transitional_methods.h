@@ -18,6 +18,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 
+/**
+  @file transitional_methods.h
+
+  @brief Contains functions which are used by the server independent of the
+  binlogapi library.
+*/
+
 #ifndef _TRANSITIONAL_METHODS_H
 #define _TRANSITIONAL_METHODS_H
 #include <stdlib.h>
@@ -30,17 +37,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #undef max
 #endif
 
-/**
-  Copies the first length character from source to destination
-*/
-extern unsigned char *net_store_data(unsigned char *destination,
-                                     const unsigned char *source, size_t length);
 
 /**
    Splits server 'version' string into three numeric pieces stored
    into 'split_versions':
    X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
    X.Yabc -> {X,Y,0}
+
+   @param version        String representing server version
+   @param split_versions Array with each element containing one split of the
+                         input version string
 */
 inline void do_server_version_split(const char *version, unsigned char split_versions[3])
 {
@@ -70,16 +76,27 @@ inline void do_server_version_split(const char *version, unsigned char split_ver
   }
 }
 
+
+/**
+  Calculate the version product from the numeric pieces representing the server
+  version:
+  For a server version X.Y.Zabc (X,Y,Z numbers, a not a digit), the input is
+  {X,Y,Z}. This is converted to XYZ in bit representation.
+
+  @param  version_split Array containing the version information of the server
+  @return               The version product of the server
+*/
 inline unsigned long version_product(const unsigned char* version_split)
 {
   return ((version_split[0] * 256 + version_split[1]) * 256
           + version_split[2]);
 }
 
-/*
-   replication event checksum is introduced in the following "checksum-home" version.
-   The checksum-aware servers extract FD's version to decide whether the FD event
-   carries checksum info.
+
+/**
+   Replication event checksum is introduced in the following "checksum-home"
+   version. The checksum-aware servers extract FD's version to decide whether
+   the FD event  carries checksum info.
 */
 extern const unsigned char checksum_version_split[3];
 extern const unsigned long checksum_version_product;

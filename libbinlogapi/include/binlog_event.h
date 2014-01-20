@@ -17,11 +17,24 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
+
+/**
+  @addtogroup Replication
+  @{
+
+  @file binlog_event.h
+
+  @brief Contains the classes representing events occuring in the replication
+  stream. Each event is represented as a byte sequence with logical divisions
+  as event header, event specific data and event footer. The header and footer
+  are common to all the events and are represented as two different subclasses.
+*/
+
 #ifndef BINLOG_EVENT_INCLUDED
 #define	BINLOG_EVENT_INCLUDED
 
 #include "debug_vars.h"
-/**
+/*
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
@@ -44,6 +57,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <map>
 #include <sstream>
 #include <vector>
+
 
 /*
   The symbols below are a part of the common definitions between
@@ -69,7 +83,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define ST_SERVER_VER_SPLIT_LEN 3
 #endif
 
-/*
+/**
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
    Compared to version 3, version 4 has:
    - a different Start_event, which includes info about the binary log
@@ -78,6 +92,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    - all events have a unique ID (the triplet (server_id, timestamp at server
    start, other) to be sure an event is not executed more than once in a
    multimaster setup, example:
+   @verbatim
                 M1
               /   \
              v     v
@@ -85,6 +100,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
              \     /
               v   v
                 S
+   @endverbatim
    if a query is run on M1, it will arrive twice on S, so we need that S
    remembers the last unique ID it has processed, to compare and know if the
    event should be skipped or not. Example of ID: we already have the server id
@@ -99,10 +115,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
    charsets, the PASSWORD() version (old/new/...).
 */
-
-
 #define BINLOG_VERSION    4
-/*
+
+/**
   Check if jump value is within buffer limits.
 
   @param jump         Number of positions we want to advance.
@@ -119,7 +134,8 @@ template <class T> T available_buffer(const char* buf_start,
   return buf_len - (buf_current - buf_start);
 }
 
-/*
+
+/**
   Check if jump value is within buffer limits.
 
   @param jump         Number of positions we want to advance.
@@ -127,8 +143,8 @@ template <class T> T available_buffer(const char* buf_start,
   @param buf_current  Pointer to the current position on buffer.
   @param buf_len      Buffer length.
 
-  @return      True   If jump value is within buffer limits.
-               False  Otherwise.
+  @retval      True   If jump value is within buffer limits.
+  @retval      False  Otherwise.
 */
 template <class T> bool valid_buffer_range(T jump,
                                            const char* buf_start,
@@ -137,19 +153,23 @@ template <class T> bool valid_buffer_range(T jump,
 {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
 }
+
+
 /**
   Enumeration of group types formed while transactions.
   The structure of a group is as follows:
+  @verbatim
   Group {
-        SID (16 byte UUID):         the source identifier for the group
-        GNO (8 byte unsigned int):  the group number for the group
-        COMMIT_FLAG (boolean):      true if this is the last group of the
+        SID (16 byte UUID):         The source identifier for the group
+        GNO (8 byte unsigned int):  The group number for the group
+        COMMIT_FLAG (boolean):      True if this is the last group of the
                                     transaction
-        LGID (8 byte unsigned int): local group identifier: this is 1 for the
+        LGID (8 byte unsigned int): Local group identifier: this is 1 for the
                                     first group in the binary log, 2 for the
-                                    next one, etc. This is like an auto_increment
-                                    primary key on the binary log.
+                                    next one, etc. This is like an
+                                    auto_increment primary key on the binary log.
         }
+  @endverbatim
 */
 enum enum_group_type
 {
@@ -160,121 +180,14 @@ enum enum_group_type
   UNDEFINED_GROUP
 };
 
-/*
+/**
   G_COMMIT_TS status variable stores the logical timestamp when the transaction
   entered the commit phase. This wll be used to apply transactions in parallel
   on the slave.
  */
 #define G_COMMIT_TS  1
 
-
-/**
-  These are flags and structs to handle all the LOAD DATA INFILE options (LINES
-  TERMINATED etc).
-  DUMPFILE_FLAG is probably not used (DUMPFILE is a clause of SELECT,
-  not of LOAD DATA).
-*/
-#define DUMPFILE_FLAG           0x1
-#define OPT_ENCLOSED_FLAG       0x2
-#define REPLACE_FLAG            0x4
-#define IGNORE_FLAG             0x8
-
-#define FIELD_TERM_EMPTY        0x1
-#define ENCLOSED_EMPTY          0x2
-#define LINE_TERM_EMPTY         0x4
-#define LINE_START_EMPTY        0x8
-#define ESCAPED_EMPTY           0x10
-
-/**
-  @struct old_sql_ex
-
-  This structure holds the single character field/line options in the
-  LOAD_DATA_INFILE statement. It is used for server versions prior to
-  5.0.3, where a single character separator was supported for
-  LOAD_DATA_INFILE statements.
-
-  The structure contains the foloowing components.
-  <table>
-  <caption>old_sql_ex members for Load_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>field_term</td>
-    <td>a single character</td>
-    <td>field terminating character spcified by the subclause
-        'FIELDS TERMINATED BY'
-    </td>
-  </tr>
-
-  <tr>
-    <td>enclosed</td>
-    <td>a single character</td>
-    <td>character used for enclosing field data, specified by
-        the subclause 'FIELDS ENCLOSED BY'
-    </td>
-  </tr>
-
-  <tr>
-    <td>line_term</td>
-    <td>a single character</td>
-    <td>line terminating character, specified by the subclause
-        'LINES TERMINATED BY'
-    </td>
-  </tr>
-
-  <tr>
-    <td>line_start</td>
-    <td>a single character</td>
-    <td>character indicating the start of a line, specified by
-       the subclause 'LINES STARTING BY'
-    </td>
-  </tr>
-
-  <tr>
-    <td>escaped</td>
-    <td>a single character</td>
-    <td>escape character for a field, specified by the subclause
-       'FIELD ESCAPED BY'
-    </td>
-  </tr>
-
-  <tr>
-    <td>opt_flags</td>
-    <td>8 bit bitfield value </td>
-    <td>bitfield indicating the presence of the keywords REPLACE,
-        IGNORE, and OPTIONALLY
-    </td>
-  </tr>
-
-  <tr>
-    <td>empty_flags</td>
-    <td>8 bit bitfield value </td>
-    <td>The low 5 bits of empty_flags indicate which of the five strings
-        have length 0.  For each of the following flags that is set, the
-        corresponding string has length 0; for the flags that are not set,
-        the string has length 1: FIELD_TERM_EMPTY==0x1,
-        ENCLOSED_EMPTY==0x2, LINE_TERM_EMPTY==0x4, LINE_START_EMPTY==0x8,
-        ESCAPED_EMPTY==0x10.
-    </td>
-  </tr>
-*/
-struct old_sql_ex
-{
-  char field_term;
-  char enclosed;
-  char line_term;
-  char line_start;
-  char escaped;
-  char opt_flags;
-  char empty_flags;
-};
-
-/**
+/*
   Constants used by Query_event.
 */
 
@@ -321,9 +234,15 @@ struct old_sql_ex
 
 #define SEQ_UNINIT -1
 
+/**
+  @namespace binary_log
+
+  The namespace contains classes representing events that can occur in a
+  replication stream.
+*/
 namespace binary_log
 {
-/**
+/*
   Reads string from buf.
 
   Reads str from buf in the following format:
@@ -338,8 +257,8 @@ namespace binary_log
   @param str destination pointer
   @param len length to which the buffer should be read
 
-  @return 1 error
-          0 success
+  @retval 1 error
+  @retval 0 success
 */
 static inline int read_str_at_most_255_bytes(const char **buf,
                                              const char *buf_end,
@@ -375,12 +294,9 @@ static inline int read_str_at_most_255_bytes(const char **buf,
    Note, that old binlogs does not have this flag set, so we get a
    a backward-compatible behaviour.
 */
-
 #define LOG_EVENT_BINLOG_IN_USE_F       0x1
 
 /**
-  @enum Log_event_type
-
   Enumeration type for the different types of log events.
 */
 enum Log_event_type
@@ -416,33 +332,33 @@ enum Log_event_type
 
   TABLE_MAP_EVENT = 19,
 
-  /*
-    These event numbers were used for 5.1.0 to 5.1.15 and are
+  /**
+    The PRE_GA event numbers were used for 5.1.0 to 5.1.15 and are
     therefore obsolete.
    */
   PRE_GA_WRITE_ROWS_EVENT = 20,
   PRE_GA_UPDATE_ROWS_EVENT = 21,
   PRE_GA_DELETE_ROWS_EVENT = 22,
 
-  /*
-   These event numbers are used from 5.1.16 until mysql-trunk-xx
-   */
+  /**
+    The V1 event numbers are used from 5.1.16 until mysql-trunk-xx
+  */
   WRITE_ROWS_EVENT_V1 = 23,
   UPDATE_ROWS_EVENT_V1 = 24,
   DELETE_ROWS_EVENT_V1 = 25,
 
-  /*
+  /**
     Something out of the ordinary happened on the master
    */
   INCIDENT_EVENT= 26,
 
-  /*
+  /**
     Heartbeat event to be send by master at its idle time
     to ensure master's online status to slave
   */
   HEARTBEAT_LOG_EVENT= 27,
 
-  /*
+  /**
     In some situations, it is necessary to send over ignorable
     data to the slave: data that a slave can handle in case there
     is code for handling it, but which can be ignored if it is not
@@ -451,7 +367,7 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
-  /* Version 2 of the Row events */
+  /** Version 2 of the Row events */
   WRITE_ROWS_EVENT = 30,
   UPDATE_ROWS_EVENT = 31,
   DELETE_ROWS_EVENT = 32,
@@ -461,11 +377,11 @@ enum Log_event_type
 
   PREVIOUS_GTIDS_LOG_EVENT= 35,
 
-  /*
-   * A user defined event
-   */
+  /**
+    A user defined event
+  */
   USER_DEFINED_EVENT= 36,
-  /*
+  /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
@@ -484,19 +400,18 @@ enum Log_event_type
 */
 
 #define ST_SERVER_VER_LEN 50
+
 /*
    Event header offsets;
    these point to places inside the fixed header.
 */
-
 #define EVENT_TYPE_OFFSET    4
 #define SERVER_ID_OFFSET     5
 #define EVENT_LEN_OFFSET     9
 #define LOG_POS_OFFSET       13
 #define FLAGS_OFFSET         17
 
-/* start event post-header (for v3 and v4) */
-
+/** start event post-header (for v3 and v4) */
 #define ST_BINLOG_VER_OFFSET  0
 #define ST_SERVER_VER_OFFSET  2
 #define ST_CREATED_OFFSET     (ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
@@ -504,7 +419,8 @@ enum Log_event_type
 
 #define LOG_EVENT_HEADER_LEN 19U    /* the fixed header length */
 #define OLD_HEADER_LEN       13U    /* the fixed header length in 3.23 */
-/*
+
+/**
    Fixed header length, where 4.x and 5.0 agree. That is, 5.0 may have a longer
    header (it will for sure when we have the unique event's ID), but at least
    the first 19 bytes are the same in 4.x and 5.0. So when we have the unique
@@ -513,16 +429,30 @@ enum Log_event_type
 */
 #define LOG_EVENT_MINIMAL_HEADER_LEN 19U
 
-enum enum_binlog_checksum_alg {
-  BINLOG_CHECKSUM_ALG_OFF= 0,    // Events are without checksum though its generator
-                                 // is checksum-capable New Master (NM).
-  BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
-  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
-  BINLOG_CHECKSUM_ALG_UNDEF= 255 // special value to tag undetermined yet checksum
-                                 // or events from checksum-unaware servers
+
+/**
+  Enumeration spcifying checksum algorithm used to encode a binary log event
+*/
+enum enum_binlog_checksum_alg
+{
+  /**
+    Events are without checksum though its generator is checksum-capable
+    New Master (NM).
+  */
+  BINLOG_CHECKSUM_ALG_OFF= 0,
+  /** CRC32 of zlib algorithm */
+  BINLOG_CHECKSUM_ALG_CRC32= 1,
+  /** the cut line: valid alg range is [1, 0x7f] */
+  BINLOG_CHECKSUM_ALG_ENUM_END,
+  /**
+    Special value to tag undetermined yet checksum or events from
+    checksum-unaware servers
+  */
+  BINLOG_CHECKSUM_ALG_UNDEF= 255
 };
 
 #define CHECKSUM_CRC32_SIGNATURE_LEN 4
+
 /**
    defined statically while there is just one alg implemented
 */
@@ -530,24 +460,26 @@ enum enum_binlog_checksum_alg {
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
 
 /**
- * Convenience function to get the string representation of a binlog event.
- */
+  Convenience function to get the string representation of a binlog event.
+*/
 const char* get_event_type_str(Log_event_type type);
-/*
+
+
+/**
   Calculate a long checksum for a memoryblock.
 
-  SYNOPSIS
-    checksum_crc32()
-      crc       start value for crc
-      pos       pointer to memory block
-      length    length of the block
-*/
+  @param crc       start value for crc
+  @param pos       pointer to memory block
+  @param length    length of the block
 
+  @return checksum for a memory block
+*/
 inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t length)
 {
   return (uint32_t)crc32(crc, pos, length);
 }
-/*
+
+/**
   This method copies the string pointed to by src (including
   the terminating null byte ('\0')) to the array pointed to by dest.
   The strings may not overlap, and the destination string dest must be
@@ -559,6 +491,8 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
   @return     pointer to the end of the string dest
 */
 char *bapi_stpcpy(char *dst, const char *src);
+
+
 /**
   bapi_strmake(dest,src,length) moves length characters, or until end, of src to
   dest and appends a closing NUL to dest.
@@ -572,57 +506,7 @@ char *bapi_strmake(char *dst, const char *src, size_t length);
 
 #define LOG_EVENT_HEADER_SIZE 20
 
-/**
-  @struct sql_ex_data_info
-
-  This structure holds the multi character field/line options in the
-  LOAD_DATA_INFILE statement. It is used for server versions newer than
-  5.0.3, where multicharacter separators were supported for
-  LOAD_DATA_INFILE SQL Query.
-
-  The structure is simlar to old_sql_ex defined above.
-  The new and old format differ in the way the five strings indicating the
-  terminating characters in the query are stored.
-
-  To know more, read comments in the class Load_event and struct
-  old_sql_ex.
-*/
-struct sql_ex_data_info
-{
-  sql_ex_data_info() {}                            /* Remove gcc warning */
-  const char* field_term;
-  const char* enclosed;
-  const char* line_term;
-  const char* line_start;
-  const char* escaped;
-  uint8_t field_term_len, enclosed_len, line_term_len,
-          line_start_len, escaped_len;
-
-  char opt_flags;
-  char empty_flags;
-
-  int cached_new_format;
-
-  /* store in new format even if old is possible */
-  void force_new_format() { cached_new_format = 1;}
-  int data_size()
-  {
-    return (new_format() ?
-            field_term_len + enclosed_len + line_term_len +
-            line_start_len + escaped_len + 6 : 7);
-  }
-  const char* init(const char* buf, const char* buf_end, bool use_new_format);
-  bool new_format()
-  {
-    return ((cached_new_format != -1) ? cached_new_format :
-            (cached_new_format= (field_term_len > 1 ||
-                                 enclosed_len > 1 ||
-                                 line_term_len > 1 || line_start_len > 1 ||
-                                 escaped_len > 1)));
-  }
-};
-
-/**
+/*
   Forward declaration of Format_description_event class to be used in class
   Log_event_header
 */
@@ -635,9 +519,26 @@ class Format_description_event;
   the checksum algorithm descriptor. The descriptor is contained in the
   FDE of the binary log. This is common for all the events contained in
   that binary log, and defines the algorithm used to checksum
-  the events contained in the binlog.
+  the events contained in the binary log.
 
- @note checksum *value* is not stored in the event. On master's side, it
+  @anchor Table_common_footer
+  The footer contains the following:
+  <table>
+  <caption>Common-Footer</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>checkusm_alg</td>
+    <td>enum_checksum_alg</td>
+    <td>Algorithm used to checksum the events contained in the binary log</td>
+  </table>
+
+  @note checksum *value* is not stored in the event. On master's side, it
        is calculated before writing into the binary log, depending on the
        updated event data. On the slave, the checksum value is retrieved
        from a particular offset and checked for corruption, by computing
@@ -667,6 +568,7 @@ public:
   }
 
   /**
+     @verbatim
      Master side:
      The value is set by caller of FD(Format Description) constructor
      In the FD case it's propagated into the last byte
@@ -674,6 +576,7 @@ public:
      Slave side:
      On the slave side the value is assigned from post_header_len[last]
      of the last seen FD event.
+     @endverbatim
      TODO: Revisit this comment when encoder is moved in libbinlogapi
   */
   enum_binlog_checksum_alg checksum_alg;
@@ -682,20 +585,13 @@ public:
 /**
   @class Log_event_header
 
-  Any @c Log_event saved on disk consists of the following three
-  components.
-
-  - Common-Header
-  - Post-Header
-  - Body
-
   The Common-Header always has the same form and length within one
   version of MySQL.  Each event type specifies a format and length
   of the Post-Header.  The length of the Common-Header is the same
-  for all events of the same type.  The Body may be of different
-  format and length even for different events of the same type.
+  for all events of the same type.
 
-  The binary format of Common-Header is as follows:
+  @anchor Table_common_header
+    The binary format of Common-Header is as follows:
   <table>
   <caption>Common-Header</caption>
 
@@ -707,7 +603,7 @@ public:
 
   <tr>
     <td>when</td>
-    <td>4 byte unsigned integer value, represented by type struct timeval</td>
+    <td>4 byte unsigned integer, represented by type struct timeval</td>
     <td>The time when the query started, in seconds since 1970.
     </td>
   </tr>
@@ -746,7 +642,7 @@ public:
   <tr>
     <td>flags</td>
     <td>2 byte bitfield</td>
-    <td>See Log_event::flags.</td>
+    <td>16 or less flags depending on the version of the binary log.</td>
   </tr>
   </table>
 
@@ -766,7 +662,7 @@ public:
   */
   struct timeval when;
 
-  /*
+  /**
     Event type extracted from the header. In the server, it is decoded
     by read_log_event(), but adding here for complete decoding.
   */
@@ -807,7 +703,8 @@ public:
   */
   typedef unsigned char Byte;
 
-  Log_event_header():log_pos(0), flags(0)
+  Log_event_header()
+  : log_pos(0), flags(0)
   {
     when.tv_sec= 0;
     when.tv_usec= 0;
@@ -819,8 +716,74 @@ public:
 };
 
 /**
- * TODO Base class for events. Implementation is in body()
- */
+    This is the abstract base class for binary log events.
+
+  @section Bianry_log_event_binary_format Binary Format
+
+  @anchor Binary_log_event_format
+  Any @c Binary_log_event saved on disk consists of the following four
+  components.
+
+  - Common-Header
+  - Post-Header
+  - Body
+  - Footer
+
+  Common header has the same format and length in a given MySQL version. It is
+  documented @ref Table_common_header "here".
+
+  The Body may be of different format and length even for different events of
+  the same type. The binary formats of Post-Header and Body are documented
+  separately in each subclass.
+
+  Footer is common to all the events in a given MySQL version. It is documented
+  @ref Table_common_footer "here".
+
+  @anchor packed_integer
+  - Some events, used for RBR use a special format for efficient representation
+  of unsigned integers, called Packed Integer.  A Packed Integer has the
+  capacity of storing up to 8-byte integers, while small integers
+  still can use 1, 3, or 4 bytes.  The value of the first byte
+  determines how to read the number, according to the following table:
+
+  <table>
+  <caption>Format of Packed Integer</caption>
+
+  <tr>
+    <th>First byte</th>
+    <th>Format</th>
+  </tr>
+
+  <tr>
+    <td>0-250</td>
+    <td>The first byte is the number (in the range 0-250), and no more
+    bytes are used.</td>
+  </tr>
+
+  <tr>
+    <td>252</td>
+    <td>Two more bytes are used.  The number is in the range
+    251-0xffff.</td>
+  </tr>
+
+  <tr>
+    <td>253</td>
+    <td>Three more bytes are used.  The number is in the range
+    0xffff-0xffffff.</td>
+  </tr>
+
+  <tr>
+    <td>254</td>
+    <td>Eight more bytes are used.  The number is in the range
+    0xffffff-0xffffffffffffffff.</td>
+  </tr>
+
+  </table>
+
+  - Strings are stored in various formats.  The format of each string
+  is documented separately.
+
+*/
 class Binary_log_event
 {
 public:
@@ -870,11 +833,6 @@ public:
 
   Binary_log_event()
   {
-      /*
-        An event length of 0 indicates that the header isn't initialized
-       */
-      //m_header.event_length= 0;
-      //m_header.type_code=    0;
   }
 
   Binary_log_event(const char **buf, uint16_t binlog_version,
@@ -901,15 +859,15 @@ public:
   virtual Log_event_type get_type_code()= 0;
   virtual bool is_valid() const= 0;
   /**
-   * Return a pointer to the header of the log event
-   */
+    Return a pointer to the header of the log event
+  */
   Log_event_header *header() const
   {
     return const_cast<Log_event_header*>(&m_header);
   }
   /**
-   * Return a pointer to the footer of the log event
-   */
+    Return a pointer to the footer of the log event
+  */
   Log_event_footer *footer() const
   {
     return const_cast<Log_event_footer*>(&m_footer);
@@ -1271,15 +1229,17 @@ private:
   <tr>
     <td>mts_accessed_dbs</td>
     <td>Q_UPDATED_DB_NAMES == 12</td>
-    <td>1 byte character, and a 2-D array, which  stores the total number
-        and the names to of the databases accessed, be propagated to the
-        slave in order to facilitate the parallel applying of the Query events.
+    <td>1 byte character, and a 2-D array</td>
+    <td>The total number and the names to of the databases accessed is stored,
+        to be propagated to the slave in order to facilitate the parallel
+        applying of the Query events.
     </td>
   </tr>
   <tr>
     <td>commit_seq_no</td>
     <td>Q_COMMIT_TS</td>
-    <td>8 byte integer, stores the logical timestamp when the transaction
+    <td>8 byte integer</td>
+    <td>Stores the logical timestamp when the transaction
         entered the commit phase. This wll be used to apply transactions
         in parallel on the slave.  </td>
   </tr>
@@ -1307,7 +1267,7 @@ private:
 class Query_event: public Binary_log_event
 {
 public:
-  /* query event post-header */
+  /** query event post-header */
   enum Query_event_post_header_offset{
     Q_THREAD_ID_OFFSET= 0,
     Q_EXEC_TIME_OFFSET= 4,
@@ -1558,93 +1518,6 @@ public:
 };
 
 
-/*
-  Elements of this enum describe how LOAD DATA handles duplicates.
-*/
-enum enum_load_dup_handling { LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE,
-                              LOAD_DUP_REPLACE };
-/**
-  @class Execute_load_query_event
-
-  Event responsible for LOAD DATA execution, it similar to Query_event
-  but before executing the query it substitutes original filename in LOAD DATA
-  query with name of temporary file.
-
-  The first 13 bytes of the Post-Header for this event are the same as for
-  Query_event, as is the initial status variable block in the Body.
-  The additional members of the events are the following:
-
-   <table>
-   <caption>Body for Execute_load_query_event</caption>
-
-   <tr>
-     <th>Name</th>
-     <th>Format</th>
-     <th>Description</th>
-   </tr>
-
-   <tr>
-     <td>file_id</td>
-     <td>4 byte unsigned integer</td>
-     <td>ID of the temporary file to load</td>
-   </tr>
-
-   <tr>
-     <td>fn_pos_start</td>
-     <td>4 byte unsigned integer</td>
-     <td>The start position within the statement for filename substitution</td>
-   </tr>
-   <tr>
-
-     <td>fn_pos_end</td>
-     <td>4 byte unsigned integer</td>
-     <td>The end position within the statement for filename substitution</td>
-   </tr>
-
-   <tr>
-     <td>dup_handling</td>
-     <td>enum_load_dup_handling</td>
-     <td>Represents information on how to handle duplicates:
-          LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE= 1, LOAD_DUP_REPLACE= 2</td>
-   </tr>
-  @section Execute_load_query_event_binary_format Binary Format
-*/
-class Execute_load_query_event : public virtual Query_event
-{
-public:
-  enum Execute_load_query_event_offset{
-   /* ELQ = "Execute Load Query" */
-   ELQ_FILE_ID_OFFSET= QUERY_HEADER_LEN,
-   ELQ_FN_POS_START_OFFSET= ELQ_FILE_ID_OFFSET + 4,
-   ELQ_FN_POS_END_OFFSET= ELQ_FILE_ID_OFFSET + 8,
-   ELQ_DUP_HANDLING_OFFSET= ELQ_FILE_ID_OFFSET + 12
-  };
-
-  uint32_t file_id;
-  uint32_t fn_pos_start;  /* pointer to the part of the query that should
-                             be substituted
-                          */
-  uint32_t fn_pos_end;    // pointer to the end of this part of query
-  /*
-    We have to store type of duplicate handling explicitly, because
-    for LOAD DATA it also depends on LOCAL option. And this part
-    of query will be rewritten during replication so this information
-    may be lost...
-  */
-  enum_load_dup_handling dup_handling;
-
-  Execute_load_query_event(uint32_t file_id_arg, uint32_t fn_pos_start,
-                           uint32_t fn_pos_end, enum_load_dup_handling dup);
-
-  Execute_load_query_event(const char* buf, unsigned int event_len,
-                           const Format_description_event *description_event);
-  ~Execute_load_query_event() {}
-
-  Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
-  bool is_valid() const { return Query_event::is_valid() && file_id != 0; }
-};
-
-
 /**
   @class Rotate_event
 
@@ -1744,6 +1617,8 @@ public:
   Start_event_v3 is the Start_event of binlog format 3 (MySQL 3.23 and
   4.x).
 
+  @section Start_event_v3_binary_format Binary Format
+
   Format_description_event derives from Start_event_v3; it is
   the Start_event of binlog format 4 (MySQL 5.0), that is, the
   event that describes the other events' Common-Header/Post-Header
@@ -1785,7 +1660,6 @@ public:
     <td>type bool</td>
     <td>Set to 1 when you dont want to have created time in the log</td>
   </table>
-  @section Start_event_v3_binary_format Binary Format
 */
 
 class Start_event_v3: public Binary_log_event
@@ -1842,6 +1716,8 @@ class Start_event_v3: public Binary_log_event
   This event is saved by threads which read it, as they need it for future
   use (to decode the ordinary events).
 
+  @section Format_description_event_binary_format Binary Format
+
   The Post-Header has six components:
 
   <table>
@@ -1890,7 +1766,6 @@ class Start_event_v3: public Binary_log_event
     <td>number of event types present in the server</td>
   </tr>
   </table>
-  @section Format_description_event_binary_format Binary Format
 */
 class Format_description_event: public virtual Start_event_v3
 {
@@ -1967,509 +1842,13 @@ public:
 };
 
 
-
 /**
-  @class Load_event
-
-  This event corresponds to a "LOAD DATA INFILE" SQL query in the
-  following form:
-
-  @verbatim
-   (1)    USE db;
-   (2)    LOAD DATA [CONCURRENT] [LOCAL] INFILE 'file_name'
-   (3)    [REPLACE | IGNORE]
-   (4)    INTO TABLE 'table_name'
-   (5)    [FIELDS
-   (6)      [TERMINATED BY 'field_term']
-   (7)      [[OPTIONALLY] ENCLOSED BY 'enclosed']
-   (8)      [ESCAPED BY 'escaped']
-   (9)    ]
-  (10)    [LINES
-  (11)      [TERMINATED BY 'line_term']
-  (12)      [LINES STARTING BY 'line_start']
-  (13)    ]
-  (14)    [IGNORE skip_lines LINES]
-  (15)    (field_1, field_2, ..., field_n)@endverbatim
-
-  @section Load_event_binary_format Binary Format
-
-  The Post-Header consists of the following six components.
-
-  <table>
-  <caption>Post-Header for Load_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>slave_proxy_id</td>
-    <td>4 byte unsigned integer</td>
-    <td>An integer identifying the client thread that issued the
-    query.  The id is unique per server.  (Note, however, that two
-    threads on different servers may have the same slave_proxy_id.)
-    This is used when a client thread creates a temporary table local
-    to the client.  The slave_proxy_id is used to distinguish
-    temporary tables that belong to different clients.
-    </td>
-  </tr>
-
-  <tr>
-    <td>load_exec_time</td>
-    <td>4 byte unsigned integer</td>
-    <td>The time from when the query started to when it was logged in
-    the binlog, in seconds.</td>
-  </tr>
-
-  <tr>
-    <td>skip_lines</td>
-    <td>4 byte unsigned integer</td>
-    <td>The number on line (14) above, if present, or 0 if line (14)
-    is left out.
-    </td>
-  </tr>
-
-  <tr>
-    <td>table_name_len</td>
-    <td>1 byte unsigned integer</td>
-    <td>The length of 'table_name' on line (4) above.</td>
-  </tr>
-
-  <tr>
-    <td>db_len</td>
-    <td>1 byte unsigned integer</td>
-    <td>The length of 'db' on line (1) above.</td>
-  </tr>
-
-  <tr>
-    <td>num_fields</td>
-    <td>4 byte unsigned integer</td>
-    <td>The number n of fields on line (15) above.</td>
-  </tr>
-  </table>
-
-  The Body contains the following components.
-
-  <table>
-  <caption>Body of Load_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>sql_ex</td>
-    <td>variable length</td>
-
-    <td>Describes the part of the query on lines (3) and
-    (5)&ndash;(13) above.  More precisely, it stores the five strings
-    (on lines) field_term (6), enclosed (7), escaped (8), line_term
-    (11), and line_start (12); as well as a bitfield indicating the
-    presence of the keywords REPLACE (3), IGNORE (3), and OPTIONALLY
-    (7).
-
-    The data is stored in one of two formats, called "old" and "new".
-    The type field of Common-Header determines which of these two
-    formats is used: type LOAD_EVENT means that the old format is
-    used, and type NEW_LOAD_EVENT means that the new format is used.
-    When MySQL writes a Load_event, it uses the new format if at
-    least one of the five strings is two or more bytes long.
-    Otherwise (i.e., if all strings are 0 or 1 bytes long), the old
-    format is used.
-
-    The new and old format differ in the way the five strings are
-    stored.
-
-    <ul>
-    <li> In the new format, the strings are stored in the order
-    field_term, enclosed, escaped, line_term, line_start. Each string
-    consists of a length (1 byte), followed by a sequence of
-    characters (0-255 bytes).  Finally, a boolean combination of the
-    following flags is stored in 1 byte: REPLACE_FLAG==0x4,
-    IGNORE_FLAG==0x8, and OPT_ENCLOSED_FLAG==0x2.  If a flag is set,
-    it indicates the presence of the corresponding keyword in the SQL
-    query.
-
-    <li> In the old format, we know that each string has length 0 or
-    1.  Therefore, only the first byte of each string is stored.  The
-    order of the strings is the same as in the new format.  These five
-    bytes are followed by the same 1 byte bitfield as in the new
-    format.  Finally, a 1 byte bitfield called empty_flags is stored.
-    The low 5 bits of empty_flags indicate which of the five strings
-    have length 0.  For each of the following flags that is set, the
-    corresponding string has length 0; for the flags that are not set,
-    the string has length 1: FIELD_TERM_EMPTY==0x1,
-    ENCLOSED_EMPTY==0x2, LINE_TERM_EMPTY==0x4, LINE_START_EMPTY==0x8,
-    ESCAPED_EMPTY==0x10.
-    </ul>
-
-    Thus, the size of the new format is 6 bytes + the sum of the sizes
-    of the five strings.  The size of the old format is always 7
-    bytes.
-    </td>
-  </tr>
-
-  <tr>
-    <td>field_lens</td>
-    <td>num_fields 1 byte unsigned integers</td>
-    <td>An array of num_fields integers representing the length of
-    each field in the query.  (num_fields is from the Post-Header).
-    </td>
-  </tr>
-
-  <tr>
-    <td>fields</td>
-    <td>num_fields null-terminated strings</td>
-    <td>An array of num_fields null-terminated strings, each
-    representing a field in the query.  (The trailing zero is
-    redundant, since the length are stored in the num_fields array.)
-    The total length of all strings equals to the sum of all
-    field_lens, plus num_fields bytes for all the trailing zeros.
-    </td>
-  </tr>
-
-  <tr>
-    <td>table_name</td>
-    <td>null-terminated string of length table_len + 1 bytes</td>
-    <td>The 'table_name' from the query, as a null-terminated string.
-    (The trailing zero is actually redundant since the table_len is
-    known from Post-Header.)
-    </td>
-  </tr>
-
-  <tr>
-    <td>db</td>
-    <td>null-terminated string of length db_len + 1 bytes</td>
-    <td>The 'db' from the query, as a null-terminated string.
-    (The trailing zero is actually redundant since the db_len is known
-    from Post-Header.)
-    </td>
-  </tr>
-
-  <tr>
-    <td>fname</td>
-    <td>variable length string without trailing zero, extending to the
-    end of the event (determined by the length field of the
-    Common-Header)
-    </td>
-    <td>The 'file_name' from the query.
-    </td>
-  </tr>
-
-  </table>
-
-  @subsection Load_event_notes_on_previous_versions Notes on Previous Versions
-
-  This event type is understood by current versions, but only
-  generated by MySQL 3.23 and earlier.
-*/
-class Load_event: public Binary_log_event
-{
-protected:
- int copy_load_event(const char *buf, unsigned long event_len,
-                     int body_offset,
-                     const Format_description_event* description_event);
- // Required by Load_event(THD* ...) in the server
- Load_event() : num_fields(0), fields(0), field_lens(0), field_block_len(0)
- {}
-public:
-  enum Load_event_offset {
-    L_THREAD_ID_OFFSET= 0,
-    L_EXEC_TIME_OFFSET= 4,
-    L_SKIP_LINES_OFFSET= 8,
-    L_TBL_LEN_OFFSET= 12,
-    L_DB_LEN_OFFSET= 13,
-    L_NUM_FIELDS_OFFSET= 14,
-    L_SQL_EX_OFFSET= 18,
-    L_DATA_OFFSET= LOAD_HEADER_LEN
-  };
-
-  /**
-   This is the execution time stored in the post header.
-   Make sure to use it to set the exec_time variable in class Log_event
-  */
-  uint32_t load_exec_time;
-
-  uint32_t slave_proxy_id;
-  uint32_t table_name_len;
-
-  /**
-    No need to have a catalog, as these events can only come from 4.x.
-  */
-  uint32_t db_len;
-  uint32_t fname_len;
-  uint32_t num_fields;
-
-  const char* fields;
-  const unsigned char* field_lens;
-  uint32_t field_block_len;
-
-  const char* table_name;
-  const char* db;
-  const char* fname;
-  uint32_t skip_lines;
-  sql_ex_data_info sql_ex_data;
-  bool local_fname;
-
-  /**
-    Indicates that this event corresponds to LOAD DATA CONCURRENT,
-
-    @note Since Load_event event coming from the binary log
-          lacks information whether LOAD DATA on master was concurrent
-          or not, this flag is only set to TRUE for an auxiliary
-          Load_event object which is used in mysql_load() to
-          re-construct LOAD DATA statement from function parameters,
-          for logging.
-  */
-  bool is_concurrent;
-
-  /**
-    Note that for all the events related to LOAD DATA (Load_event,
-    Create_file/Append/Exec/Delete, we pass description_event; however as
-    logging of LOAD DATA is changed, this is only used
-    for the common_header_len (post_header_len is not changed).
-  */
-  Load_event(const char* buf, unsigned int event_len,
-             const Format_description_event* description_event);
-  ~Load_event()
-  {}
-
-  Log_event_type get_type_code()
-  {
-    return sql_ex_data.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
-  }
-
-  virtual bool is_valid() const { return table_name != 0; }
-  int get_data_size()
-  {
-    return (table_name_len + db_len + 2 + fname_len
-            + LOAD_HEADER_LEN
-            + sql_ex_data.data_size() + field_block_len + num_fields);
-  }
-
-  //TODO: Define the methods when required
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
-
-};
-
-/* the classes below are for the new LOAD DATA INFILE logging */
-
-/**
-  @class Create_file_event
-
-  The Create_file_event contains the options to LOAD DATA INFILE.
-  This was a design flaw since the file cannot be loaded until the
-  Exec_load_event is seen. The use of this event was deprecated from
-  MySQL server version 5.0.3 and above.
-
-  @section Create_file_event_binary_format Binary Format
-*/
-
-class Create_file_event: public virtual Load_event
-{
-protected:
-  /**
-    Pretend we are Load event, so we can write out just
-    our Load part - used on the slave when writing event out to
-    SQL_LOAD-*.info file
-  */
-  bool fake_base;
-public:
-  enum Create_file_offset {
-   /* CF = "Create File" */
-   CF_FILE_ID_OFFSET= 0,
-   CF_DATA_OFFSET= CREATE_FILE_HEADER_LEN
-  };
-
-  unsigned char* block;
-  const char *event_buf;
-  unsigned int block_len;
-  unsigned int file_id;
-  bool inited_from_old;
-
-  Create_file_event(const char* buf, unsigned int event_len,
-                    const Format_description_event* description_event);
-
-  Create_file_event(unsigned char* block_arg,
-                    unsigned int  block_len_arg, unsigned int file_id_arg);
-  ~Create_file_event()
-  {
-    bapi_free((void*) event_buf);
-  }
-  Log_event_type get_type_code()
-  {
-    return fake_base ? Load_event::get_type_code() : CREATE_FILE_EVENT;
-  }
-  int get_data_size()
-  {
-    return (fake_base ? Load_event::get_data_size() :
-            Load_event::get_data_size() +
-            4 + 1 + block_len);
-  }
-
-  bool is_valid() const { return inited_from_old || block != 0; }
-
-};
-
-/**
-  @class Delete_file_event
-
-  DELETE_FILE_EVENT occurs when the LOAD DATA failed on the master.
-  This event notifies the slave not to do the load and to delete
-  the temporary file.
-
-  @section Delete_file_event_binary_format Binary Format
-*/
-class Delete_file_event: public Binary_log_event
-{
-protected:
-  // Required by Delete_file_log_event(THD* ..)
-  Delete_file_event(uint32_t file_id_arg, const char* db_arg)
-  : file_id(file_id_arg), db(db_arg)
- {
- }
-public:
-  enum Delete_file_offset {
-    /* DF = "Delete File" */
-    DF_FILE_ID_OFFSET= 0
-  };
-
-  uint32_t file_id;
-  const char* db; /* see comment in Append_block_event */
-
-  Delete_file_event(const char* buf, uint event_len,
-                    const Format_description_event* description_event);
-  ~Delete_file_event() {}
-  Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
-  bool is_valid() const { return file_id != 0; }
-};
-
-/**
-  @class Execute_load_event
-
-  Execute_load_event is created when the LOAD_DATA query succeeds on
-  the master. The slave should be notified to load the temporary file into
-  the table. For server versions > 5.0.3, the temporary files that stores
-  the parameters to LOAD DATA INFILE is not needed anymore, since they are
-  stored in this event. There is still a temp file containing all the data
-  to be loaded.
-
-  @section Delete_file_event_binary_format Binary Format
-*/
-class Execute_load_event: public Binary_log_event
-{
-protected:
-  //TODO: Remove if not required, used by Execute_load_log_event(THD* ...)
-  Execute_load_event(const uint32_t file_id, const char* db_arg);
-public:
-  enum Execute_load_offset {
-    /* EL = "Execute Load" */
-    EL_FILE_ID_OFFSET= 0
-  };
-
-  uint32_t file_id;
-  const char* db; /* see comment in Append_block_event */
-
-  Execute_load_event(const char* buf, uint event_len,
-                     const Format_description_event *description_event);
-
-  ~Execute_load_event() {}
-  Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
-  bool is_valid() const { return file_id != 0; }
-};
-
-/**
-  @class Append_block_event
-
-  This event is created to contain the file data. One LOAD_DATA_INFILE
-  can have 0 or more instances of this event written to the binary log
-  depending on the size of the file. If the file to be loaded is greater
-  than the threshold value, which is roughly 2^17 bytes, the file is
-  divided into blocks of size equal to the threshold, and each block
-  is sent across as a separate event.
-
-  @section Append_block_event_binary_format Binary Format
-*/
-
-class Append_block_event: public Binary_log_event
-{
-protected:
-  /**
-    This constructor is used by the MySQL server.
-  */
-  Append_block_event(const char* db_arg,
-                     unsigned char* block_arg,
-                     unsigned int block_len_arg,
-                     uint32_t file_id_arg)
- : block(block_arg), block_len(block_len_arg),
-   file_id(file_id_arg), db(db_arg)
- {
- }
- Append_block_event() {}
-public:
-  enum Append_block_offset
-  {
-    /* AB = "Append Block" */
-    AB_FILE_ID_OFFSET= 0,
-    AB_DATA_OFFSET=  APPEND_BLOCK_HEADER_LEN
-  };
-
-  unsigned char* block;
-  unsigned int block_len;
-  uint32_t file_id;
-  /*
-    'db' is filled when the event is created in mysql_load() (the
-    event needs to have a 'db' member to be well filtered by
-    binlog-*-db rules). 'db' is not written to binlog while encoding
-    Append_block-event, so it cannot be read in the Append_block_event
-    (const char* buf, int event_len) constructor.
-    In other words, 'db' is used only for filtering by
-    binlog-*-db rules.  Create_file_event is different: it's 'db'
-    (which is inherited from Load_event) is written to the binlog
-    and can be re-read.
-  */
-  const char* db;
-
-  Append_block_event(const char* buf, unsigned int event_len,
-                     const Format_description_event *description_event);
-  ~Append_block_event() {}
-  Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
-  virtual bool is_valid() const { return block != 0; }
-};
-
-/**
-  @class Begin_load_query_event
-
-  Event for the first block of file to be loaded, its only difference from
-  Append_block event is that this event creates or truncates existing file
-  before writing data.
-
-  @section Begin_load_query_event_binary_format Binary Format
-*/
-class Begin_load_query_event: public virtual Append_block_event
-{
-protected:
-  //TODO: Remove. Right now required by Begin_load_query_log_event(THD*...)
-  Begin_load_query_event(): Append_block_event() {}
-public:
-  Begin_load_query_event(const char* buf, unsigned int event_len,
-                         const Format_description_event *description_event);
-  ~Begin_load_query_event() {}
-  Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
-};
-
-
-/**
-@class User_var_event
-   Written every time a statement uses a user variable; precedes other
-   events for the statement. Indicates the value to use for the user
-   variable in the next statement. This is written only before a QUERY_EVENT
-   and is not used with row-based logging
+  @class User_var_event
+
+  Written every time a statement uses a user variable; precedes other
+  events for the statement. Indicates the value to use for the user
+  variable in the next statement. This is written only before a QUERY_EVENT
+  and is not used with row-based logging
 
   The Post-Header has following components:
 
@@ -2613,8 +1992,12 @@ public:
   that ignorable event types derive from Ignorable_event; they may
   just as well derive from Binary_log_event and Log_event and pass
   LOG_EVENT_IGNORABLE_F as argument to the Log_event constructor.
-*/
 
+  @section Ignoarble_event_binary_format Binary format
+
+  The Post-Header and Body for this event type are empty; it only has
+  the Common-Header.
+*/
 class Ignorable_event: public Binary_log_event
 {
 public:
@@ -2637,7 +2020,8 @@ public:
   events in RBR. This event can be used to display the original query as
   comments by SHOW BINLOG EVENTS query, or mysqlbinlog client when the
   --verbose option is given twice
-  @section Intvar_event_binary_format Binary Format
+
+  @section Rows_query_var_event_binary_format Binary Format
 
   The Post-Header for this event type is empty. The Body has one
   component:
@@ -2657,7 +2041,6 @@ public:
     <td>Records the original query executed in RBR </td>
   </tr>
   </table>
-
 */
 class Rows_query_event: public virtual Ignorable_event
 {
@@ -2679,6 +2062,7 @@ protected:
   if the query uses one of the variables LAST_INSERT_ID or INSERT_ID.
   Each Intvar_event holds the value of one of these variables.
 
+  @section Intvar_event_binary_format Binary Format
 
   The Post-Header for this event type is empty. The Body has two
   components:
@@ -2708,7 +2092,6 @@ protected:
   </tr>
 
   </table>
-  @section Intvar_event_binary_format Binary Format
 */
 class Intvar_event: public Binary_log_event
 {
@@ -2794,6 +2177,8 @@ public:
    ordinary happened on the master that might cause the database to be
    in an inconsistent state.
 
+  @section Incident_event_binary_format Binary Format
+
    <table id="IncidentFormat">
    <caption>Incident event format</caption>
    <tr>
@@ -2818,7 +2203,6 @@ public:
    </tr>
    </table>
 
-  @section Incident_event_binary_format Binary Format
 */
 class Incident_event: public Binary_log_event
 {
@@ -2829,13 +2213,12 @@ public:
   enum Incident {
   /** No incident */
   INCIDENT_NONE = 0,
-
   /** There are possibly lost events in the replication stream */
   INCIDENT_LOST_EVENTS = 1,
-
   /** Shall be last event of the enumeration */
   INCIDENT_COUNT
   };
+
   Incident_event(Incident incident_arg)
   : Binary_log_event(), incident(incident_arg), message(NULL),
     message_length(0)
@@ -2860,6 +2243,9 @@ protected:
   Has no meaning in replication, slaves ignore it.
 
   @section Xid_event_binary_format Binary Format
+
+  The Post-Header and Body for this event type are empty; it only has
+  the common header.
 */
 class Xid_event: public Binary_log_event
 {
@@ -2872,6 +2258,8 @@ public:
     void print_event_info(std::ostream& info);
     void print_long_info(std::ostream& info);
 };
+
+
 /**
   @class Rand_event
 
@@ -2883,6 +2271,7 @@ public:
   The state of the random number generation consists of 128 bits,
   which are stored internally as two 64-bit numbers.
 
+  @section Rand_event_binary_format Binary Format
 
   The Post-Header for this event type is empty.  The Body has two
   components:
@@ -2908,7 +2297,6 @@ public:
     <td>64 bit random seed2.</td>
   </tr>
   </table>
-  @section Rand_event_binary_format Binary Format
 */
 class Rand_event: public Binary_log_event
 {
@@ -2932,6 +2320,7 @@ class Rand_event: public Binary_log_event
   void print_long_info(std::ostream& info);
 };
 
+
 /**
   @struct  gtid_info
   Structure to hold the members declared in the class Gtid_log_event
@@ -2951,31 +2340,31 @@ class Rand_event: public Binary_log_event
     <th>Description</th>
   </tr>
   <tr>
-    <th>type</th>
-    <th>enum_group_type</th>
-    <th>Group type of the groups created while transaction</th>
+    <td>type</td>
+    <td>enum_group_type</td>
+    <td>Group type of the groups created while transaction</td>
   </tr>
   <tr>
-    <th>bytes_to_copy</th>
-    <th>size_t</th>
-    <th>Number of bytes to copy from the buffer, this is
-        used as the size of array uuid_buf</th>
+    <td>bytes_to_copy</td>
+    <td>size_t</td>
+    <td>Number of bytes to copy from the buffer, this is
+        used as the size of array uuid_buf</td>
   </tr>
   <tr>
-    <th>uuid_buf</th>
-    <th>unsigned char array</th>
-    <th>This stores the Uuid of the server on which transaction
-        is happening</th>
+    <td>uuid_buf</td>
+    <td>unsigned char array</td>
+    <td>This stores the Uuid of the server on which transaction
+        is happening</td>
   </tr>
   <tr>
-    <th>rpl_gtid_sidno</th>
-    <th>4 bytes integer</th>
-    <th>SIDNO (source ID number, first component of GTID)</th>
+    <td>rpl_gtid_sidno</td>
+    <td>4 bytes integer</td>
+    <td>SIDNO (source ID number, first component of GTID)</td>
   </tr>
   <tr>
-    <th>rpl_gtid_gno</th>
-    <th>8 bytes integer</th>
-    <th>GNO (group number, second component of GTID)</th>
+    <td>rpl_gtid_gno</td>
+    <td>8 bytes integer</td>
+    <td>GNO (group number, second component of GTID)</td>
   </tr>
   </table>
 */
@@ -2989,19 +2378,23 @@ struct gtid_info
   int64_t  rpl_gtid_gno;
 };
 
+
 /**
   @class Gtid_event
   GTID stands for Global Transaction IDentifier
-  It is composed of two part
-     SID for Source Identifier, and
-     GNO for Group Number.
+  It is composed of two parts:
+    - SID for Source Identifier, and
+    - GNO for Group Number.
   The basic idea is to
-     1. Associate an identifier, the Global Transaction IDentifier or GTID,
+     -  Associate an identifier, the Global Transaction IDentifier or GTID,
         to every transaction.
-     2. When a transaction is copied to a slave, re-executed on the slave,
+     -  When a transaction is copied to a slave, re-executed on the slave,
         and written to the slave's binary log, the GTID is preserved.
-     3. When a  slave connects to a master, the slave uses GTIDs instead of
+     -  When a  slave connects to a master, the slave uses GTIDs instead of
         (file, offset)
+
+  @section Gtid_event_binary_format Binary Format
+
   The Body has five components:
 
   <table>
@@ -3041,7 +2434,6 @@ struct gtid_info
   </tr>
   </table>
 
-  @section Gtid_event_binary_format Binary Format
 */
 class Gtid_event: public Binary_log_event
 {
@@ -3069,6 +2461,9 @@ protected:
 
 /**
   @class Previous_gtids_event
+
+  @section Previous_gtids_event_binary_format Binary Format
+
   The Post-Header for this event type is empty.  The Body has two
   components:
 
@@ -3094,7 +2489,6 @@ protected:
     <td>Size of the above buffer</td>
   </tr>
   </table>
-  @section Previous_gtids_event_binary_format Binary Format
 */
 class Previous_gtids_event : public Binary_log_event
 {
@@ -3123,6 +2517,8 @@ protected:
   @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
+
+  @section Heartbeat_event_binary_format Binary Format
 
   The Body has one component:
 
@@ -3154,7 +2550,7 @@ public:
 
 protected:
   const char* log_ident;
-  unsigned int ident_len;                      //filename length
+  unsigned int ident_len;                      /** filename length */
 };
 
 /**
@@ -3163,6 +2559,9 @@ protected:
   An unknown event should never occur. It is never written to a binary log.
   If an event is read from a binary log that cannot be recognized as
   something else, it is treated as UNKNOWN_EVENT.
+
+  The Post-Header and Body for this event type are empty; it only has
+  the Common-Header.
 */
 class Unknown_event: public Binary_log_event
 {
@@ -3172,11 +2571,16 @@ public:
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,
                      description_event->binlog_version,
-                     description_event->server_version) {}
+                     description_event->server_version)
+  {
+  }
 
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
 } // end namespace binary_log
+/**                                                                            
+  @} (end of group Replication)                                                
+*/                                                                             
 #endif	/* BINLOG_EVENT_INCLUDED */

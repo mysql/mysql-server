@@ -12,13 +12,22 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+/**
+  @file table_id.h
+
+  @brief Contains the class Table_id, aminly used for row based replication.
+*/
 
 #ifndef TABLE_ID_INCLUDED
 #define TABLE_ID_INCLUDED
 #include <stdint.h>
-/*
-  Each table share has a table id, it is mainly used for row based replication.
-  Meanwhile it is used as table's version too.
+
+
+/**
+  @class Table_id
+
+  @brief Each table share has a table id, it is mainly used for row based
+  replication. Meanwhile it is used as table's version too.
 */
 class Table_id
 {

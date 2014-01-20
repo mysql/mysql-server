@@ -18,15 +18,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 
+/**
+  @file debug_vars.h
+
+  @brief This header file contains the status of variables used by MySQL tests
+  for debug operations. The variables are set to true by the MySQL server if
+  the test pertaining to the variable is active. The variables are initialized
+   with false (in binlog_event.cpp).
+*/
 #ifndef DEBUG_VARS
 #define DEBUG_VARS
 
-/*
-  This header file contains the status of variables used by MySQL tests
-  for debug operations. The variables are set to true by the MySQL server
-  if the test pertaining to the variable is active. The variables are
-  initialized with false (in binlog_event.cpp).
-*/
 namespace binary_log_debug
 {
   extern bool debug_checksum_test;

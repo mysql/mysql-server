@@ -5529,7 +5529,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
       {
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
-          Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
+          Intvar_log_event e(thd,(uchar) Intvar_event::LAST_INSERT_ID_EVENT,
                              thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                              event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(thd, &e))
@@ -5540,7 +5540,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           DBUG_PRINT("info",("number of auto_inc intervals: %u",
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              nb_elements()));
-          Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
+          Intvar_log_event e(thd, (uchar) Intvar_event::INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum(), event_info->event_cache_type,
                              event_info->event_logging_type);

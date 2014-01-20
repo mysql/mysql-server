@@ -23,7 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include "binlog_event.h"
 #include "field_iterator.h"
+#include "load_data_events.h"
 #include "rowset.h"
+#include "rows_event.h"
 #include "transitional_methods.h"
 #include <iosfwd>
 #include <list>

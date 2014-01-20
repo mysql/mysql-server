@@ -2,13 +2,14 @@
 # the library.
 SET (REPLICATION_SOURCES
      field_iterator.cpp
+     load_data_events.cpp
      row_of_fields.cpp
      rows_event.cpp
      binary_log.cpp
      protocol.cpp
      value.cpp
      binlog_event.cpp
-     utilities.cpp)
+    )
 
 
 # Configure for building static library

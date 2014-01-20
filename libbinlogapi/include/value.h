@@ -23,7 +23,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include "protocol.h"
 #include <climits>
+#include <stdint.h>
 #include <iostream>
+#include <cassert>
+#include <cstring>
 #ifndef DATETIME_MAX_DECIMALS
   #define DATETIME_MAX_DECIMALS 6
 #endif
@@ -62,7 +65,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 
 };
 #endif
-using namespace binary_log;
+//using namespace binary_log;
 namespace binary_log {
 /**
  This helper function calculates the size in bytes of a particular field in a
