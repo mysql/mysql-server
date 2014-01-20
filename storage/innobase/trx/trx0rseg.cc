@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "srv0mon.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 #include <algorithm>
 
@@ -283,7 +283,7 @@ trx_rseg_schedule_pending_purge(
 	space = trx_sysf_rseg_get_space(sys_header, slot, mtr);
 
 	if (page_no != FIL_NULL
-	    && Tablespace::is_system_or_undo_tablespace(space)) {
+	    && is_system_or_undo_tablespace(space)) {
 
 		/* rseg resides in system or undo tablespace and so
 		this is an upgrade scenario. trx_rseg_mem_create
@@ -292,7 +292,7 @@ trx_rseg_schedule_pending_purge(
 		ulint		zip_size;
 		trx_rseg_t*	rseg = NULL;
 
-		zip_size = !Tablespace::is_system_tablespace(space)
+		zip_size = !is_system_tablespace(space)
 			? fil_space_get_zip_size(space) : 0;
 
 		trx_rseg_t** rseg_array =
@@ -346,7 +346,7 @@ trx_rseg_create_instance(
 
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
-			zip_size = !Tablespace::is_system_tablespace(space)
+			zip_size = !is_system_tablespace(space)
 				   ? fil_space_get_zip_size(space) : 0;
 
 			trx_rseg_t** rseg_array =
@@ -403,7 +403,7 @@ trx_rseg_create(
 		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
 		ut_a(trx_sys_is_noredo_rseg_slot(slot_no) || id == space);
 
-		zip_size = !Tablespace::is_system_tablespace(space)
+		zip_size = !is_system_tablespace(space)
 			? fil_space_get_zip_size(space) : 0;
 
 		trx_rseg_t** rseg_array =

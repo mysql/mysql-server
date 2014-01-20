@@ -2296,8 +2296,19 @@ dict_stats_save(
 	}
 
 	dict_index_t*	index;
-
 	index_map_t	indexes;
+
+	/* Below we do all the modifications in innodb_index_stats in a single
+	transaction for performance reasons. Modifying more than one row in a
+	single transaction may deadlock with other transactions if they
+	lock the rows in different order. Other transaction could be for
+	example when we DROP a table and do
+	DELETE FROM innodb_index_stats WHERE database_name = '...'
+	AND table_name = '...'; which will affect more than one row. To
+	prevent deadlocks we always lock the rows in the same order - the
+	order of the PK, which is (database_name, table_name, index_name,
+	stat_name). This is why below we sort the indexes by name and then
+	for each index, do the mods ordered by stat_name. */
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -2922,9 +2933,9 @@ dict_stats_update(
 	if (table->ibd_file_missing) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Cannot calculate statistics for table %s"
-			" because the .ibd file is missing. For help, please"
-			" refer to " REFMAN "innodb-troubleshooting.html",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+			" because the .ibd file is missing. %s",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
+			TROUBLESHOOTING_MSG);
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
 	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3855,9 +3866,9 @@ test_dict_stats_save()
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
-	UT_LIST_INIT(table.indexes);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);
+	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+	UT_LIST_ADD_LAST(table.indexes, &index1);
+	UT_LIST_ADD_LAST(table.indexes, &index2);
 	ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
 	ut_d(index1.magic_n = DICT_INDEX_MAGIC_N);
 
@@ -4004,9 +4015,9 @@ test_dict_stats_fetch_from_ps()
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
-	UT_LIST_INIT(table.indexes);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);
+	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+	UT_LIST_ADD_LAST(table.indexes, &index1);
+	UT_LIST_ADD_LAST(table.indexes, &index2);
 	ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
 
 	index1.name = TEST_IDX1_NAME;
