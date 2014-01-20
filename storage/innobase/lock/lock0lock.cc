@@ -1707,18 +1707,22 @@ lock_rec_other_has_expl_req(
 					requests by all transactions
 					are taken into account */
 {
-	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
-	for (lock = lock_rec_get_first(block, heap_no);
+	/* Only GAP lock can be on SUPREMUM, and we are not looking for
+	GAP lock */
+	if (heap_no == PAGE_HEAP_NO_SUPREMUM) {
+		return(NULL);
+	}
+
+	for (const lock_t* lock = lock_rec_get_first(block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
 		if (lock->trx != trx
-		    && !(heap_no == PAGE_HEAP_NO_SUPREMUM
-			 || lock_rec_get_gap(lock))
+		    && !lock_rec_get_gap(lock)
 		    && (!wait || !lock_get_wait(lock))
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
@@ -4842,10 +4846,13 @@ lock_print_info_summary(
 	the state of the variable for display. */
 
 	switch (purge_sys->state){
-	case PURGE_STATE_EXIT:
 	case PURGE_STATE_INIT:
 		/* Should never be in this state while the system is running. */
 		ut_error;
+
+	case PURGE_STATE_EXIT:
+		fprintf(file, "exited");
+		break;
 
 	case PURGE_STATE_DISABLED:
 		fprintf(file, "disabled");

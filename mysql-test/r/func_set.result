@@ -106,7 +106,7 @@ CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL))
 End of 5.0 tests
 drop table if exists t1;
 create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
-engine=myisam default charset=latin1;
+default charset=latin1;
 insert into t1 values (''),(null),(null),(''),(''),('');
 select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
 a

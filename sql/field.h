@@ -426,8 +426,8 @@ inline enum_field_types real_type_to_type(enum_field_types real_type)
    @param is_unsigned True if the source integer is an unsigned value.
 */
 template<bool Is_big_endian>
-void copy_integer(uchar *to, int to_length,
-                  const uchar* from, int from_length,
+void copy_integer(uchar *to, size_t to_length,
+                  const uchar* from, size_t from_length,
                   bool is_unsigned)
 {
   if (Is_big_endian)
@@ -445,7 +445,7 @@ void copy_integer(uchar *to, int to_length,
       to[0]= sign_byte;
     else
       to[0]= static_cast<char>(sign_byte ^ 128); // Reverse the sign bit.
-    for (int i= 1, j= from_length - 2; i < to_length; ++i, --j)
+    for (size_t i= 1, j= from_length - 2; i < to_length; ++i, --j)
       to[i]= from[j];
   }
 }
@@ -638,7 +638,7 @@ public:
   { return is_tmp_nullable() && m_is_tmp_null; }
 
   /* Store functions returns 1 on overflow and -1 on fatal error */
-  virtual type_conversion_status store(const char *to, uint length,
+  virtual type_conversion_status store(const char *to, size_t length,
                                        const CHARSET_INFO *cs)=0;
   virtual type_conversion_status store(double nr)=0;
   virtual type_conversion_status store(longlong nr, bool unsigned_val)=0;
@@ -686,7 +686,7 @@ public:
   {
     return store_time(ltime, 0);
   }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *cs,
                                enum_check_fields check_level);
   virtual double val_real(void)=0;
@@ -1095,7 +1095,7 @@ public:
 
     @param length Number of bytes to write.
   */
-  virtual void make_sort_key(uchar *buff, uint length) = 0;
+  virtual void make_sort_key(uchar *buff, size_t length) = 0;
   virtual bool optimize_range(uint idx, uint part);
   /*
     This should be true for fields which, when compared with constant
@@ -1155,10 +1155,10 @@ public:
       m_null_ptr= ADD_TO_PTR(m_null_ptr, ptr_diff, uchar*);
   }
 
-  virtual void get_image(uchar *buff, uint length, const CHARSET_INFO *cs)
+  virtual void get_image(uchar *buff, size_t length, const CHARSET_INFO *cs)
   { memcpy(buff, ptr, length); }
 
-  virtual void set_image(const uchar *buff, uint length, const CHARSET_INFO *cs)
+  virtual void set_image(const uchar *buff, size_t length, const CHARSET_INFO *cs)
   { memcpy(ptr, buff, length); }
 
 
@@ -1188,12 +1188,12 @@ public:
       Number of copied bytes (excluding padded zero bytes -- see above).
   */
 
-  virtual uint get_key_image(uchar *buff, uint length, imagetype type)
+  virtual size_t get_key_image(uchar *buff, size_t length, imagetype type)
   {
     get_image(buff, length, &my_charset_bin);
     return length;
   }
-  virtual void set_key_image(const uchar *buff,uint length)
+  virtual void set_key_image(const uchar *buff, size_t length)
     { set_image(buff,length, &my_charset_bin); }
   inline longlong val_int_offset(uint row_offset)
     {
@@ -1633,10 +1633,10 @@ public:
     return length;
   }
   type_conversion_status check_int(const CHARSET_INFO *cs,
-                                   const char *str, int length,
+                                   const char *str, size_t length,
                                    const char *int_end, int error);
   type_conversion_status get_int(const CHARSET_INFO *cs,
-                                 const char *from, uint len,
+                                 const char *from, size_t len,
                                  longlong *rnd, ulonglong unsigned_max,
                                  longlong signed_min, longlong signed_max);
 };
@@ -1660,7 +1660,7 @@ public:
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val)=0;
   type_conversion_status store_decimal(const my_decimal *);
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *cs)=0;
   uint repertoire(void) const
   {
@@ -1749,7 +1749,7 @@ public:
   enum ha_base_keytype key_type() const
   { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   type_conversion_status reset(void);
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -1757,7 +1757,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
@@ -1810,7 +1810,7 @@ public:
   type_conversion_status reset(void);
   type_conversion_status store_value(const my_decimal *decimal_value);
   void set_value_on_overflow(my_decimal *decimal_value, bool sign);
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -1823,7 +1823,7 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   String *val_str(String*, String *);
   int cmp(const uchar *, const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return field_length; }
@@ -1861,7 +1861,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -1871,7 +1871,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -1923,7 +1923,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -1933,7 +1933,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 6; }
@@ -1977,7 +1977,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -1991,7 +1991,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 8; }
@@ -2044,7 +2044,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2058,7 +2058,7 @@ public:
   bool send_binary(Protocol *protocol);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
@@ -2113,7 +2113,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2127,7 +2127,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return true; }
@@ -2178,7 +2178,7 @@ public:
     {}
   enum_field_types type() const { return MYSQL_TYPE_FLOAT;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2192,7 +2192,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return sizeof(float); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -2240,7 +2240,7 @@ public:
     {not_fixed= not_fixed_arg; }
   enum_field_types type() const { return MYSQL_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2254,7 +2254,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return sizeof(double); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -2292,7 +2292,7 @@ public:
 	       unireg_check_arg, field_name_arg, cs)
     {}
   enum_field_types type() const { return MYSQL_TYPE_NULL;}
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *cs)
   {
     null[0]= 1;
@@ -2316,7 +2316,7 @@ public:
   String *val_str(String *value,String *value2)
   { value2->length(0); return value2;}
   int cmp(const uchar *a, const uchar *b) { return 0;}
-  void make_sort_key(uchar *buff, uint length)  {}
+  void make_sort_key(uchar *buff, size_t length)  {}
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -2525,7 +2525,7 @@ public:
   const CHARSET_INFO *charset() const { return &my_charset_numeric; }
   bool can_be_compared_as_longlong() const { return true; }
   bool binary() const { return true; }
-  type_conversion_status store(const char *str, uint len,
+  type_conversion_status store(const char *str, size_t len,
                                const CHARSET_INFO *cs);
   type_conversion_status store_decimal(const my_decimal *decimal);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2715,7 +2715,7 @@ public:
 
   uint decimals() const { return dec; }
   const CHARSET_INFO *sort_charset() const { return &my_charset_bin; }
-  void make_sort_key(uchar *to, uint length) { memcpy(to, ptr, length); }
+  void make_sort_key(uchar *to, size_t length) { memcpy(to, ptr, length); }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -2753,7 +2753,7 @@ public:
   }
   longlong val_int(void);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 0; }
@@ -2864,7 +2864,7 @@ public:
 		unireg_check_arg, field_name_arg, 1, 1)
     {}
   enum_field_types type() const { return MYSQL_TYPE_YEAR;}
-  type_conversion_status store(const char *to,uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -2919,7 +2919,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3032,7 +3032,7 @@ public:
   longlong val_time_temporal();
   bool get_time(MYSQL_TIME *ltime);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3120,7 +3120,7 @@ public:
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
   const CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
-  void make_sort_key(uchar *to, uint length) { memcpy(to, ptr, length); }
+  void make_sort_key(uchar *to, size_t length) { memcpy(to, ptr, length); }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -3192,7 +3192,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3329,7 +3329,7 @@ public:
                           (has_charset() ? ' ' : 0));
     return TYPE_OK;
   }
-  type_conversion_status store(const char *to,uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(longlong nr, bool unsigned_val);
   /* QQ: To be deleted */
@@ -3339,7 +3339,7 @@ public:
   String *val_str(String*,String *);
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -3372,7 +3372,7 @@ public:
     DBUG_ASSERT(real_type() == MYSQL_TYPE_STRING);
     return new Field_string(*this);
   }
-  virtual uint get_key_image(uchar *buff,uint length, imagetype type);
+  virtual size_t get_key_image(uchar *buff, size_t length, imagetype type);
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -3425,7 +3425,7 @@ public:
     return (uint32) field_length + (field_charset == &my_charset_bin ?
                                     length_bytes : 0);
   }
-  type_conversion_status store(const char *to,uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(longlong nr, bool unsigned_val);
   /* QQ: To be deleted */
@@ -3439,9 +3439,9 @@ public:
   {
     return cmp_max(a, b, ~0L);
   }
-  void make_sort_key(uchar *buff, uint length);
-  uint get_key_image(uchar *buff,uint length, imagetype type);
-  void set_key_image(const uchar *buff,uint length);
+  void make_sort_key(uchar *buff, size_t length);
+  size_t get_key_image(uchar *buff, size_t length, imagetype type);
+  void set_key_image(const uchar *buff, size_t length);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -3478,14 +3478,14 @@ private:
 
 
 class Field_blob :public Field_longstr {
-  virtual type_conversion_status store_internal(const char *from, uint length,
+  virtual type_conversion_status store_internal(const char *from, size_t length,
                                                 const CHARSET_INFO *cs);
   /**
     Copy value to memory storage.
   */
-  type_conversion_status store_to_mem(const char *from, uint length,
+  type_conversion_status store_to_mem(const char *from, size_t length,
                                       const CHARSET_INFO *cs,
-                                      uint max_length,
+                                      size_t max_length,
                                       Blob_mem_storage *blob_storage);
 protected:
   /**
@@ -3542,7 +3542,7 @@ public:
   bool match_collation_to_optimize_range() const { return true; }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -3558,7 +3558,7 @@ public:
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
   uint32 key_length() const { return 0; }
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const
   { return (uint32) (packlength + portable_sizeof_char_ptr); }
 
@@ -3626,8 +3626,8 @@ public:
     {
       set_ptr_offset(0, length, data);
     }
-  uint get_key_image(uchar *buff,uint length, imagetype type);
-  void set_key_image(const uchar *buff,uint length);
+  size_t get_key_image(uchar *buff, size_t length, imagetype type);
+  void set_key_image(const uchar *buff, size_t length);
   void sql_type(String &str) const;
   inline bool copy()
   {
@@ -3673,7 +3673,7 @@ private:
 
 
 class Field_geom :public Field_blob {
-  virtual type_conversion_status store_internal(const char *from, uint length,
+  virtual type_conversion_status store_internal(const char *from, size_t length,
                                                 const CHARSET_INFO *cs);
 public:
   enum geometry_type geom_type;
@@ -3746,7 +3746,7 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
-  type_conversion_status store(const char *to,uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -3755,7 +3755,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return (uint32) packlength; }
   void store_type(ulonglong value);
   void sql_type(String &str) const;
@@ -3803,7 +3803,7 @@ public:
     {
       flags= (flags & ~ENUM_FLAG) | SET_FLAG;
     }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr)
   {
@@ -3864,7 +3864,7 @@ public:
       clr_rec_bits(bit_ptr, bit_ofs, bit_len);
     return TYPE_OK;
   }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -3889,14 +3889,14 @@ public:
   { return cmp_binary((uchar *) a, (uchar *) b); }
   int key_cmp(const uchar *str, uint length);
   int cmp_offset(uint row_offset);
-  void get_image(uchar *buff, uint length, const CHARSET_INFO *cs)
+  void get_image(uchar *buff, size_t length, const CHARSET_INFO *cs)
   { get_key_image(buff, length, itRAW); }   
-  void set_image(const uchar *buff,uint length, const CHARSET_INFO *cs)
+  void set_image(const uchar *buff, size_t length, const CHARSET_INFO *cs)
   { Field_bit::store((char *) buff, length, cs); }
-  uint get_key_image(uchar *buff, uint length, imagetype type);
-  void set_key_image(const uchar *buff, uint length)
+  size_t get_key_image(uchar *buff, size_t length, imagetype type);
+  void set_key_image(const uchar *buff, size_t length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }
-  void make_sort_key(uchar *buff, uint length)
+  void make_sort_key(uchar *buff, size_t length)
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
@@ -3960,7 +3960,7 @@ public:
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
-  type_conversion_status store(const char *to, uint length,
+  type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr) { return Field_bit::store(nr); }
   type_conversion_status store(longlong nr, bool unsigned_val)

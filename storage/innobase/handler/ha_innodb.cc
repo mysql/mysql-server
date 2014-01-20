@@ -1506,6 +1506,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_TABLESPACE_EXISTS);
 	case DB_IDENTIFIER_TOO_LONG:
 		return(HA_ERR_INTERNAL_ERROR);
+	case DB_TABLE_CORRUPT:
+		return(HA_ERR_TABLE_CORRUPT);
 	}
 }
 
@@ -7442,13 +7444,23 @@ ha_innobase::change_active_index(
 				table_name, sizeof table_name,
 				prebuilt->index->table->name, FALSE);
 
-			push_warning_printf(
-				user_thd, Sql_condition::SL_WARNING,
-				HA_ERR_INDEX_CORRUPT,
-				"InnoDB: Index %s for table %s is"
-				" marked as corrupted",
-				index_name, table_name);
-			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
+			if (dict_index_is_clust(prebuilt->index)) {
+				ut_ad(prebuilt->index->table->corrupted);
+				push_warning_printf(
+					user_thd, Sql_condition::SL_WARNING,
+					HA_ERR_TABLE_CORRUPT,
+					"InnoDB: Table %s is corrupted.",
+					table_name);
+				DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
+			} else {
+				push_warning_printf(
+					user_thd, Sql_condition::SL_WARNING,
+					HA_ERR_INDEX_CORRUPT,
+					"InnoDB: Index %s for table %s is"
+					" marked as corrupted",
+					index_name, table_name);
+				DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
+			}
 		} else {
 			push_warning_printf(
 				user_thd, Sql_condition::SL_WARNING,
