@@ -303,7 +303,7 @@ amount of increment. */
 	+ static_cast<ulint>(amount))
 
 # define os_atomic_increment_uint32(ptr, amount)		\
-	(static_cast<ulint>(_InterlockedExchangeAdd(		\
+	(static_cast<ulint>(InterlockedExchangeAdd(		\
 		reinterpret_cast<long*>(ptr),			\
 		static_cast<long>(amount)))			\
 	+ static_cast<ulint>(amount))
@@ -328,7 +328,7 @@ amount to decrement. There is no atomic substract function on Windows */
 	- static_cast<ulint>(amount))
 
 # define os_atomic_decrement_uint32(ptr, amount)		\
-	(static_cast<ib_uint32_t>(_InterlockedExchangeAdd(	\
+	(static_cast<ib_uint32_t>(InterlockedExchangeAdd(	\
 		reinterpret_cast<long*>(ptr),			\
 		-(static_cast<long>(amount))))			\
 	- static_cast<ib_uint32_t>(amount))
