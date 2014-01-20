@@ -68,7 +68,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /*
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
    Compared to version 3, version 4 has:
-   - a different Start_log_event, which includes info about the binary log
+   - a different Start_event, which includes info about the binary log
    (sizes of headers); this info is included for better compatibility if the
    master's MySQL version is different from the slave's.
    - all events have a unique ID (the triplet (server_id, timestamp at server
@@ -469,6 +469,8 @@ enum Log_event_type
 };
 
 /**
+ The length of the array server_version, which is used to store the version
+ of MySQL server.
  We could have used SERVER_VERSION_LENGTH, but this introduces an
  obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
  this would break the replication protocol
@@ -476,6 +478,7 @@ enum Log_event_type
  SERVER_VERSION_LENGTH is used for global array server_version
  and ST_SERVER_VER_LEN for the Start_event_v3 member server_version
 */
+
 #define ST_SERVER_VER_LEN 50
 /*
    Event header offsets;
@@ -1534,7 +1537,7 @@ public:
   @section Rotate_event_binary_format Binary Format
 
   <table>
-  <caption>Post-Header for Rotate_log_event</caption>
+  <caption>Post-Header for Rotate_event</caption>
 
   <tr>
     <th>Name</th>
@@ -1611,13 +1614,13 @@ public:
 };
 
 /**
-  @class Start_log_event_v3
+  @class Start_event_v3
 
-  Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
+  Start_event_v3 is the Start_event of binlog format 3 (MySQL 3.23 and
   4.x).
 
-  Format_description_log_event derives from Start_log_event_v3; it is
-  the Start_log_event of binlog format 4 (MySQL 5.0), that is, the
+  Format_description_event derives from Start_event_v3; it is
+  the Start_event of binlog format 4 (MySQL 5.0), that is, the
   event that describes the other events' Common-Header/Post-Header
   lengths. This event is sent by MySQL 5.0 whenever it starts sending
   a new binlog if the requested position is >4 (otherwise if ==4 the
@@ -1657,7 +1660,7 @@ public:
     <td>type bool</td>
     <td>Set to 1 when you dont want to have created time in the log</td>
   </table>
-  @section Start_log_event_v3_binary_format Binary Format
+  @section Start_event_v3_binary_format Binary Format
 */
 
 class Start_event_v3: public Binary_log_event
@@ -1673,7 +1676,7 @@ class Start_event_v3: public Binary_log_event
     tables and whether they should abort unfinished transaction.
 
     Note that when 'created'!=0, it is always equal to the event's
-    timestamp; indeed Start_log_event is written only in log.cc where
+    timestamp; indeed Start_event is written only in log.cc where
     the first constructor below is called, in which 'created' is set
     to 'when'.  So in fact 'created' is a useless variable. When it is
     0 we can read the actual value from timestamp ('when') and when it
@@ -1709,7 +1712,7 @@ class Start_event_v3: public Binary_log_event
 };
 
 /**
-  @class Format_description_evenit
+  @class Format_description_event
   For binlog version 4.
   This event is saved by threads which read it, as they need it for future
   use (to decode the ordinary events).
@@ -2649,12 +2652,12 @@ protected:
 };
 
 /**
-  @class Xid_log_event
+  @class Xid_event
 
   Logs xid of the transaction-to-be-committed in the 2pc protocol.
   Has no meaning in replication, slaves ignore it.
 
-  @section Xid_log_event_binary_format Binary Format
+  @section Xid_event_binary_format Binary Format
 */
 class Xid_event: public Binary_log_event
 {

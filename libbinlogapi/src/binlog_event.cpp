@@ -34,6 +34,7 @@ namespace binary_log_debug
 {
   bool debug_query_mts_corrupt_db_names= false;
   bool debug_checksum_test= false;
+  bool debug_pretend_version_50034_in_binlog= false;
 }
 
 
@@ -412,8 +413,8 @@ Format_description_event(uint8_t binlog_ver, const char* server_ver)
   case 4: /* MySQL 5.0 and above*/
   {
     memcpy(server_version, server_ver, ST_SERVER_VER_LEN);
-    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
-                    bapi_stpcpy(server_version, "5.0.34"););
+    if (binary_log_debug::debug_pretend_version_50034_in_binlog)
+      bapi_stpcpy(server_version, "5.0.34");
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /**
@@ -422,24 +423,48 @@ Format_description_event(uint8_t binlog_ver, const char* server_ver)
     */
     static uint8_t server_event_header_length[]=
     {
-      START_V3_HEADER_LEN, QUERY_HEADER_LEN, STOP_HEADER_LEN,
-      ROTATE_HEADER_LEN, INTVAR_HEADER_LEN, LOAD_HEADER_LEN, 0,
-      CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN, EXEC_LOAD_HEADER_LEN,
-      DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN, RAND_HEADER_LEN,
-      USER_VAR_HEADER_LEN, FORMAT_DESCRIPTION_HEADER_LEN, XID_HEADER_LEN,
-      BEGIN_LOAD_QUERY_HEADER_LEN, EXECUTE_LOAD_QUERY_HEADER_LEN,
+      START_V3_HEADER_LEN,
+      QUERY_HEADER_LEN,
+      STOP_HEADER_LEN,
+      ROTATE_HEADER_LEN,
+      INTVAR_HEADER_LEN,
+      LOAD_HEADER_LEN,
+      0, /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      CREATE_FILE_HEADER_LEN,
+      APPEND_BLOCK_HEADER_LEN,
+      EXEC_LOAD_HEADER_LEN,
+      DELETE_FILE_HEADER_LEN,
+      NEW_LOAD_HEADER_LEN,
+      RAND_HEADER_LEN,
+      USER_VAR_HEADER_LEN,
+      FORMAT_DESCRIPTION_HEADER_LEN,
+      XID_HEADER_LEN,
+      BEGIN_LOAD_QUERY_HEADER_LEN,
+      EXECUTE_LOAD_QUERY_HEADER_LEN,
+      TABLE_MAP_HEADER_LEN,
       /*
        The PRE_GA events are never be written to any binlog, but
        their lengths are included in Format_description_log_event.
        Hence, we need to be assign some value here, to avoid reading
        uninitialized memory when the array is written to disk.
       */
-      TABLE_MAP_HEADER_LEN, 0, 0, 0, ROWS_HEADER_LEN_V1, ROWS_HEADER_LEN_V1,
-      ROWS_HEADER_LEN_V1, INCIDENT_HEADER_LEN, 0, IGNORABLE_HEADER_LEN,
-      IGNORABLE_HEADER_LEN, ROWS_HEADER_LEN_V2, ROWS_HEADER_LEN_V2,
+      0,/* PRE_GA_WRITE_ROWS_EVENT */
+      0,/* PRE_GA_UPDATE_ROWS_EVENT*/
+      0,/* PRE_GA_DELETE_ROWS_EVENT*/
+      ROWS_HEADER_LEN_V1, /* WRITE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1, /* UPDATE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1, /* DELETE_ROWS_EVENT_V1*/
+      INCIDENT_HEADER_LEN,
+      0,/* HEARTBEAT_LOG_EVENT*/
+      IGNORABLE_HEADER_LEN,
+      IGNORABLE_HEADER_LEN,
+      ROWS_HEADER_LEN_V2,
+      ROWS_HEADER_LEN_V2,
       ROWS_HEADER_LEN_V2,
       //TODO  25 will be replaced byGtid_log_event::POST_HEADER_LENGTH;
-       25, 25, IGNORABLE_HEADER_LEN
+       25,
+       25,
+       IGNORABLE_HEADER_LEN
     };
     post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
                                            + BINLOG_CHECKSUM_ALG_DESC_LEN);
@@ -452,21 +477,6 @@ Format_description_event(uint8_t binlog_ver, const char* server_ver)
       */
       memset(post_header_len, 255, number_of_event_types * sizeof(uint8_t));
       memcpy(post_header_len, server_event_header_length, number_of_event_types);
-       /*
-        We here have the possibility to simulate a master before we changed
-        the table map id to be stored in 6 bytes: when it was stored in 4
-        bytes (=> post_header_len was 6). This is used to test backward
-        compatibility.
-        This code can be removed after a few months (today is Dec 21st 2005),
-        when we know that the 4-byte masters are not deployed anymore (check
-        with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
-        too.
-      */
-      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                      post_header_len[TABLE_MAP_EVENT-1]=
-                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
-                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
-                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
       // Sanity-check that all post header lengths are initialized.
       for (int i= 0; i < number_of_event_types; i++)
         assert(post_header_len[i] != 255);
@@ -502,11 +512,20 @@ Format_description_event(uint8_t binlog_ver, const char* server_ver)
      */
     static uint8_t server_event_header_length_ver_1_3[]=
     {
-      START_V3_HEADER_LEN, QUERY_HEADER_MINIMAL_LEN, STOP_HEADER_LEN,
-      uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN), INTVAR_HEADER_LEN,
-      LOAD_HEADER_LEN, 0, CREATE_FILE_HEADER_LEN, APPEND_BLOCK_HEADER_LEN,
-      EXEC_LOAD_HEADER_LEN, DELETE_FILE_HEADER_LEN, NEW_LOAD_HEADER_LEN,
-      RAND_HEADER_LEN, USER_VAR_HEADER_LEN
+      START_V3_HEADER_LEN,
+      QUERY_HEADER_MINIMAL_LEN,
+      STOP_HEADER_LEN,
+      uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN),
+      INTVAR_HEADER_LEN,
+      LOAD_HEADER_LEN,
+      0,/* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      CREATE_FILE_HEADER_LEN,
+      APPEND_BLOCK_HEADER_LEN,
+      EXEC_LOAD_HEADER_LEN,
+      DELETE_FILE_HEADER_LEN,
+      NEW_LOAD_HEADER_LEN,
+      RAND_HEADER_LEN,
+      USER_VAR_HEADER_LEN
     };
     post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
                                            + BINLOG_CHECKSUM_ALG_DESC_LEN);
@@ -560,7 +579,7 @@ Start_event_v3::Start_event_v3(const char* buf,
    description_event->server_version)
 {
   buf+= description_event->common_header_len;
-  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, sizeof(binlog_version));
+  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, 2);
   binlog_version= le16toh(binlog_version);
   memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
         ST_SERVER_VER_LEN);
@@ -740,17 +759,6 @@ Format_description_event(const char* buf, unsigned int event_len,
     for (int i= 0; i < 22; i++)
       post_header_len[i] = post_header_len_temp[i];
 
-      /*
-        We here have the possibility to simulate a master of before we changed
-        the table map id to be stored in 6 bytes: when it was stored in 4
-        bytes (=> post_header_len was 6). This is used to test backward
-        compatibility.
-      */
-      DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                      post_header_len[TABLE_MAP_EVENT-1]=
-                      post_header_len[WRITE_ROWS_EVENT_V1-1]=
-                      post_header_len[UPDATE_ROWS_EVENT_V1-1]=
-                      post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
   }
     return;
 }
@@ -1244,10 +1252,10 @@ Rand_event::Rand_event(const char* buf,
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
-    description_event->post_header_len[RAND_EVENT-1];
-  memcpy(&seed1, buf+ RAND_SEED1_OFFSET, sizeof(seed1));
+    description_event->post_header_len[RAND_EVENT - 1];
+  memcpy(&seed1, buf + RAND_SEED1_OFFSET, 8);
   seed1= le64toh(seed1);
-  memcpy(&seed2, buf+ RAND_SEED2_OFFSET, sizeof(seed2));
+  memcpy(&seed2, buf + RAND_SEED2_OFFSET, 8);
   seed2= le64toh(seed2);
 }
 

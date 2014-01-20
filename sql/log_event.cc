@@ -1651,9 +1651,11 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new User_var_log_event(buf, event_len, &des_ev);
       break;
     case FORMAT_DESCRIPTION_EVENT:
+      binary_log_debug::debug_pretend_version_50034_in_binlog=
+      DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
       ev = new Format_description_log_event(buf, event_len, &des_ev);
       break;
-#if defined(HAVE_REPLICATION) 
+#if defined(HAVE_REPLICATION)
     case PRE_GA_WRITE_ROWS_EVENT:
       ev = new Write_rows_log_event_old(buf, event_len, description_event);
       break;
@@ -4024,7 +4026,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  Log_event_type event_type)
   :Query_event(buf, event_len, description_event, event_type),
    Log_event(this->header(), this->footer(), true),
-   user(0), host(0), catalog(0), db(0), time_zone_str(0)
+   user(0), host(0), query(0), catalog(0), db(0), time_zone_str(0)
 {
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
@@ -5137,8 +5139,23 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 
 Format_description_log_event::
 Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
-  :Format_description_event(binlog_ver, ::server_version)
+  : Format_description_event(binlog_ver, ::server_version)
 {
+  /*
+   We here have the possibility to simulate a master before we changed
+   the table map id to be stored in 6 bytes: when it was stored in 4
+   bytes (=> post_header_len was 6). This is used to test backward
+   compatibility.
+   This code can be removed after a few months (today is Dec 21st 2005),
+   when we know that the 4-byte masters are not deployed anymore (check
+   with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
+   too.
+  */
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+                  post_header_len[TABLE_MAP_EVENT-1]=
+                  post_header_len[WRITE_ROWS_EVENT_V1-1]=
+                  post_header_len[UPDATE_ROWS_EVENT_V1-1]=
+                  post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
 }
 
 
@@ -5168,6 +5185,17 @@ Format_description_log_event(const char* buf, uint event_len,
    Format_description_event(buf, event_len, description_event),
    Start_log_event_v3(buf, description_event)
 {
+  /*
+   We here have the possibility to simulate a master of before we changed
+   the table map id to be stored in 6 bytes: when it was stored in 4
+   bytes (=> post_header_len was 6). This is used to test backward
+   compatibility.
+ */
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+                  post_header_len[TABLE_MAP_EVENT-1]=
+                  post_header_len[WRITE_ROWS_EVENT_V1-1]=
+                  post_header_len[UPDATE_ROWS_EVENT_V1-1]=
+                  post_header_len[DELETE_ROWS_EVENT_V1-1]= 6;);
 }
 
 #ifndef MYSQL_CLIENT
