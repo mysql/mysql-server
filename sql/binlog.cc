@@ -6145,7 +6145,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
     DBUG_RETURN(0);
 
   LEX_STRING write_error_msg= {(char*) err_msg, strlen(err_msg)};
-  Incident incident= INCIDENT_LOST_EVENTS;
+  binary_log::Incident_event::Incident incident=
+                              binary_log::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
   DBUG_RETURN(write_incident(&ev, need_lock_log, err_msg, do_flush_and_sync));

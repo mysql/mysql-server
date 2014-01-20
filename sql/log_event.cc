@@ -12116,8 +12116,8 @@ Incident_log_event(const char *buf, uint event_len,
 
 Incident_log_event::~Incident_log_event()
 {
-  if (m_message)
-    bapi_free(m_message);
+  if (message)
+    bapi_free(message);
 }
 
 
@@ -12129,9 +12129,9 @@ Incident_log_event::description() const
     "LOST_EVENTS"
   };
 
-  DBUG_PRINT("info", ("m_incident: %d", m_incident));
+  DBUG_PRINT("info", ("incident: %d", incident));
 
-  return description[m_incident];
+  return description[incident];
 }
 
 
@@ -12140,12 +12140,12 @@ int Incident_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   size_t bytes;
-  if (m_message_length > 0)
+  if (message_length > 0)
     bytes= my_snprintf(buf, sizeof(buf), "#%d (%s)",
-                       m_incident, description());
+                       incident, description());
   else
     bytes= my_snprintf(buf, sizeof(buf), "#%d (%s): %s",
-                       m_incident, description(), m_message);
+                       incident, description(), message);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -12182,7 +12182,7 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER(ER_SLAVE_INCIDENT),
               description(),
-              m_message_length > 0 ? m_message : "<none>");
+              message_length > 0 ? message : "<none>");
   DBUG_RETURN(1);
 }
 #endif
@@ -12191,9 +12191,9 @@ bool
 Incident_log_event::write_data_header(IO_CACHE *file)
 {
   DBUG_ENTER("Incident_log_event::write_data_header");
-  DBUG_PRINT("enter", ("m_incident: %d", m_incident));
+  DBUG_PRINT("enter", ("incident: %d", incident));
   uchar buf[sizeof(int16)];
-  int2store(buf, (int16) m_incident);
+  int2store(buf, (int16) incident);
 #ifndef MYSQL_CLIENT
   DBUG_RETURN(wrapper_my_b_safe_write(file, buf, sizeof(buf)));
 #else
@@ -12206,14 +12206,14 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 {
   uchar tmp[1];
   DBUG_ENTER("Incident_log_event::write_data_body");
-  tmp[0]= (uchar) m_message_length;
+  tmp[0]= (uchar) message_length;
   crc= checksum_crc32(crc, (uchar*) tmp, 1);
-  if (m_message_length > 0)
+  if (message_length > 0)
   {
-    crc= checksum_crc32(crc, (uchar*) m_message, m_message_length);
+    crc= checksum_crc32(crc, (uchar*) message, message_length);
     // todo: report a bug on write_str accepts uint but treats it as uchar
   }
-  DBUG_RETURN(write_str_at_most_255_bytes(file, m_message, (uint) m_message_length));
+  DBUG_RETURN(write_str_at_most_255_bytes(file, message, (uint) message_length));
 }
 
 

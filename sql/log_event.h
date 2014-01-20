@@ -3684,38 +3684,42 @@ protected:
 class Incident_log_event : public Incident_event , public Log_event{
 public:
 #ifdef MYSQL_SERVER
-  Incident_log_event(THD *thd_arg, Incident incident)
-    : Incident_event(incident),
-      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
-                Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING,
-                this->header(), this->footer())
+  Incident_log_event(THD *thd_arg, Incident incident_arg)
+  : Incident_event(incident),
+    Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+              Log_event::EVENT_NO_CACHE,
+              Log_event::EVENT_IMMEDIATE_LOGGING,
+              this->header(), this->footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
-    DBUG_PRINT("enter", ("m_incident: %d", m_incident));
-    DBUG_ASSERT(m_message == NULL && m_message_length == 0);
+    DBUG_PRINT("enter", ("incident: %d", incident));
+    DBUG_ASSERT(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
 
-  Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Incident_event(incident),
-      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
-                Log_event::EVENT_NO_CACHE,
-                Log_event::EVENT_IMMEDIATE_LOGGING,
-                this->header(), this->footer())
+  Incident_log_event(THD *thd_arg, Incident incident_arg, LEX_STRING const msg)
+  : Incident_event(incident_arg),
+    Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+              Log_event::EVENT_NO_CACHE,
+              Log_event::EVENT_IMMEDIATE_LOGGING,
+              this->header(), this->footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
-    DBUG_PRINT("enter", ("m_incident: %d", m_incident));
-    DBUG_ASSERT(m_message == NULL && m_message_length == 0);
-    if (!(m_message= (char*) my_malloc(key_memory_Incident_log_event_message,
+    DBUG_PRINT("enter", ("incident: %d", incident));
+    DBUG_ASSERT(message == NULL && message_length == 0);
+    if (!(message= (char*) my_malloc(key_memory_Incident_log_event_message,
                                            msg.length+1, MYF(MY_WME))))
     {
-      /* Mark this event invalid */
-      m_incident= INCIDENT_NONE;
+      /*
+        If the incident is not recognized, this binlog event is
+        invalid.  If we set incident_number to INCIDENT_NONE, the
+        invalidity will be detected by is_valid in both the ctors.
+      */
+      incident= INCIDENT_NONE;
       DBUG_VOID_RETURN;
     }
-    strmake(m_message, msg.str, msg.length);
-    m_message_length= msg.length;
+    strmake(message, msg.str, msg.length);
+    message_length= msg.length;
     DBUG_VOID_RETURN;
   }
 #endif
@@ -3744,10 +3748,10 @@ public:
 
   virtual bool is_valid() const
   {
-    return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
+    return incident > INCIDENT_NONE && incident < INCIDENT_COUNT;
   }
   virtual int get_data_size() {
-    return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) m_message_length;
+    return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) message_length;
   }
 
 private:

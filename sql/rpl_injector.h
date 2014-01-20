@@ -29,7 +29,6 @@ class handler;
 class MYSQL_BIN_LOG;
 struct TABLE;
 
-
 /*
   Injector to inject rows into the MySQL server.
   
@@ -383,7 +382,8 @@ public:
      */
     void new_trans(THD *, transaction *);
 
-    int record_incident(THD*, Incident incident, LEX_STRING const message);
+    int record_incident(THD*, binary_log::Incident_event::Incident incident,
+                        LEX_STRING const message);
 
 private:
     explicit injector();

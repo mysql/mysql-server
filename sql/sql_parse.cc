@@ -3082,10 +3082,11 @@ end_with_restore_list:
         release build.
       */
 
-      Incident incident= INCIDENT_NONE;
+      binary_log::Incident_event::Incident incident=
+                                     binary_log::Incident_event::INCIDENT_NONE;
       DBUG_PRINT("debug", ("Just before generate_incident()"));
       DBUG_EXECUTE_IF("incident_database_resync_on_replace",
-                      incident= INCIDENT_LOST_EVENTS;);
+                      incident= binary_log::Incident_event::INCIDENT_LOST_EVENTS;);
       if (incident)
       {
         Incident_log_event ev(thd, incident);

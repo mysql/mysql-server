@@ -65,20 +65,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define NAME_LEN (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
 
-/**
-   Enumeration of the incidents that can occur for the server.
- */
-enum Incident {
-  /** No incident */
-  INCIDENT_NONE = 0,
-
-  /** There are possibly lost events in the replication stream */
-  INCIDENT_LOST_EVENTS = 1,
-
-  /** Shall be last event of the enumeration */
-  INCIDENT_COUNT
-};
-
 /*
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
    Compared to version 3, version 4 has:
@@ -2632,9 +2618,22 @@ public:
 class Incident_event: public Binary_log_event
 {
 public:
-  Incident_event(Incident incident)
-  : Binary_log_event(), m_incident(incident), m_message(NULL),
-    m_message_length(0)
+  /**
+    Enumeration of the incidents that can occur for the server.
+  */
+  enum Incident {
+  /** No incident */
+  INCIDENT_NONE = 0,
+
+  /** There are possibly lost events in the replication stream */
+  INCIDENT_LOST_EVENTS = 1,
+
+  /** Shall be last event of the enumeration */
+  INCIDENT_COUNT
+  };
+  Incident_event(Incident incident_arg)
+  : Binary_log_event(), incident(incident_arg), message(NULL),
+    message_length(0)
   {
   }
   Incident_event(const char *buf, unsigned int event_len,
@@ -2644,9 +2643,9 @@ public:
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 protected:
-  Incident m_incident;
-  char *m_message;
-  size_t m_message_length;
+  Incident incident;
+  char *message;
+  size_t message_length;
 };
 
 /**
