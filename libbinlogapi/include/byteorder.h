@@ -13,6 +13,13 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+/**
+  @file byteorder.h
+
+  @brief The file contains functions to convert the byte encoding of integer
+  values to and from little-endian and big-endian byte order.
+*/
+
 #ifndef BYTEORDER_H
 #define BYTEORDER_H
 
@@ -23,8 +30,8 @@
 #include "config.h"
 
 /*
- * Define types uint_t typedefs if stdint is not present
- */
+  Define types uint_t typedefs if stdint is not present
+*/
 #if !defined(HAVE_STDINT_H)
   #if SIZEOF_INT == 4
     typedef int int32_t;
@@ -51,13 +58,20 @@
 */
 
 /*
- * Checking le16toh is required because the machine may have the header
- * but the functions might not be defined if the version of glibc < 2.9
- */
+  Checking le16toh is required because the machine may have the header
+  but the functions might not be defined if the version of glibc < 2.9
+*/
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
   #include <endian.h>
 #endif
+
 #if !defined(le16toh)
+/**
+  Converting a 16 bit integer from little-endian byte order to host byteorder
+
+  @param x  16-bit integer in little endian byte order
+  @return  16-bit integer in host byte order
+*/
 uint16_t inline le16toh(uint16_t x)
 {
   #if !(IS_BIG_ENDIAN)
@@ -69,6 +83,12 @@ uint16_t inline le16toh(uint16_t x)
 #endif
 
 #if !defined(le32toh)
+/**
+  Converting a 32 bit integer from little-endian byte order to host byteorder
+
+  @param x  32-bit integer in little endian byte order
+  @return  32-bit integer in host byte order
+*/
 uint32_t inline le32toh(uint32_t x)
 {
   #if !(IS_BIG_ENDIAN)
@@ -83,6 +103,12 @@ uint32_t inline le32toh(uint32_t x)
 #endif
 
 #if !defined(be32toh)
+/**
+  Converting a 32 bit integer from big-endian byte order to host byteorder
+
+  @param x  32-bit integer in big endian byte order
+  @return  32-bit integer in host byte order
+*/
 uint32_t inline be32toh(uint32_t x)
 {
   #if !(IS_BIG_ENDIAN)
@@ -97,6 +123,12 @@ uint32_t inline be32toh(uint32_t x)
 #endif
 
 #if !defined(le64toh)
+/**
+  Converting a 64 bit integer from little-endian byte order to host byteorder
+
+  @param x  64-bit integer in little endian byte order
+  @return  64-bit integer in host byte order
+*/
 uint64_t inline le64toh(uint64_t x)
 {
   #if !(IS_BIG_ENDIAN)

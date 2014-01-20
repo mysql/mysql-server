@@ -17,9 +17,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
+#include "byteorder.h"
+#include "protocol.h"
 #include "value.h"
-#include "binlog_event.h"
-#include "rows_event.h"
 #include <iomanip>
 
 using namespace binary_log;
@@ -111,7 +111,7 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
     /*
       Decode the size of the bit field from the master.
     */
-    DBUG_ASSERT((metadata & 0xff) <= 7);
+    assert((metadata & 0xff) <= 7);
     return 8 * (metadata >> 8U) + (metadata & 0x00ff);
 
   case MYSQL_TYPE_VAR_STRING:
@@ -157,7 +157,7 @@ int decimal_binary_size(int precision, int scale)
        intg0= intg/9, frac0= scale/9,
        intg0x= intg-intg0*9, frac0x= scale-frac0*9;
 
-   DBUG_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
+   assert(scale >= 0 && precision > 0 && scale <= precision);
    return intg0 * sizeof(uint32_t) + dig2bytes[intg0x]+
           frac0 * sizeof(uint32_t) + dig2bytes[frac0x];
  }
@@ -175,7 +175,7 @@ int decimal_binary_size(int precision, int scale)
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata)
 {
-  uint32_t length;
+  uint32_t length= 0;
 
   switch ((col)) {
   case MYSQL_TYPE_NEWDECIMAL:
@@ -208,7 +208,14 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       */
       length= max_display_length_for_field(MYSQL_TYPE_STRING, metadata) > 255 ? 2 : 1;
 
-      length+= ((length == 1) ? *master_data : uint2korr(master_data));
+      if (length == 1)
+        length+= *master_data;
+      else
+      {
+        uint32_t temp= 0;
+        memcpy(&temp, master_data, 2);
+        length= length + le32toh(temp);
+      }
     }
     break;
   }
@@ -299,14 +306,21 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     */
     unsigned int from_len= (metadata >> 8U) & 0x00ff;
     unsigned int from_bit_len= metadata & 0x00ff;
-    DBUG_ASSERT(from_bit_len <= 7);
+    assert(from_bit_len <= 7);
     length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
   }
   case MYSQL_TYPE_VARCHAR:
   {
     length= metadata > 255 ? 2 : 1;
-    length+= length == 1 ? (uint32_t) *master_data : uint2korr(master_data);
+    if (length == 1)
+      length+= (uint32_t) *master_data;
+    else
+    {
+      uint32_t temp= 0;
+      memcpy(&temp, master_data, 2);
+      length= length + le32toh(temp);
+    }
     break;
   }
   case MYSQL_TYPE_TINY_BLOB:
@@ -326,13 +340,16 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       length= *master_data;
       break;
     case 2:
-      length= uint2korr(master_data);
+      memcpy(&length, master_data, 2);
+      length= le32toh(length);
       break;
     case 3:
-      length= uint3korr(master_data);
+      memcpy(&length, master_data, 3);
+      length= le32toh(length);
       break;
     case 4:
-      length= uint4korr(master_data);
+      memcpy(&length, master_data, 4);
+      length= le32toh(length);
       break;
     default:
       assert(0);		// Should not come here
@@ -436,12 +453,16 @@ int32_t Value::as_int32() const
   {
     return 0;
   }
-  uint32_t to_int;
-  Protocol_chunk<uint32_t> prot_integer(to_int);
+  uint32_t to_int= 0;
+  memcpy(&to_int,&m_storage, m_size);
+  return le32toh(to_int);
+
+/*  Protocol_chunk<uint32_t> prot_integer(to_int);
 
   buffer_source buff(m_storage, m_size);
   buff >> prot_integer;
   return to_int;
+*/
 }
 
 int8_t Value::as_int8() const
@@ -450,12 +471,17 @@ int8_t Value::as_int8() const
   {
     return 0;
   }
+  int32_t to_int= 0;
+  memcpy(&to_int,&m_storage, m_size);
+  return le32toh(to_int);
+/*
   int8_t to_int;
   Protocol_chunk<int8_t> prot_integer(to_int);
 
   buffer_source buff(m_storage, m_size);
   buff >> prot_integer;
   return to_int;
+*/
 }
 
 int16_t Value::as_int16() const
@@ -464,12 +490,17 @@ int16_t Value::as_int16() const
   {
     return 0;
   }
+  int16_t to_int= 0;
+  memcpy(&to_int,&m_storage, m_size);
+  return le16toh(to_int);
+/*
   int16_t to_int;
   Protocol_chunk<int16_t> prot_integer(to_int);
 
   buffer_source buff(m_storage, m_size);
   buff >> prot_integer;
   return to_int;
+*/
 }
 
 int64_t Value::as_int64() const
@@ -478,12 +509,17 @@ int64_t Value::as_int64() const
   {
     return 0;
   }
+  int64_t to_int= 0;
+  memcpy(&to_int,&m_storage, m_size);
+  return le64toh(to_int);
+/*
   int64_t to_int;
   Protocol_chunk<int64_t> prot_integer(to_int);
 
   buffer_source buff(m_storage, m_size);
   buff >> prot_integer;
   return to_int;
+*/
 }
 
 float Value::as_float() const

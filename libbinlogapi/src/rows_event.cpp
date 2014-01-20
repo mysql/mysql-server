@@ -1,4 +1,4 @@
-/**
+/*
 Copyright (c) 2013, Oracle and/or its affiliates. All rights
 reserved.
 
@@ -27,7 +27,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 namespace binary_log
 {
-/* Get the length of next field. Change parameter to point at fieldstart */
+/**
+  Get the length of next field.
+  Change parameter to point at fieldstart.
+
+  @param  packet pointer to a buffer containing the field in a row.
+  @return pos    length of the next field
+*/
 unsigned long get_field_length(unsigned char **packet)
 {
   unsigned char *pos= (unsigned char *)*packet;
@@ -63,7 +69,7 @@ unsigned long get_field_length(unsigned char **packet)
 }
 
 
-/*
+/**
   Constructor used to read the event from the binary log.
 */
 Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
@@ -176,7 +182,7 @@ void Table_map_event::print_long_info(std::ostream& info)
   info << "Timestamp: " << this->header()->when.tv_sec;
   info << "\tFlags: " << m_flags;
   info << "\tColumn Type: ";
-  /**
+  /*
     TODO: Column types are stored as integers. To be
     replaced by string representation of types.
   */

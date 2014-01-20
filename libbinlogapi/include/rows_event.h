@@ -17,6 +17,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
+
+/**
+  @addtogroup Replication
+  @{
+
+  @file rows_event.h
+
+  @brief Contains the classes representing events which are used for row based
+  replication. In row-based replication, the master writes events to the binary
+  log that indicate how individual table rows are changed.
+*/
+
 #ifndef ROWS_EVENT_INCLUDED
 #define	ROWS_EVENT_INCLUDED
 
@@ -47,7 +59,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <sstream>
 #include <vector>
 
-/*
+/**
    1 byte length, 1 byte format
    Length is total length in bytes, including 2 byte header
    Length values 0 and 1 are currently invalid and reserved.
@@ -57,7 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define EXTRA_ROW_INFO_HDR_BYTES 2
 #define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
 
-/* RW = "RoWs" */
+/** RW = "RoWs" */
 #define RW_MAPID_OFFSET    0
 #define RW_FLAGS_OFFSET    6
 #define RW_VHLEN_OFFSET    8
@@ -384,9 +396,9 @@ namespace binary_log
 class Table_map_event: public Binary_log_event
 {
 public:
-  /* Constants */
+  /** Constants representing offsets */
   enum Table_map_event_offset {
-    /* TM = "Table Map" */
+    /** TM = "Table Map" */
     TM_MAPID_OFFSET= 0,
     TM_FLAGS_OFFSET= 6
   };
@@ -402,24 +414,25 @@ public:
   virtual ~Table_map_event();
 
 
-  /* Event post header contents */
+  /** Event post header contents */
   Table_id m_table_id;
   flag_set m_flags;
 
-  size_t   m_data_size;                         // event data size
+  size_t   m_data_size;                         /** event data size */
 
-  /* Event body contents */
+  /** Event body contents */
   std::string m_dbnam;
   size_t m_dblen;
   std::string m_tblnam;
   size_t m_tbllen;
   unsigned long m_colcnt;
   unsigned char* m_coltype;
-  /*
+
+  /**
     The size of field metadata buffer set by calling save_field_metadata()
   */
   unsigned long  m_field_metadata_size;
-  unsigned char* m_field_metadata;        // field metadata
+  unsigned char* m_field_metadata;        /** field metadata */
   unsigned char* m_null_bits;
 
   Table_map_event()
@@ -444,6 +457,8 @@ public:
  RESPONSIBILITIES
 
    - Provide an interface for adding an individual row to the event.
+
+  @section Rows_event_binary_format Binary Format
 
   The Post-Header has the following components:
 
@@ -541,7 +556,7 @@ public:
 class Rows_event: public Binary_log_event
 {
 public:
-  /*
+  /**
     These definitions allow to combine the flags into an
     appropriate flag set using the normal bitwise operators.  The
     implicit conversion from an enum-constant to an integer is
@@ -550,11 +565,11 @@ public:
   */
   enum enum_flag
   {
-    /* Last event of a statement */
+    /** Last event of a statement */
     STMT_END_F = (1U << 0),
-    /* Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
+    /** Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
     NO_FOREIGN_KEY_CHECKS_F = (1U << 1),
-    /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
+    /** Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
     RELAXED_UNIQUE_CHECKS_F = (1U << 2),
     /**
       Indicates that rows in this event are complete, that is contain
@@ -575,15 +590,15 @@ public:
   virtual ~Rows_event();
 
 protected:
-  Log_event_type  m_type;     /* Actual event type */
+  Log_event_type  m_type;     /** Actual event type */
 
-  /* Post header content */
+  /** Post header content */
   Table_id m_table_id;
-  uint16_t m_flags;           /* Flags for row-level events */
+  uint16_t m_flags;           /** Flags for row-level events */
 
   /* Body of the event */
-  unsigned long m_width;      /* The width of the columns bitmap */
-  uint32_t n_bits_len;        /* value determined by (m_width + 7) / 8 */
+  unsigned long m_width;      /** The width of the columns bitmap */
+  uint32_t n_bits_len;        /** value determined by (m_width + 7) / 8 */
   uint16_t var_header_len;
 
   unsigned char* m_extra_row_data;
@@ -685,4 +700,8 @@ public:
   {}
 };
 }
+
+/**
+  @} (end of group Replication)
+*/
 #endif	/* ROWS_EVENT_INCLUDED */

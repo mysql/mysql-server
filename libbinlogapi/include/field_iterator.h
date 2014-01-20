@@ -25,8 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "value.h"
 #include "rows_event.h"
 #include "row_of_fields.h"
-#include <my_global.h>
-#include <mysql.h>
 #include <vector>
 #include <stdexcept>
 

@@ -140,6 +140,7 @@ inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
   the standard free() is called from the function.
 
   @param Pointer to the memory which is to be freed.
+  @return None
 */
 inline void bapi_free(void* ptr)
 {
@@ -152,5 +153,3 @@ inline void bapi_free(void* ptr)
 }
 
 #endif
-
-

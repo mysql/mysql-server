@@ -8408,7 +8408,7 @@ bool sql_ex_info::write_data(IO_CACHE* file)
       @todo This is sensitive to field padding. We should write a
       char[7], not an old_sql_ex. /sven
     */
-    old_sql_ex old_ex;
+    binary_log::old_sql_ex old_ex;
     old_ex.field_term= *(data_info.field_term);
     old_ex.enclosed=   *(data_info.enclosed);
     old_ex.line_term=  *(data_info.line_term);
