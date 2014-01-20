@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -835,9 +835,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
-    read_info.row_end[0]=0;
-#endif
 
     restore_record(table, s->default_values);
     /*
