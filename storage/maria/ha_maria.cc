@@ -1,5 +1,6 @@
 /* Copyright (C) 2004-2008 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    Copyright (C) 2008-2009 Sun Microsystems, Inc.
+   Copyright (c) 2009, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1467,7 +1468,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
 
   param->db_name= table->s->db.str;
   param->table_name= table->alias;
-  param->tmpfile_createflag= O_RDWR | O_TRUNC;
+  param->tmpfile_createflag= O_RDWR | O_TRUNC | O_EXCL;
   param->using_global_keycache= 1;
   param->thd= thd;
   param->tmpdir= &mysql_tmpdir_list;
