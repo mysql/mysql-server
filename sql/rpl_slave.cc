@@ -8736,9 +8736,6 @@ bool change_master(THD* thd, Master_info* mi)
   */
   bool need_relay_log_purge= 1;
 
-  /* used as a temporary variable while logs are being purged */
-  bool save_relay_log_purge;
-
   DBUG_ENTER("change_master");
 
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
@@ -8941,61 +8938,81 @@ bool change_master(THD* thd, Master_info* mi)
     goto err;
   }
 
-  /*
-    The following code for purging logs can be improved. We currently use
-    3 flags- need_relay_log_purge, relay_log_purge(global) and
-    save_relay_log_purge. The use of the global variable 'relay_log_purge'
-    is bad. Apparently it is set here and not being used in the following
-    function at all. So, when refactoring the code, please improve this code.
-  */
-
-  save_relay_log_purge= relay_log_purge;
-
-  if (need_relay_log_purge)//implicitly states that both threads are stopped.
-  {
-    /* purge_relay_log() returns pointer to an error message here. */
-    const char* errmsg= 0;
-    /*
-      purge_relay_log() assumes that we have run_lock and no slave threads
-      are running.
-    */
-    relay_log_purge= 1;
-    THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
-    if (mi->rli->purge_relay_logs(thd,
-                                  0 /* not only reset, but also reinit */,
-                                  &errmsg))
-    {
-      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
-      goto err;
-    }
-  }
-  else if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
-  {
-    /*
-      If our applier module is executing and we want to switch to another
-      master without disturbing it, relay log position need not be disturbed.
-      The SQL/coordinator thread will finish events from the old master and
-      then start with the new relay log containing events from new master
-      on its own.
-    */
-    const char* msg;
-    relay_log_purge= 0;
-    /* Relay log is already initialized */
-
-    if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
-                                    mi->rli->get_group_relay_log_pos(),
-                                    true/*we do need mi->rli->data_lock*/,
-                                    &msg, 0))
-    {
-      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
-      goto err;
-    }
-  }
-
-  relay_log_purge= save_relay_log_purge;
-
   if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
   {
+
+    /*
+      The following code for purging logs can be improved. We currently use
+      3 flags-
+      1) need_relay_log_purge,
+      2) relay_log_purge(global) and
+      3) save_relay_log_purge.
+
+      The use of the global variable 'relay_log_purge' is bad. So, when
+      refactoring the code for purge logs, please consider improving this code.
+    */
+
+    /*
+      Used as a temporary variable while logs are being purged.
+
+      We save the value of the global variable 'relay_log_purge' here and then
+      set/unset it as required in if (need_relay_log_purge){}else{} block
+      following which we restore relay_log_purge value from its saved value.
+    */
+    bool save_relay_log_purge= relay_log_purge;
+
+    if (need_relay_log_purge)
+    {
+      /*
+        'if (need_relay_log_purge)' implicitly means that all slave threads are
+        stopped and there is no use of relay_log_file/relay_log_pos options.
+        We need not check these here again.
+      */
+
+      /* purge_relay_log() returns pointer to an error message here. */
+      const char* errmsg= 0;
+      /*
+        purge_relay_log() assumes that we have run_lock and no slave threads
+        are running.
+      */
+      relay_log_purge= 1;
+      THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
+      if (mi->rli->purge_relay_logs(thd,
+                                    0 /* not only reset, but also reinit */,
+                                    &errmsg))
+      {
+        my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
+        goto err;
+      }
+    }
+    else
+    {
+      /*
+        If our applier module is executing and we want to switch to another
+        master without disturbing it, relay log position need not be disturbed.
+        The SQL/coordinator thread will continue reasding whereever it is
+        placed at the moement, finish events from the old master and
+        then start with the new relay log containing events from new master
+        on its own. So we only  do this when the relay logs are not purged.
+
+        execute this when the applier is NOT executing.
+      */
+      const char* msg;
+      relay_log_purge= 0;
+      /* Relay log is already initialized */
+
+      if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
+                                      mi->rli->get_group_relay_log_pos(),
+                                      true/*we do need mi->rli->data_lock*/,
+                                      &msg, 0))
+      {
+        my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
+        goto err;
+      }
+    }
+
+    relay_log_purge= save_relay_log_purge;
+
     /*
       Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
       so restore them to good values. If we left them to ''/0, that would work;
