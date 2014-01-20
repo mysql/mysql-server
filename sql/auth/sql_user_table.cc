@@ -576,9 +576,9 @@ update_user_table(THD *thd, TABLE *table,
 
   table->use_all_columns();
   DBUG_ASSERT(host != '\0');
-  table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
+  table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
 					     system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
+  table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
 					     system_charset_info);
   key_copy((uchar *) user_key, table->record[0], table->key_info,
 	   table->key_info->key_length);
@@ -1118,7 +1118,7 @@ int replace_db_table(TABLE *table, const char *db,
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[1]->store(db, strlen(db), system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
@@ -1137,7 +1137,7 @@ int replace_db_table(TABLE *table, const char *db,
     restore_record(table, s->default_values);
     table->field[0]->store(combo.host.str,combo.host.length,
                            system_charset_info);
-    table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+    table->field[1]->store(db, strlen(db), system_charset_info);
     table->field[2]->store(combo.user.str,combo.user.length,
                            system_charset_info);
   }
@@ -1338,11 +1338,11 @@ int replace_column_table(GRANT_TABLE *g_t,
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db),
+  table->field[1]->store(db, strlen(db),
                          system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name),
+  table->field[3]->store(table_name, strlen(table_name),
                          system_charset_info);
 
   /* Get length of 4 first key parts */
@@ -1550,10 +1550,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   restore_record(table, s->default_values);     // Get empty record
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[1]->store(db, strlen(db), system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name),
+  table->field[3]->store(table_name, strlen(table_name),
                          system_charset_info);
   store_record(table,record[1]);                        // store at pos 1
   key_copy(user_key, table->record[0], table->key_info,
@@ -1600,7 +1600,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
+  table->field[4]->store(grantor,strlen(grantor), system_charset_info);
   table->field[6]->store((longlong) store_table_rights, TRUE);
   table->field[7]->store((longlong) store_col_rights, TRUE);
   rights=fix_rights_for_table(store_table_rights);
@@ -1675,9 +1675,9 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->use_all_columns();
   restore_record(table, s->default_values);             // Get empty record
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
+  table->field[1]->store(db, strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(routine_name,(uint) strlen(routine_name),
+  table->field[3]->store(routine_name, strlen(routine_name),
                          &my_charset_latin1);
   table->field[4]->store((longlong)(is_proc ?
                                     SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION),
@@ -1722,7 +1722,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     }
   }
 
-  table->field[5]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
+  table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong) store_proc_rights, TRUE);
   rights=fix_rights_for_procedure(store_proc_rights);
 

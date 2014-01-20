@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -377,6 +377,107 @@ btr_cur_latch_leaves(
 	}
 
 	ut_error;
+}
+
+/**
+Optimistically latches the leaf page or pages requested.
+@param[in]	block		guessed buffer block
+@param[in]	modify_clock	modify clock value
+@param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in]	mtr		mini-transaction
+@return true if success */
+
+bool
+btr_cur_optimistic_latch_leaves(
+	buf_block_t*	block,
+	ib_uint64_t	modify_clock,
+	ulint*		latch_mode,
+	btr_cur_t*	cursor,
+	const char*	file,
+	ulint		line,
+	mtr_t*		mtr)
+{
+	ulint		mode;
+	ulint		left_page_no;
+
+	switch (*latch_mode) {
+	case BTR_SEARCH_LEAF:
+	case BTR_MODIFY_LEAF:
+		return(buf_page_optimistic_get(*latch_mode, block,
+				modify_clock, file, line, mtr));
+	case BTR_SEARCH_PREV:
+	case BTR_MODIFY_PREV:
+		mode = *latch_mode == BTR_SEARCH_PREV
+			? RW_S_LATCH : RW_X_LATCH;
+
+		buf_page_mutex_enter(block);
+		if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+			buf_page_mutex_exit(block);
+			return(false);
+		}
+		/* pin the block not to be relocated */
+		buf_block_buf_fix_inc(block, file, line);
+		buf_page_mutex_exit(block);
+
+		rw_lock_s_lock(&block->lock);
+		if (block->modify_clock != modify_clock) {
+			rw_lock_s_unlock(&block->lock);
+
+			goto unpin_failed;
+		}
+		left_page_no = btr_page_get_prev(
+			buf_block_get_frame(block), mtr);
+		rw_lock_s_unlock(&block->lock);
+
+		if (left_page_no != FIL_NULL) {
+			cursor->left_block = btr_block_get(
+				dict_index_get_space(cursor->index),
+				dict_table_zip_size(cursor->index->table),
+				left_page_no, mode,
+				cursor->index, mtr);
+			cursor->left_block->check_index_page_at_flush
+				= TRUE;
+		} else {
+			cursor->left_block = NULL;
+		}
+
+		if (buf_page_optimistic_get(mode, block, modify_clock,
+					    file, line, mtr)) {
+			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
+			    == left_page_no) {
+				/* adjust buf_fix_count */
+				buf_page_mutex_enter(block);
+				buf_block_buf_fix_dec(block);
+				buf_page_mutex_exit(block);
+
+				*latch_mode = mode;
+				return(true);
+			} else {
+				/* release the block */
+				btr_leaf_page_release(block, mode, mtr);
+			}
+		}
+
+		/* release the left block */
+		if (cursor->left_block != NULL) {
+			btr_leaf_page_release(cursor->left_block,
+					      mode, mtr);
+		}
+unpin_failed:
+		/* unpin the block */
+		buf_page_mutex_enter(block);
+		buf_block_buf_fix_dec(block);
+		buf_page_mutex_exit(block);
+
+		return(false);
+
+	default:
+		ut_error;
+		return(false);
+	}
 }
 
 /**
@@ -3946,10 +4047,7 @@ btr_cur_del_mark_set_clust_rec(
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
-		row_log_table_delete(
-			rec, index, offsets, false,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+		row_log_table_delete(rec, index, offsets, NULL);
 	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);

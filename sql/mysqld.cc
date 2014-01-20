@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7177,6 +7176,13 @@ pfs_error:
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
     break;
+  case OPT_MDL_CACHE_SIZE:
+    push_deprecated_warn_no_replacement(NULL, "--metadata_locks_cache_size");
+    break;
+  case OPT_MDL_HASH_INSTANCES:
+    push_deprecated_warn_no_replacement(NULL,
+                                        "--metadata_locks_hash_instances");
+    break;
   }
   return 0;
 }
@@ -7454,8 +7460,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -embedded and -log to the version
-  name to make the version more descriptive.
+  We automaticly add suffixes -debug, -embedded, -log, -valgrind and -asan
+  to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
 
@@ -7471,7 +7477,17 @@ static void set_server_version(void)
     end= my_stpcpy(end, "-debug");
 #endif
   if (opt_general_log || opt_slow_log || opt_bin_log)
-    my_stpcpy(end, "-log");                        // This may slow down system
+    end= my_stpcpy(end, "-log");          // This may slow down system
+#ifdef HAVE_VALGRIND
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-valgrind")))
+    end= my_stpcpy(end, "-valgrind"); 
+#endif
+#ifdef HAVE_ASAN
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-asan")))
+    end= my_stpcpy(end, "-asan");
+#endif
 }
 
 
@@ -8181,16 +8197,15 @@ PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
-PSI_stage_info stage_waiting_to_get_readlock= { 0, "Waiting to get readlock", 0};
 PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
 PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
-PSI_stage_info stage_slave_waiiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
 PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
-
+PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -8288,9 +8303,9 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_waiting_to_get_readlock,
   & stage_compressing_gtid_table,
-  & stage_suspending
+  & stage_suspending,
+  & stage_starting
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;

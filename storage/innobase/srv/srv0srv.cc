@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -46,6 +46,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0recv.h"
@@ -57,7 +58,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0trunc.h"
 #include "srv0mon.h"
-#include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0mutex.h"
@@ -2525,7 +2525,8 @@ srv_purge_coordinator_suspend(
 
 		rw_lock_x_lock(&purge_sys->latch);
 
-		stop = (purge_sys->state == PURGE_STATE_STOP);
+		stop = (srv_shutdown_state == SRV_SHUTDOWN_NONE
+			&& purge_sys->state == PURGE_STATE_STOP);
 
 		if (!stop) {
 			ut_a(purge_sys->n_stop == 0);
@@ -2609,8 +2610,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity. */
 
-		if (purge_sys->state == PURGE_STATE_STOP
-		    || n_total_purged == 0) {
+		if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		    && (purge_sys->state == PURGE_STATE_STOP
+			|| n_total_purged == 0)) {
 
 			srv_purge_coordinator_suspend(slot, rseg_history_len);
 		}
@@ -2749,7 +2751,7 @@ for independent tablespace are not applicable to system-tablespace).
 bool
 srv_is_tablespace_truncated(ulint space_id)
 {
-	if (Tablespace::is_system_tablespace(space_id)) {
+	if (is_system_tablespace(space_id)) {
 		return(false);
 	}
 

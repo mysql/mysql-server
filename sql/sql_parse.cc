@@ -1206,7 +1206,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
                                                   thd->charset(), NULL);
-      THD_STAGE_INFO(thd, stage_init);
+      THD_STAGE_INFO(thd, stage_starting);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
       thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
@@ -2777,7 +2777,7 @@ end_with_restore_list:
 
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info,
-                           0, (ORDER*) 0, 0);
+                           0, (ORDER*) 0);
     break;
   }
 #ifdef HAVE_REPLICATION

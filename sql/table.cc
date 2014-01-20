@@ -2371,10 +2371,6 @@ partititon_err:
     }
   }
 
-#if defined(HAVE_purify) && !defined(DBUG_OFF)
-  memset(bitmaps, 0, bitmap_size*3);
-#endif
-
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
       (share->table_category == TABLE_CATEGORY_RPL_INFO))
   {

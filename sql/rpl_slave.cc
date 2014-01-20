@@ -2903,9 +2903,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     // Last_SQL_Error_Timestamp
     protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
     // Master_Ssl_Crl
-    protocol->store(mi->ssl_ca, &my_charset_bin);
+    protocol->store(mi->ssl_crl, &my_charset_bin);
     // Master_Ssl_Crlpath
-    protocol->store(mi->ssl_capath, &my_charset_bin);
+    protocol->store(mi->ssl_crlpath, &my_charset_bin);
     // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
     // Executed_Gtid_Set

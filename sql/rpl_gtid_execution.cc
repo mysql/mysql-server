@@ -476,3 +476,19 @@ void gtid_post_statement_checks(THD *thd)
 
   DBUG_VOID_RETURN;
 }
+
+
+int gtid_rollback(THD *thd)
+{
+  DBUG_ENTER("gtid_rollback");
+
+  if (thd->skip_gtid_rollback)
+  {
+    DBUG_PRINT("info",("skipping the gtid_rollback"));
+    DBUG_RETURN(0);
+  }
+
+ gtid_state->update_on_rollback(thd);
+
+  DBUG_RETURN(0);
+}
