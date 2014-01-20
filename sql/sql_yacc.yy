@@ -165,6 +165,33 @@ void my_parse_error(const char *s)
                   err.ptr(), lip->yylineno);
 }
 
+
+/**
+  Push an error message into MySQL error stack with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the error stack, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @param thd            YYTHD
+  @param location       YYSTYPE object: error position
+  @param s              error message (usually ER(ER_SYNTAX_ERROR))
+*/
+
+void parse_error_at(THD *thd, const YYLTYPE &location, const char *s)
+{
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
+
+  /* Push an error into the error stack */
+  ErrConvString err(location.raw_start, thd->variables.character_set_client);
+  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
+                  err.ptr(), lip->get_lineno(location.raw_start));
+}
+
+
 /**
   @brief Bison callback to report a syntax/OOM error
 
@@ -943,10 +970,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 161 shift/reduce conflicts.
+  Currently there are 157 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 161
+%expect 157
 
 /*
    Comments for TOKENS.
@@ -1880,6 +1907,7 @@ END_OF_INPUT
 %type <num> slave_thread_option
 
 %type <is_not_empty> opt_union_order_or_limit
+        opt_into opt_procedure_analyse_clause
 
 %%
 
@@ -6067,7 +6095,7 @@ create_select:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          opt_select_from
+          table_expression
           {
             /*
               The following work only with the local list, the global list
@@ -6428,11 +6456,6 @@ merge_insert_types:
        | FIRST_SYM       { $$= MERGE_INSERT_TO_FIRST; }
        | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; }
        ;
-
-opt_select_from:
-          opt_limit_clause {}
-        | select_from opt_select_lock_type
-        ;
 
 udf_type:
           STRING_SYM {$$ = (int) STRING_RESULT; }
@@ -8789,6 +8812,7 @@ select_paren_derived:
             Lex->current_select()->set_braces(true);
           }
           SELECT_SYM select_part2_derived
+          table_expression
           {
             if (setup_select_in_parentheses(Lex))
               MYSQL_YYABORT;
@@ -8806,7 +8830,45 @@ select_init2:
           union_clause
         ;
 
+/*
+  Theoretically we can merge all 3 right hand sides of the select_part2
+  rule into one, however such a transformation adds one shift/reduce
+  conflict more.
+*/
 select_part2:
+          select_options_and_item_list
+          opt_order_clause
+          opt_limit_clause
+          opt_select_lock_type
+        | select_options_and_item_list into opt_select_lock_type
+        | select_options_and_item_list
+          opt_into
+          from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_into
+          opt_select_lock_type
+          {
+            if ($2 && $10)
+            {
+              /* double "INTO" clause */
+              parse_error_at(YYTHD, @10, ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            if ($9 && ($2 || $10))
+            {
+              /* "INTO" with "PROCEDURE ANALYSE" */
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+select_options_and_item_list:
           {
             LEX *lex= Lex;
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
@@ -8817,27 +8879,37 @@ select_part2:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          select_into opt_select_lock_type
         ;
 
-select_into:
-          opt_order_clause opt_limit_clause {}
-        | into
-        | select_from
-        | into select_from
-        | select_from into
+
+table_expression:
+          opt_from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
         ;
 
-select_from:
-          FROM join_table_list
+from_clause:
+          FROM table_reference_list
+        ;
+
+opt_from_clause:
+          /* empty */
+        | from_clause
+        ;
+
+table_reference_list:
+          join_table_list
           {
             Select->context.table_list=
               Select->context.first_name_resolution_table=
                 Select->table_list.first;
           }
-          opt_where_clause opt_group_clause opt_having_clause
-          opt_order_clause opt_limit_clause opt_procedure_analyse_clause
-        | FROM DUAL_SYM opt_where_clause opt_limit_clause
+        | DUAL_SYM
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
@@ -11090,9 +11162,7 @@ select_derived_union:
               last select in the union.
              */
             Lex->pop_context();
-          }
-          opt_union_order_or_limit
-          {
+
             if ($1 != NULL)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -11123,7 +11193,6 @@ select_part2_derived:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          opt_select_from opt_select_lock_type
         ;
 
 /* handle contents of parentheses in join expression */
@@ -11176,7 +11245,7 @@ select_derived2:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          opt_select_from
+          table_expression
         ;
 
 get_select_lex:
@@ -11741,7 +11810,7 @@ dec_num:
         ;
 
 opt_procedure_analyse_clause:
-          /* empty */
+          /* empty */ { $$= false; }
         | PROCEDURE_SYM ANALYSE_SYM
           {
             LEX *lex= Lex;
@@ -11758,12 +11827,6 @@ opt_procedure_analyse_clause:
               MYSQL_YYABORT;
             }
 
-            if (lex->result != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
               my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
@@ -11774,6 +11837,9 @@ opt_procedure_analyse_clause:
             lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
           }
           '(' opt_procedure_analyse_params ')'
+          {
+            $$= true;
+          }
         ;
 
 opt_procedure_analyse_params:
@@ -11873,6 +11939,11 @@ select_var_ident:
               DBUG_ASSERT(lex->describe);
             }
           }
+        ;
+
+opt_into:
+          /* empty */ { $$= false; }
+        | into        { $$= true; }
         ;
 
 into:
@@ -12697,12 +12768,14 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
-          } opt_limit_clause
+          }
+          opt_limit_clause
         | RELAYLOG_SYM EVENTS_SYM binlog_in binlog_from
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
-          } opt_limit_clause
+          }
+          opt_limit_clause
         | keys_or_index from_or_in table_ident opt_db opt_where_clause
           {
             LEX *lex= Lex;
@@ -16009,17 +16082,19 @@ union_option:
 
 query_specification:
           SELECT_SYM select_init2_derived
+          table_expression
           { 
             $$= Lex->current_select()->master_unit()->first_select();
           }
-        | '(' select_paren_derived ')'
+        | '(' select_paren_derived ')' 
+          opt_union_order_or_limit
           {
             $$= Lex->current_select()->master_unit()->first_select();
           }
         ;
 
 query_expression_body:
-          query_specification opt_union_order_or_limit
+          query_specification
         | query_expression_body
           UNION_SYM union_option 
           {
@@ -16032,7 +16107,6 @@ query_expression_body:
                MYSQL_YYABORT;
           }
           query_specification
-          opt_union_order_or_limit
           {
             Lex->pop_context();
             $$= $1;
