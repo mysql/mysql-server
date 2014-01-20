@@ -169,6 +169,7 @@ char *bapi_strmake(char *dest, const char* src, size_t length)
 Log_event_header::
 Log_event_header(const char* buf,
                  const Format_description_event *description_event)
+: data_written(0), log_pos(0)
 {
   uint32_t tmp_sec;
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
