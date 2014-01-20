@@ -115,6 +115,7 @@ PATENT RIGHTS GRANT:
 #include "txn_manager.h"
 #include "ule-internal.h"
 #include <util/status.h>
+#include <util/scoped_malloc.h>
 
 
 #define ULE_DEBUG 0
@@ -469,16 +470,10 @@ toku_le_apply_msg(FT_MSG   msg,
     uint64_t oldmemsize = 0;
     uint32_t keylen = ft_msg_get_keylen(msg);
     LEAFENTRY copied_old_le = NULL;
-    bool old_le_malloced = false;
+    size_t old_le_size = old_leafentry ? leafentry_memsize(old_leafentry) : 0;
+    toku::scoped_malloc copied_old_le_buf(old_le_size);
     if (old_leafentry) {
-        size_t old_le_size = leafentry_memsize(old_leafentry);
-        if (old_le_size > 100*1024) { // completely arbitrary limit
-            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
-            old_le_malloced = true;
-        }
-        else {
-            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
-        }
+        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
         memcpy(copied_old_le, old_leafentry, old_le_size);
     }
 
@@ -506,9 +501,6 @@ toku_le_apply_msg(FT_MSG   msg,
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
-    if (old_le_malloced) {
-        toku_free(copied_old_le);
-    }
 }
 
 bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known) {
@@ -564,16 +556,10 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
     LEAFENTRY copied_old_le = NULL;
-    bool old_le_malloced = false;
+    size_t old_le_size = old_leaf_entry ? leafentry_memsize(old_leaf_entry) : 0;
+    toku::scoped_malloc copied_old_le_buf(old_le_size);
     if (old_leaf_entry) {
-        size_t old_le_size = leafentry_memsize(old_leaf_entry);
-        if (old_le_size > 100*1024) { // completely arbitrary limit
-            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
-            old_le_malloced = true;
-        }
-        else {
-            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
-        }
+        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
         memcpy(copied_old_le, old_leaf_entry, old_le_size);
     }
 
@@ -607,9 +593,6 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
-    if (old_le_malloced) {
-        toku_free(copied_old_le);
-    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////

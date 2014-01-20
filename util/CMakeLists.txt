@@ -4,6 +4,7 @@ set(util_srcs
   mempool
   partitioned_counter
   threadpool
+  scoped_malloc
   )
 
 add_library(util SHARED ${util_srcs})

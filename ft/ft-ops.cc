@@ -223,6 +223,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include <util/status.h>
 #include <util/rwlock.h>
 #include <util/sort.h>
+#include <util/scoped_malloc.h>
 
 #include <stdint.h>
 
@@ -4478,7 +4479,8 @@ bnc_apply_messages_to_basement_node(
         // the relevant messages' offsets and sort them by MSN, then apply
         // them in MSN order.
         const int buffer_size = ((stale_ube - stale_lbi) + (fresh_ube - fresh_lbi) + bnc->broadcast_list.size());
-        int32_t *XMALLOC_N(buffer_size, offsets);
+        toku::scoped_malloc offsets_buf(buffer_size * sizeof(int32_t));
+        int32_t *offsets = reinterpret_cast<int32_t *>(offsets_buf.get());
         struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
         // Populate offsets array with offsets to stale messages
@@ -4504,8 +4506,6 @@ bnc_apply_messages_to_basement_node(
             struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
             do_bn_apply_cmd(t, bn, entry, oldest_referenced_xid, &workdone_this_ancestor, &stats_delta);
         }
-
-        toku_free(offsets);
     } else if (stale_lbi == stale_ube) {
         // No stale messages to apply, we just apply fresh messages, and mark them to be moved to stale later.
         struct iterate_do_bn_apply_cmd_extra iter_extra = { .t = t, .bn = bn, .bnc = bnc, .oldest_referenced_xid = oldest_referenced_xid, .workdone = &workdone_this_ancestor, .stats_to_update = &stats_delta };
@@ -6368,11 +6368,10 @@ int toku_ft_layer_init(void) {
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
+    toku_scoped_malloc_init();
 exit:
     return r;
 }
-
-
 
 void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
@@ -6382,6 +6381,7 @@ void toku_ft_layer_destroy(void) {
     txn_status_destroy();
     toku_context_status_destroy();
     partitioned_counters_destroy();
+    toku_scoped_malloc_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();
 }
