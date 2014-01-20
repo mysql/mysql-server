@@ -2364,8 +2364,8 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
   THD *thd=info_thd;
   ulong master_version, current_version;
   int changed= !fdle || ! rli_description_event ? 0 :
-    (master_version= fdle->get_version_product()) - 
-    (current_version= rli_description_event->get_version_product());
+    (master_version= fdle->get_product_version()) -
+    (current_version= rli_description_event->get_product_version());
 
   /* When the last version is not changed nothing to adapt for */
   if (!changed)
