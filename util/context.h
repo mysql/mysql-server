@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef UTIL_FRWLOCK_H
-#define UTIL_FRWLOCK_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -32,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2007-2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -88,93 +86,119 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
+
+#ident "Copyright (c) 2007-2014 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include <toku_pthread.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <util/context.h>
+#include <toku_include/toku_portability.h>
 
-//TODO: update comment, this is from rwlock.h
+#include <db.h>
+
+#include <util/status.h>
+
+enum context_id {
+    CTX_INVALID = -1,
+    CTX_DEFAULT = 0,          // default context for when no context is set
+    CTX_SEARCH,               // searching for a key at the bottom of the tree
+    CTX_PROMO,                // promoting a message down the tree
+    CTX_FULL_FETCH,           // performing full fetch (pivots + some partial fetch)
+    CTX_PARTIAL_FETCH,        // performing partial fetch
+    CTX_FULL_EVICTION,        // running partial eviction
+    CTX_PARTIAL_EVICTION,     // running partial eviction
+    CTX_MESSAGE_INJECTION,    // injecting a message into a buffer
+    CTX_MESSAGE_APPLICATION,  // applying ancestor's messages to a basement node
+    CTX_FLUSH,                // flushing a buffer
+    CTX_CLEANER               // doing work as the cleaner thread
+};
+
+// Note a contention event in engine status
+void toku_context_note_frwlock_contention(const context_id blocking, const context_id blocked);
 
 namespace toku {
 
-class frwlock {
-public:
+    // class for tracking what a thread is doing
+    //
+    // usage:
+    //
+    // // automatically tag and document what you're doing
+    // void my_interesting_function(void) {
+    //     toku::context ctx("doing something interesting", INTERESTING_FN_1);
+    //     ...
+    //     {
+    //         toku::context inner_ctx("doing something expensive", EXPENSIVE_FN_1);
+    //         my_rwlock.wrlock();
+    //         expensive();
+    //         my_rwlock.wrunlock();
+    //     }
+    //     ...
+    // }
+    //
+    // // ... so later you can write code like this.
+    // // here, we save some info to help determine why a lock could not be acquired
+    // void my_rwlock::wrlock() {
+    //     r = try_acquire_write_lock();
+    //     if (r == 0) {
+    //         m_write_locked_context_id = get_thread_local_context()->get_id();
+    //         ...
+    //     } else {
+    //         if (m_write_locked_context_id == EXPENSIVE_FN_1) {
+    //             status.blocked_because_of_expensive_fn_1++;
+    //         } else if (...) {
+    //            ...
+    //         }
+    //         ...
+    //     }
+    // }
+    class context {
+    public:
+        context(const context_id id); 
 
-    void init(toku_mutex_t *const mutex);
-    void deinit(void);
+        ~context();
 
-    void write_lock(bool expensive);
-    bool try_write_lock(bool expensive);
-    void write_unlock(void);
-    // returns true if acquiring a write lock will be expensive
-    bool write_lock_is_expensive(void);
+        context_id get_id() const {
+            return m_id;
+        }
 
-    void read_lock(void);
-    bool try_read_lock(void);
-    void read_unlock(void);
-    // returns true if acquiring a read lock will be expensive
-    bool read_lock_is_expensive(void);
-
-    uint32_t users(void) const;
-    uint32_t blocked_users(void) const;
-    uint32_t writers(void) const;
-    uint32_t blocked_writers(void) const;
-    uint32_t readers(void) const;
-    uint32_t blocked_readers(void) const;
-
-private:
-    struct queue_item {
-        toku_cond_t *cond;
-        struct queue_item *next;
+    private:
+        // each thread has a stack of contexts, rooted at the trivial "root context"
+        const context *m_old_ctx;
+        const context_id m_id;
     };
-
-    bool queue_is_empty(void) const;
-    void enq_item(queue_item *const item);
-    toku_cond_t *deq_item(void);
-    void maybe_signal_or_broadcast_next(void);
-    void maybe_signal_next_writer(void);
-
-    toku_mutex_t *m_mutex;
-
-    uint32_t m_num_readers;
-    uint32_t m_num_writers;
-    uint32_t m_num_want_write;
-    uint32_t m_num_want_read;
-    uint32_t m_num_signaled_readers;
-    // number of writers waiting that are expensive
-    // MUST be < m_num_want_write
-    uint32_t m_num_expensive_want_write;
-    // bool that states if the current writer is expensive
-    // if there is no current writer, then is false
-    bool m_current_writer_expensive;
-    // bool that states if waiting for a read
-    // is expensive
-    // if there are currently no waiting readers, then set to false
-    bool m_read_wait_expensive;
-    // thread-id of the current writer
-    int m_current_writer_tid;
-    // context id describing the context of the current writer blocking
-    // new readers (either because this writer holds the write lock or
-    // is the first to want the write lock).
-    context_id m_blocking_writer_context_id;
-    
-    toku_cond_t m_wait_read;
-    queue_item m_queue_item_read;
-    bool m_wait_read_is_in_queue;
-
-    queue_item *m_wait_head;
-    queue_item *m_wait_tail;
-};
-
-ENSURE_POD(frwlock);
 
 } // namespace toku
 
-// include the implementation here
-// #include "frwlock.cc"
+// Get the current context of this thread
+const toku::context *toku_thread_get_context();
 
-#endif // UTIL_FRWLOCK_H
+enum context_status_entry {
+    CTX_SEARCH_BLOCKED_BY_FULL_FETCH = 0,
+    CTX_SEARCH_BLOCKED_BY_PARTIAL_FETCH,
+    CTX_SEARCH_BLOCKED_BY_FULL_EVICTION,
+    CTX_SEARCH_BLOCKED_BY_PARTIAL_EVICTION,
+    CTX_SEARCH_BLOCKED_BY_MESSAGE_INJECTION,
+    CTX_SEARCH_BLOCKED_BY_MESSAGE_APPLICATION,
+    CTX_SEARCH_BLOCKED_BY_FLUSH,
+    CTX_SEARCH_BLOCKED_BY_CLEANER,
+    CTX_SEARCH_BLOCKED_OTHER,
+    CTX_PROMO_BLOCKED_BY_FULL_FETCH,
+    CTX_PROMO_BLOCKED_BY_PARTIAL_FETCH,
+    CTX_PROMO_BLOCKED_BY_FULL_EVICTION,
+    CTX_PROMO_BLOCKED_BY_PARTIAL_EVICTION,
+    CTX_PROMO_BLOCKED_BY_MESSAGE_INJECTION,
+    CTX_PROMO_BLOCKED_BY_MESSAGE_APPLICATION,
+    CTX_PROMO_BLOCKED_BY_FLUSH,
+    CTX_PROMO_BLOCKED_BY_CLEANER,
+    CTX_PROMO_BLOCKED_OTHER,
+    CTX_BLOCKED_OTHER,
+    CTX_STATUS_NUM_ROWS
+};
+
+struct context_status {
+    bool initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[CTX_STATUS_NUM_ROWS];
+};
+
+void toku_context_get_status(struct context_status *status);
+
+void toku_context_status_destroy(void);

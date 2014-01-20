@@ -97,6 +97,7 @@ PATENT RIGHTS GRANT:
 #include <toku_assert.h>
 #include <portability/toku_atomic.h>
 #include <util/status.h>
+#include <util/context.h>
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
@@ -1866,6 +1867,7 @@ struct flusher_extra {
 //
 static void flush_node_fun(void *fe_v)
 {
+    toku::context flush_ctx(CTX_FLUSH);
     struct flusher_extra* fe = (struct flusher_extra *) fe_v;
     // The node that has been placed on the background
     // thread may not be fully in memory. Some message
@@ -1950,6 +1952,7 @@ place_node_and_bnc_on_background_thread(
 //
 void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
 {
+    toku::context flush_ctx(CTX_FLUSH);
     TXNID oldest_referenced_xid_known = parent->oldest_referenced_xid_known;
     //
     // first let's see if we can detach buffer on client thread

@@ -218,6 +218,7 @@ basement nodes, bulk fetch,  and partial fetch:
 
 #include <portability/toku_atomic.h>
 
+#include <util/context.h>
 #include <util/mempool.h>
 #include <util/status.h>
 #include <util/rwlock.h>
@@ -2830,6 +2831,7 @@ static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t f
 //  Inject cmd into the node at this blocknum (cachekey).
 //  Gets a write lock on the node for you.
 {
+    toku::context inject_ctx(CTX_MESSAGE_INJECTION);
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, ft);
@@ -2954,7 +2956,15 @@ static void push_something_in_subtree(
                     // node locked.
                     struct ftnode_fetch_extra bfe;
                     fill_bfe_for_full_read(&bfe, ft);
-                    toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
+                    if (lock_type == PL_WRITE_CHEAP) {
+                        // We intend to take the write lock for message injection
+                        toku::context inject_ctx(CTX_MESSAGE_INJECTION);
+                        toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
+                    } else {
+                        // We're going to keep promoting
+                        toku::context promo_ctx(CTX_PROMO);
+                        toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
+                    }
                 } else {
                     r = toku_maybe_pin_ftnode_clean(ft, child_blocknum, child_fullhash, lock_type, &child);
                     if (r != 0) {
@@ -3060,6 +3070,8 @@ void toku_ft_root_put_cmd(
 //    in any checkpoint that contains this put's logentry.
 //    Holding the mo lock throughout this function ensures that fact.
 {
+    toku::context promo_ctx(CTX_PROMO);
+
     // blackhole fractal trees drop all messages, so do nothing.
     if (ft->blackhole) {
         return;
@@ -5315,6 +5327,8 @@ toku_ft_search (FT_HANDLE brt, ft_search_t *search, FT_GET_CALLBACK_FUNCTION get
     uint trycount = 0;     // How many tries did it take to get the result?
     FT ft = brt->ft;
 
+    toku::context search_ctx(CTX_SEARCH);
+
 try_again:
 
     trycount++;
@@ -6366,6 +6380,7 @@ void toku_ft_layer_destroy(void) {
     toku_checkpoint_destroy();
     status_destroy();
     txn_status_destroy();
+    toku_context_status_destroy();
     partitioned_counters_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();

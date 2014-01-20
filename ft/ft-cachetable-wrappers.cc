@@ -94,7 +94,8 @@ PATENT RIGHTS GRANT:
 #include <fttypes.h>
 #include <ft-flusher.h>
 #include <ft-internal.h>
-#include "ft.h"
+#include <ft.h>
+#include <util/context.h>
 
 static void
 ftnode_get_key_and_fullhash(
@@ -252,6 +253,8 @@ toku_pin_ftnode_batched(
             bfe->child_to_read
             );
         if (needs_ancestors_messages) {
+            toku::context apply_messages_ctx(CTX_MESSAGE_APPLICATION);
+
             toku_unpin_ftnode_read_only(brt->ft, node);
             int rr = toku_cachetable_get_and_pin_nonblocking_batched(
                     brt->ft->cf,
