@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -802,7 +801,7 @@ public:
   TABLE_LIST *embedding;          /* table embedding to the above list   */
   /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
-  //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
+
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected

@@ -306,7 +306,6 @@ insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
-execute stmt1;
 ERROR 42000: Column 'a' specified twice
 insert into t1 (a,b,b) values (1,1,1);
 ERROR 42000: Column 'b' specified twice

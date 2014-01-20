@@ -155,7 +155,8 @@ enum dberr_t {
 	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
 					type of errors */
 
-	DB_TABLESPACE_TRUNCATED		/*!< tablespace was truncated */
+	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
+	DB_TABLE_CORRUPT		/*!< Table/clustered index is corrupted */
 };
 
 #endif

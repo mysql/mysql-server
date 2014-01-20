@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3844,7 +3844,8 @@ bool JOIN::estimate_rowcount()
     }
     // Approximate number of found rows and cost to read them
     tab->found_records= tab->records= tab->table->file->stats.records;
-    tab->read_time= (ha_rows) tab->table->file->scan_time();
+    const Cost_estimate table_scan_time= tab->table->file->table_scan_cost();
+    tab->read_time= static_cast<ha_rows>(table_scan_time.total_cost());
 
     /*
       Set a max range of how many seeks we can expect when using keys

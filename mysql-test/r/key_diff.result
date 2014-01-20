@@ -33,6 +33,9 @@ b	A	a	a
 C	c	a	a
 D	E	a	a
 a	a	a	a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
