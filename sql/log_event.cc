@@ -4810,8 +4810,11 @@ static bool is_silent_error(THD* thd)
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
+  DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
+
+  DBUG_PRINT("info", ("query=%s", query));
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -5235,7 +5238,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt= 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return thd->is_slave_error;
+  DBUG_RETURN(thd->is_slave_error);
 }
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
@@ -5288,7 +5291,8 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
       DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
     }
   }
-  DBUG_RETURN(Log_event::do_shall_skip(rli));
+  Log_event::enum_skip_reason ret= Log_event::do_shall_skip(rli);
+  DBUG_RETURN(ret);
 }
 
 #endif
@@ -5371,6 +5375,26 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(head, "BINLOG '\n");
     print_base64(head, print_event_info, FALSE);
     print_event_info->printed_fd_event= TRUE;
+
+    /*
+      If --skip-gtids is given, the server when it replays the output
+      should generate a new GTID if gtid_mode=ON.  However, when the
+      server reads the base64-encoded Format_description_log_event, it
+      will cleverly detect that this is a binlog to be replayed, and
+      act a little bit like the replication thread, in the following
+      sense: if the thread does not see any 'SET GTID_NEXT' statement,
+      it will assume the binlog was created by an old server and try
+      to preserve transactions as anonymous.  This is the opposite of
+      what we want when passing the --skip-gtids flag, so therefore we
+      output the following statement.
+
+      The behavior where the client preserves transactions following a
+      Format_description_log_event as anonymous was introduced in
+      5.6.16.
+    */
+    if (print_event_info->skip_gtids)
+      my_b_printf(head, "/*!50616 SET @@SESSION.GTID_NEXT='AUTOMATIC'*/%s\n",
+                  print_event_info->delimiter);
   }
   DBUG_VOID_RETURN;
 }
@@ -11221,16 +11245,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
 
-  if (opt_bin_log)
-  {
-    enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
-    if (state == GTID_STATEMENT_CANCEL)
-      // error has already been printed; don't print anything more here
-      DBUG_RETURN(-1);
-    else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
-  }
-
   /*
     'thd' has been set by exec_relay_log_event(), just before calling
     do_apply_event(). We still check here to prevent future coding
@@ -11257,6 +11271,21 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
+
+    enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+    if (state == GTID_STATEMENT_CANCEL)
+    {
+      uint error= thd->get_stmt_da()->sql_errno();
+      DBUG_ASSERT(error != 0);
+      rli->report(ERROR_LEVEL, error,
+                  "Error executing row event: '%s'",
+                  thd->get_stmt_da()->message());
+      thd->is_slave_error= 1;
+      DBUG_RETURN(-1);
+    }
+    else if (state == GTID_STATEMENT_SKIP)
+      DBUG_RETURN(0);
+
     /*
       The current statement is just about to begin and 
       has not yet modified anything. Note, all.modified is reset
@@ -11277,14 +11306,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       the event.
     */
     if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
-        thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
+      thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+      thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (get_flags(RELAXED_UNIQUE_CHECKS_F))
-        thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
+      thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+      thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
 
     thd->binlog_row_event_extra_data = m_extra_row_data;
 
@@ -13727,17 +13756,16 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  // Gtid_log_events should be filtered out at earlier stages if gtid_mode == 0
-  DBUG_ASSERT(gtid_mode > 0);
-
-  rpl_sidno sidno= get_sidno(true);
-  if (sidno < 0)
-    DBUG_RETURN(1); // out of memory
+  /*
+    In rare cases it is possible that we already own a GTID. This can
+    happen if a transaction is truncated in the middle in the relay
+    log and then next relay log begins with a Gtid_log_events without
+    closing the transaction context from the previous relay log.  In
+    this case the only sensible thing to do is to discard the
+    truncated transaction and move on.
+  */
   if (thd->owned_gtid.sidno)
-  {
     gtid_rollback(thd);
-  }
-  thd->variables.gtid_next.set(sidno, spec.gtid.gno);
 
   /*
     The variable 'currently_executing_gtid' is used to fill
@@ -13749,11 +13777,40 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   my_worker= dynamic_cast<const Slave_worker* >(rli);
   if (is_mts_worker(thd))
     my_worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
-  DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
-                      sidno, spec.gtid.gno));
 
-  if (gtid_acquire_ownership_single(thd))
-    DBUG_RETURN(1);
+  if (spec.type == ANONYMOUS_GROUP)
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      rli->report(ERROR_LEVEL,
+                  ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON,
+                  "%s",
+                  ER(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON));
+      DBUG_RETURN(1);
+    }
+    thd->variables.gtid_next.set_anonymous();
+  }
+  else
+  {
+    if (gtid_mode == GTID_MODE_OFF)
+    {
+      rli->report(ERROR_LEVEL,
+                  ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF,
+                  "%s",
+                  ER(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF));
+      DBUG_RETURN(1);
+    }
+    rpl_sidno sidno= get_sidno(true);
+    if (sidno < 0)
+      DBUG_RETURN(1); // out of memory
+
+    thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+    DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
+                        sidno, spec.gtid.gno));
+
+    if (gtid_acquire_ownership_single(thd))
+      DBUG_RETURN(1);
+  }
 
   DBUG_RETURN(0);
 }
