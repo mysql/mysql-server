@@ -11275,11 +11275,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
     if (state == GTID_STATEMENT_CANCEL)
     {
-      uint error= thd->get_stmt_da()->sql_errno();
+      uint error= thd->get_stmt_da()->mysql_errno();
       DBUG_ASSERT(error != 0);
       rli->report(ERROR_LEVEL, error,
                   "Error executing row event: '%s'",
-                  thd->get_stmt_da()->message());
+                  thd->get_stmt_da()->message_text());
       thd->is_slave_error= 1;
       DBUG_RETURN(-1);
     }
@@ -13767,17 +13767,6 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   if (thd->owned_gtid.sidno)
     gtid_rollback(thd);
 
-  /*
-    The variable 'currently_executing_gtid' is used to fill
-    last_seen_transaction column of the table
-    performance_schema.replication_execute_status_by_worker
-    to show the GTID of last transaction picked up by this worker thread.
-  */
-  const Slave_worker* my_worker;
-  my_worker= dynamic_cast<const Slave_worker* >(rli);
-  if (is_mts_worker(thd))
-    my_worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
-
   if (spec.type == ANONYMOUS_GROUP)
   {
     if (gtid_mode == GTID_MODE_ON)
@@ -13805,12 +13794,15 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(1); // out of memory
 
     thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+
     DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                         sidno, spec.gtid.gno));
 
     if (gtid_acquire_ownership_single(thd))
       DBUG_RETURN(1);
   }
+
+  thd->set_currently_executing_gtid_for_slave_thread();
 
   DBUG_RETURN(0);
 }
