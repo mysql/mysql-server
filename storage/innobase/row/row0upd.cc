@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2111,7 +2111,7 @@ row_upd_clust_rec(
 
 	if (dict_index_is_online_ddl(index)) {
 		rebuilt_old_pk = row_log_table_get_pk(
-			btr_cur_get_rec(btr_cur), index, offsets, &heap);
+			btr_cur_get_rec(btr_cur), index, offsets, NULL, &heap);
 	}
 
 	/* Try optimistic updating of the record, keeping changes within
