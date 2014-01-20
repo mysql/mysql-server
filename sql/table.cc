@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2359,10 +2359,6 @@ partititon_err:
       goto err;                                 /* purecov: inspected */
     }
   }
-
-#if defined(HAVE_purify) && !defined(DBUG_OFF)
-  memset(bitmaps, 0, bitmap_size*3);
-#endif
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
       (share->table_category == TABLE_CATEGORY_RPL_INFO))
