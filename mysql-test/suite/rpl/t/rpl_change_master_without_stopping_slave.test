@@ -37,6 +37,7 @@
 #  WL#6120- Change master without stopping Slave threads.
 #
 
+--source include/have_gtid.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
