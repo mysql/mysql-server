@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,10 +94,6 @@
   as necessary, old are pushed in the stack for reuse. ABA is solved by
   versioning a pointer - because we use an array, a pointer to pins is 16 bit,
   upper 16 bits are used for a version.
-
-  It is assumed that pins belong to a THD and are not transferable
-  between THD's (LF_PINS::stack_ends_here being a primary reason
-  for this limitation).
 */
 #include <my_global.h>
 #include <my_sys.h>
@@ -140,14 +136,9 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
   DESCRIPTION
     get a new LF_PINS structure from a stack of unused pins,
     or allocate a new one out of dynarray.
-
-  NOTE
-    It is assumed that pins belong to a thread and are not transferable
-    between threads.
 */
 LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
 {
-  struct st_my_thread_var *var;
   uint32 pins, next, top_ver;
   LF_PINS *el;
   /*
@@ -190,12 +181,6 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
   el->link= pins;
   el->purgatory_count= 0;
   el->pinbox= pinbox;
-  var= my_thread_var;
-  /*
-    Threads that do not call my_thread_init() should still be
-    able to use the LF_HASH.
-  */
-  el->stack_ends_here= (var ? & var->stack_ends_here : NULL);
   return el;
 }
 
@@ -342,14 +327,19 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
   void **addr= NULL;
   void *first= NULL, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
+  struct st_my_thread_var *var= my_thread_var;
 
   npins= pinbox->pins_in_array+1;
 
-  if (pins->stack_ends_here != NULL)
+  /*
+    Threads that do not call my_thread_init() should still be
+    able to use the LF_HASH.
+  */
+  if (var)
   {
     int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
     /* create a sorted list of pinned addresses, to speed up searches */
-    if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
+    if (available_stack_size(&pinbox, var->stack_ends_here) > alloca_size)
     {
       struct st_harvester hv;
       addr= (void **) alloca(alloca_size);
@@ -438,28 +428,32 @@ static void alloc_free(uchar *first,
                              (void **)&tmp.ptr, first) && LF_BACKOFF);
 }
 
-/*
-  initialize lock-free allocator
+/**
+  Initialize lock-free allocator.
 
-  SYNOPSYS
-    allocator           -
-    size                a size of an object to allocate
-    free_ptr_offset     an offset inside the object to a sizeof(void *)
-                        memory that is guaranteed to be unused after
-                        the object is put in the purgatory. Unused by ANY
-                        thread, not only the purgatory owner.
-                        This memory will be used to link waiting-to-be-freed
-                        objects in a purgatory list.
+  @param  allocator           Allocator structure to initialize.
+  @param  size                A size of an object to allocate.
+  @param  free_ptr_offset     An offset inside the object to a sizeof(void *)
+                              memory that is guaranteed to be unused after
+                              the object is put in the purgatory. Unused by
+                              ANY thread, not only the purgatory owner.
+                              This memory will be used to link
+                              waiting-to-be-freed objects in a purgatory list.
+  @param ctor                 Function to be called after object was
+                              malloc()'ed.
+  @param dtor                 Function to be called before object is free()'d.
 */
-void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
+
+void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
+                    lf_allocator_func *ctor, lf_allocator_func *dtor)
 {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
                  (lf_pinbox_free_func *)alloc_free, allocator);
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
-  allocator->constructor= 0;
-  allocator->destructor= 0;
+  allocator->constructor= ctor;
+  allocator->destructor= dtor;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 

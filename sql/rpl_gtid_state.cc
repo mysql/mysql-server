@@ -189,8 +189,15 @@ void Gtid_state::update_on_commit(THD *thd)
 void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
+
   if (!thd->owned_gtid.is_null())
   {
+    if (thd->skip_gtid_rollback)
+    {
+      DBUG_PRINT("info",("skipping the gtid_rollback"));
+      DBUG_VOID_RETURN;
+    }
+
     global_sid_lock->rdlock();
     /*
       Remove the gtid from executed_gtids variable if

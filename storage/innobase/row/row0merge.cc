@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0ftsort.h"
 #include "row0import.h"
 #include "handler0alter.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -3050,7 +3050,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(!Tablespace::is_system_tablespace(table->space));
+	ut_ad(!is_system_tablespace(table->space));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);
@@ -3111,7 +3111,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(old_table->space)
+	    && !is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3140,7 +3140,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(new_table->space)) {
+	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
 			new_table, old_table->name);

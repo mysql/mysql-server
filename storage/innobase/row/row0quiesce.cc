@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.

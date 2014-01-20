@@ -31,4 +31,6 @@ connection default;
 --disconnect con2
 
 let $VERSION=`select version()`;
+--let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0

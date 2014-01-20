@@ -48,9 +48,11 @@ call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Attempt to open a tablespace previously opened");
 call mtr.add_suppression("A link file was found named");
 call mtr.add_suppression("but tablespace with that id or name does not exist.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 --enable_query_log
 
 --echo #
@@ -279,8 +281,9 @@ SHOW CREATE TABLE nolink;
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
---echo # Cleanup after restart
+--echo # Restart the server and DROP the tablespaces.
 --echo #
+--source include/restart_mysqld.inc
 
 DROP TABLE yyy;
 DROP TABLE nyy;
@@ -339,7 +342,7 @@ DROP TABLE nolink;
 --echo # Create some tables again and this time, crash instead of shutdown
 --echo # InnoDB recovery does not have the ability at this time to query
 --echo # the data dictionary in order to determine if the table it is
---echo # openeing is the correct one, or to finde the previous location
+--echo # openeing is the correct one, or to find the previous location
 --echo # of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
 --echo # to tell the truth. But it can compare the current linked location
 --echo # with a tablespace found in the default location and use the most
@@ -353,7 +356,7 @@ DROP TABLE nolink;
 --echo # source of the 'wrong' tablespaces.
 --echo #
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
---echo #    ny              Yes                 Yes
+--echo #    ny              No                  Yes
 --echo #    wy              Wrong               Yes
 --echo #    yn              Yes                 No
 --echo #    yw              Yes                 Wrong

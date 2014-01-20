@@ -70,13 +70,7 @@ ut_dbg_assertion_failed(
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-#include <sys/types.h>
-#include <sys/time.h>
-#ifdef HAVE_SYS_RESOURCE_H
-# include <sys/resource.h>
-#endif
-
-#include <unistd.h>
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H) && defined(HAVE_UNISTD_H)
 
 #ifndef timersub
 #define timersub(a, b, r)						\
@@ -133,5 +127,6 @@ speedo_show(
 	timersub(&ru_now.ru_stime, &speedo->ru.ru_stime, &tv_diff);
 	PRINT_TIMEVAL("sys ", &tv_diff);
 }
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */

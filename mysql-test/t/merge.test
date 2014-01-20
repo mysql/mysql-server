@@ -1,11 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of MERGE TABLES
 #
+# MERGE tables require MyISAM tables
+--source include/have_myisam.inc 
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -237,8 +234,8 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t1,t2);
 SELECT * FROM t3;
-CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL);
-CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL);
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL) ENGINE=MyISAM;
 INSERT INTO t4 VALUES (4);
 INSERT INTO t5 VALUES (5);
 CREATE TEMPORARY TABLE t6 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t4,t5);
@@ -259,7 +256,7 @@ select * from t3;
 drop table t3, t2, t1;
 # Forbid children mismatch in temporary:
 create table t1 (a int not null);
-create temporary table t2 (a int not null);
+create temporary table t2 (a int not null) engine=myisam;
 insert into t1 values (1);
 insert into t2 values (2);
 create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
@@ -270,8 +267,8 @@ create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
 select * from t3;
 drop table t3, t2, t1;
 --echo # CREATE...SELECT is not implemented for MERGE tables.
-CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL);
-CREATE TEMPORARY TABLE t2 (c1 INT NOT NULL);
+CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT NOT NULL) ENGINE=MyISAM;
 CREATE TABLE t3 (c1 INT NOT NULL);
 INSERT INTO t3 VALUES (3), (33);
 LOCK TABLES t3 READ;
@@ -712,8 +709,8 @@ UNLOCK TABLES;
 DROP TABLE t1, t2, t3;
 --echo #
 --echo # Truncate temporary MERGE table.
-CREATE TEMPORARY TABLE t1 (c1 INT, INDEX(c1));
-CREATE TEMPORARY TABLE t2 (c1 INT, INDEX(c1));
+CREATE TEMPORARY TABLE t1 (c1 INT, INDEX(c1)) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
@@ -1661,7 +1658,7 @@ SHOW CREATE TABLE `test/1`.m1;
 DROP TABLE `test/1`.m1;
 DROP TABLE `test/1`.`t/1`;
 
-CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT);
+CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
 SELECT * FROM m1;
 SHOW CREATE TABLE m1;
@@ -1907,8 +1904,8 @@ DROP TABLE tm1, t1, t2, t3;
 #
 # Review detected Crash #2. Trying to attach temporary table twice.
 #
-CREATE TEMPORARY TABLE t1 (c1 INT);
-CREATE TEMPORARY TABLE t2 (c1 INT);
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
   INSERT_METHOD=FIRST;
 CREATE FUNCTION f1() RETURNS INT RETURN (SELECT MAX(c1) FROM tm1);
@@ -1922,8 +1919,8 @@ DROP TABLE tm1, t1, t2;
 DELIMITER |;
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
-  CREATE TEMPORARY TABLE t1 (c1 INT);
-  CREATE TEMPORARY TABLE t2 (c1 INT);
+  CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+  CREATE TEMPORARY TABLE t2 (c1 INT) ENGINE=MyISAM;
   CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2);
   INSERT INTO t1 (c1) VALUES (1);
   RETURN (SELECT MAX(c1) FROM tm1);
@@ -2293,7 +2290,7 @@ SELECT * FROM m2;
 DROP TABLE m2;
 #
 --echo #
-CREATE TEMPORARY TABLE m2 SELECT * FROM m1;
+CREATE TEMPORARY TABLE m2 ENGINE=MyISAM SELECT * FROM m1;
 SHOW CREATE TABLE m2;
 SELECT * FROM m2;
 DROP TABLE m2;
@@ -2455,7 +2452,7 @@ SHOW CREATE TABLE m1;
 CREATE TABLE m2 SELECT * FROM m1;
 #
 --echo #
-CREATE TEMPORARY TABLE m2 SELECT * FROM m1;
+CREATE TEMPORARY TABLE m2 ENGINE=MyISAM SELECT * FROM m1;
 SHOW CREATE TABLE m2;
 SELECT * FROM m2;
 DROP TABLE m2;

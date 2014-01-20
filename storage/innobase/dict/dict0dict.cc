@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -70,7 +70,7 @@ dict_index_t*	dict_ind_compact;
 #include "row0mysql.h"
 #include "row0merge.h"
 #include "row0log.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "sync0sync.h"
 
 /** the dictionary system */
@@ -963,11 +963,10 @@ dict_table_open_on_name(
 				mutex_exit(&dict_sys->mutex);
 			}
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table %s is corrupted. Please drop the table"
 				" and recreate",
 				ut_get_name(NULL, TRUE, table->name).c_str());
-
 			DBUG_RETURN(NULL);
 		}
 
@@ -1408,17 +1407,24 @@ dict_table_rename_in_cache(
 		bool		exists;
 		char*		filepath;
 
-		ut_ad(!Tablespace::is_system_tablespace(table->space));
+		ut_ad(!is_system_tablespace(table->space));
+
+		/* Make sure the data_dir_path is set. */
+		dict_get_and_save_data_dir_path(table, true);
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-
-			dict_get_and_save_data_dir_path(table, true);
 			ut_a(table->data_dir_path);
 
-			filepath = os_file_make_remote_pathname(
-				table->data_dir_path, table->name, "ibd");
+			filepath = fil_make_filepath(
+				table->data_dir_path, table->name,
+				IBD, true);
 		} else {
-			filepath = fil_make_ibd_name(table->name, false);
+			filepath = fil_make_filepath(
+				NULL, table->name, IBD, false);
+		}
+
+		if (filepath == NULL) {
+			return(DB_OUT_OF_MEMORY);
 		}
 
 		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
@@ -1435,7 +1441,7 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (!Tablespace::is_system_tablespace(table->space)) {
+	} else if (!is_system_tablespace(table->space)) {
 		char*	new_path = NULL;
 
 		if (table->dir_path_of_temp_table != NULL) {
@@ -1455,7 +1461,7 @@ dict_table_rename_in_cache(
 
 			ut_free(old_path);
 
-			dberr_t	err = fil_create_link_file(
+			dberr_t	err = RemoteDatafile::create_link_file(
 				new_name, new_path);
 
 			if (err != DB_SUCCESS) {
@@ -1472,7 +1478,7 @@ dict_table_rename_in_cache(
 		if (new_path) {
 
 			ut_free(new_path);
-			fil_delete_link_file(success ? old_name : new_name);
+			RemoteDatafile::delete_link_file(success ? old_name : new_name);
 		}
 
 		if (!success) {

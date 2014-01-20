@@ -1137,9 +1137,9 @@ static bool make_empty_rec(THD *thd, File file,
       regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
+      regfield->store(ER(ER_YES), strlen(ER(ER_YES)),system_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
+      regfield->store(ER(ER_NO), strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
     /*
