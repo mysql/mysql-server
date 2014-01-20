@@ -358,13 +358,18 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   DBUG_PRINT("info", ("gtid_next->type=%d NOT_YET_DETERMINED_GROUP=%d gtid_mode=%lu", gtid_next->type, NOT_YET_DETERMINED_GROUP, gtid_mode));
   if (gtid_next->type == NOT_YET_DETERMINED_GROUP)
   {
-    if (gtid_mode == 3)
+    if (gtid_mode == GTID_MODE_ON)
     {
       my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
     }
     DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+
     gtid_next->set_anonymous();
+
+#ifdef HAVE_REPLICATION
+    thd->set_currently_executing_gtid_for_slave_thread();
+#endif
   }
 
 
