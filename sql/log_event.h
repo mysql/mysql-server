@@ -170,12 +170,6 @@ struct sql_ex_info
 #define SL_MASTER_POS_OFFSET    0
 #define SL_MASTER_HOST_OFFSET   10
 
-/*
-  Q_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
-  on the slave.
-#define Q_COMMIT_TS 14
- */
 
 /*
   G_COMMIT_TS status variable stores the logical timestamp when the transaction
@@ -722,8 +716,8 @@ public:
   binary_log::Log_event_header *common_header;
 
   /**
-   The Log_event_header class contains the variable present
-   in the common footer
+   The Log_event_footer class contains the variable present
+   in the common footer. Currently, footer contains only the checksum_alg.
   */
   binary_log::Log_event_footer *common_footer;
   /**
@@ -1425,11 +1419,6 @@ public:        /* !!! Public in this patch to allow old usage */
       !strncasecmp(query, "SAVEPOINT", 9) ||
       !strncasecmp(query, "ROLLBACK", 8);
   }
-  /*
-    Prepare and commit sequence number. will be set to 0 if the event is not a
-    transaction starter.
-  int64 commit_seq_no;
-   */
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
@@ -1586,7 +1575,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3()
-  : Log_event(this->header(), this->footer())
+  : Log_event(header(), footer())
   {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1708,13 +1697,26 @@ protected:
 /**
   @class Intvar_log_event
 
-  The class derives from the class Int_var_event in Binlog API,
+  The class derives from the class Intvar_event in Binlog API,
   defined in the header binlog_event.h. An Intvar_log_event is
   created just before a Query_log_event, if the query uses one
   of the variables LAST_INSERT_ID or INSERT_ID. This class is used
-  by the lave for applying the event.
+  by the slave for applying the event.
+
+  The inheritance structure is as follows:
+
+        Binary_log_event
+               ^
+               |
+               |
+           Intvar_event  Log_event
+                \       /
+                 \     /
+                  \   /
+             Intvar_log_event
+
 */
-class Intvar_log_event: public Int_var_event, public Log_event
+class Intvar_log_event: public Intvar_event, public Log_event
 {
 public:
 
@@ -1722,11 +1724,11 @@ public:
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
                    enum_event_cache_type cache_type_arg,
                    enum_event_logging_type logging_type_arg)
-   :Int_var_event(type_arg, val_arg),
+  : Intvar_event(type_arg, val_arg),
     Log_event(thd_arg, 0, cache_type_arg,
-              logging_type_arg, this->header(), this->footer())
-   {
-   }
+              logging_type_arg, header(), footer())
+  {
+  }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1789,7 +1791,7 @@ class Rand_log_event: public Rand_event, public Log_event
                  enum_event_logging_type logging_type_arg)
     :Rand_event(seed1_arg, seed2_arg),
      Log_event(thd_arg, 0, cache_type_arg,
-               logging_type_arg, this->header(), this->footer())
+               logging_type_arg, header(), footer())
      {
      }
 #ifdef HAVE_REPLICATION
@@ -1848,7 +1850,7 @@ class Xid_log_event: public Xid_event, public Log_event
   Xid_log_event(THD* thd_arg, my_xid x)
   : Log_event(thd_arg, 0,
               Log_event::EVENT_TRANSACTIONAL_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING, this->header(), this->footer())
+              Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
     xid= x;
   }
@@ -1912,7 +1914,7 @@ public:
     :User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
                     (Value_type)type_arg, charset_number_arg, flags_arg),
      Log_event(thd_arg, 0, cache_type_arg,
-               logging_type_arg, this->header(), this->footer()),
+               logging_type_arg, header(), footer()),
      deferred(false)
     { }
   int pack_info(Protocol* protocol);
@@ -1957,8 +1959,11 @@ class Stop_log_event: public Stop_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
-  Stop_log_event() :Log_event(this->header(), this->footer())
-  {}
+  Stop_log_event()
+  : Log_event(header(), footer())
+  {
+  }
+
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1966,7 +1971,7 @@ public:
   Stop_log_event(const char* buf,
                  const Format_description_event *description_event):
   Stop_event(buf, description_event),
-  Log_event(this->header(), this->footer(), true)
+  Log_event(header(), footer(), true)
   {}
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
@@ -2149,7 +2154,7 @@ private:
            B_l:A_B_E  Log_event
                 \         /
                  \       /
-                  \     /
+             <<v>>\     /
                    \   /
            Append_block_log_event
 
@@ -2474,8 +2479,10 @@ public:
   Unknown_log_event(const char* buf,
                     const Format_description_event *description_event)
   : Unknown_event(buf, description_event),
-    Log_event(this->header(), this->footer(), true)
-  {}
+    Log_event(header(), footer(), true)
+  {
+  }
+
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
@@ -2491,6 +2498,18 @@ char *str_to_hex(char *to, const char *from, uint len);
   Table_map_log_event which maps a table definition to a number.  The
   table definition consists of database name, table name, and column
   definitions.
+
+  The inheritance structure is as follows:
+
+        Binary_log_event
+               ^
+               |
+               |
+    Table_map_event  Log_event
+                \       /
+                 \     /
+                  \   /
+           Table_map_log_event
 
   @section Table_map_log_event_binary_format Binary Format
 
@@ -2944,7 +2963,7 @@ private:
                |
          Rows_event  Log_event
                 \       /
-                 \     /
+	    <<v>>\     /
                   \   /
               Rows_log_event
 
@@ -3382,7 +3401,7 @@ private:
                          Binary_log_event
                                   ^
                                   |
-                                  | <<vir>>
+                                  |
                                   |
                 Log_event   B_l:Rows_event
                      ^            /\
@@ -3471,7 +3490,7 @@ private:
                          Binary_log_event
                                   ^
                                   |
-                                  | <<vir>>
+                                  |
                                   |
                 Log_event   B_l:Rows_event
                      ^            /\
@@ -3581,7 +3600,7 @@ protected:
                          Binary_log_event
                                   ^
                                   |
-                                  | <<vir>>
+                                  |
                                   |
                 Log_event   B_l:Rows_event
                      ^            /\
@@ -3684,12 +3703,12 @@ protected:
 class Incident_log_event : public Incident_event , public Log_event{
 public:
 #ifdef MYSQL_SERVER
-  Incident_log_event(THD *thd_arg, Incident incident_arg)
-  : Incident_event(incident),
-    Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
-              Log_event::EVENT_NO_CACHE,
-              Log_event::EVENT_IMMEDIATE_LOGGING,
-              this->header(), this->footer())
+  Incident_log_event(THD *thd_arg, Incident incident)
+    : Incident_event(incident),
+      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+                Log_event::EVENT_NO_CACHE,
+                Log_event::EVENT_IMMEDIATE_LOGGING,
+                header(), footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
@@ -3697,12 +3716,12 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  Incident_log_event(THD *thd_arg, Incident incident_arg, LEX_STRING const msg)
-  : Incident_event(incident_arg),
-    Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
-              Log_event::EVENT_NO_CACHE,
-              Log_event::EVENT_IMMEDIATE_LOGGING,
-              this->header(), this->footer())
+  Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
+    : Incident_event(incident),
+      Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+                Log_event::EVENT_NO_CACHE,
+                Log_event::EVENT_IMMEDIATE_LOGGING,
+                header(), footer())
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
@@ -3790,7 +3809,7 @@ public:
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
                   Log_event::EVENT_STMT_CACHE,
-                  Log_event::EVENT_NORMAL_LOGGING, this->header(), this->footer())
+                  Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
     DBUG_VOID_RETURN;

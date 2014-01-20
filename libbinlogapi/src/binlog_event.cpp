@@ -34,6 +34,7 @@ namespace binary_log_debug
 {
   bool debug_query_mts_corrupt_db_names= false;
   bool debug_checksum_test= false;
+  bool debug_simulate_invalid_address= false;
   bool debug_pretend_version_50034_in_binlog= false;
 }
 
@@ -159,11 +160,11 @@ char *bapi_strmake(char *dest, const char* src, size_t length)
 /**
   Log_event_header constructor
 
-  @param buf                  the buffer containing the complete information including
-                              the event and the header data
+  @param buf                  the buffer containing the complete information
+                              including the event and the header data
 
-  @param description_event    first ctor of Format_description_event, used to extract the
-                              binlog_version
+  @param description_event    first constructor of Format_description_event,
+                              used to extract the binlog_version
 */
 Log_event_header::Log_event_header(const char* buf,
                                    const Format_description_event *description_event)
@@ -276,15 +277,16 @@ Log_event_header::Log_event_header(const char* buf,
 
 
 /**
-   Tests the checksum algorithm used for the binary log, and asserts in case
-   if the checksum algorithm is invalid
-   @param   event_buf        point to the buffer containing serialized event
-   @param   event_len       length of the event accounting possible
-                             checksum alg
-   @param   alg             checksum algorithm used for the binary log
+  Tests the checksum algorithm used for the binary log, and asserts in case
+  if the checksum algorithm is invalid.
 
-   @return  TRUE            if test fails
-            FALSE           as success
+  @param   event_buf       point to the buffer containing serialized event
+  @param   event_len       length of the event accounting possible
+                           checksum alg
+  @param   alg             checksum algorithm used for the binary log
+
+  @return  TRUE            if test fails
+           FALSE           as success
 */
 bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
                                            unsigned long event_len,
@@ -312,14 +314,12 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       flags= le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-    #ifndef DBUG_OFF
       /*
          The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
       assert(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
       assert(alg == BINLOG_CHECKSUM_ALG_CRC32);
-    #endif
       /*
         Complile time guard to watch over  the max number of alg
       */
@@ -373,6 +373,13 @@ Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
   des= NULL;
 }
 
+/*
+  The destructor is pure virtual to prevent instantiation of the class.
+*/
+Binary_log_event::~Binary_log_event()
+{
+}
+
 /**
    Empty ctor of Start_event_v3 called when we call the
    ctor of FDE which takes binlog_version as the parameter
@@ -404,8 +411,8 @@ Start_event_v3::Start_event_v3()
                                 5.0.
   @param server_ver             a string containing the server version.
 */
-Format_description_event::
-Format_description_event(uint8_t binlog_ver, const char* server_ver)
+Format_description_event::Format_description_event(uint8_t binlog_ver,
+                                                   const char* server_ver)
 : Start_event_v3(), event_type_permutation(0)
 {
   binlog_version= binlog_ver;
@@ -650,12 +657,12 @@ Format_description_event(const char* buf, unsigned int event_len,
     */
     assert(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
-    this->footer()->checksum_alg= (enum_binlog_checksum_alg)
+    footer()->checksum_alg= (enum_binlog_checksum_alg)
                                   post_header_len[number_of_event_types];
   }
   else
   {
-    this->footer()->checksum_alg=  BINLOG_CHECKSUM_ALG_UNDEF;
+    footer()->checksum_alg=  BINLOG_CHECKSUM_ALG_UNDEF;
   }
 
   /*
@@ -822,7 +829,8 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
 
   ident_len= event_len - (header_size + post_header_len);
   ident_offset= post_header_len;
-  set_if_smaller(ident_len,FN_REFLEN-1);
+  if (ident_len > FN_REFLEN - 1)
+    ident_len= FN_REFLEN - 1;
 
   new_log_ident= bapi_strndup(buf + ident_offset, ident_len);
 }
@@ -838,16 +846,16 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
 */
 void Stop_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   this->print_event_info(info);
 }
 
 /******************************************************************
-            Int_var_event methods
+            Intvar_event methods
 *******************************************************************/
 /**
   Constructor which receives a packet from the MySQL master or the binary
-  log and decodes it to create an Int_var_event.
+  log and decodes it to create an Intvar_event.
 
   @param buf Buffer containing header and event data.
   @param description_event FDE corresponding to the binlog version of the
@@ -859,8 +867,8 @@ void Stop_event::print_long_info(std::ostream& info)
     | type (4 bytes) | val (8 bytes) |
     +--------------------------------+
 */
-Int_var_event::Int_var_event(const char* buf,
-                             const Format_description_event* description_event)
+Intvar_event::Intvar_event(const char* buf,
+                           const Format_description_event* description_event)
 : Binary_log_event(&buf, description_event->binlog_version,
                    description_event->server_version)
 {
@@ -883,7 +891,7 @@ void Unknown_event::print_event_info(std::ostream& info)
 
 void Unknown_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   this->print_event_info(info);
 }
 
@@ -964,16 +972,16 @@ const char *binary_log::sql_ex_data_info::init(const char *buf,
 */
 Load_event::Load_event(const char *buf, uint event_len,
                        const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version), num_fields(0),
-   fields(0), field_lens(0),field_block_len(0),
-   table_name(0), db(0), fname(0), local_fname(FALSE),
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version), num_fields(0),
+  fields(0), field_lens(0),field_block_len(0),
+  table_name(0), db(0), fname(0), local_fname(FALSE),
    /**
      Load_log_event which comes from the binary log does not contain
      information about the type of insert which was used on the master.
      Assume that it was an ordinary, non-concurrent LOAD DATA.
     */
-   is_concurrent(FALSE)
+  is_concurrent(FALSE)
 {
   if (event_len)
     copy_load_event(buf, event_len,
@@ -1058,8 +1066,17 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
   fields= (char*)field_lens + num_fields;
   table_name= fields + field_block_len;
   db= table_name + table_name_len + 1;
-  DBUG_EXECUTE_IF ("simulate_invalid_address",
-                   db_len = data_len;);
+
+  #ifndef DBUG_OFF
+  /*
+    This is specific to mysql test run on the server
+    for the keyword "simulate_invalid_address"
+  */
+  if (binary_log_debug::debug_simulate_invalid_address)
+  {
+    db_len= data_len;
+  }
+  #endif
   fname = db + db_len + 1;
   if ((db_len > data_len) || (fname > buf_end))
     goto err;
@@ -1078,7 +1095,7 @@ err:
 
 
 /**
-  Create_file_log_event constructor
+  Create_file_event constructor
   This event tells the slave to create a temporary file and fill it with
   a first data block. Later, zero or more APPEND_BLOCK_EVENT events append
   blocks to this temporary file.
@@ -1179,8 +1196,13 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
 }
 
 /**
-  Execute_load_event constructor
+  Execute_load_event constructors
 */
+Execute_load_event::
+Execute_load_event(const uint32_t file_id_arg, const char* db_arg)
+: file_id(file_id_arg), db(db_arg)
+{
+}
 
 Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
                                        const Format_description_event*
@@ -1190,7 +1212,7 @@ Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
 {
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char exec_load_header_len= description_event->
-                                      post_header_len[EXEC_LOAD_EVENT-1];
+                                      post_header_len[EXEC_LOAD_EVENT - 1];
 
   if (len < (unsigned int)(common_header_len + exec_load_header_len))
     return;
@@ -1346,14 +1368,14 @@ User_var_event(const char* buf, unsigned int event_len,
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
     assert((bytes_read == header()->data_written -
                  (old_pre_checksum_fd ||
-                  ((const_cast<Format_description_event*>(description_event))->footer()->checksum_alg ==
+                  (description_event->footer()->checksum_alg ==
                    BINLOG_CHECKSUM_ALG_OFF)) ?
 
  0 : BINLOG_CHECKSUM_LEN)
                 ||
                 (bytes_read == header()->data_written -1 -
                  (old_pre_checksum_fd ||
-                  ((const_cast<Format_description_event*>(description_event))->footer()->checksum_alg ==
+                  (description_event->footer()->checksum_alg ==
                    BINLOG_CHECKSUM_ALG_OFF)) ?
                  0 : BINLOG_CHECKSUM_LEN));
 #endif
@@ -1554,8 +1576,8 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   to the log.
 */
 Query_event::Query_event()
-  :Binary_log_event(),
-   m_user(""), m_host("")
+: Binary_log_event(),
+  m_user(""), m_host("")
 {
 }
 
@@ -1572,19 +1594,24 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          unsigned int number,
                          unsigned long long table_map_for_update_arg,
                          int errcode)
-: m_user(""), m_host(""), m_catalog(catalog_arg),
-  m_db(db_arg), m_query(query_arg),
+: m_user(""), m_host(""), m_catalog(""),
+  m_db(""), m_query(""),
   thread_id(thread_id_arg), error_code(errcode), q_len(query_length),
   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
   sql_mode(sql_mode_arg),
   auto_increment_increment(auto_increment_increment_arg),
   auto_increment_offset(auto_increment_offset_arg),
-  time_zone_len(0),
-  lc_time_names_number(number),
+  time_zone_len(0), lc_time_names_number(number),
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
   master_data_written(0), mts_accessed_dbs(0)
 {
+  if (db_arg)
+    m_db= db_arg;
+  if (query_arg)
+    m_query= query_arg;
+  if (catalog_arg)
+    m_catalog= catalog_arg;
 }
 
 /**
@@ -1659,11 +1686,12 @@ Query_event::code_name(int code)
   The constructor which receives a packet from the MySQL master or the binary
   log and decodes it to create a Query event.
 
-  @param buf Containing the event header and data
-  @param even_len The length upto ehich buf contains Query event data
-  @param description_event FDE specific to the binlog version
-  @param event_type Required to determine whether the event type is QUERY_EVENT
-                    or EXECUTE_LOAD_QUERY_EVENT
+  @param buf                Containing the event header and data
+  @param even_len           The length upto ehich buf contains Query event data
+  @param description_event  FDE specific to the binlog version
+
+  @param event_type         Required to determine whether the event type is
+                            QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
 */
 Query_event::Query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event,
@@ -1744,7 +1772,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       event from the relay log.
     */
     assert(description_event->binlog_version < 4);
-    master_data_written= this->header()->data_written;
+    master_data_written= header()->data_written;
   }
   /*
     We have parsed everything we know in the post header for QUERY_EVENT,
@@ -1832,15 +1860,15 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       CHECK_SPACE(pos, end, 4);
       memcpy(&master_data_written, pos, sizeof(master_data_written));
       master_data_written= le32toh(master_data_written);
-      this->header()->data_written= master_data_written;
+      header()->data_written= master_data_written;
       pos+= 4;
       break;
     case Q_MICROSECONDS:
       CHECK_SPACE(pos, end, 3);
-      this->header()->when.tv_usec= uint3korr(pos);
+      header()->when.tv_usec= 0;
+      memcpy(&(header()->when.tv_usec), pos, 3);
       pos+= 3;
       break;
-    //}
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
@@ -1984,13 +2012,28 @@ void Query_event::print_event_info(std::ostream& info)
 
 void Query_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\tThread id: " << (int)thread_id;
   info << "\tExec time: " << (int)query_exec_time;
   info << "\nDatabase: " << m_db;
   info << "\tQuery: ";
   this->print_event_info(info);
 }
+
+
+/*
+  The constructor is called by MySQL slave, while applying the events.
+*/
+Execute_load_query_event::
+Execute_load_query_event(uint32_t file_id_arg,
+                         uint32_t fn_pos_start_arg,
+                         uint32_t fn_pos_end_arg,
+                         enum_load_dup_handling dup_arg)
+: file_id(file_id_arg), fn_pos_start(fn_pos_start_arg),
+  fn_pos_end(fn_pos_end_arg), dup_handling(dup_arg)
+{
+}
+
 
 /**
   The constructor used inorder to decode EXECUTE_LOAD_QUERY_EVENT from a
@@ -2037,7 +2080,8 @@ Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
 {
   unsigned char header_size= description_event->common_header_len;
   ident_len= event_len - header_size;
-  set_if_smaller(ident_len, FN_REFLEN - 1);
+  if (ident_len > FN_REFLEN - 1)
+    ident_len= FN_REFLEN - 1;
   log_ident= buf + header_size;
 }
 
@@ -2050,7 +2094,7 @@ void Rotate_event::print_event_info(std::ostream& info)
 
 void Rotate_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";
   this->print_event_info(info);
 }
@@ -2081,7 +2125,7 @@ void User_var_event::print_event_info(std::ostream& info)
 
 void User_var_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\tType: "
        << get_value_type_string(static_cast<Value_type>(type));
   info << "\n";
@@ -2090,15 +2134,15 @@ void User_var_event::print_long_info(std::ostream& info)
 
 
 
-void Int_var_event::print_event_info(std::ostream& info)
+void Intvar_event::print_event_info(std::ostream& info)
 {
   info << get_var_type_string();
   info << "\tValue: " << val;
 }
 
-void Int_var_event::print_long_info(std::ostream& info)
+void Intvar_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";
   this->print_event_info(info);
 }
@@ -2122,7 +2166,7 @@ void Xid_event::print_event_info(std::ostream& info)
 
 void Xid_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";
   this->print_event_info(info);
 }
@@ -2134,7 +2178,7 @@ void Rand_event::print_event_info(std::ostream& info)
 }
 void Rand_event::print_long_info(std::ostream& info)
 {
-  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";
   this->print_event_info(info);
 }

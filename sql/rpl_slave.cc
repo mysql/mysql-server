@@ -1851,7 +1851,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 
 
     After the warm-up sequence IO gets to "normal" checksum verification mode
-    to use RL.A in 
+    to use RL.A in
 
     {queue_event(E_m): verifies(E_m, RL.A)}
 
@@ -6646,14 +6646,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       HB (heartbeat) cannot come before RL (Relay)
     */
     char  llbuf[22];
-    const Format_description_event
-                        des_ev(mi->get_mi_description_event()->binlog_version,
-                               server_version);
     Heartbeat_log_event hb(buf,
                            mi->rli->relay_log.relay_log_checksum_alg
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           &des_ev);
+                           mi->get_mi_description_event());
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
