@@ -1485,41 +1485,41 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   uint8_t const common_header_len= descr_event->common_header_len;
   uint8_t const post_header_len= descr_event->post_header_len[INCIDENT_EVENT-1];
 
-  m_message= NULL;
-  m_message_length= 0;
+  message= NULL;
+  message_length= 0;
   uint16_t incident_number;
   memcpy(&incident_number, buf + common_header_len, sizeof(incident_number));
   incident_number= le16toh(incident_number);
   if (incident_number >= INCIDENT_COUNT ||
       incident_number <= INCIDENT_NONE)
   {
-    // If the incident is not recognized, this binlog event is
-    // invalid.  If we set incident_number to INCIDENT_NONE, the
-    // invalidity will be detected by is_valid().
-    m_incident= INCIDENT_NONE;
+    /*
+      If the incident is not recognized, this binlog event is
+      invalid.
+    */
+    incident= INCIDENT_NONE;
 
   }
-  m_incident= static_cast<Incident>(incident_number);
+  incident= static_cast<Incident>(incident_number);
   char const *ptr= buf + common_header_len + post_header_len;
   char const *const str_end= buf + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  //MY_WME= 16, MEMORY_LOG_EVENT = 0
-  if (!(m_message= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
+  if (!(message= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
   {
     /* Mark this event invalid */
-    m_incident= INCIDENT_NONE;
+    incident= INCIDENT_NONE;
     return;
   }
 
-  bapi_strmake(m_message, str, len);
-  m_message_length= len;
+  bapi_strmake(message, str, len);
+  message_length= len;
   return;
 }
 
 /**
-  ctor of Previous_gtid_event
+  Constructor of Previous_gtid_event
   Decodes the Gtids executed in the last binlog file
 */
 
