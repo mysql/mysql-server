@@ -550,7 +550,7 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
   large enough to receive the copy.
 
   @param src  the source string
-  @param dest the desctination string
+  @param dest the destination string
 
   @return     pointer to the end of the string dest
 */
@@ -560,6 +560,9 @@ char *bapi_stpcpy(char *dst, const char *src);
   dest and appends a closing NUL to dest.
   Note that if strlen(src) >= length then dest[length] will be set to \0
   bapi_strmake() returns pointer to closing null
+  @param dst    the destintion string
+  @param src    the source string
+  @param length length to copy from source to destination
 */
 char *bapi_strmake(char *dst, const char *src, size_t length);
 
@@ -2551,6 +2554,7 @@ public:
   { }
   Ignorable_event() { }; // For the thd ctor of Ignorable_log_event
   virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+  //TODO: Add definitions
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 };
@@ -2559,17 +2563,17 @@ public:
   @class Rows_query_event
 
   Rows query event type, which is a subclass
-  of the ignorable_event, to record the original query for the rows
+  of the Ignorable_event, to record the original query for the rows
   events in RBR. This event can be used to display the original query as
   comments by SHOW BINLOG EVENTS query, or mysqlbinlog client when the
   --verbose option is given twice
   @section Intvar_event_binary_format Binary Format
 
   The Post-Header for this event type is empty. The Body has one
-  components:
+  component:
 
   <table>
-  <caption>Body for Intvar_event</caption>
+  <caption>Body for Rows_query_event</caption>
 
   <tr>
     <th>Name</th>
@@ -2580,7 +2584,7 @@ public:
   <tr>
     <td>m_rows_query</td>
     <td>char array</td>
-    <td>Records the original quesry executed in RBR </td>
+    <td>Records the original query executed in RBR </td>
   </tr>
   </table>
 
