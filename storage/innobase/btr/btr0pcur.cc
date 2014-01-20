@@ -261,14 +261,17 @@ btr_pcur_restore_position_func(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
-	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
+	if (latch_mode == BTR_SEARCH_LEAF
+	    || latch_mode == BTR_MODIFY_LEAF
+	    || latch_mode == BTR_SEARCH_PREV
+	    || latch_mode == BTR_MODIFY_PREV) {
 		/* Try optimistic restoration. */
 
-		if (buf_page_optimistic_get(latch_mode,
-					    cursor->block_when_stored,
-					    cursor->modify_clock,
-					    file, line, mtr)) {
+		if (btr_cur_optimistic_latch_leaves(
+			cursor->block_when_stored, cursor->modify_clock,
+			&latch_mode, btr_pcur_get_btr_cur(cursor),
+			file, line, mtr)) {
+
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 			cursor->latch_mode = latch_mode;
 

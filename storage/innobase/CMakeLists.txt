@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,6 +45,9 @@ SET(INNOBASE_SOURCES
 	eval/eval0proc.cc
 	fil/fil0fil.cc
 	fsp/fsp0fsp.cc
+	fsp/fsp0file.cc
+	fsp/fsp0space.cc
+	fsp/fsp0sysspace.cc
 	fut/fut0fut.cc
 	fut/fut0lst.cc
 	ha/ha0ha.cc
@@ -110,7 +113,6 @@ SET(INNOBASE_SOURCES
 	srv/srv0conc.cc
 	srv/srv0mon.cc
 	srv/srv0srv.cc
-	srv/srv0space.cc
 	srv/srv0start.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc
