@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -372,14 +372,14 @@ fseg_n_reserved_pages(
 Allocates a single free page from a segment. This function implements
 the intelligent allocation strategy which tries to minimize
 file space fragmentation.
-@param[in/out] seg_header segment header
+@param[in,out] seg_header segment header
 @param[in] hint hint of which page would be desirable
 @param[in] direction if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR
-@param[in/out] mtr mini-transaction
+@param[in,out] mtr mini-transaction
 @return X-latched block, or NULL if no page could be allocated */
 #define fseg_alloc_free_page(seg_header, hint, direction, mtr)		\
 	fseg_alloc_free_page_general(seg_header, hint, direction,	\

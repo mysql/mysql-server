@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0purge.h"
 #include "row0upd.h"
 #include "srv0mon.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
@@ -159,7 +159,7 @@ TrxUndoRsegsIterator::set_next()
 	space id is in the range of UNDO tablespace space ids
 	unless space is system tablespace */
 	ut_a(m_purge_sys->rseg->space <= srv_undo_tablespaces_open
-		|| Tablespace::is_system_tablespace(
+		|| is_system_tablespace(
 			m_purge_sys->rseg->space));
 
 	const page_size_t	page_size(m_purge_sys->rseg->page_size);
