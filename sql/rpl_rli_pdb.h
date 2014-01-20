@@ -375,9 +375,9 @@ public:
     worker status until next START SLAVE following which the new worker objetcs
     will be used.
   */
-  void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
-                      THD *worker_thd, Error last_error,
-                      Gtid currently_executing_gtid);
+  void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
+                           THD *worker_thd, const Error &last_error,
+                           const Gtid_specification &currently_executing_gtid);
 
   /*
     The running status is guarded by jobs_lock mutex that a writer
@@ -385,13 +385,13 @@ public:
   */
   en_running_state volatile running_status;
   /*
-    If the server is running in gtid-mode=on, this variables stores
-    gtid of the currently executing transaction. This variable is set/modified
-    in Gtid_log_event::do_apply_event(Relay_log_info const *rli). Since the
-    rli argument is a const, we need to make currently_executing_gtid mutable
-    to allow this data member of const object to be modified.
+    The gtid (or anonymous) of the currently executing transaction, or
+    of the last executing transaction if no transaction is currently
+    executing.  This is used to fill the last_seen_transaction column
+    of the table
+    performance_schema.replication_execute_status_by_worker.
   */
-  mutable Gtid currently_executing_gtid;
+  Gtid_specification currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
