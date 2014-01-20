@@ -89,7 +89,7 @@ public:
   mysql::Binary_log_event *process_event(mysql::User_var_event *ev) { return ev; }
   mysql::Binary_log_event *process_event(mysql::Incident_event *ev) { return ev; }
   mysql::Binary_log_event *process_event(mysql::Rotate_event *ev) { return ev; }
-  mysql::Binary_log_event *process_event(mysql::Int_var_event *ev) { return ev; }
+  mysql::Binary_log_event *process_event(mysql::Intvar_event *ev) { return ev; }
   mysql::Binary_log_event *process_event(mysql::Format_event *ev) { return ev; }
 
   mysql::Binary_log_event *process_event(mysql::Binary_log_event *ev)

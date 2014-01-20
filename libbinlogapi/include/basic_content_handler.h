@@ -53,7 +53,7 @@ public:
   virtual mysql::Binary_log_event *process_event(mysql::User_var_event *ev);
   virtual mysql::Binary_log_event *process_event(mysql::Incident_event *ev);
   virtual mysql::Binary_log_event *process_event(mysql::Rotate_event *ev);
-  virtual mysql::Binary_log_event *process_event(mysql::Int_var_event *ev);
+  virtual mysql::Binary_log_event *process_event(mysql::Intvar_event *ev);
   virtual mysql::Binary_log_event *process_event(mysql::Format_event *ev);
 
   /**

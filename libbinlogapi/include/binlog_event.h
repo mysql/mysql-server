@@ -355,9 +355,9 @@ static inline int read_str_at_most_255_bytes(const char **buf,
    when the event is written, and *reset* when a binlog file is
    closed (yes, it's the only case when MySQL modifies an already written
    part of the binlog).  Thus it is a reliable indicator that the binlog was
-   closed correctly.  (Stop_log_event is not enough, there's always a
+   closed correctly.  (Stop_event is not enough, there's always a
    small chance that mysqld crashes in the middle of insert and end of
-   the binlog would look like a Stop_log_event).
+   the binlog would look like a Stop_event).
 
    This flag is used to detect a restart after a crash, and to provide
    "unbreakable" binlog. The problem is that on a crash storage engines
@@ -644,12 +644,13 @@ public:
   enum_binlog_checksum_alg
   static get_checksum_alg(const char* buf, unsigned long len);
 
-  bool static event_checksum_test(unsigned char* buf,
+  static bool event_checksum_test(unsigned char* buf,
                                   unsigned long event_len,
                                   enum_binlog_checksum_alg alg);
 
   /* Constructors */
-  Log_event_footer() : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  Log_event_footer()
+  : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
   {
   }
 
@@ -671,10 +672,84 @@ public:
   enum_binlog_checksum_alg checksum_alg;
 };
 
+/**
+  @class Log_event_header
+
+  Any @c Log_event saved on disk consists of the following three
+  components.
+
+  - Common-Header
+  - Post-Header
+  - Body
+
+  The Common-Header always has the same form and length within one
+  version of MySQL.  Each event type specifies a format and length
+  of the Post-Header.  The length of the Common-Header is the same
+  for all events of the same type.  The Body may be of different
+  format and length even for different events of the same type.
+
+  The binary format of Common-Header is as follows:
+  <table>
+  <caption>Common-Header</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>when</td>
+    <td>4 byte unsigned integer value, represented by type struct timeval</td>
+    <td>The time when the query started, in seconds since 1970.
+    </td>
+  </tr>
+
+  <tr>
+    <td>type_code</td>
+    <td>1 byte enumeration</td>
+    <td>See enum #Log_event_type.</td>
+  </tr>
+
+  <tr>
+    <td>unmasked_server_id</td>
+    <td>4 byte unsigned integer</td>
+    <td>Server ID of the server that created the event.</td>
+  </tr>
+
+  <tr>
+    <td>data_written</td>
+    <td>4 byte unsigned integer</td>
+    <td>The total size of this event, in bytes.  In other words, this
+    is the sum of the sizes of Common-Header, Post-Header, and Body.
+    </td>
+  </tr>
+
+  <tr>
+    <td>log_pos</td>
+    <td>4 byte unsigned integer</td>
+    <td>The position of the next event in the master binary log, in
+    bytes from the beginning of the file.  In a binlog that is not a
+    relay log, this is just the position of the next event, in bytes
+    from the beginning of the file.  In a relay log, this is
+    the position of the next event in the master's binlog.
+    </td>
+  </tr>
+
+  <tr>
+    <td>flags</td>
+    <td>2 byte bitfield</td>
+    <td>See Log_event::flags.</td>
+  </tr>
+  </table>
+
+  Summing up the numbers above, we see that the total size of the
+  common header is 19 bytes.
+*/
 class Log_event_header
 {
 public:
-  /**
+  /*
     Timestamp on the master(for debugging and replication of
     NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
     INFILE. This is set at the event's creation time, except for Query
@@ -684,7 +759,13 @@ public:
   */
   struct timeval when;
 
-  /**
+  /*
+    Event type extracted from the header. In the server, it is decoded
+    by read_log_event(), but adding here for complete decoding.
+  */
+  Log_event_type  type_code;
+
+  /*
     The server id read from the Binlog.
   */
   unsigned int unmasked_server_id;
@@ -692,7 +773,7 @@ public:
   /* Length of an event, which will be written by write() function */
   unsigned long data_written;
 
-  /**
+  /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
     coordinates of the event in the master's binlog). Note: when a
@@ -704,7 +785,7 @@ public:
   */
   unsigned long long log_pos;
 
-  /**
+  /*
     16 or less flags depending on the version of the binary log.
     See the definitions above for LOG_EVENT_TIME_F,
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
@@ -719,11 +800,6 @@ public:
   */
   typedef unsigned char Byte;
 
-  /**
-    Event type extracted from the header. In the server, it is decoded
-    by read_log_event(), but adding here for complete decoding.
-  */
-  Log_event_type  type_code;
   Log_event_header():log_pos(0), flags(0)
   {
     when.tv_sec= 0;
@@ -743,7 +819,7 @@ class Binary_log_event
 public:
 
   /*
-     The number of types we handle in Format_description_log_event (UNKNOWN_EVENT
+     The number of types we handle in Format_description_event (UNKNOWN_EVENT
      is not to be handled, it does not exist in binlogs, it does not have a
      format).
   */
@@ -805,7 +881,7 @@ public:
     Returns detailed information about the event
   */
   //virtual void print_long_info(std::ostream& info);
-  virtual ~Binary_log_event() {};
+  virtual ~Binary_log_event() = 0;
 
   /**
    * Helper method
@@ -820,11 +896,17 @@ public:
   /**
    * Return a pointer to the header of the log event
    */
-  Log_event_header *header() { return &m_header; }
+  Log_event_header *header() const
+  {
+    return const_cast<Log_event_header*>(&m_header);
+  }
   /**
    * Return a pointer to the footer of the log event
    */
-  Log_event_footer *footer() { return &m_footer; }
+  Log_event_footer *footer() const
+  {
+    return const_cast<Log_event_footer*>(&m_footer);
+  }
 
 private:
   Log_event_header m_header;
@@ -1225,7 +1307,8 @@ public:
     Q_DB_LEN_OFFSET= 8,
     Q_ERR_CODE_OFFSET= 9,
     Q_STATUS_VARS_LEN_OFFSET= 11,
-    Q_DATA_OFFSET= QUERY_HEADER_LEN };
+    Q_DATA_OFFSET= QUERY_HEADER_LEN
+  };
 
   /* these are codes, not offsets; not more than 256 values (1 byte). */
   enum Query_event_status_vars
@@ -1312,9 +1395,9 @@ public:
     'sql_mode', 'affected' etc. Sometimes 'value' must be a short string, so
     its first byte is its length. For now the order of status vars is:
     flags2 - sql_mode - catalog - autoinc - charset
-    We should add the same thing to Load_log_event, but in fact
+    We should add the same thing to Load_event, but in fact
     LOAD DATA INFILE is going to be logged with a new type of event (logging of
-    the plain text query), so Load_log_event would be frozen, so no need. The
+    the plain text query), so Load_event would be frozen, so no need. The
     new way of logging LOAD DATA INFILE would use a derived class of
     Query_event, so automatically benefit from the work already done for
     status variables in Query_event.
@@ -1409,26 +1492,58 @@ public:
   /*
     Define getters and setters for the string members
   */
-  void set_user(const std::string &s) {m_user= s; }
-  std::string get_user() const { return m_user;}
-  void set_host(const std::string &s) {m_host= s; }
-  std::string get_host() const { return m_host;}
+  void set_user(const std::string &s)
+  {
+    m_user= s;
+  }
+  std::string get_user() const
+  {
+    return m_user;
+  }
+  void set_host(const std::string &s)
+  {
+    m_host= s;
+  }
+  std::string get_host() const
+  {
+    return m_host;
+  }
   void set_time_zone_str(const std::string &s)
   {
     m_time_zone_str= s;
     time_zone_len= m_time_zone_str.length();
   }
-  std::string get_time_zone_str() const { return m_time_zone_str;}
+  std::string get_time_zone_str() const
+  {
+    return m_time_zone_str;
+  }
   void set_catalog(const std::string &s)
   {
     m_catalog= s;
     catalog_len= m_catalog.length();
   }
-  std::string get_catalog() const { return m_catalog;}
-  void set_db(const std::string &s) {m_db= s; db_len= m_db.length();}
-  std::string get_db() const { return m_db;}
-  void set_query(const std::string &s) {m_query= s; q_len= m_query.length();}
-  std::string get_query() const { return m_query;}
+  std::string get_catalog() const
+  {
+    return m_catalog;
+  }
+  void set_db(const std::string &s)
+  {
+    m_db= s;
+    db_len= m_db.length();
+  }
+  std::string get_db() const
+  {
+    return m_db;
+  }
+  void set_query(const std::string &s)
+  {
+    m_query= s;
+    q_len= m_query.length();
+  }
+  std::string get_query() const
+  {
+    return m_query;
+  }
 
 
   void print_event_info(std::ostream& info);
@@ -1444,7 +1559,7 @@ enum enum_load_dup_handling { LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE,
 /**
   @class Execute_load_query_event
 
-  Event responsible for LOAD DATA execution, it similar to Query_log_event
+  Event responsible for LOAD DATA execution, it similar to Query_event
   but before executing the query it substitutes original filename in LOAD DATA
   query with name of temporary file.
 
@@ -1498,9 +1613,10 @@ public:
    ELQ_DUP_HANDLING_OFFSET= ELQ_FILE_ID_OFFSET + 12
   };
 
-  uint32_t file_id;       // file_id of temporary file
-  uint32_t fn_pos_start;  // pointer to the part of the query that should
-                          // be substituted
+  uint32_t file_id;
+  uint32_t fn_pos_start;  /* pointer to the part of the query that should
+                             be substituted
+                          */
   uint32_t fn_pos_end;    // pointer to the end of this part of query
   /*
     We have to store type of duplicate handling explicitly, because
@@ -1510,7 +1626,9 @@ public:
   */
   enum_load_dup_handling dup_handling;
 
-  Execute_load_query_event() {} //TODO: required by the (THD* arg cons...)
+  Execute_load_query_event(uint32_t file_id_arg, uint32_t fn_pos_start,
+                           uint32_t fn_pos_end, enum_load_dup_handling dup);
+
   Execute_load_query_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);
   ~Execute_load_query_event() {}
@@ -1815,7 +1933,7 @@ public:
   - A slave writes the event to the relay log when it shuts down or
     when a RESET SLAVE statement is executed.
 
-  @section Stop_log_event_binary_format Binary Format
+  @section Stop_event_binary_format Binary Format
 
   The Post-Header and Body for this event type are empty; it only has
   the Common-Header.
@@ -2240,7 +2358,7 @@ class Execute_load_event: public Binary_log_event
 {
 protected:
   //TODO: Remove if not required, used by Execute_load_log_event(THD* ...)
-  Execute_load_event() {}
+  Execute_load_event(const uint32_t file_id, const char* db_arg);
 public:
   enum Execute_load_offset {
     /* EL = "Execute Load" */
@@ -2300,11 +2418,11 @@ public:
   /*
     'db' is filled when the event is created in mysql_load() (the
     event needs to have a 'db' member to be well filtered by
-    binlog-*-db rules). 'db' is not written to the binlog (it's not
-    used by Append_block_log_event::write()), so it can't be read in
-    the Append_block_log_event(const char* buf, int event_len)
-    constructor.  In other words, 'db' is used only for filtering by
-    binlog-*-db rules.  Create_file_log_event is different: it's 'db'
+    binlog-*-db rules). 'db' is not written to binlog while encoding
+    Append_block-event, so it cannot be read in the Append_block_event
+    (const char* buf, int event_len) constructor.
+    In other words, 'db' is used only for filtering by
+    binlog-*-db rules.  Create_file_event is different: it's 'db'
     (which is inherited from Load_event) is written to the binlog
     and can be re-read.
   */
@@ -2445,13 +2563,13 @@ public:
   events in RBR. This event can be used to display the original query as
   comments by SHOW BINLOG EVENTS query, or mysqlbinlog client when the
   --verbose option is given twice
-  @section Int_var_event_binary_format Binary Format
+  @section Intvar_event_binary_format Binary Format
 
   The Post-Header for this event type is empty. The Body has one
   components:
 
   <table>
-  <caption>Body for Intvar_log_event</caption>
+  <caption>Body for Intvar_event</caption>
 
   <tr>
     <th>Name</th>
@@ -2481,18 +2599,18 @@ protected:
 };
 
 /**
-  @class Int_var_event
+  @class Intvar_event
 
-  An Intvar_log_event will be created just before a Query_event,
+  An Intvar_event will be created just before a Query_event,
   if the query uses one of the variables LAST_INSERT_ID or INSERT_ID.
-  Each Int_var_event holds the value of one of these variables.
+  Each Intvar_event holds the value of one of these variables.
 
 
   The Post-Header for this event type is empty. The Body has two
   components:
 
   <table>
-  <caption>Body for Intvar_log_event</caption>
+  <caption>Body for Intvar_event</caption>
 
   <tr>
     <th>Name</th>
@@ -2516,70 +2634,80 @@ protected:
   </tr>
 
   </table>
-  @section Int_var_event_binary_format Binary Format
+  @section Intvar_event_binary_format Binary Format
 */
-class Int_var_event: public Binary_log_event
+class Intvar_event: public Binary_log_event
 {
 public:
-    unsigned char  type;
-    uint64_t  val;
+  uint8_t  type;
+  uint64_t  val;
 
-    enum Int_event_type
-    {
-      INVALID_INT_EVENT,
-      LAST_INSERT_ID_EVENT,
-      INSERT_ID_EVENT
-    };
+  /*
+    The enum recognizes the type of variables that can occur in an
+    INTVAR_EVENT. The two types supported are LAST_INSERT_ID and
+    INSERT_ID, in accordance to the SQL query using LAST_INSERT_ID
+    or INSERT_ID.
+  */
+  enum Int_event_type
+  {
+    INVALID_INT_EVENT,
+    LAST_INSERT_ID_EVENT,
+    INSERT_ID_EVENT
+  };
 
-    /**
-      moving from pre processor symbols from global scope in log_event.h
-      to an enum inside the class, since these are used only by
-       members of this class itself.
-    */
-    enum Intvar_event_offset
-    {
-      I_TYPE_OFFSET= 0,
-      I_VAL_OFFSET= 1
-    };
+  /**
+    moving from pre processor symbols from global scope in log_event.h
+    to an enum inside the class, since these are used only by
+    members of this class itself.
+  */
+  enum Intvar_event_offset
+  {
+    I_TYPE_OFFSET= 0,
+    I_VAL_OFFSET= 1
+  };
 
-    /**
-      This method returns the string representing the type of the variable
-      used in the event. Changed the definition to be similar to that
-      previously defined in log_event.cc.
-    */
-    std::string get_var_type_string()
+  /**
+    This method returns the string representing the type of the variable
+    used in the event. Changed the definition to be similar to that
+    previously defined in log_event.cc.
+  */
+  std::string get_var_type_string()
+  {
+    switch(type)
     {
-      switch(type)
-      {
-      case INVALID_INT_EVENT:
-        return "INVALID_INT";
-      case LAST_INSERT_ID_EVENT:
-        return "LAST_INSERT_ID";
-      case INSERT_ID_EVENT:
-        return "INSERT_ID";
-      default: /* impossible */
-        return "UNKNOWN";
-      }
+    case INVALID_INT_EVENT:
+      return "INVALID_INT";
+    case LAST_INSERT_ID_EVENT:
+      return "LAST_INSERT_ID";
+    case INSERT_ID_EVENT:
+      return "INSERT_ID";
+    default: /* impossible */
+      return "UNKNOWN";
     }
+  }
 
-    Int_var_event(const char* buf,
-                  const Format_description_event *description_event);
-    Int_var_event(unsigned char type_arg, uint64_t val_arg)
-                 :type(type_arg), val(val_arg) {}
-    ~Int_var_event() {}
+  Intvar_event(const char* buf,
+               const Format_description_event *description_event);
 
-    Log_event_type get_type_code() { return INTVAR_EVENT; }
+  Intvar_event(uint8_t type_arg, uint64_t val_arg)
+  : type(type_arg), val(val_arg)
+  {
+  }
 
-    /*
-      is_valid() is event specific sanity checks to determine that the
-      object is correctly initialized. This is redundant here, because
-      no new allocation is done in the constructor of the event.
-      Else, they contain the value indicating whether the event was
-      correctly initialized.
-    */
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
+  ~Intvar_event() {}
+
+  Log_event_type get_type_code() { return INTVAR_EVENT; }
+
+  /*
+    is_valid() is event specific sanity checks to determine that the
+    object is correctly initialized. This is redundant here, because
+    no new allocation is done in the constructor of the event.
+    Else, they contain the value indicating whether the event was
+    correctly initialized.
+  */
+  bool is_valid() const { return 1; }
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
 };
 
 /**
@@ -2921,6 +3049,25 @@ protected:
   @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
+
+  The Body has one component:
+
+  <table>
+  <caption>Body for Heartbeat_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>log_ident</td>
+    <td>variable length string without trailing zero, extending to the
+    end of the event</td>
+    <td>Name of the current binlog being written to.</td>
+  </tr>
+  </table>
 */
 class Heartbeat_event: public Binary_log_event
 {
@@ -2933,25 +3080,29 @@ public:
 
 protected:
   const char* log_ident;
-  unsigned int ident_len;
+  unsigned int ident_len;                      //filename length
 };
 
 /**
   @class Unknown_event
+
+  An unknown event should never occur. It is never written to a binary log.
+  If an event is read from a binary log that cannot be recognized as
+  something else, it is treated as UNKNOWN_EVENT.
 */
 class Unknown_event: public Binary_log_event
 {
 public:
-    Unknown_event() {}
-    Unknown_event(const char* buf,
-                  const Format_description_event *description_event)
-   : Binary_log_event(&buf,
-                      description_event->binlog_version,
-                      description_event->server_version) {}
+  Unknown_event() {}
+  Unknown_event(const char* buf,
+                const Format_description_event *description_event)
+  : Binary_log_event(&buf,
+                     description_event->binlog_version,
+                     description_event->server_version) {}
 
-    Log_event_type get_type_code() { return UNKNOWN_EVENT;}
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
+  Log_event_type get_type_code() { return UNKNOWN_EVENT;}
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
 };
 } // end namespace binary_log
 #endif	/* BINLOG_EVENT_INCLUDED */

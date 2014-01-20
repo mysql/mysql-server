@@ -538,7 +538,7 @@ public:
     </td>
   </tr>
 */
-class Rows_event: public virtual  Binary_log_event
+class Rows_event: public Binary_log_event
 {
 public:
   /*
@@ -629,8 +629,6 @@ class Write_rows_event : public virtual Rows_event
 public:
   Write_rows_event(const char *buf, unsigned int event_len,
                    const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version)
   {
     this->header()->type_code= m_type;
   };
@@ -655,8 +653,6 @@ class Update_rows_event : public virtual Rows_event
 public:
   Update_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version)
   {
     this->header()->type_code= m_type;
   };
@@ -682,8 +678,6 @@ class Delete_rows_event : public virtual Rows_event
 public:
   Delete_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version)
   {
     this->header()->type_code= m_type;
   };
