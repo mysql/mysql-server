@@ -6431,7 +6431,7 @@ merge_insert_types:
 
 opt_select_from:
           opt_limit_clause {}
-        | select_from select_lock_type
+        | select_from opt_select_lock_type
         ;
 
 udf_type:
@@ -8817,7 +8817,7 @@ select_part2:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          select_into select_lock_type
+          select_into opt_select_lock_type
         ;
 
 select_into:
@@ -8835,9 +8835,9 @@ select_from:
               Select->context.first_name_resolution_table=
                 Select->table_list.first;
           }
-          where_clause group_clause having_clause
-          opt_order_clause opt_limit_clause procedure_analyse_clause
-        | FROM DUAL_SYM where_clause opt_limit_clause
+          opt_where_clause opt_group_clause opt_having_clause
+          opt_order_clause opt_limit_clause opt_procedure_analyse_clause
+        | FROM DUAL_SYM opt_where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
@@ -8921,7 +8921,7 @@ select_option:
           }
         ;
 
-select_lock_type:
+opt_select_lock_type:
           /* empty */
         | FOR_SYM UPDATE_SYM
           {
@@ -11123,7 +11123,7 @@ select_part2_derived:
             DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
             Select->parsing_place= CTX_NONE;
           }
-          opt_select_from select_lock_type
+          opt_select_from opt_select_lock_type
         ;
 
 /* handle contents of parentheses in join expression */
@@ -11353,7 +11353,7 @@ opt_all:
         | ALL
         ;
 
-where_clause:
+opt_where_clause:
           /* empty */  { Select->where= 0; }
         | WHERE
           {
@@ -11371,7 +11371,7 @@ where_clause:
           }
         ;
 
-having_clause:
+opt_having_clause:
           /* empty */
         | HAVING
           {
@@ -11411,7 +11411,7 @@ opt_escape:
    group by statement in select
 */
 
-group_clause:
+opt_group_clause:
           /* empty */
         | GROUP_SYM BY
           {
@@ -11586,11 +11586,6 @@ order_dir:
         | DESC { $$ =0; }
         ;
 
-opt_limit_clause_init:
-          /* empty */ {}
-        | limit_clause {}
-        ;
-
 opt_limit_clause:
           /* empty */ {}
         | limit_clause {}
@@ -11745,7 +11740,7 @@ dec_num:
         | FLOAT_NUM
         ;
 
-procedure_analyse_clause:
+opt_procedure_analyse_clause:
           /* empty */
         | PROCEDURE_SYM ANALYSE_SYM
           {
@@ -12385,7 +12380,7 @@ update:
             */
             Select->set_lock_for_tables($3);
           }
-          where_clause opt_order_clause delete_limit_clause {}
+          opt_where_clause opt_order_clause delete_limit_clause {}
         ;
 
 update_list:
@@ -12449,7 +12444,7 @@ single_multi:
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
           }
-          where_clause opt_order_clause
+          opt_where_clause opt_order_clause
           delete_limit_clause {}
         | table_wild_list
           {
@@ -12457,7 +12452,7 @@ single_multi:
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
           }
-          FROM join_table_list where_clause
+          FROM join_table_list opt_where_clause
           {
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
               MYSQL_YYABORT;
@@ -12468,7 +12463,7 @@ single_multi:
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
           }
-          USING join_table_list where_clause
+          USING join_table_list opt_where_clause
           {
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
               MYSQL_YYABORT;
@@ -12702,13 +12697,13 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
-          } opt_limit_clause_init
+          } opt_limit_clause
         | RELAYLOG_SYM EVENTS_SYM binlog_in binlog_from
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
-          } opt_limit_clause_init
-        | keys_or_index from_or_in table_ident opt_db where_clause
+          } opt_limit_clause
+        | keys_or_index from_or_in table_ident opt_db opt_where_clause
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -12739,12 +12734,12 @@ show_param:
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
             (void) create_select_for_variable("error_count");
           }
-        | WARNINGS opt_limit_clause_init
+        | WARNINGS opt_limit_clause
           {
             Lex->sql_command = SQLCOM_SHOW_WARNS;
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
           }
-        | ERRORS opt_limit_clause_init
+        | ERRORS opt_limit_clause
           {
             Lex->sql_command = SQLCOM_SHOW_ERRORS;
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
@@ -12757,7 +12752,7 @@ show_param:
                                 "SHOW PROFILES", "Performance Schema");
             Lex->sql_command = SQLCOM_SHOW_PROFILES;
           }
-        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
+        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
@@ -15346,7 +15341,7 @@ handler:
             if (!lex->current_select()->add_table_to_list(lex->thd, $2, 0, 0))
               MYSQL_YYABORT;
           }
-          handler_read_or_scan where_clause opt_limit_clause
+          handler_read_or_scan opt_where_clause opt_limit_clause
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
@@ -16002,7 +15997,7 @@ union_order_or_limit:
         ;
 
 order_or_limit:
-          order_clause opt_limit_clause_init
+          order_clause opt_limit_clause
         | limit_clause
         ;
 
