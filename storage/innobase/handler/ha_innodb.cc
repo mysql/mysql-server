@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -66,6 +66,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
+#include "fsp0space.h"
+#include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0plugin.h"
 #include "fts0priv.h"
@@ -88,7 +90,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0trunc.h"
 #include "row0upd.h"
 #include "srv0mon.h"
-#include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0mutex.h"
@@ -2896,11 +2897,6 @@ innobase_init(
 
 	/*--------------- Shared tablespaces -------------------------*/
 
-	/* Set the default auto-extend-increment for temp-tablespace based
-	on system-variable. */
-	srv_tmp_space.set_autoextend_increment(
-		srv_sys_space.get_autoextend_increment());
-
 	/* Set default InnoDB temp data file size to 12 MB and let it be
 	auto-extending. */
 	if (!innobase_data_file_path) {
@@ -2908,7 +2904,8 @@ innobase_init(
 	}
 
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
-	srv_sys_space.set_tablespace_path(srv_data_home);
+	srv_sys_space.set_name("innodb_system_tablespace");
+	srv_sys_space.set_path(srv_data_home);
 
 	/* Supports raw devices */
 	if (!srv_sys_space.parse(innobase_data_file_path, true)) {
@@ -2925,15 +2922,16 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery. */
 
 	/* Doesn't support raw devices. */
-	srv_tmp_space.set_tablespace_path(srv_data_home);
+	srv_tmp_space.set_name("innodb_temporary_tablespace");
+	srv_tmp_space.set_path(srv_data_home);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
 
 	/* Perform all sanity check before we take action of deleting files*/
-	if (Tablespace::intersection(srv_sys_space, srv_tmp_space)) {
-		sql_print_error("system shared and system temp"
-				" tablespace file name seems to be same");
+	if (srv_sys_space.intersection(&srv_tmp_space)) {
+		sql_print_error("%s and %s file names seem to be the same.",
+			srv_tmp_space.name(), srv_sys_space.name());
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -2946,7 +2944,7 @@ innobase_init(
 	}
 
 
-	srv_normalize_path_for_win(srv_log_group_home_dir);
+	os_normalize_path_for_win(srv_log_group_home_dir);
 
 	if (strchr(srv_log_group_home_dir, ';')) {
 		sql_print_error("syntax error in innodb_log_group_home_dir");
@@ -3283,6 +3281,16 @@ innobase_change_buffering_inited_ok:
 
 	/* Turn on monitor counters that are default on */
 	srv_mon_default_on();
+
+
+#ifdef UNIV_COMPILE_TEST_FUNCS
+	/* Unit Tests */
+	test_make_filepath();
+//	test_dict_stats_all();
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
+	test_row_raw_format_int();
+#endif
+#endif /* UNIV_COMPILE_TEST_FUNCS */
 
 	DBUG_RETURN(0);
 }
@@ -3720,8 +3728,8 @@ innobase_rollback_to_savepoint(
 
 /*****************************************************************//**
 Check whether innodb state allows to safely release MDL locks after
-rollback to savepoint. 
-When binlog is on, MDL locks acquired after savepoint unit are not 
+rollback to savepoint.
+When binlog is on, MDL locks acquired after savepoint unit are not
 released if there are any locks held in InnoDB.
 @return true if it is safe, false if its not safe. */
 static
@@ -3946,8 +3954,8 @@ ha_innobase::table_flags() const
 /****************************************************************//**
 Gives the file extension of an InnoDB single-table tablespace. */
 static const char* ha_innobase_exts[] = {
-	".ibd",
-	".isl",
+	dot_ext[IBD],
+	dot_ext[ISL],
 	NullS
 };
 
@@ -4771,9 +4779,8 @@ ha_innobase::open(
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Cannot open table %s from the internal data"
 			" dictionary of InnoDB though the .frm file"
-			" for the table exists. See"
-			" " REFMAN "innodb-troubleshooting.html for how"
-			" you can resolve the problem.", norm_name);
+			" for the table exists. %s",
+			norm_name, TROUBLESHOOTING_MSG);
 
 		free_share(share);
 		my_errno = ENOENT;
@@ -8439,10 +8446,8 @@ err_col:
 	Given that temp table lifetime is limited to connection/server lifetime
 	on re-start we don't need to restore temp-table and so no entry is needed
 	in SYSTEM tables. */
-	if (!dict_table_is_temporary(table)) {
-		err = row_create_table_for_mysql(table, trx, false);
-	} else {
-		/* Create tablespace if configured. */
+	if (dict_table_is_temporary(table)) {
+		/* Create temp tablespace if configured. */
 		err = dict_build_tablespace(table, trx);
 		if (err == DB_SUCCESS) {
 			/* Temp-table are maintained in memory and so
@@ -8456,6 +8461,8 @@ err_col:
 
 			mem_heap_free(temp_table_heap);
 		}
+	} else {
+		err = row_create_table_for_mysql(table, trx, false);
 	}
 
 	mem_heap_free(heap);
@@ -8948,7 +8955,7 @@ ha_innobase::parse_table_name(
 {
 	THD*		thd = ha_thd();
 	bool		use_file_per_table =
-				flags2 & DICT_TF2_USE_FILE_PER_TABLE;
+				!!(flags2 & DICT_TF2_USE_FILE_PER_TABLE);
 
 	DBUG_ENTER("ha_innobase::parse_table_name");
 
@@ -11013,18 +11020,16 @@ ha_innobase::info_low(
 				if (j + 1 > index->n_uniq) {
 					sql_print_error(
 						"Index %s of %s has %lu columns"
-					        " unique inside InnoDB, but"
+						" unique inside InnoDB, but"
 						" MySQL is asking statistics for"
-					        " %lu columns. Have you mixed"
+						" %lu columns. Have you mixed"
 						" up .frm files from different"
-					       	" installations?"
-						" See"
-						" " REFMAN
-						"innodb-troubleshooting.html\n",
+						" installations? %s",
 						index->name,
 						ib_table->name,
 						(unsigned long)
-						index->n_uniq, j + 1);
+						index->n_uniq, j + 1,
+						TROUBLESHOOTING_MSG);
 					break;
 				}
 
@@ -15611,7 +15616,7 @@ static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_
   NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_ULONG(autoextend_increment,
-  srv_sys_space.m_auto_extend_increment,
+  sys_tablespace_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
   "Data file autoextend increment in megabytes",
   NULL, NULL, 64L, 1L, 1000L, 0);
@@ -16468,8 +16473,8 @@ ib_senderrf(
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...)				/*!< Args */
 {
-	char*		str;
-	va_list         args;
+	char*		str = NULL;
+	va_list		args;
 	const char*	format = innobase_get_err_msg(code);
 
 	/* If the caller wants to push a message to the client then
@@ -16484,16 +16489,26 @@ ib_senderrf(
 
 #ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
-	str = static_cast<char*>(malloc(size));
+	if (size > 0) {
+		str = static_cast<char*>(malloc(size));
+	}
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
 	int	ret;
 	ret = vasprintf(&str, format, args);
-	ut_a(ret != -1);
+	if (ret < 0) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
@@ -16549,7 +16564,7 @@ ib_errf(
 	const char*	format,		/*!< printf format */
 	...)				/*!< Args */
 {
-	char*		str;
+	char*		str = NULL;
 	va_list         args;
 
 	/* If the caller wants to push a message to the client then
@@ -16562,16 +16577,26 @@ ib_errf(
 
 #ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
-	str = static_cast<char*>(malloc(size));
+	if (size > 0) {
+		str = static_cast<char*>(malloc(size));
+	}
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
 	int	ret;
 	ret = vasprintf(&str, format, args);
-	ut_a(ret != -1);
+	if (ret < 0) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
@@ -16581,8 +16606,17 @@ ib_errf(
 	free(str);
 }
 
+const char*	TROUBLESHOOTING_MSG =
+	"Please refer to " REFMAN "innodb-troubleshooting.html"
+	" for how to resolve the issue.";
+
+const char*	TROUBLESHOOT_DATADICT_MSG =
+	"Please refer to " REFMAN "innodb-troubleshooting-datadict.html"
+	" for how to resolve the issue.";
+
 const char*	BUG_REPORT_MSG =
-			"Submit a detailed bug report to http://bugs.mysql.com";
+	"Submit a detailed bug report to http://bugs.mysql.com";
+
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: " */
 
@@ -16593,23 +16627,33 @@ ib_logf(
 	const char*	format,		/*!< printf format */
 	...)				/*!< Args */
 {
-	char*		str;
-	va_list         args;
+	char*		str = NULL;
+	va_list		args;
 
 	va_start(args, format);
 
 #ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
-	str = static_cast<char*>(malloc(size));
+	if (size > 0) {
+		str = static_cast<char*>(malloc(size));
+	}
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
 	int	ret;
 	ret = vasprintf(&str, format, args);
-	ut_a(ret != -1);
+	if (ret < 0) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
+	if (str == NULL) {
+		return;	/* Watch for Out-Of-Memory */
+	}
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 

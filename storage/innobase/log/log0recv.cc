@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -3276,7 +3276,7 @@ void recv_dblwr_t::add(byte* page)
 	pages.push_back(page);
 }
 
-byte* recv_dblwr_t::find_first_page(ulint space_id)
+byte* recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 {
 	std::vector<byte*> matches;
 	byte*	result = 0;
@@ -3285,7 +3285,7 @@ byte* recv_dblwr_t::find_first_page(ulint space_id)
 	     i != pages.end(); ++i) {
 
 		if ((page_get_space_id(*i) == space_id)
-		    && (page_get_page_no(*i) == 0)) {
+		    && (page_get_page_no(*i) == page_no)) {
 			matches.push_back(*i);
 		}
 	}

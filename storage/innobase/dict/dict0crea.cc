@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -2071,7 +2071,7 @@ dict_create_add_tablespace_to_dictionary(
 
 	pars_info_t*	info = pars_info_create();
 
-	ut_a(space > srv_sys_space.space_id());
+	ut_a(!is_system_tablespace(space));
 
 	pars_info_add_int4_literal(info, "space", space);
 

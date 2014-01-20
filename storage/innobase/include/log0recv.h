@@ -309,7 +309,7 @@ struct recv_addr_t{
 struct recv_dblwr_t {
 	void add(byte* page);
 
-	byte* find_first_page(ulint space_id);
+	byte* find_page(ulint space_id, ulint page_no);
 
 	std::list<byte*> pages; /* Pages from double write buffer */
 };

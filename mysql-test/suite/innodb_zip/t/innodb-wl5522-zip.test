@@ -216,7 +216,7 @@ DROP TABLE t1;
 # table and restore, this time the table has a secondary index too.
 CREATE TABLE t1(
 	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT, INDEX(c2)) ENGINE=InnoDB  
+	c2 INT, INDEX(c2)) ENGINE=InnoDB
         ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
 INSERT INTO t1(c2) VALUES(1);
@@ -242,7 +242,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(
 	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT, INDEX(c2)) ENGINE=InnoDB 
+	c2 INT, INDEX(c2)) ENGINE=InnoDB
         ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
@@ -487,10 +487,10 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
-# This should fail because is KEY_BLOCK_SIZE=4 
+# This should fail because is KEY_BLOCK_SIZE=4
 # but KEY_BLOCK_SIZE=8 is exported table
 # Need better error message for following
---replace_regex /\(.*\)//
+--replace_regex /match, .*\)/match)/
 -- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
