@@ -3581,12 +3581,15 @@ row_import_for_mysql(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		filepath = os_file_make_remote_pathname(
-			table->data_dir_path, table->name, "ibd");
+		filepath = fil_make_filepath(
+			table->data_dir_path, table->name, IBD, true);
 	} else {
-		filepath = fil_make_ibd_name(table->name, false);
+		filepath = fil_make_filepath(
+			NULL, table->name, IBD, false);
 	}
-	ut_a(filepath);
+	if (filepath == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
 
 	/* Open the tablespace so that we can access via the buffer pool.
 	We set the 2nd param (fix_dict = true) here because we already

@@ -7,8 +7,10 @@
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
-call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
+--disable_query_log
+call mtr.add_suppression("Tablespace innodb_temporary_tablespace ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");
 call mtr.add_suppression("The table 't1' is full");
+--enable_query_log
 
 ################################################################################
 #
@@ -200,7 +202,7 @@ create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb
 --echo "testing system and temp tablespace name conflict"
 --error 1
 --exec $MYSQLD_CMD $nameconflicts
-let SEARCH_PATTERN = system shared and system temp tablespace file name seems to be same;
+let SEARCH_PATTERN = innodb_temporary_tablespace and innodb_system_tablespace file names seem to be the same;
 --source ./include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo "restarting server in normal mode"

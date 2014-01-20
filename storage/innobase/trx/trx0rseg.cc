@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "srv0mon.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 #include <algorithm>
 
@@ -286,7 +286,7 @@ trx_rseg_schedule_pending_purge(
 	space = trx_sysf_rseg_get_space(sys_header, slot, mtr);
 
 	if (page_no != FIL_NULL
-	    && Tablespace::is_system_or_undo_tablespace(space)) {
+	    && is_system_or_undo_tablespace(space)) {
 
 		/* rseg resides in system or undo tablespace and so
 		this is an upgrade scenario. trx_rseg_mem_create
@@ -295,7 +295,7 @@ trx_rseg_schedule_pending_purge(
 		trx_rseg_t*		rseg = NULL;
 		bool			found = true;
 		const page_size_t&	page_size
-			= Tablespace::is_system_tablespace(space)
+			= is_system_tablespace(space)
 			? univ_page_size
 			: fil_space_get_page_size(space, &found);
 
@@ -353,7 +353,7 @@ trx_rseg_create_instance(
 
 			bool			found = true;
 			const page_size_t&	page_size
-				= Tablespace::is_system_tablespace(space)
+				= is_system_tablespace(space)
 				? univ_page_size
 				: fil_space_get_page_size(space, &found);
 
@@ -414,7 +414,7 @@ trx_rseg_create(
 
 		bool			found = true;
 		const page_size_t&	page_size
-			= Tablespace::is_system_tablespace(space)
+			= is_system_tablespace(space)
 			? univ_page_size
 			: fil_space_get_page_size(space, &found);
 
