@@ -64,6 +64,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #ifndef NAME_LEN
 #define NAME_LEN (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
+/* Length of the server_version_split array in FDE class */
+#ifndef ST_SERVER_VER_SPLIT_LEN
+#define ST_SERVER_VER_SPLIT_LEN 3
+#endif
 
 /*
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
@@ -1904,7 +1908,7 @@ public:
      by the checksum alg decription byte
   */
     uint8_t *post_header_len;
-    unsigned char server_version_split[3];
+    unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
     /**
      In some previous version > 5.1 GA event types are assigned
      different event id numbers than in the present version, so we
@@ -1919,7 +1923,7 @@ public:
 
     uint8_t number_of_event_types;
     Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT; }
-    unsigned long get_version_product() const;
+    unsigned long get_product_version() const;
     bool is_version_before_checksum() const;
     void calc_server_version_split();
     bool is_valid() const { return 1; }
@@ -2460,7 +2464,73 @@ public:
 };
 
 
-//TODO: Add comments for this class
+/**
+@class User_var_event
+   Written every time a statement uses a user variable; precedes other
+   events for the statement. Indicates the value to use for the user
+   variable in the next statement. This is written only before a QUERY_EVENT
+   and is not used with row-based logging
+
+  The Post-Header has following components:
+
+  <table>
+  <caption>Post-Header for Format_description_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>Value_type</td>
+    <td>enum</td>
+    <td>The user variable type.</td>
+  </tr>
+  <tr>
+    <td>User_var_event_data</td>
+    <td>enum</td>
+    <td>User_var event data</td>
+  </tr>
+  <tr>
+    <td>name</td>
+    <td>const char pointer</td>
+    <td>User variable name.</td>
+  </tr>
+  <tr>
+    <td>name_len</td>
+    <td>unsigned int</td>
+    <td>Length of the user variable name</td>
+  </tr>
+  <tr>
+    <td>val</td>
+    <td>char pointer</td>
+    <td>value of the user variable.</td>
+  </tr>
+  <tr>
+    <td>val_len</td>
+    <td>unsigned long</td>
+    <td>Length of the value of the user variable</td>
+  </tr>
+  <tr>
+    <td>type</td>
+    <td>enum Value_type</td>
+    <td>Type of the user variable</td>
+  </tr>
+  <tr>
+    <td>charset_number</td>
+    <td>unsigned int</td>
+    <td>The number of the character set for the user variable (needed for a
+        string variable). The character set number is really a collation
+        number that indicates a character set/collation pair.</td>
+  </tr>
+  <tr>
+    <td>is_null</td>
+    <td>bool</td>
+    <td>Non-zero if the variable value is the SQL NULL value, 0 otherwise.</td>
+  </tr>
+  </table>
+*/
 class User_var_event: public Binary_log_event
 {
 public:

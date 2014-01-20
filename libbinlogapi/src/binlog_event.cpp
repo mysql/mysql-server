@@ -565,7 +565,7 @@ void Format_description_event::calc_server_version_split()
    the current FD instance.
    @return the version of server
 */
-unsigned long Format_description_event::get_version_product() const
+unsigned long Format_description_event::get_product_version() const
 {
   return version_product(server_version_split);
 }
@@ -577,7 +577,7 @@ unsigned long Format_description_event::get_version_product() const
 */
 bool Format_description_event::is_version_before_checksum() const
 {
-  return get_version_product() < checksum_version_product;
+  return get_product_version() < checksum_version_product;
 }
 
 Start_event_v3::Start_event_v3(const char* buf,
@@ -646,7 +646,7 @@ Format_description_event(const char* buf, unsigned int event_len,
                                            number_of_event_types *
                                            sizeof(*post_header_len));
   calc_server_version_split();
-  if ((ver_calc= get_version_product()) >= checksum_version_product)
+  if ((ver_calc= get_product_version()) >= checksum_version_product)
 {
     /* the last bytes are the checksum alg desc and value (or value's room) */
     number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
@@ -1267,6 +1267,12 @@ Xid_event(const char* buf,
   memcpy((char*) &xid, buf, sizeof(xid));
 }
 
+/**
+  Written every time a statement uses the RAND() function; precedes other
+  events for the statement. Indicates the seed values to use for generating a
+  random number with RAND() in the next statement. This is written only before
+  a QUERY_EVENT and is not used with row-based logging
+*/
 Rand_event::Rand_event(const char* buf,
                        const Format_description_event* description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
@@ -1281,6 +1287,12 @@ Rand_event::Rand_event(const char* buf,
   seed2= le64toh(seed2);
 }
 
+/**
+  Written every time a statement uses a user variable, precedes other
+  events for the statement. Indicates the value to use for the
+  user variable in the next statement. This is written only before a
+  QUERY_EVENT and is not used with row-based logging.
+*/
 User_var_event::
 User_var_event(const char* buf, unsigned int event_len,
                const Format_description_event* description_event)
