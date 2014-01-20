@@ -169,11 +169,8 @@ private:
     any user transaction and if not finished, there would be pending
     changes.
 
-    @return
-      @retval FALSE No error
-      @retval TRUE  Failure
   */
-  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
+  void close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error, bool need_commit= FALSE);
   /**
     Write a gtid interval into the gtid_executed table.
