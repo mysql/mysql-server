@@ -27,7 +27,7 @@
 const LEX_STRING Gtid_table_persistor::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 const LEX_STRING Gtid_table_persistor::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
-bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
+void Gtid_table_persistor::close_table(THD* thd, TABLE* table,
                                        Open_tables_backup* backup,
                                        bool error, bool need_commit)
 {
@@ -70,7 +70,7 @@ bool Gtid_table_persistor::close_table(THD* thd, TABLE* table,
   }
   thd->is_operating_gtid_table= false;
 
-  DBUG_RETURN(false);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -452,6 +452,24 @@ int Gtid_table_persistor::compress()
   */
   if ((error= delete_consecutive_rows(table, &gtid_deleted)))
     goto end;
+
+  /*
+    Resolve InnoDB possible native deadlock caused by complex transaction
+    while compressing the gtid table by executing delete operations and
+    insert operations in separate statement in one transaction.
+  */
+  this->close_table(thd, table, &backup, 0 != error, FALSE);
+  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  {
+    error= 1;
+    goto end;
+  }
+
+  /*
+    Reset stage_compressing_gtid_table to overwrite
+    stage_system_lock set in open_table(...).
+  */
+  THD_STAGE_INFO(thd, stage_compressing_gtid_table);
 
   /*
     Sleep a little, so that notified user thread executed the statement
