@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,6 @@ find_matching_index(NDBDICT* dict,
   const int noinvalidate= 0;
   uint best_matching_columns= 0;
   const NDBINDEX* best_matching_index= 0;
-  const NDBINDEX* return_index= 0;
 
   NDBDICT::List index_list;
   dict->listIndexes(index_list, *tab);
@@ -116,6 +115,10 @@ find_matching_index(NDBDICT* dict,
       uint cnt= 0;
       for (unsigned j = 0; columns[j] != 0; j++)
       {
+        /*
+         * Search for matching columns in any order
+         * since order does not matter for unique index
+         */
         bool found= FALSE;
         for (unsigned c = 0; c < index->getNoOfColumns(); c++)
         {
@@ -133,19 +136,21 @@ find_matching_index(NDBDICT* dict,
       if (cnt == index->getNoOfColumns())
       {
         /**
-         * Full match...
+         * Full match...return this index, no need to look further
          */
-        return_index= index;
-        goto found;
+        if (best_matching_index)
+        {
+          // release ref to previous best candidate
+          dict->removeIndexGlobal(* best_matching_index, noinvalidate);
+        }
+        return index; // NOTE: also returns reference
       }
-      else
-      {
-        /**
-         * Not full match...i.e not usable
-         */
-        dict->removeIndexGlobal(* index, noinvalidate);
-        continue;
-      }
+
+      /**
+       * Not full match...i.e not usable
+       */
+      dict->removeIndexGlobal(* index, noinvalidate);
+      continue;
     }
     else if (index->getType() == NDBINDEX::OrderedIndex)
     {
@@ -184,16 +189,6 @@ find_matching_index(NDBDICT* dict,
       dict->removeIndexGlobal(* index, noinvalidate);
       continue;
     }
-  }
-found:
-  if (return_index)
-  {
-    // release ref to previous best candidate
-    if (best_matching_index)
-    {
-      dict->removeIndexGlobal(* best_matching_index, noinvalidate);
-    }
-    return return_index; // NOTE: also returns reference
   }
 
   return best_matching_index; // NOTE: also returns reference
@@ -1378,10 +1373,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     if (!parent_primary_key && parent_index == 0)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_CANNOT_ADD_FOREIGN,
-                          "Parent table %s foreign key columns match no index in NDB",
-                          parent_tab.get_table()->getName());
+      my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
+               fk->name.str ? fk->name.str : "",
+               parent_tab.get_table()->getName());
       DBUG_RETURN(err_default);
     }
 
