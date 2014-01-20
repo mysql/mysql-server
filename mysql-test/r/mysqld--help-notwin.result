@@ -433,9 +433,9 @@ The following options may be given as the first argument:
  in between
  --memlock           Lock mysqld in memory.
  --metadata-locks-cache-size=# 
- Size of unused metadata locks cache
+ Has no effect, deprecated
  --metadata-locks-hash-instances=# 
- Number of metadata locks hash instances
+ Has no effect, deprecated
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that

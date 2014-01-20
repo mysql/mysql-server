@@ -1,7 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+--source include/have_myisam.inc
 --source include/force_myisam_default.inc
+# This is a MyISAM specific test as in MyISAM INSERT INTO .. SELECT FROM takes a read lock on the source table whereas in InnoDB row-level locking is used.
 
 --source include/have_log_bin.inc
 # Test sets its own binlog_format, so we restrict it to run only once

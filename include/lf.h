@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,16 +108,15 @@ typedef struct {
   uint32 volatile pins_in_array;            /* number of elements in array */
 } LF_PINBOX;
 
-typedef struct {
+typedef struct st_lf_pins {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
-  void  **stack_ends_here;
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
 /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+3) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+3)];
+#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
+  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
 #endif
 } LF_PINS;
 
@@ -181,17 +180,20 @@ lock_wrap_void(lf_pinbox_free,
 /*
   memory allocator, lf_alloc-pin.c
 */
+typedef void lf_allocator_func(uchar *);
 
 typedef struct st_lf_allocator {
   LF_PINBOX pinbox;
   uchar * volatile top;
   uint element_size;
   uint32 volatile mallocs;
-  void (*constructor)(uchar *); /* called, when an object is malloc()'ed */
-  void (*destructor)(uchar *);  /* called, when an object is free()'d    */
+  lf_allocator_func *constructor; /* called, when an object is malloc()'ed */
+  lf_allocator_func *destructor;  /* called, when an object is free()'d    */
 } LF_ALLOCATOR;
 
-void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
+#define lf_alloc_init(A, B, C) lf_alloc_init2(A, B, C, NULL, NULL)
+void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
+                    lf_allocator_func *ctor, lf_allocator_func *dtor);
 void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 /*
@@ -204,7 +206,12 @@ uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 #define lf_alloc_get_pins(A)           lf_pinbox_get_pins(&(A)->pinbox)
 #define _lf_alloc_put_pins(PINS)      _lf_pinbox_put_pins(PINS)
 #define lf_alloc_put_pins(PINS)        lf_pinbox_put_pins(PINS)
-#define lf_alloc_direct_free(ALLOC, ADDR) my_free((ADDR))
+#define lf_alloc_direct_free(ALLOC, ADDR)   \
+  do {                                      \
+    if ((ALLOC)->destructor)                \
+      (ALLOC)->destructor((uchar *)(ADDR)); \
+    my_free((ADDR));                        \
+  } while (0)
 
 lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),
@@ -220,26 +227,46 @@ C_MODE_END
 
 C_MODE_START
 
+struct st_lf_hash;
+typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
+typedef void lf_hash_init_func(uchar *dst, const uchar* src);
+
 #define LF_HASH_UNIQUE 1
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;
 
-typedef struct {
+typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */
   LF_ALLOCATOR alloc;                   /* allocator for elements */
   my_hash_get_key get_key;              /* see HASH */
   CHARSET_INFO *charset;                /* see HASH */
+  lf_hash_func *hash_function;          /* see HASH */
   uint key_offset, key_length;          /* see HASH */
   uint element_size;                    /* size of memcpy'ed area on insert */
   uint flags;                           /* LF_HASH_UNIQUE, etc */
   int32 volatile size;                  /* size of array */
   int32 volatile count;                 /* number of elements in the hash */
+  /**
+    "Initialize" hook - called to finish initialization of object provided by
+     LF_ALLOCATOR (which is pointed by "dst" parameter) and set element key
+     from object passed as parameter to lf_hash_insert (pointed by "src"
+     parameter). Allows to use LF_HASH with objects which are not "trivially
+     copyable".
+     NULL value means that element initialization is carried out by copying
+     first element_size bytes from object which provided as parameter to
+     lf_hash_insert.
+  */
+  lf_hash_init_func *initialize;
 } LF_HASH;
 
-void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
-                  uint key_offset, uint key_length, my_hash_get_key get_key,
-                  CHARSET_INFO *charset);
+#define lf_hash_init(A, B, C, D, E, F, G) \
+          lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
+void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
+                   uint key_offset, uint key_length, my_hash_get_key get_key,
+                   CHARSET_INFO *charset, lf_hash_func *hash_function,
+                   lf_allocator_func *ctor, lf_allocator_func *dtor,
+                   lf_hash_init_func *init);
 void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);

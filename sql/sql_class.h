@@ -3617,6 +3617,17 @@ public:
     owned_sid.clear();
   }
 
+  /*
+    There are some statements (like OPTIMIZE TABLE, ANALYZE TABLE and
+    REPAIR TABLE) that might call trans_rollback_stmt() and also will be
+    sucessfully executed and will have to go to the binary log.
+    For these statements, the skip_gtid_rollback flag must be set to avoid
+    problems when the statement is executed with a GTID_NEXT set to GTID_GROUP
+    (like the SQL thread do when applying events from other server).
+    When this flag is set, a call to gtid_rollback() will do nothing.
+  */
+  bool skip_gtid_rollback;
+
   /**
     Set the current database; use deep copy of C-string.
 

@@ -1036,6 +1036,7 @@ row_raw_format(
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
 
 void
 test_row_raw_format_int()
@@ -1247,5 +1248,7 @@ test_row_raw_format_int()
 
 	speedo_show(&speedo);
 }
+
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */

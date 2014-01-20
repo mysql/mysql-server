@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3899,20 +3899,15 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table, 1);
         /*
-          We need to allocate one extra byte for null handling and
-          another extra byte to not get warnings from purify in
-          Field_string::val_int
+          We need to allocate one extra byte for null handling.
         */
-	if (!(tmp= (uchar*) sql_alloc(field->pack_length()+2)))
+	if (!(tmp= static_cast<uchar*>(sql_alloc(field->pack_length() + 1))))
 	  goto err;
         if (copy)
         {
           DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
-          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-#ifdef HAVE_purify
-          copy->to_ptr[copy->from_length]= 0;
-#endif
+          item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
           copy++;
         }
       }

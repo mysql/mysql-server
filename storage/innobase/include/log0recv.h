@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -309,7 +309,7 @@ struct recv_addr_t{
 struct recv_dblwr_t {
 	void add(byte* page);
 
-	byte* find_first_page(ulint space_id);
+	byte* find_page(ulint space_id, ulint page_no);
 
 	std::list<byte *> pages; /* Pages from double write buffer */
 };
