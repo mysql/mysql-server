@@ -153,7 +153,7 @@ char *bapi_strmake(char *dest, const char* src, size_t length)
   while (n < length && src[n++]);
   memset(dest + n, (int) 'Z', length - n + 1);
   strncpy(dest, src, length);
-  if(dest[length]!= '\0')
+  if(dest[length] != '\0')
     dest[length]= '\0';
   return dest;
 }
@@ -1414,12 +1414,6 @@ Rows_query_event(const char *buf, unsigned int event_len,
   int len= event_len - offset;
   if (!(m_rows_query= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
     return;
-  int n= 0;
-  while (n < len && (buf+offset)[n++]);
-  memset(m_rows_query + n, (int) 'Z', len - n + 1);
-  strncpy(m_rows_query, buf + offset, len);
-  if(m_rows_query[len]!= '\0')
-    m_rows_query[len]= '\0';
   bapi_strmake(m_rows_query, buf + offset, len);
 }
 

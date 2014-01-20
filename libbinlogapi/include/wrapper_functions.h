@@ -32,12 +32,19 @@
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_log_event;
+
+/**
+  This enum will be sued by the wrapper method bapi_malloc,
+  to pass it to the method my_malloc, as we can not have a parameter of
+  type PSI_memory_key in the method bapi_malloc.
+*/
 enum PSI_memory_key_to_int
 {
   MEMORY_LOG_EVENT,
   ROWS_QUERY_LOG_EVENT_ROWS_QUERY,
   INCIDENT_LOG_EVENT_MESSAGE
 };
+
 #else
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -79,12 +86,15 @@ inline const char* bapi_strndup(const char *destination, size_t n)
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise
 */
-inline const void* bapi_memdup(const void* source, size_t len)
+inline const void* bapi_memdup(const void* source, size_t len, int flags= 16)
 {
   const void* dest;
 #if HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
-  dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
+  if (flags == 16)
+    dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
+  else
+    dest= my_memdup(key_memory_log_event, source, len, MYF(0));
 #else
   dest= malloc(len);
   if (dest)
@@ -100,17 +110,19 @@ inline const void* bapi_memdup(const void* source, size_t len)
   allocating methods from the mysys library, my_malloc is called. Otherwise,
   the standard malloc() is called from the function.
 
-  @param  Size of the memory to be allocated.
+  @param size         Size of the memory to be allocated.
+  @param key_to_int   A mapping from the PSI_memory_key to an enum
+  @flags              flags to be passed to my_malloc
   @return Void pointer to the allocated chunk of memory
 */
 inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
-                                            MEMORY_LOG_EVENT, int flags=0)
+                          MEMORY_LOG_EVENT, int flags= 0)
 {
   void * dest= NULL;
   #if HAVE_MYSYS
-  if (key_to_int == 1)
+  if (key_to_int == ROWS_QUERY_LOG_EVENT_ROWS_QUERY)
     dest= my_malloc(key_memory_Rows_query_log_event_rows_query,size, MYF(flags));
-  else if (key_to_int == 2)
+  else if (key_to_int == INCIDENT_LOG_EVENT_MESSAGE)
     dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(flags));
   else
     dest= my_malloc(key_memory_log_event,size, MYF(flags));
