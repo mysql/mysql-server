@@ -411,15 +411,39 @@ public:
   */
   void set_rli_description_event(Format_description_log_event *fdle)
   {
+    DBUG_ENTER("Slave_worker::set_rli_description_event");
     DBUG_ASSERT(!fdle || (running_status == Slave_worker::RUNNING && info_thd));
-#ifndef DBUG_OFF
-    if (fdle)
-      mysql_mutex_assert_owner(&jobs_lock);
-#endif
 
     if (fdle)
+    {
+      mysql_mutex_assert_owner(&jobs_lock);
+
+      /*
+        When the master rotates its binary log, set gtid_next to
+        NOT_YET_DETERMINED.  This tells the slave thread that:
+
+        - If a Gtid_log_event is read subsequently, gtid_next will be
+          set to the given GTID (this is done in
+          gtid_pre_statement_checks()).
+
+        - If a statement is executed before any Gtid_log_event, then
+          gtid_next is set to anonymous (this is done in
+          Gtid_log_event::do_apply_event().
+      */
+      if (fdle->server_id != ::server_id &&
+          (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+           info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
+      {
+        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
+        info_thd->variables.gtid_next.set_not_yet_determined();
+      }
+
       adapt_to_master_version(fdle);
+    }
+
     rli_description_event= fdle;
+
+    DBUG_VOID_RETURN;
   }
 
   inline void reset_gaq_index() { gaq_index= c_rli->gaq->size; };
