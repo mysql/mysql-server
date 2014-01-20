@@ -3,6 +3,10 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+# Skip this test if binaries are built with -DWITH_ASAN=1
+# Initialization of asan libraries fail, since the perl driver is not instrumented.
+--source include/not_asan.inc
+
 # Test of mysqlhotcopy (perl script)
 # Author: Horst Hunger
 # Created: 2010-05-10

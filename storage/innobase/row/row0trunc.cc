@@ -1574,6 +1574,10 @@ row_truncate_sanity_checks(
 	} else if (table->ibd_file_missing) {
 
 		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (dict_table_is_corrupted(table)) {
+
+		return(DB_TABLE_CORRUPT);
 	}
 
 	return(DB_SUCCESS);
