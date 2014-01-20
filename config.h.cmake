@@ -221,6 +221,7 @@
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
 
+#cmakedefine HAVE_ASAN
 #cmakedefine HAVE_VALGRIND
 
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
