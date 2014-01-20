@@ -84,6 +84,12 @@ if ($keep_gtid_events)
   ||
   --let $script= $script s{DOLLARuuid_sidno_regex(?:,DOLLARuuid_sidno_regex)*}{Gtid_set};
 }
+# To mask binlog and relaylog commit events
+if ($mask_binlog_commit_events)
+{
+  --let $script= $script s{ \/\* XID \*\/}{};
+  --let $script= $script s{Xid}{Query};
+}
 --delimiter ;
 
 #--let $select_columns= 1 3 6
