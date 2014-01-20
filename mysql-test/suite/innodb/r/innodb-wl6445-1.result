@@ -25,7 +25,7 @@ CREATE USER 'test1'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test1'@'localhost';
 CREATE USER 'test2'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON *.* TO 'test2'@'localhost';
-CREATE TABLE otherlocation (id int PRIMARY KEY) 
+CREATE TABLE otherlocation (id int PRIMARY KEY)
 ENGINE=InnoDB , DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 INSERT INTO otherlocation VALUES (1),(2),(3);
 SELECT * FROM otherlocation ORDER BY id;
@@ -67,7 +67,7 @@ ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # disconnect con_test1_user
-# connection con_test2_user 
+# connection con_test2_user
 SELECT user();
 user()
 test2@localhost
@@ -1345,7 +1345,7 @@ i
 3
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
-case # 7 (restart server in read-only mode and perform check table) 
+case # 7 (restart server in read-only mode and perform check table)
 use test;
 create table t1 (
 i int,
