@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,25 +60,6 @@ IF(NOT SYSTEM_TYPE)
   ELSE()
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
-ENDIF()
-
-# Always enable -Wall for gnu C/C++
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-ENDIF()
-
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
-ENDIF()
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
@@ -193,6 +174,11 @@ ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  # Also extract real path to the compiler(which is normally
+  # in <install_path>/prod/bin) and try to find the
+  # stlport libs relative to that location as well.
+  GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
+
   SET(STLPORT_SUFFIX "lib/stlport4")
   IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
     SET(STLPORT_SUFFIX "lib/stlport4/v9")
@@ -204,6 +190,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   FIND_LIBRARY(STL_LIBRARY_NAME
     NAMES "stlport"
     PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+          ${CXX_REALPATH}/../../${STLPORT_SUFFIX}
   )
   MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
   IF(STL_LIBRARY_NAME)
@@ -213,6 +200,15 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
     EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
+  ELSE()
+    MESSAGE(STATUS "Failed to find the reuired stlport library, print some"
+                   "variables to help debugging and bail out")
+    MESSAGE(STATUS "CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER}")
+    MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
+    MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
+    MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
+    MESSAGE(FATAL_ERROR
+      "Could not find the required stlport library.")
   ENDIF()
 ENDIF()
 

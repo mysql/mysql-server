@@ -122,7 +122,8 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'idle');
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
-  where name in ('stage/sql/init',
+  where name in ('stage/sql/starting',
+                 'stage/sql/init',
                  'stage/sql/checking permissions',
                  'stage/sql/Opening tables',
                  'stage/sql/closing tables');
@@ -262,7 +263,8 @@ prepare dump_stages_account from
   "select user, host, event_name, count_star
   from performance_schema.events_stages_summary_by_account_by_event_name
   where user like \'user%\'
-  and event_name in ('stage/sql/init',
+  and event_name in ('stage/sql/starting',
+                     'stage/sql/init',
                      'stage/sql/checking permissions',
                      'stage/sql/Opening tables',
                      'stage/sql/closing tables')
@@ -272,7 +274,8 @@ prepare dump_stages_user from
   "select user, event_name, count_star
   from performance_schema.events_stages_summary_by_user_by_event_name
   where user like \'user%\'
-  and event_name in ('stage/sql/init',
+  and event_name in ('stage/sql/starting',
+                     'stage/sql/init',
                      'stage/sql/checking permissions',
                      'stage/sql/Opening tables',
                      'stage/sql/closing tables')
@@ -282,7 +285,8 @@ prepare dump_stages_host from
   "select host, event_name, count_star
   from performance_schema.events_stages_summary_by_host_by_event_name
   where host=\'localhost\'
-  and event_name in ('stage/sql/init',
+  and event_name in ('stage/sql/starting',
+                     'stage/sql/init',
                      'stage/sql/checking permissions',
                      'stage/sql/Opening tables',
                      'stage/sql/closing tables')
@@ -291,7 +295,8 @@ prepare dump_stages_host from
 prepare dump_stages_global from
   "select event_name, count_star
   from performance_schema.events_stages_summary_global_by_event_name
-  where event_name in ('stage/sql/init',
+  where event_name in ('stage/sql/starting',
+                       'stage/sql/init',
                        'stage/sql/checking permissions',
                        'stage/sql/Opening tables',
                        'stage/sql/closing tables')
@@ -300,7 +305,8 @@ prepare dump_stages_global from
 prepare dump_stages_history from
   "select event_name, count(event_name)
   from performance_schema.events_stages_history_long
-  where event_name in ('stage/sql/init',
+  where event_name in ('stage/sql/starting',
+                       'stage/sql/init',
                        'stage/sql/checking permissions',
                        'stage/sql/Opening tables',
                        'stage/sql/closing tables')

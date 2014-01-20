@@ -1610,7 +1610,7 @@ DROP TABLE t1|
 drop procedure if exists p1;
 create procedure p1()
 begin
-create table t1 (a int) engine=MyISAM;
+create table t1 (a int);
 drop table t1;
 end|
 call p1();

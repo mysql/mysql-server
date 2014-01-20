@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -963,11 +963,10 @@ dict_table_open_on_name(
 				mutex_exit(&dict_sys->mutex);
 			}
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table %s is corrupted. Please drop the table"
 				" and recreate",
 				ut_get_name(NULL, TRUE, table->name).c_str());
-
 			DBUG_RETURN(NULL);
 		}
 
@@ -1410,9 +1409,10 @@ dict_table_rename_in_cache(
 
 		ut_ad(!Tablespace::is_system_tablespace(table->space));
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		/* Make sure the data_dir_path is set. */
+		dict_get_and_save_data_dir_path(table, true);
 
-			dict_get_and_save_data_dir_path(table, true);
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
 			filepath = os_file_make_remote_pathname(

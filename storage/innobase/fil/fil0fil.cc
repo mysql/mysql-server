@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4360,7 +4360,7 @@ fil_user_tablespace_find_space_id(
 		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size: %lu, Possible space_id "
-			"count:%lu", page_size, verify.size());
+			"count:%lu", page_size, (ulint) verify.size());
 
 		const ulint pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
@@ -4420,6 +4420,11 @@ fil_user_tablespace_restore_page0(
 	page = recv_sys->dblwr.find_first_page(fsp->id);
 
 	if (!page) {
+		/* If the first page of the given user tablespace is not there
+		in the doublewrite buffer, then the recovery is going to fail
+		now.  Hence this is treated as an error. */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Doublewrite does not have page0: %lu", fsp->id);
 		err = false;
 		goto out;
 	}
@@ -6526,8 +6531,10 @@ fil_tablespace_iterate(
 	DBUG_EXECUTE_IF("ib_import_trigger_corruption_1",
 			return(DB_CORRUPTION););
 
+	/* Make sure the data_dir_path is set. */
+	dict_get_and_save_data_dir_path(table, false);
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		dict_get_and_save_data_dir_path(table, false);
 		ut_a(table->data_dir_path);
 
 		filepath = os_file_make_remote_pathname(

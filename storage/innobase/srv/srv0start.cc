@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -137,7 +137,7 @@ static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+enum srv_shutdown_t	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
@@ -2678,8 +2678,10 @@ srv_get_meta_data_filename(
 	char*			suffix;
 	static const ulint	suffix_len = strlen(".cfg");
 
+	/* Make sure the data_dir_path is set. */
+	dict_get_and_save_data_dir_path(table, false);
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		dict_get_and_save_data_dir_path(table, false);
 		ut_a(table->data_dir_path);
 
 		path = os_file_make_remote_pathname(
