@@ -1088,7 +1088,9 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
                     if (num_partial_evictions++ == 0) {
                         size_before = ftnode_memory_size(node);
                     }
-                    compress_internal_node_partition(node, i, ft->h->compression_method);
+                    compress_internal_node_partition(node, i, 
+                                                     // When partially evicting, always compress with quicklz,
+                                                     TOKU_QUICKLZ_METHOD);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
