@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1708,6 +1708,8 @@ rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *table)
     return NULL;
 
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(thread == NULL))
+    return NULL;
 
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
