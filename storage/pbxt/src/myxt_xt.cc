@@ -937,7 +937,7 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 			 */
 			byte *key_ptr = key; // Cannot take the address of a register variable!
 			memcpy(record+keyseg->start+keyseg->bit_start,
-			 (char*) &key_ptr,sizeof(char*));
+                               &key_ptr,sizeof(char*));
 
 			my_store_blob_length(record+keyseg->start,
 					(uint) keyseg->bit_start,length);
