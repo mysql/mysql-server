@@ -608,15 +608,12 @@ recv_find_max_checkpoint(
 
 	if (*max_group == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"No valid checkpoint found."
-			" If this error appears when you are"
-			" creating an InnoDB database,"
-			" the problem may be that during"
-			" an earlier attempt you managed"
-			" to create the InnoDB data files,"
-			" but log file creation failed."
-			" If that is the case, please refer to"
-			" " REFMAN "error-creating-innodb.html");
+			"No valid checkpoint found. If this error appears when"
+			" you are creating an InnoDB database, the problem may"
+			" be that during an earlier attempt you managed to"
+			" create the InnoDB data files, but log file creation"
+			" failed. If that is the case; %s",
+			ERROR_CREATING_MSG);
 		return(DB_ERROR);
 	}
 
@@ -2071,9 +2068,8 @@ recv_report_corrupt_log(
 		"The log file may have been corrupt and it is possible"
 		" that the log scan did not proceed far enough in recovery!"
 		" Please run CHECK TABLE on your InnoDB tables to check"
-		" that they are ok! If mysqld crashes after this recovery,"
-		" look at " REFMAN "forcing-innodb-recovery.html"
-		" about forcing recovery.");
+		" that they are ok! If mysqld crashes after this recovery; %s",
+		FORCE_RECOVERY_MSG);
 
 	fflush(stderr);
 }

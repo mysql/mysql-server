@@ -3342,10 +3342,7 @@ dict_foreign_error_report(
 	if (fk->foreign_index) {
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
-		fputs("\n"
-		      "See " REFMAN "innodb-foreign-key-constraints.html\n"
-		      "for correct foreign key definition.\n",
-		      file);
+		fprintf(file, "\n%s\n", FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
 }
@@ -4377,10 +4374,9 @@ col_loop1:
 		fputs("There is no index in table ", ef);
 		ut_print_name(ef, NULL, TRUE, name);
 		fprintf(ef, " where the columns appear\n"
-			"as the first columns. Constraint:\n%s\n"
-			"See " REFMAN "innodb-foreign-key-constraints.html\n"
-			"for correct foreign key definition.\n",
-			start_of_latest_foreign);
+			"as the first columns. Constraint:\n%s\n%s",
+			start_of_latest_foreign,
+			FOREIGN_KEY_CONSTRAINTS_MSG);
 		mutex_exit(&dict_foreign_err_mutex);
 
 		return(DB_CHILD_NO_INDEX);
@@ -4661,11 +4657,9 @@ try_find_index:
 				"tables created with >= InnoDB-4.1.12,"
 				" and such columns in old tables\n"
 				"cannot be referenced by such columns"
-				" in new tables.\n"
-				"See " REFMAN
-				"innodb-foreign-key-constraints.html\n"
-				"for correct foreign key definition.\n",
-				start_of_latest_foreign);
+				" in new tables.\n%s\n",
+				start_of_latest_foreign,
+				FOREIGN_KEY_CONSTRAINTS_MSG);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			return(DB_PARENT_NO_INDEX);
