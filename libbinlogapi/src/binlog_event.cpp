@@ -257,12 +257,6 @@ Log_event_header(const char* buf,
    */
 
   default:
-    if (description_event->binlog_version != 3)
-    {
-      memcpy(&log_pos, buf + LOG_POS_OFFSET, 4);
-      log_pos= le32toh(log_pos);
-    }
-
     memcpy(&flags, buf + FLAGS_OFFSET, sizeof(flags));
     flags= le16toh(flags);
 
