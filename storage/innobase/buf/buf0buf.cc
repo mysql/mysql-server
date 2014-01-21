@@ -522,9 +522,8 @@ buf_page_is_corrupted(
 				"Your database may be corrupt or"
 				" you may have copied the InnoDB"
 				" tablespace but not the InnoDB"
-				" log files. See " REFMAN ""
-				" forcing-innodb-recovery.html"
-				" for more information.");
+				" log files. %s",
+				FORCE_RECOVERY_MSG);
 
 		}
 	}
@@ -2834,12 +2833,9 @@ loop:
 				" into the buffer pool after %lu attempts."
 				" The most probable cause of this error may"
 				" be that the table has been corrupted."
-				" You can try to fix this problem by using"
-				" innodb_force_recovery."
-				" Please see " REFMAN " for more"
-				" details. Aborting...",
-				space, offset,
-				BUF_PAGE_READ_MAX_RETRIES);
+				" %s Aborting...",
+				space, offset, BUF_PAGE_READ_MAX_RETRIES,
+				FORCE_RECOVERY_MSG);
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4394,10 +4390,8 @@ corrupt:
 				" You can also try to fix the corruption"
 				" by dumping, dropping, and reimporting"
 				" the corrupt table. You can use CHECK"
-				" TABLE to scan your table for corruption."
-				" See also" REFMAN ""
-				" forcing-innodb-recovery.html"
-				" about forcing recovery.");
+				" TABLE to scan your table for corruption. %s",
+				FORCE_RECOVERY_MSG);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE
