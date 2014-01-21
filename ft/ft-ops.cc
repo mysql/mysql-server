@@ -1067,6 +1067,8 @@ BASEMENTNODE toku_detach_bn(FTNODE node, int childnum) {
 int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* extraargs) {
     FTNODE node = (FTNODE)ftnode_pv;
     FT ft = (FT) extraargs;
+    long size_before = 0;
+    int num_partial_evictions = 0;
     // Don't partially evict dirty nodes
     if (node->dirty) {
         goto exit;
@@ -1083,11 +1085,10 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    long size_before = ftnode_memory_size(node);
+                    if (num_partial_evictions++ == 0) {
+                        size_before = ftnode_memory_size(node);
+                    }
                     compress_internal_node_partition(node, i, ft->h->compression_method);
-                    long delta = size_before - ftnode_memory_size(node);
-                    STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF, 1);
-                    STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES, delta);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1107,23 +1108,21 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                long size_before = ftnode_memory_size(node);
+                if (num_partial_evictions++ == 0) {
+                    size_before = ftnode_memory_size(node);
+                }
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
                 set_BNULL(node, i);
                 BP_STATE(node,i) = PT_ON_DISK;
-                long delta = size_before - ftnode_memory_size(node);
-                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
-                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    long size_before = ftnode_memory_size(node);
+                    if (num_partial_evictions++ == 0) {
+                        size_before = ftnode_memory_size(node);
+                    }
                     toku_evict_bn_from_memory(node, i, ft);
-                    long delta = size_before - ftnode_memory_size(node);
-                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
-                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1135,6 +1134,17 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
             else {
                 abort();
             }
+        }
+    }
+
+    if (num_partial_evictions > 0) {
+        long delta = size_before - ftnode_memory_size(node);
+        if (node->height == 0) {
+            STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, num_partial_evictions);
+            STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
+        } else {
+            STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF, num_partial_evictions);
+            STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES, delta);
         }
     }
 
