@@ -1263,10 +1263,12 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          unsigned long auto_increment_offset_arg,
                          unsigned int number,
                          unsigned long long table_map_for_update_arg,
-                         int errcode)
+                         int errcode,
+                         unsigned int db_arg_len, unsigned int catalog_arg_len)
 : m_user(""), m_host(""), m_catalog(""),
   m_db(""), m_query(""),
-  thread_id(thread_id_arg), error_code(errcode), q_len(query_length),
+  thread_id(thread_id_arg), db_len(0), error_code(errcode),
+  status_vars_len(0), q_len(query_length),
   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
   sql_mode(sql_mode_arg),
   auto_increment_increment(auto_increment_increment_arg),
@@ -1277,11 +1279,11 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   master_data_written(0), mts_accessed_dbs(0)
 {
   if (db_arg)
-    m_db= db_arg;
+    m_db.append(db_arg, db_arg_len);
   if (query_arg)
-    m_query= query_arg;
+    m_query.append(query_arg, query_length);
   if (catalog_arg)
-    m_catalog= catalog_arg;
+    m_catalog.append(catalog_arg, catalog_arg_len);
 }
 
 /**
@@ -1383,7 +1385,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   query_data_written= 0;
 
   common_header_len= description_event->common_header_len;
-  post_header_len= description_event->post_header_len[event_type-1];
+  post_header_len= description_event->post_header_len[event_type - 1];
 
   /*
     We test if the event's length is sensible, and if so we compute data_len.
