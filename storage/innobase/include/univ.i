@@ -239,12 +239,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
                                                 info output */
-#define UNIV_LOG_DEBUG                          /* the above option prevents
-                                                forcing of log to disk
-                                                at a buffer page write:
-                                                it should be tested with
-                                                this option off; also some
-                                                ibuf tests are suppressed */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
