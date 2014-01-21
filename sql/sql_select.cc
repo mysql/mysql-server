@@ -10819,6 +10819,16 @@ void JOIN::cleanup(bool full)
         {
           tab->cleanup();
         }
+
+        if (tabs_kind == WALK_OPTIMIZATION_TABS && 
+            first_breadth_first_tab(this, WALK_OPTIMIZATION_TABS) != 
+            first_breadth_first_tab(this, WALK_EXECUTION_TABS))
+        {
+          JOIN_TAB *jt= first_breadth_first_tab(this, WALK_EXECUTION_TABS);
+          /* We've walked optimization tabs. do execution ones too */
+          if (jt)
+            jt->cleanup();
+        }
       }
       cleaned= true;
 

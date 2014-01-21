@@ -2026,4 +2026,28 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
 1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
 DROP TABLE t1,t2;
+#
+# MDEV-4974 memory leak in 5.5.32-MariaDB-1~wheezy-log
+#
+set sort_buffer_size=default;
+set max_sort_length=default;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (b int,
+col1 varchar(255),
+col2 varchar(255)
+) character set utf8;
+insert into t2 select 
+A.a+10*B.a,
+concat('wow-wow-col1-value-', A.a+10*B.a+100*C.a),
+concat('wow-wow-col2-value-', A.a+10*B.a+100*C.a)
+from 
+t1 A, t1 B, t1 C where C.a < 8;
+create table t3 as 
+select distinct A.col1 as XX, B.col1 as YY
+from 
+t2 A, t2 B 
+where A.b = B.b
+order by A.col2, B.col2 limit 10, 1000000;
+drop table t1,t2,t3;
 End of 5.5 tests
