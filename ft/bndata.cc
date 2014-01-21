@@ -105,7 +105,7 @@ void bn_data::init_zero() {
 
 void bn_data::initialize_empty() {
     toku_mempool_zero(&m_buffer_mempool);
-    m_buffer.create();
+    m_buffer.create_no_array();
 }
 
 void bn_data::initialize_from_data(uint32_t num_entries, unsigned char *buf, uint32_t data_size) {
