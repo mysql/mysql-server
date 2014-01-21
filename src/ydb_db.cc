@@ -107,6 +107,7 @@ PATENT RIGHTS GRANT:
 #include "indexer.h"
 #include <portability/toku_atomic.h>
 #include <util/status.h>
+#include <ft/le-cursor.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #ifdef STATUS_VALUE
@@ -942,6 +943,53 @@ locked_db_optimize(DB *db) {
     return r;
 }
 
+
+struct last_key_extra {
+    DBT * const key_dbt;
+    DB * db;
+};
+
+static int
+db_get_last_key_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
+    if (!lock_only) {
+        struct last_key_extra * CAST_FROM_VOIDP(info, extra);
+        toku_dbt_set(keylen, key, info->key_dbt, &info->db->i->skey);
+    }
+    return 0;
+}
+
+static int
+toku_db_get_last_key(DB * db, DB_TXN *txn, DBT * key, uint32_t flags UU()) {
+    int r;
+    LE_CURSOR cursor = nullptr;
+    struct last_key_extra extra = { .key_dbt = key, .db = db };
+
+    r = toku_le_cursor_create(&cursor, db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
+    if (r != 0) { goto cleanup; }
+
+    // Goes in reverse order.  First key returned is last in dictionary.
+    r = toku_le_cursor_next(cursor, db_get_last_key_callback, &extra);
+    if (r != 0) { goto cleanup; }
+
+cleanup:
+    if (cursor) {
+        toku_le_cursor_close(cursor);
+    }
+    return r;
+}
+
+static int
+autotxn_db_get_last_key(DB* db, DBT* key, uint32_t flags) {
+    bool changed; int r;
+    DB_TXN *txn = nullptr;
+    // Cursors inside require transactions, but this is _not_ a transactional function.
+    // Create transaction in a wrapper and then later close it.
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
+    if (r!=0) return r;
+    r = toku_db_get_last_key(db, txn, key, flags);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
 static int
 toku_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
     HANDLE_PANICKED_DB(db);
@@ -1087,6 +1135,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     result->update = autotxn_db_update;
     result->update_broadcast = autotxn_db_update_broadcast;
     result->change_descriptor = autotxn_db_change_descriptor;
+    result->get_last_key = autotxn_db_get_last_key;
     
     // unlocked methods
     result->get = autotxn_db_get;
