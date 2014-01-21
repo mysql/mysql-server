@@ -945,30 +945,32 @@ locked_db_optimize(DB *db) {
 
 
 struct last_key_extra {
-    DBT * const key_dbt;
-    DB * db;
+    YDB_CALLBACK_FUNCTION func;
+    void* extra;
 };
 
 static int
 db_get_last_key_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
     if (!lock_only) {
+        DBT keydbt;
+        toku_fill_dbt(&keydbt, key, keylen);
         struct last_key_extra * CAST_FROM_VOIDP(info, extra);
-        toku_dbt_set(keylen, key, info->key_dbt, &info->db->i->skey);
+        info->func(&keydbt, NULL, info->extra);
     }
     return 0;
 }
 
 static int
-toku_db_get_last_key(DB * db, DB_TXN *txn, DBT * key, uint32_t flags UU()) {
+toku_db_get_last_key(DB * db, DB_TXN *txn, YDB_CALLBACK_FUNCTION func, void* extra) {
     int r;
     LE_CURSOR cursor = nullptr;
-    struct last_key_extra extra = { .key_dbt = key, .db = db };
+    struct last_key_extra last_extra = { .func = func, .extra = extra };
 
     r = toku_le_cursor_create(&cursor, db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
     if (r != 0) { goto cleanup; }
 
     // Goes in reverse order.  First key returned is last in dictionary.
-    r = toku_le_cursor_next(cursor, db_get_last_key_callback, &extra);
+    r = toku_le_cursor_next(cursor, db_get_last_key_callback, &last_extra);
     if (r != 0) { goto cleanup; }
 
 cleanup:
@@ -979,14 +981,14 @@ cleanup:
 }
 
 static int
-autotxn_db_get_last_key(DB* db, DBT* key, uint32_t flags) {
+autotxn_db_get_last_key(DB* db, YDB_CALLBACK_FUNCTION func, void* extra) {
     bool changed; int r;
     DB_TXN *txn = nullptr;
     // Cursors inside require transactions, but this is _not_ a transactional function.
     // Create transaction in a wrapper and then later close it.
     r = toku_db_construct_autotxn(db, &txn, &changed, false);
     if (r!=0) return r;
-    r = toku_db_get_last_key(db, txn, key, flags);
+    r = toku_db_get_last_key(db, txn, func, extra);
     return toku_db_destruct_autotxn(txn, r, changed);
 }
 
