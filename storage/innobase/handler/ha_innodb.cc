@@ -3166,7 +3166,7 @@ innobase_change_buffering_inited_ok:
 			"Using innodb_locks_unsafe_for_binlog is DEPRECATED."
 			" This option may be removed in future releases."
 			" Please use READ COMMITTED transaction isolation"
-			" level instead, see " REFMAN "set-transaction.html.");
+			" level instead; %s", SET_TRANSACTION_MSG);
 	}
 
 	if (innobase_open_files < 10) {
@@ -4686,13 +4686,11 @@ ha_innobase::open(
 		    && (table->s->fields
 			!= dict_table_get_n_user_cols(ib_table) - 1)))) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"table %s contains %lu user defined columns"
+			"Table %s contains %lu user defined columns"
 			" in InnoDB, but %lu columns in MySQL. Please"
-			" check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and"
-			" " REFMAN "innodb-troubleshooting.html"
-			" for how to resolve it",
+			" check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and %s",
 			norm_name, (ulong) dict_table_get_n_user_cols(ib_table),
-			(ulong) table->s->fields);
+			(ulong) table->s->fields, TROUBLESHOOTING_MSG + 16);
 
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
@@ -11004,10 +11002,10 @@ ha_innobase::info_low(
 						" are defined in the MySQL"
 						" .frm file. Have you mixed up"
 						" .frm files from different"
-						" installations? See"
-						" " REFMAN
-						"innodb-troubleshooting.html\n",
-						ib_table->name);
+						" installations? %s\n",
+						ib_table->name,
+						TROUBLESHOOTING_MSG);
+
 				break;
 			}
 
@@ -16619,6 +16617,27 @@ const char*	TROUBLESHOOT_DATADICT_MSG =
 
 const char*	BUG_REPORT_MSG =
 	"Submit a detailed bug report to http://bugs.mysql.com";
+
+const char*	FORCE_RECOVERY_MSG =
+	"Please refer to " REFMAN "forcing-innodb-recovery.html"
+	" for information about forcing recovery.";
+
+const char*	ERROR_CREATING_MSG =
+	"Please refer to " REFMAN "error-creating-innodb.html";
+
+const char*	OPERATING_SYSTEM_ERROR_MSG =
+	"Some operating system error numbers are described at"
+	" " REFMAN "operating-system-error-codes.html";
+
+const char*	FOREIGN_KEY_CONSTRAINTS_MSG =
+	"Please refer to " REFMAN "innodb-foreign-key-constraints.html"
+	" for correct foreign key definition.";
+
+const char*	SET_TRANSACTION_MSG =
+	"Please refer to " REFMAN "set-transaction.html";
+
+const char*	INNODB_PARAMETERS_MSG =
+	"Please refer to " REFMAN "innodb-parameters.html";
 
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: " */
