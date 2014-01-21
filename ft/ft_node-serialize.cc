@@ -1055,6 +1055,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         XMALLOC_N(n_in_this_buffer, fresh_offsets);
         XMALLOC_N(n_in_this_buffer, broadcast_offsets);
     }
+    toku_fifo_resize(bnc->buffer, rbuf->size + 64);
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;
         bytevec val; ITEMLEN vallen;
