@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   @file transitional_methods.h
 
   @brief Contains functions which are used by the server independent of the
-  binlogapi library.
+  binlogevent library.
 */
 
 #ifndef _TRANSITIONAL_METHODS_H
@@ -37,6 +37,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #undef max
 #endif
 
+/**
+  In case the variable is updated,
+  make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
+*/
+#ifndef FN_REFLEN
+#define FN_REFLEN       512     /* Max length of full path-name */
+#endif
 
 /**
    Splits server 'version' string into three numeric pieces stored

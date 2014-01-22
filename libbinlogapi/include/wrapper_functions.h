@@ -17,7 +17,7 @@
   @file
 
   @brief Contains wrapper functions for memory allocation and deallocation.
-  This includes generic functions to be called from the binlogapi library,
+  This includes generic functions to be called from the binlogevent library,
   which call the appropriate corresponding function, depending on whether
   the library is compiled independently, or with the MySQL server.
 */
@@ -32,19 +32,6 @@
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_log_event;
-
-/**
-  This enum will be sued by the wrapper method bapi_malloc,
-  to pass it to the method my_malloc, as we can not have a parameter of
-  type PSI_memory_key in the method bapi_malloc.
-*/
-enum PSI_memory_key_to_int
-{
-  MEMORY_LOG_EVENT,
-  ROWS_QUERY_LOG_EVENT_ROWS_QUERY,
-  INCIDENT_LOG_EVENT_MESSAGE
-};
-
 #else
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -52,6 +39,18 @@ enum PSI_memory_key_to_int
 #include <cstdlib>
 #include <cstring>
 #endif
+
+/**                                                                            
+  This enum will be sued by the wrapper method bapi_malloc,                    
+  to pass it to the method my_malloc, as we can not have a parameter of        
+  type PSI_memory_key in the method bapi_malloc.                               
+*/                                                                             
+enum PSI_memory_key_to_int
+{
+  MEMORY_LOG_EVENT,
+  ROWS_QUERY_LOG_EVENT_ROWS_QUERY,
+  INCIDENT_LOG_EVENT_MESSAGE
+};
 
 /**
   This is a wrapper function, and returns a pointer to a new string which is
@@ -86,43 +85,38 @@ inline const char* bapi_strndup(const char *destination, size_t n)
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise
 */
-inline const void* bapi_memdup(const void* source, size_t len, int flags= 16)
+inline const void* bapi_memdup(const void* source, size_t len)
 {
   const void* dest;
 #if HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
-  if (flags == 16)
-    dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
-  else
-    dest= my_memdup(key_memory_log_event, source, len, MYF(0));
+  dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
 #else
   dest= malloc(len);
   if (dest)
-    memcpy(dest, source, len);
+    memcpy(&dest, source, len);
 #endif
   return dest;
 }
 /**
   This is a wrapper function inorder to  allocate memory from the heap
-  in the binlogapi library.
+  in the binlogevent library.
 
   If compiled with the MySQL server, and memory is allocated using memory
   allocating methods from the mysys library, my_malloc is called. Otherwise,
   the standard malloc() is called from the function.
 
-  @param size         Size of the memory to be allocated.
-  @param key_to_int   A mapping from the PSI_memory_key to an enum
-  @flags              flags to be passed to my_malloc
+  @param  Size of the memory to be allocated.
   @return Void pointer to the allocated chunk of memory
 */
 inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
-                          MEMORY_LOG_EVENT, int flags= 0)
+                                            MEMORY_LOG_EVENT, int flags=0)
 {
   void * dest= NULL;
   #if HAVE_MYSYS
-  if (key_to_int == ROWS_QUERY_LOG_EVENT_ROWS_QUERY)
+  if (key_to_int == 1)
     dest= my_malloc(key_memory_Rows_query_log_event_rows_query,size, MYF(flags));
-  else if (key_to_int == INCIDENT_LOG_EVENT_MESSAGE)
+  else if (key_to_int == 2)
     dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(flags));
   else
     dest= my_malloc(key_memory_log_event,size, MYF(flags));
@@ -133,14 +127,13 @@ inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
 }
 /**
   This is a wrapper function inorder to free the memory allocated from the heap
-  in the binlogapi library.
+  in the binlogevent library.
 
   If compiled with the MySQL server, and memory is allocated using memory
   allocating methods from the mysys library, my_free is called. Otherwise,
   the standard free() is called from the function.
 
   @param Pointer to the memory which is to be freed.
-  @return None
 */
 inline void bapi_free(void* ptr)
 {
@@ -153,3 +146,5 @@ inline void bapi_free(void* ptr)
 }
 
 #endif
+
+

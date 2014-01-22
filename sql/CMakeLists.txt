@@ -265,8 +265,8 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
-ADD_DEPENDENCIES(binlog binlogapi_static)
-TARGET_LINK_LIBRARIES(binlog binlogapi_static)
+ADD_DEPENDENCIES(binlog binlogevent_static)
+TARGET_LINK_LIBRARIES(binlog binlogevent_static)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)

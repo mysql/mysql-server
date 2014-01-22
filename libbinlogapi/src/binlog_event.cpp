@@ -20,9 +20,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include "binlog_event.h"
 #include "transitional_methods.h"
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <stdint.h>
+#include <string.h>
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};
 const unsigned long checksum_version_product=
@@ -201,7 +205,7 @@ Log_event_header(const char* buf,
    */
   memcpy(&data_written, buf + EVENT_LEN_OFFSET, 4);
   data_written= le32toh(data_written);
-  
+
   memcpy(&log_pos, buf + LOG_POS_OFFSET, 4);
   log_pos= le32toh(log_pos);
 
@@ -376,7 +380,7 @@ Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
                                                               server_version);
   m_header= Log_event_header(*buf, des);
   m_footer= Log_event_footer();
-  // remove the comments when all the events are moved to libbinlogapi
+  // remove the comments when all the events are moved to libbinlogevent
   // (*buf)+= des->common_header_len;
   delete des;
   des= NULL;
@@ -1128,7 +1132,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   commit_flag= *ptr_buffer != 0;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
-  memcpy(gtid_info_struct.uuid_buf, (const uchar*)ptr_buffer,
+  memcpy(gtid_info_struct.uuid_buf, (const unsigned char*)ptr_buffer,
           gtid_info_struct.bytes_to_copy);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
@@ -1551,7 +1555,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     }
     case Q_UPDATED_DB_NAMES:
     {
-      uchar i= 0;
+      unsigned char i= 0;
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
       /*

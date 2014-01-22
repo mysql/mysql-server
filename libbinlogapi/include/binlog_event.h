@@ -64,10 +64,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   the MySQL server and the client. Since they should not be a part of
   this library but the server, these should be placed in a header file
   common to the library and the MySQL server code, so that if they are
-  updated in the server code, it is reflected in the binlogapi also.
+  updated in the server code, it is reflected in the libbinlogevent also.
 
   TODO: Collect all the variables here and create a common header file,
-  placing it in libbinlogapi/include.
+  placing it in libbinlogevent/include.
 */
 #ifndef SYSTEM_CHARSET_MBMAXLEN
 #define SYSTEM_CHARSET_MBMAXLEN 3
@@ -577,7 +577,7 @@ public:
      On the slave side the value is assigned from post_header_len[last]
      of the last seen FD event.
      @endverbatim
-     TODO: Revisit this comment when encoder is moved in libbinlogapi
+     TODO: Revisit this comment when encoder is moved in libbinlogevent
   */
   enum_binlog_checksum_alg checksum_alg;
 };
@@ -2326,7 +2326,7 @@ class Rand_event: public Binary_log_event
   @struct  gtid_info
   Structure to hold the members declared in the class Gtid_log_event
   those member are objects of classes defined in server(rpl_gtid.h).
-  As we can not move all the classes defined there(in rpl_gtid.h) in libbinlogapi
+  As we can not move all the classes defined there(in rpl_gtid.h) in libbinlogevent
   so this structure was created, to provide a way to map the decoded
   value in Gtid_event ctor and the class members defined in rpl_gtid.h,
   these classes are also the members of Gtid_log_event(subclass of this in server code)

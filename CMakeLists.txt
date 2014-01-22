@@ -44,7 +44,7 @@ SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
-#mysys is to be used by libbinlogapi only when it is compiled with the MySQL
+#mysys is to be used by libbinlogevent only when it is compiled with the MySQL
 #server code.
 OPTION(WITH_MYSYS "Use mysys library and headers" ON)
 IF (WITH_MYSYS)
@@ -448,11 +448,11 @@ INCLUDE(configure.cmake)
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
-### libbinlogapi ##
-#libbinlogapi headers are used in log_event.h, which are included by header
+### libbinlogevent ##
+#libbinlogevent headers are used in log_event.h, which are included by header
 #files in other subdirectories, which are storage/perfschema, storage/federated
-#Since the hedear files of libbinblogapi are contained in libbinlogapi/include,
-#they need to be explicitly included.
+#Since the hedear files of libbinblogevent are contained in
+#libbinlogevent/include, they need to be explicitly included.
 ### end comment ##
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogapi/include)
 

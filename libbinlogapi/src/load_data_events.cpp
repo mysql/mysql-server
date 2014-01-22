@@ -168,13 +168,13 @@ Load_event::Load_event(const char *buf, uint event_len,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), num_fields(0),
    fields(0), field_lens(0),field_block_len(0),
-   table_name(0), db(0), fname(0), local_fname(FALSE),
+   table_name(0), db(0), fname(0), local_fname(0),
    /*
      Load_event which comes from the binary log does not contain
      information about the type of insert which was used on the master.
      Assume that it was an ordinary, non-concurrent LOAD DATA.
    */
-   is_concurrent(FALSE)
+   is_concurrent(0)
 {
   if (event_len)
     copy_load_event(buf, event_len,
@@ -264,8 +264,16 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
   fields= (char*)field_lens + num_fields;
   table_name= fields + field_block_len;
   db= table_name + table_name_len + 1;
-  DBUG_EXECUTE_IF ("simulate_invalid_address",
-                   db_len = data_len;);
+
+  #ifndef DBUG_OFF
+  /*
+    This is specific to mysql test run on the server
+    for the keyword "debug_simulate_invalid_address"
+  */
+  if (binary_log_debug::debug_simulate_invalid_address)
+    db_len= data_len;
+  #endif
+
   fname = db + db_len + 1;
   if ((db_len > data_len) || (fname > buf_end))
     goto err;
