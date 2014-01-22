@@ -644,7 +644,7 @@ os_event_wait_time_low(
 		ut_a(event);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_usec / 1000;
+			time_in_ms = static_cast<DWORD>(time_in_usec / 1000);
 			err = WaitForSingleObject(event->handle, time_in_ms);
 		} else {
 			err = WaitForSingleObject(event->handle, INFINITE);
@@ -663,7 +663,7 @@ os_event_wait_time_low(
 		ut_a(sleep_condition_variable != NULL);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_usec / 1000;
+			time_in_ms = static_cast<DWORD>(time_in_usec / 1000);
 		} else {
 			time_in_ms = INFINITE;
 		}

@@ -405,8 +405,8 @@ buf_block_set_file_page(
 	ulint			page_no)/*!< in: page number */
 {
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-	block->page.space = space;
-	block->page.offset = page_no;
+	block->page.space = static_cast<ib_uint32_t>(space);
+	block->page.offset = static_cast<ib_uint32_t>(page_no);
 }
 
 /*********************************************************************//**
@@ -627,7 +627,7 @@ buf_page_set_accessed(
 
 	if (bpage->access_time == 0) {
 		/* Make this the time of the first access. */
-		bpage->access_time = ut_time_ms();
+		bpage->access_time = static_cast<uint>(ut_time_ms());
 	}
 }
 
