@@ -173,34 +173,25 @@ static void cleanup_env_and_db(DB_ENV * env, DB * db)
     r = env->close(env, 0); { int chk_r = r; CKERR(chk_r); }
 }
 
-static void check_dbt_matches(DB *db, int expect_r, int key, DBT *kdbt) {
-    int r = db->get_last_key(db, kdbt, 0);
-    CKERR2(r, expect_r);
-
-    if (r==0) {
-        invariant(kdbt->size == sizeof(int));
-        int found_key = *(int*)kdbt->data;
-        invariant(key == (int)ntohl(found_key));
+static int get_last_key_cb(const DBT *key, const DBT *value, void *extra) {
+    if (key->data) {
+        invariant(value == NULL);
+        int expected_key = *(int*)extra;
+        int found_key = *(int*)key->data;
+        invariant(expected_key == (int)ntohl(found_key));
     }
+    return 0;
+}
+
+static void check_dbt_matches(DB *db, int expect_r, int key) {
+    int r = db->get_last_key(db, get_last_key_cb, &key);
+    CKERR2(r, expect_r);
 }
 
 static void check_last_key_matches(DB *db, int expect_r, int key) {
-    DBT kdbt;
-
-    dbt_init(&kdbt, nullptr, 0);
-    check_dbt_matches(db, expect_r, key, &kdbt);
-
-    dbt_init_malloc(&kdbt);
-    check_dbt_matches(db, expect_r, key, &kdbt);
-    if (kdbt.data) {
-        toku_free(kdbt.data);
-    }
-
-    dbt_init_realloc(&kdbt);
-    check_dbt_matches(db, expect_r, key, &kdbt);
-    if (kdbt.data) {
-        toku_free(kdbt.data);
-    }
+    check_dbt_matches(db, expect_r, key);
+    check_dbt_matches(db, expect_r, key);
+    check_dbt_matches(db, expect_r, key);
 }
 
 static void do_test(size_t ct_size, int num_keys)

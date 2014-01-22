@@ -551,7 +551,7 @@ static void print_db_struct (void) {
 			 "int (*get_fractal_tree_info64)(DB*,uint64_t*,uint64_t*,uint64_t*,uint64_t*)",
 			 "int (*iterate_fractal_tree_block_map)(DB*,int(*)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*),void*)",
                          "const char *(*get_dname)(DB *db)",
-                         "int (*get_last_key)(DB *db, DBT*, uint32_t)",
+                         "int (*get_last_key)(DB *db, YDB_CALLBACK_FUNCTION func, void* extra)",
 			 NULL};
     sort_and_dump_fields("db", true, extra);
 }
