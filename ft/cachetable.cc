@@ -4126,23 +4126,48 @@ exit:
     return ret_val;
 }
 
+struct pair_unpin_with_new_attr_extra {
+    pair_unpin_with_new_attr_extra(evictor *e, PAIR p) :
+        ev(e), pair(p) {
+    }
+    evictor *ev;
+    PAIR pair;
+};
+
+static void pair_unpin_with_new_attr(PAIR_ATTR new_attr, void *extra) {
+    struct pair_unpin_with_new_attr_extra *info =
+        reinterpret_cast<struct pair_unpin_with_new_attr_extra *>(extra);
+    PAIR p = info->pair;
+    evictor *ev = info->ev;
+
+    // change the attr in the evictor, then update the value in the pair
+    ev->change_pair_attr(p->attr, new_attr);
+    p->attr = new_attr;
+
+    // unpin
+    pair_lock(p);
+    p->value_rwlock.write_unlock();
+    pair_unlock(p);
+}
+
 //
 // on entry and exit, pair's mutex is not held
 // on exit, PAIR is unpinned
 //
 void evictor::do_partial_eviction(PAIR p) {
-    PAIR_ATTR new_attr;
+    // Copy the old attr
     PAIR_ATTR old_attr = p->attr;
+    long long size_evicting_estimate = p->size_evicting_estimate;
 
-    p->pe_callback(p->value_data, old_attr, &new_attr, p->write_extraargs);
+    struct pair_unpin_with_new_attr_extra extra(this, p);
+    p->pe_callback(p->value_data, old_attr, p->write_extraargs,
+                   // passed as the finalize continuation, which allows the
+                   // pe_callback to unpin the node before doing expensive cleanup
+                   pair_unpin_with_new_attr, &extra);
 
-    this->change_pair_attr(old_attr, new_attr);
-    p->attr = new_attr;
-    this->decrease_size_evicting(p->size_evicting_estimate);
-
-    pair_lock(p);
-    p->value_rwlock.write_unlock();
-    pair_unlock(p);
+    // now that the pe_callback (and its pair_unpin_with_new_attr continuation)
+    // have finished, we can safely decrease size_evicting
+    this->decrease_size_evicting(size_evicting_estimate);
 }
 
 //
