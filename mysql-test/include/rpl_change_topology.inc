@@ -39,21 +39,20 @@
 #     Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
 #
 #   $rpl_master_log_file
-#     By default, CHANGE MASTER is executed with MASTER_LOG_FILE set
-#     to the name of the last binlog file on the master (retrieved by
-#     executing SHOW MASTER STATUS). This variable can be set to
-#     specify another filename.  This variable should be a
-#     comma-separated list of the following form:
+#     By default, CHANGE MASTER is executed without specifying the
+#     MASTER_LOG_FILE parameter. This variable can be set to specify a
+#     filename.  This variable should be a comma-separated list of the
+#     following form:
 #
 #       SERVER_NUMBER_1:FILE_NAME_1,SERVER_NUMBER_2:FILE_NAME_2,...
 #
 #     Before CHANGE MASTER is executed on server N, this script checks
 #     if $rpl_master_log_file contains the text N:FILE_NAME. If it
 #     does, then MASTER_LOG_FILE is set to FILE_NAME. Otherwise,
-#     MASTER_LOG_FILE is set to the last binlog on the master.  For
-#     example, to specify that server_1 should start replicate from
-#     master-bin.000007 and server_5 should start replicate from
-#     master-bin.012345, do:
+#     MASTER_LOG_FILE is not specified.  For example, to specify that
+#     server_1 should start replicate from master-bin.000007 and
+#     server_5 should start replicate from master-bin.012345, do:
+#
 #       --let $rpl_master_log_file= 1:master-bin.000007,5:master-bin.012345
 #
 #   $rpl_master_log_pos
@@ -233,13 +232,12 @@ if (!$rpl_skip_change_master)
     }
     if ($_rpl_master != '')
     {
+      --let $_rpl_change_master_position=
       # Get port number
       --let $_rpl_port= \$SERVER_MYPORT_$_rpl_master
       if ($use_gtids)
       {
-        --let $_rpl_change_master_position= MASTER_AUTO_POSITION = 1
-        --let $rpl_connection_name= server_$_rpl_server
-        --source include/rpl_connection.inc
+        --let $_rpl_change_master_position= MASTER_AUTO_POSITION = 1,
       }
       if (!$use_gtids)
       {
@@ -250,27 +248,21 @@ if (!$rpl_skip_change_master)
           # Get text from after ':' and before ',', starting at
           # $_rpl_master_log_file
           --let $_rpl_master_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_file', $_rpl_master_log_file_index), ',', 1), ':', -1)`
+          --let $_rpl_change_master_position= MASTER_LOG_FILE = '$_rpl_master_log_file',
         }
-        if (!$_rpl_master_log_file_index)
-        {
-          --let $rpl_connection_name= server_$_rpl_master
-          --source include/rpl_connection.inc
-          --let $_rpl_master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
-        }
-        --let $_rpl_change_master_position= MASTER_LOG_FILE = '$_rpl_master_log_file'
-        # Change connection.
-        --let $rpl_connection_name= server_$_rpl_server
-        --source include/rpl_connection.inc
+
         # Get MASTER_LOG_POS
         --let $_rpl_master_log_pos_index= `SELECT LOCATE('$_rpl_server:', '$rpl_master_log_pos')`
         if ($_rpl_master_log_pos_index)
         {
           --let $_rpl_master_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_pos', $_rpl_master_log_pos_index), ',', 1), ':', -1)`
-          --let $_rpl_change_master_position= $_rpl_change_master_position, MASTER_LOG_POS = $_rpl_master_log_pos
+          --let $_rpl_change_master_position= $_rpl_change_master_position MASTER_LOG_POS = $_rpl_master_log_pos,
         }
       }
+      --let $rpl_connection_name= server_$_rpl_server
+      --source include/rpl_connection.inc
       --replace_regex /[0-9]{4}/####/
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', $_rpl_change_master_position, MASTER_CONNECT_RETRY = 1;
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', $_rpl_change_master_position MASTER_CONNECT_RETRY = 1;
     }
     if ($_rpl_master == '')
     {

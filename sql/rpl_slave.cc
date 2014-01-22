@@ -8427,7 +8427,7 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
     have_execute_option= true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
-    *need_relay_log_purge= 0;
+    *need_relay_log_purge= false;
 
   DBUG_RETURN(have_execute_option);
 }
@@ -8517,6 +8517,12 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
   {
     mi->set_master_log_pos(lex_mi->pos);
   }
+
+  if (lex_mi->log_file_name && !lex_mi->pos)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS,
+                 ER(ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS));
+
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
 
   if (lex_mi->user || lex_mi->password)
@@ -8847,7 +8853,6 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->host && !*lex_mi->host)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
-    unlock_slave_threads(mi);
     goto err;
   }
 
