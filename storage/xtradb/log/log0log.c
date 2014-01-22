@@ -36,6 +36,12 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0log.ic"
 #endif
 
+#ifdef HAVE_ALLOCA_H
+#include "alloca.h"
+#elif defined(HAVE_MALLOC_H) 
+#include "malloc.h"
+#endif
+
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "buf0buf.h"
@@ -273,7 +279,7 @@ log_buffer_extend(
 {
 	ulint	move_start;
 	ulint	move_end;
-	byte	tmp_buf[OS_FILE_LOG_BLOCK_SIZE];
+	byte	*tmp_buf=alloca(OS_FILE_LOG_BLOCK_SIZE);
 
 	mutex_enter(&(log_sys->mutex));
 
