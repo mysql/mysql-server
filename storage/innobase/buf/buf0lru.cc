@@ -1262,7 +1262,8 @@ loop:
 		memset(&block->page.zip, 0, sizeof block->page.zip);
 
 		if (started_monitor) {
-			srv_print_innodb_monitor = mon_value_was;
+			srv_print_innodb_monitor =
+				static_cast<my_bool>(mon_value_was);
 		}
 
 		return(block);
@@ -2046,11 +2047,12 @@ func_exit:
 		buf_pool->page_hash, thus inaccessible by any
 		other thread. */
 
-		checksum = page_zip_calc_checksum(
-			b->zip.data,
-			page_zip_get_size(&b->zip),
-			static_cast<srv_checksum_algorithm_t>(
-				srv_checksum_algorithm));
+		checksum = static_cast<ib_uint32_t>(
+			page_zip_calc_checksum(
+				b->zip.data,
+				page_zip_get_size(&b->zip),
+				static_cast<srv_checksum_algorithm_t>(
+					srv_checksum_algorithm)));
 
 		mach_write_to_4(b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
 				checksum);

@@ -2337,7 +2337,7 @@ lock_rec_has_to_wait_in_queue(
 	heap_no = lock_rec_find_set_bit(wait_lock);
 
 	bit_offset = heap_no / 8;
-	bit_mask = 1 << (heap_no % 8);
+	bit_mask = static_cast<ulint>(1 << (heap_no % 8));
 
 	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
 	     lock != wait_lock;
@@ -3898,7 +3898,7 @@ lock_deadlock_search(
 	}
 
 	ut_a(lock == NULL && ctx->depth == 0);
- 
+
 	/* No deadlock found. */
 	return(0);
 }

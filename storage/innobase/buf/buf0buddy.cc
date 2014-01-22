@@ -131,7 +131,7 @@ buf_buddy_stamp_free(
 	buf_buddy_free_t*	buf,	/*!< in/out: block to stamp */
 	ulint			i)	/*!< in: block size */
 {
-	ut_d(memset(buf, i, BUF_BUDDY_LOW << i));
+	ut_d(memset(buf, static_cast<int>(i), BUF_BUDDY_LOW << i));
 	buf_buddy_mem_invalid(buf, i);
 	mach_write_to_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET,
 			BUF_BUDDY_STAMP_FREE);
