@@ -6647,7 +6647,7 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
       bool truncated;
       const sql_digest_storage *digest= & thd->m_digest->m_digest_storage;
 
-      compute_md5_digest(digest, & md5[0]);
+      compute_digest_md5(digest, & md5[0]);
       compute_digest_text(digest, & digest_text[0], sizeof(digest_text), & truncated);
     }
   @endverbatim
