@@ -113,7 +113,7 @@ extern char server_version[SERVER_VERSION_LENGTH];
 /*****************************************************************************
   sql_ex_info struct
   The strcture contains a refernce to another structure sql_ex_data_info,
-  which is defined in binlogapi, and contains the characters specified in
+  which is defined in binlogevent, and contains the characters specified in
   the sub clause of a LOAD_DATA_INFILE.
   //TODO: Remove this struct and only retain binary_log::sql_ex_data_info
           when the encoder is moved to bapi
@@ -787,7 +787,7 @@ public:
 
   /*
      Added a flag which is set for the events already moved into
-     binlogapi. For the events being decoded in BAPI, common_header should
+     binlogevent. For the events being decoded in BAPI, common_header should
      point to the header object which is contained within the class
     Binary_log_event.
      Once all the events are moved, this parameter would be removed.
@@ -796,7 +796,7 @@ public:
             Log_event_footer *footer, bool flag_moved);
   /*
      This ctor is added in the process of fixing valgrind faliure it will be
-     removed after all the events are moved to libbinlogapi
+     removed after all the events are moved to libbinlogevent
   Log_event(const char *buf, const Format_description_log_event *description_event);
   */
   virtual ~Log_event()
@@ -1320,7 +1320,7 @@ public:        /* !!! Public in this patch to allow old usage */
   @class Load_log_event
 
   This log event corresponds to a "LOAD DATA INFILE" SQL query.
-  it is a subclass of Rotate_event, defined in binlogapi, and is used
+  it is a subclass of Rotate_event, defined in binlogevent, and is used
   by the slave to execute the LOAD DATA INFILE query, as a series of events.
 
   This event type is understood by current versions, but only
@@ -1709,7 +1709,7 @@ private:
 /**
   @class Xid_log_event
 
-  This is the subclass of Xid_event defined in libbinlogapi,
+  This is the subclass of Xid_event defined in libbinlogevent,
   An XID event is generated for a commit of a transaction that modifies one or
   more tables of an XA-capable storage engine
 
@@ -1887,7 +1887,7 @@ private:
   @class Rotate_log_event
 
   This will be deprecated when we move to using sequence ids.
-  This class is a subclass of Rotate_event, defined in binlogapi, and is used
+  This class is a subclass of Rotate_event, defined in binlogevent, and is used
   by the slave for updating the position in the relay log.
 
   It is used by the master inorder to write the rotate event in the binary log.
@@ -3530,7 +3530,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   binary_log::Heartbeat_event.
 
   TODO: This class, can therefore be removed from this file, after is_valid()
-        and get_type_code() are moved as member variables in binlogapi library.
+        and get_type_code() are moved as member variables in binlogevent library.
  ****************************************************************************/
 class Heartbeat_log_event: public Heartbeat_event, public Log_event
 {
