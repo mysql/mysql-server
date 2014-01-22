@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #ifndef VALUE_ADAPTER_INCLUDED
 #define	VALUE_ADAPTER_INCLUDED
 
-#include "protocol.h"
 #include <climits>
 #include <stdint.h>
 #include <iostream>
@@ -36,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   The following enum is defined in mysql_com.h. It is not feasible to include
   the complete header here, therefore it might be a good idea to define it in
   a header file common to both the server (not only replication code), but the
-  client code here, and binlogapi.
+  client code here, and binlogevent.
   //TODO: Add a common header file if reviewers approve the idea.
 */
 #ifndef   _mysql_com_h
@@ -65,7 +64,6 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 
 };
 #endif
-//using namespace binary_log;
 namespace binary_log {
 /**
  This helper function calculates the size in bytes of a particular field in a

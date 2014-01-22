@@ -116,7 +116,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
 
   /* Extract the length of the various parts from the buffer */
   unsigned char const *const ptr_dblen= (unsigned char const*)vpart + 0;
-  m_dblen= *(uchar*) ptr_dblen;
+  m_dblen= *(unsigned char*) ptr_dblen;
 
   /* Length of database name + counter + terminating null */
   unsigned char const *const ptr_tbllen= ptr_dblen + m_dblen + 2;
@@ -124,7 +124,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
 
   /* Length of table name + counter + terminating null */
   unsigned char const *const ptr_colcnt= ptr_tbllen + m_tbllen + 2;
-  unsigned char *ptr_after_colcnt= (uchar*) ptr_colcnt;
+  unsigned char *ptr_after_colcnt= (unsigned char*) ptr_colcnt;
   m_colcnt= get_field_length(&ptr_after_colcnt);
 
   m_coltype= (unsigned char*)bapi_malloc(m_colcnt);
@@ -264,10 +264,10 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
           return;
 
         /* Just store/use the first tag of this type, skip others */
-        if (likely(!m_extra_row_data))
+        if (!m_extra_row_data)
         {
           m_extra_row_data= (unsigned char*) bapi_malloc(infoLen);
-          if (likely(m_extra_row_data != NULL))
+          if (m_extra_row_data != NULL)
           {
             memcpy(m_extra_row_data, pos, infoLen);
           }

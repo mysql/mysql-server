@@ -18,12 +18,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 #include "byteorder.h"
-#include "protocol.h"
 #include "value.h"
 #include <iomanip>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <stdint.h>
 
 using namespace binary_log;
-using namespace binary_log::system;
 namespace binary_log {
 
 /**
@@ -163,15 +167,15 @@ int decimal_binary_size(int precision, int scale)
  }
 
 
-/**                                                                             
- This helper function calculates the size in bytes of a particular field in a   
- row type event as defined by the field_ptr and metadata_ptr arguments.         
- @param col Field type code                                             
- @param master_data The field data                                                
- @param metadata The field metadata                                         
-                                                                                
- @return The size in bytes of a particular field                                
-*/                                                                              
+/**
+ This helper function calculates the size in bytes of a particular field in a
+ row type event as defined by the field_ptr and metadata_ptr arguments.
+ @param col Field type code
+ @param master_data The field data
+ @param metadata The field metadata
+
+ @return The size in bytes of a particular field
+*/
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata)
 {
@@ -456,13 +460,6 @@ int32_t Value::as_int32() const
   uint32_t to_int= 0;
   memcpy(&to_int,&m_storage, m_size);
   return le32toh(to_int);
-
-/*  Protocol_chunk<uint32_t> prot_integer(to_int);
-
-  buffer_source buff(m_storage, m_size);
-  buff >> prot_integer;
-  return to_int;
-*/
 }
 
 int8_t Value::as_int8() const
@@ -474,14 +471,6 @@ int8_t Value::as_int8() const
   int32_t to_int= 0;
   memcpy(&to_int,&m_storage, m_size);
   return le32toh(to_int);
-/*
-  int8_t to_int;
-  Protocol_chunk<int8_t> prot_integer(to_int);
-
-  buffer_source buff(m_storage, m_size);
-  buff >> prot_integer;
-  return to_int;
-*/
 }
 
 int16_t Value::as_int16() const
@@ -493,14 +482,6 @@ int16_t Value::as_int16() const
   int16_t to_int= 0;
   memcpy(&to_int,&m_storage, m_size);
   return le16toh(to_int);
-/*
-  int16_t to_int;
-  Protocol_chunk<int16_t> prot_integer(to_int);
-
-  buffer_source buff(m_storage, m_size);
-  buff >> prot_integer;
-  return to_int;
-*/
 }
 
 int64_t Value::as_int64() const
@@ -512,14 +493,6 @@ int64_t Value::as_int64() const
   int64_t to_int= 0;
   memcpy(&to_int,&m_storage, m_size);
   return le64toh(to_int);
-/*
-  int64_t to_int;
-  Protocol_chunk<int64_t> prot_integer(to_int);
-
-  buffer_source buff(m_storage, m_size);
-  buff >> prot_integer;
-  return to_int;
-*/
 }
 
 float Value::as_float() const

@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define	ROWSET_INCLUDED
 
 #include "field_iterator.h"
-#include "resultset_iterator.h"
 
 using namespace binary_log;
 
