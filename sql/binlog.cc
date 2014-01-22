@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -404,15 +404,16 @@ public:
     */
     if(cache_log.file != -1)
     {
-        int error= 0;
-        if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
-            sql_print_error("Unable to resize binlog IOCACHE auxilary file");
+      int error= 0;
+      if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
+        sql_print_warning("Unable to resize binlog IOCACHE auxilary file");
 
-        /*
-          my_chsize places the file cursor at the end of the file
-          and returns 0 (OK) if the operation has suceeded.
-        */
-        DBUG_ASSERT( error == 0 );
+      DBUG_EXECUTE_IF("show_io_cache_size",
+                      {
+                        ulong file_size= my_seek(cache_log.file,
+                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%ld", file_size);
+                      });
     }
 
     flags.incident= false;
