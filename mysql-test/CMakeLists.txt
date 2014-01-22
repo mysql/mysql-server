@@ -74,7 +74,7 @@ ENDIF()
 
 IF(WITH_EMBEDDED_SERVER)
  SET(TEST_EMBEDDED  ${MTR_FORCE} --comment=embedded  --timer  --embedded-server 
-   --skip-rpl --skip-ndbcluster $(EXP))
+   --skip-rpl --skip-ndbcluster ${EXP})
 ELSE()
  SET(TEST_EMBEDDED echo "Can not test embedded, not compiled in")
 ENDIF()
