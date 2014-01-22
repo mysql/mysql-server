@@ -4369,7 +4369,7 @@ fil_load_single_table_tablespace(
 
 		if (check_msg) {
 			fprintf(stderr,
-				"InnoDB: Error: %s in file %s",
+				"InnoDB: Error: %s in file %s\n",
 				check_msg, filepath);
 			goto func_exit;
 		}
@@ -4967,6 +4967,7 @@ fil_extend_space_to_desired_size(
 			space->size += (size_after_extend - start_page_no);
 			os_has_said_disk_full = FALSE;
 		}
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 		goto complete_io;
 	}
 #endif

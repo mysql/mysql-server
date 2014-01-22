@@ -36,6 +36,11 @@ UNIV_INTERN dict_index_t*	dict_ind_redundant;
 /** dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
 UNIV_INTERN dict_index_t*	dict_ind_compact;
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+UNIV_INTERN uint	ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "data0type.h"
@@ -4855,6 +4860,8 @@ dict_update_statistics(
 	dict_index_t*	index;
 	ulint		sum_of_index_sizes	= 0;
 
+	DBUG_EXECUTE_IF("skip_innodb_statistics", return;);
+
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -4915,6 +4922,12 @@ dict_update_statistics(
 		if (index->name[0] == TEMP_INDEX_PREFIX) {
 			continue;
 		}
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+		if (ibuf_debug && !dict_index_is_clust(index)) {
+			goto fake_statistics;
+		}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE

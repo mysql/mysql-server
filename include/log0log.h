@@ -822,6 +822,8 @@ struct log_struct{
 					later; this is advanced when a flush
 					operation is completed to all the log
 					groups */
+	volatile ibool	is_extending;	/*!< this is set to true during extend
+					the log buffer size */
 	ib_uint64_t	written_to_some_lsn;
 					/*!< first log sequence number not yet
 					written to any log group; for this to

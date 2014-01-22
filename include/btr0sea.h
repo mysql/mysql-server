@@ -196,8 +196,6 @@ UNIV_INTERN
 ibool
 btr_search_validate(void);
 /*======================*/
-#else
-# define btr_search_validate()	TRUE
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /********************************************************************//**

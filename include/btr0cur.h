@@ -637,6 +637,21 @@ btr_cur_set_deleted_flag_for_ibuf(
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
+/***********************************************************//**
+Writes a redo log record of updating a record in-place. */
+UNIV_INTERN
+void
+btr_cur_update_in_place_log(
+/*========================*/
+	ulint		flags,		/*!< in: flags */
+	rec_t*		rec,		/*!< in: record */
+	dict_index_t*	index,		/*!< in: index where cursor positioned */
+	const upd_t*	update,		/*!< in: update vector */
+	trx_t*		trx,		/*!< in: transaction */
+	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
+	mtr_t*		mtr);		/*!< in: mtr */
+
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
