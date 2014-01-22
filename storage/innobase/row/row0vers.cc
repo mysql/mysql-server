@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,6 +73,8 @@ row_vers_impl_x_locked_low(
 	ulint*		clust_offsets;
 	mem_heap_t*	heap;
 
+	DBUG_ENTER("row_vers_impl_x_locked_low");
+
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	heap = mem_heap_create(1024);
@@ -92,7 +94,7 @@ row_vers_impl_x_locked_low(
 				trx_sys_get_max_trx_id());
 		}
 		mem_heap_free(heap);
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	comp = page_rec_is_comp(rec);
@@ -131,17 +133,37 @@ row_vers_impl_x_locked_low(
 			clust_rec, mtr, version, clust_index, clust_offsets,
 			heap, &prev_version);
 
-		/* Free version and clust_offsets. */
+		/* The oldest visible clustered index version must not be
+		delete-marked, because we never start a transaction by
+		inserting a delete-marked record. */
+		ut_ad(prev_version
+		      || !rec_get_deleted_flag(version, comp)
+		      || !trx_rw_is_active(trx_id, NULL));
 
+		/* Free version and clust_offsets. */
 		mem_heap_free(old_heap);
 
 		if (prev_version == NULL) {
 
-			/* clust_rec should be a fresh insert, because
-			no previous version was found or the transaction
-			has committed. The caller has to recheck as the
-			synopsis of this function states, whether trx_id
-			is active or not. */
+			/* We reached the oldest visible version without
+			finding an older version of clust_rec that would
+			match the secondary index record.  If the secondary
+			index record is not delete marked, then clust_rec
+			is considered the correct match of the secondary
+			index record and hence holds the implicit lock. */
+
+			if (rec_del) {
+				/* The secondary index record is del marked.
+				So, the implicit lock holder of clust_rec
+				did not modify the secondary index record yet,
+				and is not holding an implicit lock on it.
+
+				This assumes that whenever a row is inserted
+				or updated, the leaf page record always is
+				created with a clear delete-mark flag.
+				(We never insert a delete-marked record.) */
+				trx_id = 0;
+			}
 
 			break;
 		}
@@ -237,8 +259,10 @@ row_vers_impl_x_locked_low(
 		}
 	}
 
+	DBUG_PRINT("info", ("Implicit lock is held by trx:%lu", trx_id));
+
 	mem_heap_free(heap);
-	return(trx_id);
+	DBUG_RETURN(trx_id);
 }
 
 /*****************************************************************//**
