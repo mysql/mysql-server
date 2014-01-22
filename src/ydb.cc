@@ -111,6 +111,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All r
 #include <sys/types.h>
 
 #include <util/status.h>
+#include <util/context.h>
 
 #include <ft/ft-flusher.h>
 #include <ft/cachetable.h>
@@ -1914,6 +1915,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += FS_STATUS_NUM_ROWS;
     num_rows += INDEXER_STATUS_NUM_ROWS;
     num_rows += LOADER_STATUS_NUM_ROWS;
+    num_rows += CTX_STATUS_NUM_ROWS;
 #if 0
     // enable when upgrade is supported
     num_rows += FT_UPGRADE_STATUS_NUM_ROWS;
@@ -2097,6 +2099,15 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             for (int i = 0; i < FS_STATUS_NUM_ROWS && row < maxrows; i++) {
                 if (fsstat.status[i].include & include_flags) {
                     engstat[row++] = fsstat.status[i];
+                }
+            }
+        }
+        {
+            struct context_status ctxstatus;
+            toku_context_get_status(&ctxstatus);
+            for (int i = 0; i < CTX_STATUS_NUM_ROWS && row < maxrows; i++) {
+                if (ctxstatus.status[i].include & include_flags) {
+                    engstat[row++] = ctxstatus.status[i];
                 }
             }
         }

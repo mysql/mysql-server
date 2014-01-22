@@ -91,7 +91,17 @@ PATENT RIGHTS GRANT:
 
 #include <toku_assert.h>
 
+#include <util/context.h>
+
 namespace toku {
+
+static __thread int thread_local_tid = -1;
+static int get_local_tid() {
+    if (thread_local_tid == -1) {
+        thread_local_tid = toku_os_gettid();
+    }
+    return thread_local_tid;
+}
 
 void frwlock::init(toku_mutex_t *const mutex) {
     m_mutex = mutex;
@@ -109,6 +119,8 @@ void frwlock::init(toku_mutex_t *const mutex) {
     m_wait_read_is_in_queue = false;
     m_current_writer_expensive = false;
     m_read_wait_expensive = false;
+    m_current_writer_tid = -1;
+    m_blocking_writer_context_id = CTX_INVALID;
 
     m_wait_head = nullptr;
     m_wait_tail = nullptr;
@@ -160,6 +172,13 @@ void frwlock::write_lock(bool expensive) {
     if (expensive) {
         ++m_num_expensive_want_write;
     }
+    if (m_num_writers == 0 && m_num_want_write == 1) {
+        // We are the first to want a write lock. No new readers can get the lock.
+        // Set our thread id and context for proper instrumentation.
+        // see: toku_context_note_frwlock_contention()
+        m_current_writer_tid = get_local_tid();
+        m_blocking_writer_context_id = toku_thread_get_context()->get_id();
+    }
     toku_cond_wait(&cond, m_mutex);
     toku_cond_destroy(&cond);
 
@@ -176,6 +195,8 @@ void frwlock::write_lock(bool expensive) {
     }
     m_num_writers = 1;
     m_current_writer_expensive = expensive;
+    m_current_writer_tid = get_local_tid();
+    m_blocking_writer_context_id = toku_thread_get_context()->get_id();
 }
 
 bool frwlock::try_write_lock(bool expensive) {
@@ -188,6 +209,8 @@ bool frwlock::try_write_lock(bool expensive) {
     paranoid_invariant_zero(m_num_want_read);
     m_num_writers = 1;
     m_current_writer_expensive = expensive;
+    m_current_writer_tid = get_local_tid();
+    m_blocking_writer_context_id = toku_thread_get_context()->get_id();
     return true;
 }
 
@@ -206,6 +229,12 @@ void frwlock::read_lock(void) {
                 (m_num_expensive_want_write > 0)
                 );
         }
+
+        // Note this contention event in engine status.
+        toku_context_note_frwlock_contention(
+            toku_thread_get_context()->get_id(),
+            m_blocking_writer_context_id
+            );
 
         // Wait for our turn.
         ++m_num_want_read;
@@ -294,6 +323,8 @@ void frwlock::write_unlock(void) {
     paranoid_invariant(m_num_writers == 1);
     m_num_writers = 0;
     m_current_writer_expensive = false;
+    m_current_writer_tid = -1;
+    m_blocking_writer_context_id = CTX_INVALID;
     this->maybe_signal_or_broadcast_next();
 }
 bool frwlock::write_lock_is_expensive(void) {

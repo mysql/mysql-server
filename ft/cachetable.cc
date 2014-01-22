@@ -106,6 +106,7 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_time.h>
 #include <util/rwlock.h>
 #include <util/status.h>
+#include <util/context.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -1483,6 +1484,8 @@ static bool try_pin_pair(
     bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
     
     if (partial_fetch_required) {    
+        toku::context pf_ctx(CTX_PARTIAL_FETCH);
+
         if (ct->ev.should_client_thread_sleep() && !already_slept) {
             pair_lock(p);
             unpin_pair(p, (lock_type == PL_READ));
@@ -1634,6 +1637,8 @@ beginning:
         }
     }
     else {
+        toku::context fetch_ctx(CTX_FULL_FETCH);
+
         ct->list.pair_unlock_by_fullhash(fullhash);
         // we only want to sleep once per call to get_and_pin. If we have already
         // slept and there is still cache pressure, then we might as 
@@ -2068,6 +2073,8 @@ try_again:
     ct->list.pair_lock_by_fullhash(fullhash);
     PAIR p = ct->list.find_pair(cf, key, fullhash);
     if (p == NULL) {
+        toku::context fetch_ctx(CTX_FULL_FETCH);
+
         // Not found
         ct->list.pair_unlock_by_fullhash(fullhash);
         ct->list.write_list_lock();
@@ -2143,6 +2150,8 @@ try_again:
         // still check for partial fetch
         bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
         if (partial_fetch_required) {
+            toku::context fetch_ctx(CTX_PARTIAL_FETCH);
+
             run_unlockers(unlockers);
 
             // we are now getting an expensive write lock, because we
@@ -3131,6 +3140,8 @@ void cleaner::set_period(uint32_t new_period) {
 // start).  At this point, we can safely unlock the cachetable, do the
 // work (callback), and unlock/release our claim to the cachefile.
 int cleaner::run_cleaner(void) {
+    toku::context cleaner_ctx(CTX_CLEANER);
+
     int r;
     uint32_t num_iterations = this->get_iterations();
     for (uint32_t i = 0; i < num_iterations; ++i) {
@@ -4024,6 +4035,8 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
     m_pl->read_list_unlock();
     ret_val = true;
     if (curr_in_clock->count > 0) {
+        toku::context pe_ctx(CTX_PARTIAL_EVICTION);
+
         uint32_t curr_size = curr_in_clock->attr.size;
         // if the size of this PAIR is greater than the average size of PAIRs
         // in the cachetable, then decrement it, otherwise, decrement
@@ -4100,6 +4113,8 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         }        
     }
     else {
+        toku::context pe_ctx(CTX_FULL_EVICTION);
+
         // responsibility of try_evict_pair to eventually remove background job
         // pair's mutex is still grabbed here
         this->try_evict_pair(curr_in_clock);

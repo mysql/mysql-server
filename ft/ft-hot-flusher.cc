@@ -96,6 +96,7 @@ PATENT RIGHTS GRANT:
 #include <ft.h>
 #include <portability/toku_atomic.h>
 #include <util/status.h>
+#include <util/context.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -301,6 +302,8 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
                       void *progress_extra, uint64_t* loops_run)
 {
+    toku::context flush_ctx(CTX_FLUSH);
+
     int r = 0;
     struct hot_flusher_extra flusher;
     struct flusher_advice advice;
