@@ -302,7 +302,6 @@ FLUSH PRIVILEGES;
 mysqld is alive
 # Executing 'mysqldump'
 # Executing 'mysql_upgrade'
-The --upgrade-system-tables option was used, databases won't be touched.
 #
 # Bug #59657: Move the client authentication_pam plugin into the 
 #  server repository
