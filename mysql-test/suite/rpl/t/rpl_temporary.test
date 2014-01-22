@@ -1,11 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
 source include/add_anonymous_users.inc;
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates

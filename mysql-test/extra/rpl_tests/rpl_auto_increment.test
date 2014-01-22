@@ -3,6 +3,7 @@
 #
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 
 eval create table t1 (a int not null auto_increment,b int, primary key (a)) engine=$engine_type2 auto_increment=3;
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);

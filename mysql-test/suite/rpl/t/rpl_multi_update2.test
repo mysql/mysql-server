@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #######################################################
 # Wrapper for rpl_multi_update2.test to allow multi   #
 # Engines to reuse test code. By JBM 2006-02-15       #
@@ -11,6 +6,7 @@
 #######################################################
 --source include/not_ndb_default.inc
 --source include/master-slave.inc
+--source include/have_myisam.inc
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
 let $engine_type=MyISAM;
 --source extra/rpl_tests/rpl_multi_update2.test

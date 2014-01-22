@@ -34,12 +34,12 @@ SET @@global.collation_database='geostd8_bin';
 [on master]
 CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
 num INT,
-text VARCHAR(100));
+text VARCHAR(100)) ENGINE=MYISAM;
 CREATE TABLE tproc LIKE tstmt;
 CREATE TABLE tfunc LIKE tstmt;
 CREATE TABLE ttrig LIKE tstmt;
 CREATE TABLE tprep LIKE tstmt;
-CREATE TABLE trigger_table (text CHAR(4));
+CREATE TABLE trigger_table (text CHAR(4)) ENGINE=MYISAM;
 ==== Insert variables directly ====
 SET @@pseudo_thread_id= 4712;
 INSERT INTO tstmt(num)  VALUES (@@session.pseudo_thread_id);
