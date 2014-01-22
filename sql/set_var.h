@@ -140,6 +140,7 @@ public:
     return (option.id != -1) && ((flags & PARSE_EARLY) == parse_flags) &&
            insert_dynamic(array, (uchar*)&option);
   }
+  void do_deprecated_warning(THD *thd);
 
 private:
   virtual bool do_check(THD *thd, set_var *var) = 0;
@@ -153,7 +154,7 @@ private:
   virtual void global_save_default(THD *thd, set_var *var) = 0;
   virtual bool session_update(THD *thd, set_var *var) = 0;
   virtual bool global_update(THD *thd, set_var *var) = 0;
-  void do_deprecated_warning(THD *thd);
+
 protected:
   /**
     A pointer to a value of the variable for SHOW.

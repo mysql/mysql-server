@@ -6,5 +6,5 @@ HANDLER bug13510739 READ `primary` = (2);
 c
 HANDLER bug13510739 READ `primary` NEXT;
 c
-4
+3
 DROP TABLE bug13510739;

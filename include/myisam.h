@@ -28,7 +28,7 @@ extern "C" {
 #include "my_compare.h"
 #include <myisamchk.h>
 #include <mysql/plugin.h>
-
+#include <my_check_opt.h>
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY; See myisamchk.h for details
 */
@@ -310,7 +310,6 @@ typedef struct st_mi_bit_buff
   uchar *pos, *end, *blob_pos, *blob_end;
   uint error;
 } MI_BIT_BUFF;
-
 
 typedef struct st_sort_info
 {

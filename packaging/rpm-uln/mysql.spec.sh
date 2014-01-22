@@ -858,7 +858,9 @@ fi
 %files -n mysql-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root)
 %doc release/support-files/*.cnf
-%doc %{_datadir}/info/mysql.info*
+%if 0%{?commercial}
+ %doc %{_datadir}/info/mysql.info*
+%endif
 %doc %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
@@ -981,6 +983,9 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Tue Nov 05 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Removed non gpl file mysql.info from community packages
+
 * Wed Jul 10 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed directory  /usr/share/mysql/solaris/postinstall-solaris to resolve build
   error

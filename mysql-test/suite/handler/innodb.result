@@ -256,7 +256,7 @@ handler t1 read a=(1);
 a	b
 handler t1 read a next;
 a	b
-16	ccc
+14	aaa
 handler t1 close;
 handler t1 open;
 prepare stmt from 'handler t1 read a=(?) limit ?,?';
@@ -563,7 +563,7 @@ HANDLER t1 READ `primary` = (1, 1000);
 no1	no2
 HANDLER t1 READ `primary` NEXT;
 no1	no2
-2	8
+2	6
 DROP TABLE t1;
 create table t1 (c1 int);
 insert into t1 values (14397);

@@ -220,7 +220,6 @@ INSTALL_SCRIPT(
   )
 ENDIF()
 
-
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
 SET(bindir ${prefix}/${INSTALL_BINDIR})

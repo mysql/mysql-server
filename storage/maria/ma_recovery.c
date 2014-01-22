@@ -29,6 +29,7 @@
 #include "ma_key_recover.h"
 #include "ma_recovery_util.h"
 #include "hash.h"
+#include <my_check_opt.h>
 
 struct st_trn_for_recovery /* used only in the REDO phase */
 {

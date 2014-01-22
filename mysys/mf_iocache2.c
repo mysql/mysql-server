@@ -467,7 +467,7 @@ process_flags:
     {
       register int iarg;
       size_t length2;
-      char buff[17];
+      char buff[32];
 
       iarg = va_arg(args, int);
       if (*fmt == 'd')
@@ -502,7 +502,7 @@ process_flags:
     {
       register long iarg;
       size_t length2;
-      char buff[17];
+      char buff[32];
 
       iarg = va_arg(args, long);
       if (*++fmt == 'd')

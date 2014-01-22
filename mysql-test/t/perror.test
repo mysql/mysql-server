@@ -27,7 +27,7 @@ enable_query_log;
 --exec $MY_PERROR 1062 2>&1
 
 # test errors that contain characters to escape in the text.
---exec $MY_PERROR 1076 2>&1
+--exec $MY_PERROR 1408 2>&1
 --exec $MY_PERROR 1459 2>&1
 --exec $MY_PERROR 1461 2>&1
 

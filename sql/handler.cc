@@ -4906,8 +4906,10 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }
     else
+    {
       result= db_type->show_status &&
               db_type->show_status(db_type, thd, stat_print, stat) ? 1 : 0;
+    }
   }
 
   /*

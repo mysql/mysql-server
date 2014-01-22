@@ -213,6 +213,85 @@ log_buf_pool_get_oldest_modification(void)
 	return(lsn);
 }
 
+/** Extends the log buffer.
+@param[in] len	requested minimum size in bytes */
+static
+void
+log_buffer_extend(
+	ulint	len)
+{
+	ulint	move_start;
+	ulint	move_end;
+	byte	tmp_buf[OS_FILE_LOG_BLOCK_SIZE];
+
+	mutex_enter(&(log_sys->mutex));
+
+	while (log_sys->is_extending) {
+		/* Another thread is trying to extend already.
+		Needs to wait for. */
+		mutex_exit(&(log_sys->mutex));
+
+		log_buffer_flush_to_disk();
+
+		mutex_enter(&(log_sys->mutex));
+
+		if (srv_log_buffer_size > len / UNIV_PAGE_SIZE) {
+			/* Already extended enough by the others */
+			mutex_exit(&(log_sys->mutex));
+			return;
+		}
+	}
+
+	log_sys->is_extending = TRUE;
+
+	while (log_sys->n_pending_writes != 0
+	       || ut_calc_align_down(log_sys->buf_free,
+				     OS_FILE_LOG_BLOCK_SIZE)
+		  != ut_calc_align_down(log_sys->buf_next_to_write,
+					OS_FILE_LOG_BLOCK_SIZE)) {
+		/* Buffer might have >1 blocks to write still. */
+		mutex_exit(&(log_sys->mutex));
+
+		log_buffer_flush_to_disk();
+
+		mutex_enter(&(log_sys->mutex));
+	}
+
+	move_start = ut_calc_align_down(
+		log_sys->buf_free,
+		OS_FILE_LOG_BLOCK_SIZE);
+	move_end = log_sys->buf_free;
+
+	/* store the last log block in buffer */
+	ut_memcpy(tmp_buf, log_sys->buf + move_start,
+		  move_end - move_start);
+
+	log_sys->buf_free -= move_start;
+	log_sys->buf_next_to_write -= move_start;
+
+	/* reallocate log buffer */
+	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
+	mem_free(log_sys->buf_ptr);
+	log_sys->buf_ptr = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf = ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf_size = LOG_BUFFER_SIZE;
+	memset(log_sys->buf, '\0', LOG_BUFFER_SIZE);
+	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
+		- LOG_BUF_FLUSH_MARGIN;
+
+	/* restore the last log block */
+	ut_memcpy(log_sys->buf, tmp_buf, move_end - move_start);
+
+	ut_ad(log_sys->is_extending);
+	log_sys->is_extending = FALSE;
+
+	mutex_exit(&(log_sys->mutex));
+
+	fprintf(stderr,
+		"InnoDB: innodb_log_buffer_size was extended to %lu.\n",
+		LOG_BUFFER_SIZE);
+}
+
 /************************************************************//**
 Opens the log for log_write_low. The log must be closed with log_close and
 released with log_release.
@@ -233,10 +312,38 @@ log_reserve_and_open(
 	ulint	count			= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_a(len < log->buf_size / 2);
+	if (len >= log->buf_size / 2) {
+		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
+				DBUG_SUICIDE(););
+
+		/* log_buffer is too small. try to extend instead of crash. */
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: "
+			"The transaction log size is too large"
+			" for innodb_log_buffer_size (%lu >= %lu / 2). "
+			"Trying to extend it.\n",
+			len, LOG_BUFFER_SIZE);
+
+		log_buffer_extend((len + 1) * 2);
+	}
 loop:
 	mutex_enter(&(log->mutex));
 	ut_ad(!recv_no_log_write);
+
+	if (log->is_extending) {
+
+		mutex_exit(&(log->mutex));
+
+		/* Log buffer size is extending. Writing up to the next block
+		should wait for the extending finished. */
+
+		os_thread_sleep(100000);
+
+		ut_ad(++count < 50);
+
+		goto loop;
+	}
 
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
@@ -788,6 +895,7 @@ log_init(void)
 	log_sys->buf = ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
+	log_sys->is_extending = FALSE;
 
 	memset(log_sys->buf, '\0', LOG_BUFFER_SIZE);
 

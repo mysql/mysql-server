@@ -19,6 +19,7 @@
 */
 
 #include "ma_fulltext.h"
+#include <my_check_opt.h>
 #if defined(MSDOS) || defined(__WIN__)
 #include <fcntl.h>
 #else

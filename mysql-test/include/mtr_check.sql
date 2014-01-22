@@ -78,5 +78,7 @@ BEGIN
   -- verify that no plugin changed its disabled/enabled state
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
+ show status like 'slave_open_temp_tables';
+
 END||
 

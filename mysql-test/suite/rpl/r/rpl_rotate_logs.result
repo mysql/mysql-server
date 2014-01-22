@@ -98,6 +98,7 @@ count(*)
 91
 unlock tables;
 drop table if exists t1,t2,t3,t4;
+drop temporary table temp_table;
 End of 4.1 tests
 show binlog events in 'non existing_binlog_file';
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log

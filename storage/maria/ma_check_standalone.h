@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_check_opt.h>
+
 /* almost every standalone maria program will need it */
 void _mi_report_crashed(void *file __attribute__((unused)),
                         const char *message __attribute__((unused)),

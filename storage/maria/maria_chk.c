@@ -21,6 +21,7 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
+#include <my_check_opt.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

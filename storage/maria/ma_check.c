@@ -45,6 +45,7 @@
 #include "ma_blockrec.h"
 #include "trnman.h"
 #include "ma_key_recover.h"
+#include <my_check_opt.h>
 
 #include <stdarg.h>
 #include <my_getopt.h>
