@@ -1,35 +1,51 @@
 # ==== Purpose ====
 #
-# Create the default connections to the cluster nodes server1, server1_1,
-# server2 and server2_1.
+# Create the default connections to the cluster nodes server1,
+# server2, server3...
+# If you need more than 2 servers, please add them to cnf file.
+# Example:
+##!include ../my.cnf
+##
+##[mysqld.3]
+##
+##[mysqld.4]
+##
+##[ENV]
+##SERVER_MYPORT_3=    @mysqld.3.port
+##SERVER_MYSOCK_3=    @mysqld.3.socket
+##
+##SERVER_MYPORT_4=    @mysqld.4.port
+##SERVER_MYSOCK_4=    @mysqld.4.socket
 #
-# The node's connections are only created if $node_connection >= 2.
+# If master.opt file exists, it will be applied to servers 3 and
+# greater.
 #
 # ==== Usage ====
 #
-# --let $node_connection= N
 # --source include/rpl_gcs_default_connections.inc
 
 --let $include_filename= rpl_gcs_default_connections.inc
 --source include/begin_include_file.inc
 
---let $rpl_connection_name= server1
---let $rpl_server_number= 1
---source include/rpl_connect.inc
-
-#--let $rpl_connection_name= server1_1
-#--let $rpl_server_number= 1
-#--source include/rpl_connect.inc
-
-if ($node_connection >= 2)
+--let $_rpl_server_max= 10
+--let $_rpl_server_number= 1
+while ($_rpl_server_number <= $_rpl_server_max)
 {
-  --let $rpl_connection_name= server2
-  --let $rpl_server_number= 2
-  --source include/rpl_connect.inc
+  --let $_rpl_server_port= \$SERVER_MYPORT_$_rpl_server_number
+  if (!$_rpl_server_port)
+  {
+    # We exceeded the number of servers specified on cnf file.
+    --let $_rpl_server_number= $_rpl_server_max
+  }
 
-#  --let $rpl_connection_name= server2_1
-#  --let $rpl_server_number= 2
-#  --source include/rpl_connect.inc
+  if ($_rpl_server_port)
+  {
+    --let $rpl_connection_name= server$_rpl_server_number
+    --let $rpl_server_number= $_rpl_server_number
+    --source include/rpl_connect.inc
+  }
+
+  --inc $_rpl_server_number
 }
 
 --let $include_filename= rpl_gcs_default_connections.inc

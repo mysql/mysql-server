@@ -37,7 +37,6 @@ if (!$SERVER_MYPORT_2)
   --let SERVER_MYPORT_2= $SLAVE_MYPORT
 }
 
---let $node_connection= 2
 --source include/rpl_gcs_default_connections.inc
 
 --let $include_filename= have_gcs_replication_plugin.inc
