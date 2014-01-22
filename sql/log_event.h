@@ -1712,6 +1712,10 @@ private:
   This is the subclass of Xid_event defined in libbinlogevent,
   An XID event is generated for a commit of a transaction that modifies one or
   more tables of an XA-capable storage engine
+  Logs xid of the transaction-to-be-committed in the 2pc protocol.
+  Has no meaning in replication, slaves ignore it
+  The inheritance structure in the current design for the classes is
+  as follows
 
   @internal
   The inheritance structure in the current design for the classes is

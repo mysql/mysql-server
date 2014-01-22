@@ -6675,7 +6675,8 @@ Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   :Xid_event(buf, description_event),
    Log_event(header(), footer(), true)
-{ }
+{
+}
 
 
 #ifndef MYSQL_CLIENT

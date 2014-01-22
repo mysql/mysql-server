@@ -2240,18 +2240,38 @@ protected:
 /**
   @class Xid_event
 
-  Logs xid of the transaction-to-be-committed in the 2pc protocol.
-  Has no meaning in replication, slaves ignore it.
+  An XID event is generated for a commit of a transaction that modifies one or
+  more tables of an XA-capable storage engine. Strictly speaking, Xid_event
+  is used if thd->transaction.xid_state.xid.get_my_xid() returns non-zero.
 
   @section Xid_event_binary_format Binary Format
 
+The Body has the following component:
+
+  <table>
+  <caption>Body for Xid_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>xid</td>
+    <td>8 byte unsigned integer</td>
+    <td>The XID transaction number.</td>
+  </tr>
+  </table>
   The Post-Header and Body for this event type are empty; it only has
   the common header.
 */
 class Xid_event: public Binary_log_event
 {
 public:
-    Xid_event() {}
+    Xid_event()
+    {
+    }
     Xid_event(const char *buf, const Format_description_event *fde);
     uint64_t xid;
     Log_event_type get_type_code() { return XID_EVENT; }
@@ -2581,7 +2601,7 @@ public:
   void print_long_info(std::ostream& info);
 };
 } // end namespace binary_log
-/**                                                                            
-  @} (end of group Replication)                                                
-*/                                                                             
+/**
+  @} (end of group Replication)
+*/
 #endif	/* BINLOG_EVENT_INCLUDED */
