@@ -90,7 +90,7 @@ link_to_help()
 {
   echo
   echo "The latest information about mysql_install_db is available at"
-  echo "http://kb.askmonty.org/v/installing-system-tables-mysql_install_db."
+  echo "https://mariadb.com/kb/en/installing-system-tables-mysql_install_db"
 }
 
 parse_arg()
@@ -492,7 +492,7 @@ then
   echo "databases and anonymous user created by default.  This is"
   echo "strongly recommended for production servers."
   echo
-  echo "See the MariaDB Knowledgebase at http://kb.askmonty.org or the"
+  echo "See the MariaDB Knowledgebase at http://mariadb.com/kb or the"
   echo "MySQL manual for more instructions."
 
   if test "$in_rpm" -eq 0
@@ -512,9 +512,9 @@ then
   echo "You can find additional information about the MySQL part at:"
   echo "http://dev.mysql.com"
   echo "Support MariaDB development by buying support/new features from"
-  echo "Monty Program Ab. You can contact us about this at sales@montyprogram.com".
+  echo "SkySQL Ab. You can contact us about this at sales@skysql.com".
   echo "Alternatively consider joining our community based development effort:"
-  echo "http://kb.askmonty.org/en/contributing-to-the-mariadb-project/"
+  echo "http://mariadb.com/kb/en/contributing-to-the-mariadb-project/"
   echo
 fi
 

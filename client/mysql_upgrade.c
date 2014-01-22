@@ -22,7 +22,7 @@
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define VER "1.3"
+#define VER "1.3a"
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -164,6 +164,15 @@ static struct my_option my_long_options[]=
 };
 
 
+static const char *load_default_groups[]=
+{
+  "client",          /* Read settings how to connect to server */
+  "mysql_upgrade",   /* Read special settings for mysql_upgrade */
+  "client-server",   /* Reads settings common between client & server */
+  "client-mariadb",  /* Read mariadb unique client settings */
+  0
+};
+
 static void free_used_memory(void)
 {
   /* Free memory allocated by 'load_defaults' */
@@ -180,6 +189,7 @@ static void die(const char *fmt, ...)
   DBUG_ENTER("die");
 
   /* Print the error message */
+  fflush(stdout);
   va_start(args, fmt);
   if (fmt)
   {
@@ -259,8 +269,11 @@ get_one_option(int optid, const struct my_option *opt,
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
-    puts("MariaDB utility for upgrading databases to new MariaDB versions.\n");
+    puts("MariaDB utility for upgrading databases to new MariaDB versions.");
+    print_defaults("my", load_default_groups);
+    puts("");
     my_print_help(my_long_options);
+    my_print_variables(my_long_options);
     die(0);
     break;
 
@@ -736,6 +749,7 @@ static int run_mysqlcheck_upgrade(void)
                   !opt_silent || opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
                   NULL);
 }
 
@@ -754,6 +768,7 @@ static int run_mysqlcheck_fixnames(void)
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
                   NULL);
 }
 
@@ -855,14 +870,11 @@ static int run_sql_fix_privilege_tables(void)
 }
 
 
-static const char *load_default_groups[]=
+static void print_error(const char *error_msg, DYNAMIC_STRING *output)
 {
-  "client",          /* Read settings how to connect to server */
-  "mysql_upgrade",   /* Read special settings for mysql_upgrade */
-  "client-server",   /* Reads settings common between client & server */
-  "client-mariadb",  /* Read mariadb unique client settings */
-  0
-};
+  fprintf(stderr, "%s\n", error_msg);
+  fprintf(stderr, "%s", output->str);
+}
 
 
 /* Convert the specified version string into the numeric format. */
@@ -895,6 +907,8 @@ static int check_version_match(void)
                 &ds_version, FALSE) ||
       extract_variable_from_show(&ds_version, version_str))
   {
+    print_error("Version check failed. Got the following error when calling "
+                "the 'mysql' command line client", &ds_version);
     dynstr_free(&ds_version);
     return 1;                                   /* Query failed */
   }
@@ -963,7 +977,8 @@ int main(int argc, char **argv)
   }
   else
   {
-    printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
+    if (!opt_silent)
+      printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
   }
 
   /*

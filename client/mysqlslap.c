@@ -732,7 +732,9 @@ static void usage(void)
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
+  puts("");
   my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
 
 

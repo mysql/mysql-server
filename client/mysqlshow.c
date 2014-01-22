@@ -279,6 +279,7 @@ If no table is given, then all matching tables in database are shown.\n\
 If no column is given, then all matching columns and column types in table\n\
 are shown.");
   print_defaults("my",load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }

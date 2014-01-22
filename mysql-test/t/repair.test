@@ -188,3 +188,23 @@ set @@autocommit= 0;
 repair table t1, t2;
 set @@autocommit= default;
 drop tables t1, t2;
+
+--echo #
+--echo # Check that we have decent error messages when using crashed
+--echo # .frm file from MySQL 3.23
+--echo #
+
+--echo # Test with a saved table from 3.23
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/host_old.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/host_old.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/host_old.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+--error ER_GET_ERRMSG
+select count(*) from t1;
+check table t1;
+repair table t1;
+repair table t1 use_frm;
+select count(*) from t1;
+check table t1;
+drop table t1;

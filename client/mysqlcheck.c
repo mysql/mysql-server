@@ -250,6 +250,7 @@ static void usage(void)
   puts("http://kb.askmonty.org/v/mysqlcheck for latest information about");
   puts("this program.");
   print_defaults("my", load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   DBUG_VOID_RETURN;

@@ -612,7 +612,8 @@ static void usage(void)
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
-  my_print_help(my_long_options);
+  puts("");
+my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
 

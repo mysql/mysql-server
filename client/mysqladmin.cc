@@ -1179,9 +1179,10 @@ static void usage(void)
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
+  print_defaults("my",load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-  print_defaults("my",load_default_groups);
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
   create databasename	  Create a new database\n\
   debug			  Instruct server to write debug information to log\n\

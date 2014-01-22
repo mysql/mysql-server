@@ -130,26 +130,25 @@ test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dum
 # REPAIR old table USE_FRM should fail
 REPAIR TABLE t1 USE_FRM;
 Table	Op	Msg_type	Msg_text
-t1	repair	error	Failed repairing incompatible .frm file
+test.t1	repair	warning	Number of rows changed from 0 to 1
+test.t1	repair	status	OK
 # Run REPAIR TABLE to upgrade .frm file
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	2	7	14	1970324836974591	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t1	MyISAM	10	Fixed	1	7	7	1970324836974591	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
 SELECT * FROM t1;
 id
 1
-2
 REPAIR TABLE t1 USE_FRM;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	warning	Number of rows changed from 0 to 2
+test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
 SELECT * FROM t1;
 id
 1
-2
 DROP TABLE t1;
 DROP TABLE IF EXISTS tt1;
 CREATE TEMPORARY TABLE tt1 (c1 INT);
@@ -183,3 +182,28 @@ test.t1	repair	status	OK
 test.t2	repair	status	OK
 set @@autocommit= default;
 drop tables t1, t2;
+#
+# Check that we have decent error messages when using crashed
+# .frm file from MySQL 3.23
+#
+# Test with a saved table from 3.23
+select count(*) from t1;
+ERROR HY000: Got error 185 'Incompatible key or row definition between the MariaDB .frm file and the information in the storage engine. You have to dump and restore the table to fix this' from MyISAM
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 185 'Incompatible key or row definition between the MariaDB .frm file and the information in the storage engine. You have to dump and restore the table to fix this' from MyISAM
+test.t1	check	error	Corrupt
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Got error 185 'Incompatible key or row definition between the MariaDB .frm file and the information in the storage engine. You have to dump and restore the table to fix this' from MyISAM
+test.t1	repair	error	Corrupt
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select count(*) from t1;
+count(*)
+0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

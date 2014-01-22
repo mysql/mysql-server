@@ -1672,8 +1672,9 @@ static void usage(int version)
     return;
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
+  puts("");
+  my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
 

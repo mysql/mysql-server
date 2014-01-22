@@ -762,7 +762,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
                          true, table))
     {
       /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
+      my_errno= HA_ERR_INCOMPATIBLE_DEFINITION;
       goto err;
       /* purecov: end */
     }

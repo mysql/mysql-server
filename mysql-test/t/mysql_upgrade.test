@@ -40,6 +40,11 @@ GRANT ALL ON *.* TO mysqltest1@'%';
 
 DROP USER mysqltest1@'%';
 
+#
+# check that we get proper error messages if wrong user
+
+--error 1
+--exec $MYSQL_UPGRADE --force --user=mysqltest1 --password=sakila 2>&1
 
 #
 # Bug #26639 mysql_upgrade exits successfully even if external command failed

@@ -305,7 +305,7 @@ void ha_partition::init_handler_variables()
 const char *ha_partition::table_type() const
 { 
   // we can do this since we only support a single engine type
-  return m_file[0]->table_type(); 
+  return m_file && m_file[0] ? m_file[0]->table_type() : "Unknown"; 
 }
 
 
