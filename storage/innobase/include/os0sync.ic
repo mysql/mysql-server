@@ -112,8 +112,10 @@ pfs_os_fast_mutex_lock(
 		PSI_mutex_locker* 	locker;
 		PSI_mutex_locker_state	state;
 
-		locker = PSI_MUTEX_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
-			PSI_MUTEX_LOCK, file_name, line);
+		locker = PSI_MUTEX_CALL(start_mutex_wait)(
+			&state, fast_mutex->pfs_psi,
+			PSI_MUTEX_LOCK, file_name,
+			static_cast<uint>(line));
 
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
 

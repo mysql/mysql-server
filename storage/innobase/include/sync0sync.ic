@@ -240,7 +240,8 @@ pfs_mutex_enter_func(
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(
 			&state, mutex->pfs_psi,
-			PSI_MUTEX_LOCK, file_name, line);
+			PSI_MUTEX_LOCK, file_name,
+			static_cast<uint>(line));
 
 		mutex_enter_func(mutex, file_name, line);
 
@@ -275,7 +276,8 @@ pfs_mutex_enter_nowait_func(
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(
 			&state, mutex->pfs_psi,
-			PSI_MUTEX_TRYLOCK, file_name, line);
+			PSI_MUTEX_TRYLOCK, file_name,
+			static_cast<uint>(line));
 
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
 

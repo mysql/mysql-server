@@ -1617,7 +1617,8 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = boundaries->at(n_diff_for_this_prefix - 1);
+	last_idx_on_level = boundaries->at(
+		static_cast<unsigned int>(n_diff_for_this_prefix - 1));
 
 	rec_idx = 0;
 
@@ -1629,7 +1630,7 @@ dict_stats_analyze_index_for_n_prefix(
 	for (i = 0; i < n_recs_to_dive_below; i++) {
 		ib_uint64_t	left;
 		ib_uint64_t	right;
-		ulint		rnd;
+		ib_uint64_t	rnd;
 		ib_uint64_t	dive_below_idx;
 
 		/* there are n_diff_for_this_prefix elements
@@ -1670,9 +1671,11 @@ dict_stats_analyze_index_for_n_prefix(
 		/* we do not pass (left, right) because we do not want to ask
 		ut_rnd_interval() to work with too big numbers since
 		ib_uint64_t could be bigger than ulint */
-		rnd = ut_rnd_interval(0, (ulint) (right - left));
+		rnd = static_cast<ib_uint64_t>(
+			ut_rnd_interval(0, static_cast<ulint>(right - left)));
 
-		dive_below_idx = boundaries->at(left + rnd);
+		dive_below_idx = boundaries->at(
+			static_cast<unsigned int>(left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
