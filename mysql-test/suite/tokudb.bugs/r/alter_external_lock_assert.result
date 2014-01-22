@@ -1,0 +1,21 @@
+set default_storage_engine=tokudb;
+DROP TABLE IF EXISTS p,i,t1_tokudb_tokudb_smallvc_250;
+BEGIN;
+CREATE TABLE t1_tokudb_tokudb_smallvc_250(
+c1 BLOB,
+c2 DATE,
+unique(c2)) ENGINE=tokudb ROW_FORMAT=tokudb_small;
+CREATE TEMPORARY TABLE p LIKE t1_tokudb_tokudb_smallvc_250;
+ALTER TABLE p RENAME t1_tokudb_tokudb_smallvc_250;
+CREATE TEMPORARY TABLE i SELECT 1 t1_tokudb_tokudb_smallvc_250;
+show tables;
+Tables_in_test
+t1_tokudb_tokudb_smallvc_250
+LOCK TABLE i READ;
+ALTER TABLE t1_tokudb_tokudb_smallvc_250 MODIFY c1 DATE;
+ALTER TABLE t1_tokudb_tokudb_smallvc_250 MODIFY c1 DATE;
+ALTER TABLE t1_tokudb_tokudb_smallvc_250 MODIFY c1 DATE;
+UNLOCK TABLES;
+COMMIT;
+DROP TABLE IF EXISTS i,p,t1_tokudb_tokudb_smallvc_250;
+DROP TABLE t1_tokudb_tokudb_smallvc_250;
