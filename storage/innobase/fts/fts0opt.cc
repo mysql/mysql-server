@@ -630,7 +630,8 @@ fts_zip_read_word(
 					zip->zp->avail_in =
 						FTS_MAX_WORD_LEN;
 				} else {
-					zip->zp->avail_in = (uInt) zip->block_sz;
+					zip->zp->avail_in =
+						static_cast<uInt>(zip->block_sz);
 				}
 
 				++zip->pos;
@@ -731,7 +732,7 @@ fts_fetch_index_words(
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
-			zip->zp->avail_out = (uInt) zip->block_sz;
+			zip->zp->avail_out = static_cast<uInt>(zip->block_sz);
 		}
 
 		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
@@ -1113,10 +1114,10 @@ fts_optimize_lookup(
 	doc_id_t	last_doc_id)	/*!< in: doc id to lookup */
 {
 	int		pos;
-	int		upper = (int) ib_vector_size(doc_ids);
+	int		upper = static_cast<int>(ib_vector_size(doc_ids));
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
-	pos = fts_bsearch(array, (int) lower, upper, first_doc_id);
+	pos = fts_bsearch(array, static_cast<int>(lower), upper, first_doc_id);
 
 	ut_a(abs(pos) <= upper + 1);
 

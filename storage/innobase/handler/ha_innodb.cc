@@ -1614,9 +1614,9 @@ innobase_check_identifier_length(
 	CHARSET_INFO	*cs = system_charset_info;
 	DBUG_ENTER("innobase_check_identifier_length");
 
-	size_t len = cs->cset->well_formed_len(cs, id, id + strlen(id),
-					       NAME_CHAR_LEN,
-					       &well_formed_error);
+	size_t len = cs->cset->well_formed_len(
+		cs, id, id + strlen(id),
+		NAME_CHAR_LEN, &well_formed_error);
 
 	if (well_formed_error || len == NAME_CHAR_LEN) {
 		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
@@ -3243,8 +3243,8 @@ innobase_change_buffering_inited_ok:
 	/* Adjust the innodb_undo_logs config object */
 	innobase_undo_logs_init_default_max();
 
-	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
-		innobase_old_blocks_pct, TRUE);
+	innobase_old_blocks_pct = static_cast<uint>(
+		buf_LRU_old_ratio_update(innobase_old_blocks_pct, TRUE));
 
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 
@@ -5116,8 +5116,9 @@ innobase_fts_text_cmp(
 	const fts_string_t*	s1 = (const fts_string_t*) p1;
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 
-	return(ha_compare_text(charset, s1->f_str, (uint) s1->f_len,
-			       s2->f_str, (uint) s2->f_len, 0, 0));
+	return(ha_compare_text(
+		charset, s1->f_str, static_cast<uint>(s1->f_len),
+		s2->f_str, static_cast<uint>(s2->f_len), 0, 0));
 }
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
@@ -5138,8 +5139,9 @@ innobase_fts_text_case_cmp(
 
 	newlen = strlen((const char*) s2->f_str);
 
-	return(ha_compare_text(charset, s1->f_str, (uint) s1->f_len,
-			       s2->f_str, (uint) newlen, 0, 0));
+	return(ha_compare_text(
+		charset, s1->f_str, static_cast<uint>(s1->f_len),
+		s2->f_str, static_cast<uint>(newlen), 0, 0));
 }
 /******************************************************************//**
 Get the first character's code position for FTS index partition. */
@@ -5185,8 +5187,9 @@ innobase_fts_text_cmp_prefix(
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 	int			result;
 
-	result = ha_compare_text(charset, s2->f_str, (uint) s2->f_len,
-				 s1->f_str, (uint) s1->f_len, 1, 0);
+	result = ha_compare_text(
+		charset, s2->f_str, static_cast<uint>(s2->f_len),
+		s1->f_str, static_cast<uint>(s1->f_len), 1, 0);
 
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */
@@ -5761,8 +5764,8 @@ build_template_needs_field(
 		return(field);
 	}
 
-	if (bitmap_is_set(table->read_set, (uint) i)
-	    || bitmap_is_set(table->write_set, (uint) i)) {
+	if (bitmap_is_set(table->read_set, static_cast<uint>(i))
+	    || bitmap_is_set(table->write_set, static_cast<uint>(i))) {
 		/* This field is needed in the query */
 
 		return(field);
@@ -11596,13 +11599,13 @@ get_foreign_key_info(
 
 	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
 	f_key_info.referenced_db = thd_make_lex_string(
-		thd, 0, name_buff, (unsigned int) len, 1);
+		thd, 0, name_buff, static_cast<unsigned int>(len), 1);
 
 	/* Referenced (parent) table name */
 	ptr = dict_remove_db_name(foreign->referenced_table_name);
 	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
 	f_key_info.referenced_table = thd_make_lex_string(
-		thd, 0, name_buff, (unsigned int) len, 1);
+		thd, 0, name_buff, static_cast<unsigned int>(len), 1);
 
 	/* Dependent (child) database name */
 	len = dict_get_db_name_len(foreign->foreign_table_name);
@@ -11612,13 +11615,13 @@ get_foreign_key_info(
 
 	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
 	f_key_info.foreign_db = thd_make_lex_string(
-		thd, 0, name_buff, (unsigned int) len, 1);
+		thd, 0, name_buff, static_cast<unsigned int>(len), 1);
 
 	/* Dependent (child) table name */
 	ptr = dict_remove_db_name(foreign->foreign_table_name);
 	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
 	f_key_info.foreign_table = thd_make_lex_string(
-		thd, 0, name_buff, (unsigned int) len, 1);
+		thd, 0, name_buff, static_cast<unsigned int>(len), 1);
 
 	do {
 		ptr = foreign->foreign_col_names[i];
@@ -11646,7 +11649,8 @@ get_foreign_key_info(
 	}
 
 	f_key_info.delete_method = thd_make_lex_string(
-		thd, f_key_info.delete_method, ptr, (unsigned int) len, 1);
+		thd, f_key_info.delete_method, ptr,
+		static_cast<unsigned int>(len), 1);
 
 	if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
 		len = 7;
@@ -11663,7 +11667,8 @@ get_foreign_key_info(
 	}
 
 	f_key_info.update_method = thd_make_lex_string(
-		thd, f_key_info.update_method, ptr, (unsigned int) len, 1);
+		thd, f_key_info.update_method, ptr,
+		static_cast<unsigned int>(len), 1);
 
 	if (foreign->referenced_index && foreign->referenced_index->name) {
 		referenced_key_name = thd_make_lex_string(thd,
@@ -12438,7 +12443,8 @@ innodb_show_status(
 		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
 		len += sizeof truncated_msg - 1;
 		usable_len = (MAX_STATUS_SIZE - 1) - len;
-		fseek(srv_monitor_file, (long) (flen - usable_len), SEEK_SET);
+		fseek(srv_monitor_file,
+		      static_cast<long>(flen - usable_len), SEEK_SET);
 		len += fread(str + len, 1, usable_len, srv_monitor_file);
 		flen = len;
 	} else {
@@ -12448,9 +12454,10 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	ret_val= stat_print(thd, innobase_hton_name,
-				(uint) strlen(innobase_hton_name),
-				STRING_WITH_LEN(""), str, uint(flen));
+	ret_val= stat_print(
+		thd, innobase_hton_name,
+		static_cast<uint>(strlen(innobase_hton_name)),
+		STRING_WITH_LEN(""), str, static_cast<uint>(flen));
 
 	my_free(str);
 
@@ -14051,8 +14058,9 @@ innodb_old_blocks_pct_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
-		*static_cast<const uint*>(save), TRUE);
+	innobase_old_blocks_pct = static_cast<uint>(
+		buf_LRU_old_ratio_update(
+			*static_cast<const uint*>(save), TRUE));
 }
 
 /****************************************************************//**
@@ -16346,7 +16354,7 @@ innobase_undo_logs_init_default_max()
 {
 	MYSQL_SYSVAR_NAME(undo_logs).max_val
 		= MYSQL_SYSVAR_NAME(undo_logs).def_val
-		= (unsigned long) srv_available_undo_logs;
+		= static_cast<unsigned long>(srv_available_undo_logs);
 }
 
 /****************************************************************************
@@ -16716,7 +16724,8 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	return(strconvert(cs_from, from, cs_to, to, (uint) len, &errors));
+	return(strconvert(
+		cs_from, from, cs_to, to, static_cast<uint>(len), &errors));
 }
 
 /**********************************************************************
@@ -16733,5 +16742,6 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	return(strconvert(cs1, from, cs2, to, (uint) len, errors));
+	return(strconvert(
+		cs1, from, cs2, to, static_cast<uint>(len), errors));
 }

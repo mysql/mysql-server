@@ -1397,8 +1397,8 @@ buf_pool_init_instance(
 
 		/* Number of locks protecting page_hash must be a
 		power of two */
-		srv_n_page_hash_locks =
-			(ulong) ut_2_power_up((ulint) srv_n_page_hash_locks);
+		srv_n_page_hash_locks = static_cast<ulong>(
+			 ut_2_power_up(srv_n_page_hash_locks));
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
@@ -1902,8 +1902,8 @@ page_found:
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
 			bpage->state = BUF_BLOCK_ZIP_PAGE;
-			bpage->space = ib_uint32_t(space);
-			bpage->offset = ib_uint32_t(offset);
+			bpage->space = static_cast<ib_uint32_t>(space);
+			bpage->offset = static_cast<ib_uint32_t>(offset);
 			bpage->buf_fix_count = 1;
 
 			ut_d(bpage->in_page_hash = TRUE);
@@ -3901,8 +3901,8 @@ err_exit:
 		buf_page_init_low(bpage);
 
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
-		bpage->space	= ib_uint32_t(space);
-		bpage->offset	= ib_uint32_t(offset);
+		bpage->space	= static_cast<ib_uint32_t>(space);
+		bpage->offset	= static_cast<ib_uint32_t>(offset);
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
