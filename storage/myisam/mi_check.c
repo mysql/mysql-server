@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3126,10 +3126,6 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
     (info->s->rec_reflength+
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
-#ifdef HAVE_purify
-  memset(key+sort_param->real_key_length, 0,
-         (sort_param->key_length-sort_param->real_key_length));
-#endif
   DBUG_RETURN(sort_write_record(sort_param));
 } /* sort_key_read */
 
@@ -3166,11 +3162,6 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   sort_param->real_key_length=(info->s->rec_reflength+
 			       _ft_make_key(info, sort_param->key,
 					    key, wptr++, sort_param->filepos));
-#ifdef HAVE_purify
-  if (sort_param->key_length > sort_param->real_key_length)
-    memset(key+sort_param->real_key_length, 0,
-           (sort_param->key_length-sort_param->real_key_length));
-#endif
   if (!wptr->pos)
   {
     free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
