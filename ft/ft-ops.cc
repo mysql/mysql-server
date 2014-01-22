@@ -979,6 +979,12 @@ int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), PAIR p, int fd, BLOCKNU
     return r;
 }
 
+static bool ft_compress_buffers_before_eviction = true;
+
+void toku_ft_set_compress_buffers_before_eviction(bool compress_buffers) {
+    ft_compress_buffers_before_eviction = compress_buffers;
+}
+
 void toku_ftnode_pe_est_callback(
     void* ftnode_pv,
     void* disk_data,
@@ -1010,16 +1016,20 @@ void toku_ftnode_pe_est_callback(
             // we compress this node and add it to
             // bytes_to_free
 
-            // first get an estimate for how much space will be taken
-            // after compression, it is simply the size of compressed
-            // data on disk plus the size of the struct that holds it
-            FTNODE_DISK_DATA ndd = (FTNODE_DISK_DATA) disk_data;
-            uint32_t compressed_data_size = BP_SIZE(ndd, i);
-            compressed_data_size += sizeof(struct sub_block);
+            if (ft_compress_buffers_before_eviction) {
+                // first get an estimate for how much space will be taken
+                // after compression, it is simply the size of compressed
+                // data on disk plus the size of the struct that holds it
+                FTNODE_DISK_DATA ndd = (FTNODE_DISK_DATA) disk_data;
+                uint32_t compressed_data_size = BP_SIZE(ndd, i);
+                compressed_data_size += sizeof(struct sub_block);
 
-            // now get the space taken now
-            uint32_t decompressed_data_size = get_avail_internal_node_partition_size(node,i);
-            bytes_to_free += (decompressed_data_size - compressed_data_size);
+                // now get the space taken now
+                uint32_t decompressed_data_size = get_avail_internal_node_partition_size(node,i);
+                bytes_to_free += (decompressed_data_size - compressed_data_size);
+            } else {
+                bytes_to_free += get_avail_internal_node_partition_size(node, i);
+            }
         }
     }
 
@@ -1088,9 +1098,20 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
                     if (num_partial_evictions++ == 0) {
                         size_before = ftnode_memory_size(node);
                     }
-                    compress_internal_node_partition(node, i, 
-                                                     // When partially evicting, always compress with quicklz,
-                                                     TOKU_QUICKLZ_METHOD);
+                    if (ft_compress_buffers_before_eviction) {
+                        // When partially evicting, always compress with quicklz
+                        compress_internal_node_partition(
+                            node,
+                            i,
+                            TOKU_QUICKLZ_METHOD
+                            );
+                    } else {
+                        // We're not compressing buffers before eviction. Simply
+                        // detach the buffer and set the child's state to on-disk.
+                        destroy_nonleaf_childinfo(BNC(node, i));
+                        set_BNULL(node, i);
+                        BP_STATE(node, i) = PT_ON_DISK;
+                    }
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
