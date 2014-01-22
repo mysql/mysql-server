@@ -1056,4 +1056,49 @@ eval SELECT 1 FROM ($q) a;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #18106014: RECENT REGRESSION: MORE CASES OF ASSERTION FAILED:
+--echo #                !JOIN->PLAN_IS_CONST()
+--echo #
 
+SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
+# The syntax for FROM DUAL is not completely generalized there yet
+--error ER_PARSE_ERROR
+SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
+
+DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+DO(SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is not expected';
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is not expected';
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is not expected';
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is not expected';
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is expected';
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+  'null is expected';
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+  'null is expected';
+
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
+# The syntax for FROM DUAL is not completely generalized there yet
+--error ER_PARSE_ERROR
+SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+
+--echo #

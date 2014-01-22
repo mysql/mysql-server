@@ -886,3 +886,69 @@ SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1) a;
 ERROR HY000: Incorrect usage of UNION and ORDER BY
 DROP TABLE t1;
 #
+# Bug #18106014: RECENT REGRESSION: MORE CASES OF ASSERTION FAILED:
+#                !JOIN->PLAN_IS_CONST()
+#
+SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
+COUNT(1)
+1
+SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY '1' ORDER BY 1' at line 1
+DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+DO(SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+c
+1
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
+c
+SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY 1 HAVING 1 ORDER BY COUNT(1)' at line 1
+#
