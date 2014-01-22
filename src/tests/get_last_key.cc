@@ -175,7 +175,7 @@ static void cleanup_env_and_db(DB_ENV * env, DB * db)
 
 static int get_last_key_cb(const DBT *key, const DBT *value, void *extra) {
     if (key->data) {
-        invariant(value == NULL);
+        invariant_null(value);
         int expected_key = *(int*)extra;
         int found_key = *(int*)key->data;
         invariant(expected_key == (int)ntohl(found_key));
@@ -183,15 +183,10 @@ static int get_last_key_cb(const DBT *key, const DBT *value, void *extra) {
     return 0;
 }
 
-static void check_dbt_matches(DB *db, int expect_r, int key) {
-    int r = db->get_last_key(db, get_last_key_cb, &key);
-    CKERR2(r, expect_r);
-}
 
 static void check_last_key_matches(DB *db, int expect_r, int key) {
-    check_dbt_matches(db, expect_r, key);
-    check_dbt_matches(db, expect_r, key);
-    check_dbt_matches(db, expect_r, key);
+    int r = db->get_last_key(db, get_last_key_cb, &key);
+    CKERR2(r, expect_r);
 }
 
 static void do_test(size_t ct_size, int num_keys)
@@ -288,7 +283,7 @@ int test_main(int argc, char * const argv[])
     for (int i = 0; i <= 2; i++) {
         do_test(1024*1024, i);
     }
-    for (int i = 4; i <= 1024; i*=i) {
+    for (int i = 4; i <= 1024; i*=2) {
         do_test(1024*1024, i);
     }
 
