@@ -9,7 +9,7 @@
 
 --- a/scripts/mysqld_safe.sh	2013-01-11 16:02:41 +0000
 +++ b/scripts/mysqld_safe.sh	2013-01-11 16:03:14 +0000
-@@ -30,7 +30,6 @@
+@@ -32,7 +32,6 @@ err_log=
  syslog_tag_mysqld=mysqld
  syslog_tag_mysqld_safe=mysqld_safe
  
@@ -17,7 +17,7 @@
  
  # MySQL-specific environment variable. First off, it's not really a umask,
  # it's the desired mode. Second, it follows umask(2), not umask(3) in that
-@@ -156,7 +155,7 @@
+@@ -163,7 +162,7 @@ eval_log_error () {
        # sed buffers output (only GNU sed supports a -u (unbuffered) option)
        # which means that messages may not get sent to syslog until the
        # mysqld process quits.
@@ -26,7 +26,7 @@
        ;;
      *)
        echo "Internal program error (non-fatal):" \
-@@ -758,6 +757,13 @@
+@@ -805,6 +804,13 @@ then
  fi
  
  #
