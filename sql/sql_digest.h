@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,15 @@ struct sql_digest_storage
   int m_byte_count;
   /** Character set number. */
   uint m_charset_number;
+  /**
+    Token array.
+    Token array is an array of bytes to store tokens received during parsing.
+    Following is the way token array is formed.
+    ... &lt;non-id-token&gt; &lt;non-id-token&gt; &lt;id-token&gt; &lt;id_len&gt; &lt;id_text&gt; ...
+    For Example:
+    SELECT * FROM T1;
+    &lt;SELECT_TOKEN&gt; &lt;*&gt; &lt;FROM_TOKEN&gt; &lt;ID_TOKEN&gt; &lt;2&gt; &lt;T1&gt;
+  */
   unsigned char m_token_array[MAX_DIGEST_STORAGE_SIZE];
 
   inline void reset()
@@ -73,7 +82,13 @@ typedef struct sql_digest_storage sql_digest_storage;
 void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5);
 
 /**
-  Compute a digest text
+  Compute a digest text.
+  A 'digest text' is a textual representation of a query,
+  where:
+  - comments are removed,
+  - non significant spaces are removed,
+  - literal values are replaced with a special '?' marker,
+  - lists of values are collapsed using a shorter notation
   @param digest_storage The digest
   @param [out] digest_text
   @param digest_text_length Size of @c digest_text.
