@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 source include/have_binlog_format_mixed_or_row.inc;
 source include/master-slave.inc;
 
@@ -30,7 +25,7 @@ CREATE TABLE `visits` (
   KEY `ip` (`ip`),
   KEY `time` (`time`),
   KEY `user_id` (`user_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
+) AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
 
 CREATE TABLE `visits_events` (
   `event_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
@@ -43,7 +38,7 @@ CREATE TABLE `visits_events` (
   KEY `event_id` (`event_id`),
   KEY `visit_id` (`visit_id`),
   KEY `data` (`data`)
-) ENGINE=MyISAM AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
+) AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
 
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
