@@ -22,7 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-
+#include <stdint.h>
 /* end standard C headers. */
 
 /* flex integer type definitions */
@@ -35,7 +35,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+ * if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -2424,11 +2424,11 @@ static int yy_get_next_buffer (void)
 
 	else
 		{
-			int num_to_read = (int)
-				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
+			int num_to_read = static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1);
 
 		while ( num_to_read <= 0 )
-			{ /* Not enough room in the buffer - grow it. */
+		{ /* Not enough room in the buffer - grow it. */
 
 			/* just a shorter name for the current buffer */
 			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
@@ -2438,7 +2438,7 @@ static int yy_get_next_buffer (void)
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = (int) b->yy_buf_size * 2;
+				int new_size = static_cast<int>(b->yy_buf_size * 2);
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -2459,10 +2459,10 @@ static int yy_get_next_buffer (void)
 
 			(yy_c_buf_p) = &b->yy_ch_buf[yy_c_buf_p_offset];
 
-			num_to_read =
-				(int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size
-				- number_to_move - 1;
-			}
+			num_to_read = static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size
+				- number_to_move - 1);
+		}
 
 		if ( num_to_read > YY_READ_BUF_SIZE )
 			num_to_read = YY_READ_BUF_SIZE;
@@ -2759,7 +2759,7 @@ static void yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file )
 
 {
 	int oerrno = errno;
- 
+
 	yy_flush_buffer(b );
 
 	b->yy_input_file = file;
@@ -2890,7 +2890,8 @@ static void yyensure_buffer_stack (void)
 		/* Increase the buffer to prepare for a possible push. */
 		int grow_size = 8 /* arbitrary grow size */;
 
-		num_to_alloc = (int) (yy_buffer_stack_max) + grow_size;
+		num_to_alloc = static_cast<int>(
+			(yy_buffer_stack_max) + grow_size);
 		(yy_buffer_stack) = (struct yy_buffer_state**)yyrealloc
 								((yy_buffer_stack),
 								num_to_alloc * sizeof(struct yy_buffer_state*)
