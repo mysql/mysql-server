@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4057,12 +4057,20 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
+
+    mysql_mutex_t *log_lock= mysql_bin_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   max_binlog_size, false,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
                                   NULL))
+    {
+      mysql_mutex_unlock(log_lock);
       unireg_abort(1);
+    }
+    mysql_mutex_unlock(log_lock);
   }
 
 #ifdef HAVE_REPLICATION

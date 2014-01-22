@@ -26,20 +26,43 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
+--echo
+--echo # create a temporary table, replicate at slave for all the tests below.
+--echo
+
 CREATE TEMPORARY TABLE t1(a int);
 sync_slave_with_master;
+
+--echo
+--echo # Make sure STOP SLAVE generates a warning.
+--echo
 
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
 
+--echo
+--echo # Make sure STOP SLAVE SQL_THREAD generates a warning.
+--echo
+
 STOP SLAVE SQL_THREAD;
 --source include/wait_for_slave_sql_to_stop.inc
+
+--echo
+--echo # Make sure STOP SLAVE IO_THREAD generates a warning.
+--echo
 
 STOP SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 
-# no warning here since we are changing a configuration parameter only.
+--echo
+--echo # No warning here since we are changing a configuration parameter only.
+--echo
+
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+
+--echo
+--echo # Use of (master/relay)log_file/log_pos options should generate a warning.
+--echo
 
 let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 replace_result $master_log_file MASTER_LOG_FILE;
@@ -57,9 +80,9 @@ let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 replace_result $relay_log_pos RELAY_LOG_POS;
 eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
 
---echo #
+--echo
 --echo # cleanup
---echo #
+--echo
 
 --source include/start_slave.inc
 --connection master
