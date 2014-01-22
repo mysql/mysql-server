@@ -1305,7 +1305,15 @@ trx_cleanup_at_db_startup(
 	}
 
 	trx->state = TRX_NOT_STARTED;
+
+	/* This code is executed in a single threaded context, but we acquire
+	kernel_mutex to satisfy a debug assertion in
+	trx_release_descriptor(). */
+
+	mutex_enter(&kernel_mutex);
 	trx_release_descriptor(trx);
+	mutex_exit(&kernel_mutex);
+
 	trx->rseg = NULL;
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;

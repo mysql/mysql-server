@@ -1605,6 +1605,16 @@ buf_flush_page_and_try_neighbors(
 		ut_ad(block_mutex);
 	}
 
+	if (UNIV_UNLIKELY(buf_page_get_state(bpage)
+			  == BUF_BLOCK_REMOVE_HASH)) {
+
+		/* In case we don't hold the LRU list mutex, we may see a page
+		that is about to be relocated on the flush list.  Do not
+		attempt to flush it.  */
+		ut_ad(flush_type == BUF_FLUSH_LIST);
+		return (flushed);
+	}
+
 	ut_a(buf_page_in_file(bpage));
 
 	if (buf_flush_ready_for_flush(bpage, flush_type)) {

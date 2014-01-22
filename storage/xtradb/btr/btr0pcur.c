@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -111,7 +111,7 @@ btr_pcur_store_position(
 	page_t*		page;
 	ulint		offs;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	block = btr_pcur_get_block(cursor);
@@ -128,7 +128,6 @@ btr_pcur_store_position(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) == 0)) {
 		/* It must be an empty index tree; NOTE that in this case
@@ -239,20 +238,11 @@ btr_pcur_restore_position_func(
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
+	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
+	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
-
-	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
-	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
-			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
-		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
-		putc('\n', stderr);
-		if (cursor->trx_if_known) {
-			trx_print(stderr, cursor->trx_if_known, 0);
-		}
-
-		ut_error;
-	}
 
 	if (UNIV_UNLIKELY
 	    (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
@@ -277,14 +267,14 @@ btr_pcur_restore_position_func(
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
-		/* Try optimistic restoration */
+		/* Try optimistic restoration. */
 
-		if (UNIV_LIKELY(buf_page_optimistic_get(
-					latch_mode,
-					cursor->block_when_stored,
-					cursor->modify_clock,
-					file, line, mtr))) {
+		if (buf_page_optimistic_get(latch_mode,
+					    cursor->block_when_stored,
+					    cursor->modify_clock,
+					    file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+			cursor->latch_mode = latch_mode;
 
 			buf_block_dbg_add_level(
 				btr_pcur_get_block(cursor),
@@ -296,9 +286,6 @@ btr_pcur_restore_position_func(
 				const rec_t*	rec;
 				const ulint*	offsets1;
 				const ulint*	offsets2;
-#endif /* UNIV_DEBUG */
-				cursor->latch_mode = latch_mode;
-#ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
 
 				heap = mem_heap_create(256);
@@ -316,7 +303,13 @@ btr_pcur_restore_position_func(
 #endif /* UNIV_DEBUG */
 				return(TRUE);
 			}
-
+			/* This is the same record as stored,
+			may need to be adjusted for BTR_PCUR_BEFORE/AFTER,
+			depending on search mode and direction. */
+			if (btr_pcur_is_on_user_rec(cursor)) {
+				cursor->pos_state
+					= BTR_PCUR_IS_POSITIONED_OPTIMISTIC;
+			}
 			return(FALSE);
 		}
 	}
@@ -418,7 +411,7 @@ btr_pcur_move_to_next_page(
 	buf_block_t*	next_block;
 	page_t*		next_page;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_after_last_on_page(cursor));
 
@@ -484,7 +477,6 @@ btr_pcur_move_backward_from_page(
 	ulint		latch_mode;
 	ulint		latch_mode2;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_before_first_on_page(cursor));
 	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));
