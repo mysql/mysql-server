@@ -77,6 +77,9 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 # Lets stop IO thread again to make sure we are not purging relay logs only
 # because we have a use of relay_log_file/relay_log_pos options and not
 # because one of the slave threads is running.
+
+--source include/stop_slave_io.inc
+
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 replace_result $relay_log_file RELAY_LOG_FILE;
 eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
@@ -96,7 +99,6 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 --echo relay_log_pos options, the relaylogs should be deleted.
 --echo
 
---source include/stop_slave_io.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 
 let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);

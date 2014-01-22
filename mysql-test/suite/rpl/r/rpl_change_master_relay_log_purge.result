@@ -23,6 +23,7 @@ include/assert.inc [The relaylog file should not change if change master command
 If the relay_log_file and relay_log_pos options are used, we dont purge
 relaylogs.
 
+include/stop_slave_io.inc
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 include/assert.inc [The relaylog file should not change if change master command contained relay_log_file or relay_log_pos option.]
@@ -30,7 +31,6 @@ include/assert.inc [The relaylog file should not change if change master command
 With both the threads stopped and no use of relay_log_file or
 relay_log_pos options, the relaylogs should be deleted.
 
-include/stop_slave_io.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
 include/assert.inc [With both the threads stopped and no use of relay_log_file or relay_log_pos options in change master command, the relaylogs should be deleted.]
 

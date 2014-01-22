@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3413,6 +3413,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter",("name: %s", log_name));
 
+  mysql_mutex_assert_owner(get_log_lock());
+
   if (init_and_set_log_file_name(log_name, new_name))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
@@ -6454,10 +6456,12 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
+    mysql_mutex_lock(&LOCK_log);
     open_binlog(opt_name, 0, max_binlog_size, false,
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
                 NULL);
+    mysql_mutex_lock(&LOCK_log);
     cleanup();
     return 1;
   }
