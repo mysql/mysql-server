@@ -1330,7 +1330,7 @@ end:
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table_arg)
+void partition_info::print_no_partition_found(TABLE *table_arg, myf errflag)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
@@ -1344,7 +1344,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), errflag);
   }
   else
   {
@@ -1360,7 +1360,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
                      part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
+    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, errflag, buf_ptr);
   }
 }
 

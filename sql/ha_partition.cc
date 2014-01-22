@@ -7207,7 +7207,7 @@ void ha_partition::print_error(int error, myf errflag)
       {
         if (!(thd->lex->alter_info.flags & ALTER_TRUNCATE_PARTITION))
         {
-          m_part_info->print_no_partition_found(table);
+          m_part_info->print_no_partition_found(table, errflag);
           DBUG_VOID_RETURN;
         }
       }
