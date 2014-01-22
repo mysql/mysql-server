@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,18 +33,6 @@
 #include "sql_get_diagnostics.h"
 #include "sql_string.h"
 #include <string.h>
-
-/**
-  Token array.
-  Token array is an array of bytes to store tokens received during parsing.
-  Following is the way token array is formed.
-
-      ... &lt;non-id-token&gt; &lt;non-id-token&gt; &lt;id-token&gt; &lt;id_len&gt; &lt;id_text&gt; ...
-
-  For Example:
-  SELECT * FROM T1;
-  &lt;SELECT_TOKEN&gt; &lt;*&gt; &lt;FROM_TOKEN&gt; &lt;ID_TOKEN&gt; &lt;2&gt; &lt;T1&gt;
-*/
 
 ulong digest_max= 0;
 ulong digest_lost= 0;

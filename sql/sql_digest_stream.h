@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,14 +20,17 @@
 
 /**
   State data storage for @c digest_start, @c digest_add_token.
-  This structure provide temporary storage to a digest locker.
-  The content of this structure is considered opaque,
-  the fields are only hints of what an implementation
-  of the psi interface can use.
-  This memory is provided by the instrumented code for performance reasons.
+  This structure extends the @c sql_digest_storage structure
+  with temporary state used only during parsing.
 */
 struct sql_digest_state
 {
+  /**
+    Index, in the digest token array, of the last identifier seen.
+    Reduce rules used in the digest computation can not
+    apply to tokens seen before an identifier.
+    @sa digest_add_token
+  */
   int m_last_id_index;
   sql_digest_storage m_digest_storage;
 
