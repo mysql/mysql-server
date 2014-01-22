@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # BUG#33029 5.0 to 5.1 replication fails on dup key when inserting
 # using a trig in SP
 
@@ -75,9 +70,11 @@ delimiter ;//
 
 # the $binlog_start will be used by the show_binlog_events.inc, so
 # that we can skip binlog events we don't care
+--let $mask_binlog_commit_events= 1
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 CALL p1();
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
 
 echo # Result on master;
 SELECT * FROM t1;
@@ -95,9 +92,11 @@ DROP TRIGGER tr1;
 
 # the $binlog_start will be used by the show_binlog_events.inc, so
 # that we can skip binlog events we don't care
+--let $mask_binlog_commit_events= 1
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 CALL p2();
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
 
 echo # Result on master;
 SELECT * FROM t1;
