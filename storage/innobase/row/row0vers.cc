@@ -259,7 +259,8 @@ row_vers_impl_x_locked_low(
 		}
 	}
 
-	DBUG_PRINT("info", ("Implicit lock is held by trx:%llu", trx_id));
+	DBUG_PRINT("info", ("Implicit lock is held by trx:%lu",
+		static_cast<unsigned long>(trx_id)));
 
 	mem_heap_free(heap);
 	DBUG_RETURN(trx_id);
