@@ -236,6 +236,18 @@ INSERT INTO t4 VALUES (4,20);
 INSERT INTO t4 VALUES (4,20);
 # Reference to the parent query block (used tables was wrong)
 set @@optimizer_switch='materialization=off,semijoin=off';
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+analyze table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
 EXPLAIN SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
