@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,6 +395,26 @@ public:
   {
     compute_statistics();
     truncate(0);
+
+    /*
+      If IOCACHE has a file associated, change its size to 0.
+      It is safer to do it here, since we are certain that one
+      asked the cache to go to position 0 with truncate.
+    */
+    if(cache_log.file != -1)
+    {
+      int error= 0;
+      if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
+        sql_print_warning("Unable to resize binlog IOCACHE auxilary file");
+
+      DBUG_EXECUTE_IF("show_io_cache_size",
+                      {
+                        ulong file_size= my_seek(cache_log.file,
+                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%ld", file_size);
+                      });
+    }
+
     flags.incident= false;
     flags.with_xid= false;
     flags.immediate= false;
