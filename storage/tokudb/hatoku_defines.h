@@ -228,7 +228,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ANALYZE (1<<15)
 
 #define TOKUDB_TRACE(f, ...) \
-    fprintf(stderr, "%u %s:%u " f "\n", my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
+    fprintf(stderr, "%u %s:%u %s " f "\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);
 
 static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
@@ -237,7 +237,7 @@ static inline unsigned int my_tid() {
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
-        TOKUDB_TRACE("%s " f, __FUNCTION__, ##__VA_ARGS__);      \
+        TOKUDB_TRACE(f, ##__VA_ARGS__);       \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
@@ -246,15 +246,18 @@ static inline unsigned int my_tid() {
 { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
-        TOKUDB_TRACE("%s return %d", __FUNCTION__, rr); \
+        TOKUDB_TRACE("return %d", rr); \
     } \
     DBUG_RETURN(rr); \
 }
 
+#define TOKUDB_HANDLER_TRACE(f, ...) \
+    fprintf(stderr, "%u %p %s:%u ha_tokudb::%s " f "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);
+
 #define TOKUDB_HANDLER_DBUG_ENTER(f, ...)      \
 { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
-        fprintf(stderr, "%u %p %s:%u ha_tokudb::%s " f "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
+        TOKUDB_HANDLER_TRACE(f, ##__VA_ARGS__); \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
@@ -263,14 +266,14 @@ static inline unsigned int my_tid() {
 { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
-        fprintf(stderr, "%u %p %s:%u ha_tokudb::%s return %d" "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, rr); \
+        TOKUDB_HANDLER_TRACE("return %d", rr); \
     } \
     DBUG_RETURN(rr); \
 }
 
 #define TOKUDB_DBUG_DUMP(s, p, len) \
 { \
-    TOKUDB_TRACE("%s:%s", __FUNCTION__, s); \
+    TOKUDB_TRACE("%s", s); \
     uint i;                                                             \
     for (i=0; i<len; i++) {                                             \
         fprintf(stderr, "%2.2x", ((uchar*)p)[i]);                       \
