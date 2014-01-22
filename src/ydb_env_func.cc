@@ -117,6 +117,10 @@ void db_env_set_direct_io (bool direct_io_on) {
     toku_ft_set_direct_io(direct_io_on);
 }
 
+void db_env_set_compress_buffers_before_eviction (bool compress_buffers) {
+    toku_ft_set_compress_buffers_before_eviction(compress_buffers);
+}
+
 void db_env_set_func_fsync (int (*fsync_function)(int)) {
     toku_set_func_fsync(fsync_function);
 }

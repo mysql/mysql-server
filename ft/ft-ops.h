@@ -351,5 +351,8 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen);
 
 extern bool garbage_collection_debug;
 
+// This is a poor place to put global options like these.
 void toku_ft_set_direct_io(bool direct_io_on);
+void toku_ft_set_compress_buffers_before_eviction(bool compress_buffers);
+
 #endif

@@ -828,6 +828,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("int toku_set_trace_file (const char *fname) %s;\n", VISIBLE);
     printf("int toku_close_trace_file (void) %s;\n", VISIBLE);
     printf("void db_env_set_direct_io (bool direct_io_on) %s;\n", VISIBLE);
+    printf("void db_env_set_compress_buffers_before_eviction (bool compress_buffers) %s;\n", VISIBLE);
     printf("void db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
     printf("void db_env_set_func_free (void (*)(void*)) %s;\n", VISIBLE);
     printf("void db_env_set_func_malloc (void *(*)(size_t)) %s;\n", VISIBLE);
