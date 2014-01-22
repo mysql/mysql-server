@@ -15,6 +15,11 @@
 
 -- source include/have_innodb.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+--enable_query_log
+
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $pathfix=/: '.*test_wl5522.*t1.ibd'/: 'test_wl5522\\t1.ibd'/;
@@ -651,7 +656,7 @@ SET SESSION debug="+d,ib_import_OOM_1";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_1";
@@ -683,7 +688,7 @@ SET SESSION debug="+d,ib_import_OOM_2";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_2";
@@ -715,7 +720,7 @@ SET SESSION debug="+d,ib_import_OOM_4";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_4";
@@ -747,7 +752,7 @@ SET SESSION debug="+d,ib_import_OOM_5";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_5";
@@ -778,7 +783,7 @@ SET SESSION debug="+d,ib_import_OOM_6";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_6";
@@ -808,7 +813,7 @@ SET SESSION debug="+d,ib_import_OOM_7";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_7";
@@ -838,7 +843,7 @@ SET SESSION debug="+d,ib_import_OOM_8";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_8";
@@ -868,7 +873,7 @@ SET SESSION debug="+d,ib_import_OOM_9";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_9";
@@ -898,7 +903,7 @@ SET SESSION debug="+d,ib_import_OOM_10";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_10";

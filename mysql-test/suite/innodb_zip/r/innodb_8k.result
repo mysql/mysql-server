@@ -138,7 +138,7 @@ e varchar(129) character set utf8,
 PRIMARY KEY (a), KEY (b,c,d,e))
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 1536 bytes
-# Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all 
+# Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all
 #         accepted and that KEY_BLOCK_SIZE=16 is rejected in
 #         strict mode and converted to 8 in non-strict mode.
 SET SESSION innodb_strict_mode = ON;
