@@ -4757,6 +4757,10 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs_thread->m_events_statements_count++;
       pfs_thread->m_stmt_lock.dirty_to_allocated(& dirty_state);
     }
+    else
+    {
+      state->m_statement= NULL;
+    }
   }
   else
   {
