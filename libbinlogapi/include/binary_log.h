@@ -32,33 +32,4 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <cassert>
 #include <algorithm>
 
-#define BAPI_STRERROR_SIZE (256)
-namespace binary_log
-{
-
-/**
- * Error codes.
- */
-enum Error_code {
-  ERR_OK = 0,                                   /* All OK */
-  ERR_EOF,                                      /* End of file */
-  ERR_FAIL,                                     /* Unspecified failure */
-  ERR_CHECKSUM_ENABLED,
-  ERR_CHECKSUM_QUERY_FAIL,
-  ERR_CONNECT,
-  ERR_BINLOG_VERSION,
-  ERR_PACKET_LENGTH,
-  ERR_MYSQL_QUERY_FAIL,
-  ERROR_CODE_COUNT
-};
-
-/**
- *Errors you can get from the API
- */
-extern const char *bapi_error_messages[];
-
-extern const char *str_error(int error_no);
-
-}
-
 #endif	/* REPEVENT_INCLUDED */

@@ -2569,6 +2569,7 @@ public:
   const char* get_log_ident() { return log_ident; }
   unsigned int get_ident_len() { return ident_len; }
 
+  bool is_valid() const { return 1; }
 protected:
   const char* log_ident;
   unsigned int ident_len;                      /** filename length */
@@ -2597,6 +2598,7 @@ public:
   }
 
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
+  bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
