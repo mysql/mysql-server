@@ -7843,12 +7843,9 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     {
       DBUG_ASSERT(table_list->view &&
                   table_list->effective_algorithm == VIEW_ALGORITHM_MERGE);
-      Query_arena *arena= thd->stmt_arena, backup;
+      Query_arena *arena, backup;
+      arena= thd->activate_stmt_arena_if_needed(&backup);
       bool res;
-      if (arena->is_conventional())
-        arena= 0;                                   // For easier test
-      else
-        thd->set_n_backup_active_arena(arena, &backup);
       res= table_list->setup_underlying(thd);
       if (arena)
         thd->restore_active_arena(arena, &backup);
