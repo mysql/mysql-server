@@ -1,0 +1,45 @@
+drop procedure if exists test_error;
+drop table if exists t1;
+install plugin SQL_ERROR_LOG soname 'sql_errlog';
+show variables like 'sql_error_log%';
+Variable_name	Value
+sql_error_log_filename	sql_errors.log
+sql_error_log_rate	1
+sql_error_log_rotate	OFF
+sql_error_log_rotations	9
+sql_error_log_size_limit	1000000
+set global sql_error_log_rate=1;
+select * from t_doesnt_exist;
+ERROR 42S02: Table 'test.t_doesnt_exist' doesn't exist
+syntax_error_query;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'syntax_error_query' at line 1
+CREATE PROCEDURE test_error()
+BEGIN
+DECLARE CONTINUE HANDLER
+FOR 1146
+BEGIN
+RESIGNAL SQLSTATE '40000' SET
+MYSQL_ERRNO = 1000,
+MESSAGE_TEXT = 'new message';
+END;
+SELECT `c` FROM `temptab`;
+END|
+CALL test_error();
+ERROR 40000: new message
+drop procedure test_error;
+SET SQL_MODE = STRICT_ALL_TABLES;
+create table t1(id int);
+insert into t1 values ('aa');
+ERROR 22007: Incorrect integer value: 'aa' for column 'id' at row 1
+SET SQL_MODE = '';
+drop table t1;
+uninstall plugin SQL_ERROR_LOG;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+TIME HOSTNAME ERROR 1146: Table 'test.t_doesnt_exist' doesn't exist : select * from t_doesnt_exist
+TIME HOSTNAME ERROR 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'syntax_error_query' at line 1 : syntax_error_query
+TIME HOSTNAME ERROR 1146: Table 'test.temptab' doesn't exist : SELECT `c` FROM `temptab`
+TIME HOSTNAME ERROR 1000: new message : RESIGNAL SQLSTATE '40000' SET
+MYSQL_ERRNO = 1000,
+MESSAGE_TEXT = 'new message'
+TIME HOSTNAME ERROR 1366: Incorrect integer value: 'aa' for column 'id' at row 1 : insert into t1 values ('aa')

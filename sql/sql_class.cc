@@ -1145,6 +1145,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     got_warning= 1;
     break;
   case MYSQL_ERROR::WARN_LEVEL_ERROR:
+    mysql_audit_general(this, MYSQL_AUDIT_GENERAL_ERROR, sql_errno, msg);
     break;
   default:
     DBUG_ASSERT(FALSE);
