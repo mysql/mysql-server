@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 
+#ifdef YASSL_PURE_C
+
 #ifdef __sun
  
 
@@ -53,5 +55,6 @@ extern "C" {
 
 #endif // __GNUC__ > 2
 #endif // compiler check
+#endif // YASSL_PURE_C
 #endif // yaSSL_NEW_HPP
 

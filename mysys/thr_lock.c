@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,11 +98,6 @@ void thr_set_lock_wait_callback(void (*before_wait)(void),
 {
   before_lock_wait= before_wait;
   after_lock_wait= after_wait;
-}
-
-static inline mysql_cond_t *get_cond(void)
-{
-  return &my_thread_var->suspend;
 }
 
 /*
@@ -368,18 +363,6 @@ has_old_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner)
   }
   return 0;
 }
-
-static inline my_bool have_specific_lock(THR_LOCK_DATA *data,
-					 enum thr_lock_type type)
-{
-  for ( ; data ; data=data->next)
-  {
-    if (data->type == type)
-      return 1;
-  }
-  return 0;
-}
-
 
 static void wake_up_waiters(THR_LOCK *lock);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5475,15 +5475,6 @@ my_toupper_utf8mb3(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 }
 
 
-static inline void
-my_tosort_utf8mb3(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
-{
-  const MY_UNICASE_CHARACTER *page;
-  if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
-    *wc= page[*wc & 0xFF].sort;
-}
-
-
 static size_t
 my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
                char *dst, size_t dstlen)
@@ -8060,14 +8051,6 @@ my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src, size_t srclen,
     dst+= dstres;
   }
   return (size_t) (dst - dst0);
-}
-
-
-static inline void
-my_hash_add(ulong *n1, ulong *n2, uint ch)
-{
-  n1[0]^= (((n1[0] & 63) + n2[0]) * (ch)) + (n1[0] << 8);
-  n2[0]+= 3;
 }
 
 
