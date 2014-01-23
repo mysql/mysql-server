@@ -17,18 +17,16 @@ if(GTEST_FOUND)
   include_directories(${GTEST_INCLUDE_DIRS})
 endif(GTEST_FOUND)
 
+find_package(ZLIB REQUIRED)
+message(status "The zlib paths are ${ZLIB_INCLUDE_DIR} and ${ZLIB_INCLUDE_DIRS}")
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/libbinlogapi/include
 # ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib, when compiled with
 # MySQL server version (< 5.7). It is NULL otherwise.
   ${ZLIB_INCLUDE_DIR}
 )
 
-message(status "The zlib paths are ${ZLIB_INCLUDE_DIR} and ${ZLIB_INCLUDE_DIRS}")
-find_package(ZLIB REQUIRED)
-if (ZLIB_FOUND)
-    include_directories(${ZLIB_INCLUDE_DIRS})
-endif(ZLIB_FOUND) 
 
 CONFIGURE_FILE(config.h.cmake
                ${CMAKE_SOURCE_DIR}/libbinlogapi/include/config.h)

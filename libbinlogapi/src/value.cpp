@@ -21,8 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "value.h"
 #include <iomanip>
 #include <cassert>
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #include <cstring>
 #include <sstream>
 #include <stdint.h>

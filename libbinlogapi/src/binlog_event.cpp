@@ -204,10 +204,10 @@ Log_event_header(const char* buf,
     @endverbatim
    */
   memcpy(&data_written, buf + EVENT_LEN_OFFSET, 4);
-  data_written= le32toh(data_written);
+  data_written= le64toh(data_written);
 
   memcpy(&log_pos, buf + LOG_POS_OFFSET, 4);
-  log_pos= le32toh(log_pos);
+  log_pos= le64toh(log_pos);
 
   switch (description_event->binlog_version)
   {
@@ -1536,6 +1536,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       CHECK_SPACE(pos, end, 3);
       header()->when.tv_usec= 0;
       memcpy(&(header()->when.tv_usec), pos, 3);
+      header()->when.tv_usec= le32toh(header()->when.tv_usec);
       pos+= 3;
       break;
     case Q_INVOKER:
