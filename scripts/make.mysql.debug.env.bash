@@ -55,7 +55,7 @@ function github_clone() {
 
 git_tag=
 mysql=mysql
-mysql_tree=mysql-5.5.34
+mysql_tree=mysql-5.5.35
 jemalloc=jemalloc
 jemalloc_tree=3.3.1
 ftengine=ft-engine
