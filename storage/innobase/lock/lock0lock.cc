@@ -2182,7 +2182,8 @@ lock_rec_enqueue_waiting(
 
 	DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT
 			       " in index %s of table %s",
-			       trx->id, index->name, index->table_name));
+			       trx_get_id_for_print(trx), index->name,
+			       index->table_name));
 
 	MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
@@ -2587,7 +2588,7 @@ lock_grant(
 	}
 
 	DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT " ends",
-			       lock->trx->id));
+			       trx_get_id_for_print(lock->trx)));
 
 	/* If we are resolving a deadlock by choosing another transaction
 	as a victim, then our original transaction may not be in the
@@ -4637,18 +4638,17 @@ lock_table_print(
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->trx, TRUE,
 		      lock->un_member.tab_lock.table->name);
-	fprintf(file, " trx id " TRX_ID_FMT,
-		lock->trx->id > 0 ? lock->trx->id : (trx_id_t) lock->trx);
+	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
 	} else if (lock_get_mode(lock) == LOCK_X) {
-		ut_ad(lock->trx->id > 0);
+		ut_ad(lock->trx->id != 0);
 		fputs(" lock mode X", file);
 	} else if (lock_get_mode(lock) == LOCK_IS) {
 		fputs(" lock mode IS", file);
 	} else if (lock_get_mode(lock) == LOCK_IX) {
-		ut_ad(lock->trx->id > 0);
+		ut_ad(lock->trx->id != 0);
 		fputs(" lock mode IX", file);
 	} else if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 		fputs(" lock mode AUTO-INC", file);
@@ -4691,8 +4691,7 @@ lock_rec_print(
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock));
 	dict_index_name_print(file, lock->trx, lock->index);
-	fprintf(file, " trx id " TRX_ID_FMT,
-		lock->trx->id == 0 ? (trx_id_t) lock->trx : lock->trx->id);
+	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -6374,7 +6373,7 @@ lock_get_trx_id(
 /*============*/
 	const lock_t*	lock)	/*!< in: lock */
 {
-	return(lock->trx->id > 0 ? lock->trx->id : (trx_id_t) lock->trx);
+	return(trx_get_id_for_print(lock->trx));
 }
 
 /*******************************************************************//**

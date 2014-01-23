@@ -489,7 +489,8 @@ trx_validate_state_before_free(trx_t* trx)
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
-			" to be processing inside InnoDB", trx, trx->id);
+			" to be processing inside InnoDB", trx,
+			trx_get_id_for_print(trx));
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -687,7 +688,7 @@ trx_resurrect_table_locks(
 			DBUG_PRINT("ib_trx",
 				   ("resurrect" TRX_ID_FMT
 				    "  table '%s' IX lock from %s undo",
-				    trx->id, table->name,
+				    trx_get_id_for_print(trx), table->name,
 				    undo == undo_ptr->insert_undo
 				    ? "insert" : "update"));
 
@@ -732,7 +733,7 @@ trx_resurrect_insert(
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction " TRX_ID_FMT " was in the XA"
-				" prepared state.", trx->id);
+				" prepared state.", trx_get_id_for_print(trx));
 
 			if (srv_force_recovery == 0) {
 
@@ -804,7 +805,7 @@ trx_resurrect_update_in_prepared_state(
 	if (undo->state == TRX_UNDO_PREPARED) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Transaction " TRX_ID_FMT " was in the XA"
-			" prepared state.", trx->id);
+			" prepared state.", trx_get_id_for_print(trx));
 
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
@@ -1662,7 +1663,7 @@ trx_update_mod_tables_timestamp(
 	trx_t*	trx)	/*!< in: transaction */
 {
 
-	ut_ad(trx->id > 0);
+	ut_ad(trx->id != 0);
 
 	/* consider using trx->start_time if calling time() is too
 	expensive here */
@@ -2208,7 +2209,7 @@ trx_commit_for_mysql(
 
 		trx->op_info = "committing";
 
-		if (trx->id > 0) {
+		if (trx->id != 0) {
 			trx_update_mod_tables_timestamp(trx);
 		}
 
@@ -2233,7 +2234,7 @@ trx_commit_complete_for_mysql(
 /*==========================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	if (trx->id > 0
+	if (trx->id != 0
 	    || !trx->must_flush_log_later
 	    || thd_requested_durability(trx->mysql_thd)
 	       == HA_IGNORE_DURABILITY) {
@@ -2303,7 +2304,7 @@ trx_print_low(
 
 	ut_ad(trx_sys_mutex_own());
 
-	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx->id);
+	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx_get_id_for_print(trx));
 
 	/* trx->state cannot change from or to NOT_STARTED while we
 	are holding the trx_sys->mutex. It may change from ACTIVE to
@@ -2712,7 +2713,7 @@ trx_recover_for_mysql(
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction " TRX_ID_FMT " in"
 				" prepared state after recovery",
-				trx->id);
+				trx_get_id_for_print(trx));
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction contains changes"

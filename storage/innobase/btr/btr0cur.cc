@@ -2485,7 +2485,9 @@ fail_err:
 	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
 			      index->name, index->id,
-			      thr ? thr_get_trx(thr)->id : 0,
+			      thr != NULL
+			      ? trx_get_id_for_print(thr_get_trx(thr))
+			      : 0,
 			      rec_printer(entry).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -4043,7 +4045,8 @@ btr_cur_del_mark_set_clust_rec(
 
 	DBUG_PRINT("ib_cur", ("delete-mark clust %s (" IB_ID_FMT
 			      ") by " TRX_ID_FMT ": %s",
-			      index->table_name, index->id, trx->id,
+			      index->table_name, index->id,
+			      trx_get_id_for_print(trx),
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
@@ -4174,7 +4177,7 @@ btr_cur_del_mark_set_sec_rec(
 			      block->page.space, block->page.offset,
 			      unsigned(page_rec_get_heap_no(rec)),
 			      cursor->index->name, cursor->index->id,
-			      thr_get_trx(thr)->id));
+			      trx_get_id_for_print(thr_get_trx(thr))));
 
 	/* We do not need to reserve btr_search_latch, as the
 	delete-mark flag is being updated in place and the adaptive
