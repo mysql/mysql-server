@@ -1040,7 +1040,9 @@ exit:
     return;
 }
 
-static void
+// replace the child buffer with a compressed version of itself.
+// @return the old child buffer
+static NONLEAF_CHILDINFO
 compress_internal_node_partition(FTNODE node, int i, enum toku_compression_method compression_method)
 {
     // if we should evict, compress the
@@ -1051,10 +1053,11 @@ compress_internal_node_partition(FTNODE node, int i, enum toku_compression_metho
     sub_block_init(sb);
     toku_create_compressed_partition_from_available(node, i, compression_method, sb);
 
-    // now free the old partition and replace it with this
-    destroy_nonleaf_childinfo(BNC(node,i));
+    // now set the state to compressed and return the old, available partition
+    NONLEAF_CHILDINFO bnc = BNC(node, i);
     set_BSB(node, i, sb);
     BP_STATE(node,i) = PT_COMPRESSED;
+    return bnc;
 }
 
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h) {
@@ -1076,11 +1079,21 @@ BASEMENTNODE toku_detach_bn(FTNODE node, int childnum) {
 }
 
 // callback for partially evicting a node
-int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* extraargs) {
-    FTNODE node = (FTNODE)ftnode_pv;
-    FT ft = (FT) extraargs;
-    long size_before = 0;
+int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_extraargs,
+                            void (*finalize)(PAIR_ATTR new_attr, void *extra), void *finalize_extra) {
+    FTNODE node = (FTNODE) ftnode_pv;
+    FT ft = (FT) write_extraargs;
     int num_partial_evictions = 0;
+
+    // Hold things we intend to destroy here.
+    // They will be taken care of after finalize().
+    int num_basements_to_destroy = 0;
+    int num_buffers_to_destroy = 0;
+    int num_pointers_to_free = 0;
+    BASEMENTNODE basements_to_destroy[node->n_children];
+    NONLEAF_CHILDINFO buffers_to_destroy[node->n_children];
+    void *pointers_to_free[node->n_children * 2];
+
     // Don't partially evict dirty nodes
     if (node->dirty) {
         goto exit;
@@ -1097,12 +1110,10 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    if (num_partial_evictions++ == 0) {
-                        size_before = ftnode_memory_size(node);
-                    }
+                    NONLEAF_CHILDINFO bnc;
                     if (ft_compress_buffers_before_eviction) {
                         // When partially evicting, always compress with quicklz
-                        compress_internal_node_partition(
+                        bnc = compress_internal_node_partition(
                             node,
                             i,
                             TOKU_QUICKLZ_METHOD
@@ -1110,10 +1121,12 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
                     } else {
                         // We're not compressing buffers before eviction. Simply
                         // detach the buffer and set the child's state to on-disk.
-                        destroy_nonleaf_childinfo(BNC(node, i));
+                        bnc = BNC(node, i);
                         set_BNULL(node, i);
                         BP_STATE(node, i) = PT_ON_DISK;
                     }
+                    buffers_to_destroy[num_buffers_to_destroy++] = bnc;
+                    num_partial_evictions++;
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1133,21 +1146,21 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                if (num_partial_evictions++ == 0) {
-                    size_before = ftnode_memory_size(node);
-                }
                 SUB_BLOCK sb = BSB(node, i);
-                toku_free(sb->compressed_ptr);
-                toku_free(sb);
+                pointers_to_free[num_pointers_to_free++] = sb->compressed_ptr;
+                pointers_to_free[num_pointers_to_free++] = sb;
                 set_BNULL(node, i);
                 BP_STATE(node,i) = PT_ON_DISK;
+                num_partial_evictions++;
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    if (num_partial_evictions++ == 0) {
-                        size_before = ftnode_memory_size(node);
-                    }
-                    toku_evict_bn_from_memory(node, i, ft);
+                    BASEMENTNODE bn = BLB(node, i);
+                    basements_to_destroy[num_basements_to_destroy++] = bn;
+                    toku_ft_decrease_stats(&ft->in_memory_stats, bn->stat64_delta);
+                    set_BNULL(node, i);
+                    BP_STATE(node, i) = PT_ON_DISK;
+                    num_partial_evictions++;
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1162,19 +1175,34 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         }
     }
 
+exit:
+    // call the finalize callback with a new pair attr
+    PAIR_ATTR new_attr = make_ftnode_pair_attr(node);
+    finalize(new_attr, finalize_extra);
+
+    // destroy everything now that we've called finalize(),
+    // and, by contract, and it's safe to do expensive work.
+    for (int i = 0; i < num_basements_to_destroy; i++) {
+        destroy_basement_node(basements_to_destroy[i]);
+    }
+    for (int i = 0; i < num_buffers_to_destroy; i++) {
+        destroy_nonleaf_childinfo(buffers_to_destroy[i]);
+    }
+    for (int i = 0; i < num_pointers_to_free; i++) {
+        toku_free(pointers_to_free[i]);
+    }
+    // stats
     if (num_partial_evictions > 0) {
-        long delta = size_before - ftnode_memory_size(node);
         if (node->height == 0) {
+            long delta = old_attr.leaf_size - new_attr.leaf_size;
             STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, num_partial_evictions);
             STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
         } else {
+            long delta = old_attr.nonleaf_size - new_attr.nonleaf_size;
             STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF, num_partial_evictions);
             STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES, delta);
         }
     }
-
-exit:
-    *new_attr = make_ftnode_pair_attr(node);
     return 0;
 }
 

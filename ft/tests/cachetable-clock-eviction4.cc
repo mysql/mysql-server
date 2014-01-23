@@ -164,12 +164,13 @@ static int
 pe_callback (
     void *ftnode_pv __attribute__((__unused__)), 
     PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
-    PAIR_ATTR* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
+    void* extraargs __attribute__((__unused__)),
+    void (*finalize)(PAIR_ATTR bytes_freed, void *extra),
+    void *finalize_extra
     ) 
 {
     assert(false);
-    *bytes_freed = bytes_to_free;
+    finalize(bytes_to_free, finalize_extra);
     return 0;
 }
 

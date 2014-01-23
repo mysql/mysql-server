@@ -187,8 +187,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
             if ((*dn)->height == 0) {
-                PAIR_ATTR attr;
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -213,14 +212,14 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
