@@ -5,7 +5,6 @@ SET (REPLICATION_SOURCES
      load_data_events.cpp
      row_of_fields.cpp
      rows_event.cpp
-     binary_log.cpp
      value.cpp
      binlog_event.cpp
     )

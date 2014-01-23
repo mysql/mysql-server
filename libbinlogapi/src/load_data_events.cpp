@@ -174,7 +174,7 @@ Load_event::Load_event(const char *buf, uint event_len,
      information about the type of insert which was used on the master.
      Assume that it was an ordinary, non-concurrent LOAD DATA.
    */
-   is_concurrent(0)
+   is_concurrent(false)
 {
   if (event_len)
     copy_load_event(buf, event_len,
@@ -268,7 +268,7 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
   #ifndef DBUG_OFF
   /*
     This is specific to mysql test run on the server
-    for the keyword "debug_simulate_invalid_address"
+    for the keyword "simulate_invalid_address"
   */
   if (binary_log_debug::debug_simulate_invalid_address)
     db_len= data_len;
