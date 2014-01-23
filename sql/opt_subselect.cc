@@ -1525,7 +1525,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   for (tl= (TABLE_LIST*)(parent_lex->table_list.first); tl->next_local; tl= tl->next_local)
   {}
 
-  tl->next_local= subq_lex->leaf_tables.head();
+  tl->next_local= subq_lex->join->tables_list;
 
   /* A theory: no need to re-connect the next_global chain */
 
