@@ -6893,14 +6893,35 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         /* Only report error if handler has not already reported an error */
         if (!thd->is_error())
         {
-        /*
-          Exchange the key_info for the error message. If we exchange
-          key number by key name in the message later, we need correct info.
-        */
-        KEY *save_key_info= table->key_info;
-        table->key_info= key_info;
-        table->file->print_error(error, MYF(0));
-        table->key_info= save_key_info;
+          /*
+            HACK HACK HACK
+            Prepare the list of keys for an error message.
+            It must match what the engine does internally in ::add_index().
+            Here we emulate what innobase_create_key_def() does.
+            Luckily, in 10.0 this will go away.
+          */
+          KEY *save_key_info= table->key_info;
+          uint add_cnt= index_add_count, old_cnt= table->s->keys;
+          KEY *merged= (KEY*)thd->alloc((old_cnt + add_cnt) * sizeof(KEY));
+#define is_PK(K) (!my_strcasecmp(system_charset_info, (K)->name, "PRIMARY"))
+
+          if (is_PK(key_info))
+          {
+            merged[0]= key_info[0];
+            if (is_PK(table->key_info))
+            {
+              old_cnt--;
+              table->key_info++;
+            }
+            memcpy(merged + 1, table->key_info, old_cnt * sizeof(KEY));
+            memcpy(merged + old_cnt + 1, key_info + 1, (add_cnt - 1) * sizeof(KEY));
+          }
+          else
+            merged= key_info;
+
+          table->key_info= merged;
+          table->file->print_error(error, MYF(0));
+          table->key_info= save_key_info;
         }
         goto err_new_table_cleanup;
       }
