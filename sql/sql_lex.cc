@@ -3679,11 +3679,8 @@ void SELECT_LEX::mark_const_derived(bool empty)
 
 bool st_select_lex::save_leaf_tables(THD *thd)
 {
-  Query_arena *arena= thd->stmt_arena, backup;
-  if (arena->is_conventional())
-    arena= 0;                                  
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  Query_arena *arena, backup;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   List_iterator_fast<TABLE_LIST> li(leaf_tables);
   TABLE_LIST *table;
@@ -3711,10 +3708,7 @@ bool st_select_lex::save_prep_leaf_tables(THD *thd)
     return 0;
 
   Query_arena *arena= thd->stmt_arena, backup;
-  if (arena->is_conventional())
-    arena= 0;                                  
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   List_iterator_fast<TABLE_LIST> li(leaf_tables);
   TABLE_LIST *table;

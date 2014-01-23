@@ -8050,12 +8050,9 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     if (table_list->merge_underlying_list)
     {
       DBUG_ASSERT(table_list->is_merged_derived());
-      Query_arena *arena= thd->stmt_arena, backup;
+      Query_arena *arena, backup;
+      arena= thd->activate_stmt_arena_if_needed(&backup);
       bool res;
-      if (arena->is_conventional())
-        arena= 0;                                   // For easier test
-      else
-        thd->set_n_backup_active_arena(arena, &backup);
       res= table_list->setup_underlying(thd);
       if (arena)
         thd->restore_active_arena(arena, &backup);
@@ -8434,11 +8431,8 @@ void wrap_ident(THD *thd, Item **conds)
 {
   Item_direct_ref_to_ident *wrapper;
   DBUG_ASSERT((*conds)->type() == Item::FIELD_ITEM || (*conds)->type() == Item::REF_ITEM);
-  Query_arena *arena= thd->stmt_arena, backup;
-  if (arena->is_conventional())
-    arena= 0;
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  Query_arena *arena, backup;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
   if ((wrapper= new Item_direct_ref_to_ident((Item_ident *)(*conds))))
     (*conds)= (Item*) wrapper;
   if (arena)

@@ -1000,11 +1000,8 @@ JOIN::optimize()
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Query_arena *arena= thd->stmt_arena, backup;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
+    Query_arena *arena, backup;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
 
     sel->first_cond_optimization= 0;
 
