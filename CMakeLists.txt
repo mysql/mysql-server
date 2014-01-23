@@ -456,7 +456,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 ### end comment ##
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogapi/include)
 
-LINK_DIRECTORIES(${PROJECT_BINARY_DIR}/libbinlogapi/lib)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
