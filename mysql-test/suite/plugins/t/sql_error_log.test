@@ -50,6 +50,6 @@ uninstall plugin SQL_ERROR_LOG;
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 # replace the timestamp and the hostname with constant values
---replace_regex /[1-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9] [^E]*/TIME HOSTNAME /
+--replace_regex /[1-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [ 0-9][0-9]:[0-9][0-9]:[0-9][0-9] [^E]*/TIME HOSTNAME /
 cat_file $MYSQLD_DATADIR/sql_errors.log;
 
