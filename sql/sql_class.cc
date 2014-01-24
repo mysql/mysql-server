@@ -1589,6 +1589,18 @@ void THD::release_resources()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
+#ifndef EMBEDDED_LIBRARY
+  if (rli_fake)
+  {
+    rli_fake->end_info();
+    delete rli_fake;
+    rli_fake= NULL;
+  }
+  mysql_audit_free_thd(this);
+#endif
+
+  if (current_thd == this)
+    restore_globals();
   m_release_resources_done= true;
 }
 
@@ -1617,15 +1629,9 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
-#endif  
-#ifndef EMBEDDED_LIBRARY
-  if (rli_fake)
-  {
-    rli_fake->end_info();
-    delete rli_fake;
-    rli_fake= NULL;
-  }
+#endif
 
+#ifndef EMBEDDED_LIBRARY
   if (variables.gtid_next_list.gtid_set != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -1636,15 +1642,11 @@ THD::~THD()
     DBUG_ASSERT(0);
 #endif
   }
-  
-  mysql_audit_free_thd(this);
   if (rli_slave)
     rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  if (current_thd == this)
-    restore_globals();
   DBUG_VOID_RETURN;
 }
 
