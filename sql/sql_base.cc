@@ -235,6 +235,7 @@ static void check_unused(THD *thd)
   uint count= 0, open_files= 0, idx= 0;
   TABLE *cur_link, *start_link, *entry;
   TABLE_SHARE *share;
+  DBUG_ENTER("check_unused");
 
   if ((start_link=cur_link=unused_tables))
   {
@@ -243,7 +244,7 @@ static void check_unused(THD *thd)
       if (cur_link != cur_link->next->prev || cur_link != cur_link->prev->next)
       {
 	DBUG_PRINT("error",("Unused_links aren't linked properly")); /* purecov: inspected */
-	return; /* purecov: inspected */
+	DBUG_VOID_RETURN; /* purecov: inspected */
       }
     } while (count++ < table_cache_count &&
 	     (cur_link=cur_link->next) != start_link);
@@ -291,6 +292,7 @@ static void check_unused(THD *thd)
     DBUG_PRINT("error",("Unused_links doesn't match open_cache: diff: %d", /* purecov: inspected */
 			count)); /* purecov: inspected */
   }
+  DBUG_VOID_RETURN;
 }
 #else
 #define check_unused(A)
@@ -3103,6 +3105,7 @@ retry_share:
       MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
       bool wait_result;
 
+      DBUG_PRINT("info", ("old version of table share found"));
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
 
@@ -3127,6 +3130,7 @@ retry_share:
         and try to reopen them. Note: refresh_version is currently
         changed only during FLUSH TABLES.
       */
+      DBUG_PRINT("info", ("share version differs between tables"));
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
       (void)ot_ctx->request_backoff_action(Open_table_context::OT_REOPEN_TABLES,
@@ -3139,12 +3143,17 @@ retry_share:
   {
     table= share->free_tables.front();
     table_def_use_table(thd, table);
-    /* We need to release share as we have EXTRA reference to it in our hands. */
+    /*
+      We need to release share as we have EXTRA reference to it in our hands.
+    */
+    DBUG_PRINT("info", ("release temporarily acquired table share"));
     release_table_share(share);
   }
   else
   {
-    /* We have too many TABLE instances around let us try to get rid of them. */
+    /*
+      We have too many TABLE instances around let us try to get rid of them.
+     */
     while (table_cache_count > table_cache_size && unused_tables)
       free_cache_entry(unused_tables);
 
@@ -3217,6 +3226,7 @@ err_unlock:
   release_table_share(share);
   mysql_mutex_unlock(&LOCK_open);
 
+  DBUG_PRINT("exit", ("failed"));
   DBUG_RETURN(TRUE);
 }
 
@@ -6973,7 +6983,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
        */
       if (db)
         return cur_field;
-
+      
       if (found)
       {
         if (report_error == REPORT_ALL_ERRORS ||
@@ -6988,7 +6998,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
 
   if (found)
     return found;
-
+  
   /*
     If the field was qualified and there were no tables to search, issue
     an error that an unknown table was given. The situation is detected
@@ -7919,6 +7929,7 @@ err:
     TRUE   Error
     FALSE  OK
 */
+
 static bool setup_natural_join_row_types(THD *thd,
                                          List<TABLE_LIST> *from_clause,
                                          Name_resolution_context *context)
@@ -7927,6 +7938,18 @@ static bool setup_natural_join_row_types(THD *thd,
   thd->where= "from clause";
   if (from_clause->elements == 0)
     DBUG_RETURN(false); /* We come here in the case of UNIONs. */
+
+  /* 
+     Do not redo work if already done:
+     1) for stored procedures,
+     2) for multitable update after lock failure and table reopening.
+  */
+  if (!context->select_lex->first_natural_join_processing)
+  {
+    DBUG_PRINT("info", ("using cached store_top_level_join_columns"));
+    DBUG_RETURN(false);
+  }
+  context->select_lex->first_natural_join_processing= false;
 
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
@@ -7944,22 +7967,15 @@ static bool setup_natural_join_row_types(THD *thd,
       left_neighbor= table_ref_it++;
     }
     while (left_neighbor && left_neighbor->sj_subq_pred);
-    /* 
-      Do not redo work if already done:
-      1) for stored procedures,
-      2) for multitable update after lock failure and table reopening.
-    */
-    if (context->select_lex->first_natural_join_processing)
+
+    if (store_top_level_join_columns(thd, table_ref,
+                                     left_neighbor, right_neighbor))
+      DBUG_RETURN(true);
+    if (left_neighbor)
     {
-      if (store_top_level_join_columns(thd, table_ref,
-                                       left_neighbor, right_neighbor))
-        DBUG_RETURN(true);
-      if (left_neighbor)
-      {
-        TABLE_LIST *first_leaf_on_the_right;
-        first_leaf_on_the_right= table_ref->first_leaf_for_name_resolution();
-        left_neighbor->next_name_resolution_table= first_leaf_on_the_right;
-      }
+      TABLE_LIST *first_leaf_on_the_right;
+      first_leaf_on_the_right= table_ref->first_leaf_for_name_resolution();
+      left_neighbor->next_name_resolution_table= first_leaf_on_the_right;
     }
     right_neighbor= table_ref;
   }
@@ -7973,8 +7989,6 @@ static bool setup_natural_join_row_types(THD *thd,
   DBUG_ASSERT(right_neighbor);
   context->first_name_resolution_table=
     right_neighbor->first_leaf_for_name_resolution();
-  context->select_lex->first_natural_join_processing= false;
-
   DBUG_RETURN (false);
 }
 
@@ -8576,7 +8590,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
-//      DBUG_ASSERT(item->fixed);
+
       /* cache the table for the Item_fields inserted by expanding stars */
       if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)
         ((Item_field *)item)->cached_table= tables;

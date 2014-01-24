@@ -3180,7 +3180,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*
                                          (MAX_TABLES + table_count + 1));
   stat_vector= stat_ref + MAX_TABLES;
-  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
+  table_vector=(TABLE**) join->thd->calloc(sizeof(TABLE*)*(table_count*2));
   join->positions= new (join->thd->mem_root) POSITION[(table_count+1)];
   /*
     best_positions is ok to allocate with alloc() as we copy things to it with
@@ -14802,7 +14802,8 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
   save_sum_fields|= param->precomputed_group_by;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",
-             ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
+             ("table_alias: '%s'  distinct: %d  save_sum_fields: %d  "
+              "rows_limit: %lu  group: %d", table_alias,
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit,test(group)));
 
@@ -16258,7 +16259,8 @@ free_tmp_table(THD *thd, TABLE *entry)
   MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
-  DBUG_PRINT("enter",("table: %s",entry->alias.c_ptr()));
+  DBUG_PRINT("enter",("table: %s  alias: %s",entry->s->table_name.str,
+                      entry->alias.c_ptr()));
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");

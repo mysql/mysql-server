@@ -2127,14 +2127,15 @@ void st_select_lex_unit::exclude_tree()
   this to 'last' as dependent
 
   SYNOPSIS
-    last - pointer to last st_select_lex struct, before wich all 
+    last - pointer to last st_select_lex struct, before which all 
            st_select_lex have to be marked as dependent
 
   NOTE
     'last' should be reachable from this st_select_lex_node
 */
 
-bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency)
+bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last,
+                                      Item *dependency)
 {
 
   DBUG_ASSERT(this != last);
@@ -2325,7 +2326,10 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
       If we need a bigger array, we must allocate a new one.
     */
     if (ref_pointer_array_size >= n_elems)
+    {
+      DBUG_PRINT("info", ("reusing old ref_array"));
       return false;
+    }
   }
   ref_pointer_array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
   if (ref_pointer_array != NULL)
@@ -3328,6 +3332,7 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds, 
                                             Item **having_conds)
 {
+  DBUG_ENTER("st_select_lex::fix_prepare_information");
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
@@ -3356,6 +3361,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     fix_prepare_info_in_table_list(thd, table_list.first);
   }
+  DBUG_VOID_RETURN;
 }
 
 

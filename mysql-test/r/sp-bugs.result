@@ -222,3 +222,49 @@ testf_bug11763507
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 #END OF BUG#11763507 test.
+#
+# MDEV-5531 double call procedure in one session
+#
+CREATE TABLE  `t1` (
+`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`create_ts` int(10) unsigned DEFAULT '0',
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+CREATE PROCEDURE test_5531 (IN step TINYINT(1))
+BEGIN
+DECLARE counts INT DEFAULT 0;
+DECLARE cur1 CURSOR FOR
+SELECT ct.id
+FROM (SELECT NULL) AS z
+JOIN (
+SELECT id
+FROM `t1`
+    LIMIT 10
+) AS ct
+JOIN (SELECT NULL) AS x ON(
+EXISTS(
+SELECT 1
+FROM `t1`
+      WHERE id=ct.id
+LIMIT 1
+)
+);
+IF step=1 THEN
+TRUNCATE t1;
+REPEAT
+INSERT INTO `t1`
+      (create_ts) VALUES
+(UNIX_TIMESTAMP());
+SET counts=counts+1;
+UNTIL counts>150 END REPEAT;
+SET max_sp_recursion_depth=1;
+CALL test_5531(2);
+SET max_sp_recursion_depth=2;
+CALL test_5531(2);
+ELSEIF step=2 THEN
+OPEN cur1; CLOSE cur1;
+END IF;
+END $$
+CALL test_5531(1);
+DROP PROCEDURE test_5531;
+DROP TABLE t1;

@@ -4089,6 +4089,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
   uint field_count= 0;
   Query_arena *arena= thd->stmt_arena, backup;
   bool res= FALSE;
+  DBUG_ENTER("TABLE_LIST::create_field_translation");
 
   if (thd->stmt_arena->is_conventional() ||
       thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
@@ -4109,7 +4110,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
   if (field_translation)
   {
     /*
-      Update items in the field translation aftet view have been prepared.
+      Update items in the field translation after view have been prepared.
       It's needed because some items in the select list, like IN subselects,
       might be substituted for optimized ones.
     */
@@ -4122,7 +4123,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
       field_translation_updated= TRUE;
     }
 
-    return FALSE;
+    DBUG_RETURN(FALSE);
   }
 
   if (arena->is_conventional())
@@ -4148,12 +4149,14 @@ bool TABLE_LIST::create_field_translation(THD *thd)
   }
   field_translation= transl;
   field_translation_end= transl + field_count;
+  /* It's safe to cache this table for prepared statements */
+  cacheable_table= 1;
 
 exit:
   if (arena)
     thd->restore_active_arena(arena, &backup);
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 

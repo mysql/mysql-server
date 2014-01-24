@@ -2386,6 +2386,9 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   bitmap= (uchar*) (field + share->fields + 1);
   copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
+  /* Ensure we don't use the table list of the original table */
+  copy->pos_in_table_list= 0;
+
   /*
     Make a copy of all fields.
     The copied fields need to point into the copied record. This is done

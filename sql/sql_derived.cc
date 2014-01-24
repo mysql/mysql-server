@@ -716,7 +716,7 @@ exit:
   {
     TABLE *table= derived->table;
     table->derived_select_number= first_select->select_number;
-    table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
+    table->s->tmp_table= INTERNAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (derived->referencing_view)
       table->grant= derived->grant;
