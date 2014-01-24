@@ -134,14 +134,13 @@ public:
 };
 
 
-class Item_func_monthname :public Item_func_month
+class Item_func_monthname :public Item_str_func
 {
   MY_LOCALE *locale;
 public:
-  Item_func_monthname(Item *a) :Item_func_month(a) {}
+  Item_func_monthname(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "monthname"; }
   String *val_str(String *str);
-  enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
   bool check_vcol_func_processor(uchar *int_arg) {return FALSE;}

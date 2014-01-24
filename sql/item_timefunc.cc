@@ -883,16 +883,13 @@ String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint month= (uint) val_int();
   uint err;
+  MYSQL_TIME ltime;
 
-  if (null_value || !month)
-  {
-    null_value=1;
-    return (String*) 0;
-  }
-  null_value=0;
-  month_name= locale->month_names->type_names[month-1];
+  if ((null_value= (get_arg0_date(&ltime, 0) || !ltime.month)))
+    return (String *) 0;
+
+  month_name= locale->month_names->type_names[ltime.month - 1];
   str->copy(month_name, (uint) strlen(month_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
