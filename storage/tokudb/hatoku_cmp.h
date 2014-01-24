@@ -180,8 +180,11 @@ typedef struct st_key_and_col_info {
     //   length_bytes[i] is 0
     //   'i' shows up in blob_fields
     //
+    void *multi_ptr;
+    enum { TOKUDB_FIXED_FIELD, TOKUDB_VARIABLE_FIELD, TOKUDB_BLOB_FIELD};
+    uint8_t *field_types;
     uint16_t* field_lengths; //stores the field lengths of fixed size fields (1<<16 - 1 max), 
-    uchar* length_bytes; // stores the length of lengths of varchars and varbinaries
+    uint8_t* length_bytes; // stores the length of lengths of varchars and varbinaries
     uint32_t* blob_fields; // list of indexes of blob fields, 
     uint32_t num_blobs; // number of blobs in the table
     //
@@ -196,6 +199,18 @@ typedef struct st_key_and_col_info {
     //
     uint32_t num_offset_bytes; //number of bytes needed to encode the offset
 } KEY_AND_COL_INFO;
+
+static bool is_fixed_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
+}
+
+static bool is_variable_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
+}
+
+static bool is_blob_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
+}
 
 static bool field_valid_for_tokudb_table(Field* field);
 

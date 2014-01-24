@@ -2227,7 +2227,7 @@ static uint32_t create_toku_clustering_val_pack_descriptor (
     last_col = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr],i);
-        if (kc_info->field_lengths[i] == 0) {
+        if (!is_fixed_field(kc_info, i)) {
             //
             // not a fixed field, continue
             //
@@ -2274,7 +2274,7 @@ static uint32_t create_toku_clustering_val_pack_descriptor (
     last_col = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr],i);
-        if (kc_info->length_bytes[i] == 0) {
+        if (!is_variable_field(kc_info, i)) {
             //
             // not a var field, continue
             //
