@@ -12,6 +12,34 @@ set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 --source include/icp_tests.inc
 
+--echo #
+--echo # MDEV-5337: Wrong result in mariadb 5.5.32 with ORDER BY + LIMIT when index_condition_pushdown=on
+--echo # MDEV-5512: Wrong result (WHERE clause ignored) with multiple clauses using Percona-XtraDB engine
+--echo #
+
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (pk int primary key, 
+  key1 char(32),
+  key2 char(32),
+  key(key1),
+  key(key2)
+) engine=innodb;
+
+insert into t2 select 
+  A.a+10*B.a+100*C.a,
+  concat('rare-', A.a+10*B.a),
+  concat('rare-', A.a+10*B.a)
+from
+  t1 A, t1 B, t1 C;
+update t2 set key1='frequent-val' where pk between 100 and 350;
+select * from t2 ignore key(PRIMARY) 
+where key1='frequent-val' and key2 between 'rare-400' and 'rare-450' order by pk limit 2;
+
+drop table t1, t2;
+
+
 set optimizer_switch=@innodb_icp_tmp;
 set storage_engine= @save_storage_engine;
 

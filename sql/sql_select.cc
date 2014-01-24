@@ -19091,7 +19091,7 @@ check_reverse_order:
             tab->limit= best_select_limit;
         }
       }
-      else if (tab->type != JT_ALL)
+      else if (tab->type != JT_ALL || tab->select->quick)
       {
         /*
           We're about to use a quick access to the table.
