@@ -12371,7 +12371,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
   spec.type=(enum_group_type)gtid_info_struct.type;
-  sid.copy_from((uchar *)gtid_info_struct.uuid_buf);
+  sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
   spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
   DBUG_VOID_RETURN;

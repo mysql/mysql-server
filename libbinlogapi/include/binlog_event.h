@@ -17,24 +17,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
-
-/**
-  @addtogroup Replication
-  @{
-
-  @file binlog_event.h
-
-  @brief Contains the classes representing events occuring in the replication
-  stream. Each event is represented as a byte sequence with logical divisions
-  as event header, event specific data and event footer. The header and footer
-  are common to all the events and are represented as two different subclasses.
-*/
-
 #ifndef BINLOG_EVENT_INCLUDED
 #define	BINLOG_EVENT_INCLUDED
 
 #include "debug_vars.h"
-/*
+/**
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
@@ -57,7 +44,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <map>
 #include <sstream>
 #include <vector>
-
 
 /*
   The symbols below are a part of the common definitions between
@@ -86,13 +72,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /**
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
    Compared to version 3, version 4 has:
-   - a different Start_event, which includes info about the binary log
+   - a different Start_log_event, which includes info about the binary log
    (sizes of headers); this info is included for better compatibility if the
    master's MySQL version is different from the slave's.
    - all events have a unique ID (the triplet (server_id, timestamp at server
    start, other) to be sure an event is not executed more than once in a
    multimaster setup, example:
-   @verbatim
                 M1
               /   \
              v     v
@@ -100,11 +85,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
              \     /
               v   v
                 S
-   @endverbatim
    if a query is run on M1, it will arrive twice on S, so we need that S
    remembers the last unique ID it has processed, to compare and know if the
    event should be skipped or not. Example of ID: we already have the server id
    (4 bytes), plus:
+   timestamp_when_the_master_started (4 bytes), a counter (a sequence number
+   which increments every time we write an event to the binlog) (3 bytes).
+   Q: how do we handle when the counter is overflowed and restarts from 0 ?
+
+   - Query and Load (Create or Execute) events may have a more precise
+     timestamp (with microseconds), number of matched/affected/warnings rows
    timestamp_when_the_master_started (4 bytes), a counter (a sequence number
    which increments every time we write an event to the binlog) (3 bytes).
    Q: how do we handle when the counter is overflowed and restarts from 0 ?
@@ -156,7 +146,7 @@ template <class T> bool valid_buffer_range(T jump,
 
 
 /**
-  Enumeration of group types formed while transactions.
+  Enumeration of group types formed inside a transactions.
   The structure of a group is as follows:
   @verbatim
   Group {
@@ -478,31 +468,6 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
 {
   return (uint32_t)crc32(crc, pos, length);
 }
-
-/**
-  This method copies the string pointed to by src (including
-  the terminating null byte ('\0')) to the array pointed to by dest.
-  The strings may not overlap, and the destination string dest must be
-  large enough to receive the copy.
-
-  @param src  the source string
-  @param dest the destination string
-
-  @return     pointer to the end of the string dest
-*/
-char *bapi_stpcpy(char *dst, const char *src);
-
-
-/**
-  bapi_strmake(dest,src,length) moves length characters, or until end, of src to
-  dest and appends a closing NUL to dest.
-  Note that if strlen(src) >= length then dest[length] will be set to \0
-  bapi_strmake() returns pointer to closing null
-  @param dst    the destintion string
-  @param src    the source string
-  @param length length to copy from source to destination
-*/
-char *bapi_strmake(char *dst, const char *src, size_t length);
 
 #define LOG_EVENT_HEADER_SIZE 20
 
@@ -2361,45 +2326,67 @@ class Rand_event: public Binary_log_event
     <th>Description</th>
   </tr>
   <tr>
-    <td>type</td>
-    <td>enum_group_type</td>
-    <td>Group type of the groups created while transaction</td>
+    <td>type</th>
+    <td>enum_group_type</th>
+    <td>Group type of the groups created while transaction</th>
   </tr>
   <tr>
-    <td>bytes_to_copy</td>
-    <td>size_t</td>
+    <td>bytes_to_copy</th>
+    <td>size_t</th>
     <td>Number of bytes to copy from the buffer, this is
-        used as the size of array uuid_buf</td>
+        used as the size of array uuid_buf</th>
   </tr>
   <tr>
-    <td>uuid_buf</td>
-    <td>unsigned char array</td>
+    <td>uuid_buf</th>
+    <td>unsigned char array</th>
     <td>This stores the Uuid of the server on which transaction
-        is happening</td>
+        is originated</th>
   </tr>
   <tr>
-    <td>rpl_gtid_sidno</td>
-    <td>4 bytes integer</td>
-    <td>SIDNO (source ID number, first component of GTID)</td>
+    <td>rpl_gtid_sidno</th>
+    <td>4 bytes integer</th>
+    <td>SIDNO (source ID number, first component of GTID)</th>
   </tr>
   <tr>
-    <td>rpl_gtid_gno</td>
-    <td>8 bytes integer</td>
-    <td>GNO (group number, second component of GTID)</td>
+    <td>rpl_gtid_gno</th>
+    <td>8 bytes integer</th>
+    <td>GNO (group number, second component of GTID)</th>
   </tr>
   </table>
 */
 struct gtid_info
 {
-  uint8_t type;
-  //TODO Replace 16 with BYTE_LENGTH defined in struct Uuid in rpl_gtid.h
-  const static size_t bytes_to_copy= 16;
-  unsigned char uuid_buf[bytes_to_copy];
+  enum_group_type type;
   int32_t  rpl_gtid_sidno;
   int64_t  rpl_gtid_gno;
 };
 
+/**
+  @struct  Uuid_parent
 
+  The structure contains the following components.
+  <table>
+  <caption>Structure gtid_info</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>byte</th>
+    <td>unsigned char array</th>
+    <td>This stores the Uuid of the server on which transaction
+        is originated</th>
+  </tr>
+*/
+struct Uuid_parent
+{
+  /** The number of bytes in the data of a Uuid. */
+  static const size_t BYTE_LENGTH= 16;
+  /** The data for this Uuid. */
+  unsigned char bytes[BYTE_LENGTH];
+};
 /**
   @class Gtid_event
   GTID stands for Global Transaction IDentifier
@@ -2476,8 +2463,19 @@ protected:
   static const int ENCODED_FLAG_LENGTH= 1;
   static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
   static const int ENCODED_GNO_LENGTH= 8;
+  /// Length of COMMIT TIMESTAMP index in event encoding
+  static const int COMMIT_TS_INDEX_LEN= 1;
   gtid_info gtid_info_struct;
+  Uuid_parent Uuid_parent_struct;
   bool commit_flag;
+public:
+  /// Total length of post header
+  static const int POST_HEADER_LENGTH=
+    ENCODED_FLAG_LENGTH      +  /* flags */
+    ENCODED_SID_LENGTH       +  /* SID length */
+    ENCODED_GNO_LENGTH       +  /* GNO length */
+    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
+    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
 };
 
 /**
@@ -2516,8 +2514,12 @@ class Previous_gtids_event : public Binary_log_event
 public:
   Previous_gtids_event(const char *buf, unsigned int event_len,
                        const Format_description_event *descr_event);
-  Previous_gtids_event() { } //called by the ctor with Gtid_set parameter
+  //called by the constructor with Gtid_set parameter
+  Previous_gtids_event()
+  {
+  }
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT ; }
+  //TODO: Add definitions
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 protected:

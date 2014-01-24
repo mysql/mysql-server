@@ -29,7 +29,7 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
   my_init_dynamic_array(&_sidno_to_sid, sizeof(Node *), 8, 8);
   my_init_dynamic_array(&_sorted, sizeof(rpl_sidno), 8, 8);
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), Uuid::BYTE_LENGTH, NULL,
+               offsetof(Node, sid.uuid_par.bytes), binary_log::Uuid_parent::BYTE_LENGTH, NULL,
                my_free, 0);
   DBUG_VOID_RETURN;
 }
@@ -57,7 +57,7 @@ enum_return_status Sid_map::clear()
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), Uuid::BYTE_LENGTH, NULL,
+               offsetof(Node, sid.uuid_par.bytes), binary_log::Uuid_parent::BYTE_LENGTH, NULL,
                my_free, 0);
   reset_dynamic(&_sidno_to_sid);
   reset_dynamic(&_sorted);
@@ -76,8 +76,8 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 #endif
   if (sid_lock)
     sid_lock->assert_some_lock();
-  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                                     rpl_sid::BYTE_LENGTH);
+  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
+                                     binary_log::Uuid_parent::BYTE_LENGTH);
   if (node != NULL)
   {
     DBUG_PRINT("info", ("existed as sidno=%d", node->sidno));
@@ -96,8 +96,8 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
   }
   DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
   rpl_sidno sidno;
-  node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                               rpl_sid::BYTE_LENGTH);
+  node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
+                               binary_log::Uuid_parent::BYTE_LENGTH);
   if (node != NULL)
     sidno= node->sidno;
   else
@@ -156,8 +156,8 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
             rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
                                                  rpl_sidno *);
             const rpl_sid &other_sid= sidno_to_sid(*sorted_p);
-            if (memcmp(sid.bytes, other_sid.bytes,
-                       rpl_sid::BYTE_LENGTH) >= 0)
+            if (memcmp(sid.uuid_par.bytes, other_sid.uuid_par.bytes,
+                       binary_log::Uuid_parent::BYTE_LENGTH) >= 0)
               break;
             memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
             sorted_i--;

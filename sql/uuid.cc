@@ -49,7 +49,7 @@ const int Uuid::hex_to_byte[]=
 enum_return_status Uuid::parse(const char *s)
 {
   DBUG_ENTER("Uuid::parse");
-  unsigned char *u= bytes;
+  unsigned char *u= uuid_par.bytes;
   unsigned char *ss= (unsigned char *)s;
   for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
   {
@@ -132,5 +132,5 @@ size_t Uuid::to_string(const uchar* bytes_arg, char *buf)
 
 size_t Uuid::to_string(char *buf) const
 {
-  return to_string(bytes, buf);
+  return to_string(uuid_par.bytes, buf);
 }

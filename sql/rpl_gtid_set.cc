@@ -1275,7 +1275,7 @@ void Gtid_set::encode(uchar *buf) const
       n_sids++;
       // store SID
       sid_map->sidno_to_sid(sidno).copy_to(buf);
-      buf+= rpl_sid::BYTE_LENGTH;
+      buf+= binary_log::Uuid_parent::BYTE_LENGTH;
       // make place for number of intervals
       uint64 n_intervals= 0;
       uchar *n_intervals_p= buf;

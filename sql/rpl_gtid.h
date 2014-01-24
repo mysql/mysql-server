@@ -245,18 +245,20 @@ struct Uuid
     XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
     @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
   */
+
+  binary_log::Uuid_parent uuid_par;
   enum_return_status parse(const char *string);
   /// Set to all zeros.
-  void clear() { memset(bytes, 0, BYTE_LENGTH); }
-  /// Copies the given 16-byte data to this UUID.
-  void copy_from(const uchar *data) { memcpy(bytes, data, BYTE_LENGTH); }
+  void clear() { memset(uuid_par.bytes, 0, uuid_par.BYTE_LENGTH); }
+  void copy_from(const unsigned char *data) { memcpy(uuid_par.bytes, data, uuid_par.BYTE_LENGTH);}
   /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) { copy_from(data.bytes); }
+  void copy_from(const Uuid &data) { copy_from((uchar *)data.uuid_par.bytes); }
   /// Copies the given UUID object to this UUID.
-  void copy_to(uchar *data) const { memcpy(data, bytes, BYTE_LENGTH); }
+  void copy_to(uchar *data) const { memcpy(data, uuid_par.bytes,
+                                           uuid_par.BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.
   bool equals(const Uuid &other) const
-  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
+  { return memcmp(uuid_par.bytes, other.uuid_par.bytes, uuid_par.BYTE_LENGTH) == 0; }
   /**
     Generates a 36+1 character long representation of this UUID object
     in the given string buffer.
@@ -291,12 +293,8 @@ struct Uuid
   static bool is_valid(const char *string);
   /// The number of bytes in the textual representation of a Uuid.
   static const size_t TEXT_LENGTH= 36;
-  /// The number of bytes in the data of a Uuid.
-  static const size_t BYTE_LENGTH= 16;
   /// The number of bits in the data of a Uuid.
   static const size_t BIT_LENGTH= 128;
-  /// The data for this Uuid.
-  uchar bytes[BYTE_LENGTH];
 private:
   static const int NUMBER_OF_SECTIONS= 5;
   static const int bytes_per_section[NUMBER_OF_SECTIONS];
@@ -519,8 +517,8 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                                       rpl_sid::BYTE_LENGTH);
+    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
+                                       binary_log::Uuid_parent::BYTE_LENGTH);
     if (node == NULL)
       return 0;
     return node->sidno;

@@ -3707,18 +3707,6 @@ private:
   static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
     rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
 
-  /// Length of COMMIT TIMESTAMP index in event encoding
-  static const int COMMIT_TS_INDEX_LEN= 1;
-
-public:
-  /// Total length of post header
-  static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH      +  /* flags */
-    ENCODED_SID_LENGTH       +  /* SID length */
-    ENCODED_GNO_LENGTH       +  /* GNO length */
-    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
-    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
-
 private:
   /**
     Internal representation of the GTID.  The SIDNO will be
@@ -3732,8 +3720,8 @@ private:
 /**
   @class Previous_gtids_log_event
 
-  This is the subclass if Previous_gtids_event and Log_event
-  It is used to record the Gtids executed in the last binary log file,
+  This is the subclass of Previous_gtids_event and Log_event
+  It is used to record the gtid_executed in the last binary log file,
   for ex after flush logs, or at the starting of the binary log file
 
   @internal
@@ -3793,7 +3781,7 @@ public:
       return (Log_event::write_header(file, get_data_size()) ||
               Log_event::write_data_header(file));
     }
-  
+
     return (Log_event::write_header(file, get_data_size()) ||
             Log_event::write_data_header(file) ||
             write_data_body(file) ||
