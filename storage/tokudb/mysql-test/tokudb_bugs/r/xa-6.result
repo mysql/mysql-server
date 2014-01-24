@@ -1,4 +1,5 @@
 drop table if exists t1;
+FLUSH TABLES;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
 xa begin 'a','ab';
 insert into t1 values (1);

@@ -11,14 +11,18 @@ set default_storage_engine='tokudb';
 
 create table t (id bigint primary key, x bigint not null);
 
+begin;
 let $i=0;
 let $n=10000;
 while ($i < $n) {
       eval insert into t values ($i,0);
       inc $i;
 }
+commit;
 
+# TokuDB may do index or range scan on this. Both are ok
 replace_column 9 #;
+--replace_result index index_or_range range index_or_range
 explain select id from t where id>0 limit 10;
 
 replace_column 9 #;

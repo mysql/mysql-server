@@ -11,12 +11,14 @@ set default_storage_engine='innodb';
 
 create table t (id bigint primary key, x bigint not null);
 
+begin;
 let $i=0;
 let $n=10000;
 while ($i < $n) {
       eval insert into t values ($i,0);
       inc $i;
 }
+commit;
 
 replace_column 9 #;
 explain select id from t where id>0 limit 10;
