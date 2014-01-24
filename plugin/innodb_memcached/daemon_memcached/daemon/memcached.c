@@ -141,6 +141,7 @@ do { \
 #endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 volatile sig_atomic_t memcached_shutdown;
+volatile sig_atomic_t memcached_initialized;
 
 /*
  * We keep the current time of day in a global variable that's updated by a
@@ -6747,6 +6748,11 @@ bool shutdown_complete(void)
 {
     return(memcached_shutdown == 2);
 }
+
+bool init_complete(void)
+{
+    return(memcached_initialized == 1);
+}
 #endif
 
 static EXTENSION_LOGGER_DESCRIPTOR* get_logger(void)
@@ -7072,6 +7078,7 @@ int main (int argc, char **argv) {
 #endif /* INNODB_MEMCACHED */
 
     memcached_shutdown = 0;
+    memcached_initialized = 0;
 
     if (!sanitycheck()) {
         return(NULL);
@@ -7924,6 +7931,8 @@ int main (int argc, char **argv) {
     /* Drop privileges no longer needed */
     drop_privileges();
 
+    memcached_initialized = 1;
+
     /* enter the event loop */
     event_base_loop(main_base, 0);
 
@@ -7947,6 +7956,7 @@ func_exit:
       free(settings.inter);
 
     memcached_shutdown = 2;
+    memcached_initialized = 2;
 
     return EXIT_SUCCESS;
 }
