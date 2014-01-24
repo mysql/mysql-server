@@ -175,7 +175,7 @@ Log_event_header(const char* buf,
                  const Format_description_event *description_event)
 : data_written(0), log_pos(0)
 {
-  uint32_t tmp_sec;
+  uint32_t tmp_sec= 0;
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
@@ -1533,12 +1533,14 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       pos+= 4;
       break;
     case Q_MICROSECONDS:
+    {
       CHECK_SPACE(pos, end, 3);
-      header()->when.tv_usec= 0;
-      memcpy(&(header()->when.tv_usec), pos, 3);
-      header()->when.tv_usec= le32toh(header()->when.tv_usec);
+      uint32_t temp_usec= 0;
+      memcpy(&temp_usec, pos, 3);
+      header()->when.tv_usec= le32toh(temp_usec);
       pos+= 3;
       break;
+    }
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
