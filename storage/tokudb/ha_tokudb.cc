@@ -144,7 +144,7 @@ static const char *ha_tokudb_exts[] = {
 static inline uint32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint offset = 0;
     for (uint i = 0; i < table_share->fields; i++) {
-        if (kc_info->field_lengths[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
+        if (is_fixed_field(kc_info, i) && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
             offset += kc_info->field_lengths[i];
         }
     }
@@ -155,7 +155,7 @@ static inline uint32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHA
 static inline uint32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint len = 0;
     for (uint i = 0; i < table_share->fields; i++) {
-        if (kc_info->length_bytes[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
+        if (is_variable_field(kc_info, i) && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
             len += kc_info->num_offset_bytes;
         }
     }
@@ -183,13 +183,13 @@ static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INF
     //
     // create the field lengths
     //
-    kc_info->field_lengths = (uint16_t *)tokudb_my_malloc(table_share->fields*sizeof(uint16_t), MYF(MY_WME | MY_ZEROFILL));
-    kc_info->length_bytes= (uchar *)tokudb_my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
-    kc_info->blob_fields= (uint32_t *)tokudb_my_malloc(table_share->fields*sizeof(uint32_t), MYF(MY_WME | MY_ZEROFILL));
-    
-    if (kc_info->field_lengths == NULL || 
-        kc_info->length_bytes == NULL || 
-        kc_info->blob_fields == NULL ) {
+    kc_info->multi_ptr = tokudb_my_multi_malloc(MYF(MY_WME+MY_ZEROFILL),
+                                                &kc_info->field_types, (uint)(table_share->fields * sizeof (uint8_t)),
+                                                &kc_info->field_lengths, (uint)(table_share->fields * sizeof (uint16_t)),
+                                                &kc_info->length_bytes, (uint)(table_share->fields * sizeof (uint8_t)),
+                                                &kc_info->blob_fields, (uint)(table_share->fields * sizeof (uint32_t)),
+                                                NullS);
+    if (kc_info->multi_ptr == NULL) {
         error = ENOMEM;
         goto exit;
     }
@@ -198,9 +198,7 @@ exit:
         for (uint i = 0; MAX_KEY + 1; i++) {
             bitmap_free(&kc_info->key_filters[i]);
         }
-        tokudb_my_free(kc_info->field_lengths);
-        tokudb_my_free(kc_info->length_bytes);
-        tokudb_my_free(kc_info->blob_fields);
+        tokudb_my_free(kc_info->multi_ptr);
     }
     return error;
 }
@@ -214,12 +212,11 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
         tokudb_my_free(kc_info->cp_info[i]);
         kc_info->cp_info[i] = NULL; // 3144
     }
-    
-    tokudb_my_free(kc_info->field_lengths);
+
+    tokudb_my_free(kc_info->multi_ptr);
+    kc_info->field_types = NULL;
     kc_info->field_lengths = NULL;
-    tokudb_my_free(kc_info->length_bytes);
     kc_info->length_bytes = NULL;
-    tokudb_my_free(kc_info->blob_fields);
     kc_info->blob_fields = NULL;
 }
 
@@ -1414,11 +1411,11 @@ static int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* tabl
         // offsets are calculated AFTER the NULL bytes
         //
         if (!bitmap_is_set(&kc_info->key_filters[keynr],j)) {
-            if (kc_info->field_lengths[j]) {
+            if (is_fixed_field(kc_info, j)) {
                 curr->col_pack_val = curr_fixed_offset;
                 curr_fixed_offset += kc_info->field_lengths[j];
             }
-            else if (kc_info->length_bytes[j]) {
+            else if (is_variable_field(kc_info, j)) {
                 curr->col_pack_val = curr_var_index;
                 curr_var_index++;
             }
@@ -1473,10 +1470,12 @@ static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, K
         case toku_type_fixstring:
             pack_length = field->pack_length();
             assert(pack_length < 1<<16);
+            kc_info->field_types[i] = KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
             kc_info->field_lengths[i] = (uint16_t)pack_length;
             kc_info->length_bytes[i] = 0;
             break;
         case toku_type_blob:
+            kc_info->field_types[i] = KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
             kc_info->field_lengths[i] = 0;
             kc_info->length_bytes[i] = 0;
             kc_info->blob_fields[curr_blob_field_index] = i;
@@ -1484,9 +1483,7 @@ static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, K
             break;
         case toku_type_varstring:
         case toku_type_varbinary:
-            //
-            // meaning it is variable sized
-            //
+            kc_info->field_types[i] = KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
             kc_info->field_lengths[i] = 0;
             kc_info->length_bytes[i] = (uchar)((Field_varstring *)field)->length_bytes;
             max_var_bytes += field->field_length;
@@ -2256,14 +2253,14 @@ int ha_tokudb::pack_row_in_buff(
         if (bitmap_is_set(&share->kc_info.key_filters[index],i)) {
             continue;
         }
-        if (share->kc_info.field_lengths[i]) {
+        if (is_fixed_field(&share->kc_info, i)) {
             fixed_field_ptr = pack_fixed_field(
                 fixed_field_ptr,
                 record + curr_field_offset, 
                 share->kc_info.field_lengths[i]
                 );
         }
-        else if (share->kc_info.length_bytes[i]) {
+        else if (is_variable_field(&share->kc_info, i)) {
             var_field_data_ptr = pack_var_field(
                 var_field_offset_ptr,
                 var_field_data_ptr,
@@ -2423,7 +2420,7 @@ int ha_tokudb::unpack_row(
                 continue;
             }
 
-            if (share->kc_info.field_lengths[i]) {
+            if (is_fixed_field(&share->kc_info, i)) {
                 fixed_field_ptr = unpack_fixed_field(
                     record + field_offset(field, table),
                     fixed_field_ptr,
@@ -2434,7 +2431,7 @@ int ha_tokudb::unpack_row(
             // here, we DO modify var_field_data_ptr or var_field_offset_ptr
             // as we unpack variable sized fields
             //
-            else if (share->kc_info.length_bytes[i]) {
+            else if (is_variable_field(&share->kc_info, i)) {
                 switch (share->kc_info.num_offset_bytes) {
                 case (1):
                     data_end_offset = var_field_offset_ptr[0];
@@ -4327,7 +4324,7 @@ void ha_tokudb::set_query_columns(uint keynr) {
                 //
                 // if fixed field length
                 //
-                if (share->kc_info.field_lengths[i] != 0) {
+                if (is_fixed_field(&share->kc_info, i)) {
                     //
                     // save the offset into the list
                     //
@@ -4337,7 +4334,7 @@ void ha_tokudb::set_query_columns(uint keynr) {
                 //
                 // varchar or varbinary
                 //
-                else if (share->kc_info.length_bytes[i] != 0) {
+                else if (is_variable_field(&share->kc_info, i)) {
                     var_cols_for_query[curr_var_col_index] = i;
                     curr_var_col_index++;
                 }
