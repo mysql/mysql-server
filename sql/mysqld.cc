@@ -266,7 +266,7 @@ extern "C" int gethostname(char *name, int namelen);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-extern "C" sig_handler handle_fatal_signal(int sig);
+extern "C" void handle_fatal_signal(int sig);
 #endif
 
 /* Constants */
@@ -1298,7 +1298,7 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-extern "C" sig_handler print_signal_warning(int sig)
+extern "C" void print_signal_warning(int sig)
 {
   sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
@@ -2115,7 +2115,7 @@ void my_init_signals(void)
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     /* Change limits so that we will get a core file */
-    STRUCT_RLIMIT rl;
+    struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl))
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");

@@ -1083,35 +1083,6 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     t->day-= 2;
     shift= 2;
   }
-#ifdef TIME_T_UNSIGNED
-  else
-  {
-    /*
-      We can get 0 in time_t representaion only on 1969, 31 of Dec or on
-      1970, 1 of Jan. For both dates we use shift, which is added
-      to t->day in order to step out a bit from the border.
-      This is required for platforms, where time_t is unsigned.
-      As far as I know, among the platforms we support it's only QNX.
-      Note: the order of below if-statements is significant.
-    */
-
-    if ((t->year == TIMESTAMP_MIN_YEAR + 1) && (t->month == 1)
-        && (t->day <= 10))
-    {
-      t->day+= 2;
-      shift= -2;
-    }
-
-    if ((t->year == TIMESTAMP_MIN_YEAR) && (t->month == 12)
-        && (t->day == 31))
-    {
-      t->year++;
-      t->month= 1;
-      t->day= 2;
-      shift= -2;
-    }
-  }
-#endif
 
   tmp= (time_t) (((calc_daynr((uint) t->year, (uint) t->month, (uint) t->day) -
                    (long) days_at_timestart) * SECONDS_IN_24H +

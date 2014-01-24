@@ -33,7 +33,7 @@ static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
 time_t next_alarm_expire_time= ~ (time_t) 0;
-static sig_handler process_alarm_part2(int sig);
+static void process_alarm_part2(int sig);
 
 #if !defined(_WIN32)
 
@@ -48,7 +48,7 @@ pthread_t alarm_thread;
 
 #define reschedule_alarms() pthread_kill(alarm_thread,thr_server_alarm)
 
-static sig_handler thread_alarm(int sig __attribute__((unused)));
+static void thread_alarm(int sig __attribute__((unused)));
 
 static int compare_ulong(void *not_used __attribute__((unused)),
 			 uchar *a_ptr,uchar* b_ptr)
@@ -225,7 +225,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   every second.
 */
 
-sig_handler process_alarm(int sig __attribute__((unused)))
+void process_alarm(int sig __attribute__((unused)))
 {
   sigset_t old_mask;
 
@@ -245,7 +245,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 }
 
 
-static sig_handler process_alarm_part2(int sig __attribute__((unused)))
+static void process_alarm_part2(int sig __attribute__((unused)))
 {
   ALARM *alarm_data;
   DBUG_ENTER("process_alarm");
@@ -426,7 +426,7 @@ void thr_alarm_info(ALARM_INFO *info)
 */
 
 
-static sig_handler thread_alarm(int sig __attribute__((unused)))
+static void thread_alarm(int sig __attribute__((unused)))
 {
 #ifdef MAIN
   printf("thread_alarm\n"); fflush(stdout);
@@ -448,7 +448,7 @@ void thr_alarm_kill(my_thread_id thread_id)
   /* Can't do this yet */
 }
 
-sig_handler process_alarm(int sig __attribute__((unused)))
+void process_alarm(int sig __attribute__((unused)))
 {
   /* Can't do this yet */
 }
@@ -622,7 +622,7 @@ static void *test_thread(void *arg)
 }
 
 
-static sig_handler print_signal_warning(int sig)
+static void print_signal_warning(int sig)
 {
   printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
   fflush(stdout);
