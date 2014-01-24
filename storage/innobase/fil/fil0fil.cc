@@ -637,17 +637,18 @@ fil_node_create(
 	const char*	name,	/*!< in: file name (file must be closed) */
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
-	ulint		id,	/*!< in: space id where to append */
+	fil_space_t*	space,	/*!< in,out: space where to append */
 	bool		is_raw)	/*!< in: true if a raw device or
 				a raw disk partition */
 {
 	fil_node_t*	node;
-	fil_space_t*	space;
 
 	ut_a(fil_system);
 	ut_a(name);
 
-	mutex_enter(&fil_system->mutex);
+	if (space == NULL) {
+		return(NULL);
+	}
 
 	node = static_cast<fil_node_t*>(ut_zalloc(sizeof(fil_node_t)));
 
@@ -660,34 +661,11 @@ fil_node_create(
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
 
-	space = fil_space_get_by_id(id);
-
-	if (space == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not find tablespace %lu for"
-			" file %s in the tablespace memory cache.",
-			(ulong) id, name);
-		::ut_free(node->name);
-
-		::ut_free(node);
-
-		mutex_exit(&fil_system->mutex);
-
-		return(NULL);
-	}
-
 	space->size += size;
 
 	node->space = space;
 
 	UT_LIST_ADD_LAST(space->chain, node);
-
-	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
-
-		fil_system->max_assigned_id = id;
-	}
-
-	mutex_exit(&fil_system->mutex);
 
 	return(node->name);
 }
@@ -1165,9 +1143,10 @@ fil_node_free(
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
-@return true if success */
+@retval pointer to the tablespace
+@retval NULL on failure */
 
-bool
+fil_space_t*
 fil_space_create(
 /*=============*/
 	const char*	name,	/*!< in: space name */
@@ -1177,43 +1156,33 @@ fil_space_create(
 {
 	fil_space_t*	space;
 
-	DBUG_EXECUTE_IF("fil_space_create_failure", return(false););
+	DBUG_EXECUTE_IF("fil_space_create_failure", return(NULL););
 
 	ut_a(fil_system);
 	ut_a(fsp_flags_is_valid(flags));
 
+	mutex_enter(&fil_system->mutex);
+
 	/* Look for a matching tablespace and if found free it. */
-	do {
-		mutex_enter(&fil_system->mutex);
+	while ((space = fil_space_get_by_name(name)) != NULL) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Tablespace '%s' exists in the cache"
+			" with id %lu != %lu",
+			name, (ulong) space->id, (ulong) id);
 
-		space = fil_space_get_by_name(name);
-
-		if (space != 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Tablespace '%s' exists in the cache"
-				" with id %lu != %lu",
-				name, (ulong) space->id, (ulong) id);
-
-			if (is_system_tablespace(id)
-			    || purpose != FIL_TABLESPACE) {
-
-				mutex_exit(&fil_system->mutex);
-
-				return(false);
-			}
-
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Freeing existing tablespace '%s' entry"
-				" from the cache with id %lu",
-				name, (ulong) id);
-
-			bool	success = fil_space_free(space->id, false);
-			ut_a(success);
-
+		if (is_system_tablespace(id) || purpose != FIL_TABLESPACE) {
 			mutex_exit(&fil_system->mutex);
+			return(NULL);
 		}
 
-	} while (space != 0);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Freeing existing tablespace '%s' entry"
+			" from the cache with id %lu",
+			name, (ulong) id);
+
+		bool	success = fil_space_free(space->id, false);
+		ut_a(success);
+	}
 
 	space = fil_space_get_by_id(id);
 
@@ -1225,8 +1194,7 @@ fil_space_create(
 			name, (ulong) id, space->name, (ulong) space->id);
 
 		mutex_exit(&fil_system->mutex);
-
-		return(false);
+		return(NULL);
 	}
 
 	space = static_cast<fil_space_t*>(ut_zalloc(sizeof(*space)));
@@ -1234,7 +1202,7 @@ fil_space_create(
 	space->name = mem_strdup(name);
 	space->id = id;
 
- 	UT_LIST_INIT(space->chain, &fil_node_t::chain);
+	UT_LIST_INIT(space->chain, &fil_node_t::chain);
 
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
@@ -1271,9 +1239,14 @@ fil_space_create(
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
+	if (id < SRV_LOG_SPACE_FIRST_ID && id > fil_system->max_assigned_id) {
+
+		fil_system->max_assigned_id = id;
+	}
+
 	mutex_exit(&fil_system->mutex);
 
-	return(true);
+	return(space);
 }
 
 /*******************************************************************//**
@@ -3377,6 +3350,7 @@ fil_create_new_single_table_tablespace(
 	bool		success;
 	bool		is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+	fil_space_t*	space = NULL;
 
 	ut_ad(!is_system_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
@@ -3527,8 +3501,9 @@ fil_create_new_single_table_tablespace(
 		}
 	}
 
-	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
-	if (!success || !fil_node_create(path, size, space_id, false)) {
+	space = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
+
+	if (!fil_node_create(path, size, space, false)) {
 		err = DB_ERROR;
 		goto error_exit_1;
 	}
@@ -3852,17 +3827,16 @@ fil_open_single_table_tablespace(
 	}
 
 skip_validate:
-	if (err != DB_SUCCESS) {
-		; // Don't load the tablespace into the cache
-	} else if (!fil_space_create(tablename, id, flags, FIL_TABLESPACE)) {
-		err = DB_ERROR;
-	} else {
+	if (err == DB_SUCCESS) {
+		fil_space_t*	space	= fil_space_create(
+			tablename, id, flags, FIL_TABLESPACE);
 		/* We do not measure the size of the file, that is why
 		we pass the 0 below */
 
-		if (!fil_node_create(df_remote.is_open() ? df_remote.filepath() :
-				     df_dict.is_open() ? df_dict.filepath() :
-				     df_default.filepath(), 0, id, false)) {
+		if (!fil_node_create(
+			    df_remote.is_open() ? df_remote.filepath() :
+			    df_dict.is_open() ? df_dict.filepath() :
+			    df_default.filepath(), 0, space, false)) {
 			err = DB_ERROR;
 		}
 	}
@@ -3952,9 +3926,7 @@ fil_load_single_table_tablespace(
 	Datafile	df_default;
 	RemoteDatafile	df_remote;
 	os_offset_t	size;
-#ifdef UNIV_HOTBACKUP
-	fil_space_t*	space;
-#endif
+	fil_space_t*	space = NULL;
 
 	/* The caller assured that the extension is ".ibd" or ".isl". */
 	ut_ad(0 == memcmp(filename + filename_len - 4, DOT_IBD, 4)
@@ -4165,29 +4137,25 @@ will_not_choose:
 	}
 	mutex_exit(&fil_system->mutex);
 #endif /* UNIV_HOTBACKUP */
-	bool file_space_create_success = fil_space_create(
+	space = fil_space_create(
 		name, df->space_id(), df->flags(), FIL_TABLESPACE);
 
-	if (!file_space_create_success) {
-		if (srv_force_recovery > 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"innodb_force_recovery was set to %lu."
-				" Continuing crash recovery even though"
-				" the tablespace creation of this table"
-				" failed.",
-				srv_force_recovery);
-			goto func_exit;
-		}
-
-		/* Exit here with a core dump, stack, etc. */
-		ut_a(file_space_create_success);
+	if (space == NULL && srv_force_recovery > 0) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"innodb_force_recovery was set to %lu."
+			" Continuing crash recovery even though"
+			" the tablespace creation of this table"
+			" failed.",
+			srv_force_recovery);
+		goto func_exit;
 	}
 
 	/* We do not use the size information we have about the file, because
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	if (!fil_node_create(df->filepath(), 0, df->space_id(), false)) {
+	if (!fil_node_create(df->filepath(), 0, space, false)) {
+		ut_a(space != NULL);
 		ut_error;
 	}
 

@@ -648,7 +648,7 @@ Datafile::restore_from_doublewrite(
 	page_no = page_get_page_no(page);
 	page_size = fsp_flags_get_page_size(flags);
 
-	ut_ad(page_no == restore_page_no);
+	ut_a(page_no == restore_page_no);
 
 	buflen = zip_size ? zip_size: page_size;
 

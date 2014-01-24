@@ -811,7 +811,8 @@ SysTablespace::open_or_create(
 	lsn_t*	min_lsn,
 	lsn_t*	max_lsn)
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
+	fil_space_t*	space	= NULL;
 
 	ut_ad(!m_files.empty());
 
@@ -874,7 +875,7 @@ SysTablespace::open_or_create(
 
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
-			fil_space_create(
+			space = fil_space_create(
 				it->m_filepath, space_id(), flags,
 				FIL_TABLESPACE);
 		}
@@ -882,11 +883,9 @@ SysTablespace::open_or_create(
 		ut_a(fil_validate());
 
 		/* Open the data file. */
-		const char*	filename = fil_node_create(
+		if (!fil_node_create(
 			it->m_filepath, it->m_size,
-			space_id(), it->m_type != SRV_NOT_RAW);
-
-		if (filename == 0) {
+			space, it->m_type != SRV_NOT_RAW)) {
 		       err = DB_ERROR;
 		       break;
 		}
