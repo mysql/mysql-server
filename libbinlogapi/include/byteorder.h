@@ -20,8 +20,8 @@
   values to and from little-endian and big-endian byte order.
 */
 
-#ifndef BYTEORDER_H
-#define BYTEORDER_H
+#ifndef BYTEORDER_INCLUDED
+#define BYTEORDER_INCLUDED
 
 #ifndef _BSD_SOURCE
 #define _BSD_SOURCE
@@ -148,4 +148,4 @@ uint64_t inline le64toh(uint64_t x)
   {                                                                         \
     typedef char do_compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
-#endif // BYTEORDER_H
+#endif // BYTEORDER_INCLUDED

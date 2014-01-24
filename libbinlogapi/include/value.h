@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #include <climits>
 #include <stdint.h>
+#include <stdio.h>
 #include <iostream>
 #include <cassert>
 #include <cstring>
