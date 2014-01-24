@@ -23,6 +23,7 @@
 
 # Related bugs: BUG#27779, BUG#31581, BUG#31582, BUG#31583, BUG#32407
 
+source include/no_valgrind_without_big.inc;
 source include/not_embedded.inc;
 
 --echo ==== Read binlog with v2 row events ====
