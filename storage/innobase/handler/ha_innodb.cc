@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -15884,7 +15884,7 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   NULL, NULL,
   10000L,
   0L,
-  ~0UL, 0);
+  1000000L, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
