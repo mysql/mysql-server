@@ -233,22 +233,22 @@ fil_node_create(
 	const char*	name,	/*!< in: file name (file must be closed) */
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
-	ulint		id,	/*!< in: space id where to append */
+	fil_space_t*	space,	/*!< in,out: space where to append */
 	bool		is_raw)	/*!< in: true if a raw device or
 				a raw disk partition */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull(1), warn_unused_result));
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
-@return true if success */
+@retval pointer to the tablespace
+@retval NULL on failure */
 
-bool
+fil_space_t*
 fil_space_create(
 /*=============*/
 	const char*	name,	/*!< in: space name */
 	ulint		id,	/*!< in: space id */
-	ulint		zip_size,/*!< in: compressed page size, or
-				0 for uncompressed tablespaces */
+	ulint		flags,	/*!< in: tablespace flags */
 	ulint		purpose);/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 /*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
