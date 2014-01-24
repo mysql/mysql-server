@@ -145,22 +145,6 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
   return ret;
 }
 
-char *bapi_stpcpy(char *dst, const char *src)
-{
-  strcpy(dst, src);
-  return dst + strlen(dst);
-}
-
-char *bapi_strmake(char *dest, const char* src, size_t length)
-{
-  unsigned int n= 0;
-  while (n < length && src[n++]);
-  memset(dest + n, (int) 'Z', length - n + 1);
-  strncpy(dest, src, length);
-  if(dest[length] != '\0')
-    dest[length]= '\0';
-  return dest;
-}
 /**
   Log_event_header constructor
 
@@ -1132,19 +1116,21 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   commit_flag= *ptr_buffer != 0;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
-  memcpy(gtid_info_struct.uuid_buf, (const unsigned char*)ptr_buffer,
-          gtid_info_struct.bytes_to_copy);
+  memcpy(Uuid_parent_struct.bytes, (const unsigned char*)ptr_buffer,
+          Uuid_parent_struct.BYTE_LENGTH);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
   // SIDNO is only generated if needed, in get_sidno().
   gtid_info_struct.rpl_gtid_sidno= -1;
-  memcpy(&(gtid_info_struct.rpl_gtid_gno), ptr_buffer, sizeof(gtid_info_struct.rpl_gtid_gno));
+
+  memcpy(&(gtid_info_struct.rpl_gtid_gno), ptr_buffer,
+         sizeof(gtid_info_struct.rpl_gtid_gno));
   gtid_info_struct.rpl_gtid_gno= le64toh(gtid_info_struct.rpl_gtid_gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
     /* fetch the commit timestamp */
   if (
       /*Old masters will not have this part, so we should prevent segfaulting */
-      (uint)(ptr_buffer-buffer) < event_len &&
+      (unsigned int)(ptr_buffer - buffer) < event_len &&
       *ptr_buffer == G_COMMIT_TS)
   {
     ptr_buffer++;
@@ -1218,13 +1204,13 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
 /**
   Constructor of Previous_gtid_event
-  Decodes the Gtids executed in the last binlog file
+  Decodes the gtid_executed in the last binlog file
 */
 
 Previous_gtids_event::
 Previous_gtids_event(const char *buffer, unsigned int event_len,
                      const Format_description_event *description_event)
-  : Binary_log_event(&buffer, description_event->binlog_version,
+: Binary_log_event(&buffer, description_event->binlog_version,
                      description_event->server_version)
 {
   uint8_t const common_header_len= description_event->common_header_len;
