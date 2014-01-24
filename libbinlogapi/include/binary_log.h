@@ -18,8 +18,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 
-#ifndef REPEVENT_INCLUDED
-#define	REPEVENT_INCLUDED
+#ifndef BINARY_LOG_INCLUDED
+#define	BINARY_LOG_INCLUDED
 
 #include "binlog_event.h"
 #include "field_iterator.h"
@@ -32,4 +32,4 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <cassert>
 #include <algorithm>
 
-#endif	/* REPEVENT_INCLUDED */
+#endif	/* BINARY_LOG_INCLUDED */

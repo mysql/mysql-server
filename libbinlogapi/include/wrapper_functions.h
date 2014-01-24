@@ -22,8 +22,8 @@
   the library is compiled independently, or with the MySQL server.
 */
 
-#ifndef WRAPPER_FUNCTIONS_H
-#define WRAPPER_FUNCTIONS_H
+#ifndef WRAPPER_FUNCTIONS_INCLUDED
+#define WRAPPER_FUNCTIONS_INCLUDED
 
 #include "config.h"
 
@@ -40,11 +40,11 @@ extern PSI_memory_key key_memory_log_event;
 #include <cstring>
 #endif
 
-/**                                                                            
-  This enum will be sued by the wrapper method bapi_malloc,                    
-  to pass it to the method my_malloc, as we can not have a parameter of        
-  type PSI_memory_key in the method bapi_malloc.                               
-*/                                                                             
+/**
+  This enum will be sued by the wrapper method bapi_malloc,
+  to pass it to the method my_malloc, as we can not have a parameter of
+  type PSI_memory_key in the method bapi_malloc.
+*/
 enum PSI_memory_key_to_int
 {
   MEMORY_LOG_EVENT,
@@ -148,7 +148,4 @@ inline void bapi_free(void* ptr)
 #endif
   ptr= 0;
 }
-
 #endif
-
-

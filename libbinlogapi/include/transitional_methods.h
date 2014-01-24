@@ -25,8 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   binlogevent library.
 */
 
-#ifndef _TRANSITIONAL_METHODS_H
-#define _TRANSITIONAL_METHODS_H
+#ifndef TRANSITIONAL_METHODS_INCLUDED
+#define TRANSITIONAL_METHODS_INCLUDED
 #include <stdlib.h>
 #include <string.h>
 #ifdef min //definition of min() and max() in std and libmysqlclient

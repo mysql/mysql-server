@@ -26,8 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   the test pertaining to the variable is active. The variables are initialized
    with false (in binlog_event.cpp).
 */
-#ifndef DEBUG_VARS
-#define DEBUG_VARS
+#ifndef DEBUG_VARS_INCLUDED
+#define DEBUG_VARS_INCLUDED
 
 namespace binary_log_debug
 {
