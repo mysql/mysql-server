@@ -151,7 +151,7 @@ CREATE TABLE t1 (a INT);
 let $wait_timeout= 60; # Override default of 30 seconds with 60.
 let $show_statement= SHOW PROCESSLIST;
 let $field= State;
-let $condition= = 'Slave has read all relay log; waiting for the slave I/O thread to update it';
+let $condition= = 'Slave has read all relay log; waiting for more updates';
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
