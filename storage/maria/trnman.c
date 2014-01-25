@@ -383,8 +383,8 @@ TRN *trnman_new_trn(WT_THD *wt)
     return 0;
   }
 
-  DBUG_PRINT("exit", ("trn: 0x%lx  trid: 0x%lu",
-                      (ulong) trn, (ulong) trn->trid));
+  DBUG_PRINT("exit", ("trn: %p  trid: 0x%lu  min_read_from: 0x%lu",
+                      trn, (ulong) trn->trid, (ulong) trn->min_read_from));
 
   DBUG_RETURN(trn);
 }
