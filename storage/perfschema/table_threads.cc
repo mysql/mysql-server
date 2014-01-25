@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -309,8 +309,22 @@ int table_threads::read_row_values(TABLE *table,
         break;
       case 9: /* PROCESSLIST_STATE */
         if (m_row.m_processlist_state_length > 0)
+        {
+          /* This column's datatype is declared as varchar(64). But in current
+             code, there are few process state messages which are greater than
+             64 characters(Eg:stage_slave_has_read_all_relay_log).
+             In those cases, we will end up in 'data truncated'
+             warning/error (depends sql_mode setting) when server is updating
+             this column for those threads. Since 5.6 is GAed, neither the
+             metadata of this column can be changed, nor those state messages.
+             So server will silently truncate the state message to 64 characters
+             if it is longer. In Upper versions(5.7+), these state messages are
+             changed to less than or equal to 64 characters.
+           */
           set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
-                                 m_row.m_processlist_state_length);
+                                 std::min<uint>(m_row.m_processlist_state_length,
+                                                f->char_length()));
+        }
         else
           f->set_null();
         break;
