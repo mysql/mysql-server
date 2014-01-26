@@ -39,6 +39,31 @@ WHERE a = 'r' OR pk = 183 GROUP BY field1, field1;
 
 drop table t1;
 
+set optimizer_switch=@save_ext_key_optimizer_switch;
+
+--echo #
+--echo # MDEV-4002 Server crash or valgrind errors in Item_func_group_concat::setup and Item_func_group_concat::add
+--echo #
+
+CREATE TABLE t1 ( 
+  pk INT NOT NULL PRIMARY KEY, 
+  d1 DOUBLE, 
+  d2 DOUBLE, 
+  i INT NOT NULL DEFAULT '0',
+  KEY (i)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1.0,1.1,1),(2,2.0,2.2,2);
+
+PREPARE stmt FROM " 
+SELECT DISTINCT i, GROUP_CONCAT(  d1, d2 ORDER BY d1, d2 ) 
+FROM t1 a1 NATURAL JOIN t1 a2 GROUP BY i WITH ROLLUP 
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1;
+
 --echo End of 5.5 tests
 
-set optimizer_switch=@save_ext_key_optimizer_switch;
