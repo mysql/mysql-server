@@ -184,8 +184,24 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int write_row(TABLE* table, char *sid,
+  int write_row(TABLE* table, const char *sid,
                 rpl_gno gno_start, rpl_gno gno_end);
+  /**
+    Update a gtid interval in the gtid_executed table.
+
+    @param  table        Reference to a table object.
+    @param  sid          The source id of the gtid interval.
+    @param  gno_star     The first GNO of the gtid interval.
+    @param  gno_end      The last GNO of the gtid interval.
+    @param  new_gno_end  The new last GNO of the gtid interval.
+
+    @return
+      @retval 0    OK.
+      @retval -1   Error.
+  */
+  int update_row(TABLE* table, const char *sid,
+                 rpl_gno gno_start, rpl_gno gno_end,
+                 rpl_gno new_gno_end);
   /**
     Delete all rows in the gtid_executed table.
 
@@ -197,18 +213,18 @@ private:
   */
   int delete_all(TABLE* table);
   /**
-    Read each row by the PK in increasing order, delete
-    consecutive rows from the gtid_executed table and
-    fetch these deleted gtids at the same time.
+    Read each row by the PK in increasing order, merge the first
+    consecutive rows range (delete all consecutive rows from the
+    second consecutive row, then update the first row) in one
+    transaction.
 
     @param  table Reference to a table object.
-    @param  gtid_deleted Gtid set deleted.
 
     @return
       @retval 0    OK.
       @retval -1   Error.
   */
-  int delete_consecutive_rows(TABLE* table, Gtid_set *gtid_deleted);
+  int merge_first_consecutive_rows(TABLE* table);
   /**
     Encode the current row fetched from the table into gtid text.
 
@@ -216,6 +232,16 @@ private:
     @retval Return the encoded gtid text.
   */
   string encode_gtid_text(TABLE* table);
+  /**
+    Get gtid interval from the the current row of the table.
+
+    @param  table         Reference to a table object.
+    @param  sid[out]      The source id of the gtid interval.
+    @param  gno_star[out] The first GNO of the gtid interval.
+    @param  gno_end[out]  The last GNO of the gtid interval.
+  */
+  void get_gtid_interval(TABLE* table, string& sid,
+                         rpl_gno& gno_start, rpl_gno& gno_end);
   /**
     Insert the gtid set into table.
 
@@ -231,20 +257,6 @@ private:
       -1   Error
   */
   int save(TABLE* table, Gtid_set *gtid_set);
-  /**
-    Check if previous gtid_interval and current gtid_interval are consecutive.
-    They are consecutive if prev_gtid_interval.gno_end + 1 ==
-    gtid_interval.gno_start.
-
-    @param prev_gtid_interval A string with sid, gno_start and gno_end.
-    @param gtid_interval      A string with sid, gno_start and gno_end.
-
-    @return
-      @retval true   prev_gtid_interval and gtid_interval are consecutive.
-      @retval false  prev_gtid_interval and gtid_interval are not consecutive.
-  */
-  bool is_consecutive(string prev_gtid_interval, string gtid_interval);
-
   /* Prevent user from invoking default assignment function. */
   Gtid_table_persistor& operator=(const Gtid_table_persistor& info);
   /* Prevent user from invoking default constructor function. */
