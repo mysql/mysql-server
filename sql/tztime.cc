@@ -2558,8 +2558,8 @@ scan_tz_dir(char * name_end, uint symlink_recursion_level, uint verbose)
             fflush(stdout);
             fprintf(stderr, "Warning: Skipping directory '%s': "
                     "to avoid infinite symlink recursion.\n", fullname);
-            continue;
           }
+          continue;
         }
         if (scan_tz_dir(name_end_tmp, symlink_recursion_level + is_symlink,
                         verbose))
@@ -2720,8 +2720,9 @@ main(int argc, char **argv)
     if (scan_tz_dir(root_name_end, 0, opt_verbose))
     {
       fflush(stdout);
-      fprintf(stderr, "There were fatal errors during processing "
-                      "of zoneinfo directory\n");
+      fprintf(stderr,
+              "There were fatal errors during processing "
+              "of zoneinfo directory '%s'\n", fullname);
       return 1;
     }
 
