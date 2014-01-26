@@ -399,7 +399,8 @@ extern PSI_cond_key key_COND_compress_gtid_table;
 
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_one_connection, key_thread_signal_hand,
+  key_thread_compress_gtid_table;
 
 #ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;

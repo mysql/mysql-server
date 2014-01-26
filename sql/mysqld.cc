@@ -321,8 +321,6 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
 
-static PSI_thread_key key_thread_compress_gtid_table;
-
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static PSI_rwlock_key key_rwlock_openssl;
 #endif
@@ -353,7 +351,6 @@ char *default_storage_engine;
 char *default_tmp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used= false;
-static bool terminate_compress_thread= false;
 
 LEX_STRING opt_init_connect, opt_init_slave;
 
@@ -700,7 +697,6 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 pthread_t signal_thread_id= 0;
-pthread_t compress_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
@@ -1169,35 +1165,6 @@ public:
   }
 };
 
-static void terminate_compress_gtid_table_thread()
-{
-  DBUG_ENTER("terminate_compress_gtid_table_thread");
-  DBUG_ASSERT(compress_thread_id != 0); // remove later
-  int error= 0;
-  terminate_compress_thread= true;
-  /* Notify suspended compression thread. */
-  mysql_cond_signal(&COND_compress_gtid_table);
-
-  if (compress_thread_id != 0)
-  {
-#ifdef _WIN32
-    HANDLE handle= pthread_get_handle(compress_thread_id);
-    if (handle)
-      error= pthread_join_with_handle(handle);
-#else
-    error= pthread_join(compress_thread_id, NULL);
-#endif
-    compress_thread_id= 0;
-  }
-
-  if (0 != error)
-    sql_print_warning("Could not join gtid table compression thread. "
-                      "error:%d", error);
-
-  DBUG_VOID_RETURN;
-}
-
-
 static void close_connections(void)
 {
   DBUG_ENTER("close_connections");
@@ -1446,28 +1413,6 @@ bool gtid_server_init()
   return res;
 }
 
-static void init_thd(THD **p_thd)
-{
-  DBUG_ENTER("init_thd");
-  THD *thd= *p_thd;
-  thd->thread_stack= reinterpret_cast<char *>(p_thd);
-  thd->set_command(COM_DAEMON);
-  thd->security_ctx->skip_grants();
-  thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
-  thd->store_globals();
-  thd->set_time();
-  DBUG_VOID_RETURN;
-}
-
-static void deinit_thd(THD *thd)
-{
-  DBUG_ENTER("deinit_thd");
-  thd->release_resources();
-  thd->restore_globals();
-  delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  NULL);
-  DBUG_VOID_RETURN;
-}
 
 void clean_up(bool print_message)
 {
@@ -2464,54 +2409,6 @@ void *my_str_realloc_mysqld(void *ptr, size_t size)
                     ptr, size, MYF(MY_FAE));
 }
 #endif // !EMBEDDED_LIBRARY
-
-
-pthread_handler_t compress_gtid_table(void *arg)
-{
-  THD *thd=(THD*) arg;
-  mysql_thread_set_psi_id(thd->thread_id);
-  my_thread_init();
-  DBUG_ENTER("compress_gtid_table");
-  init_thd(&thd);
-  for (;;)
-  {
-    if (terminate_compress_thread)
-      break;
-
-    mysql_mutex_lock(&LOCK_compress_gtid_table);
-    THD_ENTER_COND(thd, &COND_compress_gtid_table,
-                   &LOCK_compress_gtid_table,
-                   &stage_suspending, NULL);
-    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
-    mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
-    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
-    THD_EXIT_COND(thd, NULL);
-
-    if (terminate_compress_thread)
-      break;
-
-    THD_STAGE_INFO(thd, stage_compressing_gtid_table);
-    /* Compressing gtid_executed table. */
-    if (gtid_table_persistor->compress())
-    {
-      sql_print_warning("Failed to compress gtid_executed table.");
-      DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
-                      {
-                        const char act[]= "now signal compression_failed";
-                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                           STRING_WITH_LEN(act)));
-                      };);
-    }
-  }
-
-  deinit_thd(thd);
-  DBUG_LEAVE;
-  my_thread_end();
-  pthread_exit(0);
-  return 0;
-}
-
 
 const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -4272,34 +4169,6 @@ static void create_shutdown_thread()
   Service.SetShutdownEvent(hEventShutdown);
 }
 #endif /* _WIN32 */
-
-
-static void create_compress_gtid_table_thread()
-{
-  pthread_attr_t attr;
-  int error;
-  THD *thd;
-  if (!(thd=new THD))
-  {
-    sql_print_error("Failed to compress gtid_executed table, because "
-                    "it is failed to allocate the THD.");
-    return;
-  }
-  thd->thread_id= thd->variables.pseudo_thread_id= pthread_self();
-  THD_CHECK_SENTRY(thd);
-
-  if ((error= pthread_attr_init(&attr)) ||
-      (error= pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE)) ||
-      (error= pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM)) ||
-      (error= mysql_thread_create(key_thread_compress_gtid_table,
-                                  &compress_thread_id, &attr,
-                                  compress_gtid_table, (void*) thd)))
-    sql_print_warning("Can't create thread to compress gtid table "
-                      "(errno= %d)", error);
-
-    (void) pthread_attr_destroy(&attr);
-}
-
 
 #ifndef DBUG_OFF
 /*
@@ -8034,7 +7903,8 @@ static PSI_cond_info all_server_conds[]=
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_one_connection, key_thread_signal_hand,
+  key_thread_compress_gtid_table;
 
 static PSI_thread_info all_server_threads[]=
 {

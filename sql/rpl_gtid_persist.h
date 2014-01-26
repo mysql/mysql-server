@@ -264,6 +264,7 @@ private:
 };
 
 extern Gtid_table_persistor *gtid_table_persistor;
-
+void create_compress_gtid_table_thread();
+void terminate_compress_gtid_table_thread();
 
 #endif /* RPL_GTID_PERSIST_H_ */
