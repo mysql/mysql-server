@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,23 @@ typedef struct Binlog_storage_observer {
 typedef struct Binlog_transmit_param {
   uint32 server_id;
   uint32 flags;
+  /* Let us keep 1-16 as output flags and 17-32 as input flags */
+  static const uint32 F_OBSERVE= 1;
+  static const uint32 F_DONT_OBSERVE= 2;
+
+  void set_observe_flag() { flags|= F_OBSERVE; }
+  void set_dont_observe_flag() { flags|= F_DONT_OBSERVE; }
+  /**
+     If F_OBSERVE is set by any plugin, then it should observe binlog
+     transmission, even F_DONT_OBSERVE is set by some plugins.
+
+     If both F_OBSERVE and F_DONT_OBSERVE are not set, then it is an old
+     plugin. In this case, it should always observe binlog transmission.
+   */
+  bool should_observe()
+  {
+    return (flags & F_OBSERVE) || !(flags & F_DONT_OBSERVE);
+  }
 } Binlog_transmit_param;
 
 /**
