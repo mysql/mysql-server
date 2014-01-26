@@ -15243,23 +15243,8 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
-      if (field->flags & GROUP_FLAG && !using_unique_constraint)
-      {
-	/*
-	  We have to reserve one byte here for NULL bits,
-	  as this is updated by 'end_update()'
-	*/
-	*pos++=0;				// Null is stored here
-	recinfo->length=1;
-	recinfo->type=FIELD_NORMAL;
-	recinfo++;
-	bzero((uchar*) recinfo,sizeof(*recinfo));
-      }
-      else
-      {
-	recinfo->null_bit= (uint8)1 << (null_count & 7);
-	recinfo->null_pos= null_count/8;
-      }
+      recinfo->null_bit= (uint8)1 << (null_count & 7);
+      recinfo->null_pos= null_count/8;
       field->move_field(pos,null_flags+null_count/8,
 			(uint8)1 << (null_count & 7));
       null_count++;
@@ -18186,19 +18171,6 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     goto end;
   }
 
-  /*
-    Copy null bits from group key to table
-    We can't copy all data as the key may have different format
-    as the row data (for example as with VARCHAR keys)
-  */
-  KEY_PART_INFO *key_part;
-  for (group=table->group,key_part=table->key_info[0].key_part;
-       group ;
-       group=group->next,key_part++)
-  {
-    if (key_part->null_bit)
-      memcpy(table->record[0]+key_part->offset, group->buff, 1);
-  }
   init_tmptable_sum_functions(join->sum_funcs);
   if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
     DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */

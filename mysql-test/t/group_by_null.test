@@ -1,0 +1,7 @@
+#
+# MDEV-5461 Assertion `length <= column->length' fails in write_block_record with functions in select list, GROUP BY, ORDER BY
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+select max('foo') from t1 group by values(a), extractvalue('bar','qux') order by "v";
+drop table t1;
