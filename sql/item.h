@@ -332,6 +332,8 @@ struct Name_resolution_context: Sql_alloc
   */
   TABLE_LIST *last_name_resolution_table;
 
+  /* Cache first_name_resolution_table in setup_natural_join_row_types */
+  TABLE_LIST *natural_join_first_table;
   /*
     SELECT_LEX item belong to, in case of merged VIEW it can differ from
     SELECT_LEX where item was created, so we can't use table_list/field_list

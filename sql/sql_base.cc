@@ -7925,6 +7925,11 @@ err:
     order, thus when we iterate over it, we are moving from the right
     to the left in the FROM clause.
 
+  NOTES
+    We can't run this many times as the first_name_resolution_table would
+    be different for subsequent runs when sub queries has been optimized
+    away.
+
   RETURN
     TRUE   Error
     FALSE  OK
@@ -7946,7 +7951,8 @@ static bool setup_natural_join_row_types(THD *thd,
   */
   if (!context->select_lex->first_natural_join_processing)
   {
-    DBUG_PRINT("info", ("using cached store_top_level_join_columns"));
+    context->first_name_resolution_table= context->natural_join_first_table;
+    DBUG_PRINT("info", ("using cached setup_natural_join_row_types"));
     DBUG_RETURN(false);
   }
   context->select_lex->first_natural_join_processing= false;
@@ -7989,6 +7995,11 @@ static bool setup_natural_join_row_types(THD *thd,
   DBUG_ASSERT(right_neighbor);
   context->first_name_resolution_table=
     right_neighbor->first_leaf_for_name_resolution();
+  /*
+    This is only to ensure that first_name_resolution_table doesn't
+    change on re-execution
+  */
+  context->natural_join_first_table= context->first_name_resolution_table;
   DBUG_RETURN (false);
 }
 
