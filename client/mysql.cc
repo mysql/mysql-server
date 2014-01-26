@@ -1408,7 +1408,8 @@ sig_handler window_resize(int sig)
   struct winsize window_size;
 
   if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
-    terminal_width= window_size.ws_col;
+    if (window_size.ws_col > 0)
+      terminal_width= window_size.ws_col;
 }
 #endif
 
