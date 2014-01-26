@@ -555,3 +555,21 @@ INSERT IGNORE t1 (a, a) SELECT 1,1;
 INSERT IGNORE t1 (a, a) SELECT 1,1 UNION SELECT 2,2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-5168: Ensure that we can disable duplicate key warnings
+--echo # from INSERT IGNORE
+--echo #
+
+create table t1 (f1 int unique, f2 int unique);
+insert into t1 values (1,12);
+insert into t1 values (2,13);
+--error ER_DUP_ENTRY
+insert into t1 values (1,12);
+insert ignore into t1 values (1,12);
+set @@old_mode="NO_DUP_KEY_WARNINGS_WITH_IGNORE";
+insert ignore into t1 values (1,12);
+insert ignore into t1 values (1,12) on duplicate key update f2=13;
+set @@old_mode="";
+insert ignore into t1 values (1,12);
+DROP TABLE t1;

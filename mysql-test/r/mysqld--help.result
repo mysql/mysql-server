@@ -454,8 +454,12 @@ The following options may be given as the first argument:
  --net-write-timeout=# 
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
- --old               Use compatible behavior
+ --old               Use compatible behavior from previous MariaDB version.
+ See also --old-mode
  --old-alter-table   Use old, non-optimized alter table
+ --old-mode=name     Used to emulate old behavior from earlier MariaDB or
+ MySQL versions. Syntax: old_mode=mode[,mode[,mode...]].
+ See the manual for the complete list of valid old modes
  --old-passwords     Use old password encryption method (needed for 4.0 and
  older clients)
  --old-style-user-limits 
@@ -997,6 +1001,7 @@ net-retry-count 10
 net-write-timeout 60
 old FALSE
 old-alter-table FALSE
+old-mode 
 old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1

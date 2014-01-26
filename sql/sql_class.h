@@ -108,6 +108,10 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
+/* Bits for different old style modes */
+#define OLD_MODE_NO_DUP_KEY_WARNINGS_WITH_IGNORE	1
+#define OLD_MODE_NO_PROGRESS_INFO			2
+
 extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
@@ -473,6 +477,7 @@ typedef struct system_variables
   ulonglong long_query_time;
   ulonglong optimizer_switch;
   ulonglong sql_mode; ///< which non-standard SQL behaviour should be enabled
+  ulonglong old_behavior; ///< which old SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ulonglong join_buff_space_limit;
   ulonglong log_slow_filter; 
