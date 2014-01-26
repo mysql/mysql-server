@@ -612,11 +612,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
           thd->lex->sql_command == SQLCOM_DELETE_MULTI))))
     DBUG_RETURN(FALSE);
 
-  Query_arena *arena= thd->stmt_arena, backup;
-  if (arena->is_conventional())
-    arena= 0;                                   // For easier test
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  Query_arena *arena, backup;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   SELECT_LEX *first_select= unit->first_select();
 

@@ -479,6 +479,28 @@ SELECT * FROM
 WHERE tmp.a;
 a	b
 100	200
+#
+# MDEV-5356: Server crashes in Item_equal::contains on 2nd
+# execution of a PS
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,2),(3,4);
+CREATE TABLE t2 (c INT);
+INSERT INTO t2 VALUES (5),(6);
+CREATE TABLE t3 (d INT);
+INSERT INTO t3 VALUES (7),(8);
+CREATE PROCEDURE pr()
+UPDATE t3,
+(SELECT c FROM
+(SELECT 1 FROM t1 WHERE a=72 AND NOT b) sq, 
+t2
+) sq2
+SET d=sq2.c;
+CALL pr();
+CALL pr();
+CALL pr();
+drop procedure pr;
+drop table t1,t2,t3;
 # End of 5.3 tests
 #
 # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,

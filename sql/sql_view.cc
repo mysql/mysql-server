@@ -1138,11 +1138,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     will be TRUE as far as we make new table cache).
   */
   old_lex= thd->lex;
-  arena= thd->stmt_arena;
-  if (arena->is_conventional())
-    arena= 0;
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /* init timestamp */
   if (!table->timestamp.str)

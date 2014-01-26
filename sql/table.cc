@@ -4087,7 +4087,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
   SELECT_LEX *select= get_single_select();
   List_iterator_fast<Item> it(select->item_list);
   uint field_count= 0;
-  Query_arena *arena= thd->stmt_arena, backup;
+  Query_arena *arena, backup;
   bool res= FALSE;
   DBUG_ENTER("TABLE_LIST::create_field_translation");
 
@@ -4126,10 +4126,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
     DBUG_RETURN(FALSE);
   }
 
-  if (arena->is_conventional())
-    arena= 0;                                   // For easier test
-  else
-    thd->set_n_backup_active_arena(arena, &backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /* Create view fields translation table */
 
