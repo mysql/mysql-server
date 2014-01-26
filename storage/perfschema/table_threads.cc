@@ -309,6 +309,13 @@ int table_threads::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 9: /* PROCESSLIST_STATE */
+        /* This column's datatype is declared as varchar(64). Thread's state
+           message cannot be more than 64 characters. Otherwise, we will end up
+           in 'data truncated' warning/error (depends sql_mode setting) when
+           server is updating this column for those threads. To prevent this
+           kind of issue, an assert is added.
+         */
+        DBUG_ASSERT(m_row.m_processlist_state_length <= f->char_length());
         if (m_row.m_processlist_state_length > 0)
           set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
                                  m_row.m_processlist_state_length);

@@ -37,6 +37,7 @@
 #include "sql_base.h"                         // close_temporary_tables
 #include "sql_handler.h"                      // mysql_ha_cleanup
 #include "rpl_rli.h"
+#include "rpl_rli_pdb.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
 #include "rpl_slave.h"
@@ -1589,6 +1590,18 @@ void THD::release_resources()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
+#ifndef EMBEDDED_LIBRARY
+  if (rli_fake)
+  {
+    rli_fake->end_info();
+    delete rli_fake;
+    rli_fake= NULL;
+  }
+  mysql_audit_free_thd(this);
+#endif
+
+  if (current_thd == this)
+    restore_globals();
   m_release_resources_done= true;
 }
 
@@ -1617,15 +1630,9 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
-#endif  
-#ifndef EMBEDDED_LIBRARY
-  if (rli_fake)
-  {
-    rli_fake->end_info();
-    delete rli_fake;
-    rli_fake= NULL;
-  }
+#endif
 
+#ifndef EMBEDDED_LIBRARY
   if (variables.gtid_next_list.gtid_set != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -1636,15 +1643,11 @@ THD::~THD()
     DBUG_ASSERT(0);
 #endif
   }
-  
-  mysql_audit_free_thd(this);
   if (rli_slave)
     rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  if (current_thd == this)
-    restore_globals();
   DBUG_VOID_RETURN;
 }
 
@@ -4553,6 +4556,34 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 };
+
+#ifdef HAVE_REPLICATION
+void THD::set_currently_executing_gtid_for_slave_thread()
+{
+  /*
+    This function may be called in three cases:
+
+    - From an mts worker thread that executes a Gtid_log_event::do_apply_event.
+
+    - From an mts worker thread that is processing an old binlog that
+      is missing Gtid events completely, from gtid_pre_statement_checks().
+
+    - From a normal client thread that is executing output from
+      mysqlbinlog when mysqlbinlog is processing an old binlog file
+      that is missing Gtid events completely, from
+      gtid_pre_statement_checks() for a statement that appears after a
+      BINLOG statement containing a Format_description_log_event
+      originating from the master.
+
+    Because of the last case, we don't assert(is_mts_worker())
+  */
+  if (is_mts_worker(this))
+  {
+    dynamic_cast<Slave_worker *>(rli_slave)->currently_executing_gtid=
+      variables.gtid_next;
+  }
+}
+#endif
 
 void THD::set_user_connect(USER_CONN *uc)
 {

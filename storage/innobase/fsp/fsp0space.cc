@@ -119,7 +119,8 @@ Tablespace::file_found(Datafile& file)
 dberr_t
 Tablespace::open_or_create()
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
+	fil_space_t*	space	= NULL;
 
 	ut_ad(!m_files.empty());
 
@@ -157,7 +158,7 @@ Tablespace::open_or_create()
 
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
-			fil_space_create(
+			space = fil_space_create(
 				it->m_filepath, m_space_id, flags,
 				FIL_TABLESPACE);
 		}
@@ -165,11 +166,8 @@ Tablespace::open_or_create()
 		ut_a(fil_validate());
 
 		/* Create the tablespace node entry for this data file. */
-		const char*	filename = fil_node_create(
-			it->m_filepath, it->m_size,
-			m_space_id, false);
-
-		if (filename == 0) {
+		if (!fil_node_create(
+			    it->m_filepath, it->m_size, space, false)) {
 		       err = DB_ERROR;
 		       break;
 		}

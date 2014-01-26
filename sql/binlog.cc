@@ -405,15 +405,16 @@ public:
     */
     if(cache_log.file != -1)
     {
-        int error= 0;
-        if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
-            sql_print_error("Unable to resize binlog IOCACHE auxilary file");
+      int error= 0;
+      if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
+        sql_print_warning("Unable to resize binlog IOCACHE auxilary file");
 
-        /*
-          my_chsize places the file cursor at the end of the file
-          and returns 0 (OK) if the operation has suceeded.
-        */
-        DBUG_ASSERT( error == 0 );
+      DBUG_EXECUTE_IF("show_io_cache_size",
+                      {
+                        ulong file_size= my_seek(cache_log.file,
+                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%ld", file_size);
+                      });
     }
 
     flags.incident= false;
@@ -2969,9 +2970,9 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   contains Previous_gtids_log_events but no Gtid_log_events.
   @retval NO_GTIDS The file was successfully read and it does not
   contain GTID events.
-  @retval ERROR Out of memory, or the file contains GTID events
-  when GTID_MODE = OFF, or the file is malformed (e.g., contains
-  Gtid_log_events but no Previous_gtids_log_event).
+  @retval ERROR Out of memory, or IO error, or malformed event
+  structure, or the file is malformed (e.g., contains Gtid_log_events
+  but no Previous_gtids_log_event).
   @retval TRUNCATED The file was truncated before the end of the
   first Previous_gtids_log_event.
 */
@@ -3033,11 +3034,6 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
     {
-      if (gtid_mode == 0)
-      {
-        my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
-        ret= ERROR;
-      }
       ret= GOT_PREVIOUS_GTIDS;
       // add events to sets
       Previous_gtids_log_event *prev_gtids_ev=
@@ -4628,7 +4624,6 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     if (!error &&
         lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
       error= 1;
-
     global_sid_lock->unlock();
     if (error)
       goto err;

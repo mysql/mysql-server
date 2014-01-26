@@ -5,6 +5,7 @@
 #
 # load volume parameter
 #
+--source include/have_myisam.inc
 
 # The value of iteration is chosen to be rather low to satisfy
 # slow PB environments that are not just Win.

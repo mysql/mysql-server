@@ -669,3 +669,310 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #
 START TRANSACTION ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,' at line 1
+#
+# Test of collective fix for three parser bugs:
+#
+# Bug #17727401, Bug #17426017, Bug #17473479:
+#   The server accepts wrong syntax and then fails in different ways
+#
+CREATE TABLE t1 (i INT);
+# bug #17426017
+SELECT (SELECT EXISTS(SELECT * LIMIT 1 ORDER BY VALUES (c00)));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY VALUES (c00)))' at line 1
+# bug#17473479
+CREATE TABLE a(a int);
+CREATE TABLE b(a int);
+DELETE FROM b ORDER BY(SELECT 1 FROM a ORDER BY a ORDER BY a);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY a)' at line 1
+DROP TABLE a, b;
+# bug #17727401
+SELECT '' IN (SELECT '1' c FROM t1 ORDER BY '' ORDER BY '') FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY '') FROM t1' at line 1
+# regression & coverage tests
+# uniform syntax for FROM DUAL clause:
+SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+FOR UPDATE;
+1
+1
+SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+1	1	1	1	1	0	0	1.0000	0.0000	ENUM('1') NOT NULL
+SELECT 1 FROM
+(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+FOR UPDATE) a;
+1
+1
+SELECT 1 FROM
+(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE) a;
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+SELECT 1 FROM t1
+WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+FOR UPDATE);
+1
+SELECT 1 FROM t1
+WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE);
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+SELECT 1 FROM t1
+UNION
+SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+FOR UPDATE;
+1
+1
+SELECT 1 FROM t1
+UNION
+SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE;
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
+UNION
+SELECT 1 FROM t1;
+ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+(SELECT 1 FROM t1)
+UNION 
+(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+FOR UPDATE);
+1
+1
+(SELECT 1 FROM t1)
+UNION 
+(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE);
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+# "FOR UPDATE" tests
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
+1
+SELECT 1 FROM t1 FOR UPDATE UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
+1
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 FOR UPDATE;
+1
+# "INTO" clause tests
+SELECT 1 FROM t1 INTO @var17727401;
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SELECT 1 FROM DUAL INTO @var17727401;
+SELECT 1 INTO @var17727401;
+SELECT 1 INTO @var17727401 FROM t1;
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SELECT 1 INTO @var17727401 FROM DUAL;
+SELECT 1 INTO @var17727401_1 FROM t1 INTO @var17727401_2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 1
+SELECT 1 INTO @var17727401_1 FROM DUAL
+INTO @var17727401_2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 2
+SELECT 1 INTO @var17727401 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1;
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SELECT 1 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1 INTO @var17727401;
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SELECT 1 FROM t1 WHERE 1 INTO @var17727401 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1' at line 1
+SELECT 1 INTO @var17727401_1
+FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1
+INTO @var17727401_2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 3
+SELECT (SELECT 1 FROM t1 INTO @var17727401);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
+SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401) a' at line 1
+SELECT EXISTS(SELECT 1 FROM t1 INTO @var17727401);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
+SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
+ERROR HY000: Incorrect usage of UNION and INTO
+(SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SELECT 1 INTO @var17727401 FROM t1 PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+SELECT 1 FROM t1 PROCEDURE ANALYSE() INTO @var17727401;
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+# ORDER and LIMIT clause combinations
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+1
+(SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
+1
+((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) ORDER BY 1' at line 1
+((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) LIMIT 1' at line 1
+(SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
+1
+(SELECT 1 FROM t1 LIMIT 1) ORDER BY 1;
+1
+((SELECT 1 FROM t1 ORDER BY 1) LIMIT 1) ORDER BY 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) ORDER BY 1)' at line 1
+((SELECT 1 FROM t1 LIMIT 1) ORDER BY 1) LIMIT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) LIMIT 1)' at line 1
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1;
+1
+SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1);
+(SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1) a;
+1
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1;
+1
+SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1);
+(SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1) a;
+1
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
+1
+SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1);
+(SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1) a;
+1
+SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1 ORDER BY 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1' at line 1
+SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1 ORDER BY 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1)' at line 1
+SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1 ORDER BY 1) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) a' at line 1
+SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1);
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1) a;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1);
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1) a;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT (SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1);
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1) a;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1' at line 1
+SELECT (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1)' at line 1
+SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1) a;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1);
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1) a;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1);
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1) a;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1);
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1) a;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1);
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1) a;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+DROP TABLE t1;
+#
+# Bug #18106014: RECENT REGRESSION: MORE CASES OF ASSERTION FAILED:
+#                !JOIN->PLAN_IS_CONST()
+#
+SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
+COUNT(1)
+1
+SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY '1' ORDER BY 1' at line 1
+DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+DO(SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c                   GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL         GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is not expected';
+null is not expected
+1
+SELECT (SELECT 1 c           WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 1 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c           WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
+'null is expected';
+null is expected
+NULL
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+c
+1
+SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
+c
+SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY 1 HAVING 1 ORDER BY COUNT(1)' at line 1
+#
+# Bug #18106058: RECENT REGRESSION: CRASH IN JOIN::MAKE_TMP_TABLES_INFO
+#
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+SELECT ((SELECT 1 AS f           HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f));
+((SELECT 1 AS f           HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f))
+1
+SELECT ((SELECT 1 AS f FROM DUAL HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f));
+((SELECT 1 AS f FROM DUAL HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f))
+1
+SELECT 1 AS f          FROM DUAL HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f;
+f
+1
+SELECT 1 AS f                   HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
+ORDER BY f' at line 1
+DROP TABLE t1;
+#

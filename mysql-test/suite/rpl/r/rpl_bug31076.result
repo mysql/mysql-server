@@ -25,7 +25,7 @@ PRIMARY KEY (`visits_id`),
 KEY `ip` (`ip`),
 KEY `time` (`time`),
 KEY `user_id` (`user_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
+) AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
 CREATE TABLE `visits_events` (
 `event_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
 `visit_id` int(11) unsigned NOT NULL DEFAULT '0',
@@ -37,7 +37,7 @@ PRIMARY KEY (`visits_events_id`),
 KEY `event_id` (`event_id`),
 KEY `visit_id` (`visit_id`),
 KEY `data` (`data`)
-) ENGINE=MyISAM AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
+) AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 Warnings:

@@ -10659,14 +10659,6 @@ int QUICK_RANGE_SELECT::reset()
     mrr_buf_desc->buffer= mrange_buff;
     mrr_buf_desc->buffer_end= mrange_buff + buf_size;
     mrr_buf_desc->end_of_used_area= mrange_buff;
-#ifdef HAVE_purify
-    /*
-      We need this until ndb will use the buffer efficiently
-      (Now ndb stores  complete row in here, instead of only the used fields
-      which gives us valgrind warnings in compare_record[])
-    */
-    memset(mrange_buff, 0, buf_size);
-#endif
   }
 
   if (!mrr_buf_desc)

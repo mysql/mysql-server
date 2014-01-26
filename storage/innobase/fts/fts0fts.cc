@@ -73,11 +73,13 @@ ulint n_nodes = 0;
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
 /** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
+#endif
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
@@ -348,28 +350,6 @@ fts_get_charset(ulint prtype)
 	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
 		cs_num);
 	return(NULL);
-}
-
-/********************************************************************
-Check if we should stop. */
-UNIV_INLINE
-ibool
-fts_is_stop_signalled(
-/*==================*/
-	fts_t*		fts)			/*!< in: fts instance */
-{
-	ibool		stop_signalled = FALSE;
-
-	mutex_enter(&fts->bg_threads_mutex);
-
-	if (fts->fts_status & BG_THREAD_STOP) {
-
-		stop_signalled = TRUE;
-	}
-
-	mutex_exit(&fts->bg_threads_mutex);
-
-	return(stop_signalled);
 }
 
 /****************************************************************//**

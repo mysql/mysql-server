@@ -2485,7 +2485,9 @@ fail_err:
 	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
 			      index->name, index->id,
-			      thr ? thr_get_trx(thr)->id : 0,
+			      thr != NULL
+			      ? trx_get_id_for_print(thr_get_trx(thr))
+			      : 0,
 			      rec_printer(entry).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -4043,7 +4045,8 @@ btr_cur_del_mark_set_clust_rec(
 
 	DBUG_PRINT("ib_cur", ("delete-mark clust %s (" IB_ID_FMT
 			      ") by " TRX_ID_FMT ": %s",
-			      index->table_name, index->id, trx->id,
+			      index->table_name, index->id,
+			      trx_get_id_for_print(trx),
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
@@ -4174,7 +4177,7 @@ btr_cur_del_mark_set_sec_rec(
 			      block->page.space, block->page.offset,
 			      unsigned(page_rec_get_heap_no(rec)),
 			      cursor->index->name, cursor->index->id,
-			      thr_get_trx(thr)->id));
+			      trx_get_id_for_print(thr_get_trx(thr))));
 
 	/* We do not need to reserve btr_search_latch, as the
 	delete-mark flag is being updated in place and the adaptive
@@ -5649,7 +5652,7 @@ btr_store_big_rec_extern_fields(
 
 			c_stream.next_in = (Bytef*)
 				big_rec_vec->fields[i].data;
-			c_stream.avail_in = (uInt) extern_len;
+			c_stream.avail_in = static_cast<uInt>(extern_len);
 		}
 
 		for (;;) {
@@ -5741,8 +5744,8 @@ alloc_another:
 
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
-				c_stream.avail_out
-					= (uInt) page_zip_get_size(page_zip)
+				c_stream.avail_out = static_cast<uInt>(
+					page_zip_get_size(page_zip))
 					- FIL_PAGE_DATA;
 
 				err = deflate(&c_stream, Z_FINISH);
@@ -6364,7 +6367,7 @@ btr_copy_zblob_prefix(
 	z_stream	d_stream;
 
 	d_stream.next_out = buf;
-	d_stream.avail_out = (uInt) len;
+	d_stream.avail_out = static_cast<uInt>(len);
 	d_stream.next_in = Z_NULL;
 	d_stream.avail_in = 0;
 
@@ -6422,7 +6425,7 @@ btr_copy_zblob_prefix(
 		}
 
 		d_stream.next_in = bpage->zip.data + offset;
-		d_stream.avail_in = (uInt) (zip_size - offset);
+		d_stream.avail_in = static_cast<uInt>(zip_size - offset);
 
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {

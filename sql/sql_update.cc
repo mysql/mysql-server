@@ -1841,8 +1841,8 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
     if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
       return FALSE;
     /* If range search on index */
-    if (join_tab->quick)
-      return !join_tab->quick->is_keys_used(table->write_set);
+    if (join_tab->select && join_tab->select->quick)
+      return !join_tab->select->quick->is_keys_used(table->write_set);
     /* If scanning in clustered key */
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
@@ -1899,6 +1899,24 @@ multi_update::initialize_tables(JOIN *join)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
+      /*
+        If there are at least two tables to update, t1 and t2, t1 being
+        before t2 in the plan, we need to collect all fields of t1 which
+        influence the selection of rows from t2. If those fields are also
+        updated, it will not be possible to update t1 on-the-fly.
+        Due to how the nested loop join algorithm works, when collecting
+        we can ignore the condition of t1.
+      */
+      if (update_tables->next_local)
+      {
+        for (JOIN_TAB *tab= join->join_tab + 1;
+             tab < join->join_tab + join->tables; tab++)
+        {
+          if(tab->condition())
+            tab->condition()->walk(&Item::add_field_to_set_processor, TRUE,
+                                   reinterpret_cast<uchar *>(table));
+        }
+      }
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))
       {
         table->mark_columns_needed_for_update();

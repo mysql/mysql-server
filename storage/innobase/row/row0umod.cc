@@ -579,7 +579,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		= BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG;
 	row_search_result	search_result;
 
-	ut_ad(trx->id > 0);
+	ut_ad(trx->id != 0);
 
 	log_free_check();
 	mtr_start(&mtr);

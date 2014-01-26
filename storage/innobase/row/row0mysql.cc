@@ -759,8 +759,8 @@ handle_new_error:
 			" table or, in a case of widespread corruption,"
 			" dump all InnoDB tables and recreate the whole"
 			" tablespace. If the mysqld server crashes after"
-			" the startup or when you dump the tables, look at"
-			REFMAN "forcing-innodb-recovery.html for help.");
+			" the startup or when you dump the tables. %s",
+			FORCE_RECOVERY_MSG);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1744,10 +1744,8 @@ row_update_for_mysql(
 			" file for table %s does not exist. Have you deleted"
 			" the .ibd file from the database directory under"
 			" the MySQL datadir, or have you used DISCARD"
-			" TABLESPACE?  Please refer to " REFMAN
-			"innodb-troubleshooting.html to see how you can"
-			" resolve the problem.",
-			prebuilt->table->name);
+			" TABLESPACE? %s",
+			prebuilt->table->name, TROUBLESHOOTING_MSG);
 		DBUG_RETURN(DB_ERROR);
 	}
 

@@ -57,7 +57,7 @@ typedef long my_time_t;
   check for valid times only if the range of time_t is greater than
   the range of my_time_t
 */
-#if SIZEOF_TIME_T > 4 || defined(TIME_T_UNSIGNED)
+#if SIZEOF_TIME_T > 4
 # define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
     ((x) <= TIMESTAMP_MAX_VALUE && \
      (x) >= TIMESTAMP_MIN_VALUE)
