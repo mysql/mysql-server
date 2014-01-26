@@ -44,7 +44,8 @@ public:
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
-    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE)
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
+    m_observe_transmission(false)
   {}
 
   ~Binlog_sender() {}
