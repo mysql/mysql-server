@@ -758,9 +758,11 @@ buf_flush_update_zip_checksum(
 {
 	ut_a(zip_size > 0);
 
-	ib_uint32_t	checksum = page_zip_calc_checksum(
-		page, zip_size,
-		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
+	ib_uint32_t	checksum = static_cast<ib_uint32_t>(
+		page_zip_calc_checksum(
+			page, zip_size,
+			static_cast<srv_checksum_algorithm_t>(
+				srv_checksum_algorithm)));
 
 	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
 	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
@@ -893,10 +895,6 @@ buf_flush_write_block_low(
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 #endif
 
-#ifdef UNIV_LOG_DEBUG
-	static ibool	univ_log_debug_warned;
-#endif /* UNIV_LOG_DEBUG */
-
 	DBUG_PRINT("ib_buf", ("flush %s %u page %u:%u",
 			      sync ? "sync" : "async", unsigned(flush_type),
 			      bpage->space, bpage->offset));
@@ -919,17 +917,9 @@ buf_flush_write_block_low(
 #endif
 	ut_ad(bpage->newest_modification != 0);
 
-#ifdef UNIV_LOG_DEBUG
-	if (!univ_log_debug_warned) {
-		univ_log_debug_warned = TRUE;
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot force log to disk if UNIV_LOG_DEBUG is"
-			" defined!. Crash recovery will not work!");
-	}
-#else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(bpage->newest_modification, true);
-#endif
+
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */
@@ -2307,7 +2297,7 @@ page_cleaner_flush_pages_recommendation(
 	}
 
 	if (last_pages && cur_lsn - last_lsn > lsn_avg_rate / 2) {
-		age_factor = (int) (prev_pages / last_pages);
+		age_factor = static_cast<int>(prev_pages / last_pages);
 	}
 
 	MONITOR_SET(MONITOR_FLUSH_N_TO_FLUSH_REQUESTED, n_pages);

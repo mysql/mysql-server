@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6355,17 +6355,6 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
           memcpy(field->ptr, src_ptr, actual_length);
-#ifdef HAVE_purify
-          /*
-            We get Valgrind warnings on uninitialised padding bytes in
-            varstrings, for example when writing rows to temporary tables.
-            So for valgrind builds we pad with zeros, not needed for
-            production code.
-          */
-          if (actual_length < field->pack_length())
-            memset(field->ptr + actual_length, 0,
-                  field->pack_length() - actual_length);
-#endif
           field->move_field_offset(-dst_offset);
         }
         else
@@ -6425,11 +6414,6 @@ static void get_default_value(void *def_val, Field *field)
           uchar *src_ptr= field->ptr;
           field->set_notnull();
           memcpy(def_val, src_ptr, actual_length);
-#ifdef HAVE_purify
-          if (actual_length < field->pack_length())
-            memset(((char*)def_val) + actual_length, 0,
-                  field->pack_length() - actual_length);
-#endif
         }
         field->move_field_offset(-src_offset);
         /* No action needed for a NULL field. */

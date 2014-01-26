@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ############################################################
 # Author: MATZ                                             #
 # Date: 2006-03-22                                         #
@@ -33,6 +28,8 @@ let $val4var = ROW;
 # Note that the storage engine should not be explicit: the default
 # storage engine is used on master and slave.
 
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
@@ -46,10 +43,13 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
                  PARTITION p5 VALUES LESS THAN MAXVALUE);
 
 --echo --- On master ---
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave --
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc
@@ -59,10 +59,12 @@ connection master;
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
@@ -82,6 +84,8 @@ DROP TABLE IF EXISTS t1;
 # slave.
 
 
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
@@ -92,10 +96,12 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
                  PARTITION p2 VALUES IN (412));
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
@@ -106,10 +112,12 @@ connection master;
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
@@ -127,6 +135,8 @@ DROP TABLE IF EXISTS t1;
 # different storage engines Alter table and ensure table is handled
 # Correctly on the slave
 
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
@@ -135,10 +145,12 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
                  PARTITIONS 4; 
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc
@@ -147,10 +159,12 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc
@@ -176,10 +190,12 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
                  PARTITIONS 4;
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc
@@ -189,10 +205,12 @@ connection master;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc
@@ -202,10 +220,12 @@ connection master;
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- On master ---
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
 sync_slave_with_master;
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --source include/rpl_multi_engine3.inc

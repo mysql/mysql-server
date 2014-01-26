@@ -77,7 +77,7 @@ extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
-extern "C" sig_handler endprog(int signal_number);
+extern "C" void endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
 static void print_header(MYSQL_RES *result);
 static void print_top(MYSQL_RES *result);
@@ -505,7 +505,7 @@ int main(int argc,char *argv[])
 }
 
 
-sig_handler endprog(int signal_number __attribute__((unused)))
+void endprog(int signal_number __attribute__((unused)))
 {
   interrupted=1;
 }

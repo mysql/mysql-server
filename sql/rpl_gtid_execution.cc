@@ -331,7 +331,7 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
 }
 
 
-enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
+enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_checks");
 
@@ -341,17 +341,19 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
 
-  const Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
       thd->in_active_multi_stmt_transaction() &&
-      gtid_next->type != AUTOMATIC_GROUP)
+      gtid_next->type == GTID_GROUP)
   {
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
 
   /*
-    never skip BEGIN/COMMIT.
+    Always allow:
+    - BEGIN/COMMIT/ROLLBACK
+    - SET/SELECT statements that do not invoke stored procedures.
 
     @todo: add flag to sql_command_flags to detect if statement
     controls transactions instead of listing the commands in the
@@ -368,10 +370,37 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
 
   /*
+    When the slave applier thread executes a
+    Format_description_log_event originating from a master
+    (corresponding to a new master binary log), it sets gtid_next to
+    NOT_YET_DETERMINED_GROUP.  This allows any following
+    Gtid_log_event will set the GTID appropriately, but if there is no
+    Gtid_log_event, gtid_next will be converted to ANONYMOUS.
+  */
+  DBUG_PRINT("info", ("gtid_next->type=%d NOT_YET_DETERMINED_GROUP=%d gtid_mode=%lu", gtid_next->type, NOT_YET_DETERMINED_GROUP, gtid_mode));
+  if (gtid_next->type == NOT_YET_DETERMINED_GROUP)
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      DBUG_RETURN(GTID_STATEMENT_CANCEL);
+    }
+    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+
+    gtid_next->set_anonymous();
+
+#ifdef HAVE_REPLICATION
+    thd->set_currently_executing_gtid_for_slave_thread();
+#endif
+  }
+
+
+  /*
     If a transaction updates both non-transactional and transactional
-    or more then one non-transactional tables it must be stopped, this
-    is the case when on master all updated tables are transactional but
-    on slave at least one is non-transactional, e.g.:
+    table; or if it updates more than one non-transactional tables;
+    then the transaction must be stopped.  This is the case when on
+    master all updated tables are transactional but on slave at least
+    one is non-transactional, e.g.:
 
     On master, tables are transactional:
       CREATE TABLE t1 (a INT) Engine=InnoDB;

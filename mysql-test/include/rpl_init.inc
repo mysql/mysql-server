@@ -207,6 +207,37 @@ while ($_rpl_server)
     }
     RESET SLAVE;
   }
+  # Only way to do this in mtr :-(
+  if ($_rpl_server == 1) {
+    --let $server_1_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 2) {
+    --let $server_2_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 3) {
+    --let $server_3_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 4) {
+    --let $server_4_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 5) {
+    --let $server_5_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 6) {
+    --let $server_6_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 7) {
+    --let $server_7_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 8) {
+    --let $server_8_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 9) {
+    --let $server_9_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 10) {
+    --let $server_10_datadir= `SELECT @@datadir`
+  }
 
   --dec $_rpl_server
 }

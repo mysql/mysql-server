@@ -522,9 +522,8 @@ buf_page_is_corrupted(
 				"Your database may be corrupt or"
 				" you may have copied the InnoDB"
 				" tablespace but not the InnoDB"
-				" log files. See " REFMAN ""
-				" forcing-innodb-recovery.html"
-				" for more information.");
+				" log files. %s",
+				FORCE_RECOVERY_MSG);
 
 		}
 	}
@@ -1398,8 +1397,8 @@ buf_pool_init_instance(
 
 		/* Number of locks protecting page_hash must be a
 		power of two */
-		srv_n_page_hash_locks =
-			(ulong) ut_2_power_up((ulint) srv_n_page_hash_locks);
+		srv_n_page_hash_locks = static_cast<ulong>(
+			 ut_2_power_up(srv_n_page_hash_locks));
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
@@ -1903,8 +1902,8 @@ page_found:
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
 			bpage->state = BUF_BLOCK_ZIP_PAGE;
-			bpage->space = ib_uint32_t(space);
-			bpage->offset = ib_uint32_t(offset);
+			bpage->space = static_cast<ib_uint32_t>(space);
+			bpage->offset = static_cast<ib_uint32_t>(offset);
 			bpage->buf_fix_count = 1;
 
 			ut_d(bpage->in_page_hash = TRUE);
@@ -2744,11 +2743,9 @@ buf_page_get_gen(
 #endif /* UNIV_DEBUG */
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
-#ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside(mtr)
 	      || ibuf_page_low(space, zip_size, offset,
 			       FALSE, file, line, NULL));
-#endif
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
@@ -2836,12 +2833,9 @@ loop:
 				" into the buffer pool after %lu attempts."
 				" The most probable cause of this error may"
 				" be that the table has been corrupted."
-				" You can try to fix this problem by using"
-				" innodb_force_recovery."
-				" Please see " REFMAN " for more"
-				" details. Aborting...",
-				space, offset,
-				BUF_PAGE_READ_MAX_RETRIES);
+				" %s Aborting...",
+				space, offset, BUF_PAGE_READ_MAX_RETRIES,
+				FORCE_RECOVERY_MSG);
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -3907,8 +3901,8 @@ err_exit:
 		buf_page_init_low(bpage);
 
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
-		bpage->space	= ib_uint32_t(space);
-		bpage->offset	= ib_uint32_t(offset);
+		bpage->space	= static_cast<ib_uint32_t>(space);
+		bpage->offset	= static_cast<ib_uint32_t>(offset);
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -4396,10 +4390,8 @@ corrupt:
 				" You can also try to fix the corruption"
 				" by dumping, dropping, and reimporting"
 				" the corrupt table. You can use CHECK"
-				" TABLE to scan your table for corruption."
-				" See also" REFMAN ""
-				" forcing-innodb-recovery.html"
-				" about forcing recovery.");
+				" TABLE to scan your table for corruption. %s",
+				FORCE_RECOVERY_MSG);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE

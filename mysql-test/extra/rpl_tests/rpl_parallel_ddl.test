@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/no_valgrind_without_big.inc
 
 #
@@ -50,7 +45,7 @@ while ($n)
   let $m= $tables;
   while ($m)
   {
-     eval create table d$n.t$m (a int);
+     eval create table d$n.t$m (a int) engine=$DEFAULT_ENGINE;
      eval select round(rand()*$tables) into @var;
      eval insert into d$n.t$m values (@var);
 
@@ -64,7 +59,7 @@ while ($n)
   let $m= $tables;
   while ($m)
   {
-     eval create table d$n.t$m (a int);
+     eval create table d$n.t$m (a int) engine=$DEFAULT_ENGINE;
      eval select round(rand()*$tables) into @var;
      eval insert into d$n.t$m values (@var);
 

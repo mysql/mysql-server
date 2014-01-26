@@ -185,17 +185,6 @@ Datafile::make_filepath(
 	m_filepath = fil_make_filepath(path, m_name, IBD, false);
 
 	if (m_filepath != NULL) {
-#ifdef _WIN32
-# ifndef UNIV_HOTBACKUP
-		/* If lower_case_table_names is 0 or 2, then MySQL allows database
-		directory names with upper case letters. On Windows, all table and
-		database names in InnoDB are internally always in lower case. Put the
-		file path to lower case, so that we are consistent with InnoDB's
-		internal data dictionary. */
-
-		dict_casedn_str(m_filepath);
-# endif /* !UNIV_HOTBACKUP */
-#endif
 		set_filename();
 	}
 }
@@ -659,7 +648,7 @@ Datafile::restore_from_doublewrite(
 	page_no = page_get_page_no(page);
 	page_size = fsp_flags_get_page_size(flags);
 
-	ut_ad(page_no == restore_page_no);
+	ut_a(page_no == restore_page_no);
 
 	buflen = zip_size ? zip_size: page_size;
 

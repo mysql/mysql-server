@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1324,16 +1324,6 @@ int ha_myisammrg::info(uint flag)
   {
     if (table->s->key_parts && mrg_info.rec_per_key)
     {
-#ifdef HAVE_purify
-      /*
-        valgrind may be unhappy about it, because optimizer may access values
-        between file->keys and table->key_parts, that will be uninitialized.
-        It's safe though, because even if opimizer will decide to use a key
-        with such a number, it'll be an error later anyway.
-      */
-      memset(table->key_info[0].rec_per_key, 0,
-             sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
-#endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key[0]) *

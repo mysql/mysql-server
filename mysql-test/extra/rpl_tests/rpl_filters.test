@@ -2,6 +2,7 @@
 # Bug #51639
 # The common part of Bug #51639 to test filters
 #
+-- source include/have_myisam.inc
 
 CREATE DATABASE mydb; 
 USE mydb;

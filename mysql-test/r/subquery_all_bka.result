@@ -920,6 +920,8 @@ create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
 ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
+ERROR HY000: Incorrect usage of UNION and LIMIT
+select 10.5 IN (SELECT * from t1 UNION SELECT 1.5 LIMIT 1);
 ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t1;
 create table t1 (a int, b int, c varchar(10));

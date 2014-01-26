@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Bug #50316  	Add Master_info_file to SHOW SLAVE STATUS
 # Testing of matching --master-info-file value to the value of the 
