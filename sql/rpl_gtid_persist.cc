@@ -16,6 +16,7 @@
    02110-1301 USA */
 
 #include "log.h"
+#include "key.h"
 #include "sql_base.h"
 #include "sql_parse.h"
 #include "replication.h"
@@ -145,7 +146,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
 }
 
 
-int Gtid_table_persistor::write_row(TABLE* table, char *sid,
+int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
                                     rpl_gno gno_start, rpl_gno gno_end)
 {
   DBUG_ENTER("Gtid_table_persistor::write_row");
@@ -192,6 +193,92 @@ int Gtid_table_persistor::write_row(TABLE* table, char *sid,
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(-1);
+}
+
+
+int Gtid_table_persistor::update_row(TABLE* table, const char *sid,
+                                     rpl_gno gno_start, rpl_gno gno_end,
+                                     rpl_gno new_gno_end)
+{
+  DBUG_ENTER("Gtid_table_persistor::update_row");
+  int error= 0;
+  Field **fields= NULL;
+  uchar user_key[MAX_KEY_LENGTH];
+
+  fields= table->field;
+  empty_record(table);
+  /* Store SID */
+  fields[0]->set_notnull();
+  if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
+    DBUG_RETURN(-1);
+  }
+
+  /* Store gno_start */
+  fields[1]->set_notnull();
+  if (fields[1]->store(gno_start, true /* unsigned = true*/))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[1]->field_name);
+    DBUG_RETURN(-1);
+  }
+
+  /* Store gno_end */
+  fields[2]->set_notnull();
+  if (fields[2]->store(gno_end, true /* unsigned = true*/))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[2]->field_name);
+    DBUG_RETURN(-1);
+  }
+
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("ha_index_init error"));
+    goto end;
+  }
+
+  if ((error= table->file->ha_index_read_map(table->record[0], user_key,
+                                             HA_WHOLE_KEY,
+                                             HA_READ_KEY_EXACT)))
+  {
+    DBUG_PRINT ("info", ("Row not found"));
+    goto end;
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Row found"));
+    store_record(table, record[1]);
+  }
+
+  /* Store new_gno_end */
+  fields[2]->set_notnull();
+  if ((error= fields[2]->store(new_gno_end, true /* unsigned = true*/)))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[2]->field_name);
+    goto end;
+  }
+
+  /* Update a row in gtid_executed table. */
+  if ((error= table->file->ha_update_row(table->record[1], table->record[0])))
+  {
+    table->file->print_error(error, MYF(0));
+    /*
+      This makes sure that the error is -1 and not the status returned
+      by the handler.
+    */
+    goto end;
+  }
+
+end:
+  table->file->ha_index_end();
+  if (error)
+    DBUG_RETURN(-1);
+  else
+    DBUG_RETURN(0);
 }
 
 
@@ -251,108 +338,79 @@ end:
 }
 
 
-bool Gtid_table_persistor::is_consecutive(string prev_gtid_interval,
-                                          string gtid_interval)
+int Gtid_table_persistor::merge_first_consecutive_rows(TABLE* table)
 {
-  DBUG_ENTER("Gtid_table_persistor::is_consecutive");
-  DBUG_ASSERT(!gtid_interval.empty());
-
-  if (prev_gtid_interval.empty())
-     DBUG_RETURN(false);
-
-  const Gtid_set::String_format *sf= &Gtid_set::default_string_format;
-  string prev_sid =
-    prev_gtid_interval.substr(0, gtid_interval.find(sf->sid_gno_separator));
-  string sid =
-    gtid_interval.substr(0, gtid_interval.find(sf->sid_gno_separator));
-
-  if (prev_sid != sid)
-    DBUG_RETURN(false);
-  else
-  {
-    /* Get the gno_start in gtid_interval */
-    size_t sid_gno_separator_pos= gtid_interval.find(sf->sid_gno_separator);
-    size_t gno_start_end_separator_pos =
-      gtid_interval.rfind(sf->gno_start_end_separator);
-    string gno_start=
-      gtid_interval.substr(sid_gno_separator_pos + 1,
-                           gno_start_end_separator_pos -
-                           sid_gno_separator_pos - 1);
-    rpl_gno rpl_gno_start= strtoll(gno_start.c_str(), NULL, 10);
-
-    /* Get the gno_end in prev_gtid_interval */
-    size_t prev_gno_start_end_separator_pos =
-      prev_gtid_interval.rfind(sf->gno_start_end_separator);
-    string prev_gno_end=
-      prev_gtid_interval.substr(prev_gno_start_end_separator_pos + 1,
-                                prev_gtid_interval.length() -
-                                prev_gno_start_end_separator_pos - 1);
-    rpl_gno prev_rpl_gno_end= strtoll(prev_gno_end.c_str(), NULL, 10);
-
-    /*
-      The prev_gtid_interval and gtid_interval are consecutive if
-      prev_gtid_interval.gno_end + 1 == gtid_interval.gno_start.
-    */
-    if (prev_rpl_gno_end + 1 == rpl_gno_start)
-      DBUG_RETURN(true);
-    else
-      DBUG_RETURN(false);
-  }
-}
-
-
-int Gtid_table_persistor::delete_consecutive_rows(TABLE* table,
-                                                  Gtid_set *gtid_deleted)
-{
-  DBUG_ENTER("Gtid_table_persistor::delete_uncompressed_rows");
+  DBUG_ENTER("Gtid_table_persistor::merge_first_consecutive_rows");
   int ret= 0;
   int err= 0;
-  bool prev_row_deleted= false;
-  string prev_gtid_interval;
+  /* Record the source id in the first consecutive row. */
+  string sid;
+  /* Record the first GNO in the first consecutive row. */
+  rpl_gno gno_start= 0;
+  /* Record the last GNO in the first consecutive row. */
+  rpl_gno gno_end= 0;
+  /* Record the last GNO in the last consecutive row. */
+  rpl_gno last_gno_end= 0;
+  /* Record the gtid interval in the previous row. */
+  string prev_sid;
+  rpl_gno prev_gno_start= 0;
+  rpl_gno prev_gno_end= 0;
+  /* Record the gtid interval in the current row. */
+  string cur_sid;
+  rpl_gno cur_gno_start= 0;
+  rpl_gno cur_gno_end= 0;
+  /* True if we find the first consecutive row. */
+  bool find_first_consecutive_row= false;
 
-  if ((err= table->file->ha_index_init(0, 1)))
+  if ((err= table->file->ha_index_init(0, TRUE)))
     DBUG_RETURN(-1);
 
   /* Read each row by the PK in increasing order. */
   err= table->file->ha_index_first(table->record[0]);
   while(!err)
   {
-    string gtid_interval= encode_gtid_text(table);
+    get_gtid_interval(table, cur_sid, cur_gno_start, cur_gno_end);
     /*
-      Check if gtid_intervals of previous row and current row
+      Check if gtid intervals of previous row and current row
       are consecutive.
     */
-    if (is_consecutive(prev_gtid_interval, gtid_interval))
+    if (prev_sid == cur_sid && prev_gno_end + 1 == cur_gno_start)
     {
-      if (!prev_row_deleted)
+      if (!find_first_consecutive_row)
       {
-        if ((err= table->file->ha_index_prev(table->record[0])))
-        {
-          table->file->print_error(err, MYF(0));
-          break;
-        }
-        gtid_interval= encode_gtid_text(table);
+        /* Set the gtid interval in the first consecutive row. */
+        sid= prev_sid;
+        gno_start= prev_gno_start;
+        gno_end= prev_gno_end;
+        find_first_consecutive_row= true;
       }
-
-      gtid_deleted->add_gtid_text(gtid_interval.c_str());
-      /* Delete the consecutive row. */
+      /* Delete the consecutive row. We do not delete the first
+         consecutive row, so that we can update it later. */
       if ((err= table->file->ha_delete_row(table->record[0])))
       {
         table->file->print_error(err, MYF(0));
         break;
       }
-      prev_row_deleted= true;
     }
-    else
-      prev_row_deleted= false;
+    else if (find_first_consecutive_row)
+    {
+      /* Set the last GNO in the last consecutive row. */
+      last_gno_end= prev_gno_end;
+      break;
+    }
 
-    prev_gtid_interval= gtid_interval;
+    prev_sid= cur_sid;
+    prev_gno_start= cur_gno_start;
+    prev_gno_end= cur_gno_end;
     err= table->file->ha_index_next(table->record[0]);
   }
 
   table->file->ha_index_end();
-  if (err != HA_ERR_END_OF_FILE)
+  if (err != HA_ERR_END_OF_FILE && err != 0)
     ret= -1;
+  else if (find_first_consecutive_row)
+    /* Update the first consecutive row. */
+    ret= update_row(table, sid.c_str(), gno_start, gno_end, last_gno_end);
 
   DBUG_RETURN(ret);
 }
@@ -447,29 +505,11 @@ int Gtid_table_persistor::compress()
   THD_STAGE_INFO(thd, stage_compressing_gtid_table);
 
   /*
-    Delete consecutive rows from the gtid_executed table
-    and fetch these deleted gtids at the same time.
+    In first consecutive rows range, delete consecutive rows from
+    the second consecutive row, then update the first row.
   */
-  if ((error= delete_consecutive_rows(table, &gtid_deleted)))
+  if ((error= merge_first_consecutive_rows(table)))
     goto end;
-
-  /*
-    Resolve InnoDB possible native deadlock caused by complex transaction
-    while compressing the gtid table by executing delete operations and
-    insert operations in separate statement in one transaction.
-  */
-  this->close_table(thd, table, &backup, 0 != error, FALSE);
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
-  {
-    error= 1;
-    goto end;
-  }
-
-  /*
-    Reset stage_compressing_gtid_table to overwrite
-    stage_system_lock set in open_table(...).
-  */
-  THD_STAGE_INFO(thd, stage_compressing_gtid_table);
 
   /*
     Sleep a little, so that notified user thread executed the statement
@@ -504,8 +544,6 @@ int Gtid_table_persistor::compress()
                                                        STRING_WITH_LEN(act)));
                   };);
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
-
-  error= save(table, &gtid_deleted);
 
 end:
   this->close_table(thd, table, &backup, 0 != error, TRUE);
@@ -613,6 +651,23 @@ string Gtid_table_persistor::encode_gtid_text(TABLE* table)
 }
 
 
+void Gtid_table_persistor::get_gtid_interval(TABLE* table, string& sid,
+                                            rpl_gno& gno_start,
+                                            rpl_gno& gno_end)
+{
+  DBUG_ENTER("Gtid_table_persistor::get_gtid_interval");
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+
+  /* Fetch gtid interval from the table */
+  table->field[0]->val_str(&str);
+  sid= string(str.c_ptr_safe());
+  gno_start= table->field[1]->val_int();
+  gno_end= table->field[2]->val_int();
+  DBUG_VOID_RETURN;
+}
+
+
 int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
 {
   DBUG_ENTER("Gtid_table_persistor::fetch_gtids_from_table");
@@ -629,7 +684,7 @@ int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
   tmp_disable_binlog(thd);
   saved_mode= thd->variables.sql_mode;
 
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  if (this->open_table(thd, TL_READ, &table, &backup))
   {
     ret= 1;
     goto end;
