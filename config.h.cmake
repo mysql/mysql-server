@@ -254,14 +254,6 @@
 
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 
-#cmakedefine QSORT_TYPE_IS_VOID 1
-#cmakedefine RETQSORTTYPE @RETQSORTTYPE@
-
-#cmakedefine SIGNAL_RETURN_TYPE_IS_VOID 1
-#cmakedefine RETSIGTYPE @RETSIGTYPE@
-#cmakedefine VOID_SIGHANDLER 1
-#define STRUCT_RLIMIT struct rlimit
-
 #cmakedefine WORDS_BIGENDIAN 1 
 
 /*
@@ -288,13 +280,6 @@
 
 #cmakedefine HAVE_WEAK_SYMBOL 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
-
-
-#cmakedefine HAVE_POSIX_SIGNALS 1
-#cmakedefine HAVE_BSD_SIGNALS 1
-#cmakedefine HAVE_SVR3_SIGNALS 1
-#cmakedefine HAVE_V7_SIGNALS 1
-
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
@@ -459,7 +444,6 @@
 /* time_t related defines */
 
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
-#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 /* CPU information */
 

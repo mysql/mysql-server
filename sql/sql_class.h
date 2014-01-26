@@ -3562,6 +3562,15 @@ public:
     DBUG_VOID_RETURN;
   }
 
+#ifdef HAVE_REPLICATION
+  /**
+    Copies variables.gtid_next to
+    ((Slave_worker *)rli_slave)->currently_executing_gtid,
+    if this is a slave thread.
+  */
+  void set_currently_executing_gtid_for_slave_thread();
+#endif
+
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
   {
