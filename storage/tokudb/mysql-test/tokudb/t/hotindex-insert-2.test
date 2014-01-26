@@ -1,3 +1,5 @@
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
 # test that deletes work when hot indexing is on with replace into optimization
 # test is checking #3406
 
@@ -16,11 +18,13 @@ create table s (a int auto_increment, b int, c int, primary key (a));
 
 --echo # populate table s
 --disable_query_log
+begin;
 let $a = 10000;
 while ($a) {
     eval insert into s (b,c) values ($a,0),($a,1),($a,2),($a,3),($a,4),($a,5),($a,6),($a,7),($a,8),($a,9);
     dec $a;
 }
+commit;
 --enable_query_log
 
 --echo # done inserting elements

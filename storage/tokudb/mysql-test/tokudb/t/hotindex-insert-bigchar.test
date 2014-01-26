@@ -1,3 +1,5 @@
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
 # test that deletes work when hot indexing is on
 
 SET DEFAULT_STORAGE_ENGINE='tokudb';
@@ -16,11 +18,13 @@ create table s (a int, b varchar(2000));
 
 --disable_query_log
 # populate table s
+begin;
 let $a = 10000;
 while ($a) {
     eval insert into s values ($a,repeat('a', 2000)),($a,repeat('b', 2000)),($a,repeat('c', 2000)),($a,repeat('d', 2000)),($a,repeat('e', 2000)),($a,repeat('f', 2000)),($a,repeat('g', 2000)),($a,repeat('h', 2000)),($a,repeat('i', 2000)),($a,repeat('j', 2000));
     dec $a;
 }
+commit;
 --enable_query_log
 
 set tokudb_create_index_online=1;
