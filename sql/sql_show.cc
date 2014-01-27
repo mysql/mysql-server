@@ -2247,6 +2247,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                   (double) tmp->progress.max_counter) /
                                  (double) max_stage)) *
                                100.0);
+          set_if_smaller(thd_info->progress, 100);
         }
         else
           thd_info->progress= 0.0;
