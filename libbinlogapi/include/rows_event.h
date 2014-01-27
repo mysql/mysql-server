@@ -436,14 +436,14 @@ public:
   unsigned char* m_null_bits;
 
   Table_map_event()
-  :m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
+  : Binary_log_event(TABLE_MAP_EVENT),
+    m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
   {
   }
   /*
     TODO: Remove this virtual method and replace by a member veriable in
     class Binary_log_event.
   */
-  virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -578,8 +578,9 @@ public:
     COMPLETE_ROWS_F = (1U << 3)
   };
 
-  Rows_event()
-  : m_table_id(0), m_width(0), m_extra_row_data(0),
+  Rows_event(Log_event_type type_arg)
+  : Binary_log_event(type_arg),
+    m_table_id(0), m_width(0), m_extra_row_data(0),
     columns_before_image(0), columns_after_image(0), row(0)
   {
   }
@@ -625,7 +626,6 @@ public:
       str.append("Unknown Flag");
     return str;
   }
-  Log_event_type get_type_code() { return m_type; } /*Specific type (_V1 etc)*/
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -644,11 +644,15 @@ class Write_rows_event : public virtual Rows_event
 public:
   Write_rows_event(const char *buf, unsigned int event_len,
                    const Format_description_event *description_event)
+  : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
   };
+
   Write_rows_event()
-  {}
+  : Rows_event(ENUM_END_EVENT)
+  {
+  }
 };
 
 /**
@@ -668,11 +672,15 @@ class Update_rows_event : public virtual Rows_event
 public:
   Update_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
+  : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
   };
+
   Update_rows_event()
-  {}
+  : Rows_event(ENUM_END_EVENT)
+  {
+  }
 };
 
 /**
@@ -693,11 +701,15 @@ class Delete_rows_event : public virtual Rows_event
 public:
   Delete_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
+  : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
   };
+
   Delete_rows_event()
-  {}
+  : Rows_event(ENUM_END_EVENT)
+  {
+  }
 };
 }
 

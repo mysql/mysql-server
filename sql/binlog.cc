@@ -965,7 +965,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                       });
       DBUG_RETURN(1);
     }
-    if (ev->get_type_code() == XID_EVENT)
+    if (ev->common_header->type_code == XID_EVENT)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
       flags.immediate= true;
@@ -2372,7 +2372,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                    opt_master_verify_checksum);
     if (ev)
     {
-      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
       {
         delete description_event;
         description_event= (Format_description_log_event*) ev;
@@ -2394,7 +2394,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          description_event,
                                          opt_master_verify_checksum)); )
     {
-      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
         description_event->common_footer->checksum_alg=
                            ev->common_footer->checksum_alg;
 
@@ -3020,7 +3020,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
          NULL)
   {
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
-    switch (ev->get_type_code())
+    switch (ev->common_header->type_code)
     {
     case FORMAT_DESCRIPTION_EVENT:
       if (fd_ev_p != &fd_ev)
@@ -5512,8 +5512,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
     bool is_trans_cache= event_info->is_using_trans_cache();
     binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
-    
-    DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
+
+    DBUG_PRINT("info",("event type: %d",event_info->common_header->type_code));
 
     /*
        No check for auto events flag here - this write method should
@@ -6528,7 +6528,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
-        ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+        ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT &&
         ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F)
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
@@ -7491,17 +7491,17 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
          && ev->is_valid())
   {
-    if (ev->get_type_code() == QUERY_EVENT &&
+    if (ev->common_header->type_code == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
       in_transaction= TRUE;
 
-    if (ev->get_type_code() == QUERY_EVENT &&
+    if (ev->common_header->type_code == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
     {
       DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;
     }
-    else if (ev->get_type_code() == XID_EVENT)
+    else if (ev->common_header->type_code == XID_EVENT)
     {
       DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;

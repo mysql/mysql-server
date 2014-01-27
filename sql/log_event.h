@@ -764,7 +764,6 @@ public:
     return (time_t) common_header->when.tv_sec;
   }
 #endif
-  virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
   void set_artificial_event() { common_header->flags |= LOG_EVENT_ARTIFICIAL_F; }
   void set_relay_log_event() { common_header->flags |= LOG_EVENT_RELAY_LOG_F; }
@@ -880,18 +879,18 @@ private:
   bool is_mts_sequential_exec()
   {
     return
-      get_type_code() == START_EVENT_V3          ||
-      get_type_code() == STOP_EVENT              ||
-      get_type_code() == ROTATE_EVENT            ||
-      get_type_code() == LOAD_EVENT              ||
-      get_type_code() == SLAVE_EVENT             ||
-      get_type_code() == CREATE_FILE_EVENT       ||
-      get_type_code() == DELETE_FILE_EVENT       ||
-      get_type_code() == NEW_LOAD_EVENT          ||
-      get_type_code() == EXEC_LOAD_EVENT         ||
-      get_type_code() == FORMAT_DESCRIPTION_EVENT||
+      common_header->type_code == START_EVENT_V3          ||
+      common_header->type_code == STOP_EVENT              ||
+      common_header->type_code == ROTATE_EVENT            ||
+      common_header->type_code == LOAD_EVENT              ||
+      common_header->type_code == SLAVE_EVENT             ||
+      common_header->type_code == CREATE_FILE_EVENT       ||
+      common_header->type_code == DELETE_FILE_EVENT       ||
+      common_header->type_code == NEW_LOAD_EVENT          ||
+      common_header->type_code == EXEC_LOAD_EVENT         ||
+      common_header->type_code == FORMAT_DESCRIPTION_EVENT||
 
-      get_type_code() == INCIDENT_EVENT;
+      common_header->type_code == INCIDENT_EVENT;
   }
 
   /**
@@ -909,9 +908,9 @@ private:
   enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
                                                    bool mts_in_group)
   {
-    if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+    if ((common_header->type_code == FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (common_header->log_pos == 0))) ||
-        (get_type_code() == ROTATE_EVENT &&
+        (common_header->type_code == ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
           (common_header->log_pos == 0    /* very first fake Rotate (R_f) */
            && mts_in_group /* ignored event turned into R_f at slave stop */))))
@@ -949,11 +948,11 @@ private:
     be the applier.
   */
   virtual void set_mts_isolate_group()
-  { 
+  {
     DBUG_ASSERT(ends_group() ||
-                get_type_code() == QUERY_EVENT ||
-                get_type_code() == EXEC_LOAD_EVENT ||
-                get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+                common_header->type_code == QUERY_EVENT ||
+                common_header->type_code == EXEC_LOAD_EVENT ||
+                common_header->type_code == EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -1254,7 +1253,6 @@ public:
     if (data_buf)
       my_free(data_buf);
   }
-  Log_event_type get_type_code() { return Query_event::get_type_code(); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
@@ -1459,7 +1457,9 @@ public:
 #else
   Start_log_event_v3()
   : Log_event(header(), footer())
-  {}
+  {
+  }
+
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
@@ -1537,7 +1537,6 @@ public:
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
                                *description_event);
-  Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
@@ -1627,7 +1626,6 @@ public:
   Intvar_log_event(const char* buf,
                    const Format_description_event *description_event);
   ~Intvar_log_event() {}
-  Log_event_type get_type_code() { return INTVAR_EVENT;}
   int get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -1676,11 +1674,11 @@ class Rand_log_event: public Rand_event, public Log_event
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
                  enum_event_cache_type cache_type_arg,
                  enum_event_logging_type logging_type_arg)
-    :Rand_event(seed1_arg, seed2_arg),
-     Log_event(thd_arg, 0, cache_type_arg,
-               logging_type_arg, header(), footer())
-     {
-     }
+  : Rand_event(seed1_arg, seed2_arg),
+    Log_event(thd_arg, 0, cache_type_arg,
+              logging_type_arg, header(), footer())
+    {
+    }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1691,7 +1689,6 @@ class Rand_log_event: public Rand_event, public Log_event
   Rand_log_event(const char* buf,
                  const Format_description_event *description_event);
   ~Rand_log_event() {}
-  Log_event_type get_type_code() { return RAND_EVENT;}
   int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -1757,7 +1754,6 @@ class Xid_log_event: public Xid_event, public Log_event
   Xid_log_event(const char* buf,
                 const Format_description_event *description_event);
   ~Xid_log_event() {}
-  Log_event_type get_type_code() { return XID_EVENT;}
   int get_data_size() { return sizeof(xid); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -1809,7 +1805,8 @@ public:
      Log_event(thd_arg, 0, cache_type_arg,
                logging_type_arg, header(), footer()),
      deferred(false)
-    { }
+    {
+    }
   int pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1818,12 +1815,11 @@ public:
   User_var_log_event(const char* buf, uint event_len,
                      const Format_description_event *description_event);
   ~User_var_log_event() {}
-  Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
-  /* 
-     Getter and setter for deferred User-event. 
-     Returns true if the event is not applied directly 
+  /*
+     Getter and setter for deferred User-event.
+     Returns true if the event is not applied directly
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
@@ -1865,7 +1861,9 @@ public:
                  const Format_description_event *description_event):
   Stop_event(buf, description_event),
   Log_event(header(), footer(), true)
-  {}
+  {
+  }
+
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
   bool is_valid() const { return 1; }
@@ -1929,7 +1927,6 @@ public:
                    const Format_description_event* description_event);
   ~Rotate_log_event()
   {}
-  Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + Binary_log_event::ROTATE_HEADER_LEN;}
   bool is_valid() const { return Rotate_event::is_valid(); }
 #ifdef MYSQL_SERVER
@@ -2012,10 +2009,6 @@ public:
   {
   }
 
-  Log_event_type get_type_code()
-  {
-    return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
-  }
   bool is_valid() const { return inited_from_old || block != 0; }
 #ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
@@ -2078,7 +2071,6 @@ public:
                          const Format_description_event
                          *description_event);
   ~Append_block_log_event() {}
-  Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   int get_data_size() { return  block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN ;}
   bool is_valid() const { return Append_block_event::is_valid(); }
 #ifdef MYSQL_SERVER
@@ -2140,7 +2132,6 @@ public:
   Delete_file_log_event(const char* buf, uint event_len,
                         const Format_description_event* description_event);
   ~Delete_file_log_event() {}
-  Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
   int get_data_size() { return Binary_log_event::DELETE_FILE_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
@@ -2200,7 +2191,6 @@ public:
                          const Format_description_event
                          *description_event);
   ~Execute_load_log_event() {}
-  Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
   int get_data_size() { return  Binary_log_event::EXEC_LOAD_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
@@ -2278,7 +2268,6 @@ public:
                              const Format_description_event
                              *description_event);
   ~Begin_load_query_log_event() {}
-  Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -2348,7 +2337,6 @@ public:
                                *description_event);
   ~Execute_load_query_log_event() {}
 
-  Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
   bool is_valid() const { return Execute_load_query_event::is_valid(); }
 
   ulong get_post_header_size_for_derived();
@@ -2478,7 +2466,6 @@ public:
   const char *get_table_name() const { return m_tblnam.c_str(); }
   const char *get_db_name() const    { return m_dbnam.c_str(); }
 
-  virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const
   {
     return (m_null_bits != NULL &&
@@ -2603,7 +2590,6 @@ public:
   void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
-  Log_event_type get_type_code() { return m_type; } /* Specific type (_V1 etc) */
   virtual Log_event_type get_general_type_code() = 0; /* General rows op type, no version */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -3362,7 +3348,6 @@ public:
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
 
-  virtual Log_event_type get_type_code() { return INCIDENT_EVENT; }
 
   virtual bool is_valid() const
   {
@@ -3427,7 +3412,6 @@ public:
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
 
   virtual bool is_valid() const { return 1; }
 
@@ -3474,6 +3458,7 @@ public:
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    common_header->type_code= ROWS_QUERY_LOG_EVENT;
     if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
                                           query_len + 1, MYF(MY_WME))))
       return;
@@ -3501,7 +3486,6 @@ public:
 #endif
   virtual bool write_data_body(IO_CACHE *file);
 
-  virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
 
   virtual int get_data_size()
   {
@@ -3541,7 +3525,6 @@ class Heartbeat_log_event: public Heartbeat_event, public Log_event
 public:
   Heartbeat_log_event(const char* buf, uint event_len,
                       const Format_description_event* description_event);
-  Log_event_type get_type_code() { return HEARTBEAT_LOG_EVENT; }
   bool is_valid() const
     {
       return (log_ident != NULL &&
@@ -3609,15 +3592,6 @@ public:
                  const Format_description_event *description_event);
 
   virtual ~Gtid_log_event() {}
-
-  Log_event_type get_type_code()
-  {
-    DBUG_ENTER("Gtid_log_event::get_type_code()");
-    Log_event_type ret= (spec.type == ANONYMOUS_GROUP ?
-                         ANONYMOUS_GTID_LOG_EVENT : GTID_LOG_EVENT);
-    DBUG_PRINT("info", ("code=%d=%s", ret, get_type_str(ret)));
-    DBUG_RETURN(ret);
-  }
 
   int get_data_size() { return POST_HEADER_LENGTH; }
 
@@ -3756,7 +3730,6 @@ public:
                            const Format_description_event *description_event);
   virtual ~Previous_gtids_log_event() {}
 
-  Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
   bool is_valid() const { return buf != NULL; }
   int get_data_size() { return buf_size; }
@@ -3811,8 +3784,8 @@ public:
 
 inline bool is_gtid_event(Log_event* evt)
 {
-  return (evt->get_type_code() == GTID_LOG_EVENT ||
-          evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
+  return (evt->common_header->type_code == GTID_LOG_EVENT ||
+          evt->common_header->type_code == ANONYMOUS_GTID_LOG_EVENT);
 }
 
 #ifdef MYSQL_SERVER

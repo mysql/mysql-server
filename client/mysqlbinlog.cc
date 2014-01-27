@@ -746,7 +746,7 @@ static bool shall_skip_gtids(Log_event* ev)
 {
   bool filtered= false;
 
-  switch (ev->get_type_code())
+  switch (ev->common_header->type_code)
   {
     case GTID_LOG_EVENT:
     case ANONYMOUS_GTID_LOG_EVENT:
@@ -855,7 +855,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                           my_off_t pos, const char *logname)
 {
   char ll_buff[21];
-  Log_event_type ev_type= ev->get_type_code();
+  Log_event_type ev_type= ev->common_header->type_code;
   my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   print_event_info->short_form= short_form;

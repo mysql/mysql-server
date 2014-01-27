@@ -3347,7 +3347,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   mysql_mutex_assert_owner(&rli->data_lock);
   DBUG_ASSERT(!rli->belongs_to_client());
 
-  int type= ev->get_type_code();
+  int type= ev->common_header->type_code;
   if (sql_delay && type != ROTATE_EVENT &&
       type != FORMAT_DESCRIPTION_EVENT && type != START_EVENT_V3)
   {
@@ -3460,7 +3460,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
   DBUG_ENTER("apply_event_and_update_pos");
 
   DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
-                           ev->get_type_str(), ev->get_type_code(),
+                           ev->get_type_str(), ev->common_header->type_code,
                            ev->server_id));
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
@@ -3666,7 +3666,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     */
     int error= 0;
     if (*ptr_ev &&
-        (ev->get_type_code() != XID_EVENT ||
+        (ev->common_header->type_code != XID_EVENT ||
          skip_event || (rli->is_mts_recovery() && !is_gtid_event(ev) &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
@@ -3712,17 +3712,17 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     {
       DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
 		  (!ev->worker &&
-		   (ev->get_type_code() == INTVAR_EVENT ||
-		    ev->get_type_code() == RAND_EVENT ||
-		    ev->get_type_code() == USER_VAR_EVENT)));
+		   (ev->common_header->type_code == INTVAR_EVENT ||
+		    ev->common_header->type_code == RAND_EVENT ||
+		    ev->common_header->type_code == USER_VAR_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
 
     if (!error && rli->is_mts_recovery() &&
-        ev->get_type_code() != ROTATE_EVENT &&
-        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != PREVIOUS_GTIDS_LOG_EVENT)
+        ev->common_header->type_code != ROTATE_EVENT &&
+        ev->common_header->type_code != FORMAT_DESCRIPTION_EVENT &&
+        ev->common_header->type_code != PREVIOUS_GTIDS_LOG_EVENT)
     {
       if (ev->starts_group())
       {
@@ -3877,7 +3877,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
           (ev->common_header->when.tv_sec == 0) ||
-           ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+           ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT))
     {
       rli->last_master_timestamp= ev->common_header->when.tv_sec +
                                   (time_t) ev->exec_time;
@@ -3913,8 +3913,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
          read hanging if the realy log does not have any more events.
       */
       DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                      if ((ev->get_type_code() == XID_EVENT) ||
-                          ((ev->get_type_code() == QUERY_EVENT) &&
+                      if ((ev->common_header->type_code == XID_EVENT) ||
+                          ((ev->common_header->type_code == QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
                         DBUG_ASSERT(thd->transaction.all.cannot_safely_rollback());
@@ -3949,8 +3949,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement
         clean-up routine.
       */
-      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
-          ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      if (ev->common_header->type_code != FORMAT_DESCRIPTION_EVENT &&
+          ev->common_header->type_code != ROWS_QUERY_LOG_EVENT)
       {
         DBUG_PRINT("info", ("Deleting the event after it has been executed"));
         delete ev;
@@ -4952,7 +4952,7 @@ int mts_recovery_groups(Relay_log_info *rli)
         while (i < 4 && (ev= Log_event::read_log_event(&log,
                (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
           {
             p_fdle->common_footer->checksum_alg=
                                    ev->common_footer->checksum_alg;
@@ -4978,12 +4978,12 @@ int mts_recovery_groups(Relay_log_info *rli)
       {
         DBUG_ASSERT(ev->is_valid());
 
-        if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+        if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
 
-        if (ev->get_type_code() == ROTATE_EVENT ||
-            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
+        if (ev->common_header->type_code == ROTATE_EVENT ||
+            ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT ||
+            ev->common_header->type_code == PREVIOUS_GTIDS_LOG_EVENT)
         {
           delete ev;
           ev= NULL;
@@ -4993,7 +4993,7 @@ int mts_recovery_groups(Relay_log_info *rli)
         DBUG_PRINT("mts", ("Event Recoverying relay log info "
                    "group_mster_log_name %s, event_master_log_pos %llu type code %u.",
                    linfo.log_file_name, ev->common_header->log_pos,
-                   ev->get_type_code()));
+                   ev->common_header->type_code));
 
         if (ev->starts_group())
         {
@@ -6255,7 +6255,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   }
   /* 3.23 events don't contain log_pos */
   mi->set_master_log_pos(ev->common_header->log_pos);
-  switch (ev->get_type_code()) {
+  switch (ev->common_header->type_code) {
   case STOP_EVENT:
     ignore_event= 1;
     inc_pos= event_len;
@@ -6342,7 +6342,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     my_free((char*) tmp_buf);
     DBUG_RETURN(1);
   }
-  switch (ev->get_type_code()) {
+  switch (ev->common_header->type_code) {
   case STOP_EVENT:
     goto err;
   case ROTATE_EVENT:

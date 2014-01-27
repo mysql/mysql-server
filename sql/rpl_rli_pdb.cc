@@ -1046,7 +1046,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
-    if (ev->get_type_code() != XID_EVENT)
+    if (ev->common_header->type_code != XID_EVENT)
     {
       commit_positions(ev, ptr_g, false);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -1993,7 +1993,7 @@ err:
   }
 
   // todo: simulate delay in delete
-  if (ev && ev->worker && ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+  if (ev && ev->worker && ev->common_header->type_code != ROWS_QUERY_LOG_EVENT)
   {
     delete ev;
   }

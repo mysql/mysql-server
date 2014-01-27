@@ -304,7 +304,6 @@ public:
                            const Format_description_event *description_event);
   ~Execute_load_query_event() {}
 
-  Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
   bool is_valid() const { return Query_event::is_valid() && file_id != 0; }
 };
 
@@ -515,8 +514,9 @@ protected:
                      int body_offset,
                      const Format_description_event* description_event);
  // Required by Load_event(THD* ...) in the server
- Load_event()
- : num_fields(0), fields(0), field_lens(0), field_block_len(0)
+ Load_event(Log_event_type type_code_arg= NEW_LOAD_EVENT)
+ : Binary_log_event(type_code_arg),
+   num_fields(0), fields(0), field_lens(0), field_block_len(0)
  {
  }
 public:
@@ -581,11 +581,6 @@ public:
 
   ~Load_event()
   {
-  }
-
-  Log_event_type get_type_code()
-  {
-    return sql_ex_data.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
   }
 
   virtual bool is_valid() const { return table_name != 0; }
@@ -665,10 +660,6 @@ public:
   {
     bapi_free((void*) event_buf);
   }
-  Log_event_type get_type_code()
-  {
-    return fake_base ? Load_event::get_type_code() : CREATE_FILE_EVENT;
-  }
   int get_data_size()
   {
     return (fake_base ? Load_event::get_data_size() :
@@ -712,9 +703,9 @@ class Delete_file_event: public Binary_log_event
 protected:
   // Required by Delete_file_log_event(THD* ..)
   Delete_file_event(uint32_t file_id_arg, const char* db_arg)
-  : file_id(file_id_arg), db(db_arg)
- {
- }
+  : Binary_log_event(DELETE_FILE_EVENT), file_id(file_id_arg), db(db_arg)
+  {
+  }
 public:
   enum Delete_file_offset {
     /** DF = "Delete File" */
@@ -727,7 +718,6 @@ public:
   Delete_file_event(const char* buf, uint event_len,
                     const Format_description_event* description_event);
   ~Delete_file_event() {}
-  Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
   bool is_valid() const { return file_id != 0; }
 };
 
@@ -826,11 +816,16 @@ protected:
                      unsigned char* block_arg,
                      unsigned int block_len_arg,
                      uint32_t file_id_arg)
- : block(block_arg), block_len(block_len_arg),
+ : Binary_log_event(APPEND_BLOCK_EVENT),
+   block(block_arg), block_len(block_len_arg),
    file_id(file_id_arg), db(db_arg)
  {
  }
- Append_block_event() {}
+ Append_block_event(Log_event_type type_arg= APPEND_BLOCK_EVENT)
+ : Binary_log_event(type_arg)
+ {
+ }
+
 public:
   enum Append_block_offset
   {
@@ -858,7 +853,6 @@ public:
   Append_block_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
   ~Append_block_event() {}
-  Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   virtual bool is_valid() const { return block != 0; }
 };
 
@@ -878,12 +872,15 @@ class Begin_load_query_event: public virtual Append_block_event
 {
 protected:
   //TODO: Remove. Right now required by Begin_load_query_log_event(THD*...)
-  Begin_load_query_event(): Append_block_event() {}
+  Begin_load_query_event()
+  : Append_block_event(BEGIN_LOAD_QUERY_EVENT)
+  {
+  }
+
 public:
   Begin_load_query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event);
   ~Begin_load_query_event() {}
-  Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
 };
 } // end namespace binary_log
 /**
