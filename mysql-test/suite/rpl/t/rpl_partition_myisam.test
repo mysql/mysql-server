@@ -1,11 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test of partitioning features with replication for MyISAM
 --source include/have_partition.inc
 --source include/master-slave.inc
+--source include/have_myisam.inc
 
 # Set the default connection to 'master'
 

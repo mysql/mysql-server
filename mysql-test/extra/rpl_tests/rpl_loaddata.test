@@ -14,6 +14,7 @@
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 source include/have_innodb.inc;
+source include/have_myisam.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

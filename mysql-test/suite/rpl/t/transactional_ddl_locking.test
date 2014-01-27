@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ################# t/transactional_ddl_locking.test ###################
 #                                                                    #
 # Tests ensure that concurrent DDL operations should not be allowed  #
@@ -25,6 +20,7 @@
 --source include/big_test.inc
 --source include/have_log_bin.inc
 --source include/master-slave.inc
+--source include/have_myisam.inc
 
 --echo # Prepare playground for test by creating tables
 
@@ -1949,7 +1945,9 @@ connection master;
 INSERT INTO t1opt VALUES (1,'Mysql locking',20,'Transactional locking',10);
 INSERT INTO t1opt SELECT * FROM t1opt;
 BEGIN;
+--disable_result_log
 OPTIMIZE TABLE t1opt;
+--enable_result_log
 
 --echo --- connection master1 ---
 connection master1;
@@ -1993,7 +1991,9 @@ CREATE TABLE t1opt (id INT , content TEXT, author_id INT,
 INSERT INTO t1opt VALUES (2,'Mysql locking1',22,'Transactional locking1',11);
 INSERT INTO t1opt SELECT * FROM t1opt;
 BEGIN;
+--disable_result_log
 OPTIMIZE TABLE t1opt;
+--enable_result_log
 
 --echo --- connection master1 ---
 connection master1;
@@ -2349,6 +2349,8 @@ CREATE TABLE t2lock1 (a INT, b INT);
 --echo --- connection master ---
 connection master;
 LOCK TABLES t1lock1 WRITE;
+# InnoDB shows: 'OK' ,whereas, MyISAM shows: 'Table is already up to date'
+--replace_result OK "Table is already up to date"
 ANALYZE TABLE t1lock1;
 UNLOCK TABLES;
 

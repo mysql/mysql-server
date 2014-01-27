@@ -3,11 +3,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-create table t1 (a int);
+create table t1 (a int) engine=myisam;
 insert into t1 values (10);
-create table t2 (a int);
+create table t2 (a int) engine=myisam;
 create table t3 (a int) engine=merge union(t1);
-create table t4 (a int);
+create table t4 (a int) engine=myisam;
 insert into t4 select * from t3;
 rename table t1 to t5, t2 to t1;
 flush no_write_to_binlog tables;

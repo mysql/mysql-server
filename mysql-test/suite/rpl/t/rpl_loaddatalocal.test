@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # See if "LOAD DATA LOCAL INFILE" is well replicated
 # (LOAD DATA LOCAL INFILE is not written to the binlog
 # the same way as LOAD DATA INFILE : Append_blocks are smaller).

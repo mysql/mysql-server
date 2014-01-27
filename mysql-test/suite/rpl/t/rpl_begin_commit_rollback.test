@@ -1,5 +1,6 @@
 source include/master-slave.inc;
 source include/have_innodb.inc;
+source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
 source include/not_gtid_enabled.inc;
 # UNTIL is not supported yet (TODO: support and remove the guard)

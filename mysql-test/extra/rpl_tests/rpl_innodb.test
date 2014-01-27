@@ -1,3 +1,4 @@
+--source include/have_myisam.inc
 #
 # Bug#11401: Load data infile 'REPLACE INTO' fails on slave.
 #
