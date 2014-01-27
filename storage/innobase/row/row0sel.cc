@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -5208,7 +5208,7 @@ row_search_check_if_query_cache_permitted(
 	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+	    && ((trx->id != 0 && trx->id >= table->query_cache_inv_id)
 		|| !MVCC::is_view_active(trx->read_view)
 		|| trx->read_view->low_limit_id()
 		>= table->query_cache_inv_id)) {
