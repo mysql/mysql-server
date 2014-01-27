@@ -4459,6 +4459,10 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
+    Gtid_set *executed_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+    Gtid_set *lost_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
     if (opt_bin_log)
     {
       /*
@@ -4481,10 +4485,6 @@ int mysqld_main(int argc, char **argv)
       */
       Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
       Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set *executed_gtids=
-        const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
-      Gtid_set *lost_gtids=
-        const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
 
@@ -4566,6 +4566,24 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
+    }
+    else if (gtid_mode > GTID_MODE_OFF)
+    {
+      /*
+        If gtid_mode is enabled and binlog is disabled, initialize
+        executed_gtids from gtid table and lost_gtids has a same
+        gtid set with executed_gtids during server startup.
+      */
+      if (gtid_table_persistor->fetch_gtids_from_table(executed_gtids) == -1)
+        unireg_abort(1);
+      global_sid_lock->wrlock();
+      DBUG_ASSERT(lost_gtids->is_empty());
+      if (lost_gtids->add_gtid_set(executed_gtids) != RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+      global_sid_lock->unlock();
     }
   }
 
