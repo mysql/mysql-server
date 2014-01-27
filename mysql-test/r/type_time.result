@@ -181,7 +181,7 @@ SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
 CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Incorrect datetime value: '00:00:00'
 #
 # MDEV-4652 Wrong result for CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')))
 #

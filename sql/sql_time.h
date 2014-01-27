@@ -124,5 +124,6 @@ check_date(const MYSQL_TIME *ltime, ulonglong flags, int *was_cut)
 }
 bool check_date_with_warn(const MYSQL_TIME *ltime, ulonglong fuzzy_date,
                           timestamp_type ts_type);
-    
+bool adjust_time_range_with_warn(MYSQL_TIME *ltime, uint dec);
+
 #endif /* SQL_TIME_INCLUDED */

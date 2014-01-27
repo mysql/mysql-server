@@ -230,6 +230,20 @@ check_date_with_warn(const MYSQL_TIME *ltime, ulonglong fuzzy_date,
 }
 
 
+bool
+adjust_time_range_with_warn(MYSQL_TIME *ltime, uint dec)
+{
+  MYSQL_TIME copy= *ltime;
+  ErrConvTime str(&copy);
+  int warnings= 0;
+  if (check_time_range(ltime, dec, &warnings))
+    return true;
+  if (warnings)
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, MYSQL_TIMESTAMP_TIME, NullS);
+  return false;
+}
+
 /*
   Convert a string to 8-bit representation,
   for use in str_to_time/str_to_date/str_to_date.
