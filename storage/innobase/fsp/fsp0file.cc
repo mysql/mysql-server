@@ -642,7 +642,7 @@ Datafile::restore_from_doublewrite(
 							 + page);
 	const page_size_t	page_size(flags);
 
-	ut_ad(page_get_page_no(page) == restore_page_no);
+	ut_a(page_get_page_no(page) == restore_page_no);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Restoring page %lu of datafile '%s' in tablespace %lu from"
