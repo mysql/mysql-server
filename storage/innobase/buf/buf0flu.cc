@@ -2299,7 +2299,7 @@ page_cleaner_flush_pages_recommendation(
 	}
 
 	if (last_pages && cur_lsn - last_lsn > lsn_avg_rate / 2) {
-		age_factor = (int) (prev_pages / last_pages);
+		age_factor = static_cast<int>(prev_pages / last_pages);
 	}
 
 	MONITOR_SET(MONITOR_FLUSH_N_TO_FLUSH_REQUESTED, n_pages);

@@ -631,7 +631,7 @@ buf_page_set_accessed(
 
 	if (bpage->access_time == 0) {
 		/* Make this the time of the first access. */
-		bpage->access_time = (uint) ut_time_ms();
+		bpage->access_time = static_cast<uint>(ut_time_ms());
 	}
 }
 
