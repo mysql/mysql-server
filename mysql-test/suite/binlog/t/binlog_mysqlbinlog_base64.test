@@ -1,5 +1,6 @@
 
 -- source include/have_binlog_format_row.inc
+-- source include/no_valgrind_without_big.inc
 #
 # Reset master to cleanup binlog
 #

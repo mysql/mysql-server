@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -151,7 +151,7 @@ fts_config_create_index_param_name(
 	/* Caller is responsible for deleting name. */
 	name = static_cast<char*>(ut_malloc(
 		len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
-	strcpy(name, param);
+	::strcpy(name, param);
 	name[len] = '_';
 
 	fts_write_object_id(index->id, name + len + 1,

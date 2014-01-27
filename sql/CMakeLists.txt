@@ -171,6 +171,7 @@ SET(SQL_SHARED_SOURCES
   table_trigger_dispatcher.cc
   thr_malloc.cc 
   transaction.cc
+  transaction_info.cc
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc

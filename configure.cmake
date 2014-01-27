@@ -199,6 +199,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
     MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
     EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
   ELSE()
     MESSAGE(STATUS "Failed to find the reuired stlport library, print some"
@@ -648,108 +649,13 @@ ENDIF()
 # Code tests
 #
 
-# check whether time_t is unsigned
-CHECK_C_SOURCE_COMPILES("
-#include <time.h>
-int main()
-{
-  int array[(((time_t)-1) > 0) ? 1 : -1];
-  return 0;
-}"
-TIME_T_UNSIGNED)
-
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  getaddrinfo( 0, 0, 0, 0);
-  return 0;
-}"
-HAVE_GETADDRINFO)
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  select(0,0,0,0,0);
-  return 0;
-}"
-HAVE_SELECT)
-
-#
-# Check return type of qsort()
-#
-CHECK_C_SOURCE_COMPILES("
-#include <stdlib.h>
-#ifdef __cplusplus
-extern \"C\"
-#endif
-void qsort(void *base, size_t nel, size_t width,
-  int (*compar) (const void *, const void *));
-int main(int ac, char **av) {}
-" QSORT_TYPE_IS_VOID)
-IF(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "void")
-ELSE(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "int")
-ENDIF(QSORT_TYPE_IS_VOID)
+SET(HAVE_GETADDRINFO 1) # Used by libevent
+SET(HAVE_SELECT 1) # Used by NDB/libevent
 
 IF(WIN32)
-SET(SOCKET_SIZE_TYPE int)
+  SET(SOCKET_SIZE_TYPE int)
 ELSE()
-CHECK_CXX_SOURCE_COMPILES("
-#include <sys/socket.h>
-int main(int argc, char **argv)
-{
-  getsockname(0,0,(socklen_t *) 0);
-  return 0; 
-}"
-HAVE_SOCKET_SIZE_T_AS_socklen_t)
-
-IF(HAVE_SOCKET_SIZE_T_AS_socklen_t)
   SET(SOCKET_SIZE_TYPE socklen_t)
-ELSE()
-  CHECK_CXX_SOURCE_COMPILES("
-  #include <sys/socket.h>
-  int main(int argc, char **argv)
-  {
-    getsockname(0,0,(int *) 0);
-    return 0; 
-  }"
-  HAVE_SOCKET_SIZE_T_AS_int)
-  IF(HAVE_SOCKET_SIZE_T_AS_int)
-    SET(SOCKET_SIZE_TYPE int)
-  ELSE()
-    CHECK_CXX_SOURCE_COMPILES("
-    #include <sys/socket.h>
-    int main(int argc, char **argv)
-    {
-      getsockname(0,0,(size_t *) 0);
-      return 0; 
-    }"
-    HAVE_SOCKET_SIZE_T_AS_size_t)
-    IF(HAVE_SOCKET_SIZE_T_AS_size_t)
-      SET(SOCKET_SIZE_TYPE size_t)
-    ELSE()
-      SET(SOCKET_SIZE_TYPE int)
-    ENDIF()
-  ENDIF()
-ENDIF()
 ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
@@ -781,29 +687,6 @@ IF(NOT STACK_DIRECTION)
      MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
    ENDIF()
 ENDIF()
-
-#
-# Check return type of signal handlers
-#
-CHECK_C_SOURCE_COMPILES("
-#include <signal.h>
-#ifdef signal
-# undef signal
-#endif
-#ifdef __cplusplus
-extern \"C\" void (*signal (int, void (*)(int)))(int);
-#else
-void (*signal ()) ();
-#endif
-int main(int ac, char **av) {}
-" SIGNAL_RETURN_TYPE_IS_VOID)
-IF(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE void)
-  SET(VOID_SIGHANDLER 1)
-ELSE(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE int)
-ENDIF(SIGNAL_RETURN_TYPE_IS_VOID)
-
 
 CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)
@@ -860,47 +743,6 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   ENDIF()
 ENDIF()
   
-#
-# Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
-#
-CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    sigset_t ss;
-    struct sigaction sa;
-    sigemptyset(&ss); sigsuspend(&ss);
-    sigaction(SIGINT, &sa, (struct sigaction *) 0);
-    sigprocmask(SIG_BLOCK, &ss, (sigset_t *) 0);
-  }"
-  HAVE_POSIX_SIGNALS)
-
-IF(NOT HAVE_POSIX_SIGNALS)
- CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    int mask = sigmask(SIGINT);
-    sigsetmask(mask); sigblock(mask); sigpause(mask);
-  }"
-  HAVE_BSD_SIGNALS)
-  IF (NOT HAVE_BSD_SIGNALS)
-    CHECK_C_SOURCE_COMPILES("
-    #include <signal.h>
-    void foo() { }
-    int main(int ac, char **av)
-    {
-      int mask = sigmask(SIGINT);
-      sigset(SIGINT, foo); sigrelse(SIGINT);
-      sighold(SIGINT); sigpause(SIGINT);
-    }"
-   HAVE_SVR3_SIGNALS)  
-   IF (NOT HAVE_SVR3_SIGNALS)
-    SET(HAVE_V7_SIGNALS 1)
-   ENDIF(NOT HAVE_SVR3_SIGNALS)
- ENDIF(NOT HAVE_BSD_SIGNALS)
-ENDIF(NOT HAVE_POSIX_SIGNALS)
-
 # Assume regular sprintf
 SET(SPRINTFS_RETURNS_INT 1)
 

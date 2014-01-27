@@ -676,7 +676,7 @@ extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
-extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
+extern void my_remember_signal(int signal_number, void (*func)(int));
 extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
@@ -719,15 +719,15 @@ extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
 extern int flush_write_cache(RECORD_CACHE *info);
 extern void handle_recived_signals(void);
 
-extern sig_handler my_set_alarm_variable(int signo);
+extern void my_set_alarm_variable(int signo);
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
-extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
-                        qsort_cmp cmp);
-extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
-                         qsort2_cmp cmp, const void *cmp_argument);
+extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
+                     qsort_cmp cmp);
+extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
+                      qsort2_cmp cmp, const void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -837,7 +837,20 @@ extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
-extern void my_sleep(ulong m_seconds);
+
+/* Wait a given number of microseconds */
+static inline void my_sleep(ulong m_seconds)
+{
+#if defined(_WIN32)
+  Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
+#else
+  struct timeval t;
+  t.tv_sec=  m_seconds / 1000000L;
+  t.tv_usec= m_seconds % 1000000L;
+  select(0,0,0,0,&t); /* sleep */
+#endif
+}
+
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6355,17 +6355,6 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
           memcpy(field->ptr, src_ptr, actual_length);
-#ifdef HAVE_purify
-          /*
-            We get Valgrind warnings on uninitialised padding bytes in
-            varstrings, for example when writing rows to temporary tables.
-            So for valgrind builds we pad with zeros, not needed for
-            production code.
-          */
-          if (actual_length < field->pack_length())
-            memset(field->ptr + actual_length, 0,
-                  field->pack_length() - actual_length);
-#endif
           field->move_field_offset(-dst_offset);
         }
         else
@@ -6425,11 +6414,6 @@ static void get_default_value(void *def_val, Field *field)
           uchar *src_ptr= field->ptr;
           field->set_notnull();
           memcpy(def_val, src_ptr, actual_length);
-#ifdef HAVE_purify
-          if (actual_length < field->pack_length())
-            memset(((char*)def_val) + actual_length, 0,
-                  field->pack_length() - actual_length);
-#endif
         }
         field->move_field_offset(-src_offset);
         /* No action needed for a NULL field. */
@@ -7411,8 +7395,8 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
       be rolled back
     */
     THD *thd= table->in_use;
-    thd->transaction.all.mark_modified_non_trans_table();
-    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->get_transaction()->mark_modified_non_trans_table(Transaction_ctx::SESSION);
+    thd->get_transaction()->mark_modified_non_trans_table(Transaction_ctx::STMT);
     if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send,
                        m_ignore_no_key) != 0)
     {
@@ -7664,7 +7648,7 @@ Thd_ndb::transaction_checks()
 
   if (thd->lex->sql_command == SQLCOM_LOAD)
     trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->transaction.flags.enabled)
+  else if (!thd->get_transaction()->flags.enabled)
     trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
     trans_options|= TNTO_TRANSACTIONS_OFF;
@@ -7784,8 +7768,8 @@ ha_ndbcluster::add_handler_to_open_tables(THD *thd,
   }
   if (thd_ndb_share == 0)
   {
-    thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
-                                                sizeof(THD_NDB_SHARE));
+    thd_ndb_share=
+      (THD_NDB_SHARE *) thd->get_transaction()->allocate_memory(sizeof(THD_NDB_SHARE));
     if (!thd_ndb_share)
     {
       mem_alloc_error(sizeof(THD_NDB_SHARE));
@@ -7913,7 +7897,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
                             m_share));
         /* NOTE push_back allocates memory using transactions mem_root! */
         thd_ndb->changed_tables.push_back(get_share(m_share),
-                                          &thd->transaction.mem_root);
+                                          thd->get_transaction()->transaction_memroot());
       }
 
       if (opt_ndb_cache_check_time)

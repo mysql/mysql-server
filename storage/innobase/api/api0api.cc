@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -306,35 +306,6 @@ ib_wake_master_thread(void)
         if ((ib_signal_counter % INNOBASE_WAKE_INTERVAL) == 0) {
                 srv_active_wake_master_thread();
         }
-}
-
-/*********************************************************************//**
-Calculate the max row size of the columns in a cluster index.
-@return max row length */
-UNIV_INLINE
-ulint
-ib_get_max_row_len(
-/*===============*/
-	dict_index_t*	cluster)		/*!< in: cluster index */
-{
-	ulint		i;
-	ulint		max_len = 0;
-	ulint		n_fields = cluster->n_fields;
-
-	/* Add the size of the ordering columns in the
-	clustered index. */
-	for (i = 0; i < n_fields; ++i) {
-		const dict_col_t*	col;
-
-		col = dict_index_get_nth_col(cluster, i);
-
-		/* Use the maximum output size of
-		mach_write_compressed(), although the encoded
-		length should always fit in 2 bytes. */
-		max_len += dict_col_get_max_size(col);
-	}
-
-	return(max_len);
 }
 
 /*****************************************************************//**
@@ -702,120 +673,6 @@ ib_trx_rollback(
 	return(err);
 }
 
-/*****************************************************************//**
-Find an index definition from the index vector using index name.
-@return index def. if found else NULL */
-UNIV_INLINE
-const ib_index_def_t*
-ib_table_find_index(
-/*================*/
-	ib_vector_t*	indexes,	/*!< in: vector of indexes */
-	const char*	name)		/*!< in: index name */
-{
-	ulint		i;
-
-	for (i = 0; i < ib_vector_size(indexes); ++i) {
-		const ib_index_def_t*	index_def;
-
-		index_def = (ib_index_def_t*) ib_vector_get(indexes, i);
-
-		if (innobase_strcasecmp(name, index_def->name) == 0) {
-			return(index_def);
-		}
-	}
-
-	return(NULL);
-}
-
-/*****************************************************************//**
-Get the InnoDB internal precise type from the schema column definition.
-@return precise type in api format */
-UNIV_INLINE
-ulint
-ib_col_get_prtype(
-/*==============*/
-	const ib_col_t*	ib_col)		/*!< in: column definition */
-{
-	ulint		prtype = 0;
-
-	if (ib_col->ib_col_attr & IB_COL_UNSIGNED) {
-		prtype |= DATA_UNSIGNED;
-
-		ut_a(ib_col->ib_col_type == IB_INT);
-	}
-
-	if (ib_col->ib_col_attr & IB_COL_NOT_NULL) {
-		prtype |= DATA_NOT_NULL;
-	}
-
-	return(prtype);
-}
-
-/*****************************************************************//**
-Get the InnoDB internal main type from the schema column definition.
-@return column main type */
-UNIV_INLINE
-ulint
-ib_col_get_mtype(
-/*==============*/
-	const ib_col_t*	ib_col)		/*!< in: column definition */
-{
-	/* Note: The api0api.h types should map directly to
-	the internal numeric codes. */
-	return(ib_col->ib_col_type);
-}
-
-/*****************************************************************//**
-Find a column in the the column vector with the same name.
-@return col. def. if found else NULL */
-UNIV_INLINE
-const ib_col_t*
-ib_table_find_col(
-/*==============*/
-	const ib_vector_t*	cols,	/*!< in: column list head */
-	const char*	name)		/*!< in: column name to find */
-{
-	ulint		i;
-
-	for (i = 0; i < ib_vector_size(cols); ++i) {
-		const ib_col_t*	ib_col;
-
-		ib_col =  static_cast<const ib_col_t*>(
-			ib_vector_get((ib_vector_t*) cols, i));
-
-		if (innobase_strcasecmp(ib_col->name, name) == 0) {
-			return(ib_col);
-		}
-	}
-
-	return(NULL);
-}
-
-/*****************************************************************//**
-Find a column in the the column list with the same name.
-@return col. def. if found else NULL */
-UNIV_INLINE
-const ib_key_col_t*
-ib_index_find_col(
-/*==============*/
-	ib_vector_t*	cols,		/*!< in: column list head */
-	const char*	name)		/*!< in: column name to find */
-{
-	ulint		i;
-
-	for (i = 0; i < ib_vector_size(cols); ++i) {
-		const ib_key_col_t*	ib_col;
-
-		ib_col = static_cast<ib_key_col_t*>(ib_vector_get(cols, i));
-
-		if (innobase_strcasecmp(ib_col->name, name) == 0) {
-			return(ib_col);
-		}
-	}
-
-	return(NULL);
-}
-
 #ifdef _WIN32
 /*****************************************************************//**
 Convert a string to lower case. */
@@ -937,34 +794,6 @@ ib_table_name_check(
 }
 
 
-
-/*****************************************************************//**
-Get an index definition that is tagged as a clustered index.
-@return cluster index schema */
-UNIV_INLINE
-ib_index_def_t*
-ib_find_clustered_index(
-/*====================*/
-	ib_vector_t*	indexes)	/*!< in: index defs. to search */
-{
-	ulint		i;
-	ulint		n_indexes;
-
-	n_indexes = ib_vector_size(indexes);
-
-	for (i = 0; i < n_indexes; ++i) {
-		ib_index_def_t*	ib_index_def;
-
-		ib_index_def = static_cast<ib_index_def_t*>(
-			ib_vector_get(indexes, i));
-
-		if (ib_index_def->clustered) {
-			return(ib_index_def);
-		}
-	}
-
-	return(NULL);
-}
 
 /*****************************************************************//**
 Get a table id. The caller must have acquired the dictionary mutex.
@@ -1479,7 +1308,8 @@ ib_insert_row_with_lock_retry(
 			que_thr_stop_for_mysql(thr);
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
-			lock_wait = (ib_bool_t) ib_handle_errors(&err, trx, thr, savept);
+			lock_wait = static_cast<ib_bool_t>(
+				ib_handle_errors(&err, trx, thr, savept));
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -1813,8 +1643,8 @@ ib_update_row_with_lock_retry(
 			if (err != DB_RECORD_NOT_FOUND) {
 				thr->lock_state = QUE_THR_LOCK_ROW;
 
-				lock_wait = (ib_bool_t) ib_handle_errors(
-					&err, trx, thr, savept);
+				lock_wait = static_cast<ib_bool_t>(
+					ib_handle_errors(&err, trx, thr, savept));
 
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
 			} else {
@@ -1967,7 +1797,8 @@ ib_delete_row(
 
 	upd = ib_update_vector_create(cursor);
 
-	page_format = (ib_bool_t) dict_table_is_comp(index->table);
+	page_format = static_cast<ib_bool_t>(
+		dict_table_is_comp(index->table));
 	ib_read_tuple(rec, page_format, tuple, NULL, NULL);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
@@ -2033,7 +1864,8 @@ ib_cursor_delete_row(
 		ib_bool_t	page_format;
 		mtr_t		mtr;
 
-		page_format = (ib_bool_t) dict_table_is_comp(index->table);
+		page_format = static_cast<ib_bool_t>(
+			dict_table_is_comp(index->table));
 
 		mtr_start(&mtr);
 
@@ -2106,8 +1938,8 @@ ib_cursor_read_row(
 			const rec_t*	rec;
 			ib_bool_t	page_format;
 
-			page_format = (ib_bool_t)
-				dict_table_is_comp(tuple->index->table);
+			page_format = static_cast<ib_bool_t>(
+				dict_table_is_comp(tuple->index->table));
 			rec = btr_pcur_get_rec(pcur);
 
 			if (prebuilt->innodb_api_rec &&
@@ -2351,7 +2183,7 @@ ib_col_set_value(
 	for that. */
 	if (ib_col_is_capped(dtype)) {
 
-		len = ut_min(len, col_len);
+		len = ut_min(len, static_cast<ib_ulint_t>(col_len));
 
 		if (dst == NULL || len > dfield_get_len(dfield)) {
 			dst = mem_heap_alloc(tuple->heap, col_len);
@@ -2448,7 +2280,7 @@ ib_col_set_value(
 						&error);
 
 				if (true_len < len) {
-					len = true_len;
+					len = static_cast<ib_ulint_t>(true_len);
 				}
 			}
 		}
@@ -2489,7 +2321,7 @@ ib_col_set_value(
 				col_len--;
 			}
 
-			len = col_len;
+			len = static_cast<ib_ulint_t>(col_len);
 		}
 		break;
 	}
@@ -2525,7 +2357,8 @@ ib_col_get_len(
 
 	data_len = dfield_get_len(dfield);
 
-	return(data_len == UNIV_SQL_NULL ? IB_SQL_NULL : data_len);
+	return(static_cast<ib_ulint_t>(
+		data_len == UNIV_SQL_NULL ? IB_SQL_NULL : data_len));
 }
 
 /*****************************************************************//**
@@ -2621,7 +2454,7 @@ ib_col_copy_value_low(
 		data_len = IB_SQL_NULL;
 	}
 
-	return(data_len);
+	return(static_cast<ib_ulint_t>(data_len));
 }
 
 /*****************************************************************//**
@@ -2731,15 +2564,15 @@ ib_col_get_meta_low(
 	ib_col_meta->type = static_cast<ib_col_type_t>(
 		dtype_get_mtype(dfield_get_type(dfield)));
 
-	ib_col_meta->type_len = (ib_u32_t)
-		dtype_get_len(dfield_get_type(dfield));
+	ib_col_meta->type_len = static_cast<ib_u32_t>(
+		dtype_get_len(dfield_get_type(dfield)));
 
 	prtype = (ib_u16_t) dtype_get_prtype(dfield_get_type(dfield));
 
 	ib_col_meta->attr = ib_col_get_attr(prtype);
 	ib_col_meta->client_type = prtype & DATA_MYSQL_TYPE_MASK;
 
-	return(data_len);
+	return(static_cast<ib_ulint_t>(data_len));
 }
 
 /*************************************************************//**
@@ -3225,10 +3058,12 @@ ib_tuple_get_n_user_cols(
 	const ib_tuple_t*	tuple = (const ib_tuple_t*) ib_tpl;
 
 	if (tuple->type == TPL_TYPE_ROW) {
-		return(dict_table_get_n_user_cols(tuple->index->table));
+		return(static_cast<ib_ulint_t>(
+			dict_table_get_n_user_cols(tuple->index->table)));
 	}
 
-	return(dict_index_get_n_ordering_defined_by_user(tuple->index));
+	return(static_cast<ib_ulint_t>(
+		dict_index_get_n_ordering_defined_by_user(tuple->index)));
 }
 
 /*****************************************************************//**
@@ -3242,7 +3077,7 @@ ib_tuple_get_n_cols(
 {
 	const ib_tuple_t*	tuple = (const ib_tuple_t*) ib_tpl;
 
-	return(dtuple_get_n_fields(tuple->ptr));
+	return(static_cast<ib_ulint_t>(dtuple_get_n_fields(tuple->ptr)));
 }
 
 /*****************************************************************//**
@@ -3506,39 +3341,6 @@ ib_cursor_set_cluster_access(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
 	prebuilt->need_to_access_clustered = TRUE;
-}
-
-/*************************************************************//**
-Convert and write an INT column value to an InnoDB tuple.
-@return DB_SUCCESS or error */
-UNIV_INLINE
-ib_err_t
-ib_tuple_write_int(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	ulint		col_no,		/*!< in: column number */
-	const void*	value,		/*!< in: integer value */
-	ulint		value_len)	/*!< in: sizeof value type */
-{
-	const dfield_t*	dfield;
-	ulint		data_len;
-	ulint		type_len;
-	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
-
-	ut_a(col_no < ib_tuple_get_n_cols(ib_tpl));
-
-	dfield = ib_col_get_dfield(tuple, col_no);
-
-	data_len = dfield_get_len(dfield);
-	type_len = dtype_get_len(dfield_get_type(dfield));
-
-	if (dtype_get_mtype(dfield_get_type(dfield)) != DATA_INT
-	    || value_len != data_len) {
-
-		return(DB_DATA_MISMATCH);
-	}
-
-	return(ib_col_set_value(ib_tpl, col_no, value, type_len, true));
 }
 
 /*****************************************************************//**
@@ -3864,7 +3666,8 @@ ib_table_truncate(
 	/* Remember the memcached_sync_count and set it to 0, so the
 	truncate can be executed. */
 	if (table != NULL && err == DB_SUCCESS) {
-		memcached_sync = table->memcached_sync_count;
+		memcached_sync = static_cast<ib_ulint_t>(
+			table->memcached_sync_count);
 		table->memcached_sync_count = 0;
 	}
 

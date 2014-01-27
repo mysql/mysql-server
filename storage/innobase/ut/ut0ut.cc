@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -873,6 +873,8 @@ ut_strerr(
 		return("FTS query exceeds result cache limit");
 	case DB_TEMP_FILE_WRITE_FAILURE:
 		return("Temp file write failure");
+	case DB_CANNOT_OPEN_FILE:
+		return ("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
 

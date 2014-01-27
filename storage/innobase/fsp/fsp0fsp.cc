@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,7 +50,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -285,44 +285,6 @@ xdes_find_bit(
 	}
 
 	for (i = 0; i < hint; i++) {
-		if (val == xdes_mtr_get_bit(descr, bit, i, mtr)) {
-
-			return(i);
-		}
-	}
-
-	return(ULINT_UNDEFINED);
-}
-
-/**********************************************************************//**
-Looks for a descriptor bit having the desired value. Scans the extent in
-a direction opposite to xdes_find_bit.
-@return bit index of the bit, ULINT_UNDEFINED if not found */
-UNIV_INLINE
-ulint
-xdes_find_bit_downward(
-/*===================*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ibool	val,	/*!< in: desired bit value */
-	ulint	hint,	/*!< in: hint of which bit position would
-			be desirable */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-{
-	ulint	i;
-
-	ut_ad(descr && mtr);
-	ut_ad(val <= TRUE);
-	ut_ad(hint < FSP_EXTENT_SIZE);
-	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
-	for (i = hint + 1; i > 0; i--) {
-		if (val == xdes_mtr_get_bit(descr, bit, i - 1, mtr)) {
-
-			return(i - 1);
-		}
-	}
-
-	for (i = FSP_EXTENT_SIZE - 1; i > hint; i--) {
 		if (val == xdes_mtr_get_bit(descr, bit, i, mtr)) {
 
 			return(i);
@@ -891,7 +853,7 @@ fsp_try_extend_data_file_with_pages(
 	ulint	actual_size;
 	ulint	size;
 
-	ut_a(!Tablespace::is_system_tablespace(space));
+	ut_a(!is_system_tablespace(space));
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
@@ -930,6 +892,9 @@ fsp_try_extend_data_file(
 	ulint	size_increase;
 	ulint	actual_size;
 	bool	success;
+	const char* OUT_OF_SPACE_MSG =
+		"ran out of space. Please add another file or use"
+		" 'autoextend' for the last file in setting";
 
 	*actual_increase = 0;
 
@@ -942,9 +907,8 @@ fsp_try_extend_data_file(
 		error requires server restart. */
 		if (!srv_sys_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Data file(s) ran out of space. Please add"
-				" another data file or use 'autoextend'"
-				" for the last data file.");
+				"Tablespace %s %s innodb_data_file_path.",
+				srv_sys_space.name(), OUT_OF_SPACE_MSG);
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -957,9 +921,8 @@ fsp_try_extend_data_file(
 		error requires server restart. */
 		if (!srv_tmp_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Temp-Data file(s) ran out of space."
-				" Please add another temp-data file or"
-				" use 'autoextend' for the last data file");
+				"Tablespace %s %s innodb_temp_data_file_path.",
+				srv_tmp_space.name(), OUT_OF_SPACE_MSG);
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -1115,7 +1078,7 @@ fsp_fill_free_list(
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	}
 
-	if (!Tablespace::is_system_tablespace(space)
+	if (!is_system_tablespace(space)
 	    && !init_space
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
@@ -1468,7 +1431,7 @@ fsp_alloc_free_page(
 		/* It must be that we are extending a single-table tablespace
 		whose size is still < 64 pages */
 
-		ut_a(!Tablespace::is_system_tablespace(space));
+		ut_a(!is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Trying to extend a single-table tablespace"
@@ -2598,7 +2561,7 @@ take_hinted_page:
 		return(NULL);
 	}
 
-	if (!Tablespace::is_system_tablespace(space)) {
+	if (!is_system_tablespace(space)) {
 		space_size = fil_space_get_size(space);
 
 		if (space_size <= ret_page) {
@@ -2756,7 +2719,7 @@ fsp_reserve_free_pages(
 	xdes_t*	descr;
 	ulint	n_used;
 
-	ut_a(!Tablespace::is_system_tablespace(space));
+	ut_a(!is_system_tablespace(space));
 	ut_a(size < FSP_EXTENT_SIZE / 2);
 
 	descr = xdes_get_descriptor_with_space_hdr(space_header, space, 0,
@@ -3000,7 +2963,7 @@ fsp_get_available_space_in_free_extents(
 
 	if (size < FSP_EXTENT_SIZE) {
 		/* This must be a single-table tablespace */
-		ut_a(!Tablespace::is_system_tablespace(space));
+		ut_a(!is_system_tablespace(space));
 
 		return(0);		/* TODO: count free frag pages and
 					return a value based on that */
@@ -3150,9 +3113,7 @@ fseg_free_page_low(
 			" corrupt. You may need to dump your tables and"
 			" recreate the whole database!", (ulong) page);
 crash:
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Please refer to " REFMAN "forcing-innodb-recovery.html"
-			" about forcing recovery.");
+		ib_logf(IB_LOG_LEVEL_FATAL, "%s", FORCE_RECOVERY_MSG);
 	}
 
 	state = xdes_get_state(descr, mtr);

@@ -3477,7 +3477,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   lex->unit->cleanup(true);
 
   /* No need to commit statement transaction, it's not started. */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);

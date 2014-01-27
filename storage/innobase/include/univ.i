@@ -175,10 +175,10 @@ for all cases. This is used by ut0lst.h related code. */
 
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
-and have "test_" prefix. These functions are not called from anywhere in
-the code, they can be called from gdb after
+and have "test_" prefix. These functions can be called from the end of
+innobase_init() or they can be called from gdb after
 innobase_start_or_create_for_mysql() has executed using the call
-command. Not tested on Windows. */
+command. */
 /*
 #define UNIV_COMPILE_TEST_FUNCS
 */
@@ -239,12 +239,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
                                                 info output */
-#define UNIV_LOG_DEBUG                          /* the above option prevents
-                                                forcing of log to disk
-                                                at a buffer page write:
-                                                it should be tested with
-                                                this option off; also some
-                                                ibuf tests are suppressed */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */

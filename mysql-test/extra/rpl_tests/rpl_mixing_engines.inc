@@ -29,6 +29,7 @@
 #       commands.  If this flag is set, then show_binlog_events.inc is
 #       also sourced once after each command, showing only the result
 #       of that command.
+--source include/have_myisam.inc
 
 --echo rpl_mixing_engines.inc [commands=$commands]
 

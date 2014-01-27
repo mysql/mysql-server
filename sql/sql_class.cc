@@ -37,6 +37,7 @@
 #include "sql_base.h"                         // close_temporary_tables
 #include "sql_handler.h"                      // mysql_ha_cleanup
 #include "rpl_rli.h"
+#include "rpl_rli_pdb.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
 #include "rpl_slave.h"
@@ -414,7 +415,7 @@ void thd_unlock_data(THD *thd)
 }
 
 /**
-  Support method to check if connection has already started transcaction
+  Support method to check if connection has already started transaction
 
   @param client_cntx    Low level client context
 
@@ -422,7 +423,7 @@ void thd_unlock_data(THD *thd)
 */
 bool thd_is_transaction_active(THD *thd)
 {
-  return thd->transaction.is_active();
+  return thd->get_transaction()->is_active(Transaction_ctx::SESSION);
 }
 
 /**
@@ -588,6 +589,7 @@ void set_thd_stage_info(void *opaque_thd,
 
   thd->enter_stage(new_stage, old_stage, calling_func, calling_file, calling_line);
 }
+
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
@@ -974,8 +976,7 @@ THD::THD(bool enable_plugins)
   cleanup_done= abort_on_warning= 0;
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
-  transaction.m_pending_rows_event= 0;
-  transaction.flags.enabled= true;
+  get_transaction()->flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
@@ -1326,7 +1327,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
-  *xid = *(MYSQL_XID *) thd->transaction.xid_state.get_xid();
+  *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
 }
 
 #if defined(_WIN32)
@@ -1354,8 +1355,8 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
 
-  transaction.all.reset_unsafe_rollback_flags();
-  transaction.stmt.reset_unsafe_rollback_flags();
+  get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
+  get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -1400,10 +1401,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
-  reset_root_defaults(&transaction.mem_root,
-                      variables.trans_alloc_block_size,
-                      variables.trans_prealloc_size);
-  transaction.xid_state.reset();
+  get_transaction()->init_mem_root_defaults(variables.trans_alloc_block_size,
+                                            variables.trans_prealloc_size);
+  get_transaction()->xid_state()->reset();
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   if (rli)
   {
@@ -1491,9 +1491,9 @@ void THD::cleanup(void)
   }
 #endif
   {
-    transaction.xid_state.set_state(XID_STATE::XA_NOTR);
+    get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
-    xid_cache_delete(&transaction.xid_state);
+    transaction_cache_delete(get_transaction());
   }
 
   locked_tables_list.unlock_locked_tables(this);
@@ -1589,6 +1589,18 @@ void THD::release_resources()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
+#ifndef EMBEDDED_LIBRARY
+  if (rli_fake)
+  {
+    rli_fake->end_info();
+    delete rli_fake;
+    rli_fake= NULL;
+  }
+  mysql_audit_free_thd(this);
+#endif
+
+  if (current_thd == this)
+    restore_globals();
   m_release_resources_done= true;
 }
 
@@ -1612,20 +1624,14 @@ THD::~THD()
   main_security_ctx.destroy();
   my_free(db);
   db= NULL;
-  free_root(&transaction.mem_root,MYF(0));
+  get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
-#endif  
-#ifndef EMBEDDED_LIBRARY
-  if (rli_fake)
-  {
-    rli_fake->end_info();
-    delete rli_fake;
-    rli_fake= NULL;
-  }
+#endif
 
+#ifndef EMBEDDED_LIBRARY
   if (variables.gtid_next_list.gtid_set != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -1636,15 +1642,11 @@ THD::~THD()
     DBUG_ASSERT(0);
 #endif
   }
-  
-  mysql_audit_free_thd(this);
   if (rli_slave)
     rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  if (current_thd == this)
-    restore_globals();
   DBUG_VOID_RETURN;
 }
 
@@ -2172,19 +2174,6 @@ void THD::update_charset()
 }
 
 
-/* routings to adding tables to list of changed in transaction tables */
-
-inline static void list_include(CHANGED_TABLE_LIST** prev,
-				CHANGED_TABLE_LIST* curr,
-				CHANGED_TABLE_LIST* new_table)
-{
-  if (new_table)
-  {
-    *prev = new_table;
-    (*prev)->next = curr;
-  }
-}
-
 /* add table to list of changed in transaction tables */
 
 void THD::add_changed_table(TABLE *table)
@@ -2201,63 +2190,8 @@ void THD::add_changed_table(TABLE *table)
 void THD::add_changed_table(const char *key, long key_length)
 {
   DBUG_ENTER("THD::add_changed_table(key)");
-  CHANGED_TABLE_LIST **prev_changed = &transaction.changed_tables;
-  CHANGED_TABLE_LIST *curr = transaction.changed_tables;
-
-  for (; curr; prev_changed = &(curr->next), curr = curr->next)
-  {
-    int cmp =  (long)curr->key_length - (long)key_length;
-    if (cmp < 0)
-    {
-      list_include(prev_changed, curr, changed_table_dup(key, key_length));
-      DBUG_PRINT("info", 
-		 ("key_length: %ld  %u", key_length,
-                  (*prev_changed)->key_length));
-      DBUG_VOID_RETURN;
-    }
-    else if (cmp == 0)
-    {
-      cmp = memcmp(curr->key, key, curr->key_length);
-      if (cmp < 0)
-      {
-	list_include(prev_changed, curr, changed_table_dup(key, key_length));
-	DBUG_PRINT("info", 
-		   ("key_length:  %ld  %u", key_length,
-		    (*prev_changed)->key_length));
-	DBUG_VOID_RETURN;
-      }
-      else if (cmp == 0)
-      {
-	DBUG_PRINT("info", ("already in list"));
-	DBUG_VOID_RETURN;
-      }
-    }
-  }
-  *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
-		      (*prev_changed)->key_length));
-  DBUG_VOID_RETURN;
-}
-
-
-CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
-{
-  CHANGED_TABLE_LIST* new_table = 
-    (CHANGED_TABLE_LIST*) trans_alloc(ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST))+
-				      key_length + 1);
-  if (!new_table)
-  {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
-             ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
+  if (get_transaction()->add_changed_table(key, key_length))
     killed= KILL_CONNECTION;
-    return 0;
-  }
-
-  new_table->key= ((char*)new_table)+ ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST));
-  new_table->next = 0;
-  new_table->key_length = key_length;
-  ::memcpy(new_table->key, key, key_length);
-  return new_table;
 }
 
 
@@ -3987,7 +3921,8 @@ extern "C" int thd_slave_thread(const MYSQL_THD thd)
 
 extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
-  return thd->transaction.all.has_modified_non_trans_table();
+  return thd->get_transaction()->has_modified_non_trans_table(
+    Transaction_ctx::SESSION);
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
@@ -4167,7 +4102,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
-  backup->savepoints= transaction.savepoints;
+  backup->savepoints= get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt= 
     first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt= 
@@ -4190,7 +4125,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   m_examined_row_count= 0;
   m_sent_row_count= 0;
   cuted_fields= 0;
-  transaction.savepoints= 0;
+  get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
 }
 
@@ -4216,16 +4151,16 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     level. It is enough to release first savepoint set on this level since
     all later savepoints will be released automatically.
   */
-  if (transaction.savepoints)
+  if (get_transaction()->m_savepoints)
   {
     SAVEPOINT *sv;
-    for (sv= transaction.savepoints; sv->prev; sv= sv->prev)
+    for (sv= get_transaction()->m_savepoints; sv->prev; sv= sv->prev)
     {}
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
   count_cuted_fields= backup->count_cuted_fields;
-  transaction.savepoints= backup->savepoints;
+  get_transaction()->m_savepoints= backup->savepoints;
   variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
   enable_slow_log=  backup->enable_slow_log;
@@ -4553,6 +4488,34 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 };
+
+#ifdef HAVE_REPLICATION
+void THD::set_currently_executing_gtid_for_slave_thread()
+{
+  /*
+    This function may be called in three cases:
+
+    - From an mts worker thread that executes a Gtid_log_event::do_apply_event.
+
+    - From an mts worker thread that is processing an old binlog that
+      is missing Gtid events completely, from gtid_pre_statement_checks().
+
+    - From a normal client thread that is executing output from
+      mysqlbinlog when mysqlbinlog is processing an old binlog file
+      that is missing Gtid events completely, from
+      gtid_pre_statement_checks() for a statement that appears after a
+      BINLOG statement containing a Format_description_log_event
+      originating from the master.
+
+    Because of the last case, we don't assert(is_mts_worker())
+  */
+  if (is_mts_worker(this))
+  {
+    dynamic_cast<Slave_worker *>(rli_slave)->currently_executing_gtid=
+      variables.gtid_next;
+  }
+}
+#endif
 
 void THD::set_user_connect(USER_CONN *uc)
 {

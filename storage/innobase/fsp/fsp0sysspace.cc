@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,34 +17,37 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file srv/srv0space.cc
-Multi file shared tablespace implementation.
+@file fsp/fsp0space.cc
+Multi file, shared, system tablespace implementation.
 
-Created 2012-11-16 by Sunny Bains.
+Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
+Refactored 2013-7-26 by Kevin Lewis
 *******************************************************/
 
 #include "ha_prototypes.h"
 
-#include "srv0space.h"
+#include "fsp0sysspace.h"
+#include "os0file.h"
 #include "srv0start.h"
-#include "fil0fil.h"
-#include "fsp0fsp.h"
 
 /** The control info of the system tablespace. */
-Tablespace srv_sys_space;
+SysTablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
-Tablespace srv_tmp_space;
+SysTablespace srv_tmp_space;
+
+/** If the last data file is auto-extended, we add this many pages to it
+at a time. We have to make this public because it is a config variable. */
+ulong sys_tablespace_auto_extend_increment;
 
 /** Convert a numeric string that optionally ends in G or M or K,
     to a number containing megabytes.
-@param str string with a quantity in bytes
-@param megs out the number in megabytes
+@param[in]	str	String with a quantity in bytes
+@param[out]	megs	The number in megabytes
 @return next character in string */
 
 char*
-Tablespace::parse_units(
-/*====================*/
+SysTablespace::parse_units(
 	char*	ptr,
 	ulint*	megs)
 {
@@ -74,16 +77,16 @@ Tablespace::parse_units(
 }
 
 /** Parse the input params and populate member variables.
-@param filepath path to data files
+@param[in]	filepath	path to data files
+@param[in]	supports_raw	true if the tablespace supports raw devices
 @return true on success parse */
 
 bool
-Tablespace::parse(
-/*==============*/
-	const char*	filepath,
+SysTablespace::parse(
+	const char*	filepath_spec,
 	bool		supports_raw)
 {
-	char*	path;
+	char*	filepath;
 	ulint	size;
 	char*	input_str;
 	ulint	n_files = 0;
@@ -91,17 +94,17 @@ Tablespace::parse(
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
 
-	char*	new_str = strdup(filepath);
+	char*	new_str = strdup(filepath_spec);
 	char*	str = new_str;
 
 	input_str = str;
 
 	/*---------------------- PASS 1 ---------------------------*/
 	/* First calculate the number of data files and check syntax:
-	path:size[K |M | G];path:size[K |M | G]... . Note that a Windows path may
-	contain a drive name and a ':'. */
+	filepath:size[K |M | G];filepath:size[K |M | G]... .
+	Note that a Windows path may contain a drive name and a ':'. */
 	while (*str != '\0') {
-		path = str;
+		filepath = str;
 
 		while ((*str != ':' && *str != '\0')
 		       || (*str == ':'
@@ -145,7 +148,7 @@ Tablespace::parse(
 			}
 		}
 
-		if (strlen(str) >= 6
+		if (::strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
@@ -196,7 +199,7 @@ Tablespace::parse(
 	}
 
 	if (n_files == 0) {
-		/* file_path must contain at least one data file definition */
+		/* filepath_spec must contain at least one data file definition */
 		::free(new_str);
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"syntax error in file path or size specified"
@@ -207,11 +210,12 @@ Tablespace::parse(
 	/*---------------------- PASS 2 ---------------------------*/
 	/* Then store the actual values to our arrays */
 	str = input_str;
+	ulint order = 0;
 
 	while (*str != '\0') {
-		path = str;
+		filepath = str;
 
-		/* Note that we must step over the ':' in a Windows path;
+		/* Note that we must step over the ':' in a Windows filepath;
 		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
 		a Windows raw partition may have a specification like
 		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
@@ -224,7 +228,7 @@ Tablespace::parse(
 		}
 
 		if (*str == ':') {
-			/* Make path a null-terminated string */
+			/* Make filepath a null-terminated string */
 			*str = '\0';
 			str++;
 		}
@@ -255,9 +259,11 @@ Tablespace::parse(
 			}
 		}
 
-		m_files.push_back(file_t(path, size));
+		m_files.push_back(Datafile(filepath, size, order));
+		Datafile* datafile = &m_files.back();
+		datafile->make_filepath_no_ext(path());
 
-		if (strlen(str) >= 6
+		if (::strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
@@ -283,141 +289,37 @@ Tablespace::parse(
 		if (*str == ';') {
 			++str;
 		}
+		order++;
 	}
 
-	ut_ad(n_files == m_files.size());
+	ut_ad(n_files == ulint(m_files.size()));
 
 	::free(new_str);
 
 	return(true);
 }
 
-/** Check if two shared tablespaces have common data file names.
-@param space1 space to check
-@param space2 space to check
-@return true if they have the same data filenames and paths */
-
-bool
-Tablespace::intersection(
-/*=====================*/
-	const Tablespace&	space1,
-	const Tablespace&	space2)
-{
-	files_t::const_iterator	end = space1.m_files.end();
-
-	for (files_t::const_iterator it = space1.m_files.begin();
-	     it != end;
-	     ++it) {
-
-		if (space2.find(get_file_name(it->m_name))) {
-
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-/** Get the file name only
-@param filepath filepath as specified by user (can be relative too).
-@return filename extract filepath */
-
-char*
-Tablespace::get_file_name(
-/*======================*/
-	const char*	filepath)
-{
-	char* last_slash = strrchr((char*) filepath, OS_PATH_SEPARATOR);
-	return(last_slash ? last_slash + 1 : (char*) filepath);
-}
-
 /** Frees the memory allocated by the parse method. */
 
 void
-Tablespace::shutdown()
+SysTablespace::shutdown()
 {
-	files_t::iterator	end = m_files.end();
+	Tablespace::shutdown();
 
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-		it->shutdown();
-	}
-
-	m_files.clear();
-
-	m_space_id = ULINT_UNDEFINED;
-
-	m_created_new_raw = 0;
-	m_last_file_size_max = 0;
 	m_auto_extend_last_file = 0;
-	m_auto_extend_increment = 0;
-}
-
-/**
-@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
-
-ulint
-Tablespace::get_sum_of_sizes() const
-{
-	ulint	sum = 0;
-
-	files_t::const_iterator	end = m_files.end();
-
-	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
-
-#ifndef _WIN32
-		if (sizeof(off_t) < 5
-		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"File size must be < 4 GB with this MySQL"
-				" binary. Operating system combination, in some"
-				" OS's < 2 GB");
-
-			return(ULINT_UNDEFINED);
-		}
-#endif /* _WIN32 */
-		sum += it->m_size;
-	}
-
-	return(sum);
-}
-
-/** Create/open a data file.
-@param file data file spec
-@return DB_SUCCESS or error code */
-
-dberr_t
-Tablespace::open_data_file(
-/*=======================*/
-	file_t&	file)
-{
-	bool	success;
-
-	file.m_handle = os_file_create(
-		innodb_data_file_key, file.m_filename, file.m_open_flags,
-		OS_FILE_NORMAL, OS_DATA_FILE, &success);
-
-	if (!success) {
-
-		os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't open \"%s\"", file.m_filename);
-
-		return(DB_ERROR);
-	}
-
-	return(DB_SUCCESS);
+	m_last_file_size_max = 0;
+	m_created_new_raw = 0;
+	m_is_tablespace_full = false;
+	m_sanity_checks_done = false;
 }
 
 /** Verify the size of the physical file.
-@param file data file spec
+@param[in]	file	data file object
 @return DB_SUCCESS if OK else error code. */
 
 dberr_t
-Tablespace::check_size(
-/*===================*/
-	file_t&	file)
+SysTablespace::check_size(
+	Datafile&	file)
 {
 	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
@@ -433,13 +335,13 @@ Tablespace::check_size(
 			&& m_last_file_size_max < rounded_size_pages)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"auto-extending %sdata file %s is of a"
-				" different size %lu pages (rounded"
-				" down to MB) than specified in the .cnf"
-				" file: initial %lu pages, max %lu"
-				" (relevant if non-zero) pages!",
-				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-				file.m_filename,
+				"The Auto-extending %s data file '%s' is of"
+				" a different size %lu pages (rounded down"
+				" to MB) than specified in the .cnf file:"
+				" initial %lu pages, max %lu (relevant if"
+				" non-zero) pages!",
+				name(),
+				file.filepath(),
 				rounded_size_pages,
 				file.m_size,
 				m_last_file_size_max);
@@ -453,12 +355,10 @@ Tablespace::check_size(
 	if (rounded_size_pages != file.m_size) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"%sData file %s is of a different"
-			" size %lu pages (rounded down to MB)"
-			" than specified in the .cnf file"
-			" %lu pages!",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
-			file.m_filename, rounded_size_pages, file.m_size);
+			"The %s data file '%s' is of a different size %lu"
+			" pages (rounded down to MB) than the %lu pages"
+			" specified in the .cnf file!", name(),
+			file.filepath(), rounded_size_pages, file.m_size);
 
 		return(DB_ERROR);
 	}
@@ -466,72 +366,35 @@ Tablespace::check_size(
 	return(DB_SUCCESS);
 }
 
-/** Make physical filename from control info.
-@param file data file spec
-@param tablespace_path path where tablespace file will reside */
-
-void
-Tablespace::make_name(
-/*==================*/
-	file_t&	file,
-	char*	tablespace_path)
-{
-	char	name[OS_FILE_MAX_PATH];
-
-	if (file.m_filename != 0) {
-		::free(file.m_filename);
-		file.m_filename = 0;
-	}
-
-	ut_a(file.m_filename == 0);
-
-	ulint	dirnamelen = strlen(tablespace_path);
-
-	ut_a(dirnamelen + strlen(file.m_name) < sizeof(name) - 1);
-
-	memcpy(name, tablespace_path, dirnamelen);
-
-	/* Add a path separator if needed. */
-	if (dirnamelen && name[dirnamelen - 1] != OS_PATH_SEPARATOR) {
-		name[dirnamelen++] = OS_PATH_SEPARATOR;
-	}
-
-	strcpy(name + dirnamelen, file.m_name);
-
-	srv_normalize_path_for_win(name);
-
-	file.m_filename = strdup(name);
-}
-
 /** Set the size of the file.
-@param file data file spec
+@param[in]	file	data file object
 @return DB_SUCCESS or error code */
 
 dberr_t
-Tablespace::set_size(
-/*=================*/
-	file_t&	file)
+SysTablespace::set_size(
+	Datafile&	file)
 {
 	ut_a(!srv_read_only_mode);
 
 	/* We created the data file and now write it full of zeros */
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Setting file \"%s\" size to %lu MB",
-		file.m_filename, (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)));
+		"Setting file '%s' size to %lu MB."
+		" Physically writing the file full; Please wait ...",
+		file.filepath(), (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Database physically writes the file full: wait ...");
-
-	ibool	success = os_file_set_size(
-		file.m_filename, file.m_handle,
+	bool	success = os_file_set_size(
+		file.m_filepath, file.m_handle,
 		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT);
 
-	if (!success) {
-
+	if (success) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"File '%s' size is now %lu MB.",
+		file.filepath(), (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)));
+	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"During create of \"%s\": probably out of"
-			" disk space", file.m_filename);
+			"Could not set the file size of '%s'."
+			" Probably out of disk space", file.filepath());
 
 		return(DB_ERROR);
 	}
@@ -540,13 +403,12 @@ Tablespace::set_size(
 }
 
 /** Create a data file.
-@param file data file spec
+@param[in]	file	data file object
 @return DB_SUCCESS or error code */
 
 dberr_t
-Tablespace::create_file(
-/*====================*/
-	file_t&	file)
+SysTablespace::create_file(
+	Datafile&	file)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -569,7 +431,7 @@ Tablespace::create_file(
 		/* Fall through. */
 
 	case SRV_NOT_RAW:
-		err = open_data_file(file);
+		err = file.open_or_create();
 		break;
 	}
 
@@ -582,13 +444,12 @@ Tablespace::create_file(
 }
 
 /** Open a data file.
-@param file data file spec
+@param[in]	file	data file object
 @return DB_SUCCESS or error code */
 
 dberr_t
-Tablespace::open_file(
-/*==================*/
-	file_t&	file)
+SysTablespace::open_file(
+	Datafile&	file)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -605,9 +466,9 @@ Tablespace::open_file(
 
 		if (srv_read_only_mode) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Can't open a raw device \"%s\" when"
+				"Can't open a raw device '%s' when"
 				" --innodb-read-only is set",
-				file.m_filename);
+				file.m_filepath);
 
 			return(DB_ERROR);
 		}
@@ -615,7 +476,7 @@ Tablespace::open_file(
 		/* Fall through */
 
 	case SRV_NOT_RAW:
-		err = open_data_file(file);
+		err = file.open_or_create();
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -626,128 +487,109 @@ Tablespace::open_file(
 	if (file.m_type != SRV_OLD_RAW) {
 		err = check_size(file);
 		if (err != DB_SUCCESS) {
-			os_file_close(file.m_handle);
-			file.m_handle = os_file_t(~0);
+			file.close();
 		}
 	}
 
 	return(err);
 }
 
-/** Read the flush lsn values and check the header flags.
-
-@param min_flushed_lsn min of flushed lsn values in data files
-@param max_flushed_lsn max of flushed lsn values in data files
+/** Read the flushed lsn values and check the header flags in each datafile
+for this tablespace.  Save the minimum and maximum flushed lsn values.
 @return DB_SUCCESS or error code */
 
 dberr_t
-Tablespace::read_lsn_and_check_flags(
-/*=================================*/
-	lsn_t*	min_flushed_lsn,
-	lsn_t*	max_flushed_lsn)
+SysTablespace::read_lsn_and_check_flags()
 {
+	dberr_t	err;
+
 	/* Only relevant for the system tablespace. */
-	ut_ad(m_space_id == TRX_SYS_SPACE);
+	ut_ad(space_id() == TRX_SYS_SPACE);
 
-	*max_flushed_lsn = 0;
-	*min_flushed_lsn = LSN_MAX;
-
-	files_t::iterator	end				= m_files.end();
-	bool			check_tablespace_attributes	= true;
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-		ulint	flags;
-		ulint	space;
+	files_t::iterator begin = m_files.begin();
+	files_t::iterator end = m_files.end();
+	for (files_t::iterator it = begin; it != end; ++it) {
 
 		ut_a(it->m_exists);
-		ut_a(it->m_handle == os_file_t(~0));
 
-		dberr_t	err = open_data_file(*it);
+		if (it->m_handle == OS_FILE_CLOSED) {
+			err = it->open_or_create();
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+		}
 
+		err = it->read_first_page();
 		if (err != DB_SUCCESS) {
-			return(DB_ERROR);
+			return(err);
 		}
 
-		const char*	check_msg = fil_read_first_page(
-			it->m_handle, !check_tablespace_attributes,
-			&flags, &space, min_flushed_lsn, max_flushed_lsn);
+		/* Check tablespace attributes only for first file.
+		The FSP_SPACE_ID and other fields in files greater
+		than ibdata1 are unreliable. */
+		if (it == begin) {
+			ut_a(it->order() == 0);
 
-		ibool	success = os_file_close(it->m_handle);
-		ut_a(success);
+			set_flags(it->m_flags);
 
-		it->m_handle = os_file_t(~0);
+			/* Make sure the tablespace space ID matches the
+			space ID on the first page of the first datafile. */
+			if (space_id() != it->m_space_id) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The %s data file '%s' has the wrong"
+					" space ID. It should be %lu,"
+					" but %lu was found",
+					name(), it->name(),
+					space_id(), it->m_space_id);
+				it->close();
+				return(err);
+			}
 
-		/* Check the flags for the first system tablespace file only. */
-
-		if (!check_tablespace_attributes) {
-			continue;
+			/* Check the contents of the first page of the
+			first datafile */
+			err = it->validate_first_page();
+			if (err != DB_SUCCESS) {
+				it->close();
+				return(err);
+			}
 		}
 
-		if (check_msg != NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%s in %s \"%s\"",
-				check_msg,
-				((m_space_id == TRX_SYS_SPACE)
-				 ? "data file" : "temp-data file"),
-				it->m_filename);
-			return(DB_ERROR);
-		}
+		it->close();
 
-		/* The first file of the system tablespace has the correct
-		space ID. The FSP_SPACE_ID field in files greater than
-		ibdata1 are unreliable. */
-		ut_a(space == m_space_id);
-
-		if (UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"%s \"%s\" uses page size %lu,"
-				" but the start-up parameter is"
-				" --innodb-page-size=%lu",
-				((m_space_id == TRX_SYS_SPACE)
-				 ? "data file" : "temp-data file"),
-				it->m_filename,
-				fsp_flags_get_page_size(flags),
-				UNIV_PAGE_SIZE);
-
-			return(DB_ERROR);
-		}
-
-		/* Check tablespace attributes only for first file. */
-		check_tablespace_attributes = false;
+		set_min_flushed_lsn(it->flushed_lsn());
+		set_max_flushed_lsn(it->flushed_lsn());
 	}
 
 	return(DB_SUCCESS);
 }
 
 /** Check if a file can be opened in the correct mode.
-@param file data file spec
-@param reason_if_failed exact reason if file_status check failed.
+@param[in]	file	data file object
+@param[out]	reason	exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 
 dberr_t
-Tablespace::check_file_status(
-/*==========================*/
-	const file_t&	file,
-	file_status_t&  reason_if_failed)
+SysTablespace::check_file_status(
+	const Datafile&		file,
+	file_status_t&		reason)
 {
 	os_file_stat_t	stat;
 
 	memset(&stat, 0x0, sizeof(stat));
 
-	dberr_t	err = os_file_get_status(file.m_filename, &stat, true);
+	dberr_t	err = os_file_get_status(file.m_filepath, &stat, true);
 
-	reason_if_failed = FILE_STATUS_VOID;
+	reason = FILE_STATUS_VOID;
 	/* File exists but we can't read the rw-permission settings. */
 	switch (err) {
 	case DB_FAIL:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_get_status() failed on \"%s\"."
+			"os_file_get_status() failed on '%s'."
 			" Can't determine file permissions",
-			file.m_filename);
+			file.filepath());
 
 		err = DB_ERROR;
-		reason_if_failed = FILE_STATUS_RW_PERMISSION_ERROR;
+		reason = FILE_STATUS_RW_PERMISSION_ERROR;
 		break;
 
 	case DB_SUCCESS:
@@ -759,25 +601,25 @@ Tablespace::check_file_status(
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%s must be %s",
-					file.m_filename,
+					"The %s data file '%s' must be %s",
+					name(), file.name(),
 					!srv_read_only_mode
 					? "writable" : "readable");
 
 				err = DB_ERROR;
-				reason_if_failed =
-					FILE_STATUS_READ_WRITE_ERROR;
+				reason = FILE_STATUS_READ_WRITE_ERROR;
 			}
 
 		} else {
 			/* Not a regular file, bail out. */
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"\"%s\" not a regular file.",
-				file.m_filename);
+				"The %s data file '%s' is not a regular"
+				" InnoDB data file.",
+				name(), file.name());
 
 			err = DB_ERROR;
-			reason_if_failed = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
+			reason = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
 		}
 		break;
 
@@ -792,14 +634,13 @@ Tablespace::check_file_status(
 }
 
 /** Note that the data file was not found.
-@param file data file spec
-@param[out] create_new_db true if a new instance to be created
+@param[in]	file		data file object
+@param[out]	create_new_db	true if a new instance to be created
 @return DB_SUCESS or error code */
 
 dberr_t
-Tablespace::file_not_found(
-/*=======================*/
-	file_t&	file,
+SysTablespace::file_not_found(
+	Datafile&	file,
 	bool*	create_new_db)
 {
 	file.m_exists = false;
@@ -807,9 +648,9 @@ Tablespace::file_not_found(
 	if (srv_read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't create file \"%s\" when"
+			"Can't create file '%s' when"
 			" --innodb-read-only is set",
-			file.m_name);
+			file.filepath());
 
 		return(DB_ERROR);
 
@@ -819,29 +660,28 @@ Tablespace::file_not_found(
 		ut_a(!*create_new_db);
 		*create_new_db = TRUE;
 
-		if (m_space_id == TRX_SYS_SPACE) {
+		if (space_id() == TRX_SYS_SPACE) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The first specified data file \"%s\" did not"
-				" exist: a new database to be created!",
-				file.m_name);
+				"The first %s data file '%s' did not exist."
+				" A new tablespace will be created!",
+				name(), file.name());
 		}
 
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Need to create new %sdata file \"%s\"",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			file.m_name);
+			"Need to create a new %s data file '%s'.",
+			name(), file.name());
 	}
 
 	/* Set the file create mode. */
 	switch (file.m_type) {
 	case SRV_NOT_RAW:
-		file.m_open_flags = OS_FILE_CREATE;
+		file.set_open_flags(OS_FILE_CREATE);
 		break;
 
 	case SRV_NEW_RAW:
 	case SRV_OLD_RAW:
-		file.m_open_flags = OS_FILE_OPEN_RAW;
+		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
 
@@ -849,12 +689,11 @@ Tablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param file data file spec */
+@param[in/out]	file	data file object */
 
 void
-Tablespace::file_found(
-/*===================*/
-	file_t&	file)
+SysTablespace::file_found(
+	Datafile&	file)
 {
 	/* Note that the file exists and can be opened
 	in the appropriate mode. */
@@ -864,39 +703,35 @@ Tablespace::file_found(
 	switch (file.m_type) {
 	case SRV_NOT_RAW:
 	case SRV_NEW_RAW:
-		file.m_open_flags =
-			(&file == &m_files.front())
-			? OS_FILE_OPEN_RETRY : OS_FILE_OPEN;
+		file.set_open_flags(
+			&file == &m_files.front()
+			? OS_FILE_OPEN_RETRY : OS_FILE_OPEN);
 		break;
 
 	case SRV_OLD_RAW:
-		file.m_open_flags = OS_FILE_OPEN_RAW;
+		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
 }
 
 /** Check the data file specification.
-@param[out] create_new_db true if a new database is to be created
-@param[in] min_expected_tablespace_size expected tablespace size in bytes
+@param[out] create_new_db	true if a new database is to be created
+@param[in] min_expected_size	Minimum expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 
 dberr_t
-Tablespace::check_file_spec(
-/*========================*/
+SysTablespace::check_file_spec(
 	bool*	create_new_db,
-	ulint	min_expected_tablespace_size)
+	ulint	min_expected_size)
 {
-	srv_normalize_path_for_win(m_tablespace_path);
-
 	*create_new_db = FALSE;
 
 	if (m_files.size() >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can only have < 1000 %sdata files, you have"
-			" defined %lu",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			(ulint) m_files.size());
+			"There must be < 1000 data files in %s"
+			" but %lu have been defined.",
+			name(), ulong(m_files.size()));
 
 		return(DB_ERROR);
 	}
@@ -905,11 +740,11 @@ Tablespace::check_file_spec(
 	if (tablespace_size == ULINT_UNDEFINED) {
 		return(DB_ERROR);
 	} else if (tablespace_size
-		   < min_expected_tablespace_size / UNIV_PAGE_SIZE) {
+		   < min_expected_size / UNIV_PAGE_SIZE) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Tablespace size must be at least %ld MB",
-			min_expected_tablespace_size / (1024 * 1024));
+			min_expected_size / (1024 * 1024));
 
 		return(DB_ERROR);
 	}
@@ -926,8 +761,6 @@ Tablespace::check_file_spec(
 
 	for (files_t::iterator it = begin; it != end; ++it) {
 
-		make_name(*it, m_tablespace_path);
-
 		file_status_t reason_if_failed;
 		err = check_file_status(*it, reason_if_failed);
 
@@ -942,10 +775,8 @@ Tablespace::check_file_spec(
 		} else if (err != DB_SUCCESS) {
 			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The system %stablespace must be %s",
-					m_space_id == TRX_SYS_SPACE
-					? "" : "temp-",
-					!srv_read_only_mode
+					"The %s data file '%s' must be %s",
+					name(), it->name(), !srv_read_only_mode
 					? "writable" : "readable");
 			}
 
@@ -954,11 +785,9 @@ Tablespace::check_file_spec(
 
 		} else if (*create_new_db) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"First %sdata file \"%s\" of tablespace not"
-				" found but one of the other data files \"%s\""
-				" exists.",
-				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-				begin->m_name, it->m_name);
+				"The %s data file '%s' was not found but"
+				" one of the other data files '%s' exists.",
+				name(), begin->m_name, it->m_name);
 
 			err = DB_ERROR;
 			break;
@@ -971,35 +800,41 @@ Tablespace::check_file_spec(
 	return(err);
 }
 
-/** Opens/Creates the data files if they don't exist.
-
-@param sum_of_new_sizes sum of sizes of the new files added
+/** Opens or Creates the data files if they do not exist.
+@param[out] sum_new_sizes	Sum of sizes of the new files added.
+@param[out] min_lsn		Minimum flushed LSN among all datafiles.
+@param[out] max_lsn		Maximum flushed LSN among all datafiles.
 @return DB_SUCCESS or error code */
-
 dberr_t
-Tablespace::open(
-/*=============*/
-	ulint*	sum_of_new_sizes)
+SysTablespace::open_or_create(
+	ulint*	sum_new_sizes,
+	lsn_t*	min_lsn,
+	lsn_t*	max_lsn)
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
+	fil_space_t*	space	= NULL;
 
 	ut_ad(!m_files.empty());
 
-	if (sum_of_new_sizes) {
-		*sum_of_new_sizes = 0;
+	if (sum_new_sizes) {
+		*sum_new_sizes = 0;
 	}
 
+	files_t::iterator	begin = m_files.begin();
 	files_t::iterator	end = m_files.end();
 
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+	ut_ad(begin->order() == 0);
+	bool create_new_db = begin->m_exists;
+
+	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
 			err = open_file(*it);
 		} else {
 			err = create_file(*it);
 
-			if (sum_of_new_sizes) {
-				*sum_of_new_sizes += it->m_size;
+			if (sum_new_sizes) {
+				*sum_new_sizes += it->m_size;
 			}
 
 			/* Set the correct open flags now that we have
@@ -1010,18 +845,28 @@ Tablespace::open(
 		}
 
 		if (err != DB_SUCCESS) {
-			break;
+			return(err);
 		}
+	}
 
-		/* We can close the handle now and open the tablespace
-		the proper way. */
-		ibool	success = os_file_close(it->m_handle);
-		ut_a(success);
+	if (create_new_db) {
+		/* Validate the header page in the first datafile
+		and read LSNs fom the others. */
+		err = read_lsn_and_check_flags();
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+		*min_lsn = min_flushed_lsn();
+		*max_lsn = max_flushed_lsn();
+	}
 
-		it->m_handle = os_file_t(~0);
+	/* We can close the handles now and open the tablespace
+	the proper way. */
+	for (files_t::iterator it = begin; it != end; ++it) {
+		it->close();
 		it->m_exists = true;
 
-		if (it == m_files.begin()) {
+		if (it == begin) {
 			/* First data file. */
 
 			ulint	flags;
@@ -1030,19 +875,17 @@ Tablespace::open(
 
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
-			fil_space_create(
-				it->m_filename, m_space_id, flags,
+			space = fil_space_create(
+				it->m_filepath, space_id(), flags,
 				FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
 
 		/* Open the data file. */
-		const char*	filename = fil_node_create(
-			it->m_filename, it->m_size,
-			m_space_id, it->m_type != SRV_NOT_RAW);
-
-		if (filename == 0) {
+		if (!fil_node_create(
+			it->m_filepath, it->m_size,
+			space, it->m_type != SRV_NOT_RAW)) {
 		       err = DB_ERROR;
 		       break;
 		}
@@ -1051,10 +894,10 @@ Tablespace::open(
 	return(err);
 }
 
-/** Normalize the file size, convert to extents. */
+/** Normalize the file size, convert from megabytes to number of pages. */
 
 void
-Tablespace::normalize()
+SysTablespace::normalize()
 {
 	files_t::iterator	end = m_files.end();
 
@@ -1071,7 +914,7 @@ Tablespace::normalize()
 @return next increment size */
 
 ulint
-Tablespace::get_increment() const
+SysTablespace::get_increment() const
 {
 	ulint	increment;
 
@@ -1082,10 +925,9 @@ Tablespace::get_increment() const
 		if (!is_valid_size()) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Last %sdata file size is %lu, max"
-				" size allowed %lu",
-				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-				last_file_size(),
+				"The last data file in %s has a size of"
+				" %lu but the max size allowed is %lu",
+				name(), last_file_size(),
 				m_last_file_size_max);
 		}
 
@@ -1104,85 +946,16 @@ Tablespace::get_increment() const
 @return true if configured to use raw devices */
 
 bool
-Tablespace::has_raw_device() const
+SysTablespace::has_raw_device()
 {
-	files_t::const_iterator	end = m_files.end();
-
-	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
-
-		if (is_raw_device(*it)) {
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-/**
-@return true if the filename exists in the data files */
-
-bool
-Tablespace::find(const char* filename) const
-{
-	files_t::const_iterator	end = m_files.end();
-
-	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
-
-		if (innobase_strcasecmp(
-			filename, get_file_name(it->m_name)) == 0) {
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-
-/** Delete all the data files. */
-
-void
-Tablespace::delete_files()
-{
-	srv_normalize_path_for_win(m_tablespace_path);
-
 	files_t::iterator	end = m_files.end();
 
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
-		make_name(*it, m_tablespace_path);
-		bool file_pre_exists;
-		bool success = os_file_delete_if_exists(
-			innodb_data_file_key, it->m_filename, &file_pre_exists);
-
-		if (success && file_pre_exists) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Removed temporary tablespace data file:"
-				" \"%s\"", it->m_name);
+		if (it->is_raw_device()) {
+			return(true);
 		}
 	}
+
+	return(false);
 }
-
-/** Check if system-tablespace (shared + temp).
-@return true if system tablespace */
-
-bool
-Tablespace::is_system_tablespace(
-/*=============================*/
-	ulint	id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id == srv_tmp_space.space_id());
-}
-
-/** Check if shared-system or undo tablespace.
-@return true if shared-system or undo tablespace */
-
-bool
-Tablespace::is_system_or_undo_tablespace(
-/*=====================================*/
-	ulint   id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id <= srv_undo_tablespaces_open);
-}
-
