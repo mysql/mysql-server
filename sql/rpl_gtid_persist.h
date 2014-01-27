@@ -213,10 +213,10 @@ private:
   */
   int delete_all(TABLE* table);
   /**
-    Read each row by the PK in increasing order, merge the first
-    consecutive rows range (delete all consecutive rows from the
-    second consecutive row, then update the first row) in one
-    transaction.
+    Read each row by the PK(sid, gno_start) in increasing order,
+    compress the first consecutive gtids range (delete consecutive
+    gtids from the second consecutive gtid, then update the
+    first gtid) in one transaction.
 
     @param  table Reference to a table object.
 
@@ -224,7 +224,7 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int merge_first_consecutive_rows(TABLE* table);
+  int compress_first_consecutive_gtids(TABLE* table);
   /**
     Encode the current row fetched from the table into gtid text.
 
