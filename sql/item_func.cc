@@ -2635,11 +2635,6 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   }
   unpack_time(min_max, ltime);
 
-  if (!(fuzzy_date & TIME_TIME_ONLY) &&
-      ((null_value= check_date_with_warn(ltime, fuzzy_date,
-                                         MYSQL_TIMESTAMP_ERROR))))
-    return true;
-
   if (compare_as_dates->field_type() == MYSQL_TYPE_DATE)
   {
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
@@ -2650,8 +2645,15 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     ltime->time_type= MYSQL_TIMESTAMP_TIME;
     ltime->hour+= (ltime->month * 32 + ltime->day) * 24;
     ltime->month= ltime->day= 0;
+    if (adjust_time_range_with_warn(ltime,
+                                    min(decimals, TIME_SECOND_PART_DIGITS)))
+      return (null_value= true);
   }
 
+  if (!(fuzzy_date & TIME_TIME_ONLY) &&
+      ((null_value= check_date_with_warn(ltime, fuzzy_date,
+                                         MYSQL_TIMESTAMP_ERROR))))
+    return true;
 
   return 0;
 }

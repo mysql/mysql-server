@@ -229,6 +229,20 @@ check_date_with_warn(const MYSQL_TIME *ltime, uint fuzzy_date,
 }
 
 
+bool
+adjust_time_range_with_warn(MYSQL_TIME *ltime, uint dec)
+{
+  MYSQL_TIME copy= *ltime;
+  Lazy_string_time str(&copy);
+  int warnings= 0;
+  if (check_time_range(ltime, dec, &warnings))
+    return true;
+  if (warnings)
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, MYSQL_TIMESTAMP_TIME, NullS);
+  return false;
+}
+
 /*
   Convert a timestamp string to a MYSQL_TIME value and produce a warning 
   if string was truncated during conversion.

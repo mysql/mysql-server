@@ -2348,6 +2348,30 @@ SELECT EXTRACT(DAY FROM TIME('1 02:00:00')), EXTRACT(DAY FROM TIME('26:00:00'));
 EXTRACT(DAY FROM TIME('1 02:00:00'))	EXTRACT(DAY FROM TIME('26:00:00'))
 1	1
 #
+# MDEV-5458 RQG hits 'sql/tztime.cc:799: my_time_t sec_since_epoch(int, int, int, int, int, int): Assertion `mon > 0 && mon < 13' failed.'
+#
+SET TIMESTAMP=UNIX_TIMESTAMP('2014-01-22 18:19:20');
+CREATE TABLE t1 (t TIME);
+INSERT INTO t1 VALUES ('03:22:30'),('18:30:05');
+SELECT CONVERT_TZ(GREATEST(t, CURRENT_DATE()), '+02:00', '+10:00') FROM t1;
+CONVERT_TZ(GREATEST(t, CURRENT_DATE()), '+02:00', '+10:00')
+NULL
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1296:00:00'
+Warning	1292	Incorrect datetime value: '838:59:59'
+Warning	1292	Truncated incorrect time value: '1296:00:00'
+Warning	1292	Incorrect datetime value: '838:59:59'
+SELECT GREATEST(t, CURRENT_DATE()) FROM t1;
+GREATEST(t, CURRENT_DATE())
+838:59:59
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '1296:00:00'
+Warning	1292	Truncated incorrect time value: '1296:00:00'
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+#
 # MDEV-5504 Server crashes in String::length on SELECT with MONTHNAME, GROUP BY, ROLLUP
 #
 CREATE TABLE t1 (i INT);

@@ -305,7 +305,7 @@ SELECT CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5
 CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '2022-00-00 00:00:00'
+Warning	1292	Incorrect datetime value: '2022-00-00'
 #
 # MDEV-4804 Date comparing false result 
 #
