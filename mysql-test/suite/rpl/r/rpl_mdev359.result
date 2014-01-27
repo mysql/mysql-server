@@ -9,5 +9,6 @@ SET DEBUG_SYNC= "now WAIT_FOR m1_ready";
 SET GLOBAL rpl_semi_sync_master_enabled = OFF;
 SET DEBUG_SYNC= "now SIGNAL m1_cont";
 DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
 UNINSTALL PLUGIN rpl_semi_sync_master;
 include/rpl_end.inc

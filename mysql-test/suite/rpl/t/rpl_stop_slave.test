@@ -107,7 +107,6 @@ ROLLBACK;
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
-SET DEBUG_SYNC= 'RESET';
 
 --source include/rpl_connection_slave.inc
 source include/wait_for_slave_to_stop.inc;
@@ -122,3 +121,4 @@ DROP TABLE t1, t2;
 eval SET GLOBAL debug_dbug= '$debug_save';
 --enable_query_log
 --source include/rpl_end.inc
+SET DEBUG_SYNC= 'RESET';

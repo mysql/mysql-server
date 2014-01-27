@@ -44,4 +44,5 @@ disconnect con2;
 connection default;
 
 drop table t1;
+set debug_sync='reset';
 

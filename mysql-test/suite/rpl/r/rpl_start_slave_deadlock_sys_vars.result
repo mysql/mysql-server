@@ -28,4 +28,5 @@ SET DEBUG_SYNC='now SIGNAL go';
 # connection: slave
 # cleanup
 SET @@GLOBAL.slave_net_timeout = @save_slave_net_timeout;
+SET DEBUG_SYNC='RESET';
 include/rpl_end.inc

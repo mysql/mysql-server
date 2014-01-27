@@ -50,4 +50,5 @@ connection default;
 disconnect killee;
 
 drop table t1;
+set debug_sync='reset';
 

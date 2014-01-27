@@ -29,3 +29,4 @@ kill %connection%;
 set debug_sync='now signal done';
 Got one of the listed errors
 drop table t1;
+set debug_sync='reset';

@@ -28,6 +28,7 @@ SET DEBUG_SYNC= "now SIGNAL m1_cont";
 
 connection master;
 DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
 
 disable_warnings;
 UNINSTALL PLUGIN rpl_semi_sync_master;

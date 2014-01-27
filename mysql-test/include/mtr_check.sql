@@ -78,6 +78,9 @@ BEGIN
   -- verify that no plugin changed its disabled/enabled state
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
+  select * from information_schema.session_variables
+    where variable_name = 'debug_sync';
+
  show status like 'slave_open_temp_tables';
 
 END||

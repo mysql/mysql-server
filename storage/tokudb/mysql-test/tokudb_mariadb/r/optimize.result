@@ -11,3 +11,4 @@ set debug_sync='now SIGNAL go';
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 drop table t1;
+set debug_sync='reset';

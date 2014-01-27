@@ -113,7 +113,6 @@ ROLLBACK;
 [connection master]
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
-SET DEBUG_SYNC= 'RESET';
 [connection slave]
 include/wait_for_slave_to_stop.inc
 [connection slave1]
@@ -121,3 +120,4 @@ include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;
 include/rpl_end.inc
+SET DEBUG_SYNC= 'RESET';

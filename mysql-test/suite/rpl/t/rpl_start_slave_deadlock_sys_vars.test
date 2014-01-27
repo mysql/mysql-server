@@ -53,5 +53,6 @@ disconnect slave2;
 connection slave;
 --echo # cleanup
 SET @@GLOBAL.slave_net_timeout = @save_slave_net_timeout;
+SET DEBUG_SYNC='RESET';
 
 source include/rpl_end.inc;

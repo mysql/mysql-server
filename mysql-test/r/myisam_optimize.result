@@ -21,3 +21,4 @@ a	left(b,10)
 3	CCCCCCCCCC
 4	CCCCCCCCCC
 drop table t1;
+set debug_sync='reset';
