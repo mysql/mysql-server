@@ -72,5 +72,6 @@ SELECT * FROM visits_events;
 event_id	visit_id	timestamp	src	data	visits_events_id
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 DROP DATABASE track;
+include/sync_slave_sql_with_master.inc
 End of 5.1 tests
 include/rpl_end.inc

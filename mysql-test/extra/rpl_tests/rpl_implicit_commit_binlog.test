@@ -659,7 +659,7 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY
 --echo ###################################################################################
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --let $diff_tables= master:tt_1,slave:tt_1
 --source include/diff_tables.inc
@@ -673,4 +673,4 @@ DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE nt_1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

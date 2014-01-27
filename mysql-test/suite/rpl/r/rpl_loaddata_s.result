@@ -6,9 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 reset master;
 create table test.t1(a int, b int, unique(b));
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
+include/sync_slave_sql_with_master.inc
 select count(*) from test.t1;
 count(*)
 2
 include/show_binlog_events.inc
 drop table test.t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

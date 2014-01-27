@@ -12,7 +12,7 @@ INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
 
 --let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 source include/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0

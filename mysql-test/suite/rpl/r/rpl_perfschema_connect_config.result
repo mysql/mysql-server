@@ -31,6 +31,7 @@ include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Coun
 # are shown correctly by SELECTs from PS table.
 
 grant replication slave on *.* to replssl@localhost require ssl;
+include/sync_slave_sql_with_master.inc
 stop slave;
 change master to
 master_user='replssl',

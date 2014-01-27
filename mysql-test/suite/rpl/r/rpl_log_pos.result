@@ -7,6 +7,7 @@ call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when read
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 change master to master_log_pos=MASTER_LOG_POS;
 Read_Master_Log_Pos = '75'
@@ -29,5 +30,6 @@ n
 2
 3
 drop table t1;
+include/sync_slave_sql_with_master.inc
 End of 5.0 tests
 include/rpl_end.inc

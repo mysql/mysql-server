@@ -5,6 +5,7 @@
 # Related bugs:
 # Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION 
 
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source include/have_slave_parallel_type_database.inc
 # The test for bug#12995174 is not format-specific but uses sleep
@@ -30,7 +31,7 @@ CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
 INSERT INTO d1.t1 VALUES (1);
 FLUSH LOGS;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY=5;
@@ -130,6 +131,6 @@ DELETE FROM d1.t1 WHERE a = 13;
 --connection master
 DROP DATABASE d1;
 DROP DATABASE d2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

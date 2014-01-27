@@ -12,7 +12,7 @@ select "--- --master--" as "";
 --enable_query_log
 show create database mysqltest2;
 show create database mysqltest3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
@@ -27,7 +27,7 @@ create database mysqltest3;
 select "--- --master--" as "";
 --enable_query_log
 show create database mysqltest3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
@@ -47,7 +47,7 @@ insert into t1 (b) values(@@character_set_connection);
 insert into t1 (b) values(@@collation_connection);
 --echo --- --master--
 select * from t1 order by a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
@@ -61,7 +61,7 @@ insert into t1 (b) values(@@collation_connection);
 insert into t1 (b) values(LEAST("MЭller","Muffler"));
 --echo --- --master--
 select * from t1 order by a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
@@ -83,14 +83,14 @@ truncate table t1;
 insert into t1 (b) values(collation(@a));
 --echo --- --master--
 select * from t1 order by a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
 connection master;
 drop database mysqltest2;
 drop database mysqltest3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Check that we can change global.collation_server (since 5.0.3)
 
@@ -115,12 +115,12 @@ SET CHARACTER_SET_CLIENT=koi8r,
  CHARACTER_SET_RESULTS=koi8r;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
 select hex(c1), hex(c2) from t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select hex(c1), hex(c2) from t1;
 
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 #  BUG#6676: Derivation of variables must be correct on slave

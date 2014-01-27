@@ -2,8 +2,8 @@
 # WL#3584 GTID
 # The test verifies how mysqlbinlog handles GTID related options.
 #
---source include/master-slave.inc
 --source include/have_gtid.inc
+--source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_mixed.inc
 
@@ -206,3 +206,5 @@ FLUSH LOGS;
 DROP TABLE t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+connection slave;
+CHANGE MASTER TO MASTER_AUTO_POSITION=0;

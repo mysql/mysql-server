@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 create table t1 (n int auto_increment primary key);
 set insert_id = 2000;
 insert into t1 values (NULL),(NULL),(NULL);
+include/sync_slave_sql_with_master.inc
 select * from t1;
 n
 2000
@@ -15,6 +16,7 @@ SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
 2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
 drop table t1;
+include/sync_slave_sql_with_master.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
 create table t2(id int auto_increment primary key, created datetime);
@@ -46,4 +48,5 @@ t5	CREATE TABLE `t5` (
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t2,t3,t5;
 drop temporary table if exists t4;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

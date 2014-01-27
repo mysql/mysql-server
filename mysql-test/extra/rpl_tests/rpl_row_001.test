@@ -1,3 +1,4 @@
+--source include/not_gtid_enabled.inc
 let $LOAD_FILE= $MYSQLTEST_VARDIR/std_data/words.dat;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --replace_result $LOAD_FILE LOAD_FILE
@@ -65,6 +66,7 @@ save_master_pos;
 
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
+RESET MASTER;
 LOCK TABLES t1 READ;
 START SLAVE;
 UNLOCK TABLES;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,12 +87,12 @@ my_bool my_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
-  if (my_thread_global_init())
-    return 1;
-
 #if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
+
+  if (my_thread_global_init())
+    return 1;
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
