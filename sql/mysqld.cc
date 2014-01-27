@@ -4496,25 +4496,24 @@ int mysqld_main(int argc, char **argv)
           gtid_table_persistor->fetch_gtids_from_table(executed_gtids) == -1)
         unireg_abort(1);
 
-      /*
-        lost_gtids = executed_gtids -
-                     (logged_gtids_binlog - purged_gtids_binlog);
-      */
       global_sid_lock->wrlock();
-      DBUG_ASSERT(lost_gtids->is_empty());
-      if (lost_gtids->add_gtid_set(executed_gtids) != RETURN_STATUS_OK ||
-          lost_gtids->remove_gtid_set(&logged_gtids_binlog) !=
-          RETURN_STATUS_OK ||
-          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        unireg_abort(1);
-      }
       /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
           RETURN_STATUS_OK ||
           gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
           RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+      /*
+        lost_gtids = executed_gtids -
+                     (logged_gtids_binlog - purged_gtids_binlog)
+                   = gtids_only_in_table + purged_gtids_binlog;
+      */
+      DBUG_ASSERT(lost_gtids->is_empty());
+      if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
+          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
@@ -4529,6 +4528,12 @@ int mysqld_main(int argc, char **argv)
         */
         if (executed_gtids->add_gtid_set(&logged_gtids_binlog) !=
             RETURN_STATUS_OK)
+        {
+          global_sid_lock->unlock();
+          unireg_abort(1);
+        }
+        /* Save the executed_gtids into gtid table. */
+        if (gtid_table_persistor->save(executed_gtids) == -1)
         {
           global_sid_lock->unlock();
           unireg_abort(1);
