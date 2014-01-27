@@ -196,17 +196,6 @@ FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 ib_mutex_t	dict_foreign_err_mutex;
 
-/******************************************************************//**
-Makes all characters in a NUL-terminated UTF-8 string lower case. */
-
-void
-dict_casedn_str(
-/*============*/
-	char*	a)	/*!< in/out: string to put in lower case */
-{
-	innobase_casedn_str(a);
-}
-
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */
