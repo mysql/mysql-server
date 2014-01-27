@@ -2690,10 +2690,9 @@ buf_page_get_gen(
 	ut_ad(page_size.equals_to(space_page_size));
 #endif /* UNIV_DEBUG */
 
-#ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside(mtr)
 	      || ibuf_page_low(page_id, page_size, FALSE, file, line, NULL));
-#endif
+
 	buf_pool->stat.n_page_gets++;
 	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 loop:

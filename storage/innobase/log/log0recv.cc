@@ -427,9 +427,7 @@ recv_sys_empty_hash(void)
 
 /********************************************************//**
 Frees the recovery system. */
-# ifndef UNIV_LOG_DEBUG
 static
-# endif /* !UNIV_LOG_DEBUG */
 void
 recv_sys_debug_free(void)
 /*=====================*/
@@ -692,9 +690,6 @@ log_block_checksum_is_ok_or_old_format(
 /*===================================*/
 	const byte*	block)	/*!< in: pointer to a log block */
 {
-#ifdef UNIV_LOG_DEBUG
-	return(TRUE);
-#endif /* UNIV_LOG_DEBUG */
 	if (log_block_calc_checksum(block) == log_block_get_checksum(block)) {
 
 		return(TRUE);
@@ -1983,11 +1978,7 @@ recv_parse_log_rec(
 #ifdef UNIV_LOG_LSN_DEBUG
 	if (*type == MLOG_LSN) {
 		lsn_t	lsn = (lsn_t) *space << 32 | *page_no;
-# ifdef UNIV_LOG_DEBUG
-		ut_a(lsn == log_sys->old_lsn);
-# else /* UNIV_LOG_DEBUG */
 		ut_a(lsn == recv_sys->recovered_lsn);
-# endif /* UNIV_LOG_DEBUG */
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
@@ -2030,29 +2021,6 @@ recv_calc_lsn_on_data_add(
 
 	return(lsn + lsn_len);
 }
-
-#ifdef UNIV_LOG_DEBUG
-/*******************************************************//**
-Checks that the parser recognizes incomplete initial segments of a log
-record as incomplete. */
-static
-void
-recv_check_incomplete_log_recs(
-/*===========================*/
-	byte*	ptr,	/*!< in: pointer to a complete log record */
-	ulint	len)	/*!< in: length of the log record */
-{
-	for (ulint i = 0; i < len; i++) {
-		mlog_id_t	type;
-		byte*		body;
-		ulint		space;
-		ulint		page_no;
-
-		ut_a(0 == recv_parse_log_rec(ptr, ptr + i, &type, &space,
-					     &page_no, &body));
-	}
-}
-#endif /* UNIV_LOG_DEBUG */
 
 /*******************************************************//**
 Prints diagnostic info of corrupt log. */
@@ -2123,11 +2091,7 @@ merging to file pages.
 @return currently always returns FALSE */
 static
 ibool
-recv_parse_log_recs(
-/*================*/
-	ibool	store_to_hash)	/*!< in: TRUE if the records should be stored
-				to the hash table; this is set to FALSE if just
-				debug checking is needed */
+recv_parse_log_recs(void)
 {
 	byte*		ptr;
 	byte*		end_ptr;
@@ -2203,14 +2167,6 @@ loop:
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
 
-		} else if (!store_to_hash) {
-			/* In debug checking, update a replicate page
-			according to the log record, and check that it
-			becomes identical with the original page */
-#ifdef UNIV_LOG_DEBUG
-			recv_check_incomplete_log_recs(ptr, len);
-#endif/* UNIV_LOG_DEBUG */
-
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
@@ -2276,12 +2232,6 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
-#ifdef UNIV_LOG_DEBUG
-			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
-				recv_check_incomplete_log_recs(ptr, len);
-			}
-#endif /* UNIV_LOG_DEBUG */
-
 			DBUG_PRINT("ib_log",
 				   ("scan " LSN_PF ": multi-log rec %u"
 				    " len %u page %u:%u",
@@ -2339,13 +2289,10 @@ loop:
 				/* Found the end mark for the records */
 
 				break;
-			}
-
-			if (store_to_hash
 #ifdef UNIV_LOG_LSN_DEBUG
-			    && type != MLOG_LSN
+			} else if (type == MLOG_LSN) {
 #endif /* UNIV_LOG_LSN_DEBUG */
-			    ) {
+			} else {
 				recv_add_to_hash_table(type, space, page_no,
 						       body, ptr + len,
 						       old_lsn,
@@ -2456,16 +2403,12 @@ UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
 @return TRUE if limit_lsn has been reached, or not able to scan any
 more in this log group */
-
+static
 ibool
 recv_scan_log_recs(
 /*===============*/
 	ulint		available_memory,/*!< in: we let the hash table of recs
 					to grow to this size, at the maximum */
-	ibool		store_to_hash,	/*!< in: TRUE if the records should be
-					stored to the hash table; this is set
-					to FALSE if just debug checking is
-					needed */
 	const byte*	buf,		/*!< in: buffer containing a log
 					segment or garbage */
 	ulint		len,		/*!< in: buffer length */
@@ -2486,7 +2429,6 @@ recv_scan_log_recs(
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len >= OS_FILE_LOG_BLOCK_SIZE);
-	ut_a(store_to_hash <= TRUE);
 
 	finished = FALSE;
 
@@ -2543,8 +2485,7 @@ recv_scan_log_recs(
 
 		data_len = log_block_get_data_len(log_block);
 
-		if ((store_to_hash || (data_len == OS_FILE_LOG_BLOCK_SIZE))
-		    && scanned_lsn + data_len > recv_sys->scanned_lsn
+		if (scanned_lsn + data_len > recv_sys->scanned_lsn
 		    && (recv_sys->scanned_checkpoint_no > 0)
 		    && (log_block_get_checkpoint_no(log_block)
 			< recv_sys->scanned_checkpoint_no)
@@ -2556,12 +2497,6 @@ recv_scan_log_recs(
 			before the most recent database recovery */
 
 			finished = TRUE;
-#ifdef UNIV_LOG_DEBUG
-			/* This is not really an error, but currently
-			we stop here in the debug version: */
-
-			ut_error;
-#endif
 			break;
 		}
 
@@ -2665,11 +2600,10 @@ recv_scan_log_recs(
 	if (more_data && !recv_sys->found_corrupt_log) {
 		/* Try to parse more log records */
 
-		recv_parse_log_recs(store_to_hash);
+		recv_parse_log_recs();
 
 #ifndef UNIV_HOTBACKUP
-		if (store_to_hash
-		    && mem_heap_get_size(recv_sys->heap) > available_memory) {
+		if (mem_heap_get_size(recv_sys->heap) > available_memory) {
 
 			/* Hash table of log records has grown too big:
 			empty it; FALSE means no ibuf operations
@@ -2724,7 +2658,7 @@ recv_group_scan_log_recs(
 			(buf_pool_get_n_pages()
 			- (recv_n_pool_free_frames * srv_buf_pool_instances))
 			* UNIV_PAGE_SIZE,
-			TRUE, log_sys->buf, RECV_SCAN_SIZE,
+			log_sys->buf, RECV_SCAN_SIZE,
 			start_lsn, contiguous_lsn, group_scanned_lsn);
 		start_lsn = end_lsn;
 	}
@@ -3088,9 +3022,7 @@ recv_recovery_from_checkpoint_finish(void)
 		}
 	}
 
-#ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
-#endif /* UNIV_LOG_DEBUG */
 
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
