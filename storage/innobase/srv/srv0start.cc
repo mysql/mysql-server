@@ -404,7 +404,7 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_create(
+	fil_space_t* log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
@@ -412,7 +412,7 @@ create_log_files(
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		SRV_LOG_SPACE_FIRST_ID, false);
+		log_space, false);
 	ut_a(logfile0);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
@@ -420,7 +420,7 @@ create_log_files(
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     SRV_LOG_SPACE_FIRST_ID, false)) {
+				     log_space, false)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot create file node for log file %s",
 				logfilename);
@@ -589,7 +589,7 @@ dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
 	const char*	name,		/*!< in: tablespace name */
-	ulint		space)		/*!< in: tablespace id */
+	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
@@ -617,6 +617,7 @@ srv_undo_tablespace_open(
 
 	if (ret) {
 		os_offset_t	size;
+		fil_space_t*	space;
 
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
@@ -631,13 +632,15 @@ srv_undo_tablespace_open(
 		because InnoDB hasn't opened any other tablespace apart
 		from the system tablespace. */
 
-		fil_set_max_space_id_if_bigger(space);
+		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-		fil_space_create(name, space, flags, FIL_TABLESPACE);
+		space = fil_space_create(
+			name, space_id, flags, FIL_TABLESPACE);
 
 		ut_a(fil_validate());
+		ut_a(space);
 
 		os_offset_t	n_pages = size / UNIV_PAGE_SIZE;
 
@@ -1803,12 +1806,14 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_create(logfilename,
-				 SRV_LOG_SPACE_FIRST_ID,
-				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-				 FIL_LOG);
+		fil_space_t* log_space = fil_space_create(
+			logfilename,
+			SRV_LOG_SPACE_FIRST_ID,
+			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+			FIL_LOG);
 
 		ut_a(fil_validate());
+		ut_a(log_space);
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
@@ -1819,7 +1824,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     SRV_LOG_SPACE_FIRST_ID, false)) {
+					     log_space, false)) {
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
