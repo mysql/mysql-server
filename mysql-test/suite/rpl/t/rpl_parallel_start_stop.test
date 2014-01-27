@@ -90,7 +90,7 @@ CREATE TABLE t1 (a int primary key) engine=innodb;
 
 insert into t1 values (1),(2);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 let $count= 2;
@@ -118,7 +118,7 @@ source include/start_slave.inc;
 
 connection master;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 if (`select count(*) != 3 from t1`)
@@ -132,7 +132,7 @@ if (`select count(*) != 3 from t1`)
 connection master;
 delete from t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 #
@@ -144,7 +144,7 @@ insert into t1 values (1),(2),(3);
 create table t2m (a int) engine=myisam; # non-trans engine to detect deadlock
 insert into t2m values (1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 begin;
@@ -188,7 +188,7 @@ source include/start_slave.inc;
 connection master;
 
 # recovery is proved
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 
@@ -229,7 +229,7 @@ start slave sql_thread;
 connection master;
 let $a=`select max(a) from t1`;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 if (`select $a - max(a) from t1`)
@@ -277,7 +277,7 @@ drop table t1;
 drop table t2m;
 drop table t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 drop view worker_proc_list;
@@ -330,7 +330,7 @@ insert into d1.t1 values (1),(2),(3);
 insert into d2.t1 values (1),(2),(3);
 insert into d1.t2m values (1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 begin; # the blocker
 # set up a deadlock at the 1st job
@@ -414,7 +414,7 @@ connection master;
 drop database d1;
 drop database d2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 
 --source include/rpl_end.inc

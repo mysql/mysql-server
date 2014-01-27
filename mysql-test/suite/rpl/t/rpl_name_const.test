@@ -36,7 +36,7 @@ call test_procedure(1234);
 
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by id;
 
 --echo ==== Clean up ====

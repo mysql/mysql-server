@@ -10,6 +10,7 @@ CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
@@ -35,6 +36,7 @@ n
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE;
 include/wait_for_slave_to_start.inc
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_create_t2
 include/wait_for_slave_param.inc [Until_Log_Pos]
@@ -57,6 +59,7 @@ include/start_slave.inc
 include/rpl_reset.inc
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
@@ -65,4 +68,5 @@ include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [table t1 should have two rows.]
 include/start_slave.inc
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

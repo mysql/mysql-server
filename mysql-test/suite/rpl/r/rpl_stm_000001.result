@@ -20,12 +20,14 @@ abandoned
 abandoning
 abandonment
 abandons
+include/sync_slave_sql_with_master.inc
 stop slave;
 set password for root@"localhost" = password('foo');
 start slave;
 set password for root@"localhost" = password('');
 create table t3(n int);
 insert into t3 values(1),(2);
+include/sync_slave_sql_with_master.inc
 select * from t3;
 n
 1
@@ -34,7 +36,9 @@ select sum(length(word)) from t1;
 sum(length(word))
 1022
 drop table t1,t3;
+include/sync_slave_sql_with_master.inc
 create table t1 (n int) engine=myisam;
+include/sync_slave_sql_with_master.inc
 reset master;
 stop slave;
 reset slave;
@@ -77,6 +81,7 @@ update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 select_priv	user
 Y	blafasel2
+include/sync_slave_sql_with_master.inc
 select n from t1;
 n
 3456
@@ -85,4 +90,5 @@ select_priv	user
 Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

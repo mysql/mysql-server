@@ -180,7 +180,7 @@ SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ########################################################################################
 --connection master
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-slave.sql
 --diff_files $MYSQLD_DATADIR/test-migration-master.sql $MYSQLD_DATADIR/test-migration-slave.sql
@@ -188,4 +188,4 @@ sync_slave_with_master;
 --connection master
 
 DROP TABLE test;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

@@ -790,7 +790,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
     }
 
-    if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
+    if (error <= 0 || thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT))
     {
       if (mysql_bin_log.is_open())
       {
@@ -833,7 +834,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
-                thd->transaction.stmt.cannot_safely_rollback());
+                thd->get_transaction()->cannot_safely_rollback(
+                  Transaction_ctx::STMT));
   }
   THD_STAGE_INFO(thd, stage_end);
   /*
@@ -1616,7 +1618,8 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             goto err;
           info->stats.deleted++;
           if (!table->file->has_transactions())
-            thd->transaction.stmt.mark_modified_non_trans_table();
+            thd->get_transaction()->mark_modified_non_trans_table(
+              Transaction_ctx::STMT);
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1669,7 +1672,8 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->get_transaction()->mark_modified_non_trans_table(
+      Transaction_ctx::STMT);
   DBUG_RETURN(trg_error);
 
 err:
@@ -2123,7 +2127,8 @@ bool select_insert::send_eof()
   }
 
   DBUG_ASSERT(trans_table || !changed || 
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
 
   /*
     Write to binlog before commiting transaction.  No statement will
@@ -2132,7 +2137,8 @@ bool select_insert::send_eof()
     ha_autocommit_or_rollback() is issued below.
   */
   if (mysql_bin_log.is_open() &&
-      (!error || thd->transaction.stmt.cannot_safely_rollback()))
+      (!error || thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT)))
   {
     int errcode= 0;
     if (!error)
@@ -2229,7 +2235,7 @@ void select_insert::abort_result_set() {
     */
     changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
     transactional_table= table->file->has_transactions();
-    if (thd->transaction.stmt.cannot_safely_rollback())
+    if (thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT))
     {
         if (mysql_bin_log.is_open())
         {
@@ -2243,7 +2249,8 @@ void select_insert::abort_result_set() {
 	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
-		thd->transaction.stmt.cannot_safely_rollback());
+		thd->get_transaction()->cannot_safely_rollback(
+		  Transaction_ctx::STMT));
     table->file->ha_release_auto_increment();
   }
 
@@ -2740,7 +2747,7 @@ bool select_create::send_eof()
     mark the flag at this point.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    thd->transaction.stmt.mark_created_temp_table();
+    thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
   bool tmp=select_insert::send_eof();
   if (tmp)
@@ -2792,7 +2799,7 @@ void select_create::abort_result_set()
   */
   tmp_disable_binlog(thd);
   select_insert::abort_result_set();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);

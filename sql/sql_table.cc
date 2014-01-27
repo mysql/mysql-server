@@ -2532,7 +2532,7 @@ err:
   {
     if (non_trans_tmp_table_deleted ||
         trans_tmp_table_deleted)
-      thd->transaction.stmt.mark_dropped_temp_table();
+      thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
 
     if (!dont_log_query && mysql_bin_log.is_open())
     {
@@ -5027,7 +5027,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       correctly.
     */
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-      thd->transaction.stmt.mark_created_temp_table();
+      thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
     if (!thd->is_current_stmt_binlog_format_row() ||
         (thd->is_current_stmt_binlog_format_row() &&
@@ -5325,7 +5325,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     correctly.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    thd->transaction.stmt.mark_created_temp_table();
+    thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
   /*
     We have to write the query before we unlock the tables.

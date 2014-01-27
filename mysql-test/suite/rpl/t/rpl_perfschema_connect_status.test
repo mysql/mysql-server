@@ -270,7 +270,7 @@ use test;
 create table t(a int);
 insert into t values(1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);

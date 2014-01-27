@@ -342,7 +342,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       If called for re-open, no need to rollback either,
       it will be done at statement end.
     */
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     thd->set_open_tables(backup_open_tables);
@@ -526,7 +526,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (tables && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
+  if (tables &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
   {
     DBUG_RETURN(true);
   }

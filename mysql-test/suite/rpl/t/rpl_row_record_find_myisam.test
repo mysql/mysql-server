@@ -10,7 +10,7 @@ CREATE TABLE t1 ( i1 int, c1 char(1), key ( i1 ));
 INSERT IGNORE INTO t1 VALUES (1, 'a');
 UPDATE t1 SET c1 = 'b' WHERE i1 = 1;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#40007: Replication failure with RBR + no PK + 2 indexed fields 

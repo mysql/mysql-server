@@ -87,7 +87,7 @@ INSERT INTO t1 VALUES ("zero", 0);
 --echo ==== Normal setup ====
 
 --echo [on slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 
@@ -174,7 +174,7 @@ CHANGE MASTER TO MASTER_DELAY = 0;
 
 --connection master
 INSERT INTO t1 VALUES ('Syncing slave', 5);
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 --echo # CHANGE MASTER TO MASTER_DELAY = 2*T
@@ -411,6 +411,6 @@ DROP TABLE t1, t_check_dml_not_executed_prematurely;
 DROP FUNCTION delay_on_slave;
 
 --echo [on slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
