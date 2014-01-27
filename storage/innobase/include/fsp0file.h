@@ -253,10 +253,16 @@ public:
 	}
 
 	/** Test if the filepath provided is the same as this object.
+	When lower_case_table_names != 0 we store the filename as it is given,
+	but compare it case insensitive.
 	@return true if it is the same file, else false */
 	bool	same_filepath_as(const char* other_filepath)
 	{
-		return(0 == strcmp(m_filepath, other_filepath));
+		if (innobase_get_lower_case_table_names() == 0) {
+			return(0 == strcmp(m_filepath, other_filepath));
+		}
+
+		return(0 == innobase_strcasecmp(m_filepath, other_filepath));
 	}
 
 	/** Get Datafile::m_handle.
