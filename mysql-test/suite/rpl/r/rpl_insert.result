@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 CREATE TABLE t1 (id INT, name VARCHAR(64));
+include/sync_slave_sql_with_master.inc
 SELECT COUNT(*) FROM mysqlslap.t1;
 COUNT(*)
 5000
@@ -20,4 +21,5 @@ COUNT(*)
 #
 USE test;
 DROP SCHEMA mysqlslap;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

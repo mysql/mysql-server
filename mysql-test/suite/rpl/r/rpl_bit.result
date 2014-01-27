@@ -94,6 +94,7 @@ hex(bit3)
 15
 24
 35
+include/sync_slave_sql_with_master.inc
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 oSupp	sSuppD	GSuppDf	VNotSupp	x034
 5	5	3	2	1
@@ -135,4 +136,5 @@ hex(bit3)
 24
 35
 DROP TABLE IF EXISTS test.t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

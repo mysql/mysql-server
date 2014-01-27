@@ -77,7 +77,7 @@ create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 let $status_items= Master_Log_File, Relay_Master_Log_File;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
@@ -100,7 +100,7 @@ flush logs;
 source include/show_binary_logs.inc;
 create table t3 select * from temp_table;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --let $query_result= query_get_value(select * from t3, "a", 1)
 --let $assert_text= Data in t3 should be equal to temp_table
@@ -131,7 +131,7 @@ call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .PRIM
 connection master;
 
 #let slave catch up
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 purge master logs to 'master-bin.000002';
 source include/show_master_logs.inc;
@@ -163,7 +163,7 @@ replace_regex /\.[\\\/]master/master/;
 purge master logs before (@time_for_purge);
 source include/show_binary_logs.inc;
 insert into t2 values (65);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 
@@ -219,7 +219,7 @@ if (`select '$first' like '$last'`)
 {
   --die No expected logs rotation
 } 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --let $query_result= query_get_value(select * from t4, "a", 1)
 --let $assert_text= Data in t4 should be equal to temp_table
@@ -240,7 +240,7 @@ unlock tables;
 connection master;
 drop table if exists t1,t2,t3,t4;
 drop temporary table temp_table;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo End of 4.1 tests
 

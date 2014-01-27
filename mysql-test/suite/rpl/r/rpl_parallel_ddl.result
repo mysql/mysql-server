@@ -7,6 +7,7 @@ include/stop_slave.inc
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
 set @@global.slave_parallel_workers= 4;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:d32.t8, slave:d32.t8]
 include/diff_tables.inc [master:d32.t7, slave:d32.t7]
 include/diff_tables.inc [master:d32.t6, slave:d32.t6]
@@ -263,6 +264,7 @@ include/diff_tables.inc [master:d1.t4, slave:d1.t4]
 include/diff_tables.inc [master:d1.t3, slave:d1.t3]
 include/diff_tables.inc [master:d1.t2, slave:d1.t2]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+include/sync_slave_sql_with_master.inc
 "database d32:"
 db.opt
 t1.MYD
@@ -1005,5 +1007,6 @@ t7.frm
 t8.MYD
 t8.MYI
 t8.frm
+include/sync_slave_sql_with_master.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

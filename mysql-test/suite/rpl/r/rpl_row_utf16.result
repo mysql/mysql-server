@@ -12,6 +12,7 @@ c1	abc
 hex(c1)	006100620063
 c1	ola
 hex(c1)	006F006C0061
+include/sync_slave_sql_with_master.inc
 #### ON SLAVE
 SELECT c1, hex(c1) FROM t1;
 c1	abc

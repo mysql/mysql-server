@@ -3,6 +3,7 @@
 # both statement and row events. Hence, we only need to execute this
 # test for MIXED mode.
 source include/have_binlog_format_mixed.inc;
+-- source include/not_gtid_enabled.inc
 
 # UNTIL is not supported yet (TODO: support and remove the guard)
 -- source include/not_mts_slave_parallel_workers.inc
@@ -84,7 +85,7 @@ sync_with_master;
 --echo **** On Master ****
 connection master;
 DROP TABLE t1, t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # More tests for BUG#28618
@@ -123,7 +124,7 @@ END|
 DELIMITER ;|
 
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
 --echo **** On Master ****
@@ -154,7 +155,7 @@ SELECT * FROM t3 ORDER BY a;
 
 connection master;
 DROP TABLE t1, t2, t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo **** Case 2: Row binlog format and transactional tables ****
 
@@ -168,7 +169,7 @@ CREATE TABLE t5 (a INT, b VARCHAR(20)) ENGINE=innodb;
 CREATE TABLE t6 (a INT, b VARCHAR(20)) ENGINE=innodb;
 
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
 --echo *** On Master ***
@@ -274,7 +275,7 @@ SELECT * FROM t6 ORDER BY a;
 
 connection master;
 DROP TABLE t4, t5, t6;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo **** Case 3: Statement logging format and LOAD DATA with non-transactional table ****
 
@@ -286,7 +287,7 @@ connection master;
 CREATE TABLE t10 (a INT, b VARCHAR(20)) ENGINE=myisam;
 
 --echo *** On Slave ***
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
 --echo *** On Master ***
@@ -310,6 +311,6 @@ SELECT * FROM t10 ORDER BY a;
 
 connection master;
 DROP TABLE t10;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

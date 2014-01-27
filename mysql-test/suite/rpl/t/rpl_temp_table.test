@@ -63,7 +63,7 @@ show status like 'Slave_open_temp_tables';
 connect (master2,localhost,root,,);
 connection master2;
 drop table if exists t1,t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 --source include/rpl_end.inc

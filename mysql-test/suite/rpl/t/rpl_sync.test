@@ -47,7 +47,7 @@ insert into t1(a) values(3);
 #                             Case 1: Corrupt a relay-log.bin*
 ########################################################################################
 --echo =====Inserting data on the master but without the SQL Thread being running=======;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
@@ -87,7 +87,7 @@ FLUSH LOGS;
 --source include/start_slave.inc
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $diff_tables=master:t1,slave:t1;
 source include/diff_tables.inc;
@@ -135,7 +135,7 @@ FLUSH LOGS;
 --source include/start_slave.inc
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $diff_tables=master:t1,slave:t1;
 source include/diff_tables.inc;

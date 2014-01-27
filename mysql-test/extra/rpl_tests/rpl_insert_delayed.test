@@ -24,7 +24,7 @@ let $query = "INSERT DELAYED INTO t1 VALUES (null, 'Dr. No'), (null, 'From Russi
 FLUSH TABLE t1; # another way to be sure INSERT DELAYED has inserted
 SELECT COUNT(*) FROM t1;
 # when bug existed slave failed below ("duplicate key" error at random INSERT)
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 use mysqlslap;
 SELECT COUNT(*) FROM t1;
 
@@ -52,7 +52,7 @@ if  (`SELECT @@global.binlog_format != 'STATEMENT'`)
 }
 flush table t1;
 select * from t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # when bug existed in statement-based binlogging, t1 on slave had
 # different content from on master
 select * from t1;
@@ -74,7 +74,7 @@ if  (`SELECT @@global.binlog_format != 'STATEMENT'`)
 }
 flush table t1; # to wait for INSERT DELAYED to be done
 select * from t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # when bug existed in statement-based binlogging, query was binlogged
 # with error_code=0 so slave stopped
 select * from t1;
@@ -83,7 +83,7 @@ select * from t1;
 connection master;
 USE test;
 DROP SCHEMA mysqlslap;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 use test;
 connection master;
 
@@ -129,7 +129,7 @@ if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 }
 select * from t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo On slave;
 if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
@@ -144,7 +144,7 @@ select * from t1;
 # clean up
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 if  (`SELECT @@global.binlog_format != 'ROW'`)
 {
   #flush the logs after the test

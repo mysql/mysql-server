@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 create table t1(n int);
+include/sync_slave_sql_with_master.inc
 select * from t1;
 n
 stop slave sql_thread;
@@ -22,6 +23,7 @@ n
 1
 2
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 Master_Retry_Count: 
 include/stop_slave.inc
