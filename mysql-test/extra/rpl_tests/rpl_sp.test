@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # row-based and statement have expected binlog difference in result files
 
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
@@ -19,7 +14,7 @@ drop database if exists mysqltest1;
 --enable_warnings
 create database mysqltest1;
 use mysqltest1;
-create table t1 (a varchar(100));
+eval create table t1 (a varchar(100)) engine=$DEFAULT_ENGINE;
 sync_slave_with_master;
 use mysqltest1;
 
@@ -80,7 +75,7 @@ alter procedure foo2 contains sql;
 # SP with definer's right
 
 drop table t1;
-create table t1 (a int);
+eval create table t1 (a int) engine=$DEFAULT_ENGINE;
 create table t2 like t1;
 
 create procedure foo3()
@@ -397,7 +392,7 @@ begin
 end|
 delimiter ;|
 create view v1 as select 1 as a;
-create table t1 (a int);
+eval create table t1 (a int) engine=$DEFAULT_ENGINE;
 insert into t1 (a) values (f1());
 select * from t1;
 drop view v1;
@@ -422,7 +417,7 @@ DROP TABLE IF EXISTS t1;
 
 # Test case.
 
-CREATE TABLE t1(col VARCHAR(10));
+eval CREATE TABLE t1(col VARCHAR(10)) engine=$DEFAULT_ENGINE;
 
 CREATE PROCEDURE p1(arg VARCHAR(10))
   INSERT INTO t1 VALUES(arg);
@@ -529,7 +524,7 @@ drop database if exists mysqltest2;
 create database mysqltest;
 create database mysqltest2;
 use mysqltest2;
-create table t ( t integer );
+eval create table t ( t integer ) engine=$DEFAULT_ENGINE;
 create procedure mysqltest.test() begin end;
 insert into t values ( 1 );
 --error ER_BAD_DB_ERROR
@@ -558,7 +553,9 @@ connection master;
 
 # Final inspection which verifies how all statements of this test file
 # were written to the binary log.
+--let $mask_binlog_commit_events= 1
 --source include/show_binlog_events.inc
+--let $mask_binlog_commit_events= 0
 
 # Restore log_bin_trust_function_creators to its original value.
 # This is a cleanup for all parts above where we tested stored
@@ -649,8 +646,8 @@ connection default;
 drop table if exists t1, t2;
 drop function if exists t1;
 --enable_warnings
-create table t1 (a int);
-create table t2 (a int) as select 1 as a;
+eval create table t1 (a int) engine=$DEFAULT_ENGINE;
+eval create table t2 (a int) engine=$DEFAULT_ENGINE as select 1 as a;
 create function f1() returns int deterministic return (select max(a) from t2);
 lock table t2 write;
 --echo # --> connection master
@@ -699,7 +696,7 @@ drop function f1;
 --echo #
 --source include/rpl_reset.inc
 
-create table t1 (c1 int);
+eval create table t1 (c1 int) engine=$DEFAULT_ENGINE;
 insert into t1 (c1) values
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 

@@ -1,13 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################
 # Purpose: To test having extra columns on the master WL#3915
 #############################################################
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 
 let $engine_type = 'MyISAM';
 --source extra/rpl_tests/rpl_extra_col_master.test

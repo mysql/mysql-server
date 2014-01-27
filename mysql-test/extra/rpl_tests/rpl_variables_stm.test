@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # ==== Purpose ====
 #
 # In general, queries referencing @@system_variables are not
@@ -102,16 +97,16 @@ SET @@global.collation_database='geostd8_bin';
 connection master;
 
 # Tables where everything happens.
-CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
+eval CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
                     num INT,
-                    text VARCHAR(100));
+                    text VARCHAR(100)) ENGINE=$DEFAULT_ENGINE;
 CREATE TABLE tproc LIKE tstmt;
 CREATE TABLE tfunc LIKE tstmt;
 CREATE TABLE ttrig LIKE tstmt;
 CREATE TABLE tprep LIKE tstmt;
 
 # Table on which we put a trigger.
-CREATE TABLE trigger_table (text CHAR(4));
+eval CREATE TABLE trigger_table (text CHAR(4)) ENGINE=$DEFAULT_ENGINE;
 
 
 --echo ==== Insert variables directly ====

@@ -5274,7 +5274,7 @@ bool JOIN::make_tmp_tables_info()
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
       DBUG_RETURN(true);
   }
-  if (group_list || order)
+  if (join_tab && (group_list || order))
   {
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
     THD_STAGE_INFO(thd, stage_sorting_result);

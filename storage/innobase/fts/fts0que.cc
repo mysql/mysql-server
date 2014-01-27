@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,9 +59,6 @@ if we want to enforce such limitation */
 
 /*Initial byte length for 'words' in fts_ranking_t */
 #define RANKING_WORDS_INIT_LEN	4
-
-/* Coeffecient to use for normalize relevance ranking. */
-static const double FTS_NORMALIZE_COEFF = 0.0115F;
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
@@ -769,7 +766,7 @@ fts_query_union_doc_id(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's not already in our set. */
-	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
+	if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
 
 		fts_ranking_t	ranking;
@@ -800,7 +797,7 @@ fts_query_remove_doc_id(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's in our set. */
-	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
+	if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 		ut_free(rbt_remove_node(query->doc_ids, parent.last));
 
@@ -830,7 +827,7 @@ fts_query_change_ranking(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's in our set. */
-	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
+	if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 
 		fts_ranking_t*	ranking;
@@ -876,7 +873,7 @@ fts_query_intersect_doc_id(
 	      if it matches 'b' and it's in doc_ids.(multi_exist = true). */
 
 	/* Check if the doc id is deleted and it's in our set */
-	if (fts_bsearch(array, 0, (int) size, doc_id) < 0) {
+	if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0) {
 		fts_ranking_t	new_ranking;
 
 		if (rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
@@ -3685,14 +3682,14 @@ fts_query_prepare_result(
 			doc_freq = rbt_value(fts_doc_freq_t, node);
 
 			/* Don't put deleted docs into result */
-			if (fts_bsearch(array, 0, (int) size, doc_freq->doc_id)
+			if (fts_bsearch(array, 0, static_cast<int>(size), doc_freq->doc_id)
 			    >= 0) {
 				continue;
 			}
 
 			ranking.doc_id = doc_freq->doc_id;
-			ranking.rank = (fts_rank_t)
-				(doc_freq->freq * word_freq->idf * word_freq->idf);
+			ranking.rank = static_cast<fts_rank_t>(
+				doc_freq->freq * word_freq->idf * word_freq->idf);
 			ranking.words = NULL;
 
 			fts_query_add_ranking(query, result->rankings_by_id,

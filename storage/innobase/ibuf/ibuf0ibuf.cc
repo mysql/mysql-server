@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,7 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "log0recv.h"
 #include "que0que.h"
 #include "srv0start.h" /* srv_shutdown_state */
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "rem0cmp.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
@@ -2916,7 +2916,8 @@ ibuf_get_volume_buffered_hash(
 	fold = ut_fold_binary(data, len);
 
 	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
-	bitmask = (ulint) 1 << (fold % (CHAR_BIT * sizeof(*hash)));
+	bitmask = static_cast<ulint>(
+		1 << (fold % (CHAR_BIT * sizeof(*hash))));
 
 	if (*hash & bitmask) {
 
@@ -3933,7 +3934,7 @@ skip_watch:
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
-@return newly inserted record */
+@return	newly inserted record */
 static __attribute__((nonnull))
 rec_t*
 ibuf_insert_to_index_page_low(

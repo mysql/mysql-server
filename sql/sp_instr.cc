@@ -263,8 +263,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   unsigned int parent_unsafe_rollback_flags=
-    thd->transaction.stmt.get_unsafe_rollback_flags();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+    thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Check pre-conditions. */
 
@@ -420,7 +420,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     what is needed from the substatement gained
   */
 
-  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
+  thd->get_transaction()->add_unsafe_rollback_flags(
+    Transaction_ctx::STMT,
+    parent_unsafe_rollback_flags);
 
   /* Restore original lex. */
 

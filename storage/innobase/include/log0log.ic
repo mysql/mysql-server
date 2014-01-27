@@ -31,22 +31,6 @@ Created 12/9/1995 Heikki Tuuri
 #include "mtr0types.h"
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-#ifdef UNIV_LOG_DEBUG
-
-/******************************************************//**
-Checks by parsing that the catenated log segment for a single mtr is
-consistent. */
-
-ibool
-log_check_log_recs(
-/*===============*/
-	const byte*	buf,		/*!< in: pointer to the start of
-					the log segment in the
-					log_sys->buf log buffer */
-	ulint		len,		/*!< in: segment length in bytes */
-	ib_uint64_t	buf_start_lsn);	/*!< in: buffer start lsn */
-#endif /* UNIV_LOG_DEBUG */
-
 /************************************************************//**
 Gets a log block flush bit.
 @return TRUE if this block was the first to be written in a log flush */
@@ -373,10 +357,6 @@ log_reserve_and_write_fast(
                         OS_FILE_LOG_BLOCK_SIZE)),
                 data_len);
 
-#ifdef UNIV_LOG_DEBUG
-	log_sys->old_buf_free = log_sys->buf_free;
-	log_sys->old_lsn = log_sys->lsn;
-#endif
 	log_sys->buf_free += len;
 
 	ut_ad(log_sys->buf_free <= log_sys->buf_size);
@@ -386,11 +366,6 @@ log_reserve_and_write_fast(
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
-#ifdef UNIV_LOG_DEBUG
-	log_check_log_recs(log_sys->buf + log_sys->old_buf_free,
-			   log_sys->buf_free - log_sys->old_buf_free,
-			   log_sys->old_lsn);
-#endif
 	return(log_sys->lsn);
 }
 

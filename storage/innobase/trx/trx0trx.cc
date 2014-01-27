@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -489,7 +489,8 @@ trx_validate_state_before_free(trx_t* trx)
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
-			" to be processing inside InnoDB", trx, trx->id);
+			" to be processing inside InnoDB", trx,
+			trx_get_id_for_print(trx));
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -687,7 +688,7 @@ trx_resurrect_table_locks(
 			DBUG_PRINT("ib_trx",
 				   ("resurrect" TRX_ID_FMT
 				    "  table '%s' IX lock from %s undo",
-				    trx->id, table->name,
+				    trx_get_id_for_print(trx), table->name,
 				    undo == undo_ptr->insert_undo
 				    ? "insert" : "update"));
 
@@ -732,7 +733,7 @@ trx_resurrect_insert(
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction " TRX_ID_FMT " was in the XA"
-				" prepared state.", trx->id);
+				" prepared state.", trx_get_id_for_print(trx));
 
 			if (srv_force_recovery == 0) {
 
@@ -804,7 +805,7 @@ trx_resurrect_update_in_prepared_state(
 	if (undo->state == TRX_UNDO_PREPARED) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Transaction " TRX_ID_FMT " was in the XA"
-			" prepared state.", trx->id);
+			" prepared state.", trx_get_id_for_print(trx));
 
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
@@ -1662,7 +1663,7 @@ trx_update_mod_tables_timestamp(
 	trx_t*	trx)	/*!< in: transaction */
 {
 
-	ut_ad(trx->id > 0);
+	ut_ad(trx->id != 0);
 
 	/* consider using trx->start_time if calling time() is too
 	expensive here */
@@ -1688,6 +1689,32 @@ trx_update_mod_tables_timestamp(
 	trx->mod_tables.clear();
 }
 
+/**
+Erase the transaction from the write set.
+@param[in] trx		Transaction to erase, must have an ID > 0
+@param[in] serialised	true if serialisation log was written */
+static
+void
+trx_erase_from_write_set(trx_t* trx, bool serialised)
+{
+	ut_ad(trx_sys_mutex_own());
+
+	if (serialised) {
+		UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
+	}
+
+	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
+
+	trx_ids_t::iterator	it = std::lower_bound(
+		trx_sys->rw_trx_ids.begin(),
+		trx_sys->rw_trx_ids.end(),
+		trx->id);
+
+	ut_ad(*it == trx->id);
+
+	trx_sys->rw_trx_ids.erase(it);
+}
+
 /****************************************************************//**
 Commits a transaction in memory. */
 static
@@ -1695,13 +1722,17 @@ void
 trx_commit_in_memory(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: transaction */
-	const mtr_t*	mtr)	/*!< in: mini-transaction of
+	const mtr_t*	mtr,	/*!< in: mini-transaction of
 				trx_write_serialisation_history(), or NULL if
 				the transaction did not modify anything */
+	bool		serialised)
+				/*!< in: true if serialisation log was
+				written */
 {
 	trx->must_flush_log_later = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
+		ut_ad(trx->id == 0);
 		ut_ad(trx->read_only);
 		ut_a(!trx->is_recovered);
 		ut_ad(trx->rsegs.m_redo.rseg == NULL);
@@ -1722,8 +1753,6 @@ trx_commit_in_memory(
 		without first acquiring the trx_sys_t::mutex. */
 
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
-
-		trx->state = TRX_STATE_NOT_STARTED;
 
 		if (trx->read_view != NULL) {
 			trx_sys->mvcc->view_close(trx->read_view, false);
@@ -1750,7 +1779,19 @@ trx_commit_in_memory(
 					trx->read_view, false);
 			}
 
+			/* Only RO transactions that write to temporary tables
+			are assigned a transaction ID. */
+			if (trx->id > 0) {
+				trx_sys_mutex_enter();
+
+				trx_erase_from_write_set(trx, serialised);
+
+				trx_sys_mutex_exit();
+			}
+
 		} else {
+
+			ut_ad(trx->id > 0);
 
 			trx_sys_mutex_enter();
 
@@ -1768,11 +1809,13 @@ trx_commit_in_memory(
 				trx_sys->mvcc->view_close(trx->read_view, true);
 			}
 
+			trx_erase_from_write_set(trx, serialised);
+
 			trx_sys_mutex_exit();
 		}
-
-		trx->state = TRX_STATE_NOT_STARTED;
 	}
+
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	if (mtr != NULL) {
 
@@ -1837,13 +1880,13 @@ trx_commit_in_memory(
                 trx_finalize_for_fts(trx, not_rollback);
         }
 
-	trx_init(trx);
-
-	assert_trx_is_free(trx);
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
+	assert_trx_is_free(trx);
+	trx_init(trx);
 }
 
 /****************************************************************//**
@@ -1922,31 +1965,9 @@ trx_commit_low(
 		serialised = false;
 	}
 
-	if (trx->id > 0) {
+	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 
-		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
-
-		mutex_enter(&trx_sys->mutex);
-
-		if (serialised) {
-			UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
-		}
-
-		trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
-
-		trx_ids_t::iterator	it = std::lower_bound(
-			trx_sys->rw_trx_ids.begin(),
-			trx_sys->rw_trx_ids.end(),
-			trx->id);
-
-		ut_ad(*it == trx->id);
-
-		trx_sys->rw_trx_ids.erase(it);
-
-		mutex_exit(&trx_sys->mutex);
-	}
-
-	trx_commit_in_memory(trx, mtr);
+	trx_commit_in_memory(trx, mtr, serialised);
 }
 
 /****************************************************************//**
@@ -2188,7 +2209,7 @@ trx_commit_for_mysql(
 
 		trx->op_info = "committing";
 
-		if (trx->id > 0) {
+		if (trx->id != 0) {
 			trx_update_mod_tables_timestamp(trx);
 		}
 
@@ -2213,7 +2234,7 @@ trx_commit_complete_for_mysql(
 /*==========================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	if (trx->id > 0
+	if (trx->id != 0
 	    || !trx->must_flush_log_later
 	    || thd_requested_durability(trx->mysql_thd)
 	       == HA_IGNORE_DURABILITY) {
@@ -2283,7 +2304,7 @@ trx_print_low(
 
 	ut_ad(trx_sys_mutex_own());
 
-	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx->id);
+	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx_get_id_for_print(trx));
 
 	/* trx->state cannot change from or to NOT_STARTED while we
 	are holding the trx_sys->mutex. It may change from ACTIVE to
@@ -2377,7 +2398,8 @@ state_ok:
 	}
 
 	if (trx->mysql_thd != NULL) {
-		innobase_mysql_print_thd(f, trx->mysql_thd, (uint) max_query_len);
+		innobase_mysql_print_thd(
+			f, trx->mysql_thd, static_cast<uint>(max_query_len));
 	}
 }
 
@@ -2691,7 +2713,7 @@ trx_recover_for_mysql(
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction " TRX_ID_FMT " in"
 				" prepared state after recovery",
-				trx->id);
+				trx_get_id_for_print(trx));
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction contains changes"

@@ -67,7 +67,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
@@ -296,25 +296,6 @@ DECLARE_THREAD(io_handler_thread)(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes. */
-
-void
-srv_normalize_path_for_win(
-/*=======================*/
-	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
-						character string */
-{
-#ifdef _WIN32
-	for (; *str; str++) {
-
-		if (*str == '/') {
-			*str = '\\';
-		}
-	}
-#endif
-}
-
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
@@ -423,7 +404,7 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_create(
+	fil_space_t* log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
@@ -431,7 +412,7 @@ create_log_files(
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		SRV_LOG_SPACE_FIRST_ID, false);
+		log_space, false);
 	ut_a(logfile0);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
@@ -439,7 +420,7 @@ create_log_files(
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     SRV_LOG_SPACE_FIRST_ID, false)) {
+				     log_space, false)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot create file node for log file %s",
 				logfilename);
@@ -608,7 +589,7 @@ dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
 	const char*	name,		/*!< in: tablespace name */
-	ulint		space)		/*!< in: tablespace id */
+	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
@@ -636,6 +617,7 @@ srv_undo_tablespace_open(
 
 	if (ret) {
 		os_offset_t	size;
+		fil_space_t*	space;
 
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
@@ -650,13 +632,15 @@ srv_undo_tablespace_open(
 		because InnoDB hasn't opened any other tablespace apart
 		from the system tablespace. */
 
-		fil_set_max_space_id_if_bigger(space);
+		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-		fil_space_create(name, space, flags, FIL_TABLESPACE);
+		space = fil_space_create(
+			name, space_id, flags, FIL_TABLESPACE);
 
 		ut_a(fil_validate());
+		ut_a(space);
 
 		os_offset_t	n_pages = size / UNIV_PAGE_SIZE;
 
@@ -973,7 +957,7 @@ static
 dberr_t
 srv_open_tmp_tablespace(
 /*====================*/
-	Tablespace*	tmp_space)		/*!< in/out: Tablespace */
+	SysTablespace*	tmp_space)	/*!< in/out: SysTablespace */
 {
 	if (srv_read_only_mode) {
 		return(DB_SUCCESS);
@@ -1002,19 +986,20 @@ srv_open_tmp_tablespace(
 	if (err == DB_FAIL) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The system temp tablespace must be writable!");
+			"The %s data file must be writable!",
+			tmp_space->name());
 
 		err = DB_ERROR;
 
 	} else if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not create the system temp tablespace.");
+			"Could not create the shared %s.", tmp_space->name());
 
-	} else if ((err = tmp_space->open(0)) != DB_SUCCESS) {
+	} else if ((err = tmp_space->open_or_create()) != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to create shared temporary tablespace");
+			"Unable to create the shared %s", tmp_space->name());
 
 	} else {
 
@@ -1636,7 +1621,7 @@ innobase_start_or_create_for_mysql(void)
 		return(srv_init_abort(DB_ERROR));
 	}
 
-	srv_normalize_path_for_win(srv_data_home);
+	os_normalize_path_for_win(srv_data_home);
 
 	/* Check if the data files exist or not. */
 	err = srv_sys_space.check_file_spec(
@@ -1658,12 +1643,14 @@ innobase_start_or_create_for_mysql(void)
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
-	sum_of_new_sizes = srv_sys_space.get_sum_of_sizes();
+	err = srv_sys_space.open_or_create(&sum_of_new_sizes,
+					   &min_flushed_lsn,
+					   &max_flushed_lsn);
 
-	err = srv_sys_space.open(&sum_of_new_sizes);
-
-	if (err != DB_SUCCESS) {
-
+	switch (err) {
+	case DB_SUCCESS:
+		break;
+	case DB_CANNOT_OPEN_FILE:
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not open or create the system tablespace. If"
 			" you tried to add new data files to the system"
@@ -1674,17 +1661,10 @@ innobase_start_or_create_for_mysql(void)
 			" those files full of zeros, but did not yet use"
 			" them in any way. But be careful: do not remove"
 			" old data files which contain your precious data!");
-
+		/* fall through */
+	default:
+		/* Other errors might come from Datafile::validate_first_page() */
 		return(srv_init_abort(err));
-	}
-
-	if (!create_new_db) {
-		/* Read the values from the header page. */
-		err = srv_sys_space.read_lsn_and_check_flags(
-			&min_flushed_lsn, &max_flushed_lsn);
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(DB_ERROR));
-		}
 	}
 
 	dirnamelen = strlen(srv_log_group_home_dir);
@@ -1823,12 +1803,14 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_create(logfilename,
-				 SRV_LOG_SPACE_FIRST_ID,
-				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-				 FIL_LOG);
+		fil_space_t* log_space = fil_space_create(
+			logfilename,
+			SRV_LOG_SPACE_FIRST_ID,
+			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+			FIL_LOG);
 
 		ut_a(fil_validate());
+		ut_a(log_space);
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
@@ -1839,7 +1821,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     SRV_LOG_SPACE_FIRST_ID, false)) {
+					     log_space, false)) {
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
@@ -2670,13 +2652,11 @@ void
 srv_get_meta_data_filename(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: table */
-	char*			filename,	/*!< out: filename */
-	ulint			max_len)	/*!< in: filename max length */
+	char*		filename,	/*!< out: filename */
+	ulint		max_len)	/*!< in: filename max length */
 {
-	ulint			len;
-	char*			path;
-	char*			suffix;
-	static const ulint	suffix_len = strlen(".cfg");
+	ulint		len;
+	char*		path;
 
 	/* Make sure the data_dir_path is set. */
 	dict_get_and_save_data_dir_path(table, false);
@@ -2684,28 +2664,17 @@ srv_get_meta_data_filename(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		path = os_file_make_remote_pathname(
-			table->data_dir_path, table->name, "cfg");
+		path = fil_make_filepath(
+			table->data_dir_path, table->name, CFG, true);
 	} else {
-		path = fil_make_ibd_name(table->name, false);
+		path = fil_make_filepath(NULL, table->name, CFG, false);
 	}
 
 	ut_a(path);
 	len = ut_strlen(path);
 	ut_a(max_len >= len);
 
-	suffix = path + (len - suffix_len);
-	if (strncmp(suffix, ".cfg", suffix_len) == 0) {
-		strcpy(filename, path);
-	} else {
-		ut_ad(strncmp(suffix, ".ibd", suffix_len) == 0);
-
-		strncpy(filename, path, len - suffix_len);
-		suffix = filename + (len - suffix_len);
-		strcpy(suffix, ".cfg");
-	}
+	strcpy(filename, path);
 
 	ut_free(path);
-
-	srv_normalize_path_for_win(filename);
 }

@@ -58,7 +58,7 @@ source include/assert.inc;
 --connection slave
 
 --let $slave_param= Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
 source include/wait_for_slave_param.inc;
 
 --echo
@@ -284,7 +284,7 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 --let $slave_param= Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
 source include/wait_for_slave_param.inc;
 
 # To verify the correctness of thread_id field, we check for the name of

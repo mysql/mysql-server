@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test assumes we are ignoring updates on table t2, but doing
 # updates on t1
 source include/master-slave.inc;
