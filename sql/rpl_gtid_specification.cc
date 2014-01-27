@@ -74,6 +74,14 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
   case AUTOMATIC_GROUP:
     strcpy(buf, "AUTOMATIC");
     DBUG_RETURN(9);
+  case NOT_YET_DETERMINED_GROUP:
+    /*
+      GTID_NEXT can never be printed by a user when the value is
+      NOT_YET_DETERMINED_GROUP, but we should allow it in debug
+      printouts.
+    */
+    strcpy(buf, "NOT_YET_DETERMINED");
+    DBUG_RETURN(18);
   case ANONYMOUS_GROUP:
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
