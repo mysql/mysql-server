@@ -22,4 +22,5 @@ update t1 set b=(a/2*rand());
 delete from t1 order by b limit 10000;
 optimize table t1;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

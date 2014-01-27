@@ -38,7 +38,7 @@ CREATE PROCEDURE just_log(sect INT, test INT) BEGIN
   INSERT INTO logtbl VALUES (sect,test,FOUND_ROWS());
 END $$
 --delimiter ;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo **** On Master 1 ****
 connection master1;
@@ -55,18 +55,18 @@ CALL just_log(1,2);
 connection master1;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
 CALL just_log(1,3);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo **** On Master ****
 connection master;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 CALL just_log(1,4);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 
 --echo ==== Checking a stored function ====
@@ -145,7 +145,7 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 INSERT INTO t2 VALUES (2,5), (2,6);
 
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 
 connection master;
@@ -154,6 +154,6 @@ DROP PROCEDURE just_log;
 DROP PROCEDURE log_me;
 DROP PROCEDURE log_me_inner;
 DROP FUNCTION log_rows;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

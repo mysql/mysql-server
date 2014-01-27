@@ -15,6 +15,7 @@ select "--- on master ---";
 select hex(a) from t1 ;
 hex(a)
 965C
+include/sync_slave_sql_with_master.inc
 select "--- on slave ---";
 --- on slave ---
 --- on slave ---
@@ -23,4 +24,5 @@ hex(a)
 965C
 drop table t1;
 drop procedure p1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

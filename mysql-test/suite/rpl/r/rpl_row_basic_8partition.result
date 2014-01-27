@@ -42,6 +42,7 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 VALUES LESS THAN (2005) ENGINE = ENGINE,
  PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
 --- On slave --
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -123,6 +124,7 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 VALUES LESS THAN (2005) ENGINE = ENGINE,
  PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -210,6 +212,7 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (42,142) ENGINE = ENGINE,
  PARTITION p2 VALUES IN (412) ENGINE = ENGINE) */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -285,6 +288,7 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (42,142) ENGINE = ENGINE,
  PARTITION p2 VALUES IN (412) ENGINE = ENGINE) */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -365,6 +369,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH ( YEAR(t))
 PARTITIONS 4 */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -436,6 +441,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH ( YEAR(t))
 PARTITIONS 4 */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -515,6 +521,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -588,6 +595,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -661,6 +669,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- On slave ---
+include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CREATE TEMPORARY TABLE t1(c1 INTEGER);
 CREATE TABLE t2(c1 INTEGER);
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1(c1 INTEGER);
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2 VALUES(1), (2);
@@ -18,6 +19,7 @@ c1
 2
 TRUNCATE t1;
 TRUNCATE t2;
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 c1
 1

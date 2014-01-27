@@ -12,7 +12,7 @@
 
 --echo **** Testing WL#3228 changes. ****
 --echo *** Create "wider" table on slave ***
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # Check each column type to verify error 1532 fires (BUG#22086)
@@ -164,7 +164,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 --echo *** Cleanup  ***
 connection master;
 DROP TABLE IF EXISTS t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # END 5.1 Test Case
 
 --source include/rpl_end.inc
