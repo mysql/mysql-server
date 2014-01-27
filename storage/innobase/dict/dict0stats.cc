@@ -1662,9 +1662,11 @@ dict_stats_analyze_index_for_n_prefix(
 		/* we do not pass (left, right) because we do not want to ask
 		ut_rnd_interval() to work with too big numbers since
 		ib_uint64_t could be bigger than ulint */
-		rnd = (ib_uint64_t) ut_rnd_interval(0, (ulint) (right - left));
+		rnd = static_cast<ib_uint64_t>(
+			ut_rnd_interval(0, static_cast<ulint>(right - left)));
 
-		dive_below_idx = boundaries->at((unsigned int) (left + rnd));
+		dive_below_idx = boundaries->at(
+			static_cast<unsigned int>(left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
