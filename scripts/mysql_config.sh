@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,12 +110,12 @@ fi
 
 # Create options 
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
-libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
-libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
+libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
+libs="$libs @openssl_libs@ "
 libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
 libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
 libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
+embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
 
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
@@ -162,8 +162,7 @@ Options:
         --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]
-        --libmysqld-libs [$embedded_libs]
+        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
         --variable=VAR   VAR is one of:
                 pkgincludedir [$pkgincludedir]
                 pkglibdir     [$pkglibdir]
@@ -185,7 +184,7 @@ while test $# -gt 0; do
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-        --embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
+        --embedded-libs | --embedded | --libmysqld-libs) @DISABLE_EMBEDDED_SH@ echo "$embedded_libs" ;;
         --variable=*)
           var=`echo "$1" | sed 's,^[^=]*=,,'`
           case "$var" in
