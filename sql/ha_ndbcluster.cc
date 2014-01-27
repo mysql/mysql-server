@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6355,7 +6355,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
           memcpy(field->ptr, src_ptr, actual_length);
-#ifdef HAVE_purify
+#ifdef HAVE_VALGRIND
           /*
             We get Valgrind warnings on uninitialised padding bytes in
             varstrings, for example when writing rows to temporary tables.

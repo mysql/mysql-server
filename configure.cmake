@@ -199,6 +199,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
     MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
     EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
   ELSE()
     MESSAGE(STATUS "Failed to find the reuired stlport library, print some"

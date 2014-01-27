@@ -375,9 +375,9 @@ public:
     worker status until next START SLAVE following which the new worker objetcs
     will be used.
   */
-  void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
-                      THD *worker_thd, Error last_error,
-                      Gtid currently_executing_gtid);
+  void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
+                           THD *worker_thd, const Error &last_error,
+                           const Gtid_specification &currently_executing_gtid);
 
   /*
     The running status is guarded by jobs_lock mutex that a writer
@@ -385,13 +385,13 @@ public:
   */
   en_running_state volatile running_status;
   /*
-    If the server is running in gtid-mode=on, this variables stores
-    gtid of the currently executing transaction. This variable is set/modified
-    in Gtid_log_event::do_apply_event(Relay_log_info const *rli). Since the
-    rli argument is a const, we need to make currently_executing_gtid mutable
-    to allow this data member of const object to be modified.
+    The gtid (or anonymous) of the currently executing transaction, or
+    of the last executing transaction if no transaction is currently
+    executing.  This is used to fill the last_seen_transaction column
+    of the table
+    performance_schema.replication_execute_status_by_worker.
   */
-  mutable Gtid currently_executing_gtid;
+  Gtid_specification currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
@@ -411,15 +411,39 @@ public:
   */
   void set_rli_description_event(Format_description_log_event *fdle)
   {
+    DBUG_ENTER("Slave_worker::set_rli_description_event");
     DBUG_ASSERT(!fdle || (running_status == Slave_worker::RUNNING && info_thd));
-#ifndef DBUG_OFF
-    if (fdle)
-      mysql_mutex_assert_owner(&jobs_lock);
-#endif
 
     if (fdle)
+    {
+      mysql_mutex_assert_owner(&jobs_lock);
+
+      /*
+        When the master rotates its binary log, set gtid_next to
+        NOT_YET_DETERMINED.  This tells the slave thread that:
+
+        - If a Gtid_log_event is read subsequently, gtid_next will be
+          set to the given GTID (this is done in
+          gtid_pre_statement_checks()).
+
+        - If a statement is executed before any Gtid_log_event, then
+          gtid_next is set to anonymous (this is done in
+          Gtid_log_event::do_apply_event().
+      */
+      if (fdle->server_id != ::server_id &&
+          (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+           info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
+      {
+        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
+        info_thd->variables.gtid_next.set_not_yet_determined();
+      }
+
       adapt_to_master_version(fdle);
+    }
+
     rli_description_event= fdle;
+
+    DBUG_VOID_RETURN;
   }
 
   inline void reset_gaq_index() { gaq_index= c_rli->gaq->size; };
