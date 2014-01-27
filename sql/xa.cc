@@ -23,9 +23,6 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
-static mysql_mutex_t LOCK_xid_cache;
-static HASH xid_cache;
-
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
@@ -34,164 +31,8 @@ const char *XID_STATE::xa_state_names[]={
 static const int MIN_XID_LIST_SIZE= 128;
 static const int MAX_XID_LIST_SIZE= 1024*128;
 
-/***************************************************************************
-  Handling of XA id caching
-***************************************************************************/
-
-/**
-  Callback that is called to get the key for a hash.
-
-  @param ptr  pointer to the record
-  @param length  length of the record
-
-  @return  pointer to a record stored in cache
-*/
-
-extern "C" uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
-                                   my_bool not_used __attribute__((unused)))
-{
-  *length=((XID_STATE*)ptr)->get_xid()->key_length();
-  return (uchar*)(((XID_STATE*)ptr)->get_xid()->key());
-}
-
-
-/**
-  Callback that is called to do cleanup.
-
-  @param ptr  pointer to free
-*/
-
-extern "C" void xid_free_hash(void *ptr)
-{
-  if (((XID_STATE*)ptr)->is_in_recovery()) // Only time it's malloc'ed
-    my_free(ptr);
-}
-
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_xid_cache;
-
-static PSI_mutex_info all_xid_mutexes[]=
-{
-  { &key_LOCK_xid_cache, "LOCK_xid_cache", PSI_FLAG_GLOBAL}
-};
-
-static void init_xid_psi_keys(void)
-{
-  int count= array_elements(all_xid_mutexes);
-  mysql_mutex_register("sql", all_xid_mutexes, count);
-}
-#endif /* HAVE_PSI_INTERFACE */
-
-
-bool xid_cache_init()
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_xid_psi_keys();
-#endif
-
-  mysql_mutex_init(key_LOCK_xid_cache, &LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                      xid_get_hash_key, xid_free_hash, 0) != 0;
-}
-
-
-void xid_cache_free()
-{
-  if (my_hash_inited(&xid_cache))
-  {
-    my_hash_free(&xid_cache);
-    mysql_mutex_destroy(&LOCK_xid_cache);
-  }
-}
-
-
-/**
-  Search information about XA transaction by a XID value.
-
-  @param xid    Pointer to a XID structure that identifies a XA transaction.
-
-  @return  pointer to a structure that describes XA transaction (XID_STATE).
-    @retval  NULL     failure
-    @retval  != NULL  success
-*/
-
-static XID_STATE *xid_cache_search(const XID *xid)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res= (XID_STATE *)my_hash_search(&xid_cache, xid->key(),
-                                              xid->key_length());
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-/**
-  Insert information about XA transaction into a cache indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-
-  @return  operation result
-    @retval  false   success or a cache already contains XID_STATE
-                     for this XID value
-    @retval  true    failure
-*/
-
-static bool xid_cache_insert_recovery(const XID *xid)
-{
-  XID_STATE *xs;
-  bool res;
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
-    res= false;
-  else if (!(xs= (XID_STATE *)my_malloc(key_memory_XID_STATE,
-                                        sizeof(*xs), MYF(MY_WME))))
-    res= true;
-  else
-  {
-    xs->start_recovery_xa(xid);
-    res=my_hash_insert(&xid_cache, (uchar*)xs);
-  }
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-/**
-  Insert information about XA transaction into a cache indexed by XID.
-
-  @param xid_state  Pointer to a XID_STATE structure that describes
-                    an XA transaction.
-
-  @return  operation result
-    @retval  falase  success or a cache already contains XID_STATE
-                     for this XUD value
-    @retval  true    failure
-*/
-
-static bool xid_cache_insert(const XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid_state->get_xid()->key(),
-                     xid_state->get_xid()->key_length()))
-  {
-    mysql_mutex_unlock(&LOCK_xid_cache);
-    my_error(ER_XAER_DUPID, MYF(0));
-    return true;
-  }
-  bool res= my_hash_insert(&xid_cache, (const uchar*)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-void xid_cache_delete(XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  my_hash_delete(&xid_cache, (uchar *)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
-}
-
+static mysql_mutex_t LOCK_transaction_cache;
+static HASH transaction_cache;
 
 static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
                                    void *arg)
@@ -256,7 +97,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
           XID *xid= info->list + i;
           sql_print_information("ignore xid %s", xid->xid_to_str(buf));
 #endif
-          xid_cache_insert_recovery(info->list + i);
+          transaction_cache_insert_recovery(info->list + i);
           info->found_foreign_xids++;
           continue;
         }
@@ -390,7 +231,7 @@ static bool xa_trans_force_rollback(THD *thd)
     so thd->transaction.xid structure gets reset
     by ha_rollback()/THD::transaction::cleanup().
   */
-  thd->transaction.xid_state.reset_error();
+  thd->get_transaction()->xid_state()->reset_error();
   if (ha_rollback_trans(thd, true))
   {
     my_error(ER_XAER_RMERR, MYF(0));
@@ -403,21 +244,23 @@ static bool xa_trans_force_rollback(THD *thd)
 bool trans_xa_commit(THD *thd)
 {
   bool res= true;
-  XID_STATE *xid_state= &thd->transaction.xid_state;
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_commit");
 
   if (!xid_state->has_same_xid(thd->lex->xid))
   {
     /*
-      Note, that there is no race condition here between xid_cache_search
-      and xid_cache_delete, since we always delete our own XID
-      (thd->lex->xid == thd->transaction.xid_state.xid).
+      Note, that there is no race condition here between
+      transaction_cache_search and transaction_cache_delete,
+      since we always delete our own XID
+      (thd->lex->xid == thd->transaction().xid_state().xid).
       The only case when thd->lex->xid != thd->transaction.xid_state.xid
       and xid_state->in_thd == 0 is in the function
-      xid_cache_insert_recovery(XID), which is called before starting
+      transaction_cache_insert_recovery(XID), which is called before starting
       client connections, and thus is always single-threaded.
     */
-    XID_STATE *xs= xid_cache_search(thd->lex->xid);
+    Transaction_ctx *transaction= transaction_cache_search(thd->lex->xid);
+    XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     res= !xs || !xs->is_in_recovery();
     if (res)
       my_error(ER_XAER_NOTA, MYF(0));
@@ -425,7 +268,7 @@ bool trans_xa_commit(THD *thd)
     {
       res= xs->xa_trans_rolled_back();
       ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
-      xid_cache_delete(xs);
+      transaction_cache_delete(transaction);
     }
     DBUG_RETURN(res);
   }
@@ -495,11 +338,12 @@ bool trans_xa_commit(THD *thd)
   }
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->transaction.all.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(
+    Transaction_ctx::SESSION);
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  xid_cache_delete(xid_state);
+  transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
@@ -509,19 +353,20 @@ bool trans_xa_commit(THD *thd)
 
 bool trans_xa_rollback(THD *thd)
 {
-  XID_STATE *xid_state= &thd->transaction.xid_state;
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_rollback");
 
   if (!xid_state->has_same_xid(thd->lex->xid))
   {
-    XID_STATE *xs= xid_cache_search(thd->lex->xid);
+    Transaction_ctx *transaction= transaction_cache_search(thd->lex->xid);
+    XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     if (!xs || !xs->is_in_recovery())
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
       xs->xa_trans_rolled_back();
       ha_commit_or_rollback_by_xid(thd, thd->lex->xid, false);
-      xid_cache_delete(xs);
+      transaction_cache_delete(transaction);
     }
     DBUG_RETURN(thd->is_error());
   }
@@ -536,11 +381,12 @@ bool trans_xa_rollback(THD *thd)
   bool res= xa_trans_force_rollback(thd);
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->transaction.all.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(
+    Transaction_ctx::SESSION);
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  xid_cache_delete(xid_state);
+  transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
@@ -550,7 +396,7 @@ bool trans_xa_rollback(THD *thd)
 
 bool trans_xa_start(THD *thd)
 {
-  XID_STATE *xid_state= &thd->transaction.xid_state;
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_start");
 
   if (xid_state->has_state(XID_STATE::XA_IDLE) &&
@@ -563,7 +409,7 @@ bool trans_xa_start(THD *thd)
     {
       xid_state->set_state(XID_STATE::XA_ACTIVE);
       MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                  (int)thd->transaction.xid_state.get_state());
+                                  (int)thd->get_transaction()->xid_state()->get_state());
     }
     DBUG_RETURN(not_equal);
   }
@@ -579,9 +425,9 @@ bool trans_xa_start(THD *thd)
   {
     xid_state->start_normal_xa(thd->lex->xid);
     MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
-                              (const void *)thd->transaction.xid_state.get_xid(),
-                              (int)thd->transaction.xid_state.get_state());
-    if (xid_cache_insert(xid_state))
+                              (const void *)xid_state->get_xid(),
+                              (int)xid_state->get_state());
+    if (transaction_cache_insert(thd->lex->xid, thd->get_transaction()))
     {
       xid_state->reset();
       trans_rollback(thd);
@@ -595,7 +441,7 @@ bool trans_xa_start(THD *thd)
 
 bool trans_xa_end(THD *thd)
 {
-  XID_STATE *xid_state= &thd->transaction.xid_state;
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_end");
 
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
@@ -609,12 +455,12 @@ bool trans_xa_end(THD *thd)
   {
     xid_state->set_state(XID_STATE::XA_IDLE);
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)thd->transaction.xid_state.get_state());
+                                   (int)xid_state->get_state());
   }
   else
   {
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)thd->transaction.xid_state.get_state());
+                                   (int)xid_state->get_state());
   }
 
   DBUG_RETURN(thd->is_error() ||
@@ -624,7 +470,7 @@ bool trans_xa_end(THD *thd)
 
 bool trans_xa_prepare(THD *thd)
 {
-  XID_STATE *xid_state= &thd->transaction.xid_state;
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_prepare");
 
   if (!xid_state->has_state(XID_STATE::XA_IDLE))
@@ -633,17 +479,17 @@ bool trans_xa_prepare(THD *thd)
     my_error(ER_XAER_NOTA, MYF(0));
   else if (ha_prepare(thd))
   {
-    xid_cache_delete(xid_state);
+    transaction_cache_delete(thd->get_transaction());
     xid_state->set_state(XID_STATE::XA_NOTR);
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)thd->transaction.xid_state.get_state());
+                                   (int)xid_state->get_state());
     my_error(ER_XA_RBROLLBACK, MYF(0));
   }
   else
   {
     xid_state->set_state(XID_STATE::XA_PREPARED);
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)thd->transaction.xid_state.get_state());
+                                   (int)xid_state->get_state());
   }
 
   DBUG_RETURN(thd->is_error() ||
@@ -656,7 +502,8 @@ bool trans_xa_recover(THD *thd)
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
   int i= 0;
-  XID_STATE *xs;
+  Transaction_ctx *transaction;
+
   DBUG_ENTER("trans_xa_recover");
 
   field_list.push_back(new Item_int(NAME_STRING("formatID"), 0,
@@ -671,9 +518,12 @@ bool trans_xa_recover(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(true);
 
-  mysql_mutex_lock(&LOCK_xid_cache);
-  while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
+  mysql_mutex_lock(&LOCK_transaction_cache);
+
+  while ((transaction= (Transaction_ctx*) my_hash_element(&transaction_cache,
+                                                         i++)))
   {
+    XID_STATE *xs= transaction->xid_state();
     if (xs->has_state(XID_STATE::XA_PREPARED))
     {
       protocol->prepare_for_resend();
@@ -681,13 +531,13 @@ bool trans_xa_recover(THD *thd)
 
       if (protocol->write())
       {
-        mysql_mutex_unlock(&LOCK_xid_cache);
+        mysql_mutex_unlock(&LOCK_transaction_cache);
         DBUG_RETURN(true);
       }
     }
   }
 
-  mysql_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_transaction_cache);
   my_eof(thd);
   DBUG_RETURN(false);
 }
@@ -858,4 +708,147 @@ bool XID::is_printable_xid() const
   }
 
   return true;
+}
+
+
+extern "C" uchar *transaction_get_hash_key(const uchar *, size_t *, my_bool);
+extern "C" void transaction_free_hash(void *);
+
+
+/**
+  Callback that is called to get the key for a hash.
+
+  @param ptr  pointer to the record
+  @param length  length of the record
+
+  @return  pointer to a record stored in cache
+*/
+
+extern "C" uchar *transaction_get_hash_key(const uchar *ptr, size_t *length,
+                                           my_bool not_used __attribute__((unused)))
+{
+  *length= ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key_length();
+  return ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key();
+}
+
+
+/**
+  Callback that is called to do cleanup.
+
+  @param ptr  pointer to free
+*/
+
+void transaction_free_hash(void *ptr)
+{
+  Transaction_ctx *transaction= (Transaction_ctx*)ptr;
+  // Only time it's allocated is during recovery process.
+  if (transaction->xid_state()->is_in_recovery())
+    delete transaction;
+}
+
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_transaction_cache;
+
+static PSI_mutex_info transaction_cache_mutexes[]=
+{
+  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL}
+};
+
+static void init_transaction_cache_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  count= array_elements(transaction_cache_mutexes);
+  mysql_mutex_register(category, transaction_cache_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
+
+bool transaction_cache_init()
+{
+#ifdef HAVE_PSI_INTERFACE
+  init_transaction_cache_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
+                   MY_MUTEX_INIT_FAST);
+  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
+                      transaction_get_hash_key, transaction_free_hash, 0) != 0;
+}
+
+void transaction_cache_free()
+{
+  if (my_hash_inited(&transaction_cache))
+  {
+    my_hash_free(&transaction_cache);
+    mysql_mutex_destroy(&LOCK_transaction_cache);
+  }
+}
+
+
+Transaction_ctx *transaction_cache_search(XID *xid)
+{
+  mysql_mutex_lock(&LOCK_transaction_cache);
+
+  Transaction_ctx *res=
+      (Transaction_ctx *)my_hash_search(&transaction_cache,
+                                        xid->key(),
+                                        xid->key_length());
+  mysql_mutex_unlock(&LOCK_transaction_cache);
+  return res;
+}
+
+
+bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
+{
+  mysql_mutex_lock(&LOCK_transaction_cache);
+  if (my_hash_search(&transaction_cache, xid->key(),
+                     xid->key_length()))
+  {
+    mysql_mutex_unlock(&LOCK_transaction_cache);
+    my_error(ER_XAER_DUPID, MYF(0));
+    return true;
+  }
+  bool res= my_hash_insert(&transaction_cache, (uchar*)transaction);
+  mysql_mutex_unlock(&LOCK_transaction_cache);
+  return res;
+}
+
+
+bool transaction_cache_insert_recovery(XID *xid)
+{
+  mysql_mutex_lock(&LOCK_transaction_cache);
+
+  if (my_hash_search(&transaction_cache, xid->key(),
+                     xid->key_length()))
+  {
+    mysql_mutex_unlock(&LOCK_transaction_cache);
+    return false;
+  }
+
+  Transaction_ctx *transaction= new (std::nothrow) Transaction_ctx();
+  if (!transaction)
+  {
+    mysql_mutex_unlock(&LOCK_transaction_cache);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Transaction_ctx));
+    return true;
+  }
+
+  transaction->xid_state()->start_recovery_xa(xid);
+
+  bool res= my_hash_insert(&transaction_cache, (uchar*)transaction);
+
+  mysql_mutex_unlock(&LOCK_transaction_cache);
+
+  return res;
+}
+
+
+void transaction_cache_delete(Transaction_ctx *transaction)
+{
+  mysql_mutex_lock(&LOCK_transaction_cache);
+  my_hash_delete(&transaction_cache, (uchar *)transaction);
+  mysql_mutex_unlock(&LOCK_transaction_cache);
 }

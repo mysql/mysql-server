@@ -9,6 +9,7 @@ drop database if exists DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________
 create database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 select @@net_buffer_length, @@max_allowed_packet;
@@ -16,6 +17,7 @@ select @@net_buffer_length, @@max_allowed_packet;
 1024	10240
 create table `t1` (`f1` LONGTEXT);
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2048');
+include/sync_slave_sql_with_master.inc
 select count(*) from `DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________`.`t1` /* must be 1 */;
 count(*)
 1
@@ -26,18 +28,22 @@ select * from information_schema.session_status where variable_name= 'SLAVE_RUNN
 VARIABLE_NAME	VARIABLE_VALUE
 SLAVE_RUNNING	ON
 drop database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
+include/sync_slave_sql_with_master.inc
 SET @@global.max_allowed_packet=4096 + (floor(64 * 3 * 254 / 1024) + 1) * 1024;
 SET @@global.net_buffer_length=@@global.max_allowed_packet;
 include/stop_slave.inc
 include/start_slave.inc
 CREATE TABLE `t1` (`f1` LONGTEXT);
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=1153]
 Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
 include/stop_slave_sql.inc
 include/rpl_reset.inc
 DROP TABLE t1;
-CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT);
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=1153]
 Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
@@ -58,13 +64,15 @@ select @@global.max_allowed_packet;
 select @@global.net_buffer_length;
 @@global.net_buffer_length
 53248
+include/sync_slave_sql_with_master.inc
 select @@global.max_allowed_packet;
 @@global.max_allowed_packet
 2048
 select @@global.net_buffer_length;
 @@global.net_buffer_length
 1024
-CREATE TABLE t1 (a TEXT);
+CREATE TABLE t1 (a TEXT) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 # 1153 = ER_NET_PACKET_TOO_LARGE
 include/wait_for_slave_io_error.inc [errno=1153]

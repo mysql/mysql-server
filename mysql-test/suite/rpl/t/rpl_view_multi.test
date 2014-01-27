@@ -25,7 +25,7 @@ drop tables if exists t1, t2;
 drop view if exists v1;
 --enable_warnings
 --echo # Syncing slave with master and switching to connection 'slave'
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 connect (master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
@@ -77,7 +77,7 @@ connection master;
 --echo # Check that insertion through view did happen.
 select * from t1;
 --echo # Syncing slave with master and switching to connection 'slave'
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo # Check that slave was able to replicate this sequence
 --echo # which means that we got correct binlog order.
 select * from t1;
@@ -131,7 +131,7 @@ select * from t1;
 select * from t2;
 
 --echo # Syncing slave with master and switching to connection 'slave'
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo # Now let us check that statements were logged in proper order
 --echo # So we have same result on slave.
 select * from t1;
@@ -142,5 +142,5 @@ connection master;
 drop table t1, t2;
 drop view v1;
 --echo # Syncing slave with master and switching to connection 'slave'
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

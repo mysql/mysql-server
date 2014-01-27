@@ -21,7 +21,7 @@ DROP TRIGGER IF EXISTS tr1;
 DROP FUNCTION IF EXISTS f1;
 --enable_warnings
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --connection master
 
 
@@ -80,7 +80,7 @@ echo # Result on master;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 echo # Result on slave;
 SELECT * FROM t1;
@@ -102,7 +102,7 @@ echo # Result on master;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 echo # Result on slave;
 SELECT * FROM t1;
@@ -117,5 +117,5 @@ DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
 enable_warnings;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

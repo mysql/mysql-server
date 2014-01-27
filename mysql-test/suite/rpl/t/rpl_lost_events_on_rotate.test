@@ -35,7 +35,7 @@ FLUSH LOGS;
 
 SET DEBUG_SYNC= 'now SIGNAL signal.rotate_finished';
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # All the rows should be sent to the slave.
 --let $diff_tables=master:t,slave:t

@@ -16,7 +16,7 @@
 #                                                                    #
 ######################################################################
 
-
+--source include/not_gtid_enabled.inc
 --source include/big_test.inc
 --source include/have_log_bin.inc
 --source include/master-slave.inc

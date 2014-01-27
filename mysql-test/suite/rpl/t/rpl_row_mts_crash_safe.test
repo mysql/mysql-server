@@ -1,4 +1,5 @@
 --source include/big_test.inc
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source include/have_slave_parallel_type_database.inc
 --source include/have_binlog_format_row.inc

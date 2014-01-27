@@ -14,6 +14,7 @@
 
 --source include/have_innodb.inc
 --source include/have_myisam.inc
+--source include/not_gtid_enabled.inc
 
 # Use wait_for_slave_to_(start|stop) for current connections
 let $keep_connection= 1;

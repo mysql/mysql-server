@@ -41,6 +41,7 @@ include/diff_tables.inc [master:db1.t,slave:db1.t]
 include/diff_tables.inc [master:db2.t, slave:db2.t]
 DROP DATABASE db1;
 DROP DATABASE db2;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 include/rpl_end.inc

@@ -22,7 +22,7 @@ show status like "rpl_semi_sync_master_yes_tx";
 --let $assert_cond= COUNT(*) = 0 FROM t1
 --source include/assert.inc
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --let $assert_text= Table has 1 record
 --let $assert_cond= COUNT(*) = 1 FROM t1;
@@ -69,7 +69,7 @@ SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 --let $assert_cond= COUNT(*) = 0 FROM t1
 --source include/assert.inc
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --let $assert_text= Table has two records
 --let $assert_cond= COUNT(*) = 2 FROM t1;
@@ -127,4 +127,4 @@ SET DEBUG_SYNC= "RESET";
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc

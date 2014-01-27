@@ -23,7 +23,7 @@ SELECT * FROM t2 ORDER BY a;
 
 --disable_warnings ONCE
 UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 

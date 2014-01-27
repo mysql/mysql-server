@@ -71,6 +71,7 @@ include/start_slave.inc
 use test;
 create table t(a int);
 insert into t values(1);
+include/sync_slave_sql_with_master.inc
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 
 # Verify that the value for 'Received_Transaction_Set' field is preserved

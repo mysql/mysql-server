@@ -38,7 +38,7 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -68,7 +68,7 @@ INSERT INTO t1 VALUES (@positive,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -87,7 +87,7 @@ TRUNCATE t1;
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -117,7 +117,7 @@ INSERT INTO t1 VALUES (@negative,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -135,7 +135,7 @@ TRUNCATE t1;
 ## cleanup
 -- connection master
 DROP TABLE t1;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 #####################################################################
 #
@@ -156,7 +156,7 @@ SET @aux1= @aux;
 -- error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (@aux) , (@aux1);
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ## assertion: master and slave tables are in sync
 -- let $diff_tables=master:t1,slave:t1
@@ -166,7 +166,7 @@ INSERT INTO t1 VALUES (@aux) , (@aux1);
 DROP TRIGGER tr1;
 DROP TABLE t1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo # The GET DIAGNOSTICS itself is not replicated, but it can set
@@ -193,7 +193,7 @@ DELIMITER ;|
 
 CALL p1();
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 --echo # On slave, check if the statement was replicated.
@@ -207,6 +207,6 @@ connection master;
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

@@ -322,7 +322,7 @@ f300 int,
 
 insert into t300 set f1= 1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # prove that slave processed the create as well as the insert
@@ -333,7 +333,7 @@ select count(*) as one from t300;
 --echo *** Cleanup  ***
 connection master;
 DROP TABLE t300;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # END of Test Case
 
