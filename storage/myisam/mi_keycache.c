@@ -49,19 +49,20 @@
 
 int mi_assign_to_key_cache(MI_INFO *info,
 			   ulonglong key_map __attribute__((unused)),
-			   KEY_CACHE *key_cache)
+			   KEY_CACHE *new_key_cache)
 {
   int error= 0;
   MYISAM_SHARE* share= info->s;
+  KEY_CACHE *old_key_cache= share->key_cache;
   DBUG_ENTER("mi_assign_to_key_cache");
-  DBUG_PRINT("enter",("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
-		      (long) share->key_cache, (long) key_cache));
+  DBUG_PRINT("enter",("old_key_cache_handle: %p  new_key_cache_handle: %p",
+                      old_key_cache, new_key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we
     call this for all open instances of the same table
   */
-  if (share->key_cache == key_cache)
+  if (old_key_cache == new_key_cache)
     DBUG_RETURN(0);
 
   /*
@@ -76,15 +77,17 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  pthread_mutex_lock(&share->key_cache->op_lock);
-  if (flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+  pthread_mutex_lock(&old_key_cache->op_lock);
+  DEBUG_SYNC_C("assign_key_cache_op_lock");
+  if (flush_key_blocks(old_key_cache, share->kfile, &share->dirty_part_map,
                        FLUSH_RELEASE))
   {
     error= my_errno;
     mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* Mark that table must be checked */
   }
-  pthread_mutex_unlock(&share->key_cache->op_lock);
+  pthread_mutex_unlock(&old_key_cache->op_lock);
+  DEBUG_SYNC_C("assign_key_cache_op_unlock");
 
   /*
     Flush the new key cache for this file.  This is needed to ensure
@@ -94,7 +97,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, share->kfile, &share->dirty_part_map,
+  (void) flush_key_blocks(new_key_cache, share->kfile, &share->dirty_part_map,
                           FLUSH_RELEASE);
 
   /*
@@ -106,13 +109,13 @@ int mi_assign_to_key_cache(MI_INFO *info,
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an myisam function.
   */
-  share->key_cache= key_cache;
+  share->key_cache= new_key_cache;
   share->dirty_part_map= 0;
 
   /* store the key cache in the global hash structure for future opens */
   if (multi_key_cache_set((uchar*) share->unique_file_name,
                           share->unique_name_length,
-			  share->key_cache))
+			  new_key_cache))
     error= my_errno;
   mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
