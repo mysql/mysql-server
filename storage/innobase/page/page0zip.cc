@@ -164,7 +164,7 @@ page_zip_empty_size(
 		   + 1/* end of modification log */
 		   - REC_N_NEW_EXTRA_BYTES/* omitted bytes */)
 		/* subtract the space for page_zip_fields_encode() */
-		- compressBound((uLong) (2 * (n_fields + 1)));
+		- compressBound(static_cast<uLong>(2 * (n_fields + 1)));
 	return(size > 0 ? (ulint) size : 0);
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -850,9 +850,8 @@ page_zip_compress_node_ptrs(
 				   rec_offs_extra_size(offsets));
 
 		/* Compress the extra bytes. */
-		c_stream->avail_in =
-			(uInt) (rec - REC_N_NEW_EXTRA_BYTES
-			- c_stream->next_in);
+		c_stream->avail_in = static_cast<uInt>(
+			rec - REC_N_NEW_EXTRA_BYTES - c_stream->next_in);
 
 		if (c_stream->avail_in) {
 			err = deflate(c_stream, Z_NO_FLUSH);
@@ -864,9 +863,8 @@ page_zip_compress_node_ptrs(
 
 		/* Compress the data bytes, except node_ptr. */
 		c_stream->next_in = (byte*) rec;
-		c_stream->avail_in =
-			(uInt) (rec_offs_data_size(offsets)
-			- REC_NODE_PTR_SIZE);
+		c_stream->avail_in = static_cast<uInt>(
+			rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE);
 
 		if (c_stream->avail_in) {
 			err = deflate(c_stream, Z_NO_FLUSH);
@@ -907,8 +905,8 @@ page_zip_compress_sec(
 		const rec_t*	rec = *recs++;
 
 		/* Compress everything up to this record. */
-		c_stream->avail_in =
-			(uInt) (rec - REC_N_NEW_EXTRA_BYTES
+		c_stream->avail_in = static_cast<uInt>(
+			rec - REC_N_NEW_EXTRA_BYTES
 			- c_stream->next_in);
 
 		if (UNIV_LIKELY(c_stream->avail_in)) {
@@ -974,8 +972,8 @@ page_zip_compress_clust_ext(
 			ut_ad(len == DATA_ROLL_PTR_LEN);
 
 			/* Compress any preceding bytes. */
-			c_stream->avail_in =
-				(uInt) (src - c_stream->next_in);
+			c_stream->avail_in = static_cast<uInt>(
+				src - c_stream->next_in);
 
 			if (c_stream->avail_in) {
 				err = deflate(c_stream, Z_NO_FLUSH);
@@ -1004,8 +1002,8 @@ page_zip_compress_clust_ext(
 			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
-			c_stream->avail_in =
-				(uInt) (src - c_stream->next_in);
+			c_stream->avail_in = static_cast<uInt>(
+				src - c_stream->next_in);
 			if (UNIV_LIKELY(c_stream->avail_in)) {
 				err = deflate(c_stream, Z_NO_FLUSH);
 				if (UNIV_UNLIKELY(err != Z_OK)) {
@@ -1100,8 +1098,8 @@ page_zip_compress_clust(
 				   rec_offs_extra_size(offsets));
 
 		/* Compress the extra bytes. */
-		c_stream->avail_in =
-			(uInt) (rec - REC_N_NEW_EXTRA_BYTES
+		c_stream->avail_in = static_cast<uInt>(
+			rec - REC_N_NEW_EXTRA_BYTES
 			- c_stream->next_in);
 
 		if (c_stream->avail_in) {
@@ -1149,8 +1147,8 @@ page_zip_compress_clust(
 					   rec_offs_extra_size(offsets));
 
 			/* Compress any preceding bytes. */
-			c_stream->avail_in =
-				(uInt) (src - c_stream->next_in);
+			c_stream->avail_in = static_cast<uInt>(
+				src - c_stream->next_in);
 
 			if (c_stream->avail_in) {
 				err = deflate(c_stream, Z_NO_FLUSH);
@@ -1177,9 +1175,8 @@ page_zip_compress_clust(
 		}
 
 		/* Compress the last bytes of the record. */
-		c_stream->avail_in =
-			(uInt) (rec + rec_offs_data_size(offsets)
-			- c_stream->next_in);
+		c_stream->avail_in = static_cast<uInt>(
+			rec + rec_offs_data_size(offsets) - c_stream->next_in);
 
 		if (c_stream->avail_in) {
 			err = deflate(c_stream, Z_NO_FLUSH);
@@ -1357,7 +1354,7 @@ page_zip_compress(
 	/* Compress the data payload. */
 	page_zip_set_alloc(&c_stream, heap);
 
-	err = deflateInit2(&c_stream, (int) level,
+	err = deflateInit2(&c_stream, static_cast<int>(level),
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
 			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);
@@ -1366,7 +1363,7 @@ page_zip_compress(
 
 	/* Subtract the space reserved for uncompressed data. */
 	/* Page header and the end marker of the modification log */
-	c_stream.avail_out = (uInt) (buf_end - buf - 1);
+	c_stream.avail_out = static_cast<uInt>(buf_end - buf - 1);
 
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
@@ -1408,16 +1405,18 @@ page_zip_compress(
 		goto zlib_error;
 	}
 
-	c_stream.avail_out -= (uInt) (n_dense * slot_size);
+	c_stream.avail_out -= static_cast<uInt>(n_dense * slot_size);
 	if (truncate_t::s_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
-		c_stream.avail_in = (uInt) page_comp_info->field_len;
+		c_stream.avail_in = static_cast<uInt>(
+			page_comp_info->field_len);
 		for (ulint i = 0; i < page_comp_info->field_len; i++) {
 			fields[i] = page_comp_info->fields[i];
 		}
 	} else {
-		c_stream.avail_in = (uInt) page_zip_fields_encode(
-			n_fields, index, trx_id_col, fields);
+		c_stream.avail_in = static_cast<uInt>(
+			page_zip_fields_encode(
+				n_fields, index, trx_id_col, fields));
 	}
 	c_stream.next_in = fields;
 
@@ -1474,9 +1473,9 @@ page_zip_compress(
 	/* Compress any trailing garbage, in case the last record was
 	allocated from an originally longer space on the free list,
 	or the data of the last record from page_zip_compress_sec(). */
-	c_stream.avail_in
-		= (uInt) page_header_get_field(page, PAGE_HEAP_TOP)
-		- (uInt) (c_stream.next_in - page);
+	c_stream.avail_in = static_cast<uInt>(
+		page_header_get_field(page, PAGE_HEAP_TOP)
+		- (c_stream.next_in - page));
 	ut_a(c_stream.avail_in <= UNIV_PAGE_SIZE - PAGE_ZIP_START - PAGE_DIR);
 
 	UNIV_MEM_ASSERT_RW(c_stream.next_in, c_stream.avail_in);
@@ -2247,17 +2246,15 @@ page_zip_decompress_node_ptrs(
 	const byte*	storage;
 
 	/* Subtract the space reserved for uncompressed data. */
-	d_stream->avail_in -=
-		(uInt) n_dense
-		* (PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE);
+	d_stream->avail_in -= static_cast<uInt>(
+		n_dense * (PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE));
 
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*	rec = recs[slot];
 
-		d_stream->avail_out =
-			(uInt) (rec - REC_N_NEW_EXTRA_BYTES
-			- d_stream->next_out);
+		d_stream->avail_out = static_cast<uInt>(
+			rec - REC_N_NEW_EXTRA_BYTES - d_stream->next_out);
 
 		ut_ad(d_stream->avail_out < UNIV_PAGE_SIZE
 		      - PAGE_ZIP_START - PAGE_DIR);
@@ -2293,9 +2290,8 @@ page_zip_decompress_node_ptrs(
 		ut_ad(!rec_offs_any_extern(offsets));
 
 		/* Decompress the data bytes, except node_ptr. */
-		d_stream->avail_out =
-			(uInt) rec_offs_data_size(offsets)
-			- REC_NODE_PTR_SIZE;
+		d_stream->avail_out =static_cast<uInt>(
+			rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE);
 
 		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
@@ -2324,9 +2320,9 @@ page_zip_decompress_node_ptrs(
 
 	/* Decompress any trailing garbage, in case the last record was
 	allocated from an originally longer space on the free list. */
-	d_stream->avail_out =
-		(uInt) page_header_get_field(page_zip->data, PAGE_HEAP_TOP)
-		- (uInt) page_offset(d_stream->next_out);
+	d_stream->avail_out = static_cast<uInt>(
+		page_header_get_field(page_zip->data, PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out));
 	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
 			  - PAGE_ZIP_START - PAGE_DIR)) {
 
@@ -2439,15 +2435,15 @@ page_zip_decompress_sec(
 	ut_a(!dict_index_is_clust(index));
 
 	/* Subtract the space reserved for uncompressed data. */
-	d_stream->avail_in -= (uint) n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+	d_stream->avail_in -= static_cast<uint>(
+		n_dense * PAGE_ZIP_DIR_SLOT_SIZE);
 
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*	rec = recs[slot];
 
 		/* Decompress everything up to this record. */
-		d_stream->avail_out =
-			(uint) (rec - REC_N_NEW_EXTRA_BYTES
-			- d_stream->next_out);
+		d_stream->avail_out = static_cast<uint>(
+			rec - REC_N_NEW_EXTRA_BYTES - d_stream->next_out);
 
 		if (UNIV_LIKELY(d_stream->avail_out)) {
 			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
@@ -2478,9 +2474,9 @@ page_zip_decompress_sec(
 	/* Decompress the data of the last record and any trailing garbage,
 	in case the last record was allocated from an originally longer space
 	on the free list. */
-	d_stream->avail_out = (uInt) page_header_get_field(page_zip->data,
-							   PAGE_HEAP_TOP)
-			    - (uInt) page_offset(d_stream->next_out);
+	d_stream->avail_out = static_cast<uInt>(
+		page_header_get_field(page_zip->data, PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out));
 	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
 			  - PAGE_ZIP_START - PAGE_DIR)) {
 
@@ -2593,8 +2589,8 @@ page_zip_decompress_clust_ext(
 				return(FALSE);
 			}
 
-			d_stream->avail_out =
-				(uInt) (dst - d_stream->next_out);
+			d_stream->avail_out = static_cast<uInt>(
+				dst - d_stream->next_out);
 
 			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
@@ -2625,8 +2621,8 @@ page_zip_decompress_clust_ext(
 			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
-			d_stream->avail_out =
-				(uInt) (dst - d_stream->next_out);
+			d_stream->avail_out = static_cast<uInt>(
+				dst - d_stream->next_out);
 			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
 			case Z_OK:
@@ -2692,7 +2688,7 @@ page_zip_decompress_clust(
 	ut_a(dict_index_is_clust(index));
 
 	/* Subtract the space reserved for uncompressed data. */
-	d_stream->avail_in -= (uInt) n_dense
+	d_stream->avail_in -= static_cast<uInt>(n_dense)
 			    * (PAGE_ZIP_DIR_SLOT_SIZE
 			      + DATA_TRX_ID_LEN
 			      + DATA_ROLL_PTR_LEN);
@@ -2701,9 +2697,8 @@ page_zip_decompress_clust(
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*	rec	= recs[slot];
 
-		d_stream->avail_out =
-			(uInt) (rec - REC_N_NEW_EXTRA_BYTES
-			- d_stream->next_out);
+		d_stream->avail_out =static_cast<uInt>(
+			rec - REC_N_NEW_EXTRA_BYTES - d_stream->next_out);
 
 		ut_ad(d_stream->avail_out < UNIV_PAGE_SIZE
 		      - PAGE_ZIP_START - PAGE_DIR);
@@ -2761,8 +2756,8 @@ page_zip_decompress_clust(
 				goto zlib_error;
 			}
 
-			d_stream->avail_out =
-				(uInt) (dst - d_stream->next_out);
+			d_stream->avail_out = static_cast<uInt>(
+				dst - d_stream->next_out);
 
 			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
@@ -2791,9 +2786,8 @@ page_zip_decompress_clust(
 		}
 
 		/* Decompress the last bytes of the record. */
-		d_stream->avail_out =
-			(uInt) (rec_get_end(rec, offsets)
-			- d_stream->next_out);
+		d_stream->avail_out = static_cast<uInt>(
+			rec_get_end(rec, offsets) - d_stream->next_out);
 
 		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
@@ -2813,9 +2807,9 @@ page_zip_decompress_clust(
 
 	/* Decompress any trailing garbage, in case the last record was
 	allocated from an originally longer space on the free list. */
-	d_stream->avail_out =
-		(uInt) page_header_get_field(page_zip->data, PAGE_HEAP_TOP)
-		- (uInt) page_offset(d_stream->next_out);
+	d_stream->avail_out = static_cast<uInt>(
+		page_header_get_field(page_zip->data, PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out));
 	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
 			  - PAGE_ZIP_START - PAGE_DIR)) {
 
@@ -3068,7 +3062,8 @@ zlib_error:
 	d_stream.next_in = page_zip->data + PAGE_DATA;
 	/* Subtract the space reserved for
 	the page header and the end marker of the modification log. */
-	d_stream.avail_in = (uInt) page_zip_get_size(page_zip) - (PAGE_DATA + 1);
+	d_stream.avail_in = static_cast<uInt>(
+		page_zip_get_size(page_zip) - (PAGE_DATA + 1));
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
 
@@ -3555,7 +3550,7 @@ page_zip_write_rec_ext(
 		externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
 
 		if (create) {
-			page_zip->n_blobs += (unsigned) n_ext;
+			page_zip->n_blobs += static_cast<unsigned>(n_ext);
 			ASSERT_ZERO_BLOB(ext_end - n_ext
 					 * BTR_EXTERN_FIELD_REF_SIZE);
 			memmove(ext_end - n_ext
@@ -4462,7 +4457,7 @@ page_zip_dir_delete(
 			* BTR_EXTERN_FIELD_REF_SIZE;
 		externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
 
-		page_zip->n_blobs -= (unsigned) n_ext;
+		page_zip->n_blobs -= static_cast<unsigned>(n_ext);
 		/* Shift and zero fill the array. */
 		memmove(ext_end + n_ext * BTR_EXTERN_FIELD_REF_SIZE, ext_end,
 			(page_zip->n_blobs - blob_no)
@@ -4922,8 +4917,10 @@ page_zip_calc_checksum(
 		adler = adler32(0L, s + FIL_PAGE_OFFSET,
 				FIL_PAGE_LSN - FIL_PAGE_OFFSET);
 		adler = adler32(adler, s + FIL_PAGE_TYPE, 2);
-		adler = adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-				(uInt) size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		adler = adler32(
+			adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+			static_cast<uInt>(size)
+			- FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		return((ib_uint32_t) adler);
 	case SRV_CHECKSUM_ALGORITHM_NONE:
@@ -4965,8 +4962,8 @@ page_zip_verify_checksum(
 	ib_uint32_t	crc32 = 0 /* silence bogus warning */;
 	ib_uint32_t	innodb = 0 /* silence bogus warning */;
 
-	stored = (ib_uint32_t) mach_read_from_4(
-		(const unsigned char*) data + FIL_PAGE_SPACE_OR_CHKSUM);
+	stored = static_cast<ib_uint32_t>(mach_read_from_4(
+		static_cast<const unsigned char*>(data) + FIL_PAGE_SPACE_OR_CHKSUM));
 
 	/* declare empty pages non-corrupted */
 	if (stored == 0) {
@@ -4996,9 +4993,9 @@ page_zip_verify_checksum(
 #endif /* UNIV_INNOCHECKSUM */
 	}
 
-	calc = page_zip_calc_checksum(
+	calc = static_cast<ib_uint32_t>(page_zip_calc_checksum(
 		data, size, static_cast<srv_checksum_algorithm_t>(
-			srv_checksum_algorithm));
+			srv_checksum_algorithm)));
 
 #ifdef UNIV_INNOCHECKSUM
 	if (is_log_enabled) {
@@ -5038,15 +5035,15 @@ page_zip_verify_checksum(
 			return(TRUE);
 		}
 		crc32 = calc;
-		innodb = page_zip_calc_checksum(
-			data, size, SRV_CHECKSUM_ALGORITHM_INNODB);
+		innodb = static_cast<ib_uint32_t>(page_zip_calc_checksum(
+			data, size, SRV_CHECKSUM_ALGORITHM_INNODB));
 		break;
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
 		if (stored == BUF_NO_CHECKSUM_MAGIC) {
 			return(TRUE);
 		}
-		crc32 = page_zip_calc_checksum(
-			data, size, SRV_CHECKSUM_ALGORITHM_CRC32);
+		crc32 = static_cast<ib_uint32_t>(page_zip_calc_checksum(
+			data, size, SRV_CHECKSUM_ALGORITHM_CRC32));
 		innodb = calc;
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:

@@ -1393,8 +1393,8 @@ buf_pool_init_instance(
 
 		/* Number of locks protecting page_hash must be a
 		power of two */
-		srv_n_page_hash_locks =
-			(ulong) ut_2_power_up((ulint) srv_n_page_hash_locks);
+		srv_n_page_hash_locks = static_cast<ulong>(
+			 ut_2_power_up(srv_n_page_hash_locks));
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 

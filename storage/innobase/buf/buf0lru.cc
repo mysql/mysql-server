@@ -1256,7 +1256,8 @@ loop:
 		memset(&block->page.zip, 0, sizeof block->page.zip);
 
 		if (started_monitor) {
-			srv_print_innodb_monitor = mon_value_was;
+			srv_print_innodb_monitor =
+				static_cast<my_bool>(mon_value_was);
 		}
 
 		return(block);
