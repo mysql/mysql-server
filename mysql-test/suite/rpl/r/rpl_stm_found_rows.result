@@ -30,6 +30,7 @@ sect	test	count
 1	1	183
 1	2	3
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 sect	test	count
 1	1	183
@@ -64,6 +65,7 @@ sect	test	count
 2	2	183
 2	3	183
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 sect	test	count
 2	1	3
@@ -89,6 +91,7 @@ sect	test	count
 3	1	183
 3	2	183
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
 sect	test	count
 3	1	183

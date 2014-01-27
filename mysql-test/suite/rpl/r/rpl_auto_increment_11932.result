@@ -38,6 +38,7 @@ select * from t1;
 id	fname
 1	testtest 1
 2	test
+include/sync_slave_sql_with_master.inc
 use test1;
 select * from t1;
 id	fname

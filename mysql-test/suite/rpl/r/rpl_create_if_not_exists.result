@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now();
+include/sync_slave_sql_with_master.inc
 DROP DATABASE mysqltest;
 CREATE DATABASE IF NOT EXISTS mysqltest;
 USE mysqltest;
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now();
+include/sync_slave_sql_with_master.inc
 SHOW TABLES in mysqltest;
 Tables_in_mysqltest
 t
@@ -46,6 +48,7 @@ c1
 SELECT * FROM t2;
 c1
 1
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 c1
 33
@@ -115,6 +118,7 @@ CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
 Warnings:
 Note	1050	Table 'v1' already exists
 include/show_binlog_events.inc
+include/sync_slave_sql_with_master.inc
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #
@@ -131,4 +135,5 @@ Warnings:
 Note	1050	Table 't2' already exists
 # Clean-up.
 DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

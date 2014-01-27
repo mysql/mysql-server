@@ -25,7 +25,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 # testcase with INSERT VALUES
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
 UNIQUE(b));
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1 order by 1;
@@ -64,7 +64,7 @@ INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (4, 'd', '4d');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (5, 'e', '5e');
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 # Updating table t1 based on values from table t2
 INSERT INTO t1 (field_1, field_2, field_3)

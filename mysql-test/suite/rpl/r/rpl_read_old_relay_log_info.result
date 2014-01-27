@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 ==== Check that we still understand the old format of relay-log.info ====
 include/stop_slave.inc
 RESET SLAVE;

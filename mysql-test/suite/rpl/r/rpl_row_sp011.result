@@ -57,6 +57,7 @@ ALTER TABLE test.t2 DROP COLUMN to_drop;
 INSERT INTO test.t2 VALUES ('gone',NULL,'STM',RAND());
 END|
 CALL test.p1();
+include/sync_slave_sql_with_master.inc
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP PROCEDURE IF EXISTS test.p3;
@@ -66,4 +67,5 @@ DROP PROCEDURE IF EXISTS test.p6;
 DROP PROCEDURE IF EXISTS test.p7;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

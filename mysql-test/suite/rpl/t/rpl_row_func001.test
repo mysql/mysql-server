@@ -38,7 +38,7 @@ select test.f1(2);
 select * from test.t1;
 
 save_master_pos;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 #show create table test.t1;
 select * from test.t1;
@@ -52,7 +52,7 @@ connection master;
 
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 --source include/rpl_end.inc

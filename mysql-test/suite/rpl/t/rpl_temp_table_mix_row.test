@@ -25,7 +25,7 @@ CREATE TEMPORARY TABLE t1_tmp1(a INT);
 INSERT INTO t1 VALUES (UUID());
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo ==== Verify results on slave ====
 SHOW STATUS LIKE "Slave_open_temp_tables";
@@ -42,7 +42,7 @@ let $wait_binlog_event= DROP;
 source include/wait_for_binlog_event.inc;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo ==== Verify results on slave ====
 SHOW STATUS LIKE "Slave_open_temp_tables";
@@ -57,7 +57,7 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 DROP TABLE t1;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#43046: mixed mode switch to row format with temp table lead to wrong
@@ -120,7 +120,7 @@ CREATE TEMPORARY TABLE t2_tmp (a int);
 ALTER TABLE t1_tmp ADD COLUMN c INT;
 
 -- echo ### assertion: assert that there is one open temp table on slave
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SHOW STATUS LIKE 'Slave_open_temp_tables';
 
 -- connection master
@@ -139,7 +139,7 @@ DROP TEMPORARY TABLE t2_tmp;
 #            back to STATEMENT).
 INSERT INTO t1 VALUES (2);
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ### assertion: assert that slave has no temporary tables opened
 SHOW STATUS LIKE 'Slave_open_temp_tables';
@@ -149,7 +149,7 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 # action: drop remaining tables
 DROP TABLE t3, t1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- source include/show_binlog_events.inc
 
@@ -200,7 +200,7 @@ COMMIT;
 
 source include/show_binlog_events.inc;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo # Compare the base table.
 --let $diff_tables= master:t1, slave:t1
@@ -210,6 +210,6 @@ source include/show_binlog_events.inc;
 connection master;
 DROP TABLE t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

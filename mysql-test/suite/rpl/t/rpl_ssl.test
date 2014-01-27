@@ -6,7 +6,7 @@ connection master;
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int auto_increment, KEY(t));
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Set slave to use SSL for connection to master
 stop slave;
@@ -24,7 +24,7 @@ start slave;
 # Switch to master and insert one record, then sync it to slave
 connection master;
 insert into t1 values(1);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # The record should now be on slave
 select * from t1;
@@ -69,7 +69,7 @@ connection master;
 insert into t1 values (NULL);
 let $master_count= `select count(*) from t1`;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/wait_for_slave_to_start.inc
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
@@ -96,7 +96,7 @@ if ($slave_count != $master_count)
 connection master;
 drop user replssl@localhost;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 --replace_column 2 ####

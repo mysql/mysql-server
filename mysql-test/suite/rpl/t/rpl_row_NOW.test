@@ -46,7 +46,7 @@ delimiter ;|
 
 INSERT INTO mysqltest1.t1 SET n = NULL, a = now();
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 
@@ -70,6 +70,6 @@ diff_files $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.
 --remove_file $MYSQLTEST_VARDIR/tmp/NOW_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/NOW_slave.sql
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # End of 5.1 test case
 --source include/rpl_end.inc

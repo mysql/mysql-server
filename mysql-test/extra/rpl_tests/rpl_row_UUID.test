@@ -44,7 +44,7 @@ select fn1(0);
 eval create table t2 (a int) engine=$engine_type;
 insert into t2 values(fn1(2));
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE test.t1;
 
 # Dump the databases and so we can see if they match

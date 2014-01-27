@@ -27,19 +27,19 @@ source include/master-slave.inc;
 
 create temporary table t1 (n int);
 insert into t1 values(1);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 show status like 'Slave_open_temp_tables';
 
 # Perform a delete from temp table
 connection master;
 delete from t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 show status like 'Slave_open_temp_tables';
 
 # Perform truncate on temp table
 connection master;
 truncate t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 show status like 'Slave_open_temp_tables';
 
 # Disconnect the master, temp table on slave should dissapear
