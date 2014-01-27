@@ -1614,7 +1614,7 @@ row_upd_sec_index_entry(
 	ulint			flags = 0;
 	enum row_search_result	search_result;
 
-	ut_ad(trx->id);
+	ut_ad(trx->id != 0);
 
 	index = node->index;
 
