@@ -1,0 +1,483 @@
+# BUG#46166: MYSQL_BIN_LOG::new_file_impl is not propagating error
+#            when generating new name.
+#
+# WHY
+# ===
+#
+# We want to check whether error is reported or not when
+# new_file_impl fails (this may happen when rotation is not
+# possible because there is some problem finding an
+# unique filename).
+#
+# HOW
+# ===
+#
+# Test cases are documented inline.
+#
+# The size of the data is tuned to match file sizes and rotations, so
+# it is only executed in statement-based replication.
+
+-- source include/have_innodb.inc
+-- source include/have_debug.inc
+-- source include/master-slave.inc
+-- source include/have_binlog_format_statement.inc
+
+-- echo #######################################################################
+-- echo ####################### PART 1: MASTER TESTS ##########################
+-- echo #######################################################################
+
+
+### ACTION: stopping slave as it is not needed for the first part of
+###         the test
+
+-- connection slave
+-- source include/stop_slave.inc
+-- connection master
+
+--disable_query_log
+call mtr.add_suppression("Can't generate a unique log-filename");
+call mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+call mtr.add_suppression("Warning: [+-]?\d+ files and [+-]?\d+ streams is left open");
+call mtr.add_suppression("Error writing file .*");
+call mtr.add_suppression("The server was unable to create a new log file. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
+--enable_query_log
+
+--let $old_debug = `select @@global.debug`
+
+### ACTION: create a large file (> 4096 bytes) that will be later used
+###         in LOAD DATA INFILE to check binlog errors in its vacinity
+-- let $load_file= $MYSQLTEST_VARDIR/tmp/bug_46166.data
+-- let $MYSQLD_DATADIR= `select @@datadir`
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SELECT repeat('x',8192) INTO OUTFILE '$load_file'
+
+### ACTION: create a small file (< 4096 bytes) that will be later used
+###         in LOAD DATA INFILE to check for absence of binlog errors
+###         when file loading this file does not force flushing and
+###         rotating the binary log
+-- let $load_file2= $MYSQLTEST_VARDIR/tmp/bug_46166-2.data
+-- let $MYSQLD_DATADIR= `select @@datadir`
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SELECT repeat('x',10) INTO OUTFILE '$load_file2'
+
+RESET MASTER;
+
+-- echo ###################### TEST #1
+
+### ASSERTION: no problem flushing logs (should show two binlogs)
+FLUSH LOGS;
+-- echo # assert: must show two binlogs
+-- source include/show_binary_logs.inc
+
+-- echo ###################### TEST #2
+
+### ASSERTION: check that FLUSH LOGS actually fails and reports
+###            failure back to the user if find_uniq_filename fails
+###            (should show just one binlog)
+
+RESET MASTER;
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+-- error ER_NO_UNIQUE_LOGFILE
+FLUSH LOGS;
+-- echo # assert: must show one binlog
+-- source include/show_binary_logs.inc
+
+### ACTION: clean up and move to next test
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+RESET MASTER;
+
+-- echo ###################### TEST #3
+
+### ACTION: create some tables (t1, t2, t4) and insert some values in
+###         table t1
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16384)) Engine=MyISAM;
+INSERT INTO t1 VALUES (1);
+RESET MASTER;
+
+### ASSERTION: we force rotation of the binary log because it exceeds
+###            the max_binlog_size option (should show three binary
+###            logs)
+
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+
+# shows two binary logs
+-- echo # assert: must show three binlog
+-- source include/show_binary_logs.inc
+
+# clean up the table and the binlog to be used in next part of test
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+DELETE FROM t2;
+RESET MASTER;
+
+-- echo ###################### TEST #4
+
+# Loading a row using LOAD DATA INFILE causing a binary log error
+# should be rolled back.
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,info,debug,enter,return,query,error_unique_log_filename"), 'd,info,debug,enter,return,query,error_unique_log_filename');
+--enable_query_log
+
+# Table should be empty to start with
+SELECT count(*) FROM t2;
+
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- error ER_NO_UNIQUE_LOGFILE
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+
+# show table
+-- echo # assert: must still be empty since the LOAD DATA INFILE failed
+SELECT count(*) FROM t2;
+
+# clean up the table and the binlog to be used in next part of test
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+DELETE FROM t2;
+RESET MASTER;
+
+-- echo ###################### TEST #5
+
+### ASSERTION: load the small file into a transactional table and
+###            check that it succeeds
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA INFILE '$load_file2' INTO TABLE t2
+
+# show table
+-- echo # assert: must show one entry
+SELECT count(*) FROM t2;
+
+# clean up the table and the binlog to be used in next part of test
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+DELETE FROM t2;
+RESET MASTER;
+
+-- echo ###################### TEST #6
+
+# A failing LOAD DATA INFILE inside a transaction cause the commit to
+# fail, rolling back the entire statement.
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+
+-- echo # Table should be empty
+SELECT count(*) FROM t2;
+
+SET AUTOCOMMIT=0;
+INSERT INTO t2 VALUES ('muse');
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+INSERT INTO t2 VALUES ('muse');
+-- error ER_NO_UNIQUE_LOGFILE
+COMMIT;
+
+### ACTION: Show the contents of the table after the test
+-- echo # Table should still be empty since the commit failed.
+SELECT count(*) FROM t2;
+
+### ACTION: clean up and move to the next test
+SET AUTOCOMMIT= 1;
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+DELETE FROM t2;
+RESET MASTER;
+
+-- echo ###################### TEST #7
+
+### ASSERTION: check that on a non-transactional table, if rotation
+###            fails then an error is reported and an incident event
+###            is written to the current binary log.
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+SELECT count(*) FROM t4;
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- error ER_NO_UNIQUE_LOGFILE
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t4
+
+-- echo # assert: must show 1 entry
+SELECT count(*) FROM t4;
+
+-- echo ### check that the incident event is written to the current log
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+-- let $binlog_limit= 1
+-- source include/show_binlog_events.inc
+
+# clean up and move to next test
+DELETE FROM t4;
+RESET MASTER;
+
+-- echo ###################### TEST #8
+
+### ASSERTION: check that statements end up in error but they succeed
+###            on changing the data.
+
+# Insert some rows into t2, we will both try to insert and delete from
+# it.
+
+SET @xxx = REPEAT('xxx', 1000);
+SET @yyy = REPEAT('yyy', 1000);
+INSERT INTO t2 VALUES (@xxx),(@yyy);
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+-- echo # must show 0 entries
+SELECT count(*) FROM t4;
+-- echo # must show 2 entries
+SELECT count(*) FROM t2;
+
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- error ER_NO_UNIQUE_LOGFILE
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t4
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- error ER_NO_UNIQUE_LOGFILE
+-- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+set @aaa = repeat('aaa',1000);
+set @bbb = repeat('bbb',1000);
+set @ccc = repeat('ccc',1000);
+-- error ER_NO_UNIQUE_LOGFILE
+INSERT INTO t2 VALUES (@aaa), (@bbb), (@ccc);
+
+-- echo # INFO: Count(*) Before Offending DELETEs
+-- echo # assert: must show 1 entry
+SELECT count(*) FROM t4;
+-- echo # assert: must show 2 entries since the LOAD DATA INFILE and
+-- echo # INSERT INTO above was rolled back due to error. Only the
+-- echo # original rows remain
+SELECT count(*) FROM t2;
+
+-- error ER_NO_UNIQUE_LOGFILE
+DELETE FROM t4 WHERE a IN (@xxx, @yyy) OR 1;
+-- error ER_NO_UNIQUE_LOGFILE
+DELETE FROM t2 WHERE a IN (@aaa, @bbb, @ccc) OR 1;
+
+-- echo # INFO: Count(*) After Offending DELETEs
+-- echo # assert: must show zero entries
+SELECT count(*) FROM t4;
+-- echo # assert: must show 2 entries: the original two rows
+SELECT count(*) FROM t2;
+
+# remove fault injection
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+
+# Empty t2 for following testing
+DELETE FROM t2;
+
+-- echo ###################### TEST #9
+
+### ASSERTION: check that if we disable binlogging, then statements
+###            succeed.
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+SET SQL_LOG_BIN=0;
+INSERT INTO t2 VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd');
+INSERT INTO t4 VALUES ('eee'), ('fff'), ('ggg'), ('hhh');
+-- echo # assert: must show four entries
+SELECT count(*) FROM t2;
+SELECT count(*) FROM t4;
+DELETE FROM t2;
+DELETE FROM t4;
+-- echo # assert: must show zero entries
+SELECT count(*) FROM t2;
+SELECT count(*) FROM t4;
+SET SQL_LOG_BIN=1;
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+
+-- echo ###################### TEST #10
+
+### ASSERTION: check that error is reported if there is a failure
+###            while registering the index file and the binary log
+###            file or failure to write the rotate event.
+
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("Could not open .*");
+
+RESET MASTER;
+SHOW WARNINGS;
+
+# +d,fault_injection_registering_index => injects fault on MYSQL_BIN_LOG::open
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_registering_index"), 'd,fault_injection_registering_index');
+--enable_query_log
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+-- error ER_CANT_OPEN_FILE
+FLUSH LOGS;
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+
+-- error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+
+# issue some statements and check that they don't fail
+CREATE TABLE t5 (a INT);
+INSERT INTO t4 VALUES ('bbbbb');
+INSERT INTO t2 VALUES ('aaaaa');
+DELETE FROM t4;
+DELETE FROM t2;
+DROP TABLE t5;
+
+-- echo ###################### TEST #11
+
+### ASSERTION: check that error is reported if there is a failure
+###            while opening the index file and the binary log file or
+###            failure to write the rotate event.
+
+# restart the server so that we have binlog again
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+# +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_openning_index"), 'd,fault_injection_openning_index');
+--enable_query_log
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+-- error ER_CANT_OPEN_FILE
+FLUSH LOGS;
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+
+-- error ER_FLUSH_MASTER_BINLOG_CLOSED
+RESET MASTER;
+
+# issue some statements and check that they don't fail
+CREATE TABLE t5 (a INT);
+INSERT INTO t4 VALUES ('bbbbb');
+INSERT INTO t2 VALUES ('aaaaa');
+DELETE FROM t4;
+DELETE FROM t2;
+DROP TABLE t5;
+
+# restart the server so that we have binlog again
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+-- echo ###################### TEST #12
+
+### ASSERTION: check that error is reported if there is a failure
+###            while writing the rotate event when creating a new log
+###            file.
+
+# +d,fault_injection_new_file_rotate_event => injects fault on MYSQL_BIN_LOG::MYSQL_BIN_LOG::new_file_impl
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_new_file_rotate_event"), 'd,fault_injection_new_file_rotate_event');
+--enable_query_log
+-- error ER_ERROR_ON_WRITE
+FLUSH LOGS;
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+
+-- error ER_FLUSH_MASTER_BINLOG_CLOSED
+RESET MASTER;
+# issue some statements and check that they don't fail
+CREATE TABLE t5 (a INT);
+INSERT INTO t4 VALUES ('bbbbb');
+INSERT INTO t2 VALUES ('aaaaa');
+DELETE FROM t4;
+DELETE FROM t2;
+DROP TABLE t5;
+
+# restart the server so that we have binlog again
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+## clean up
+--disable_query_log
+eval SET GLOBAL debug= '$old_debug';
+--enable_query_log
+DROP TABLE t1, t2, t4;
+RESET MASTER;
+
+# restart slave again
+-- connection slave
+-- source include/start_slave.inc
+-- connection master
+
+-- echo #######################################################################
+-- echo ####################### PART 2: SLAVE TESTS ###########################
+-- echo #######################################################################
+
+### setup
+--source include/rpl_reset.inc
+-- connection slave
+
+# slave suppressions
+
+call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
+call mtr.add_suppression("Error writing file .*");
+call mtr.add_suppression("Could not open .*");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("Can't generate a unique log-filename .*");
+-- echo ###################### TEST #13
+
+#### ASSERTION: check against unique log filename error
+-- let $io_thd_injection_fault_flag= error_unique_log_filename
+-- let $slave_io_errno= 1595
+-- let $show_slave_io_error= 1
+-- source include/io_thd_fault_injection.inc
+
+-- echo ###################### TEST #14
+
+#### ASSERTION: check against rotate failing
+-- let $io_thd_injection_fault_flag= fault_injection_new_file_rotate_event
+-- let $slave_io_errno= 1595
+-- let $show_slave_io_error= 1
+-- source include/io_thd_fault_injection.inc
+
+-- echo ###################### TEST #15
+
+#### ASSERTION: check against relay log open failure
+-- let $io_thd_injection_fault_flag= fault_injection_registering_index
+-- let $slave_io_errno= 1595
+-- let $show_slave_io_error= 1
+-- source include/io_thd_fault_injection.inc
+
+-- echo ###################### TEST #16
+
+#### ASSERTION: check against relay log index open failure
+-- let $io_thd_injection_fault_flag= fault_injection_openning_index
+-- let $slave_io_errno= 1595
+-- let $show_slave_io_error= 1
+-- source include/io_thd_fault_injection.inc
+
+### clean up
+-- source include/stop_slave_sql.inc
+--disable_query_log
+eval SET GLOBAL debug='$old_debug';
+--enable_query_log
+RESET SLAVE;
+RESET MASTER;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

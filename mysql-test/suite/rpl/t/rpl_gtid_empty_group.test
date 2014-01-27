@@ -28,7 +28,7 @@ UPDATE t1 SET id= 1 WHERE id = 0          /* group two */;
 # load for b.
 CREATE TABLE t_ignore(id INTEGER) ENGINE= Innodb /* group three */;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo must be *three* groups logged, where the two last empty:
 --let $keep_gtid_events= 1
@@ -67,7 +67,7 @@ source include/show_binlog_events.inc;
 DROP TABLE t1;
 DROP TABLE t_ignore;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @@global.binlog_format= @save.binlog_format;
 
 --source include/rpl_end.inc

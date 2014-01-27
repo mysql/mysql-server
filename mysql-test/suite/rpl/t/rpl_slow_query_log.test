@@ -62,7 +62,7 @@ eval $fast_query;
 --disable_warnings
 eval $slow_query;
 --enable_warnings
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $found_fast_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$fast_query'`;
 let $found_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
@@ -180,7 +180,7 @@ SET GLOBAL slow_query_log= @old_slow_query_log;
 
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 source include/stop_slave.inc;
 
@@ -230,7 +230,7 @@ CREATE TABLE t1 (a int, b int);
 -- enable_warnings
 
 let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
 if ($master_slow_query != $slave_slow_query)
@@ -273,7 +273,7 @@ ALTER TABLE t1 ADD INDEX id1(a);
 -- enable_warnings
 
 let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
 if ($master_slow_query != $slave_slow_query)
@@ -314,7 +314,7 @@ TRUNCATE mysql.slow_log;
 -- eval $slow_query;
 --enable_warnings
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection slave
 
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
@@ -332,7 +332,7 @@ SET @@global.log_slow_slave_statements = on;
 -- eval $slow_query;
 --enable_warnings
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection slave
 
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
@@ -347,7 +347,7 @@ SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
 DROP TABLE t1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
 SET @@global.log_slow_slave_statements= @old_log_slow_slave_statements;

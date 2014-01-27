@@ -13,6 +13,7 @@ FLUSH TABLE t1;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000
+include/sync_slave_sql_with_master.inc
 use mysqlslap;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -28,6 +29,7 @@ flush table t1;
 select * from t1;
 id	name
 10	my name
+include/sync_slave_sql_with_master.inc
 select * from t1;
 id	name
 10	my name
@@ -39,12 +41,14 @@ select * from t1;
 id	name
 10	my name
 20	is Bond
+include/sync_slave_sql_with_master.inc
 select * from t1;
 id	name
 10	my name
 20	is Bond
 USE test;
 DROP SCHEMA mysqlslap;
+include/sync_slave_sql_with_master.inc
 use test;
 FLUSH LOGS;
 FLUSH LOGS;
@@ -61,6 +65,7 @@ use `test`; INSERT  IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
+include/sync_slave_sql_with_master.inc
 On slave
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -74,6 +79,7 @@ select * from t1;
 a
 1
 drop table t1;
+include/sync_slave_sql_with_master.inc
 FLUSH LOGS;
 FLUSH LOGS;
 End of 5.0 tests

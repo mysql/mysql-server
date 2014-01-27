@@ -20,7 +20,7 @@ drop view v1, not_exist_view;
 --error 1146
 select * from v1;
 drop view v2, v3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --error 1146
 select * from v1;
 --error 1146
@@ -31,5 +31,5 @@ select * from v3;
 --echo ==== clean up ====
 connection master;
 drop table t1, t2, t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

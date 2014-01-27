@@ -482,7 +482,7 @@ while ($id <= $max_id)
   {
     if ($send_reap != 'running')
     {
-      --sync_slave_with_master
+      --source include/sync_slave_sql_with_master.inc
       --connection master
       # Concurrent tests require two or more connections and at least one connection sends  
       # the statements in async mode (via send/reap command). We need to make sure that

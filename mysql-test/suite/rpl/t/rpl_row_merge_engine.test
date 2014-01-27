@@ -23,7 +23,7 @@ INSERT INTO t2 VALUES (4), (5), (6);
 CREATE TABLE IF NOT EXISTS t1_merge LIKE t1;
 ALTER TABLE t1_merge ENGINE=MERGE UNION (t2, t1);
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --let diff_tables=master:test.t1, slave:test.t1
 --source include/diff_tables.inc
@@ -35,7 +35,7 @@ ALTER TABLE t1_merge ENGINE=MERGE UNION (t2, t1);
 UPDATE t1_merge SET a=10 WHERE a=1;
 DELETE FROM t1_merge WHERE a=10;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --connection master
 
 --let diff_tables=master:test.t1, slave:test.t1
@@ -45,6 +45,6 @@ DELETE FROM t1_merge WHERE a=10;
 --source include/diff_tables.inc
 
 DROP TABLE t1_merge, t1, t2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

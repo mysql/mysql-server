@@ -47,7 +47,7 @@ connection master;
 reap;
 SET DEBUG_SYNC = 'RESET';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 #
@@ -89,6 +89,6 @@ reap;
 SET DEBUG_SYNC = 'RESET';
 drop table t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

@@ -1,4 +1,5 @@
 source include/not_windows.inc;
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 #
@@ -18,7 +19,7 @@ FLUSH LOGS;
 CREATE TABLE t1(c1 INT);
 # Now, the current dump file(master-bin.000002) is the second line of index
 # file
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # Now, all events has been replicate to slave. As current dump file
 # (master-bin.000002) is the last binlog file, so master is waiting for new
 # events.
@@ -101,12 +102,12 @@ START SLAVE IO_THREAD;
 source include/wait_for_slave_io_to_start.inc;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SHOW TABLES;
 
 connection master;
 DROP TABLE t1, t2, t3, t4;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo # BUG#21437 server_errno=29 error message flood mysqld error log
@@ -127,7 +128,7 @@ FLUSH LOGS;
 
 CREATE TABLE t2(c1 int);
 DROP TABLE t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo [ on slave ]
 source include/stop_slave.inc;
 
@@ -160,7 +161,7 @@ source include/start_slave.inc;
 connection master;
 --echo [ on master ]
 CREATE TABLE t1(c1 INT);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo [ on slave ]
 SELECT * FROM t1;
 

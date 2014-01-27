@@ -61,6 +61,7 @@ abasements
 abasement
 abased
 abase
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1 ORDER BY a DESC;
 a
 aberration
@@ -114,4 +115,5 @@ abasement
 abased
 abase
 DROP TABLE test.t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
