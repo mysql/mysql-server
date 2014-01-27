@@ -893,10 +893,6 @@ buf_flush_write_block_low(
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 #endif
 
-#ifdef UNIV_LOG_DEBUG
-	static ibool	univ_log_debug_warned;
-#endif /* UNIV_LOG_DEBUG */
-
 	DBUG_PRINT("ib_buf", ("flush %s %u page " UINT32PF ":" UINT32PF,
 			      sync ? "sync" : "async", (unsigned) flush_type,
 			      bpage->id.space(), bpage->id.page_no()));
@@ -919,17 +915,9 @@ buf_flush_write_block_low(
 #endif
 	ut_ad(bpage->newest_modification != 0);
 
-#ifdef UNIV_LOG_DEBUG
-	if (!univ_log_debug_warned) {
-		univ_log_debug_warned = TRUE;
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot force log to disk if UNIV_LOG_DEBUG is"
-			" defined!. Crash recovery will not work!");
-	}
-#else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(bpage->newest_modification, true);
-#endif
+
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */
