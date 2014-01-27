@@ -25,6 +25,7 @@
 
 source include/master-slave.inc;
 source include/have_innodb.inc;
+source include/have_myisam.inc;
 
 --echo ==== Test Without sql_mode=strict_trans_tables ====
 

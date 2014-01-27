@@ -8,6 +8,7 @@
 # seamlessly.
 
 --source include/have_debug.inc
+--source include/have_myisam.inc
 --source include/master-slave.inc
 --let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';

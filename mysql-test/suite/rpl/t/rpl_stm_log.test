@@ -1,13 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Requires statement logging
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 let $engine_type=MyISAM;
+--let $mask_binlog_commit_events= 1
 -- source extra/rpl_tests/rpl_log.test
+--let $mask_binlog_commit_events= 0
 
 
 # End of 4.1 tests

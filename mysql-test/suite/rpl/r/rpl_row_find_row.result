@@ -12,7 +12,7 @@ INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
 DROP TABLE t;
 include/rpl_reset.inc
-CREATE TABLE t (a int, b int, c int, key(b));
+CREATE TABLE t (a int, b int, c int, key(b)) ENGINE=MyISAM;
 ALTER TABLE t DISABLE KEYS;
 INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);

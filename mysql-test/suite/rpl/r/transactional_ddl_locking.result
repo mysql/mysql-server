@@ -1118,8 +1118,6 @@ INSERT INTO t1opt VALUES (1,'Mysql locking',20,'Transactional locking',10);
 INSERT INTO t1opt SELECT * FROM t1opt;
 BEGIN;
 OPTIMIZE TABLE t1opt;
-Table	Op	Msg_type	Msg_text
-test.t1opt	optimize	status	OK
 --- connection master1 ---
 SET SESSION lock_wait_timeout = 1;
 send statement and reap result later ---
@@ -1145,8 +1143,6 @@ INSERT INTO t1opt VALUES (2,'Mysql locking1',22,'Transactional locking1',11);
 INSERT INTO t1opt SELECT * FROM t1opt;
 BEGIN;
 OPTIMIZE TABLE t1opt;
-Table	Op	Msg_type	Msg_text
-test.t1opt	optimize	status	OK
 --- connection master1 ---
 SET SESSION lock_wait_timeout = 1;
 send statement and reap result later ---

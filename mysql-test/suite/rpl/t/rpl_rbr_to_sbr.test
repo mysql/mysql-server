@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_binlog_format_mixed.inc
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
@@ -14,10 +9,13 @@
 CREATE TABLE t1 (a INT, b LONG);
 INSERT INTO t1 VALUES (1,1), (2,2);
 INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
+
+--let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
 sync_slave_with_master;
 --echo **** On Slave ****
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql

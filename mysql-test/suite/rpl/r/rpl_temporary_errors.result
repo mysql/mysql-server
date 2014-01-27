@@ -13,31 +13,31 @@ Variable_name	Value
 Slave_retried_transactions	0
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	47
 2	2
 3	3
 4	4
+5	47
 **** On Master ****
 UPDATE t1 SET a = 5, b = 5 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	5
 2	2
 3	3
 4	4
+5	5
 **** On Slave ****
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	47
 2	2
 3	3
 4	4
+5	47
 include/check_slave_is_running.inc
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1");
 **** On Master ****

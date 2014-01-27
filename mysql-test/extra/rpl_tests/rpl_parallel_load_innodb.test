@@ -5,6 +5,7 @@
 #
 # load volume parameter
 #
+--source include/have_myisam.inc
 
 let $iter = 20;
 let $init_rows= 50;
