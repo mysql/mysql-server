@@ -16,10 +16,12 @@ insert into t1 values (1), (2), (3), (4), (5);
 insert into t2 select id + 3 from t1;
 update t1 join t2 using (id) set t1.id = 0;
 insert into d1.t0 values (0);
+include/sync_slave_sql_with_master.inc
 use d1;
 select * from t0 where id=0;
 id
 0
 drop database d1;
 drop database d2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -14,7 +14,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
 INSERT INTO t2 VALUES (-1),(-2),(-3);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SET @old_slave_exec_mode= @@global.slave_exec_mode;
 SET @@global.slave_exec_mode= IDEMPOTENT;
@@ -32,7 +32,7 @@ DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 --source include/check_slave_no_error.inc
@@ -46,7 +46,7 @@ INSERT IGNORE INTO t1 VALUES (-2);
 connection master;
 INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 --source include/check_slave_no_error.inc
 
@@ -70,14 +70,14 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 --source include/check_slave_no_error.inc
 
 connection master;
 DROP TABLE t1, t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
 

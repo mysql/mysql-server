@@ -38,7 +38,7 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --source include/assert.inc
 
 # Compare master and slave
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:test.t1 , slave:test.t1
 --source include/diff_tables.inc
 
@@ -66,6 +66,7 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
+  --source extra/rpl_tests/rpl_insert_ignore_gtid_on.inc
   --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
@@ -109,6 +110,7 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
+  --source extra/rpl_tests/rpl_insert_ignore_gtid_on.inc
   --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 1, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
@@ -118,4 +120,4 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 # Clean up
 --connection master
 drop table t1, t2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc

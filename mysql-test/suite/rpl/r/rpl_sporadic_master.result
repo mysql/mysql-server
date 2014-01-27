@@ -8,12 +8,14 @@ create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL),(NULL);
 truncate table t1;
 insert into t1 values (4),(NULL);
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 insert into t1 values (NULL),(NULL);
 flush logs;
 truncate table t1;
 insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
+include/sync_slave_sql_with_master.inc
 select * from t1 ORDER BY n;
 n
 10
@@ -23,4 +25,5 @@ n
 14
 15
 drop table t1,t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

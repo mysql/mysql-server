@@ -20,14 +20,14 @@ VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT
 0, total BIGINT UNSIGNED, y YEAR, t TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
 ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(id));
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # MyISAM to MyISAM then InnoDB then MEMORY
 
 connection master;
 alter table t1 engine=myisam;
 show create table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 alter table t1 engine=myisam;
@@ -52,7 +52,7 @@ show create table t1;
 connection master;
 alter table t1 engine=memory;
 show create table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 alter table t1 engine=myisam;
@@ -77,7 +77,7 @@ show create table t1;
 connection master;
 alter table t1 engine=innodb;
 show create table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 alter table t1 engine=myisam;
@@ -100,7 +100,7 @@ show create table t1;
 # cleanup
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.1 test case
 --source include/rpl_end.inc

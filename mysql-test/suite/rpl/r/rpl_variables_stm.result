@@ -450,6 +450,7 @@ EXECUTE p61;
 EXECUTE p62;
 EXECUTE p63;
 EXECUTE p64;
+include/sync_slave_sql_with_master.inc
 ==== Results ====
 SELECT * FROM tstmt ORDER BY id;
 id	num	text
@@ -487,6 +488,7 @@ id	num	text
 56	NULL	47124712
 57	NULL	1616
 58	NULL	1717
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep, slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep]
 ==== Clean up ====
 [on master]
@@ -511,4 +513,5 @@ SET @@global.collation_server=         @s_collation_server;
 SET @@global.time_zone=                @s_time_zone;
 SET @@global.lc_time_names=            @s_lc_time_names;
 SET @@global.collation_database=       @s_collation_database;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

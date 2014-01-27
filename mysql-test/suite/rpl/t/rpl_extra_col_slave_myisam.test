@@ -1,4 +1,5 @@
 -- source include/have_binlog_format_row.inc
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 
 let $engine_type = 'MyISAM';

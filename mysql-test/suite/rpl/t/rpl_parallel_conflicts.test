@@ -67,7 +67,7 @@ create table d3.t1 (a int auto_increment primary key) engine=innodb;
 #
 # two conflicting jobs to follow
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # To be really conflicting slave needs to block commit of the first.
 #connection slave;
 
@@ -205,7 +205,7 @@ drop database d1;
 drop database d2;
 drop database d3;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 drop view coord_wait_list;

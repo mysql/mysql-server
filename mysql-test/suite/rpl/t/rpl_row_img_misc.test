@@ -9,7 +9,7 @@
 CREATE TABLE t0 ( col1 INT NOT NULL, col2 INT ) ENGINE=InnoDB;
 INSERT INTO t0 (col1,col2) VALUES (4,7),(4,8);
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 CREATE TABLE t1 (col3 DECIMAL(35,0) DEFAULT NULL, 
@@ -23,7 +23,7 @@ SET SESSION BINLOG_ROW_IMAGE = minimal;
 # This statement would lead to an assert on slave
 REPLACE INTO t1 ( col1,col2) SELECT col1,col2 FROM t0;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 -- let $diff_tables= master:t0, slave:t0

@@ -18,7 +18,7 @@ INSERT INTO t1 SET name='Caleb', age=1;
 ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY,
 ALGORITHM=COPY;
 SELECT * FROM t1 ORDER BY id;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY id;
 connection master;
 DROP TABLE t1;

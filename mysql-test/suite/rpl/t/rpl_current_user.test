@@ -11,6 +11,7 @@
 #
 ##############################################################################
 
+source include/have_gtid.inc;
 source include/have_binlog_format_statement.inc;
 
 --let $rpl_topology= 1->2->3
@@ -170,21 +171,23 @@ connection master;
 --echo # [On master]
 INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
 SELECT * FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo # [On slave]
 SELECT * FROM t1;
 --echo # [On server_3]
-sync_slave_with_master server_3;
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
 connection master;
 --echo # [On master]
 UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
 SELECT * FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo # [On slave]
 SELECT * FROM t1;
-sync_slave_with_master server_3;
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 
@@ -192,10 +195,11 @@ connection master;
 --echo # [On master]
 DELETE FROM t1 WHERE c1=CURRENT_USER();
 SELECT * FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo # [On slave]
 SELECT * FROM t1;
-sync_slave_with_master server_3;
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 
@@ -215,11 +219,12 @@ DELIMITER ;|
 INSERT INTO t1 VALUES(my_user());
 SELECT * FROM t1;
 SELECT * FROM t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo # [On slave]
 SELECT * FROM t1;
 SELECT * FROM t2;
-sync_slave_with_master server_3;
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 SELECT * FROM t2;

@@ -27,7 +27,7 @@ CREATE TABLE `t1` (
   `c5` int(10) unsigned DEFAULT NULL, 
   PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 ALTER TABLE `t1` Engine=InnoDB;
 
 -- connection master
@@ -38,13 +38,13 @@ COMMIT;
 ROLLBACK;
 SET AUTOCOMMIT=1;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE `t1`;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
