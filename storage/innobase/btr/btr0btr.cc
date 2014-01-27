@@ -801,9 +801,8 @@ btr_page_get_father_node_ptr_func(
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
-			" database startup, see " REFMAN
-			" forcing-innodb-recovery.html about forcing"
-			" recovery. Then dump + drop + reimport.");
+			" database startup. %s Then dump + drop + reimport.",
+			FORCE_RECOVERY_MSG);
 	}
 
 	return(offsets);

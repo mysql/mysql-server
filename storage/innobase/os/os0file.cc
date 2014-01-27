@@ -443,10 +443,8 @@ os_file_get_last_error_low(
 				" or an application request."
 				" Retry attempt is made.");
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers"
-				" are described at" REFMAN
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -505,10 +503,8 @@ os_file_get_last_error_low(
 					err, strerror(err));
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers are"
-				" described at " REFMAN ""
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -2995,11 +2991,9 @@ retry:
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File pointer positioning to"
 			" file %s failed at offset %llu."
-			" Operating system error number %lu."
-			" Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html",
-			name, offset, (ulong) GetLastError());
+			" Operating system error number %lu. %s",
+			name, offset, (ulong) GetLastError(),
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		return(false);
 	}
@@ -3060,10 +3054,8 @@ retry:
 				(ulong) err, strerror((int) err));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
@@ -3098,10 +3090,8 @@ retry:
 				errno, strerror(errno));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at" REFMAN ""
-			" operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
