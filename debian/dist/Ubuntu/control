@@ -162,6 +162,7 @@ Package: mariadb-test-5.5
 Section: database
 Architecture: any
 Depends: mariadb-server-5.5 (= ${source:Version}), mariadb-client-5.5 (= ${source:Version})
+Suggests: patch
 Conflicts: mariadb-test (<< ${source:Version}),
     mariadb-test-5.1, mariadb-test-5.2, mariadb-test-5.3,
     mariadb-server-5.5 (<< 5.5.33), mariadb-galera-server-5.5 (<< 5.5.33)
