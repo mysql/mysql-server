@@ -66,23 +66,23 @@ void Gtid_table_persistor::close_table(THD* thd, TABLE* table,
   if (table)
   {
     if (error)
-      ha_rollback_trans(thd, FALSE);
+      ha_rollback_trans(thd, false);
     else
     {
       /*
         To make the commit not to block with global read lock set
         "ignore_global_read_lock" flag to true.
       */
-      ha_commit_trans(thd, FALSE, TRUE);
+      ha_commit_trans(thd, false, true);
     }
 
     if (need_commit)
     {
       if (error)
-        ha_rollback_trans(thd, TRUE);
+        ha_rollback_trans(thd, true);
       else
       {
-        ha_commit_trans(thd, TRUE, TRUE);
+        ha_commit_trans(thd, true, true);
       }
     }
 
@@ -389,7 +389,7 @@ int Gtid_table_persistor::compress_first_consecutive_gtids(TABLE* table)
   /* True if we find the first consecutive gtid. */
   bool find_first_consecutive_row= false;
 
-  if ((err= table->file->ha_index_init(0, TRUE)))
+  if ((err= table->file->ha_index_init(0, true)))
     DBUG_RETURN(-1);
 
   /* Read each row by the PK(sid, gno_start) in increasing order. */
@@ -502,6 +502,55 @@ int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
 }
 
 
+/**
+  Simulate error and crash in the middle of the transaction
+  of compressing gtid table.
+
+  @return
+    @retval 0    OK.
+    @retval -1   Error.
+*/
+static int dbug_test_on_compress(THD* thd)
+{
+  DBUG_ENTER("dbug_test_on_compress");
+  /*
+    Sleep a little, so that notified user thread executed the statement
+    completely.
+  */
+  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(5););
+  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info",
+                  {
+                    const char act[]= "now signal fetch_thread_stage";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+  /* Sleep a little, so that we can always fetch the correct stage info. */
+  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
+
+  /*
+    Simulate error in the middle of the transaction of
+    compressing gtid table.
+  */
+  DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
+                  DBUG_RETURN(-1););
+  /*
+    Wait until notified user thread executed the statement completely,
+    then go to crash.
+  */
+  DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table",
+                  {
+                    const char act[]= "now wait_for notified_thread_complete";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+  DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
+
+  DBUG_RETURN(0);
+}
+
+
 int Gtid_table_persistor::compress()
 {
   DBUG_ENTER("Gtid_table_persistor::compress");
@@ -538,42 +587,10 @@ int Gtid_table_persistor::compress()
   if ((error= compress_first_consecutive_gtids(table)))
     goto end;
 
-  /*
-    Sleep a little, so that notified user thread executed the statement
-    completely.
-  */
-  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(5););
-  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info",
-                  {
-                    const char act[]= "now signal fetch_thread_stage";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
-                  };);
-  /* Sleep a little, so that we can always fetch the correct stage info. */
-  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
-
-  /*
-    Simulate error in the middle of the transaction of
-    compressing gtid table.
-  */
-  DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
-                  {error= -1; goto end;});
-  /*
-    Wait until notified user thread executed the statement completely,
-    then go to crash.
-  */
-  DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table",
-                  {
-                    const char act[]= "now wait_for notified_thread_complete";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
-                  };);
-  DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
+  error= dbug_test_on_compress(thd);
 
 end:
-  this->close_table(thd, table, &backup, 0 != error, TRUE);
+  this->close_table(thd, table, &backup, 0 != error, true);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
@@ -614,7 +631,7 @@ int Gtid_table_persistor::reset()
   error= delete_all(table);
 
 end:
-  this->close_table(thd, table, &backup, 0 != error, TRUE);
+  this->close_table(thd, table, &backup, 0 != error, true);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
@@ -685,21 +702,21 @@ void Gtid_table_persistor::get_gtid_interval(TABLE* table, string& sid,
 }
 
 
-int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
+int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_executed)
 {
-  DBUG_ENTER("Gtid_table_persistor::fetch_gtids_from_table");
+  DBUG_ENTER("Gtid_table_persistor::fetch_gtids");
   int ret= 0;
   int err= 0;
   TABLE *table= NULL;
-  ulong saved_mode;
+  //ulong saved_mode;
   Open_tables_backup backup;
   THD *thd= current_thd, *drop_thd_object= NULL;
 
   if (!thd)
     thd= drop_thd_object= this->create_thd();
 
-  tmp_disable_binlog(thd);
-  saved_mode= thd->variables.sql_mode;
+  //tmp_disable_binlog(thd);
+  //saved_mode= thd->variables.sql_mode;
 
   if (this->open_table(thd, TL_READ, &table, &backup))
   {
@@ -707,7 +724,7 @@ int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
     goto end;
   }
 
-  if ((err= table->file->ha_rnd_init(TRUE)))
+  if ((err= table->file->ha_rnd_init(true)))
   {
     ret= -1;
     goto end;
@@ -731,9 +748,9 @@ int Gtid_table_persistor::fetch_gtids_from_table(Gtid_set *gtid_executed)
     ret= -1;
 
 end:
-  this->close_table(thd, table, &backup, 0 != ret, TRUE);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
+  this->close_table(thd, table, &backup, 0 != ret, true);
+  //reenable_binlog(thd);
+  //thd->variables.sql_mode= saved_mode;
   if (drop_thd_object)
     this->drop_thd(drop_thd_object);
   DBUG_RETURN(ret);
@@ -746,7 +763,7 @@ int Gtid_table_persistor::delete_all(TABLE* table)
   int ret= 0;
   int err= 0;
 
-  if ((err= table->file->ha_rnd_init(TRUE)))
+  if ((err= table->file->ha_rnd_init(true)))
     DBUG_RETURN(-1);
 
   /*
@@ -759,7 +776,7 @@ int Gtid_table_persistor::delete_all(TABLE* table)
     if ((err= table->file->ha_delete_row(table->record[0])))
     {
       table->file->print_error(err, MYF(0));
-      sql_print_error("Failed to delete the row: '%s' from gtid_executed "
+      sql_print_error("Failed to delete the row: '%s' from the gtid "
                       "table.", encode_gtid_text(table).c_str());
       break;
     }
