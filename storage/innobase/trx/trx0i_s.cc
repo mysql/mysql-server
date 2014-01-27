@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -467,13 +467,7 @@ fill_trx_row(
 
 	ut_ad(lock_mutex_own());
 
-	/* RO and transactions whose intentions are unknown (whether they
-	will eventually do a WRITE) don't have an ID assigned to them.
-	The only requirement is that for any given snapshot all the trx
-	identifiers are unique. */
-
-	row->trx_id = ulint(trx);
-
+	row->trx_id = trx_get_id_for_print(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 	row->requested_lock_row = requested_lock_row;
@@ -1302,7 +1296,7 @@ fetch_data_into_cache_low(
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
 		if (trx->state == TRX_STATE_NOT_STARTED
-		    || (!rw_trx_list && trx->id > 0 && !trx->read_only)) {
+		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
 			continue;
 		}

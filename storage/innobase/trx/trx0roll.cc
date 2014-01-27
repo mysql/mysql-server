@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -567,7 +567,6 @@ trx_rollback_active(
 	dict_table_t*	table;
 	ib_int64_t	rows_to_undo;
 	const char*	unit		= "";
-	trx_id_t	trx_id;
 	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
@@ -603,7 +602,8 @@ trx_rollback_active(
 		unit = "M";
 	}
 
-	trx_id = trx->id;
+	const trx_id_t	trx_id = trx_get_id_for_print(trx);
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
 		" rows to undo", trx_id, (ulong) rows_to_undo, unit);
@@ -696,8 +696,8 @@ trx_rollback_resurrected(
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		trx_sys_mutex_exit();
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Cleaning up trx with id " TRX_ID_FMT "",
-			trx->id);
+			"Cleaning up trx with id " TRX_ID_FMT,
+			trx_get_id_for_print(trx));
 		trx_cleanup_at_db_startup(trx);
 		trx_free_resurrected(trx);
 		return(TRUE);

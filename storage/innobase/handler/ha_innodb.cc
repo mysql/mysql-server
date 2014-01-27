@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -2280,12 +2280,15 @@ innobase_register_trx(
 	THD*		thd,	/* in: MySQL thd (connection) object */
 	trx_t*		trx)	/* in: transaction to register */
 {
-	trans_register_ha(thd, FALSE, hton, (const ulonglong *)&trx->id);
+	const ulonglong	trx_id
+		= static_cast<const ulonglong>(trx_get_id_for_print(trx));
+
+	trans_register_ha(thd, FALSE, hton, &trx_id);
 
 	if (!trx_is_registered_for_2pc(trx)
 	    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
-		trans_register_ha(thd, TRUE, hton, (const ulonglong *)&trx->id);
+		trans_register_ha(thd, TRUE, hton, &trx_id);
 	}
 
 	trx_register_for_2pc(trx);
@@ -2655,19 +2658,6 @@ trx_is_strict(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode));
-}
-
-/**********************************************************************//**
-Determines if the current MySQL thread is running in strict mode.
-If thd==NULL, THDVAR returns the global value of innodb-strict-mode.
-@return TRUE if strict */
-UNIV_INLINE
-ibool
-thd_is_strict(
-/*==========*/
-	THD*	thd)	/*!< in: MySQL thread descriptor */
-{
-	return(THDVAR(thd, strict_mode));
 }
 
 /**************************************************************//**
@@ -15891,7 +15881,7 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   NULL, NULL,
   10000L,
   0L,
-  ~0UL, 0);
+  1000000L, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
