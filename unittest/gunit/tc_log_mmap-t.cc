@@ -62,10 +62,10 @@ public:
 
   void testCommit(ulonglong xid)
   {
-    XID_STATE *xid_state= &thd()->transaction.xid_state;
+    XID_STATE *xid_state= thd()->get_transaction()->xid_state();
     xid_state->set_query_id(xid);
     EXPECT_EQ(TC_LOG_MMAP::RESULT_SUCCESS, tc_log_mmap.commit(thd(), true));
-    thd()->transaction.cleanup();
+    thd()->get_transaction()->cleanup();
   }
 
   ulong testLog(ulonglong xid)

@@ -221,7 +221,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
   Trans_param param = { 0, 0, 0, 0 };
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
 
   if (is_real_trans)
     param.flags = true;
@@ -239,7 +240,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   Trans_param param = { 0, 0, 0, 0 };
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
 
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
