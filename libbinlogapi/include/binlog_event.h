@@ -668,14 +668,13 @@ public:
   */
   typedef unsigned char Byte;
 
-  Log_event_header()
-  : log_pos(0), flags(0)
+  Log_event_header(Log_event_type type_code_arg)
+  : type_code(type_code_arg), log_pos(0), flags(0)
   {
     when.tv_sec= 0;
     when.tv_usec= 0;
   }
-  Log_event_header(const char* buf,
-                   const Format_description_event *description_event);
+  Log_event_header(const char* buf, uint16_t binlog_version);
 
   ~Log_event_header() {}
 };
@@ -796,21 +795,25 @@ public:
     ROWS_HEADER_LEN_V2= 10
   }; // end enum_post_header_length
 
-  Binary_log_event()
+  Binary_log_event(Log_event_type type_code= ENUM_END_EVENT)
+  : m_header(type_code)
   {
+    /*
+      We set the type code to ENUM_END_EVENT so that the decoder
+      asserts if event type has not been modified by the sub classes.
+    */
   }
 
   Binary_log_event(const char **buf, uint16_t binlog_version,
                    const char *server_version);
-  // TODO: Uncomment when the dependency of log_event on this class in removed
   /**
     Returns short information about the event
   */
-  //virtual void print_event_info(std::ostream& info)=0;
+  virtual void print_event_info(std::ostream& info);
   /**
     Returns detailed information about the event
   */
-  //virtual void print_long_info(std::ostream& info);
+  virtual void print_long_info(std::ostream& info);
   virtual ~Binary_log_event() = 0;
 
   /**
@@ -821,7 +824,6 @@ public:
     return (enum Log_event_type) m_header.type_code;
   }
 
-  virtual Log_event_type get_type_code()= 0;
   virtual bool is_valid() const= 0;
   /**
     Return a pointer to the header of the log event
@@ -1413,12 +1415,11 @@ public:
   Query_event(const char* buf, unsigned int event_len,
               const Format_description_event *description_event,
               Log_event_type event_type);
-  Query_event();
+  Query_event(Log_event_type type_arg= QUERY_EVENT);
   virtual ~Query_event()
   {
   }
 
-  Log_event_type get_type_code() { return QUERY_EVENT;}
   bool is_valid() const {  return !m_query.empty(); }
 
 
@@ -1559,11 +1560,13 @@ public:
     R_IDENT_OFFSET= 8
   };
 
-  Rotate_event() {}
+  Rotate_event()
+  : Binary_log_event(ROTATE_EVENT)
+  {
+  }
   Rotate_event(const char* buf, unsigned int event_len,
                const Format_description_event *description_event);
 
-  Log_event_type get_type_code() { return ROTATE_EVENT; }
   //TODO: is_valid() is to be handled as a separate patch
   bool is_valid() const { return new_log_ident != 0; }
 
@@ -1661,13 +1664,12 @@ class Start_event_v3: public Binary_log_event
     which is the case when we rollover to a new log.
   */
   bool dont_set_created;
-  Log_event_type get_type_code() { return START_EVENT_V3;}
   protected:
   /**
      The constructor below will be  used only by Format_description_event
      constructor
   */
-  Start_event_v3();
+  Start_event_v3(Log_event_type type_code= START_EVENT_V3);
   public:
   Start_event_v3(const char* buf,
                  const Format_description_event* description_event);
@@ -1763,7 +1765,6 @@ public:
                              const Format_description_event *description_event);
 
     uint8_t number_of_event_types;
-    Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT; }
     unsigned long get_product_version() const;
     bool is_version_before_checksum() const;
     void calc_server_version_split();
@@ -1790,7 +1791,7 @@ public:
 class Stop_event: public Binary_log_event
 {
 public:
-  Stop_event() : Binary_log_event()
+  Stop_event() : Binary_log_event(STOP_EVENT)
   {
   }
   Stop_event(const char* buf,
@@ -1800,7 +1801,6 @@ public:
   {
   }
 
-  Log_event_type get_type_code() { return STOP_EVENT; }
   bool is_valid() const { return 1; }
 
   void print_event_info(std::ostream& info) {};
@@ -1902,6 +1902,7 @@ public:
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
+  : Binary_log_event(USER_VAR_EVENT)
   {
     name= name_arg;
     name_len= name_len_arg;
@@ -1923,7 +1924,6 @@ public:
   unsigned int charset_number;
   bool is_null;
   unsigned char flags;
-  Log_event_type get_type_code() {return USER_VAR_EVENT; }
   bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
@@ -1970,9 +1970,13 @@ public:
   Ignorable_event(const char *buf, const Format_description_event *descr_event)
   :Binary_log_event(&buf, descr_event->binlog_version,
                     descr_event->server_version)
-  { }
-  Ignorable_event() { }; // For the thd ctor of Ignorable_log_event
-  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+  {
+  }
+
+  Ignorable_event(Log_event_type type_arg= IGNORABLE_LOG_EVENT)
+  : Binary_log_event(type_arg)
+  {
+  };
   //TODO: Add definitions
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
@@ -2014,6 +2018,7 @@ public:
   Rows_query_event(const char *buf, unsigned int event_len,
                    const Format_description_event *descr_event);
   Rows_query_event()
+  : Ignorable_event(ROWS_QUERY_LOG_EVENT)
   {
   }
   virtual ~Rows_query_event();
@@ -2113,13 +2118,11 @@ public:
                const Format_description_event *description_event);
 
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
-  : type(type_arg), val(val_arg)
+  : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg)
   {
   }
 
   ~Intvar_event() {}
-
-  Log_event_type get_type_code() { return INTVAR_EVENT; }
 
   /*
     is_valid() is event specific sanity checks to determine that the
@@ -2186,14 +2189,13 @@ public:
   };
 
   Incident_event(Incident incident_arg)
-  : Binary_log_event(), incident(incident_arg), message(NULL),
+  : Binary_log_event(INCIDENT_EVENT), incident(incident_arg), message(NULL),
     message_length(0)
   {
   }
   Incident_event(const char *buf, unsigned int event_len,
                  const Format_description_event *description_event);
 
-  Log_event_type get_type_code() { return INCIDENT_EVENT; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 protected:
@@ -2234,15 +2236,15 @@ The Body has the following component:
 class Xid_event: public Binary_log_event
 {
 public:
-    Xid_event()
-    {
-    }
-    Xid_event(const char *buf, const Format_description_event *fde);
-    uint64_t xid;
-    Log_event_type get_type_code() { return XID_EVENT; }
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
+  Xid_event()
+  : Binary_log_event(XID_EVENT)
+  {
+  }
+  Xid_event(const char *buf, const Format_description_event *fde);
+  uint64_t xid;
+  bool is_valid() const { return 1; }
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
 };
 
 
@@ -2295,13 +2297,13 @@ class Rand_event: public Binary_log_event
     RAND_SEED2_OFFSET= 8
   };
   Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
+  : Binary_log_event(RAND_EVENT)
   {
     seed1= seed1_arg;
     seed2= seed2_arg;
   }
   Rand_event(const char* buf,
              const Format_description_event *description_event);
-  Log_event_type get_type_code() { return RAND_EVENT ; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -2450,12 +2452,6 @@ public:
   Gtid_event(const char *buffer, uint32_t event_len,
              const Format_description_event *descr_event);
   Gtid_event(bool commit_flag_arg): commit_flag(commit_flag_arg) {}
-  Log_event_type get_type_code()
-  {
-    Log_event_type ret= (gtid_info_struct.type == 2 ?
-                         ANONYMOUS_GTID_LOG_EVENT : GTID_LOG_EVENT);
-    return ret;
-  }
   //TODO: Add definitions for these methods
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
@@ -2516,6 +2512,7 @@ public:
                        const Format_description_event *descr_event);
   //called by the constructor with Gtid_set parameter
   Previous_gtids_event()
+  : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
   {
   }
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT ; }
@@ -2590,7 +2587,11 @@ protected:
 class Unknown_event: public Binary_log_event
 {
 public:
-  Unknown_event() {}
+  Unknown_event()
+  : Binary_log_event(UNKNOWN_EVENT)
+  {
+  }
+
   Unknown_event(const char* buf,
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,
@@ -2599,7 +2600,6 @@ public:
   {
   }
 
-  Log_event_type get_type_code() { return UNKNOWN_EVENT;}
   bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);

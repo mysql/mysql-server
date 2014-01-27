@@ -552,7 +552,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         }
         break;
       }
-      else if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      else if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
       {
         DBUG_PRINT("info",("found Format_description_log_event"));
         set_rli_description_event((Format_description_log_event *)ev);
@@ -580,8 +580,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       else
       {
         DBUG_PRINT("info",("found event of another type=%d",
-                           ev->get_type_code()));
-        look_for_description_event= (ev->get_type_code() == ROTATE_EVENT);
+                           ev->common_header->type_code));
+        look_for_description_event= (ev->common_header->type_code == ROTATE_EVENT);
         delete ev;
       }
     }
@@ -1343,7 +1343,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       }
       global_sid_lock->unlock();
     }
-    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    if (ev != NULL && ev->common_header->type_code == GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
       global_sid_lock->rdlock();

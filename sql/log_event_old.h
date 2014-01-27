@@ -399,7 +399,6 @@ public:
   };
 
 private:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()
@@ -475,7 +474,6 @@ public:
   };
 
 private:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()
@@ -549,7 +547,6 @@ public:
   };
 
 private:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()

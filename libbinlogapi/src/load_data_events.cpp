@@ -32,7 +32,8 @@ namespace binary_log
 */
 Execute_load_event::
 Execute_load_event(const uint32_t file_id_arg, const char* db_arg)
-: file_id(file_id_arg), db(db_arg)
+: Binary_log_event(EXEC_LOAD_EVENT),
+  file_id(file_id_arg), db(db_arg)
 {
 }
 
@@ -44,7 +45,8 @@ Execute_load_query_event(uint32_t file_id_arg,
                          uint32_t fn_pos_start_arg,
                          uint32_t fn_pos_end_arg,
                          enum_load_dup_handling dup_arg)
-: file_id(file_id_arg), fn_pos_start(fn_pos_start_arg),
+: Query_event(EXECUTE_LOAD_QUERY_EVENT),
+  file_id(file_id_arg), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_arg)
 {
 }
@@ -304,7 +306,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                                      const Format_description_event*
                                      description_event)
 : Load_event(buf, 0, description_event),
-   fake_base(0), block(0), inited_from_old(0)
+  fake_base(0), block(0), inited_from_old(0)
 {
   unsigned int block_offset;
   unsigned int header_len= description_event->common_header_len;
@@ -366,7 +368,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
 Create_file_event::Create_file_event(unsigned char* block_arg,
                                      unsigned int  block_len_arg,
                                      unsigned int file_id_arg)
-: Load_event(), fake_base(0), block(block_arg), event_buf(0),
+: Load_event(CREATE_FILE_EVENT), fake_base(0), block(block_arg), event_buf(0),
   block_len(block_len_arg), file_id(file_id_arg)
 {
   sql_ex_data.force_new_format();

@@ -155,8 +155,7 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
                               used to extract the binlog_version
 */
 Log_event_header::
-Log_event_header(const char* buf,
-                 const Format_description_event *description_event)
+Log_event_header(const char* buf, uint16_t binlog_version)
 : data_written(0), log_pos(0)
 {
   uint32_t tmp_sec= 0;
@@ -193,12 +192,12 @@ Log_event_header(const char* buf,
   memcpy(&log_pos, buf + LOG_POS_OFFSET, 4);
   log_pos= le64toh(log_pos);
 
-  switch (description_event->binlog_version)
+  switch (binlog_version)
   {
   case 1:
     log_pos= 0;
     flags= 0;
-    return;
+    break;
 
   case 3:
     /*
@@ -264,10 +263,10 @@ Log_event_header(const char* buf,
          twice when you have two masters which are slaves of a 3rd master).
          Then we are done with decoding the header.
       */
-      return;
+      break;
     }
   /* otherwise, go on with reading the header from buf (nothing now) */
-  } //end switch (description_event->binlog_version)
+  } //end switch (binlog_version)
 }
 
 
@@ -359,10 +358,10 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 */
 Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
                                    const char *server_version)
+: m_header(*buf, binlog_version)
 {
   Format_description_event *des= new Format_description_event(binlog_version,
                                                               server_version);
-  m_header= Log_event_header(*buf, des);
   m_footer= Log_event_footer();
   // remove the comments when all the events are moved to libbinlogevent
   // (*buf)+= des->common_header_len;
@@ -383,9 +382,10 @@ Binary_log_event::~Binary_log_event()
    It will initialize the server_version by global variable
    server_version
 */
-Start_event_v3::Start_event_v3()
-  :created(0), binlog_version(BINLOG_VERSION),
-   dont_set_created(0)
+Start_event_v3::Start_event_v3(Log_event_type type_code_arg)
+: Binary_log_event(type_code_arg),
+  created(0), binlog_version(BINLOG_VERSION),
+  dont_set_created(0)
 {
 }
 
@@ -407,7 +407,7 @@ Start_event_v3::Start_event_v3()
 */
 Format_description_event::Format_description_event(uint8_t binlog_ver,
                                                    const char* server_ver)
-: Start_event_v3(), event_type_permutation(0)
+: Start_event_v3(FORMAT_DESCRIPTION_EVENT), event_type_permutation(0)
 {
   binlog_version= binlog_ver;
   switch (binlog_ver) {
@@ -775,8 +775,8 @@ Format_description_event::~Format_description_event()
   if(post_header_len)
     bapi_free((void*)post_header_len);
 }
-//void Binary_log_event::print_event_info(std::ostream& info) {}
-//void Binary_log_event::print_long_info(std::ostream& info) {}
+void Binary_log_event::print_event_info(std::ostream& info) {}
+void Binary_log_event::print_long_info(std::ostream& info) {}
 
 /********************************************************************
            Rotate_event methods
@@ -1229,8 +1229,8 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   creating static objects that have a special meaning and are invisible
   to the log.
 */
-Query_event::Query_event()
-: Binary_log_event(),
+Query_event::Query_event(Log_event_type type_arg)
+: Binary_log_event(type_arg),
   m_user(""), m_host("")
 {
 }
@@ -1249,7 +1249,8 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          unsigned long long table_map_for_update_arg,
                          int errcode,
                          unsigned int db_arg_len, unsigned int catalog_arg_len)
-: m_user(""), m_host(""), m_catalog(""),
+: Binary_log_event(QUERY_EVENT),
+  m_user(""), m_host(""), m_catalog(""),
   m_db(""), m_query(""),
   thread_id(thread_id_arg), db_len(0), error_code(errcode),
   status_vars_len(0), q_len(query_length),

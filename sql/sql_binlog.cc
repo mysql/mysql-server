@@ -271,7 +271,7 @@ void mysql_client_binlog_statement(THD* thd)
       bytes_decoded -= event_len;
       bufptr += event_len;
 
-      DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
+      DBUG_PRINT("info",("ev->common_header()=%d", ev->common_header->type_code));
       ev->thd= thd;
       /*
         We go directly to the application phase, since we don't need
@@ -292,8 +292,8 @@ void mysql_client_binlog_statement(THD* thd)
         ROWS_QUERY_LOG_EVENT if present in rli is deleted at the end
         of the event.
       */
-      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
-          ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      if (ev->common_header->type_code != FORMAT_DESCRIPTION_EVENT &&
+          ev->common_header->type_code != ROWS_QUERY_LOG_EVENT)
       {
         delete ev;
         ev= NULL;
