@@ -944,7 +944,7 @@ do_select(JOIN *join)
     following join_tabs in this case, so this rowcount properly represents
     the correct number of qualifying rows.
   */
-  if (join->order)
+  if (join->join_tab && join->order)
   {
     // Save # of found records prior to cleanup
     JOIN_TAB *sort_tab;

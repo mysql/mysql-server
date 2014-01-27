@@ -1689,6 +1689,32 @@ trx_update_mod_tables_timestamp(
 	trx->mod_tables.clear();
 }
 
+/**
+Erase the transaction from the write set.
+@param[in] trx		Transaction to erase, must have an ID > 0
+@param[in] serialised	true if serialisation log was written */
+static
+void
+trx_erase_from_write_set(trx_t* trx, bool serialised)
+{
+	ut_ad(trx_sys_mutex_own());
+
+	if (serialised) {
+		UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
+	}
+
+	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
+
+	trx_ids_t::iterator	it = std::lower_bound(
+		trx_sys->rw_trx_ids.begin(),
+		trx_sys->rw_trx_ids.end(),
+		trx->id);
+
+	ut_ad(*it == trx->id);
+
+	trx_sys->rw_trx_ids.erase(it);
+}
+
 /****************************************************************//**
 Commits a transaction in memory. */
 static
@@ -1696,13 +1722,17 @@ void
 trx_commit_in_memory(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: transaction */
-	const mtr_t*	mtr)	/*!< in: mini-transaction of
+	const mtr_t*	mtr,	/*!< in: mini-transaction of
 				trx_write_serialisation_history(), or NULL if
 				the transaction did not modify anything */
+	bool		serialised)
+				/*!< in: true if serialisation log was
+				written */
 {
 	trx->must_flush_log_later = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
+		ut_ad(trx->id == 0);
 		ut_ad(trx->read_only);
 		ut_a(!trx->is_recovered);
 		ut_ad(trx->rsegs.m_redo.rseg == NULL);
@@ -1723,8 +1753,6 @@ trx_commit_in_memory(
 		without first acquiring the trx_sys_t::mutex. */
 
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
-
-		trx->state = TRX_STATE_NOT_STARTED;
 
 		if (trx->read_view != NULL) {
 			trx_sys->mvcc->view_close(trx->read_view, false);
@@ -1751,7 +1779,19 @@ trx_commit_in_memory(
 					trx->read_view, false);
 			}
 
+			/* Only RO transactions that write to temporary tables
+			are assigned a transaction ID. */
+			if (trx->id > 0) {
+				trx_sys_mutex_enter();
+
+				trx_erase_from_write_set(trx, serialised);
+
+				trx_sys_mutex_exit();
+			}
+
 		} else {
+
+			ut_ad(trx->id > 0);
 
 			trx_sys_mutex_enter();
 
@@ -1769,11 +1809,13 @@ trx_commit_in_memory(
 				trx_sys->mvcc->view_close(trx->read_view, true);
 			}
 
+			trx_erase_from_write_set(trx, serialised);
+
 			trx_sys_mutex_exit();
 		}
-
-		trx->state = TRX_STATE_NOT_STARTED;
 	}
+
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	if (mtr != NULL) {
 
@@ -1838,13 +1880,13 @@ trx_commit_in_memory(
                 trx_finalize_for_fts(trx, not_rollback);
         }
 
-	trx_init(trx);
-
-	assert_trx_is_free(trx);
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
+	assert_trx_is_free(trx);
+	trx_init(trx);
 }
 
 /****************************************************************//**
@@ -1923,31 +1965,9 @@ trx_commit_low(
 		serialised = false;
 	}
 
-	if (trx->id > 0) {
+	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 
-		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
-
-		mutex_enter(&trx_sys->mutex);
-
-		if (serialised) {
-			UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
-		}
-
-		trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
-
-		trx_ids_t::iterator	it = std::lower_bound(
-			trx_sys->rw_trx_ids.begin(),
-			trx_sys->rw_trx_ids.end(),
-			trx->id);
-
-		ut_ad(*it == trx->id);
-
-		trx_sys->rw_trx_ids.erase(it);
-
-		mutex_exit(&trx_sys->mutex);
-	}
-
-	trx_commit_in_memory(trx, mtr);
+	trx_commit_in_memory(trx, mtr, serialised);
 }
 
 /****************************************************************//**

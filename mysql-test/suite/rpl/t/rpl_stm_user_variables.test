@@ -1,14 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # BUG#49562: SBR out of sync when using numeric data types + user variable
 #
 
 -- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/have_myisam.inc
 
 ## Setup user variables for several numeric types, so that we get
 ## coverage on the User_var_log_event different val types
@@ -204,8 +200,10 @@ connection slave;
 SELECT * FROM t1 ORDER BY a;
 
 connection master;
+--let $mask_binlog_commit_events= 1
 --echo # Show events and cleanup
 --source include/show_binlog_events.inc
+--let $mask_binlog_commit_events= 0
 DROP TABLE t1;
 DROP PROCEDURE p1;
 

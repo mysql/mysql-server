@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of auto_increment
 # BUG#11932
@@ -25,7 +20,7 @@ CREATE TABLE `t1` (
   `id` int(10) unsigned NOT NULL auto_increment,
   `fname` varchar(100) default NULL,
   PRIMARY KEY  (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
+) DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
 
 INSERT INTO `t1` VALUES (1, 'blablabla');
 
@@ -33,7 +28,7 @@ CREATE TABLE `t2` (
   `id` int(10) NOT NULL auto_increment,
   `comment` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`id`)
-) ENGINE=MyISAM  AUTO_INCREMENT=3 ;
+) AUTO_INCREMENT=3 ;
 
 INSERT INTO `t2` VALUES (1, 'testtest 1');
 INSERT INTO `t2` VALUES (2, 'test 2');

@@ -7,6 +7,7 @@
 
 -- source include/have_debug.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 -- let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
