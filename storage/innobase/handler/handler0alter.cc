@@ -33,11 +33,11 @@ Smart ALTER TABLE
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "log0log.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "handler0alter.h"
@@ -857,7 +857,7 @@ innobase_get_foreign_key_info(
 			/* Check whether there exist such
 			index in the the index create clause */
 			if (!index && !innobase_find_equiv_index(
-				    column_names, (uint) i,
+				    column_names, static_cast<uint>(i),
 				    ha_alter_info->key_info_buffer,
 				    ha_alter_info->index_add_buffer,
 				    ha_alter_info->index_add_count)) {
@@ -3555,9 +3555,10 @@ ha_innobase::prepare_inplace_alter_table(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		if (const char* invalid_opt = create_options_are_invalid(
+		const char* invalid_opt = create_options_are_invalid(
 			    user_thd, ha_alter_info->create_info,
-			    prebuilt->table->space != 0)) {
+			    prebuilt->table->space != 0);
+		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
 			goto err_exit_no_heap;

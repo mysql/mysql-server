@@ -1,6 +1,7 @@
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_innodb.inc
+-- source include/have_myisam.inc
 
 #
 #  BUG#53643: assert in Field_new_decimal::store_value on slave server

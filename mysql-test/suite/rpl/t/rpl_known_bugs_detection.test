@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test to see if slave can detect certain known bugs present
 # on the master, and appropriately decides to stop
 # (assuming the bug is fixed in the slave, slave cannot of course
@@ -33,7 +28,7 @@ UNIQUE(b));
 sync_slave_with_master;
 connection master;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
-SELECT * FROM t1;
+SELECT * FROM t1 order by 1;
 connection slave;
 
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -42,7 +37,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
 --source include/wait_for_slave_sql_error.inc
 # show that it was not replicated
-SELECT * FROM t1;
+SELECT * FROM t1 order by 1;
 
 # restart replication for the next testcase
 --let $rpl_only_running_threads= 1
@@ -85,14 +80,14 @@ SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c;
-SELECT * FROM t1;
+SELECT * FROM t1 order by 1;
 connection slave;
 
 --let $slave_sql_errno= convert_error(ER_UNKNOWN_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
 # show that it was not replicated
-SELECT * FROM t1;
+SELECT * FROM t1 order by 1;
 connection master;
 
 # clean up

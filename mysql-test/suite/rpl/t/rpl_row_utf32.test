@@ -1,17 +1,16 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_utf32.inc
+
+# Max key length in InnoDB is 767, whereas, in MyISAM it is 1000     # WL#6921
+--let $key_length_innodb=767
 
 #
 # BUG#51787 Assertion `(n % 4) == 0' on slave upon INSERT into a table with UTF32
 #
 
 SET SQL_LOG_BIN=0;
+--replace_result $key_length_innodb 1000
 CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
 SET SQL_LOG_BIN=1;
 
@@ -29,6 +28,7 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 -- source include/start_slave.inc
 
 SET SQL_LOG_BIN=0;
+--replace_result $key_length_innodb 1000
 CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
 SET SQL_LOG_BIN=1;
 

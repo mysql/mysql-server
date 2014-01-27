@@ -130,6 +130,7 @@
 ###############################################################
 # The sync_slave_with_master is needed to make the xids deterministic.
 sync_slave_with_master;
+--source include/have_myisam.inc
 
 --echo
 --echo -------- switch to master -------

@@ -1136,11 +1136,11 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static void kill_query(const char* reason);
-extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_ctrlc_signal(int sig);
-extern "C" sig_handler handle_quit_signal(int sig);
+extern "C" void mysql_end(int sig);
+extern "C" void handle_ctrlc_signal(int sig);
+extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static sig_handler window_resize(int sig);
+static void window_resize(int sig);
 #endif
 
 const char DELIMITER_NAME[]= "delimiter";
@@ -1413,7 +1413,7 @@ int main(int argc,char *argv[])
 #endif
 }
 
-sig_handler mysql_end(int sig)
+void mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
@@ -1481,7 +1481,7 @@ sig_handler mysql_end(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_ctrlc_signal(int sig)
+void handle_ctrlc_signal(int sig)
 {
   sigint_received= 1;
 
@@ -1507,7 +1507,7 @@ sig_handler handle_ctrlc_signal(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_quit_signal(int sig)
+void handle_quit_signal(int sig)
 {
   const char *reason= "Terminal close";
 
@@ -1575,7 +1575,7 @@ err:
 
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-sig_handler window_resize(int sig)
+void window_resize(int sig)
 {
   struct winsize window_size;
 

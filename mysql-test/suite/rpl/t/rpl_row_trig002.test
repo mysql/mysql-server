@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################################
 # Original Author: JBM                                                      #
 # Original Date: Aug/14/2005                                                #
@@ -53,10 +48,10 @@ INSERT INTO test.t3 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 INSERT INTO test.t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 
 select * from test.t2;
-select * from test.t3;
+select * from test.t3 order by value;
 sync_slave_with_master;
 select * from test.t2;
-select * from test.t3;
+select * from test.t3 order by value;
 connection master;
 
 DELETE FROM test.t1 WHERE id = 1;

@@ -32,14 +32,14 @@ INSERT INTO test.t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 select * from test.t2;
 value	domain_id	mailaccount_id	program	keey
 Yes	1	NULL	spamfilter	scan_incoming
-select * from test.t3;
+select * from test.t3 order by value;
 value	domain_id	mailaccount_id	program	keey
 No	5	NULL	spamfilter	scan_incoming
 Yes	1	NULL	spamfilter	scan_incoming
 select * from test.t2;
 value	domain_id	mailaccount_id	program	keey
 Yes	1	NULL	spamfilter	scan_incoming
-select * from test.t3;
+select * from test.t3 order by value;
 value	domain_id	mailaccount_id	program	keey
 No	5	NULL	spamfilter	scan_incoming
 Yes	1	NULL	spamfilter	scan_incoming

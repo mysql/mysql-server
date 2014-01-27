@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -590,7 +590,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
-	  if (thd->transaction.stmt.cannot_safely_rollback())
+	  if (thd->get_transaction()->cannot_safely_rollback(
+	      Transaction_ctx::STMT))
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
@@ -666,7 +667,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 err:
   DBUG_ASSERT(table->file->has_transactions() ||
               !(info.stats.copied || info.stats.deleted) ||
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
@@ -835,9 +837,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
-    read_info.row_end[0]=0;
-#endif
 
     restore_record(table, s->default_values);
     /*

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,6 +129,7 @@ enum dberr_t {
 	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
 					exceeds result cache limit */
 	DB_TEMP_FILE_WRITE_FAILURE,	/*!< Temp file write failure */
+	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

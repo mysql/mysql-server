@@ -34,17 +34,18 @@ Created 4/24/1996 Heikki Tuuri
 #include "mysql_version.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
-#include "page0page.h"
-#include "mach0data.h"
-#include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
+#include "fsp0file.h"
+#include "fts0priv.h"
+#include "mach0data.h"
+#include "page0page.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "dict0crea.h"
-#include "dict0priv.h"
-#include "fts0priv.h"
 #include <stack>
 #include <set>
 
@@ -1043,7 +1044,8 @@ loop:
 
 		bool		is_temp = false;
 		bool		discarded = false;
-		ib_uint32_t	flags2 = (ib_uint32_t) mach_read_from_4(field);
+		ib_uint32_t	flags2 = static_cast<ib_uint32_t>(
+			mach_read_from_4(field));
 
 		/* Check that the tablespace (the .ibd file) really
 		exists; print a warning to the .err log if not.
@@ -1084,19 +1086,27 @@ loop:
 				   update SYS_DATAFILES with the updated path.*/
 				ut_ad(space_id);
 				ut_ad(recv_needed_recovery);
-				char *dict_path = dict_get_first_path(space_id,
-								      name);
-				char *remote_path = fil_read_link_file(name);
+				char *dict_path = dict_get_first_path(
+					space_id, name);
+				char *link_path;
+				char *remote_path;
+				RemoteDatafile::read_link_file(
+					name, &link_path, &remote_path);
 				if(dict_path && remote_path) {
 					if(strcmp(dict_path,remote_path)) {
-						dict_update_filepath(space_id,
-								     remote_path);
-						}
+						dict_update_filepath(
+							space_id, remote_path);
+					}
 				}
-				if(dict_path)
+				if(dict_path) {
 					ut_free(dict_path);
-				if(remote_path)
+				}
+				if(link_path) {
+					ut_free(link_path);
+				}
+				if(remote_path) {
 					ut_free(remote_path);
+				}
 			}
 			break;
 
@@ -2173,17 +2183,21 @@ dict_save_data_dir_path(
 	ut_a(filepath);
 
 	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_ibd_name(table->name, false);
-	if (strcmp(filepath, default_filepath)) {
-		ulint pathlen = strlen(filepath);
-		ut_a(pathlen < OS_FILE_MAX_PATH);
-		ut_a(0 == strcmp(filepath + pathlen - 4, ".ibd"));
+	char*	default_filepath = fil_make_filepath(
+			NULL, table->name, IBD, false);
+	if (default_filepath) {
+		if (0 != strcmp(filepath, default_filepath)) {
+			ulint pathlen = strlen(filepath);
+			ut_a(pathlen < OS_FILE_MAX_PATH);
+			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
 
-		table->data_dir_path = mem_heap_strdup(table->heap, filepath);
-		os_file_make_data_dir_path(table->data_dir_path);
+			table->data_dir_path = mem_heap_strdup(
+				table->heap, filepath);
+			os_file_make_data_dir_path(table->data_dir_path);
+		}
+
+		ut_free(default_filepath);
 	}
-
-	ut_free(default_filepath);
 }
 
 /*****************************************************************//**
@@ -2421,9 +2435,9 @@ err_exit:
 				dict_get_and_save_data_dir_path(table, true);
 
 				if (table->data_dir_path) {
-					filepath = os_file_make_remote_pathname(
+					filepath = fil_make_filepath(
 						table->data_dir_path,
-						table->name, "ibd");
+						table->name, IBD, true);
 				}
 			}
 
@@ -2442,7 +2456,9 @@ err_exit:
 				table->ibd_file_missing = TRUE;
 			}
 
-			ut_free(filepath);
+			if (filepath != NULL) {
+				::ut_free(filepath);
+			}
 		}
 	}
 

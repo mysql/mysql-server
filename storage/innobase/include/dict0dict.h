@@ -48,14 +48,6 @@ typedef std::deque<const char*> dict_names_t;
 #ifndef UNIV_HOTBACKUP
 # include "sync0mutex.h"
 # include "sync0rw.h"
-/******************************************************************//**
-Makes all characters in a NUL-terminated UTF-8 string lower case. */
-
-void
-dict_casedn_str(
-/*============*/
-	char*	a)	/*!< in/out: string to put in lower case */
-	__attribute__((nonnull));
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */

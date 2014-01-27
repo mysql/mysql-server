@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ###############################################################################
 # After the patch for BUG#49124:
 #  - Use ' ' instead of '!' in the conditional comments which are not applied on
@@ -16,6 +11,7 @@
 source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 
+--let $mask_binlog_commit_events= 1
 CREATE TABLE t1(c1 INT);
 source include/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
@@ -82,6 +78,8 @@ SELECT c1 FROM /*!99999 t1 WHEREN;
 --echo #
 CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
 source include/show_binlog_events.inc;
+
+--let $mask_binlog_commit_events= 0
 
 DROP TABLE t1;
 DROP EVENT e1;

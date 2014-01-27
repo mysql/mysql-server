@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+const uint32 Binlog_sender::HOOK_NO_FLAG= 0;
 
 void Binlog_sender::init()
 {
@@ -54,8 +55,9 @@ void Binlog_sender::init()
                         thd->thread_id, thd->server_id,
                         m_start_file, m_start_pos);
 
-  if (RUN_HOOK(binlog_transmit, transmit_start, (thd, 0/*flags*/,
-                                                 m_start_file, m_start_pos)))
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, HOOK_NO_FLAG, m_start_file, m_start_pos,
+                &m_observe_transmission)))
   {
     set_unknow_error("Failed to run hook 'transmit_start'");
     DBUG_VOID_RETURN;
@@ -103,7 +105,7 @@ void Binlog_sender::cleanup()
 
   THD *thd= m_thd;
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, 0/*flags*/));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, HOOK_NO_FLAG));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
@@ -632,7 +634,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
   m_packet.qs_append('\0');
 
   /* reserve and set default header */
-  if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
   {
     set_unknow_error("Failed to run hook 'reserve_header'");
     DBUG_RETURN(1);
@@ -863,8 +866,9 @@ inline int Binlog_sender::send_packet_and_flush()
 inline int Binlog_sender::before_send_hook(const char *log_file,
                                            my_off_t log_pos)
 {
-  if (RUN_HOOK(binlog_transmit, before_send_event,
-               (m_thd, 0/*flags*/, &m_packet, log_file, log_pos)))
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, before_send_event,
+               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("run 'before_send_event' hook failed");
     return 1;
@@ -875,8 +879,9 @@ inline int Binlog_sender::before_send_hook(const char *log_file,
 inline int Binlog_sender::after_send_hook(const char *log_file,
                                           my_off_t log_pos)
 {
-  if (RUN_HOOK(binlog_transmit, after_send_event,
-               (m_thd, 0/*flags*/, &m_packet, log_file, log_pos)))
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, after_send_event,
+               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("Failed to run hook 'after_send_event'");
     return 1;

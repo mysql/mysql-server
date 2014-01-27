@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
@@ -22,17 +17,17 @@ SHOW STATUS LIKE 'Slave_retried_transactions';
 # the following UPDATE t1 to pass the mode is switched temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 --echo **** On Master ****
 connection master;
 UPDATE t1 SET a = 5, b = 5 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 #SHOW BINLOG EVENTS;
 --echo **** On Slave ****
 sync_slave_with_master;
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 source include/check_slave_is_running.inc;
 
 connection slave;

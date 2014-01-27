@@ -17,6 +17,7 @@ source include/master-slave.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/not_gtid_enabled.inc;
+source include/have_myisam.inc;
 
 --echo # Test non-transaction
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);

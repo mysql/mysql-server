@@ -1920,6 +1920,9 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     return NULL;
 
   PFS_thread *thread= my_pthread_get_THR_PFS();
+  if (unlikely(thread == NULL))
+    return NULL;
+
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
