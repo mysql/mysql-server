@@ -15,7 +15,7 @@ SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
   'wait/synch/mutex/sql/LOCK_user_conn',
   'wait/synch/mutex/sql/LOCK_uuid_generator',
-  'wait/synch/mutex/sql/LOCK_xid_cache',
+  'wait/synch/mutex/sql/LOCK_transaction_cache',
   'stage/sql/creating table')
 AND enabled = 'yes' AND timed = 'no'
 ORDER BY name;

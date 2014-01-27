@@ -1261,7 +1261,8 @@ void close_thread_tables(THD *thd)
     DEBUG_SYNC(thd, "before_close_thread_tables");
 #endif
 
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
+              thd->in_sub_stmt ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
 
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
@@ -3268,7 +3269,7 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
     }
     thd->leave_locked_tables_mode();
 
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     /*
       We rely on the caller to implicitly commit the
@@ -4804,7 +4805,8 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   DBUG_ENTER("open_tables");
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (*start && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
+  if (*start &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
 
   thd->current_tablenr= 0;
@@ -5609,7 +5611,7 @@ end:
     table on the fly, and thus mustn't manipulate with the
     transaction of the enclosing statement.
   */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
               thd->in_sub_stmt);
   close_thread_tables(thd);
@@ -5947,7 +5949,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     table on the fly, and thus mustn't manipulate with the
     transaction of the enclosing statement.
   */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
@@ -9608,7 +9610,7 @@ void
 close_mysql_tables(THD *thd)
 {
   /* No need to commit/rollback statement transaction, it's not started. */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 }
