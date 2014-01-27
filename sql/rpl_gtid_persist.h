@@ -104,7 +104,7 @@ public:
     @retval
       -1   Error
   */
-  int fetch_gtids_from_table(Gtid_set *gtid_executed);
+  int fetch_gtids(Gtid_set *gtid_executed);
 
 private:
   /* Count the append size of the table */
@@ -171,7 +171,7 @@ private:
 
   */
   void close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
-                   bool error, bool need_commit= FALSE);
+                   bool error, bool need_commit= false);
   /**
     Write a gtid interval into the gtid_executed table.
 

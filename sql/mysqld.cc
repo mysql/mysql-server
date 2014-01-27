@@ -4493,7 +4493,7 @@ int mysqld_main(int argc, char **argv)
                                        NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/) ||
-          gtid_table_persistor->fetch_gtids_from_table(executed_gtids) == -1)
+          gtid_table_persistor->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
       global_sid_lock->wrlock();
@@ -4579,7 +4579,7 @@ int mysqld_main(int argc, char **argv)
         executed_gtids from gtid table and lost_gtids has a same
         gtid set with executed_gtids during server startup.
       */
-      if (gtid_table_persistor->fetch_gtids_from_table(executed_gtids) == -1)
+      if (gtid_table_persistor->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
       global_sid_lock->wrlock();
       DBUG_ASSERT(lost_gtids->is_empty());
