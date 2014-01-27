@@ -1528,7 +1528,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     that is called when we are checking that query cache is allowed at
     this moment to operate on an InnoDB table.
   */
-  if (thd->transaction.xid_state.check_xa_idle_or_prepared(false))
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(false))
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
