@@ -12,7 +12,7 @@
 #This statement is not binlogged in RBR.
 CREATE TEMPORARY TABLE t1(c1 INTEGER);
 CREATE TABLE t2(c1 INTEGER);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 CREATE TABLE t1(c1 INTEGER);
 INSERT INTO t1 VALUES(1), (2);
@@ -23,7 +23,7 @@ SELECT * FROM t2;
 connection master;
 TRUNCATE t1;
 TRUNCATE t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # t1 will have nothing, if 'TRUNCATE t1' has been replicate from master to
 # slave.
 SELECT * FROM t1;

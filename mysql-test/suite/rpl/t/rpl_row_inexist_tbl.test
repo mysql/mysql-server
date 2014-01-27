@@ -17,7 +17,7 @@ source include/master-slave.inc;
 CREATE TABLE t1 (a INT);
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 
 --echo ==== Modify table on master ====

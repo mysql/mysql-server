@@ -695,7 +695,7 @@ EXECUTE p49; EXECUTE p50; EXECUTE p51; EXECUTE p52; EXECUTE p53; EXECUTE p54;
 EXECUTE p55; EXECUTE p56; EXECUTE p57; EXECUTE p58; EXECUTE p59; EXECUTE p60;
 EXECUTE p61; EXECUTE p62; EXECUTE p63; EXECUTE p64;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --connection master
 
 
@@ -704,7 +704,7 @@ EXECUTE p61; EXECUTE p62; EXECUTE p63; EXECUTE p64;
 # Show the result in table test.tstmt on master...
 SELECT * FROM tstmt ORDER BY id;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # ... then compare test.tstmt on master to the other tables on master and slave.
 let $diff_tables= master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep,  slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep;
@@ -741,5 +741,5 @@ SET @@global.sql_mode=             @s_sql_mode;
 SET @@global.sync_binlog=          @s_sync_binlog;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

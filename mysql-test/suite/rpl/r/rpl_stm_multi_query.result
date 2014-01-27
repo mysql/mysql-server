@@ -10,6 +10,7 @@ insert into mysqltest.t1 values(2);
 insert into mysqltest.t1 values(3);
 insert into mysqltest.t1 values(4);
 insert into mysqltest.t1 values(5)/
+include/sync_slave_sql_with_master.inc
 select * from mysqltest.t1;
 n
 1

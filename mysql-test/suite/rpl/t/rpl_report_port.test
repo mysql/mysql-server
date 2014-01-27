@@ -60,7 +60,7 @@ connection slave;
 --source include/wait_for_slave_param.inc
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo [Slave restarted with the report-port set to the value of slave's port number]
 
 connection master;

@@ -4,6 +4,7 @@
 # Added comments section and to skip when ndb is      #
 # Default engine.                                     #
 #######################################################
+--source include/not_gtid_enabled.inc
 --source include/not_ndb_default.inc
 --source include/master-slave.inc
 --source include/have_myisam.inc

@@ -12,8 +12,10 @@ insert into t2(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../std_data/rpl_loaddata.dat' into table t2;
 commit;
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 drop table t1;
 drop table t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

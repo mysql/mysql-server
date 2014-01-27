@@ -116,7 +116,7 @@ source include/assert.inc;
 --connection master
 use test;
 create table t(a int primary key);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 drop table t;
 --connection master
 insert into t values(1);

@@ -159,7 +159,7 @@ source include/assert.inc;
 # create a user for replication that requires ssl encryption
 --connection master
 grant replication slave on *.* to replssl@localhost require ssl;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Setup slave to use SSL for connection to master
 stop slave;

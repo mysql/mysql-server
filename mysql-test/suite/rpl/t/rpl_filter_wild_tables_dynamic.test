@@ -32,7 +32,7 @@ INSERT INTO b1 VALUES (2);
 INSERT INTO c1 VALUES (3);
 
 # Only a1 should be replicated to slave
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [on slave];
 SHOW TABLES LIKE '%1';
 

@@ -15,6 +15,7 @@ select * from t1 where b<3 order by a;
 a	b
 1	2
 MySQL	1
+include/sync_slave_sql_with_master.inc
 select * from t1 where b<3 order by a;
 a	b
 1	2
@@ -36,16 +37,19 @@ insert into t2 select 2,a from t1 where a is null;
 select * from t2 order by b;
 b	a
 1	1
+include/sync_slave_sql_with_master.inc
 select * from t2 order by b;
 b	a
 1	1
 drop table t1,t2;
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `data` varchar(100),
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM;
 INSERT INTO t1(data) VALUES(SESSION_USER());
+include/sync_slave_sql_with_master.inc
 SELECT length(data) < 100 FROM t1;
 length(data) < 100
 1

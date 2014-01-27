@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 create table t1 (a int);
 create table t2 (a int);
+include/sync_slave_sql_with_master.inc
 drop table t1;
 drop table t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

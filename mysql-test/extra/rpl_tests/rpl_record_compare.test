@@ -14,14 +14,14 @@ INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 -- disable_warnings
 UPDATE t1 SET c5 = 'a';
 -- enable_warnings
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 --connection master
 DROP TABLE t1;
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 -- echo ## case #1.1 - last_null_bit_pos==0 in record_compare with X bit
 -- echo ##             (1 column less and no varchar)
@@ -35,14 +35,14 @@ INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 -- disable_warnings
 UPDATE t1 SET c5 = 'a';
 -- enable_warnings
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 --connection master
 DROP TABLE t1;
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 -- echo ## case #2 - X bit is wrongly set.
 
@@ -53,12 +53,12 @@ DROP TABLE t1;
 INSERT INTO t1(c1) VALUES (10);
 INSERT INTO t1(c1) VALUES (NULL);
 UPDATE t1 SET c1= 0;
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE t1; 
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
