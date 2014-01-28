@@ -29,7 +29,7 @@ if (!$assert_text)
   --let $assert_text= $assert_varaible_name should be $assert_variable_value
 }
 
---let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "$assert_variable_name", Value, 1] = $assert_variable_value
+--let $assert_cond= [SELECT @@$assert_variable_name AS Value, Value, 1] = $assert_variable_value
 --source include/assert.inc
 
 --let $assert_variable_name=
