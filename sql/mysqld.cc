@@ -1466,7 +1466,7 @@ void clean_up(bool print_message)
   if (tc_log)
     tc_log->close();
   delegates_destroy();
-  xid_cache_free();
+  transaction_cache_free();
   table_def_free();
   mdl_destroy();
   key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
@@ -3751,7 +3751,7 @@ static int init_server_components()
   */
   my_charset_error_reporter= charset_error_reporter;
 
-  if (xid_cache_init())
+  if (transaction_cache_init())
   {
     sql_print_error("Out of memory");
     unireg_abort(1);

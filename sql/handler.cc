@@ -1174,31 +1174,35 @@ void ha_close_connection(THD* thd)
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
                        const ulonglong *trxid)
 {
-  THD_TRANS *trans;
   Ha_trx_info *ha_info;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
+  Ha_trx_info *knownn_trans= trn_ctx->ha_trx_info(trx_scope);
   if (all)
   {
-    trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (thd->tx_read_only)
       thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
     DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
-  else
-    trans= &thd->transaction.stmt;
 
   ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
 
-  ha_info->register_ha(trans, ht_arg);
+  ha_info->register_ha(knownn_trans, ht_arg);
+  trn_ctx->set_ha_trx_info(trx_scope, ha_info);
 
-  trans->no_2pc|=(ht_arg->prepare==0);
-  thd->transaction.xid_state.set_query_id(thd->query_id);
+  if (ht_arg->prepare == 0)
+    trn_ctx->set_no_2pc(trx_scope, true);
+
+  trn_ctx->xid_state()->set_query_id(thd->query_id);
 /*
   Register transaction start in performance schema if not done already.
   By doing this, we handle cases when the transaction is started implicitly in
@@ -1214,7 +1218,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
   if (thd->m_transaction_psi == NULL &&
       ht_arg->db_type != DB_TYPE_BINLOG)
   {
-    const XID *xid= thd->transaction.xid_state.get_xid();
+    const XID *xid= trn_ctx->xid_state()->get_xid();
     my_bool autocommit= !thd->in_multi_stmt_transaction_mode();
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
@@ -1233,12 +1237,15 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 int ha_prepare(THD *thd)
 {
   int error=0;
-  Ha_trx_info *ha_info= thd->transaction.all.ha_list;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   DBUG_ENTER("ha_prepare");
 
-  if (ha_info)
+  if (trn_ctx->is_active(Transaction_ctx::SESSION))
   {
-    for (; ha_info; ha_info= ha_info->next())
+    const Ha_trx_info *ha_info= trn_ctx->ha_trx_info(
+      Transaction_ctx::SESSION);
+
+    while (ha_info)
     {
       int err;
       handlerton *ht= ha_info->ht();
@@ -1259,6 +1266,7 @@ int ha_prepare(THD *thd)
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
+      ha_info= ha_info->next();
     }
   }
 
@@ -1353,7 +1361,10 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
   */
-  THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1361,8 +1372,10 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
   */
-  bool is_real_trans= all || thd->transaction.all.ha_list == 0;
-  Ha_trx_info *ha_info= trans->ha_list;
+  bool is_real_trans=
+    all || !trn_ctx->is_active(Transaction_ctx::SESSION);
+
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope);
   DBUG_ENTER("ha_commit_trans");
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
@@ -1373,8 +1386,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     flags will not get propagated to its normal transaction's
     counterpart.
   */
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+  DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
+              !all);
 
   if (thd->in_sub_stmt)
   {
@@ -1412,7 +1425,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       thd->stmt_map.close_transient_cursors();
 
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
-    trans->rw_ha_count= rw_ha_count;
+    trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
@@ -1477,7 +1490,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       goto end;
     }
 
-    if (!trans->no_2pc && (rw_ha_count > 1))
+    if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
       error= tc_log->prepare(thd, all);
   }
   DBUG_EXECUTE_IF("simulate_prepare_error", error= 1;);
@@ -1514,7 +1527,7 @@ end:
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
 
   if (need_clear_owned_gtid)
   {
@@ -1551,8 +1564,11 @@ end:
 int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 {
   int error=0;
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
@@ -1570,25 +1586,22 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->ha_list= 0;
-    trans->no_2pc=0;
-    trans->rw_ha_count= 0;
+    trn_ctx->reset_scope(trx_scope);
     if (all)
     {
-      if (thd->transaction.changed_tables)
-        query_cache.invalidate(thd->transaction.changed_tables);
+      trn_ctx->invalidate_changed_tables_in_cache();
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
-  thd->transaction.flags.commit_low= false;
-  if (run_after_commit && thd->transaction.flags.run_hooks)
+  trn_ctx->flags.commit_low= false;
+  if (run_after_commit && thd->get_transaction()->flags.run_hooks)
   {
     /*
        If commit succeeded, we call the after_commit hook.
@@ -1599,7 +1612,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
-    thd->transaction.flags.run_hooks= false;
+    trn_ctx->flags.run_hooks= false;
   }
   DBUG_RETURN(error);
 }
@@ -1607,9 +1620,11 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 
 int ha_rollback_low(THD *thd, bool all)
 {
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   int error= 0;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
   if (ha_info)
   {
@@ -1630,9 +1645,7 @@ int ha_rollback_low(THD *thd, bool all)
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->ha_list= 0;
-    trans->no_2pc=0;
-    trans->rw_ha_count= 0;
+    trn_ctx->reset_scope(trx_scope);
   }
 
   /*
@@ -1640,7 +1653,7 @@ int ha_rollback_low(THD *thd, bool all)
     transaction hasn't been started in any transactional storage engine.
   */
   if (all && thd->transaction_rollback_request)
-    thd->transaction.xid_state.set_error(thd);
+    trn_ctx->xid_state()->set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
@@ -1650,9 +1663,7 @@ int ha_rollback_low(THD *thd, bool all)
 int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
-#ifndef DBUG_OFF
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-#endif
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1666,15 +1677,17 @@ int ha_rollback_trans(THD *thd, bool all)
     ha_commit_one_phase() is called with an empty
     transaction.all.ha_list, see why in trans_register_ha()).
   */
-  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
+  bool is_real_trans=
+    all || !trn_ctx->is_active(Transaction_ctx::SESSION);
+
   DBUG_ENTER("ha_rollback_trans");
 
   /*
     We must not rollback the normal transaction if a statement
     transaction is pending.
   */
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+  DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
+              !all);
 
   if (thd->in_sub_stmt)
   {
@@ -1706,7 +1719,7 @@ int ha_rollback_trans(THD *thd, bool all)
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
 
@@ -1726,13 +1739,11 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-#ifndef DBUG_OFF
-  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
-  thd->transaction.all.dbug_unsafe_rollback_flags("all");
-#endif
-  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans &&
+      trn_ctx->cannot_safely_rollback(
+        Transaction_ctx::SESSION) &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
-    thd->transaction.push_unsafe_rollback_warnings(thd);
+    trn_ctx->push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
 }
 
@@ -1758,7 +1769,8 @@ int ha_rollback_trans(THD *thd, bool all)
 
 int ha_release_temporary_latches(THD *thd)
 {
-  Ha_trx_info *info;
+  const Ha_trx_info *info;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
 
   /*
     Note that below we assume that only transactional storage engines
@@ -1766,7 +1778,8 @@ int ha_release_temporary_latches(THD *thd)
     we could iterate on thd->open_tables instead (and remove duplicates
     as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
   */
-  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  for (info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
+       info; info= info->next())
   {
     handlerton *hton= info->ht();
     if (hton && hton->release_temporary_latches)
@@ -1788,8 +1801,9 @@ int ha_release_temporary_latches(THD *thd)
 bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
 {
   Ha_trx_info *ha_info;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    thd->in_sub_stmt ? Transaction_ctx::STMT : Transaction_ctx::SESSION;
 
   DBUG_ENTER("ha_rollback_to_savepoint_can_release_mdl");
 
@@ -1797,7 +1811,8 @@ bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
     Checking whether it is safe to release metadata locks after rollback to
     savepoint in all the storage engines that are part of the transaction.
   */
-  for (ha_info= trans->ha_list; ha_info; ha_info= ha_info->next())
+  for (ha_info= trn_ctx->ha_trx_info(trx_scope);
+       ha_info; ha_info= ha_info->next())
   {
     handlerton *ht= ha_info->ht();
     DBUG_ASSERT(ht);
@@ -1813,14 +1828,16 @@ bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   Ha_trx_info *ha_info, *ha_info_next;
 
   DBUG_ENTER("ha_rollback_to_savepoint");
 
-  trans->no_2pc=0;
-  trans->rw_ha_count= 0;
+  trn_ctx->set_rw_ha_count(trx_scope, 0);
+  trn_ctx->set_no_2pc(trx_scope, 0);
   /*
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
@@ -1838,13 +1855,15 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
     }
     thd->status_var.ha_savepoint_rollback_count++;
-    trans->no_2pc|= ht->prepare == 0;
+    if (ht->prepare == 0)
+      trn_ctx->set_no_2pc(trx_scope, true);
   }
+
   /*
     rolling back the transaction in all storage engines that were not part of
     the transaction when the savepoint was set
   */
-  for (ha_info= trans->ha_list; ha_info != sv->ha_list;
+  for (ha_info= trn_ctx->ha_trx_info(trx_scope); ha_info != sv->ha_list;
        ha_info= ha_info_next)
   {
     int err;
@@ -1858,7 +1877,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
-  trans->ha_list= sv->ha_list;
+  trn_ctx->set_ha_trx_info(trx_scope, sv->ha_list);
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != NULL)
@@ -1871,8 +1890,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 int ha_prepare_low(THD *thd, bool all)
 {
   int error= 0;
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= thd->get_transaction()->ha_trx_info(trx_scope);
+
   DBUG_ENTER("ha_prepare_low");
 
   if (ha_info)
@@ -1910,9 +1931,11 @@ int ha_prepare_low(THD *thd, bool all)
 int ha_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
-  Ha_trx_info *ha_info= trans->ha_list;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= thd->get_transaction()->ha_trx_info(trx_scope);
+  Ha_trx_info *begin_ha_info= ha_info;
+
   DBUG_ENTER("ha_savepoint");
 
   for (; ha_info; ha_info= ha_info->next())
@@ -1937,7 +1960,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     Remember the list of registered storage engines. All new
     engines are prepended to the beginning of the list.
   */
-  sv->ha_list= trans->ha_list;
+  sv->ha_list= begin_ha_info;
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (!error && thd->m_transaction_psi != NULL)
@@ -4529,7 +4552,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  if ((thd->transaction.flags.enabled= on))
+  if ((thd->get_transaction()->flags.enabled= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.

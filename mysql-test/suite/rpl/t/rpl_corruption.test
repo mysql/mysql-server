@@ -54,7 +54,7 @@ while ($i) {
   }
   if (!$pos) {
     let $pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-    --sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
     --source include/stop_slave.inc
     --disable_query_log
     --connection master
@@ -119,7 +119,7 @@ let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
 SET GLOBAL debug= "";
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
                                                                
@@ -128,6 +128,6 @@ SET GLOBAL debug= "";
 --connection master
 SET GLOBAL master_verify_checksum = @old_master_verify_checksum;
 DROP TABLE t1;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

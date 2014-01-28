@@ -5,6 +5,7 @@
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
 
+-- source include/not_gtid_enabled.inc
 -- source include/have_debug.inc
 -- source include/master-slave.inc
 -- source include/have_myisam.inc

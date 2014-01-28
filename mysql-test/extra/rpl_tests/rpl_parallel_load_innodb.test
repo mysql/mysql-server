@@ -76,7 +76,7 @@ while($i)
 --enable_query_log
 
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 --disable_query_log
@@ -307,7 +307,7 @@ while($i)
   }
   --disable_query_log
 
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
   let $diff_tables=master:test$i1.ti_nk, slave:test$i1.ti_nk;
   source include/diff_tables.inc;
 
@@ -338,5 +338,5 @@ while($i)
 --enable_result_log
 --enable_query_log
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 

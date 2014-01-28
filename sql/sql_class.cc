@@ -415,7 +415,7 @@ void thd_unlock_data(THD *thd)
 }
 
 /**
-  Support method to check if connection has already started transcaction
+  Support method to check if connection has already started transaction
 
   @param client_cntx    Low level client context
 
@@ -423,7 +423,7 @@ void thd_unlock_data(THD *thd)
 */
 bool thd_is_transaction_active(THD *thd)
 {
-  return thd->transaction.is_active();
+  return thd->get_transaction()->is_active(Transaction_ctx::SESSION);
 }
 
 /**
@@ -589,6 +589,7 @@ void set_thd_stage_info(void *opaque_thd,
 
   thd->enter_stage(new_stage, old_stage, calling_func, calling_file, calling_line);
 }
+
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
@@ -975,8 +976,7 @@ THD::THD(bool enable_plugins)
   cleanup_done= abort_on_warning= 0;
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
-  transaction.m_pending_rows_event= 0;
-  transaction.flags.enabled= true;
+  get_transaction()->flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
@@ -1327,7 +1327,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
-  *xid = *(MYSQL_XID *) thd->transaction.xid_state.get_xid();
+  *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
 }
 
 #if defined(_WIN32)
@@ -1355,8 +1355,8 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
 
-  transaction.all.reset_unsafe_rollback_flags();
-  transaction.stmt.reset_unsafe_rollback_flags();
+  get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
+  get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -1401,10 +1401,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
-  reset_root_defaults(&transaction.mem_root,
-                      variables.trans_alloc_block_size,
-                      variables.trans_prealloc_size);
-  transaction.xid_state.reset();
+  get_transaction()->init_mem_root_defaults(variables.trans_alloc_block_size,
+                                            variables.trans_prealloc_size);
+  get_transaction()->xid_state()->reset();
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   if (rli)
   {
@@ -1492,9 +1491,9 @@ void THD::cleanup(void)
   }
 #endif
   {
-    transaction.xid_state.set_state(XID_STATE::XA_NOTR);
+    get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
-    xid_cache_delete(&transaction.xid_state);
+    transaction_cache_delete(get_transaction());
   }
 
   locked_tables_list.unlock_locked_tables(this);
@@ -1625,7 +1624,7 @@ THD::~THD()
   main_security_ctx.destroy();
   my_free(db);
   db= NULL;
-  free_root(&transaction.mem_root,MYF(0));
+  get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
@@ -2175,19 +2174,6 @@ void THD::update_charset()
 }
 
 
-/* routings to adding tables to list of changed in transaction tables */
-
-inline static void list_include(CHANGED_TABLE_LIST** prev,
-				CHANGED_TABLE_LIST* curr,
-				CHANGED_TABLE_LIST* new_table)
-{
-  if (new_table)
-  {
-    *prev = new_table;
-    (*prev)->next = curr;
-  }
-}
-
 /* add table to list of changed in transaction tables */
 
 void THD::add_changed_table(TABLE *table)
@@ -2204,63 +2190,8 @@ void THD::add_changed_table(TABLE *table)
 void THD::add_changed_table(const char *key, long key_length)
 {
   DBUG_ENTER("THD::add_changed_table(key)");
-  CHANGED_TABLE_LIST **prev_changed = &transaction.changed_tables;
-  CHANGED_TABLE_LIST *curr = transaction.changed_tables;
-
-  for (; curr; prev_changed = &(curr->next), curr = curr->next)
-  {
-    int cmp =  (long)curr->key_length - (long)key_length;
-    if (cmp < 0)
-    {
-      list_include(prev_changed, curr, changed_table_dup(key, key_length));
-      DBUG_PRINT("info", 
-		 ("key_length: %ld  %u", key_length,
-                  (*prev_changed)->key_length));
-      DBUG_VOID_RETURN;
-    }
-    else if (cmp == 0)
-    {
-      cmp = memcmp(curr->key, key, curr->key_length);
-      if (cmp < 0)
-      {
-	list_include(prev_changed, curr, changed_table_dup(key, key_length));
-	DBUG_PRINT("info", 
-		   ("key_length:  %ld  %u", key_length,
-		    (*prev_changed)->key_length));
-	DBUG_VOID_RETURN;
-      }
-      else if (cmp == 0)
-      {
-	DBUG_PRINT("info", ("already in list"));
-	DBUG_VOID_RETURN;
-      }
-    }
-  }
-  *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
-		      (*prev_changed)->key_length));
-  DBUG_VOID_RETURN;
-}
-
-
-CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
-{
-  CHANGED_TABLE_LIST* new_table = 
-    (CHANGED_TABLE_LIST*) trans_alloc(ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST))+
-				      key_length + 1);
-  if (!new_table)
-  {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
-             ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
+  if (get_transaction()->add_changed_table(key, key_length))
     killed= KILL_CONNECTION;
-    return 0;
-  }
-
-  new_table->key= ((char*)new_table)+ ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST));
-  new_table->next = 0;
-  new_table->key_length = key_length;
-  ::memcpy(new_table->key, key, key_length);
-  return new_table;
 }
 
 
@@ -3675,7 +3606,8 @@ void thd_increment_bytes_sent(ulong length)
 
 void thd_increment_bytes_received(ulong length)
 {
-  current_thd->status_var.bytes_received+= length;
+  if (likely(current_thd != NULL))
+    current_thd->status_var.bytes_received+= length;
 }
 
 
@@ -3990,7 +3922,8 @@ extern "C" int thd_slave_thread(const MYSQL_THD thd)
 
 extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
-  return thd->transaction.all.has_modified_non_trans_table();
+  return thd->get_transaction()->has_modified_non_trans_table(
+    Transaction_ctx::SESSION);
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
@@ -4170,7 +4103,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
-  backup->savepoints= transaction.savepoints;
+  backup->savepoints= get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt= 
     first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt= 
@@ -4193,7 +4126,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   m_examined_row_count= 0;
   m_sent_row_count= 0;
   cuted_fields= 0;
-  transaction.savepoints= 0;
+  get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
 }
 
@@ -4219,16 +4152,16 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     level. It is enough to release first savepoint set on this level since
     all later savepoints will be released automatically.
   */
-  if (transaction.savepoints)
+  if (get_transaction()->m_savepoints)
   {
     SAVEPOINT *sv;
-    for (sv= transaction.savepoints; sv->prev; sv= sv->prev)
+    for (sv= get_transaction()->m_savepoints; sv->prev; sv= sv->prev)
     {}
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
   count_cuted_fields= backup->count_cuted_fields;
-  transaction.savepoints= backup->savepoints;
+  get_transaction()->m_savepoints= backup->savepoints;
   variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
   enable_slow_log=  backup->enable_slow_log;

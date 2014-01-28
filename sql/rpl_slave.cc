@@ -1346,7 +1346,9 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
     */
     if (is_parallel_warn ||
         (!rli->is_parallel_exec() &&
-         thd->transaction.all.cannot_safely_rollback() && rli->is_in_group()))
+         thd->get_transaction()->cannot_safely_rollback(
+             Transaction_ctx::SESSION) &&
+         rli->is_in_group()))
     {
       char msg_stopped[]=
         "... Slave SQL Thread stopped with incomplete event group "
@@ -3910,7 +3912,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           ((ev->get_type_code() == QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
-                        DBUG_ASSERT(thd->transaction.all.cannot_safely_rollback());
+                        DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
+                            Transaction_ctx::SESSION));
                         rli->abort_slave= 1;
                         mysql_mutex_unlock(&rli->data_lock);
                         delete ev;
@@ -3971,7 +3974,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       bool silent= false;
       if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
           (temp_err= rli->has_temporary_error(thd, 0, &silent)) &&
-          !thd->transaction.all.cannot_safely_rollback())
+          !thd->get_transaction()->cannot_safely_rollback(
+              Transaction_ctx::SESSION))
       {
         const char *errmsg;
         /*

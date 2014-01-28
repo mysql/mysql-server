@@ -15,6 +15,7 @@
 # BUG#31793: log event corruption causes crash
 # BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
 
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 # BUG#40482 only manifested itself in debug-compiled binaries.

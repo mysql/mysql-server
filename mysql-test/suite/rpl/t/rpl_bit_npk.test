@@ -76,7 +76,7 @@ SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
 SELECT hex(bit1) from test.t1 ORDER BY bit1;
 SELECT hex(bit2) from test.t1 ORDER BY bit2;
 SELECT hex(bit3) from test.t1 ORDER BY bit3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
     FROM test.t1
@@ -98,7 +98,7 @@ UPDATE test.t3 SET a = 2 WHERE b = 0;
 
 SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
 SELECT * FROM test.t3 ORDER BY a,b;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
 SELECT * FROM test.t3 ORDER BY a,b;
@@ -107,7 +107,7 @@ connection master;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 --source include/rpl_end.inc
