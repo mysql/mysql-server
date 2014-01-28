@@ -52,7 +52,7 @@ END//
 delimiter ;//
 
 # Make sure that all definition have propagated to the slave
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 -- disable_query_log
@@ -76,7 +76,7 @@ while ($1)
 connection master;
 let $count = `select count(*) from t1`;
 eval INSERT INTO test.t1 VALUES ($count+1, NOW());
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #show binlog events; 
 #select * from test.t2;
@@ -102,7 +102,7 @@ DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

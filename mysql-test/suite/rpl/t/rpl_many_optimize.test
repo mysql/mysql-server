@@ -18,7 +18,7 @@ enable_result_log;
 enable_query_log;
 drop table t1;
 # Bug was that slave segfaulted after ~ a hundred of OPTIMIZE (or ANALYZE)
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

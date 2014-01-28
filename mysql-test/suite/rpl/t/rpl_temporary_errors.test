@@ -11,7 +11,7 @@ connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SHOW STATUS LIKE 'Slave_retried_transactions';
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following UPDATE t1 to pass the mode is switched temprorarily
@@ -24,7 +24,7 @@ UPDATE t1 SET a = 5, b = 5 WHERE a = 1;
 SELECT * FROM t1 order by a;
 #SHOW BINLOG EVENTS;
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1 order by a;

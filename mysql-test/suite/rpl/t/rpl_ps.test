@@ -6,7 +6,7 @@
 ###########################################################
 source include/master-slave.inc;
 
-#sync_slave_with_master;
+#--source include/sync_slave_sql_with_master.inc
 #reset master;
 #connection master;
 
@@ -28,14 +28,14 @@ prepare stmt2 from @var2;
 set @var1='from-master-3';
 execute stmt2 using @var1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY n;
 
 connection master;
 
 drop table t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 stop slave;
 source include/wait_for_slave_to_stop.inc;
 # End of 4.1 tests
@@ -86,7 +86,7 @@ use mysqltest1;
 EXECUTE stmt_d_1;
 
 --echo # Connection: slave
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 SELECT * FROM t1;
 

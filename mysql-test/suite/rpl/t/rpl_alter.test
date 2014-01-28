@@ -7,12 +7,12 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from mysqltest.t2;
 select * from mysqltest.t3;
 connection master;
 drop database mysqltest;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

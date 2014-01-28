@@ -12,7 +12,7 @@
 --source include/master-slave.inc
 
 --echo [connection slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @slave_debug_save= @@GLOBAL.DEBUG;
 
 

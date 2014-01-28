@@ -31,7 +31,7 @@ let $VERSION=`select version()`;
 # Stop slave before it starts replication.  Also sync with master
 # to avoid nondeterministic behaviour.
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
 --echo ==== Create some events on master ====
@@ -93,7 +93,7 @@ start slave;
 --echo [on master]
 connection master;
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
 --let $exec_log_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
@@ -144,6 +144,7 @@ source include/stop_slave.inc;
 drop table if exists t1;
 --enable_warnings
 reset slave;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
 

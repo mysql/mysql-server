@@ -60,7 +60,7 @@ connection master;
 create database d0;
 create table d0.t0 (a int auto_increment primary key, b text null) engine=innodb;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 begin;
@@ -118,7 +118,7 @@ connection master;
 
 drop database d0;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 drop view coord_wait_list;

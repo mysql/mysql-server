@@ -21,7 +21,7 @@ delimiter ;|
 CALL test.p1();
 SELECT * FROM test.t1 ORDER BY blob_column;
 save_master_pos;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 # Need to allow some time when NDB engine is used for
 # the injector thread to have time to populate binlog
@@ -33,4 +33,4 @@ SELECT * FROM test.t1 ORDER BY blob_column;
 connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

@@ -19,7 +19,7 @@ connection master;
 eval $statement;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo # Expect 0
 SELECT COUNT(*) FROM t1;
 let $after = query_get_value("SHOW MASTER STATUS", Position, 1);

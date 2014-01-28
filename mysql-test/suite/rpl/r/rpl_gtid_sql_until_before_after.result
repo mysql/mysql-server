@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/rpl_set_gtid_mode.inc
 CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
+include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
 [connection master]

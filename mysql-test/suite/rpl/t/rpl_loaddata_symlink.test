@@ -11,12 +11,12 @@ create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 select * from t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 select * from t1;
 
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
