@@ -625,7 +625,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
     if ((res= sl->handle_derived(lex, DT_PREPARE)))
       goto exit;
 
-    if (derived->outer_join)
+    if (derived->outer_join && sl->first_cond_optimization)
     {
       /* Mark that table is part of OUTER JOIN and fields may be NULL */
       for (TABLE_LIST *cursor= (TABLE_LIST*) sl->table_list.first;
