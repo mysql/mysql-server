@@ -173,15 +173,11 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
 }
 
 
-int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
-                                    rpl_gno gno_start, rpl_gno gno_end)
+int Gtid_table_persistor::fill_fields(Field **fields, const char *sid,
+                                      rpl_gno gno_start, rpl_gno gno_end)
 {
-  DBUG_ENTER("Gtid_table_persistor::write_row");
-  int error= 0;
-  Field **fields= NULL;
+  DBUG_ENTER("Gtid_table_persistor::fill_field");
 
-  fields= table->field;
-  empty_record(table);
   /* Store SID */
   fields[0]->set_notnull();
   if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
@@ -205,6 +201,25 @@ int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
     my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[2]->field_name);
     goto err;
   }
+
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(-1);
+}
+
+
+int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
+                                    rpl_gno gno_start, rpl_gno gno_end)
+{
+  DBUG_ENTER("Gtid_table_persistor::write_row");
+  int error= 0;
+  Field **fields= NULL;
+
+  fields= table->field;
+  empty_record(table);
+
+  if(fill_fields(fields, sid, gno_start, gno_end))
+    goto err;
 
   /* Inserts a new row into the gtid table. */
   if ((error= table->file->ha_write_row(table->record[0])))
@@ -234,29 +249,9 @@ int Gtid_table_persistor::update_row(TABLE* table, const char *sid,
 
   fields= table->field;
   empty_record(table);
-  /* Store SID */
-  fields[0]->set_notnull();
-  if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
-  {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
-    DBUG_RETURN(-1);
-  }
 
-  /* Store gno_start */
-  fields[1]->set_notnull();
-  if (fields[1]->store(gno_start, true /* unsigned = true*/))
-  {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[1]->field_name);
+  if(fill_fields(fields, sid, gno_start, gno_end))
     DBUG_RETURN(-1);
-  }
-
-  /* Store gno_end */
-  fields[2]->set_notnull();
-  if (fields[2]->store(gno_end, true /* unsigned = true*/))
-  {
-    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[2]->field_name);
-    DBUG_RETURN(-1);
-  }
 
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);

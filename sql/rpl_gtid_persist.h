@@ -174,7 +174,21 @@ private:
   void close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error, bool need_commit= false);
   /**
-    Write a gtid interval into the gtid_executed table.
+    Fill a gtid interval into fields of the gtid table.
+
+    @param  fields   Reference to table fileds.
+    @param  sid      The source id of the gtid interval.
+    @param  gno_star The first GNO of the gtid interval.
+    @param  gno_end  The last GNO of the gtid interval.
+
+    @return
+      @retval 0    OK.
+      @retval -1   Error.
+  */
+  int fill_fields(Field **fields, const char *sid,
+                  rpl_gno gno_start, rpl_gno gno_end);
+  /**
+    Write a gtid interval into the gtid table.
 
     @param  table    Reference to a table object.
     @param  sid      The source id of the gtid interval.
@@ -188,7 +202,7 @@ private:
   int write_row(TABLE* table, const char *sid,
                 rpl_gno gno_start, rpl_gno gno_end);
   /**
-    Update a gtid interval in the gtid_executed table.
+    Update a gtid interval in the gtid table.
 
     @param  table        Reference to a table object.
     @param  sid          The source id of the gtid interval.
