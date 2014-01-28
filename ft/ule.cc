@@ -464,6 +464,7 @@ toku_le_apply_msg(FT_MSG   msg,
                   GC_INFO gc_info,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
+    paranoid_invariant_notnull(new_leafentry_p);
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
@@ -496,7 +497,7 @@ toku_le_apply_msg(FT_MSG   msg,
         new_leafentry_p
         );
     invariant_zero(rval);
-    if (new_leafentry_p) {
+    if (*new_leafentry_p) {
         newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
