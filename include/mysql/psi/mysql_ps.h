@@ -30,18 +30,14 @@
 #ifdef HAVE_PSI_PS_INTERFACE
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
     inline_mysql_create_prepared_stmt(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH)
-  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT, KEY) \
-    inline_mysql_start_prepare_stmt(PS_STATE, PREPARED_STMT, KEY)
-  #define MYSQL_END_PS(LOCKER) \
-    inline_mysql_end_prepare_stmt(LOCKER)
+  #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
+    inline_mysql_execute_prepared_stmt(LOCKER, PREPARED_STMT)
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
     inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
 #else
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
     do {} while (0)
-  #define MYSQL_START_PS(PS_STATE, PREPARED_STMT, KEY) \
-    do {} while (0)
-  #define MYSQL_END_PS(LOCKER) \
+  #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
     do {} while (0)
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
     do {} while (0)
@@ -51,8 +47,8 @@
 static inline struct PSI_prepared_stmt*
 inline_mysql_create_prepared_stmt(void *identity, uint stmt_id,
                                   PSI_statement_locker *locker,
-                                  char *stmt_name, uint stmt_name_length,
-                                  char *sqltext, uint sqltext_length)
+                                  const char *stmt_name, size_t stmt_name_length,
+                                  const char *sqltext, size_t sqltext_length)
 {
   if (locker == NULL)
     return NULL;
@@ -62,21 +58,12 @@ inline_mysql_create_prepared_stmt(void *identity, uint stmt_id,
                                            sqltext, sqltext_length);
 }
 
-static inline struct PSI_prepared_stmt_locker*
-inline_mysql_start_prepare_stmt(PSI_prepared_stmt_locker_state *state,
-                                PSI_prepared_stmt* prepared_stmt,
-                                PSI_statement_key key)
-{
-  if (prepared_stmt == NULL)
-    return NULL;
-  return PSI_PS_CALL(start_prepare_stmt)(state, prepared_stmt, key);
-}
-
 static inline void 
-inline_mysql_end_prepare_stmt(PSI_prepared_stmt_locker *locker)
+inline_mysql_execute_prepared_stmt(PSI_statement_locker *locker,
+                                   PSI_prepared_stmt* prepared_stmt)
 {
-  if (likely(locker != NULL))
-    PSI_PS_CALL(end_prepare_stmt)(locker);
+  if (prepared_stmt != NULL)
+    PSI_PS_CALL(execute_prepared_stmt)(locker, prepared_stmt);
 }
 
 static inline void 

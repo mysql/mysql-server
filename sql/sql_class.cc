@@ -886,7 +886,6 @@ THD::THD(bool enable_plugins)
    table_map_for_update(0),
    m_examined_row_count(0),
    m_statement_psi(NULL),
-   m_sp_statement_psi(NULL),
    m_transaction_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),

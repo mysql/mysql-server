@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,10 +67,10 @@
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS, PS) \
-    inline_mysql_start_statement(STATE, K, DB, DB_LEN, CS, SPS, PS , __FILE__, __LINE__)
+  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) \
+    inline_mysql_start_statement(STATE, K, DB, DB_LEN, CS, SPS, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS, PS) \
+  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) \
     NULL
 #endif
 
@@ -159,12 +159,11 @@ inline_mysql_start_statement(PSI_statement_locker_state *state,
                              const char *db, uint db_len,
                              const CHARSET_INFO *charset,
                              PSI_sp_share *sp_share,
-                             PSI_prepared_stmt *parent_ps,
                              const char *src_file, int src_line)
 {
   PSI_statement_locker *locker;
   locker= PSI_STATEMENT_CALL(get_thread_statement_locker)(state, key, charset,
-                                                          sp_share, parent_ps);
+                                                          sp_share);
   if (likely(locker != NULL))
     PSI_STATEMENT_CALL(start_statement)(locker, db, db_len, src_file, src_line);
   return locker;
