@@ -3330,4 +3330,27 @@ EXECUTE stmt;
 
 DROP TABLE t1,t2;
  
+
+--echo #
+--echo # MDEV-5369: Wrong result (0 instead of NULL) on 2nd execution of 
+--echo # PS with LEFT JOIN, TEMPTABLE view
+--echo #
+
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0),(8);
+
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SELECT SUM(pk) FROM t1 LEFT JOIN v2 ON a = pk;
+
+PREPARE stmt FROM "SELECT SUM(pk) FROM t1 LEFT JOIN v2 ON a = pk";
+EXECUTE stmt; 
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP VIEW v2;
+DROP TABLE t1, t2;
+
 --echo # End of 5.3 tests
