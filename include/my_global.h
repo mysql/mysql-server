@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,12 +59,6 @@
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
-#endif
-
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) A
-#else
-#define IF_PURIFY(A,B) B
 #endif
 
 #if defined (_WIN32)

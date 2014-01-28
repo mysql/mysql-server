@@ -5459,12 +5459,7 @@ struct my_option my_long_options[]=
 #endif
   {"symbolic-links", 's', "Enable symbolic link support.",
    &my_enable_symlinks, &my_enable_symlinks, 0, GET_BOOL, NO_ARG,
-   /*
-     The system call realpath() produces warnings under valgrind and
-     purify. These are not suppressed: instead we disable symlinks
-     option if compiled with valgrind support.
-   */
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -6534,11 +6529,9 @@ static int mysql_init_variables(void)
 #else
   have_ssl=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_BROKEN_REALPATH
-  have_symlink=SHOW_OPTION_NO;
-#else
-  have_symlink=SHOW_OPTION_YES;
-#endif
+
+  have_symlink= SHOW_OPTION_YES;
+
 #ifdef HAVE_DLOPEN
   have_dlopen=SHOW_OPTION_YES;
 #else
@@ -7182,13 +7175,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);
-#if defined(HAVE_BROKEN_REALPATH)
-  my_enable_symlinks= 0;
-  have_symlink=SHOW_OPTION_NO;
-#else
+
   if (!my_enable_symlinks)
-    have_symlink=SHOW_OPTION_DISABLED;
-#endif
+    have_symlink= SHOW_OPTION_DISABLED;
+
   if (opt_debugging)
   {
     /* Allow break with SIGINT, no core or stack trace */
