@@ -23,8 +23,7 @@ LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE test.t1;
 
 
 SELECT * FROM test.t1 ORDER BY a DESC;
-save_master_pos;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 SELECT * FROM test.t1 ORDER BY a DESC;
 
@@ -32,7 +31,7 @@ SELECT * FROM test.t1 ORDER BY a DESC;
 #show binlog events;
 connection master;
 DROP TABLE test.t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 

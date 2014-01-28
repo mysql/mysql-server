@@ -105,6 +105,7 @@ Master bykey	500
 CALL test.proc_byrange();
 SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
 Master byrange	500
+include/sync_slave_sql_with_master.inc
 show create table test.byrange_tbl;
 Table	byrange_tbl
 Create Table	CREATE TABLE `byrange_tbl` (

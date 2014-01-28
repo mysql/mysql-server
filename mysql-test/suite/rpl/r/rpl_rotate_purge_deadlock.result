@@ -24,10 +24,12 @@ master-bin.000003	#
 SET DEBUG_SYNC = 'now SIGNAL rotated';
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
+include/sync_slave_sql_with_master.inc
 SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
 insert into t1 set f=repeat('b', 4096);
 SET DEBUG_SYNC = 'now SIGNAL rotated';
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

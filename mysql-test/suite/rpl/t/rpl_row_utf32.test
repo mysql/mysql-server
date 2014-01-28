@@ -37,7 +37,7 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t1(c1) VALUES ('insert into t1');
 DROP TABLE t1;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # assertion: the slave woul hit an/several assertions:
 #            before and during slave conversion procedure

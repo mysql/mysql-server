@@ -28,11 +28,11 @@ truncate table t1;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 eval load data local infile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
 --remove_file $MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select a,count(*) from t1 group by a;
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 
@@ -83,7 +83,7 @@ eval load data local infile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' i
 SELECT * FROM t1 ORDER BY a;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 
 --echo ==== Clean up ====
@@ -93,7 +93,7 @@ connection master;
 DROP TABLE t1;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo Bug #43746:
@@ -150,7 +150,7 @@ SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIE
 eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
 
 --echo [slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo  Bug #59267:
@@ -170,7 +170,7 @@ eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug59267.sql' INTO TABLE t1;
 SELECT 'Master', COUNT(*) FROM t1;
 
 --echo [slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SELECT 'Slave', COUNT(*) FROM t1;
 
 # cleanup
@@ -184,7 +184,7 @@ DROP TABLE t1;
 SET SESSION sql_mode=@old_mode;
 
 --echo [slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 
@@ -220,7 +220,7 @@ SELECT * FROM t1;
 sleep 1;
 
 --echo [slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SELECT * FROM t1;
 
@@ -233,7 +233,7 @@ DROP VIEW v1;
 DROP TABLE t1, t2, t3;
 
 --echo [slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 --source include/rpl_end.inc

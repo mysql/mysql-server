@@ -37,7 +37,7 @@ INSERT INTO t1 (b) VALUES ('master');
 INSERT INTO t1 (b) VALUES ('master');
 SELECT * FROM t1 ORDER BY a;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 INSERT INTO t1 (b) VALUES ('slave');
 INSERT INTO t1 (b) VALUES ('slave');
@@ -91,7 +91,7 @@ SET @@session.collation_server=utf8_bin;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
@@ -126,7 +126,7 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c INT) ENGINE=MyISAM
 INSERT INTO t1 VALUES (1, 'master ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (2, 'slave ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 
@@ -153,7 +153,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHA
 --replace_regex /\'.+\'/'FILE'/
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words.dat' INTO TABLE t1 (b)
 SELECT COUNT(*) FROM t1;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --replace_regex /\'.+\'/'FILE2'/
 --error 1148
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words2.dat' INTO TABLE t1 (b)
@@ -186,7 +186,7 @@ while ($counter) {
 --enable_query_log
 SELECT COUNT(*)=2000 FROM t1;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 let $counter=2000;
 --disable_query_log
 while ($counter) {
@@ -234,7 +234,7 @@ SET @@session.default_storage_engine=Memory;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
 CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=InnoDB;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
 
 --connection master
@@ -273,7 +273,7 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c DATE);
 INSERT INTO t1 VALUES (1, 'master', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --error 1292
 INSERT INTO t1 VALUES (1, 'slave', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;
@@ -293,7 +293,7 @@ DROP TABLE t1;
 SET @@global.character_set_database=@restore_master_character_set_database;
 SET @@global.collation_server=@restore_master_collation_server;
 SET @@global.default_storage_engine=@restore_master_storage_engine;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;

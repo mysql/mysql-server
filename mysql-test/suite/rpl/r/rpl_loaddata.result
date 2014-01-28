@@ -15,6 +15,7 @@ create temporary table t2 (day date,id int(9),category enum('a','b','c'),name va
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 insert into t3 select * from t2;
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	10
@@ -28,6 +29,7 @@ drop table t1;
 drop table t2;
 drop table t3;
 create table t1(a int, b int, unique(b));
+include/sync_slave_sql_with_master.inc
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: 1062");
@@ -109,10 +111,12 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1;
 ### assertion: works without stating the default database
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
 ### disconnect and switch back to master connection
+include/sync_slave_sql_with_master.inc
 use b48297_db1;
 include/diff_tables.inc [master:b48297_db1.t1, slave:b48297_db1.t1]
 DROP DATABASE b48297_db1;
 DROP DATABASE b42897_db2;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 use test;
 CREATE TABLE t1 (`key` TEXT, `text` TEXT);
@@ -124,5 +128,6 @@ Field 1	'Field 2'
 Field 3	'Field 4'
 'Field 5' 	'Field 6'
 Field 6	 'Field 7'
+include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 include/rpl_end.inc

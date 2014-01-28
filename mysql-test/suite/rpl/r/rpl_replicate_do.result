@@ -15,6 +15,7 @@ insert into t1 values(15),(16),(17);
 update t1 set m=20 where m=16;
 delete from t1 where m=17;
 create table t11 select * from t1;
+include/sync_slave_sql_with_master.inc
 select * from t1 ORDER BY m;
 m
 15
@@ -25,6 +26,7 @@ n
 select * from t11;
 ERROR 42S02: Table 'test.t11' doesn't exist
 drop table if exists t1,t2,t11;
+include/sync_slave_sql_with_master.inc
 Replicate_Do_Table = 'test.t1'
 *** master ***
 create table t1 (a int, b int);
@@ -39,6 +41,7 @@ show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trg1	INSERT	t1	set new.b=2	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	INSERT	t2	set new.b=2	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+include/sync_slave_sql_with_master.inc
 *** slave ***
 show tables;
 Tables_in_test
@@ -51,6 +54,7 @@ drop trigger trg1;
 drop trigger trg2;
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+include/sync_slave_sql_with_master.inc
 *** slave ***
 show tables;
 Tables_in_test
@@ -60,4 +64,5 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 *** master ***
 drop table t1;
 drop table t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

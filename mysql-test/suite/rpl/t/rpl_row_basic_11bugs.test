@@ -26,7 +26,7 @@ CREATE TABLE t2 (a INT, b INT);
 SHOW TABLES;
 INSERT INTO t2 VALUES (3,3), (4,4);
 source include/show_binlog_events.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SHOW DATABASES;
 USE test;
@@ -38,7 +38,7 @@ connection master;
 DROP DATABASE test_ignore;
 USE test;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 USE test;
 
 
@@ -72,7 +72,7 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
 
 --echo **** On Master **** 
@@ -80,7 +80,7 @@ connection master;
 INSERT INTO t1 VALUES (4),(5),(6);
 
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
 --echo **** On Master **** 
@@ -88,7 +88,7 @@ connection master;
 INSERT INTO t1 VALUES (7),(8),(9);
 
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
 SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
@@ -102,23 +102,23 @@ DROP TABLE t1;
 
 connection master;
 CREATE TABLE t1 (a BIT(1), b INT) ENGINE=MYISAM;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 INSERT INTO t1 VALUES(1,2);
 SELECT HEX(a),b FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT HEX(a),b FROM t1;
 
 connection master;
 UPDATE t1 SET a=0 WHERE b=2;
 SELECT HEX(a),b FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT HEX(a),b FROM t1;
 
 connection master;
 DROP TABLE IF EXISTS t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # BUG#22583: RBR between MyISAM and non-MyISAM tables containing a BIT
 # field does not work
@@ -135,7 +135,7 @@ CREATE TABLE t1_innodb (k INT, a BIT(1), b BIT(9)) ENGINE=INNODB;
 CREATE TABLE t2_myisam (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=MYISAM;
 CREATE TABLE t2_innodb (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=INNODB;
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 ALTER TABLE t1_myisam ENGINE=INNODB;
 ALTER TABLE t1_innodb ENGINE=MYISAM;
 ALTER TABLE t2_myisam ENGINE=INNODB;
@@ -157,7 +157,7 @@ INSERT INTO t2_innodb VALUES(2, b'1', 8);
 SELECT k, HEX(a),HEX(b) FROM t2_myisam;
 SELECT k, HEX(a),HEX(b) FROM t2_innodb;
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 SELECT k, HEX(a),HEX(b) FROM t1_innodb;
 SELECT k, HEX(a),HEX(b) FROM t2_myisam;
@@ -174,7 +174,7 @@ SELECT k, HEX(a),HEX(b) FROM t2_myisam;
 UPDATE t2_innodb SET a=0 WHERE k=2;
 SELECT k, HEX(a),HEX(b) FROM t2_innodb;
 --echo **** On Slave **** 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 SELECT k, HEX(a),HEX(b) FROM t1_innodb;
 SELECT k, HEX(a),HEX(b) FROM t2_myisam;
@@ -183,7 +183,7 @@ SELECT k, HEX(a),HEX(b) FROM t2_innodb;
 --echo **** On Master **** 
 connection master;
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # Bug#27716  	multi-update did partially and has not binlogged
@@ -214,7 +214,7 @@ connection master;
 error ER_DUP_ENTRY;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 select * from t2 /* must be (3,1), (4,4) */;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 select * from t2 /* must be (3,1), (4,4) */;
@@ -222,7 +222,7 @@ select * from t2 /* must be (3,1), (4,4) */;
 connection master;
 drop table t1,t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#31702: Missing row on slave causes assertion failure under
@@ -236,7 +236,7 @@ connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
 INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In
@@ -248,7 +248,7 @@ connection master;
 UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 --echo **** On Slave ****
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;

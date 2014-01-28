@@ -9,7 +9,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 # Create a test and replicate it to slave
 connection master;
 create user test;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Setting the master readonly :
 # - the variable @@readonly is not replicated on the slave
@@ -32,7 +32,7 @@ select @@read_only;
 select * from t1;
 select * from t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select @@read_only;
 select * from t1;
 select * from t2;
@@ -85,7 +85,7 @@ insert into t2 values(2004);
 select * from t1;
 select * from t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 select * from t2;
 
@@ -107,7 +107,7 @@ insert into t2 values(2005);
 select * from t1;
 select * from t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 select * from t1;
 select * from t2;
@@ -124,7 +124,7 @@ connection master;
 drop user test;
 drop table t1;
 drop table t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set global read_only=0;
 
 

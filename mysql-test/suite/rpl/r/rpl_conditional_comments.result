@@ -18,6 +18,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; /* 99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /* 99999 ,(11)*/
 master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 
 # Case 2:
@@ -29,6 +30,7 @@ EXECUTE stmt;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt;
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 
 SET @value=62;
@@ -55,6 +57,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla */ t1 VALUES(62) /* 99999 ,(63)*/
 master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 
 # Case 3:

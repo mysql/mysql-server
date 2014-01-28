@@ -21,8 +21,9 @@ call mtr.add_suppression("Semi-sync master failed on net_flush() before waiting 
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression(".*Got an error reading communication packets.*");
 enable_query_log;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master, save the count of connections before start
@@ -207,7 +208,7 @@ show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 
 echo [ slave status after replicated inserts ];
@@ -226,7 +227,7 @@ connection master;
 echo [ on master ];
 SET SESSION AUTOCOMMIT= 0;
 CREATE TABLE t2(c1 INT) ENGINE=innodb;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 BEGIN;
@@ -244,7 +245,7 @@ COMMIT;
 
 DROP TABLE t2, t3;
 SET SESSION AUTOCOMMIT= 1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 --echo #
@@ -340,7 +341,7 @@ show status like 'Rpl_semi_sync_master_clients';
 --echo #
 
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 
 source include/stop_slave.inc;
@@ -393,7 +394,7 @@ drop table t1;
 
 ##show status like 'Rpl_semi_sync_master_status';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --replace_column 2 #
 show status like 'Rpl_relay%';
 
@@ -447,7 +448,7 @@ eval create table t1 (a int) engine = $engine_type;
 insert into t1 values (1);
 insert into t1 values (2), (3);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 
 select * from t1;
@@ -530,7 +531,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 --echo #
 
 # Disable semi-sync on master
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 source include/stop_slave.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
@@ -570,7 +571,7 @@ source include/wait_for_status_var.inc;
 echo [ master semi-sync clients should be 1, status should be OFF ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 show status like 'Rpl_semi_sync_slave_status';
 
@@ -591,7 +592,7 @@ source include/start_slave.inc;
 connection master;
 echo [ on master ];
 insert into t1 values (10);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 
@@ -648,7 +649,7 @@ source include/start_slave.inc;
 
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 drop user rpl@127.0.0.1;

@@ -5198,7 +5198,8 @@ compare_errors:
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
                     {
-                      if (thd->transaction.all.cannot_safely_rollback())
+                      if (thd->get_transaction()->cannot_safely_rollback(
+                          Transaction_ctx::SESSION))
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;
                     };);
   }
@@ -5931,7 +5932,8 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!is_artificial_event() && created && thd->transaction.all.ha_list)
+  if (!is_artificial_event() && created &&
+      thd->get_transaction()->is_active(Transaction_ctx::SESSION))
   {
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
@@ -7666,7 +7668,8 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
    */
   DBUG_EXECUTE_IF("simulate_commit_failure",
                   {
-                    thd->transaction.xid_state.set_state(XID_STATE::XA_IDLE);
+                    thd->get_transaction()->xid_state()->set_state(
+                        XID_STATE::XA_IDLE);
                   });
   error= do_commit(thd);
   if(error)
@@ -10393,8 +10396,10 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
 
   if (error == 0 && !m_table->file->has_transactions())
   {
-    thd->transaction.all.set_unsafe_rollback_flags(TRUE);
-    thd->transaction.stmt.set_unsafe_rollback_flags(TRUE);
+    thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::SESSION,
+                                                      TRUE);
+    thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
+                                                      TRUE);
   }
 }
 
@@ -11291,7 +11296,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       has not yet modified anything. Note, all.modified is reset
       by mysql_reset_thd_for_next_command.
     */
-    thd->transaction.stmt.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
     /*
       This is a row injection, so we flag the "statement" as
       such. Note that this code is called both when the slave does row
@@ -11591,8 +11596,9 @@ AFTER_MAIN_EXEC_ROW_LOOP:
         may be stopped in the middle thus leading to inconsistencies
         after a restart.
       */
-      thd->transaction.stmt.mark_modified_non_trans_table();
-      thd->transaction.merge_unsafe_rollback_flags();
+      thd->get_transaction()->mark_modified_non_trans_table(
+        Transaction_ctx::STMT);
+      thd->get_transaction()->merge_unsafe_rollback_flags();
     }
 
     /*
@@ -11607,7 +11613,8 @@ AFTER_MAIN_EXEC_ROW_LOOP:
          to shutdown trying to finish incomplete events group.
      */
       DBUG_EXECUTE_IF("stop_slave_middle_group",
-                      if (thd->transaction.all.cannot_safely_rollback())
+                      if (thd->get_transaction()->cannot_safely_rollback(
+                          Transaction_ctx::SESSION))
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     }
 

@@ -590,7 +590,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
-	  if (thd->transaction.stmt.cannot_safely_rollback())
+	  if (thd->get_transaction()->cannot_safely_rollback(
+	      Transaction_ctx::STMT))
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
@@ -666,7 +667,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 err:
   DBUG_ASSERT(table->file->has_transactions() ||
               !(info.stats.copied || info.stats.deleted) ||
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
