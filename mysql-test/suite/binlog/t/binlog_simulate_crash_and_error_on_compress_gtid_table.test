@@ -23,7 +23,7 @@
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
 
-call mtr.add_suppression("Failed to compress gtid_executed table.");
+call mtr.add_suppression("Failed to compress the gtid table.");
 SET @debug_save= @@GLOBAL.DEBUG;
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 CREATE TABLE t1 (a int) ENGINE=InnoDB;

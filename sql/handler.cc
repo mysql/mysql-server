@@ -1434,7 +1434,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
        thd->variables.gtid_next.type == GTID_GROUP)) &&
       !thd->is_operating_gtid_table)
   {
-    error= gtid_state->save_gtid_into_table(thd);
+    error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
   }
 

@@ -206,7 +206,7 @@ int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
     goto err;
   }
 
-  /* Inserts a new row into gtid_executed table. */
+  /* Inserts a new row into the gtid table. */
   if ((error= table->file->ha_write_row(table->record[0])))
   {
     table->file->print_error(error, MYF(0));
@@ -289,7 +289,7 @@ int Gtid_table_persistor::update_row(TABLE* table, const char *sid,
     goto end;
   }
 
-  /* Update a row in gtid_executed table. */
+  /* Update a row in the gtid table. */
   if ((error= table->file->ha_update_row(table->record[1], table->record[0])))
   {
     table->file->print_error(error, MYF(0));
@@ -309,15 +309,15 @@ end:
 }
 
 
-int Gtid_table_persistor::save(Gtid *gtid)
+int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
 {
-  DBUG_ENTER("Gtid_table_persistor::save(Gtid *gtid)");
+  DBUG_ENTER("Gtid_table_persistor::save(THD *thd, Gtid *gtid)");
   int error= 0;
   TABLE *table= NULL;
   char buf[rpl_sid::TEXT_LENGTH + 1];
   ulong saved_mode;
   Open_tables_backup backup;
-  THD *thd= current_thd, *drop_thd_object= NULL;
+  THD *drop_thd_object= NULL;
 
   /* Get source id */
   global_sid_lock->rdlock();
@@ -443,9 +443,9 @@ int Gtid_table_persistor::compress_first_consecutive_gtids(TABLE* table)
 }
 
 
-int Gtid_table_persistor::save(Gtid_set *gtid_executed)
+int Gtid_table_persistor::save(Gtid_set *gtid_set)
 {
-  DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_executed)");
+  DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_set)");
   int error= 0;
   TABLE *table= NULL;
   ulong saved_mode;
@@ -463,7 +463,7 @@ int Gtid_table_persistor::save(Gtid_set *gtid_executed)
     goto end;
   }
 
-  error= save(table, gtid_executed);
+  error= save(table, gtid_set);
 
 end:
   this->close_table(thd, table, &backup, 0 != error);
@@ -506,10 +506,13 @@ int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
   Simulate error and crash in the middle of the transaction
   of compressing gtid table.
 
+  @param  thd Thread requesting to compress the table
+
   @return
     @retval 0    OK.
     @retval -1   Error.
 */
+#ifndef DBUG_OFF
 static int dbug_test_on_compress(THD* thd)
 {
   DBUG_ENTER("dbug_test_on_compress");
@@ -549,9 +552,10 @@ static int dbug_test_on_compress(THD* thd)
 
   DBUG_RETURN(0);
 }
+#endif
 
 
-int Gtid_table_persistor::compress()
+int Gtid_table_persistor::compress(THD *thd)
 {
   DBUG_ENTER("Gtid_table_persistor::compress");
   int error= 0;
@@ -560,7 +564,7 @@ int Gtid_table_persistor::compress()
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_backup backup;
-  THD *thd= current_thd, *drop_thd_object= NULL;
+  THD *drop_thd_object= NULL;
 
   if (!thd)
     thd= drop_thd_object= this->create_thd();
@@ -587,7 +591,9 @@ int Gtid_table_persistor::compress()
   if ((error= compress_first_consecutive_gtids(table)))
     goto end;
 
+#ifndef DBUG_OFF
   error= dbug_test_on_compress(thd);
+#endif
 
 end:
   this->close_table(thd, table, &backup, 0 != error, true);
@@ -607,14 +613,14 @@ end:
 }
 
 
-int Gtid_table_persistor::reset()
+int Gtid_table_persistor::reset(THD *thd)
 {
   DBUG_ENTER("Gtid_table_persistor::reset");
   int error= 0;
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_backup backup;
-  THD *thd= current_thd, *drop_thd_object= NULL;
+  THD *drop_thd_object= NULL;
 
   if (!thd)
     thd= drop_thd_object= this->create_thd();
@@ -702,7 +708,7 @@ void Gtid_table_persistor::get_gtid_interval(TABLE* table, string& sid,
 }
 
 
-int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_executed)
+int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_table_persistor::fetch_gtids");
   int ret= 0;
@@ -732,9 +738,9 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_executed)
 
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
-    /* Store the gtid into gtid_executed set */
+    /* Store the gtid into the gtid_set */
     global_sid_lock->wrlock();
-    if (gtid_executed->add_gtid_text(encode_gtid_text(table).c_str()) !=
+    if (gtid_set->add_gtid_text(encode_gtid_text(table).c_str()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
@@ -767,8 +773,8 @@ int Gtid_table_persistor::delete_all(TABLE* table)
     DBUG_RETURN(-1);
 
   /*
-    Delete all rows in the gtid_executed table. We cannot use
-    truncate(), since it is a non-transactional DDL operation.
+    Delete all rows in the gtid table. We cannot use truncate(),
+    since it is a non-transactional DDL operation.
   */
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
@@ -815,10 +821,10 @@ pthread_handler_t compress_gtid_table(void *arg)
       break;
 
     THD_STAGE_INFO(thd, stage_compressing_gtid_table);
-    /* Compressing gtid_executed table. */
-    if (gtid_table_persistor->compress())
+    /* Compressing the gtid table. */
+    if (gtid_state->compress(thd))
     {
-      sql_print_warning("Failed to compress gtid_executed table.");
+      sql_print_warning("Failed to compress the gtid table.");
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
                       {
                         const char act[]= "now signal compression_failed";
@@ -844,7 +850,7 @@ void create_compress_gtid_table_thread()
   THD *thd;
   if (!(thd=new THD))
   {
-    sql_print_error("Failed to compress gtid_executed table, because "
+    sql_print_error("Failed to compress the gtid table, because "
                     "it is failed to allocate the THD.");
     return;
   }

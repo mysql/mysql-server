@@ -37,7 +37,8 @@ public:
   /**
     Insert the gtid into table.
 
-    @param gtid  holds the sidno and the gno.
+    @param thd  Thread requesting to save gtid into the table
+    @param gtid holds the sidno and the gno.
 
     @retval
       0    OK
@@ -46,12 +47,12 @@ public:
     @retval
       -1   Error
   */
-  int save(Gtid *gtid);
+  int save(THD *thd, Gtid *gtid);
   /**
     Insert the gtid set into table.
 
-    @param gtid_executed  contains a set of gtid, which holds
-                          the sidno and the gno.
+    @param gtid_set  contains a set of gtid, which holds
+                     the sidno and the gno.
 
     @retval
       0    OK
@@ -60,15 +61,14 @@ public:
     @retval
       -1   Error
   */
-  int save(Gtid_set *gtid_executed);
+  int save(Gtid_set *gtid_set);
   /**
-    Compress gtid_executed table, execute the following
-    within a single transaction.
-      - Read each row by the PK in increasing order, delete
-        consecutive rows from the gtid_executed table and
-        fetch these deleted gtids at the same time.
-      - Store compressed intervals of these deleted gtids
-        into the gtid_executed table.
+    Compress the gtid table, read each row by the PK(sid, gno_start)
+    in increasing order, compress the first consecutive gtids range
+    (delete consecutive gtids from the second consecutive gtid, then
+    update the first gtid) within a single transaction.
+
+    @param  thd Thread requesting to compress the table
 
     @retval
       0    OK
@@ -77,10 +77,12 @@ public:
     @retval
       -1   Error
   */
-  int compress();
+  int compress(THD *thd);
   /**
     Delete all rows from the table.
 
+    @param  thd Thread requesting to reset the table
+
     @retval
       0    OK
     @retval
@@ -88,14 +90,13 @@ public:
     @retval
       -1   Error
   */
-  int reset();
+  int reset(THD *thd);
 
   /**
-    Fetch gtids from gtid_executed table and store them
-    into gtid_executed set.
+    Fetch gtids from gtid table and store them into
+    gtid_executed set.
 
-    @param[out]  gtid_executed store gtids fetched
-                 from gtid_executed table
+    @param[out]  gtid_set store gtids fetched from the gtid table.
 
     @retval
       0    OK
@@ -104,7 +105,7 @@ public:
     @retval
       -1   Error
   */
-  int fetch_gtids(Gtid_set *gtid_executed);
+  int fetch_gtids(Gtid_set *gtid_set);
 
 private:
   /* Count the append size of the table */

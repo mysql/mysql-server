@@ -24,15 +24,28 @@
 #include "log.h"
 #include "binlog.h"
 
-void Gtid_state::clear()
+
+int Gtid_state::clear(THD *thd)
 {
   DBUG_ENTER("Gtid_state::clear()");
+  int ret= 0;
   // the wrlock implies that no other thread can hold any of the mutexes
   sid_lock->assert_some_wrlock();
   lost_gtids.clear();
   executed_gtids.clear();
   gtids_only_in_table.clear();
-  DBUG_VOID_RETURN;
+  /* Reset gtid table. */
+  if ((ret= gtid_table_persistor->reset(thd)) == 1)
+  {
+    /*
+      Gtid table is not ready to be used, so failed to
+      open it. Ignore the error.
+    */
+    thd->clear_error();
+    ret= 0;
+  }
+
+  DBUG_RETURN(ret);
 }
 
 
@@ -410,7 +423,7 @@ enum_return_status Gtid_state::add_lost_gtids(const char *text)
   PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_text(text));
   PROPAGATE_REPORTED_ERROR(executed_gtids.add_gtid_text(text));
   /* Save the executed_gtids into gtid table. */
-  if (gtid_table_persistor->save(&executed_gtids) == -1)
+  if (this->save(&executed_gtids) == -1)
     RETURN_REPORTED_ERROR;
 
   DBUG_RETURN(RETURN_STATUS_OK);
@@ -468,7 +481,7 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
 }
 
 
-int Gtid_state::save_gtid_into_table(THD *thd)
+int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save_gtid_into_table");
   DBUG_ASSERT(gtid_table_persistor != NULL);
@@ -495,7 +508,7 @@ int Gtid_state::save_gtid_into_table(THD *thd)
     global_sid_lock->unlock();
     if (!err)
     {
-      int ret= gtid_table_persistor->save(gtid);
+      int ret= gtid_table_persistor->save(thd, gtid);
       if (1 == ret)
       {
         /*
@@ -538,7 +551,31 @@ int Gtid_state::generate_and_save_gtid(THD *thd)
 
   /* Save gtid into mysql.gtid_executed table. */
   if (is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP)
-    error= save_gtid_into_table(thd);
+    error= this->save(thd);
 
   DBUG_RETURN(error);
+}
+
+
+int Gtid_state::save(Gtid_set *gtid_set)
+{
+  DBUG_ENTER("Gtid_state::save(Gtid_set *gtid_set)");
+  int ret= gtid_table_persistor->save(gtid_set);
+  DBUG_RETURN(ret);
+}
+
+
+int Gtid_state::fetch_gtids(Gtid_set *gtid_set)
+{
+  DBUG_ENTER("Gtid_state::fetch_gtids");
+  int ret= gtid_table_persistor->fetch_gtids(gtid_set);
+  DBUG_RETURN(ret);
+}
+
+
+int Gtid_state::compress(THD *thd)
+{
+  DBUG_ENTER("Gtid_state::compress");
+  int ret= gtid_table_persistor->compress(thd);
+  DBUG_RETURN(ret);
 }
