@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -84,11 +84,10 @@ table_replication_execute_status_by_worker::m_share=
 {
   { C_STRING_WITH_LEN("replication_execute_status_by_worker") },
   &pfs_readonly_acl,
-  &table_replication_execute_status_by_worker::create,
+  table_replication_execute_status_by_worker::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_execute_status_by_worker::get_row_count,
-  1000, /*records- used by optimizer*/
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
