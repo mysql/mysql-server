@@ -813,7 +813,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
                      Log_event_header *header, Log_event_footer *footer)
   :temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg),
-  crc(0), common_header(header), common_footer(footer), thd(thd_arg)
+  crc(0), common_header(header), common_footer(footer), thd(thd_arg),
+  is_valid(false)
 {
   server_id= thd->server_id;
   common_header->unmasked_server_id= server_id;
@@ -834,7 +835,7 @@ Log_event::Log_event(Log_event_header* header, Log_event_footer *footer,
                      enum_event_logging_type logging_type_arg)
   :temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
    event_logging_type(logging_type_arg), crc(0), common_header(header),
-   common_footer(footer), thd(0)
+   common_footer(footer), thd(0), is_valid(false)
 {
   server_id=	::server_id;
   common_header->unmasked_server_id= server_id;
@@ -850,10 +851,10 @@ Log_event::Log_event(Log_event_header *header,
   :temp_buf(0), exec_time(0),
    event_cache_type(EVENT_INVALID_CACHE),
    event_logging_type(EVENT_INVALID_LOGGING),
-   crc(0), common_header(header), common_footer(footer)
+   crc(0), common_header(header), common_footer(footer), is_valid(false)
 {
 #ifndef MYSQL_CLIENT
-  thd = 0;
+  thd= 0;
 #endif
   /*
      Mask out any irrelevant parts of the server_id
@@ -1774,8 +1775,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
                             ev ? ev->get_type_str() : "<unknown>",
                             buf[EVENT_TYPE_OFFSET],
                             event_len));
+//TODO: Modify this comment
   /*
-    is_valid() are small event-specific sanity tests which are
+    is_valid are small event-specific sanity tests which are
     important; for example there are some my_malloc() in constructors
     (e.g. Query_log_event::Query_log_event(char*...)); when these
     my_malloc() fail we can't return an error out of the constructor
@@ -1785,7 +1787,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
     SLAVE_EVENT is never used, so it should not be read ever.
   */
-  if (!ev || !ev->is_valid() || (event_type == SLAVE_EVENT))
+  if (!ev || !ev->is_valid || (event_type == SLAVE_EVENT))
   {
     DBUG_PRINT("error",("Found invalid event in binary log"));
     delete ev;
@@ -3752,6 +3754,8 @@ Query_log_event::Query_log_event()
 : Query_event(), Log_event(header(), footer()),
   user(0), host(0)
 {
+  if (query != 0)
+    is_valid= true;
 }
 
 
@@ -3797,6 +3801,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 {
   /* save the original thread id; we already know the server id */
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
+  if (query != 0)
+    is_valid= true;
   /*
   exec_time calculation has changed to use the same method that is used
   to fill out "thd_arg->start_time"
@@ -3807,7 +3813,6 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   my_micro_time_to_timeval(micro_end_time, &end_time);
 
   exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
-
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -4000,7 +4005,6 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     event_logging_type= Log_event::EVENT_IMMEDIATE_LOGGING;
     event_cache_type= Log_event::EVENT_STMT_CACHE;
   }
-
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
@@ -4111,6 +4115,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     We append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
    */
+  if(query!=0)
+    is_valid= true;
 #if !defined(MYSQL_CLIENT)
   size_t db_length= (size_t)db_len;
   memcpy(data_buf + query_data_written, &db_length, sizeof(db_length));
@@ -4922,6 +4928,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 Start_log_event_v3::Start_log_event_v3()
 : Start_event_v3(), Log_event(header(), footer())
 {
+  is_valid= true;
 }
 #endif
 
@@ -5004,6 +5011,7 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
 : Start_event_v3(buf, description_event),
   Log_event(header(), footer(), true)
 {
+  is_valid= true;
 }
 
 
@@ -5133,6 +5141,7 @@ Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
 : Start_event_v3(FORMAT_DESCRIPTION_EVENT),
   Format_description_event(binlog_ver, ::server_version)
 {
+  is_valid= header_is_valid() && version_is_valid();
   /*
    We here have the possibility to simulate a master before we changed
    the table map id to be stored in 6 bytes: when it was stored in 4
@@ -5177,6 +5186,7 @@ Format_description_log_event(const char* buf, uint event_len,
    Format_description_event(buf, event_len, description_event),
    Start_log_event_v3(buf, description_event)
 {
+  is_valid= header_is_valid() && version_is_valid();
   /*
    We here have the possibility to simulate a master of before we changed
    the table map id to be stored in 6 bytes: when it was stored in 4
@@ -5648,6 +5658,8 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 
   field_lens = (const uchar*)field_lens_buf.ptr();
   fields = fields_buf.ptr();
+  if (table_name != 0)
+    is_valid= true;
 
   if (sql_ex.data_info.new_format())
     common_header->type_code= NEW_LOAD_EVENT;
@@ -5668,6 +5680,8 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
   Log_event(header(), footer(), true)
 {
   DBUG_ENTER("Load_log_event");
+  if (table_name != 0)
+    is_valid= true;
   if (event_len)
   {
     /**
@@ -6228,6 +6242,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(key_memory_log_event,
                               new_log_ident_arg, ident_len, MYF(MY_WME));
+  if (new_log_ident != 0)
+    is_valid= true;
   if (flags & RELAY_LOG)
     set_relay_log_event();
   DBUG_VOID_RETURN;
@@ -6242,6 +6258,8 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
 
+  if (new_log_ident != 0)
+    is_valid= true;
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
@@ -6433,6 +6451,7 @@ Intvar_log_event::Intvar_log_event(const char* buf,
 : Intvar_event(buf, description_event),
   Log_event(header(), footer(), true)
 {
+  is_valid= true;
 }
 
 /*
@@ -6564,6 +6583,7 @@ Rand_log_event::Rand_log_event(const char* buf,
   :Rand_event(buf, description_event),
    Log_event(header(), footer(), true)
 {
+  is_valid= true;
 }
 
 
@@ -6684,6 +6704,7 @@ Xid_log_event(const char* buf,
   :Xid_event(buf, description_event),
    Log_event(header(), footer(), true)
 {
+  is_valid= true;
 }
 
 
@@ -6988,12 +7009,14 @@ int User_var_log_event::pack_info(Protocol* protocol)
 User_var_log_event::
 	User_var_log_event(const char* buf, uint event_len,
 			   const Format_description_event* description_event)
-  :User_var_event(buf, event_len, description_event),
-   Log_event(header(), footer(), true)
+  : User_var_event(buf, event_len, description_event),
+    Log_event(header(), footer(), true)
 #ifndef MYSQL_CLIENT
-  , deferred(false), query_id(0)
+    ,deferred(false), query_id(0)
 #endif
 {
+  if (name != 0)
+    is_valid= true;
 }
 
 
@@ -7401,6 +7424,8 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
   DBUG_ENTER("Create_file_log_event");
   common_header->type_code = CREATE_FILE_EVENT;
   sql_ex.data_info= sql_ex_data;
+  if (inited_from_old || block != 0)
+    is_valid= true;
 
   if (fake_base)
     common_header->type_code= Load_log_event::get_type_code();
@@ -7480,6 +7505,8 @@ Create_file_log_event(const char* buf, uint len,
   */
   exec_time= load_exec_time;
   sql_ex.data_info= sql_ex_data;
+  if (inited_from_old || block != 0)
+    is_valid= true;
   if (fake_base)
     common_header->type_code= Load_log_event::get_type_code();
   else
@@ -7692,6 +7719,8 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
              Log_event::EVENT_NORMAL_LOGGING,
              header(), footer())
 {
+  if (block != 0)
+    is_valid= true;
 }
 #endif
 
@@ -7708,6 +7737,8 @@ Append_block_log_event::Append_block_log_event(const char* buf, uint len,
 {
 
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
+  if (block != 0)
+    is_valid= true;
   DBUG_VOID_RETURN;
 }
 
@@ -7865,6 +7896,8 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
              Log_event::EVENT_NORMAL_LOGGING,
              header(), footer())
 {
+  if (file_id != 0)
+    is_valid= true;
 }
 #endif
 
@@ -7878,6 +7911,8 @@ Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
   :Delete_file_event(buf, len, description_event),
    Log_event(header(), footer(), true)
 {
+  if (file_id != 0)
+    is_valid= true;
 }
 
 
@@ -7966,6 +8001,8 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
              Log_event::EVENT_NORMAL_LOGGING,
              header(), footer())
 {
+  if (file_id != 0)
+    is_valid= true;
 }
 #endif
 
@@ -7980,6 +8017,8 @@ Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
 : Execute_load_event(buf, len, description_event),
   Log_event(header(), footer(), true)
 {
+  if (file_id != 0)
+    is_valid= true;
 }
 
 
@@ -8216,6 +8255,8 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
   Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
                            fn_pos_end_arg, dup_handling_arg)
 {
+  if (Query_log_event::is_valid && file_id != 0)
+    is_valid= true;
   common_header->type_code = EXECUTE_LOAD_QUERY_EVENT;
 }
 #endif /* !MYSQL_CLIENT */
@@ -8228,11 +8269,13 @@ Execute_load_query_log_event(const char* buf, uint event_len,
   Query_log_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
   Execute_load_query_event(buf, event_len, desc_event)
 {
-  if (!Query_event::is_valid())
+  if (!Query_log_event::is_valid)
   {
     //clear all the variables set in execute_load_query_event
     file_id= 0; fn_pos_start= 0; fn_pos_end= 0; dup_handling= LOAD_DUP_ERROR;
   }
+  if (Query_log_event::is_valid && file_id != 0)
+    is_valid= true;
 }
 
 
@@ -8583,6 +8626,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     // Needed because bitmap_init() does not set it to null on failure
     m_cols.bitmap= 0;
   }
+  if (m_rows_buf && m_cols.bitmap)
+    is_valid= true;
 }
 #endif
 
@@ -8694,6 +8739,14 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                                //TODO: check with Mats if extra byte req
     m_rows_cur= m_rows_end;
   }
+  /*
+    Check that malloc() succeeded in allocating memory for the row
+    buffer and the COLS vector. Checking that an Update_rows_log_event
+    is valid is done in the Update_rows_log_event::is_valid
+    function.
+  */
+  if (m_rows_buf && m_cols.bitmap)
+    is_valid= true;
   DBUG_VOID_RETURN;
 }
 
@@ -8793,6 +8846,8 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     if (new_alloc && &row[0] != m_rows_buf)
     {
       m_rows_buf= &row[0];
+      if (m_rows_buf && m_cols.bitmap)
+        is_valid= true;
       m_rows_cur= m_rows_buf + cur_size;
     }
 
@@ -11007,6 +11062,9 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                       (m_colcnt * 2), MYF(MY_WME));
   memset(m_field_metadata, 0, (m_colcnt * 2));
 
+  if (m_null_bits != NULL &&
+            m_field_metadata != NULL && m_coltype != NULL)
+    is_valid= true;
   /*
     Create an array for the field metadata and store it.
   */
@@ -11059,6 +11117,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 #endif
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
+  if (m_null_bits != NULL &&
+            m_field_metadata != NULL && m_coltype != NULL)
+    is_valid= true;
   DBUG_ASSERT(header()->type_code == TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
 }
@@ -12012,6 +12073,8 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 {
   common_header->type_code= m_type;
   init(tbl_arg->write_set);
+  if (Rows_log_event::is_valid && m_cols_ai.bitmap)
+    is_valid= true;
 }
 
 void Update_rows_log_event::init(MY_BITMAP const *cols)
@@ -12052,6 +12115,8 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
   Rows_log_event(buf, event_len, description_event),
   Update_rows_event(buf, event_len, description_event)
 {
+  if (Rows_log_event::is_valid && m_cols_ai.bitmap)
+    is_valid= true;
   DBUG_ASSERT(header()->type_code== m_type);
 }
 #endif
@@ -12151,7 +12216,8 @@ Incident_log_event(const char *buf, uint event_len,
     Log_event(header(), footer(), true)
 {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
-
+  if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
+    is_valid= true;
   DBUG_VOID_RETURN;
 }
 
@@ -12266,6 +12332,7 @@ Ignorable_log_event::Ignorable_log_event(const char *buf,
 {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
 
+  is_valid= true;
   DBUG_VOID_RETURN;
 }
 
@@ -12395,7 +12462,9 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
    :Gtid_event(buffer, event_len, description_event),
     Log_event(header(), footer(), true)
 {
-  DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *,"
+             " uint, const Format_description_log_event *");
+  is_valid= true;
   spec.type=(enum_group_type)gtid_info_struct.type;
   sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
@@ -12433,6 +12502,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
+  is_valid= true;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -12566,6 +12636,8 @@ Previous_gtids_log_event(const char *buf, uint event_len,
     Log_event(header(), footer(), true)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
+  if (buf != NULL)
+    is_valid= true;
   DBUG_VOID_RETURN;
 }
 
@@ -12589,6 +12661,8 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   }
   this->buf= buffer;
   // if buf == NULL, is_valid will return false
+  if(buf != 0)
+    is_valid= true;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -12725,6 +12799,8 @@ Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
   :Heartbeat_event(buf, event_len, description_event),
    Log_event(header(), footer(), true)
 {
+  if ((log_ident != NULL && header()->log_pos >= BIN_LOG_HEADER_SIZE))
+    is_valid= true;
 }
 #endif
 

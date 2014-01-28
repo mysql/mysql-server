@@ -68,7 +68,7 @@ Execute_load_query_event(const char* buf,
               EXECUTE_LOAD_QUERY_EVENT),
   file_id(0), fn_pos_start(0), fn_pos_end(0)
 {
-  if (!Query_event::is_valid())
+  if (get_query().empty())
     return;
 
   buf+= description_event->common_header_len;

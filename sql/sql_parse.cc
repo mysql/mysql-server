@@ -3082,7 +3082,7 @@ end_with_restore_list:
         release build.
       */
 
-      binary_log::Incident_event::Incident incident=
+      binary_log::Incident_event::enum_incident incident=
                                      binary_log::Incident_event::INCIDENT_NONE;
       DBUG_PRINT("debug", ("Just before generate_incident()"));
       DBUG_EXECUTE_IF("incident_database_resync_on_replace",

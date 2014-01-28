@@ -312,7 +312,7 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 }
 
 int injector::record_incident(THD *thd,
-                              binary_log::Incident_event::Incident incident,
+                              binary_log::Incident_event::enum_incident incident,
                               LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);

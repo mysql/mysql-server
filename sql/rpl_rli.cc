@@ -612,7 +612,7 @@ err:
 
   if (need_data_lock)
     mysql_mutex_unlock(&data_lock);
-  if (!rli_description_event->is_valid() && !*errmsg)
+  if (!rli_description_event->is_valid && !*errmsg)
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);

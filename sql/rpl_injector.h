@@ -382,7 +382,7 @@ public:
      */
     void new_trans(THD *, transaction *);
 
-    int record_incident(THD*, binary_log::Incident_event::Incident incident,
+    int record_incident(THD*, binary_log::Incident_event::enum_incident incident,
                         LEX_STRING const message);
 
 private:

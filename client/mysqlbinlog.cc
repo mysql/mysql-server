@@ -61,7 +61,9 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 using std::min;
 using std::max;
 using binary_log::Binary_log_event;
+#ifndef BIN_LOG_HEADER_SIZE
 #define BIN_LOG_HEADER_SIZE	4U
+#endif
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 #define INTVAR_DYNAMIC_INIT	16
 #define INTVAR_DYNAMIC_INCR	1
@@ -2065,7 +2067,7 @@ static Exit_status check_master_version()
           "Master reported unrecognized MySQL version '%s'.", version);
     goto err;
   }
-  if (!glob_description_event || !glob_description_event->is_valid())
+  if (!glob_description_event || !glob_description_event->is_valid)
   {
     error("Failed creating Format_description_log_event; out of memory?");
     goto err;
@@ -2689,7 +2691,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
   }
 
-  if (!glob_description_event || !glob_description_event->is_valid())
+  if (!glob_description_event || !glob_description_event->is_valid)
   {
     error("Invalid Format_description log event; could be out of memory.");
     goto err;

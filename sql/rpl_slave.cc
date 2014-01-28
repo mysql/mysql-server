@@ -4835,7 +4835,7 @@ int mts_recovery_groups(Relay_log_info *rli)
 
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
 
-  if (!p_fdle->is_valid())
+  if (!p_fdle->is_valid)
     DBUG_RETURN(TRUE);
 
   /*
@@ -4976,7 +4976,7 @@ int mts_recovery_groups(Relay_log_info *rli)
              (ev= Log_event::read_log_event(&log, 0, p_fdle,
                                             opt_slave_sql_verify_checksum)))
       {
-        DBUG_ASSERT(ev->is_valid());
+        DBUG_ASSERT(ev->is_valid);
 
         if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
@@ -6032,7 +6032,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
 
   mysql_mutex_assert_owner(&mi->data_lock);
 
-  if (unlikely(!cev->is_valid()))
+  if (unlikely(!cev->is_valid))
     DBUG_RETURN(1);
 
   if (!rpl_filter->db_ok(cev->db))
@@ -6149,7 +6149,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   DBUG_ENTER("process_io_rotate");
   mysql_mutex_assert_owner(&mi->data_lock);
 
-  if (unlikely(!rev->is_valid()))
+  if (unlikely(!rev->is_valid))
     DBUG_RETURN(1);
 
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
@@ -6651,7 +6651,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
-    if (!hb.is_valid())
+    if (!hb.is_valid)
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));

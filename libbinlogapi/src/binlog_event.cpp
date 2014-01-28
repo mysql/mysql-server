@@ -907,7 +907,7 @@ Xid_event(const char* buf,
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
-    description_event->post_header_len[XID_EVENT-1];
+        description_event->post_header_len[XID_EVENT-1];
   memcpy((char*) &xid, buf, sizeof(xid));
 }
 
@@ -953,7 +953,6 @@ User_var_event(const char* buf, unsigned int event_len,
   memcpy(&name_len, buf, sizeof(name_len));
   name_len= le32toh(name_len);
   name= (char *) buf + UV_NAME_LEN_SIZE;
-
   /*
     We don't know yet is_null value, so we must assume that name_len
     may have the bigger value possible, is_null= True and there is no
@@ -1184,7 +1183,7 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     incident= INCIDENT_NONE;
 
   }
-  incident= static_cast<Incident>(incident_number);
+  incident= static_cast<enum_incident>(incident_number);
   char const *ptr= buf + common_header_len + post_header_len;
   char const *const str_end= buf + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy

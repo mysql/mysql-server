@@ -68,6 +68,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #ifndef ST_SERVER_VER_SPLIT_LEN
 #define ST_SERVER_VER_SPLIT_LEN 3
 #endif
+#ifndef BIN_LOG_HEADER_SIZE
+#define BIN_LOG_HEADER_SIZE 4U
+#endif
 
 /**
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
@@ -824,7 +827,6 @@ public:
     return (enum Log_event_type) m_header.type_code;
   }
 
-  virtual bool is_valid() const= 0;
   /**
     Return a pointer to the header of the log event
   */
@@ -1420,9 +1422,6 @@ public:
   {
   }
 
-  bool is_valid() const {  return !m_query.empty(); }
-
-
   /*
     Define getters and setters for the string members
   */
@@ -1566,9 +1565,6 @@ public:
   }
   Rotate_event(const char* buf, unsigned int event_len,
                const Format_description_event *description_event);
-
-  //TODO: is_valid() is to be handled as a separate patch
-  bool is_valid() const { return new_log_ident != 0; }
 
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
@@ -1738,41 +1734,40 @@ class Start_event_v3: public Binary_log_event
 class Format_description_event: public virtual Start_event_v3
 {
 public:
-    uint32_t created_ts;
-    /**
-     The size of the fixed header which _all_ events have
-     (for binlogs written by this version, this is equal to
-     LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
-     (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
-    */
-    uint8_t common_header_len;
-    /*
-     The list of post-headers' lengths followed
-     by the checksum alg decription byte
+  uint32_t created_ts;
+  /**
+   The size of the fixed header which _all_ events have
+   (for binlogs written by this version, this is equal to
+   LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
+   (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
   */
-    uint8_t *post_header_len;
-    unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
-    /**
-     In some previous version > 5.1 GA event types are assigned
-     different event id numbers than in the present version, so we
-     must map those id's to the our current event id's. This
-     mapping is done using event_type_permutation
-    */
-    const uint8_t *event_type_permutation;
-    Format_description_event(uint8_t binlog_ver,
-                             const char* server_ver);
-    Format_description_event(const char* buf, unsigned int event_len,
-                             const Format_description_event *description_event);
+  uint8_t common_header_len;
+  /*
+   The list of post-headers' lengths followed
+   by the checksum alg decription byte
+  */
+  uint8_t *post_header_len;
+  unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
+  /**
+   In some previous version > 5.1 GA event types are assigned
+   different event id numbers than in the present version, so we
+   must map those id's to the our current event id's. This
+   mapping is done using event_type_permutation
+  */
+  const uint8_t *event_type_permutation;
+  Format_description_event(uint8_t binlog_ver,
+                           const char* server_ver);
+  Format_description_event(const char* buf, unsigned int event_len,
+                           const Format_description_event *description_event);
 
-    uint8_t number_of_event_types;
-    unsigned long get_product_version() const;
-    bool is_version_before_checksum() const;
-    void calc_server_version_split();
-    bool is_valid() const { return 1; }
-    void print_event_info(std::ostream& info);
-    void print_long_info(std::ostream& info);
-    ~Format_description_event();
-
+  uint8_t number_of_event_types;
+  Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT; }
+  unsigned long get_product_version() const;
+  bool is_version_before_checksum() const;
+  void calc_server_version_split();
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+  ~Format_description_event();
 };
 /**
   @class Stop_event
@@ -1800,8 +1795,6 @@ public:
                      description_event->server_version)
   {
   }
-
-  bool is_valid() const { return 1; }
 
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info);
@@ -1902,16 +1895,11 @@ public:
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
-  : Binary_log_event(USER_VAR_EVENT)
+  : Binary_log_event(USER_VAR_EVENT),
+    name(name_arg), name_len(name_len_arg), val(val_arg), val_len(val_len_arg),
+    type((Value_type) type_arg), charset_number(charset_number_arg),
+    is_null(!val), flags(flags_arg)
   {
-    name= name_arg;
-    name_len= name_len_arg;
-    val= val_arg;
-    val_len= val_len_arg;
-    type=(Value_type) type_arg;
-    charset_number= charset_number_arg;
-    flags= flags_arg;
-    is_null= !val;
   }
 
   User_var_event(const char* buf, unsigned int event_len,
@@ -1924,7 +1912,6 @@ public:
   unsigned int charset_number;
   bool is_null;
   unsigned char flags;
-  bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
   std::string static get_value_type_string(enum Value_type type)
@@ -2131,7 +2118,6 @@ public:
     Else, they contain the value indicating whether the event was
     correctly initialized.
   */
-  bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -2179,7 +2165,7 @@ public:
   /**
     Enumeration of the incidents that can occur for the server.
   */
-  enum Incident {
+  enum enum_incident {
   /** No incident */
   INCIDENT_NONE = 0,
   /** There are possibly lost events in the replication stream */
@@ -2188,7 +2174,7 @@ public:
   INCIDENT_COUNT
   };
 
-  Incident_event(Incident incident_arg)
+  Incident_event(enum_incident incident_arg)
   : Binary_log_event(INCIDENT_EVENT), incident(incident_arg), message(NULL),
     message_length(0)
   {
@@ -2199,7 +2185,7 @@ public:
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 protected:
-  Incident incident;
+  enum_incident incident;
   char *message;
   size_t message_length;
 };
@@ -2242,7 +2228,6 @@ public:
   }
   Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
-  bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -2451,7 +2436,10 @@ public:
   int64_t commit_seq_no;
   Gtid_event(const char *buffer, uint32_t event_len,
              const Format_description_event *descr_event);
-  Gtid_event(bool commit_flag_arg): commit_flag(commit_flag_arg) {}
+  Gtid_event(bool commit_flag_arg)
+  : commit_flag(commit_flag_arg)
+  {
+  }
   //TODO: Add definitions for these methods
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
@@ -2568,7 +2556,6 @@ public:
   const char* get_log_ident() { return log_ident; }
   unsigned int get_ident_len() { return ident_len; }
 
-  bool is_valid() const { return 1; }
 protected:
   const char* log_ident;
   unsigned int ident_len;                      /** filename length */
@@ -2600,7 +2587,6 @@ public:
   {
   }
 
-  bool is_valid() const { return 1; }
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
