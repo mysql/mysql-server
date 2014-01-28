@@ -148,13 +148,15 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define MTYP_NOEMPTY_BIT 128
 
 
-/* 
+/*
    Defines for binary logging.
    Do not decrease the value of BIN_LOG_HEADER_SIZE.
    Do not even increase it before checking code.
 */
 
-#define BIN_LOG_HEADER_SIZE    4 
+#ifndef BIN_LOG_HEADER_SIZE
+#define BIN_LOG_HEADER_SIZE    4
+#endif
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 

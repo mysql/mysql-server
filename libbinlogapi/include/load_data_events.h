@@ -307,7 +307,6 @@ public:
                            const Format_description_event *description_event);
   ~Execute_load_query_event() {}
 
-  bool is_valid() const { return Query_event::is_valid() && file_id != 0; }
 };
 
 /**
@@ -586,7 +585,6 @@ public:
   {
   }
 
-  virtual bool is_valid() const { return table_name != 0; }
   int get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
@@ -670,7 +668,6 @@ public:
             4 + 1 + block_len);
   }
 
-  bool is_valid() const { return inited_from_old || block != 0; }
 
 };
 
@@ -721,7 +718,6 @@ public:
   Delete_file_event(const char* buf, uint event_len,
                     const Format_description_event* description_event);
   ~Delete_file_event() {}
-  bool is_valid() const { return file_id != 0; }
 };
 
 /**
@@ -773,7 +769,6 @@ public:
 
   ~Execute_load_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
-  bool is_valid() const { return file_id != 0; }
 };
 
 /**
@@ -856,7 +851,6 @@ public:
   Append_block_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
   ~Append_block_event() {}
-  virtual bool is_valid() const { return block != 0; }
 };
 
 /**

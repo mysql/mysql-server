@@ -2383,7 +2383,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 
     my_b_seek(&log, pos);
 
-    if (!description_event->is_valid())
+    if (!description_event->is_valid)
     {
       errmsg="Invalid Format_description event; could be out of memory";
       goto err;
@@ -2989,7 +2989,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     first event of the log.
   */
   Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
-  if (!fd_ev.is_valid())
+  if (!fd_ev.is_valid)
     DBUG_RETURN(ERROR);
 
   File file;
@@ -3521,7 +3521,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                        (enum_binlog_checksum_alg)binlog_checksum_options;
 
   DBUG_ASSERT((s.common_footer)->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-  if (!s.is_valid())
+  if (!s.is_valid)
     goto err;
   s.dont_set_created= null_created_arg;
   /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
@@ -6145,7 +6145,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
     DBUG_RETURN(0);
 
   LEX_STRING write_error_msg= {(char*) err_msg, strlen(err_msg)};
-  binary_log::Incident_event::Incident incident=
+  binary_log::Incident_event::enum_incident incident=
                               binary_log::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
@@ -6503,7 +6503,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     my_off_t    binlog_size;
     MY_STAT     s;
 
-    if (! fdle.is_valid())
+    if (! fdle.is_valid)
       goto err;
 
     do
@@ -7480,7 +7480,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   */
   bool in_transaction= FALSE;
 
-  if (! fdle->is_valid() ||
+  if (! fdle->is_valid ||
       my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
                    sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
@@ -7489,7 +7489,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
                   &mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
 
   while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
-         && ev->is_valid())
+         && ev->is_valid)
   {
     if (ev->common_header->type_code == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
@@ -8668,7 +8668,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 
   Rows_log_event* pending= binlog_get_pending_rows_event(is_transactional);
 
-  if (unlikely(pending && !pending->is_valid()))
+  if (unlikely(pending && !pending->is_valid))
     DBUG_RETURN(NULL);
 
   /*

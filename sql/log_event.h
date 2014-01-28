@@ -700,7 +700,8 @@ public:
             enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0),  event_cache_type(cache_type_arg),
-    event_logging_type(logging_type_arg), common_header(0), common_footer(0)
+    event_logging_type(logging_type_arg), common_header(0), common_footer(0),
+    is_valid(false)
   {
     common_header= header;
     common_footer= footer;
@@ -764,7 +765,14 @@ public:
     return (time_t) common_header->when.tv_sec;
   }
 #endif
-  virtual bool is_valid() const = 0;
+  /*
+   is_valid is event specific sanity checks to determine that the
+    object is correctly initialized. This is redundant here, because
+    no new allocation is done in the constructor of the event.
+    Else, they contain the value indicating whether the event was
+    correctly initialized.
+  */
+  bool is_valid;
   void set_artificial_event() { common_header->flags |= LOG_EVENT_ARTIFICIAL_F; }
   void set_relay_log_event() { common_header->flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const { return common_header->flags & LOG_EVENT_ARTIFICIAL_F; }
@@ -1257,7 +1265,6 @@ public:
   bool write(IO_CACHE* file);
   virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
 #endif
-  bool is_valid() const { return Query_event::is_valid(); }
 
   /*
     Returns number of bytes additionaly written to post header by derived
@@ -1405,7 +1412,6 @@ public:
   bool write_data_header(IO_CACHE* file);
   bool write_data_body(IO_CACHE* file);
 #endif
-  virtual bool is_valid() const { return Load_event::is_valid(); }
   int get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
@@ -1470,7 +1476,6 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
   int get_data_size()
   {
     return Binary_log_event::START_V3_HEADER_LEN; //no variable-sized part
@@ -1540,6 +1545,16 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
+
+  int get_data_size()
+  {
+    /*
+      The vector of post-header lengths is considered as part of the
+      post-header, because in a given version it never changes (contrary to the
+      query in a Query_log_event).
+    */
+    return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
+  }
   bool header_is_valid() const
   {
     return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
@@ -1554,22 +1569,6 @@ public:
              server_version_split[1] == 0 &&
              server_version_split[2] == 0);
   }
-
-  bool is_valid() const
-  {
-    return header_is_valid() && version_is_valid();
-  }
-
-  int get_data_size()
-  {
-    /*
-      The vector of post-header lengths is considered as part of the
-      post-header, because in a given version it never changes (contrary to the
-      query in a Query_log_event).
-    */
-    return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
-  }
-
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -1615,6 +1614,7 @@ public:
     Log_event(thd_arg, 0, cache_type_arg,
               logging_type_arg, header(), footer())
   {
+    is_valid= true;
   }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
@@ -1630,7 +1630,6 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -1674,11 +1673,12 @@ class Rand_log_event: public Rand_event, public Log_event
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
                  enum_event_cache_type cache_type_arg,
                  enum_event_logging_type logging_type_arg)
-  : Rand_event(seed1_arg, seed2_arg),
-    Log_event(thd_arg, 0, cache_type_arg,
-              logging_type_arg, header(), footer())
-    {
-    }
+    : Rand_event(seed1_arg, seed2_arg),
+      Log_event(thd_arg, 0, cache_type_arg,
+                logging_type_arg, header(), footer())
+      {
+        is_valid= true;
+      }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1693,7 +1693,6 @@ class Rand_log_event: public Rand_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -1743,6 +1742,7 @@ class Xid_log_event: public Xid_event, public Log_event
               Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
     xid= x;
+    is_valid= true;
   }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
@@ -1758,7 +1758,6 @@ class Xid_log_event: public Xid_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
   virtual bool ends_group() { return TRUE; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -1806,6 +1805,8 @@ public:
                logging_type_arg, header(), footer()),
      deferred(false)
     {
+      if (name != 0)
+        is_valid= true;
     }
   int pack_info(Protocol* protocol);
 #else
@@ -1829,7 +1830,6 @@ public:
   */
   void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
-  bool is_valid() const { return name != 0; }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -1851,6 +1851,7 @@ public:
   Stop_log_event()
   : Log_event(header(), footer())
   {
+    is_valid= true;
   }
 
 #else
@@ -1862,11 +1863,11 @@ public:
   Stop_event(buf, description_event),
   Log_event(header(), footer(), true)
   {
+    is_valid= true;
   }
 
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
-  bool is_valid() const { return 1; }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -1928,7 +1929,6 @@ public:
   ~Rotate_log_event()
   {}
   int get_data_size() { return  ident_len + Binary_log_event::ROTATE_HEADER_LEN;}
-  bool is_valid() const { return Rotate_event::is_valid(); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
@@ -2009,7 +2009,6 @@ public:
   {
   }
 
-  bool is_valid() const { return inited_from_old || block != 0; }
 #ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
   bool write_data_body(IO_CACHE* file);
@@ -2072,7 +2071,6 @@ public:
                          *description_event);
   ~Append_block_log_event() {}
   int get_data_size() { return  block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN ;}
-  bool is_valid() const { return Append_block_event::is_valid(); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
@@ -2133,7 +2131,6 @@ public:
                         const Format_description_event* description_event);
   ~Delete_file_log_event() {}
   int get_data_size() { return Binary_log_event::DELETE_FILE_HEADER_LEN ;}
-  bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
@@ -2192,7 +2189,6 @@ public:
                          *description_event);
   ~Execute_load_log_event() {}
   int get_data_size() { return  Binary_log_event::EXEC_LOAD_HEADER_LEN ;}
-  bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
@@ -2337,7 +2333,6 @@ public:
                                *description_event);
   ~Execute_load_query_log_event() {}
 
-  bool is_valid() const { return Execute_load_query_event::is_valid(); }
 
   ulong get_post_header_size_for_derived();
 #ifdef MYSQL_SERVER
@@ -2369,12 +2364,12 @@ public:
   : Unknown_event(buf, description_event),
     Log_event(header(), footer(), true)
   {
+    is_valid= true;
   }
 
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
-  bool is_valid() const { return 1; }
 };
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
@@ -2465,12 +2460,6 @@ public:
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam.c_str(); }
   const char *get_db_name() const    { return m_dbnam.c_str(); }
-
-  virtual bool is_valid() const
-  {
-    return (m_null_bits != NULL &&
-            m_field_metadata != NULL && m_coltype != NULL);
-  }
 
   virtual int get_data_size() { return (uint) m_data_size; }
 #ifdef MYSQL_SERVER
@@ -2675,16 +2664,6 @@ public:
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_table->s->db.str; }
 #endif
-  /*
-    Check that malloc() succeeded in allocating memory for the rows
-    buffer and the COLS vector. Checking that an Update_rows_log_event
-    is valid is done in the Update_rows_log_event::is_valid()
-    function.
-  */
-  virtual bool is_valid() const
-  {
-    return m_rows_buf && m_cols.bitmap;
-  }
 
   uint     m_row_count;         /* The number of rows added to the event */
 
@@ -3138,11 +3117,6 @@ public:
   }
 #endif
 
-  virtual bool is_valid() const
-  {
-    return Rows_log_event::is_valid() && m_cols_ai.bitmap;
-  }
-
 protected:
   virtual Log_event_type get_general_type_code()
   {
@@ -3288,7 +3262,7 @@ protected:
 class Incident_log_event : public Incident_event , public Log_event{
 public:
 #ifdef MYSQL_SERVER
-  Incident_log_event(THD *thd_arg, Incident incident)
+  Incident_log_event(THD *thd_arg, enum_incident incident)
     : Incident_event(incident),
       Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
                 Log_event::EVENT_NO_CACHE,
@@ -3297,11 +3271,13 @@ public:
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
+    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
+      is_valid= true;
     DBUG_ASSERT(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
 
-  Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
+  Incident_log_event(THD *thd_arg, enum_incident incident, LEX_STRING const msg)
     : Incident_event(incident),
       Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
                 Log_event::EVENT_NO_CACHE,
@@ -3310,6 +3286,8 @@ public:
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
+    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
+      is_valid= true;
     DBUG_ASSERT(message == NULL && message_length == 0);
     if (!(message= (char*) my_malloc(key_memory_Incident_log_event_message,
                                            msg.length+1, MYF(MY_WME))))
@@ -3349,10 +3327,6 @@ public:
   virtual bool write_data_body(IO_CACHE *file);
 
 
-  virtual bool is_valid() const
-  {
-    return incident > INCIDENT_NONE && incident < INCIDENT_COUNT;
-  }
   virtual int get_data_size() {
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + (uint) message_length;
   }
@@ -3396,6 +3370,7 @@ public:
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    is_valid= true;
     DBUG_VOID_RETURN;
   }
 #endif
@@ -3412,8 +3387,6 @@ public:
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-
-  virtual bool is_valid() const { return 1; }
 
   virtual int get_data_size() { return Binary_log_event::IGNORABLE_HEADER_LEN; }
 };
@@ -3525,11 +3498,6 @@ class Heartbeat_log_event: public Heartbeat_event, public Log_event
 public:
   Heartbeat_log_event(const char* buf, uint event_len,
                       const Format_description_event* description_event);
-  bool is_valid() const
-    {
-      return (log_ident != NULL &&
-              common_header->log_pos >= BIN_LOG_HEADER_SIZE);
-    }
 };
 
 /**
@@ -3617,7 +3585,6 @@ public:
     either ANONYMOUS_GROUP, AUTOMATIC_GROUP, or GTID_GROUP.
   */
   enum_group_type get_type() const { return spec.type; }
-  bool is_valid() const { return true; }
 
   /**
     Return the SID for this GTID.  The SID is shared with the
@@ -3731,7 +3698,6 @@ public:
   virtual ~Previous_gtids_log_event() {}
 
 
-  bool is_valid() const { return buf != NULL; }
   int get_data_size() { return buf_size; }
 
 #ifdef MYSQL_CLIENT
@@ -3767,7 +3733,6 @@ public:
   const uchar *get_buf() { return buf; }
   /**
     Return the formatted string, or NULL on error.
-
     The string is allocated using my_malloc and it is the
     responsibility of the caller to free it.
   */
