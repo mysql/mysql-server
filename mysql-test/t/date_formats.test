@@ -32,6 +32,8 @@ ORDER BY variable_name;
 # SET date_format='%d.%m.%Y';
 # SET date_format='%m-%d-%Y';
 # 
+# --error ER_WRONG_VALUE_FOR_VAR
+# SET datetime_format= NULL;
 # set datetime_format= '%Y%m%d%H%i%s';
 # set datetime_format= '%Y-%m-%d %H:%i:%s';
 # set datetime_format= '%m-%d-%y %H:%i:%s.%f';

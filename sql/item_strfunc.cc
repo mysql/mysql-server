@@ -61,11 +61,6 @@ C_MODE_END
 
 size_t username_char_length= 16;
 
-/**
-   @todo Remove this. It is not safe to use a shared String object.
- */
-String my_empty_string("",default_charset_info);
-
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -101,7 +96,6 @@ String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
   
   return str2;
 }
-
 
 
 /*
@@ -2481,7 +2475,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args+1;
-  String *result=&my_empty_string;
+  String *result= make_empty_result();
 
   bits=args[0]->val_int();
   if ((null_value=args[0]->null_value))
