@@ -164,7 +164,8 @@ void disconnect_all() {
 
 /* This function has C linkage */
 void print_debug_startup_info() {
-  size_t wi1 = 1 << workitem_class_id; 
+#ifdef DEBUG_OUTPUT
+  size_t wi1 = 1 << workitem_class_id;
   size_t wi2 = sizeof(workitem) - WORKITEM_MIN_INLINE_BUF;
   size_t wi3 = workitem_actual_inline_buffer_size;
   
@@ -172,6 +173,7 @@ void print_debug_startup_info() {
   DEBUG_PRINT("  sizeof NdbInstance   : %lu", sizeof(NdbInstance));
   DEBUG_PRINT("  sizeof workitem      : %lu (%lu + buffer: %lu)", wi1, wi2, wi3);
   DEBUG_PRINT("  sizeof ExternalValue : %lu", sizeof(ExternalValue));
+#endif
 }
 
 
