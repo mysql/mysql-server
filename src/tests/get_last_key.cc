@@ -130,6 +130,11 @@ static void get_value_by_key(DBT * key, DBT * value)
     memcpy(value->data, &v, sizeof(int));
 }
 
+static void prepare_for_env(void) {
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); { int chk_r = r; CKERR(chk_r); }
+}
+
 static void init_env(DB_ENV ** env, size_t ct_size)
 {
     int r;
@@ -137,9 +142,6 @@ static void init_env(DB_ENV ** env, size_t ct_size)
         DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN | DB_PRIVATE;
 
     printf("initializing environment\n");
-
-    toku_os_recursive_delete(TOKU_TEST_FILENAME);
-    r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); { int chk_r = r; CKERR(chk_r); }
 
     r = db_env_create(env, 0); { int chk_r = r; CKERR(chk_r); }
     assert(ct_size < 1024 * 1024 * 1024L);
@@ -197,13 +199,13 @@ static void do_test(size_t ct_size, int num_keys)
     DB_TXN *txn = nullptr;
     DB_TXN *txn2 = nullptr;
     uint64_t loops_run = 0;
-    (void)txn2;
 
 
     printf("doing tests for ct_size %lu, num_keys %d\n",
             ct_size, num_keys);
 
     // initialize everything and insert data
+    prepare_for_env();
     init_env(&env, ct_size);
     assert(env != nullptr);
     init_db(env, &db);
@@ -231,8 +233,8 @@ static void do_test(size_t ct_size, int num_keys)
     if (num_keys == 0) {
         goto cleanup;
     }
-//    r = env->txn_begin(env, nullptr, &txn2, 0);
-//    CKERR(r);
+    r = env->txn_begin(env, nullptr, &txn2, 0);
+    CKERR(r);
     r = env->txn_begin(env, nullptr, &txn, 0);
     CKERR(r);
 
@@ -242,7 +244,7 @@ static void do_test(size_t ct_size, int num_keys)
     r = txn->commit(txn, 0);
     check_last_key_matches(db, 0, num_keys - 1);
 
-//    r = txn2->commit(txn2, 0);
+    r = txn2->commit(txn2, 0);
     check_last_key_matches(db, 0, num_keys - 1);
 
     //Run Garbage collection (NOTE does not work when everything fits in root??? WHY)
@@ -258,19 +260,24 @@ static void do_test(size_t ct_size, int num_keys)
 
     r = env->txn_checkpoint(env, 0, 0, 0);
     CKERR(r);
+
+    //Fully close and reopen
+    //This clears cachetable
+    //note that closing a db and reopening may not flush the cachetable so we close env as well
+    cleanup_env_and_db(env, db);
+    init_env(&env, ct_size);
+    assert(env != nullptr);
+    init_db(env, &db);
+    assert(db != nullptr);
+
     //NOTE: tried overkill (double optimize, double checkpoint.. gc still doesn't happen for everything in root in single basement
 
-    if (num_keys < 128) {
-        //TODO: HACK Fix this hack.
-        // Fits in root (in one basement).. no garbage collection so original still found
-        check_last_key_matches(db, 0, num_keys - 1);
+    if (num_keys >= 2) {
+        // At least one key remains.
+        check_last_key_matches(db, 0, num_keys - 2);
     } else {
-        if (num_keys >= 2) {
-            check_last_key_matches(db, 0, num_keys - 2);
-        } else {
-            //Useless case until/unless I can get garbage collection in root working
-            check_last_key_matches(db, DB_NOTFOUND, num_keys - 1);
-        }
+        //no key remains.  Should find nothing.
+        check_last_key_matches(db, DB_NOTFOUND, -1);
     }
 cleanup:
     cleanup_env_and_db(env, db);
