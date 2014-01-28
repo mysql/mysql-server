@@ -24,6 +24,8 @@ SET date_format='%Y%m%d';
 SET date_format='%Y.%m.%d';
 SET date_format='%d.%m.%Y';
 SET date_format='%m-%d-%Y';
+SET datetime_format= NULL;
+ERROR 42000: Variable 'datetime_format' can't be set to the value of 'NULL'
 set datetime_format= '%Y%m%d%H%i%s';
 set datetime_format= '%Y-%m-%d %H:%i:%s';
 set datetime_format= '%m-%d-%y %H:%i:%s.%f';

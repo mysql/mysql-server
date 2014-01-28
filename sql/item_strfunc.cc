@@ -40,11 +40,6 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
-/**
-   @todo Remove this. It is not safe to use a shared String object.
- */
-String my_empty_string("",default_charset_info);
-
 
 /*
   Convert an array of bytes to a hexadecimal representation.
@@ -2250,7 +2245,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args+1;
-  String *result=&my_empty_string;
+  String *result= make_empty_result();
 
   bits=args[0]->val_int();
   if ((null_value=args[0]->null_value))

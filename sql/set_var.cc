@@ -2196,13 +2196,11 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff) - 1, system_charset_info), *res;
   DATE_TIME_FORMAT *format;
 
-  if (!(res=var->value->val_str(&str)))
-    res= &my_empty_string;
-
-  if (!(format= date_time_format_make(date_time_type,
-				      res->ptr(), res->length())))
+  if (!(res= var->value->val_str(&str)) ||
+      !(format= date_time_format_make(date_time_type,
+                                      res->ptr(), res->length())))
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res ? res->c_ptr() : "NULL");
     return 1;
   }
   

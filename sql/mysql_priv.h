@@ -2357,7 +2357,6 @@ extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
-extern String my_empty_string;
 extern const String my_null_string;
 extern SHOW_VAR status_vars[];
 #endif /* MYSQL_SERVER */

@@ -298,5 +298,11 @@ SELECT CONVERT_TZ(TIME('00:00:00'),'+00:00','+7:5');
 SELECT CONVERT_TZ(TIME('2010-01-01 00:00:00'),'+00:00','+7:5');
 
 --echo #
+--echo # MDEV-5506 safe_mutex: Trying to lock unitialized mutex at safemalloc.c on server shutdown after SELECT with CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ('2001-10-08 00:00:00', MAKE_SET(0,'+01:00'), '+00:00' ); 
+
+
+--echo #
 --echo # End of 5.3 tests
 --echo #
