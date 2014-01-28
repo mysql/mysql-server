@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,11 +152,10 @@ table_events_transactions_current::m_share=
 {
   { C_STRING_WITH_LEN("events_transactions_current") },
   &pfs_truncatable_acl,
-  &table_events_transactions_current::create,
+  table_events_transactions_current::create,
   NULL, /* write_row */
-  &table_events_transactions_current::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_events_transactions_current::delete_all_rows,
+  table_events_transactions_current::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -170,11 +169,10 @@ table_events_transactions_history::m_share=
 {
   { C_STRING_WITH_LEN("events_transactions_history") },
   &pfs_truncatable_acl,
-  &table_events_transactions_history::create,
+  table_events_transactions_history::create,
   NULL, /* write_row */
-  &table_events_transactions_history::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_events_transactions_history::delete_all_rows,
+  table_events_transactions_history::get_row_count,
   sizeof(pos_events_transactions_history), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
@@ -188,11 +186,10 @@ table_events_transactions_history_long::m_share=
 {
   { C_STRING_WITH_LEN("events_transactions_history_long") },
   &pfs_truncatable_acl,
-  &table_events_transactions_history_long::create,
+  table_events_transactions_history_long::create,
   NULL, /* write_row */
-  &table_events_transactions_history_long::delete_all_rows,
-  NULL, /* get_row_count */
-  10000, /* records */
+  table_events_transactions_history_long::delete_all_rows,
+  table_events_transactions_history_long::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
@@ -516,6 +513,12 @@ int table_events_transactions_current::delete_all_rows(void)
   return 0;
 }
 
+ha_rows
+table_events_transactions_current::get_row_count(void)
+{
+  return thread_max;
+}
+
 PFS_engine_table* table_events_transactions_history::create(void)
 {
   return new table_events_transactions_history();
@@ -619,6 +622,12 @@ int table_events_transactions_history::delete_all_rows(void)
   return 0;
 }
 
+ha_rows
+table_events_transactions_history::get_row_count(void)
+{
+  return events_transactions_history_per_thread * thread_max;
+}
+
 PFS_engine_table* table_events_transactions_history_long::create(void)
 {
   return new table_events_transactions_history_long();
@@ -701,5 +710,11 @@ int table_events_transactions_history_long::delete_all_rows(void)
 {
   reset_events_transactions_history_long();
   return 0;
+}
+
+ha_rows
+table_events_transactions_history_long::get_row_count(void)
+{
+  return events_transactions_history_long_size;
 }
 

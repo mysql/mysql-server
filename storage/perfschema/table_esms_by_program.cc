@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -208,8 +208,7 @@ table_esms_by_program::m_share=
   table_esms_by_program::create,
   NULL, /* write_row */
   table_esms_by_program::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_esms_by_program::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -227,6 +226,12 @@ table_esms_by_program::delete_all_rows(void)
 {
   reset_esms_by_program();
   return 0;
+}
+
+ha_rows
+table_esms_by_program::get_row_count(void)
+{
+  return program_max;
 }
 
 table_esms_by_program::table_esms_by_program()
