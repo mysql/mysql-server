@@ -182,7 +182,10 @@ struct old_sql_ex
 */
 struct sql_ex_data_info
 {
-  sql_ex_data_info() {}                         /* This removes gcc warning */
+  sql_ex_data_info()
+  : cached_new_format(0)
+  {
+  }
   const char* field_term;
   const char* enclosed;
   const char* line_term;
