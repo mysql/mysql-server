@@ -4155,23 +4155,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
   else
   {
-    /* Reset gtid_executed table during 'RESET MASTER'. */
-    int ret= gtid_table_persistor->reset();
-    if (1 == ret)
-    {
-      /*
-        Gtid table is not ready to be used, so failed to
-        open it. Ignore the error.
-      */
-      thd->clear_error();
-    }
-    else if (-1 == ret)
+    if(gtid_state->clear(thd))
     {
       error= 1;
       goto err;
     }
-
-    gtid_state->clear();
     // don't clear global_sid_map because it's used by the relay log too
     if (gtid_state->init() != 0)
       goto err;

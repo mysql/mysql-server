@@ -2144,13 +2144,18 @@ public:
   */
   int init();
   /**
-    Reset the state after RESET MASTER: remove all logged and lost
-    groups, but keep owned groups as they are.
+    Reset the state and persistor after RESET MASTER: remove all logged
+    and lost groups, but keep owned groups as they are.
 
     The caller must hold the write lock on sid_lock before calling
     this function.
+
+    @param  thd Thread requesting to reset the persistor
+
+    @retval 0  Success
+    @retval -1 Error
   */
-  void clear();
+  int clear(THD *thd);
   /**
     Returns true if the given GTID is logged.
 
@@ -2393,7 +2398,7 @@ public:
     @retval
       1    Error
   */
-  int save_gtid_into_table(THD *thd);
+  int save(THD *thd);
   /**
     Generate automatic gtid for transaction and save
     the generated or specified gtid into gtid table.
@@ -2404,6 +2409,50 @@ public:
     @retval 1    error
   */
   int generate_and_save_gtid(THD *thd);
+  /**
+    Insert the gtid set into table.
+
+    @param gtid_set  contains a set of gtid, which holds
+                     the sidno and the gno.
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int save(Gtid_set *gtid_set);
+  /**
+    Fetch gtids from gtid table and store them into
+    gtid_executed set.
+
+    @param[out]  gtid_set store gtids fetched from the gtid table.
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int fetch_gtids(Gtid_set *gtid_set);
+  /**
+    Compress the gtid table, read each row by the PK(sid, gno_start)
+    in increasing order, compress the first consecutive gtids range
+    (delete consecutive gtids from the second consecutive gtid, then
+    update the first gtid) within a single transaction.
+
+    @param  thd Thread requesting to compress the table
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int compress(THD *thd);
   /*
     Return the count of ongoing transactions' gtids.
   */
