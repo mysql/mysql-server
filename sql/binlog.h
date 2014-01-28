@@ -219,7 +219,7 @@ public:
   void signal_done(THD *queue) {
     mysql_mutex_lock(&m_lock_done);
     for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
-      thd->get_transaction()->flags.pending= false;
+      thd->get_transaction()->m_flags.pending= false;
     mysql_mutex_unlock(&m_lock_done);
     mysql_cond_broadcast(&m_cond_done);
   }
@@ -400,7 +400,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 #endif
     DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
     my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
-    thd->get_transaction()->flags.xid_written= true;
+    thd->get_transaction()->m_flags.xid_written= true;
     DBUG_VOID_RETURN;
   }
 
@@ -415,7 +415,7 @@ class MYSQL_BIN_LOG: public TC_LOG
     int32 result= my_atomic_add32(&m_prep_xids, -1);
     DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
     my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
-    thd->get_transaction()->flags.xid_written= false;
+    thd->get_transaction()->m_flags.xid_written= false;
     /* If the old value was 1, it is zero now. */
     if (result == 1)
     {

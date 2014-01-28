@@ -7648,7 +7648,7 @@ Thd_ndb::transaction_checks()
 
   if (thd->lex->sql_command == SQLCOM_LOAD)
     trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->get_transaction()->flags.enabled)
+  else if (!thd->get_transaction()->m_flags.enabled)
     trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
     trans_options|= TNTO_TRANSACTIONS_OFF;

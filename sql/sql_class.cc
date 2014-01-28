@@ -975,7 +975,7 @@ THD::THD(bool enable_plugins)
   cleanup_done= abort_on_warning= 0;
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
-  get_transaction()->flags.enabled= true;
+  get_transaction()->m_flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
@@ -2191,6 +2191,7 @@ void THD::add_changed_table(const char *key, long key_length)
   DBUG_ENTER("THD::add_changed_table(key)");
   if (get_transaction()->add_changed_table(key, key_length))
     killed= KILL_CONNECTION;
+  DBUG_VOID_RETURN;
 }
 
 
