@@ -295,8 +295,10 @@ void init_pfs_instrument_array()
 */
 void cleanup_instrument_config()
 {
-  my_free_container_pointers(*pfs_instr_config_array);
+  if (pfs_instr_config_array != NULL)
+    my_free_container_pointers(*pfs_instr_config_array);
   delete pfs_instr_config_array;
+  pfs_instr_config_array= NULL;
 }
 
 /**

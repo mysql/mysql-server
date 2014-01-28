@@ -701,6 +701,9 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
+  // May be NULL in unit tests
+  if (pfs_instr_config_array == NULL)
+    return;
   Pfs_instr_config_array::iterator it= pfs_instr_config_array->begin();
   for ( ; it != pfs_instr_config_array->end(); it++)
   {
