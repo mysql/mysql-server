@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "lf.h"
 #include "pfs_global.h"
 #include "pfs_atomic.h"
+#include "prealloced_array.h"
 
 /**
   @file storage/perfschema/pfs_instr_class.h
@@ -110,12 +111,8 @@ struct PFS_instr_config
   bool m_timed;
 };
 
-extern DYNAMIC_ARRAY pfs_instr_config_array;
-extern int pfs_instr_config_state;
-
-static const int PFS_INSTR_CONFIG_NOT_INITIALIZED= 0;
-static const int PFS_INSTR_CONFIG_ALLOCATED= 1;
-static const int PFS_INSTR_CONFIG_DEALLOCATED= 2;
+typedef Prealloced_array<PFS_instr_config*, 10> Pfs_instr_config_array;
+extern Pfs_instr_config_array *pfs_instr_config_array;
 
 struct PFS_thread;
 
