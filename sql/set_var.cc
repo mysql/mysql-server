@@ -441,10 +441,10 @@ int mysql_del_sys_var_chain(sys_var *first)
 {
   int result= 0;
 
-  /* A write lock should be held on LOCK_system_variables_hash */
-
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   for (sys_var *var= first; var; var= var->next)
     result|= my_hash_delete(&system_variable_hash, (uchar*) var);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   return result;
 }
