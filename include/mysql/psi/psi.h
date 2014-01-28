@@ -1109,29 +1109,6 @@ struct PSI_table_locker_state_v1
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
 
 /**
-  State data storage for @c start_prepare_stmt.
-  This structure provide temporary storage to a digest locker.
-  The content of this structure is considered opaque,
-  the fields are only hints of what an implementation
-  of the psi interface can use.
-  This memory is provided by the instrumented code for performance reasons.
-*/
-struct PSI_prepared_stmt_locker_state
-{
-  /** Internal state. */
-  uint m_flags;
-  /** Current thread. */
-  struct PSI_thread *m_thread;
-  /** Timer start. */
-  ulonglong m_timer_start;
-  /** Timer function. */
-  ulonglong (*m_timer)(void);
-  /** Prepared statement data. */
-  PSI_prepared_stmt* m_prepared_stmt;
-};
-typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
-
-/**
   State data storage for @c start_metadata_wait_v1_t.
   This structure provide temporary storage to a metadata locker.
   The content of this structure is considered opaque,
@@ -1205,6 +1182,8 @@ struct PSI_statement_locker_state_v1
 {
   /** Discarded flag. */
   my_bool m_discarded;
+  /** In prepare flag. */
+  my_bool m_in_prepare;
   /** Metric, no index used flag. */
   uchar m_no_index_used;
   /** Metric, no good index used flag. */
@@ -1959,8 +1938,7 @@ typedef void (*end_stage_v1_t) (void);
 */
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share, 
-   PSI_prepared_stmt *parent_ps);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
 
 /**
   Refine a statement locker to a more specific key.
@@ -2290,7 +2268,8 @@ typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 */
 typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
   (void *identity, uint stmt_id, PSI_statement_locker *locker,
-   char *stmt_name, uint stmt_name_length, char *name, uint length);
+   const char *stmt_name, size_t stmt_name_length,
+   const char *name, size_t length);
 
 /**
   destroy a prepare statement.
@@ -2300,19 +2279,11 @@ typedef void (*destroy_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
 
 /**
-  Record a prepare statement instrumentation start event.
+  Record a prepare statement instrumentation execute event.
   @param current thread.
 */
-typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt,
-   PSI_statement_key key);
-
-/**
-  Record a prepare statement instrumentation end event.
-  @param current thread.
-*/
-typedef void (*end_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker *locker);
+typedef void (*execute_prepared_stmt_v1_t)
+  (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
 
 /**
   Get a digest locker for the current statement.
@@ -2614,10 +2585,8 @@ struct PSI_v1
   create_prepared_stmt_v1_t create_prepared_stmt;
   /** @sa destroy_prepared_stmt_v1_t. */
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
-  /** @sa start_prepare_stmt_v1_t. */
-  start_prepare_stmt_v1_t start_prepare_stmt;
-  /** @sa end_prepare_stmt_v1_t. */
-  end_prepare_stmt_v1_t end_prepare_stmt;
+  /** @sa execute_prepared_stmt_v1_t. */
+  execute_prepared_stmt_v1_t execute_prepared_stmt;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */

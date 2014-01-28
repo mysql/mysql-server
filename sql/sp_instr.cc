@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -880,7 +880,6 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   thd->lex->sphead= thd->sp_runtime_ctx->sp;
 
   PSI_statement_locker *statement_psi_saved= thd->m_statement_psi;
-  thd->m_statement_psi= NULL;
 
   bool rc= mysql_execute_command(thd);
 

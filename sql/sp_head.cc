@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -740,15 +740,13 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();
-    PSI_statement_locker *sp_parent_locker, *parent_locker;
+    PSI_statement_locker *parent_locker;
  
     parent_locker= thd->m_statement_psi;
-    sp_parent_locker= thd->m_sp_statement_psi;
-    thd->m_sp_statement_psi= thd->m_statement_psi= 
-                             MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
-                                                   thd->db, thd->db_length,
-                                                   thd->charset(),
-                                                   this->m_sp_share, NULL);
+    thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
+                                                thd->db, thd->db_length,
+                                                thd->charset(),
+                                                this->m_sp_share);
 #endif
 
     err_status= i->execute(thd, &ip);
@@ -756,7 +754,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= parent_locker;
-    thd->m_sp_statement_psi= sp_parent_locker;
 #endif
 
     if (i->free_list)
