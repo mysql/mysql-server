@@ -294,15 +294,6 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
-struct PSI_prepared_stmt_locker_state
-{
-  uint m_flags;
-  struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
-  PSI_prepared_stmt* m_prepared_stmt;
-};
-typedef struct PSI_prepared_stmt_locker_state PSI_prepared_stmt_locker_state;
 struct PSI_metadata_locker_state_v1
 {
   uint m_flags;
@@ -330,6 +321,7 @@ typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
+  my_bool m_in_prepare;
   uchar m_no_index_used;
   uchar m_no_good_index_used;
   uint m_flags;
@@ -548,8 +540,7 @@ typedef void (*start_stage_v1_t)
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share,
-   PSI_prepared_stmt *parent_ps);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
 typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   (struct PSI_statement_locker *locker,
    PSI_statement_key key);
@@ -639,14 +630,12 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
   (void *identity, uint stmt_id, PSI_statement_locker *locker,
-   char *stmt_name, uint stmt_name_length, char *name, uint length);
+   const char *stmt_name, size_t stmt_name_length,
+   const char *name, size_t length);
 typedef void (*destroy_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
-typedef PSI_prepared_stmt_locker* (*start_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker_state *state, PSI_prepared_stmt* prepared_stmt,
-   PSI_statement_key key);
-typedef void (*end_prepare_stmt_v1_t)
-  (PSI_prepared_stmt_locker *locker);
+typedef void (*execute_prepared_stmt_v1_t)
+  (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
@@ -792,8 +781,7 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   create_prepared_stmt_v1_t create_prepared_stmt;
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
-  start_prepare_stmt_v1_t start_prepare_stmt;
-  end_prepare_stmt_v1_t end_prepare_stmt;
+  execute_prepared_stmt_v1_t execute_prepared_stmt;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;

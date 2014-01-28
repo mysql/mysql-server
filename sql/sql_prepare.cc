@@ -2238,23 +2238,10 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
   thd->protocol= &thd->protocol_binary;
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_prepared_stmt_locker_state state;
-  PSI_prepared_stmt_locker *locker;
-
-  /* If this prepare statement is called from a SP. */
-  if (thd->m_sp_statement_psi)
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
-                                           thd->m_sp_statement_psi,
-                                           (char*)stmt->name.str, stmt->name.length,
-                                           (char*)packet, (uint)packet_length);
-  else
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
-                                           thd->m_statement_psi,
-                                           (char*)stmt->name.str, stmt->name.length,
-                                           (char*)packet, (uint)packet_length);
-   
-  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt,
-                         com_statement_info[thd->lex->sql_command].m_key);
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         packet, packet_length);
 #endif
 
   if (stmt->prepare(packet, packet_length))
@@ -2263,12 +2250,6 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
     thd->stmt_map.erase(stmt);
     /* Mayank TODO: Do we need to delete this stmt stats from PS table. */
   }
-#ifdef HAVE_PSI_PS_INTERFACE
-  else
-  {
-    MYSQL_END_PS(locker); 
-  }
-#endif
 
   thd->protocol= save_protocol;
 
@@ -2432,22 +2413,10 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_prepared_stmt_locker_state state;
-  PSI_prepared_stmt_locker *locker;
-
-  /* If this prepare statement is called from a SP. */
-  if (thd->m_sp_statement_psi)
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
-                                           thd->m_sp_statement_psi,
-                                           (char*)stmt->name.str, stmt->name.length,
-                                           (char*)query, query_len);
-  else
-    stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
-                                           thd->m_statement_psi,
-                                           (char*)stmt->name.str, stmt->name.length,
-                                           (char*)query, query_len);
-   
-  locker= MYSQL_START_PS(&state, stmt->m_prepared_stmt, sql_statement_info[thd->lex->sql_command].m_key); 
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         query, query_len);
 #endif
 
   if (stmt->prepare(query, query_len))
@@ -2459,9 +2428,6 @@ void mysql_sql_stmt_prepare(THD *thd)
   else
   {
     my_ok(thd, 0L, 0L, "Statement prepared");
-#ifdef HAVE_PSI_PS_INTERFACE
-    MYSQL_END_PS(locker);
-#endif
   }
 
   DBUG_VOID_RETURN;
@@ -2681,22 +2647,10 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   thd->protocol= &thd->protocol_binary;
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_statement_locker_state state;
-  PSI_statement_locker *parent_locker;
-  PSI_statement_info *psi_info = &sql_statement_info[thd->lex->sql_command];
-  parent_locker= thd->m_statement_psi;
-  thd->m_statement_psi= MYSQL_START_STATEMENT(&state, psi_info->m_key,
-                                              thd->db, thd->db_length,
-                                              thd->charset(), NULL,
-                                              stmt->m_prepared_stmt);
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 #endif
 
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
-
-#ifdef HAVE_PSI_PS_INTERFACE
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-  thd->m_statement_psi= parent_locker;
-#endif
 
   thd->protocol= save_protocol;
 
@@ -2753,22 +2707,10 @@ void mysql_sql_stmt_execute(THD *thd)
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_statement_locker_state state;
-  PSI_statement_locker *parent_locker;
-  PSI_statement_info *psi_info = &sql_statement_info[thd->lex->sql_command];
-  parent_locker= thd->m_statement_psi;
-  thd->m_statement_psi= MYSQL_START_STATEMENT(&state, psi_info->m_key,
-                                              thd->db, thd->db_length,
-                                              thd->charset(), NULL,
-                                              stmt->m_prepared_stmt);
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 #endif
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
-
-#ifdef HAVE_PSI_PS_INTERFACE
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-  thd->m_statement_psi= parent_locker;
-#endif
 
   DBUG_VOID_RETURN;
 }

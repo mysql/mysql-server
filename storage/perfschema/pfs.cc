@@ -4625,8 +4625,7 @@ void pfs_end_stage_v1()
 PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
-                                   const void *charset, PSI_sp_share *sp_share,
-                                   PSI_prepared_stmt *parent_prepared_stmt)
+                                   const void *charset, PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4805,7 +4804,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   state->m_schema_name_length= 0;
   state->m_parent_sp_share= sp_share;
-  state->m_parent_prepared_stmt= parent_prepared_stmt;
+  state->m_parent_prepared_stmt= NULL;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -5278,34 +5277,52 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   if (pfs_prepared_stmt != NULL)
   {
     PFS_statement_stat *prepared_stmt_stat= NULL;
-    prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
-    if(prepared_stmt_stat != NULL)
+    if(state->m_in_prepare)
     {
-      if (flags & STATE_FLAG_TIMED)
+      prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_stat;
+      if(prepared_stmt_stat != NULL)
       {
-        prepared_stmt_stat->aggregate_value(wait_time);
-      }
-      else
+        if (flags & STATE_FLAG_TIMED)
+        {
+          prepared_stmt_stat->aggregate_value(wait_time);
+        }
+        else
+        {
+          prepared_stmt_stat->aggregate_counted();
+        }
+      } 
+    }
+    else
+    {
+      prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
+      if(prepared_stmt_stat != NULL)
       {
-        prepared_stmt_stat->aggregate_counted();
-      }
+        if (flags & STATE_FLAG_TIMED)
+        {
+          prepared_stmt_stat->aggregate_value(wait_time);
+        }
+        else
+        {
+          prepared_stmt_stat->aggregate_counted();
+        }
 
-      prepared_stmt_stat->m_lock_time+= state->m_lock_time;
-      prepared_stmt_stat->m_rows_sent+= state->m_rows_sent;
-      prepared_stmt_stat->m_rows_examined+= state->m_rows_examined;
-      prepared_stmt_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
-      prepared_stmt_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
-      prepared_stmt_stat->m_select_full_join+= state->m_select_full_join;
-      prepared_stmt_stat->m_select_full_range_join+= state->m_select_full_range_join;
-      prepared_stmt_stat->m_select_range+= state->m_select_range;
-      prepared_stmt_stat->m_select_range_check+= state->m_select_range_check;
-      prepared_stmt_stat->m_select_scan+= state->m_select_scan;
-      prepared_stmt_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
-      prepared_stmt_stat->m_sort_range+= state->m_sort_range;
-      prepared_stmt_stat->m_sort_rows+= state->m_sort_rows;
-      prepared_stmt_stat->m_sort_scan+= state->m_sort_scan;
-      prepared_stmt_stat->m_no_index_used+= state->m_no_index_used;
-      prepared_stmt_stat->m_no_good_index_used+= state->m_no_good_index_used;
+        prepared_stmt_stat->m_lock_time+= state->m_lock_time;
+        prepared_stmt_stat->m_rows_sent+= state->m_rows_sent;
+        prepared_stmt_stat->m_rows_examined+= state->m_rows_examined;
+        prepared_stmt_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+        prepared_stmt_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+        prepared_stmt_stat->m_select_full_join+= state->m_select_full_join;
+        prepared_stmt_stat->m_select_full_range_join+= state->m_select_full_range_join;
+        prepared_stmt_stat->m_select_range+= state->m_select_range;
+        prepared_stmt_stat->m_select_range_check+= state->m_select_range_check;
+        prepared_stmt_stat->m_select_scan+= state->m_select_scan;
+        prepared_stmt_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+        prepared_stmt_stat->m_sort_range+= state->m_sort_range;
+        prepared_stmt_stat->m_sort_rows+= state->m_sort_rows;
+        prepared_stmt_stat->m_sort_scan+= state->m_sort_scan;
+        prepared_stmt_stat->m_no_index_used+= state->m_no_index_used;
+        prepared_stmt_stat->m_no_good_index_used+= state->m_no_good_index_used;
+      }
     }
   }
 
@@ -5314,7 +5331,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     sub_stmt_stat= &pfs_program->m_stmt_stat;
 
   PFS_statement_stat *prepared_stmt_stat= NULL;
-  if (pfs_prepared_stmt != NULL)
+  if (pfs_prepared_stmt != NULL && !state->m_in_prepare)
     prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
 
   switch (da->status())
@@ -5950,10 +5967,10 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 }
 
 PSI_prepared_stmt*
-pfs_create_prepare_stmt_v1(void *identity, uint stmt_id, 
+pfs_create_prepared_stmt_v1(void *identity, uint stmt_id, 
                            PSI_statement_locker *locker, 
-                           char *stmt_name, uint stmt_name_length,
-                           char *sql_text, uint sql_text_length)
+                           const char *stmt_name, size_t stmt_name_length,
+                           const char *sql_text, size_t sql_text_length)
 {
   PFS_events_statements *pfs_stmt= NULL;
 
@@ -5963,7 +5980,6 @@ pfs_create_prepare_stmt_v1(void *identity, uint stmt_id,
   if (pfs_stmt == NULL)
     return NULL;
 
-  /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
@@ -5976,74 +5992,21 @@ pfs_create_prepare_stmt_v1(void *identity, uint stmt_id,
                                                pfs_stmt, stmt_id,
                                                stmt_name, stmt_name_length,
                                                sql_text, sql_text_length);
+
+  state->m_parent_prepared_stmt= reinterpret_cast<PSI_prepared_stmt*>(pfs);
+  state->m_in_prepare= true;
+
   return reinterpret_cast<PSI_prepared_stmt*>(pfs);
 }
 
-PSI_prepared_stmt_locker*
-pfs_start_prepare_stmt_v1(PSI_prepared_stmt_locker_state *state,
-                          PSI_prepared_stmt* prepared_stmt,
-                          PSI_statement_key key)
+void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
+                                   PSI_prepared_stmt* ps)
 {
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-  PFS_statement_class *klass= find_statement_class(key);
-  if (unlikely(klass == NULL))
-    return NULL;
-  if (! klass->m_enabled)
-    return NULL;
-
-  if (flag_thread_instrumentation)
-  {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
-    if (! pfs_thread->m_enabled)
-      return NULL;
-  }
-
-  state->m_flags= 0;
-
-  if(klass->m_timed)
-  {
-    state->m_flags|= STATE_FLAG_TIMED;
-    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
-                                                  & state->m_timer);
-  }
-
-  state->m_prepared_stmt= prepared_stmt;
-
-  return reinterpret_cast<PSI_prepared_stmt_locker*> (state);
-}
-
-void pfs_end_prepare_stmt_v1(PSI_prepared_stmt_locker *locker)
-{
-  PSI_prepared_stmt_locker_state *state= reinterpret_cast<PSI_prepared_stmt_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(state->m_prepared_stmt);
-  if(pfs_ps == NULL)
-    return;
-
-  ulonglong timer_end;
-  ulonglong wait_time;
-  PFS_statement_stat *stat= &pfs_ps->m_prepared_stmt_stat;
-
-  if (state->m_flags & STATE_FLAG_TIMED)
-  {
-    timer_end= state->m_timer();
-    wait_time= timer_end - state->m_timer_start;
-
-    /* Now use this timer_end and wait_time for timing information. */
-    stat->aggregate_value(wait_time);
-  }
-  else
-  {
-    stat->aggregate_counted();
-  }
-
-  return;
+  state->m_parent_prepared_stmt= ps;
+  state->m_in_prepare= false;
 }
 
 void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
@@ -6578,10 +6541,9 @@ PSI_v1 PFS_v1=
   pfs_set_socket_state_v1,
   pfs_set_socket_info_v1,
   pfs_set_socket_thread_owner_v1,
-  pfs_create_prepare_stmt_v1,
+  pfs_create_prepared_stmt_v1,
   pfs_destroy_prepared_stmt_v1,
-  pfs_start_prepare_stmt_v1,
-  pfs_end_prepare_stmt_v1,
+  pfs_execute_prepared_stmt_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1,

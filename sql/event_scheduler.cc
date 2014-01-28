@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -317,7 +317,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                                               event->get_psi_info()->m_key,
                                               event->dbname.str,
                                               event->dbname.length,
-                                              thd->charset(), NULL, NULL);
+                                              thd->charset(), NULL);
 #endif
 
   thd->thread_stack= &my_stack;                // remember where our stack is

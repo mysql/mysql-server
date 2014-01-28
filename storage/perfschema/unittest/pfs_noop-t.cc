@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -144,7 +144,7 @@ void test_noop()
   PSI_server->end_file_close_wait(NULL, 0);
   PSI_server->start_stage(1, NULL, 0);
   PSI_server->end_stage();
-  statement_locker= PSI_server->get_thread_statement_locker(NULL, 1, NULL, NULL, NULL);
+  statement_locker= PSI_server->get_thread_statement_locker(NULL, 1, NULL, NULL);
   ok(statement_locker == NULL, "no statement_locker");
   statement_locker= PSI_server->refine_statement(NULL, 1);
   ok(statement_locker == NULL, "no statement_locker");
