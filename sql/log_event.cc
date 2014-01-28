@@ -1652,7 +1652,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case FORMAT_DESCRIPTION_EVENT:
       binary_log_debug::debug_pretend_version_50034_in_binlog=
-      DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
+      DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
       ev = new Format_description_log_event(buf, event_len, &des_ev);
       break;
 #if defined(HAVE_REPLICATION)
@@ -2655,7 +2655,7 @@ void Log_event::print_base64(IO_CACHE* file,
     if (common_footer->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF &&
         common_footer->checksum_alg != BINLOG_CHECKSUM_ALG_OFF)
       size-= BINLOG_CHECKSUM_LEN; // checksum is displayed through the header
-
+   
     const Format_description_event des_ev=
           Format_description_event(glob_description_event->binlog_version,
                                    server_version);
