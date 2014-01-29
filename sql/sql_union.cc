@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,7 +264,7 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool bit_fields_as_long, bool create_table)
 {
   DBUG_ASSERT(table == 0);
-  tmp_table_param.init();
+  tmp_table_param= TMP_TABLE_PARAM();
   count_field_types(thd_arg->lex->current_select(), &tmp_table_param,
                     *column_types, false, true);
   tmp_table_param.skip_create_table= !create_table;

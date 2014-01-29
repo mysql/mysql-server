@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6969,9 +6969,10 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     item->maybe_null= (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
-  TMP_TABLE_PARAM *tmp_table_param =
-    (TMP_TABLE_PARAM*) (thd->alloc(sizeof(TMP_TABLE_PARAM)));
-  tmp_table_param->init();
+  TMP_TABLE_PARAM *tmp_table_param = new (thd->mem_root) TMP_TABLE_PARAM;
+  if (!tmp_table_param)
+    DBUG_RETURN(0);
+
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
   tmp_table_param->schema_table= 1;
