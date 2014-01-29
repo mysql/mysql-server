@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -555,6 +555,13 @@ buf_buddy_relocate(
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
 	const page_id_t	page_id(space, offset);
+
+	/* If space,offset is bogus, then we know that the
+	buf_page_hash_get_low() call below will return NULL. */
+	if (buf_pool != buf_pool_get(page_id)) {
+		return(false);
+	}
+
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
 	rw_lock_x_lock(hash_lock);
