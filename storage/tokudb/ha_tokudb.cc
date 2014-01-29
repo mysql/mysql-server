@@ -4368,6 +4368,7 @@ void ha_tokudb::column_bitmaps_signal() {
 //      error otherwise
 //
 int ha_tokudb::prepare_index_scan() {
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
     HANDLE_INVALID_CURSOR();
     error = prelock_range(NULL, NULL);
@@ -4376,7 +4377,7 @@ int ha_tokudb::prepare_index_scan() {
     range_lock_grabbed = true;
     error = 0;
 cleanup:
-    return error;
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 
@@ -4388,6 +4389,7 @@ cleanup:
 //      error otherwise
 //
 int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
     DBT start_key, end_key;
     THD* thd = ha_thd();
@@ -4416,9 +4418,7 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     error = 0;
 cleanup:
     if (error) {
-        if (error == DB_LOCK_NOTGRANTED) {
-            error = HA_ERR_LOCK_WAIT_TIMEOUT;
-        }
+        error = map_to_handler_error(error);
         last_cursor_error = error;
         //
         // cursor should be initialized here, but in case it is not, 
@@ -4431,7 +4431,7 @@ cleanup:
             remove_from_trx_handler_list();
         }
     }
-    return error;
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 void ha_tokudb::invalidate_bulk_fetch() {
@@ -4502,6 +4502,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
             my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         }
         table->status = STATUS_NOT_FOUND;
+        error = map_to_handler_error(error);
         last_cursor_error = error;
         cursor = NULL;             // Safety
         goto exit;
@@ -4561,9 +4562,7 @@ int ha_tokudb::index_end() {
 int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     if (error) {
-        if (error == DB_LOCK_NOTGRANTED) {
-            error = HA_ERR_LOCK_WAIT_TIMEOUT;
-        }
+        error = map_to_handler_error(error);
         last_cursor_error = error;
         table->status = STATUS_NOT_FOUND;
         if (error == DB_NOTFOUND) {
@@ -5688,7 +5687,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         true,
         (cursor_flags & DB_SERIALIZABLE) != 0 ? DB_NOTFOUND : 0
         );
-    if (error){ 
+    if (error) { 
+        error = map_to_handler_error(error);
         last_cursor_error = error;
         //
         // cursor should be initialized here, but in case it is not, we still check
@@ -5721,11 +5721,12 @@ cleanup:
 // Forward scans use read_range_first()/read_range_next().
 //
 int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = prelock_range(start_key, end_key);
     if (!error) {
         range_lock_grabbed = true;
     }
-    return error;
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 int ha_tokudb::read_range_first(
@@ -5734,13 +5735,14 @@ int ha_tokudb::read_range_first(
     bool eq_range, 
     bool sorted) 
 {
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = prelock_range(start_key, end_key);
     if (error) { goto cleanup; }
     range_lock_grabbed = true;
     
     error = handler::read_range_first(start_key, end_key, eq_range, sorted);
 cleanup:
-    return error;
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 int ha_tokudb::read_range_next()
@@ -8002,7 +8004,7 @@ void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_o
     }            
 }
 
-void ha_tokudb::print_error(int error, myf errflag) {
+int ha_tokudb::map_to_handler_error(int error) {
     if (error == DB_LOCK_DEADLOCK)
         error = HA_ERR_LOCK_DEADLOCK;
     if (error == DB_LOCK_NOTGRANTED)
@@ -8020,9 +8022,13 @@ void ha_tokudb::print_error(int error, myf errflag) {
         error = HA_ERR_UNSUPPORTED;
     }
 #endif
-    handler::print_error(error, errflag);
+    return error;
 }
 
+void ha_tokudb::print_error(int error, myf errflag) {
+    error = map_to_handler_error(error);
+    handler::print_error(error, errflag);
+}
 
 //
 // truncate's dictionary associated with keynr index using transaction txn

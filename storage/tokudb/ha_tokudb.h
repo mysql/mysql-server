@@ -797,6 +797,9 @@ private:
     LIST trx_handler_list;
     void add_to_trx_handler_list();
     void remove_from_trx_handler_list();
+
+private:
+    int map_to_handler_error(int error);
 };
 
 #if defined(MARIADB_BASE_VERSION)

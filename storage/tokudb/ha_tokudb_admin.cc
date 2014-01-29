@@ -127,7 +127,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
 }
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
     DB_TXN *txn = transaction;
@@ -153,11 +153,10 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             } else {
                 // debug
                 if (tokudb_debug & TOKUDB_DEBUG_ANALYZE) {
-                    fprintf(stderr, "ha_tokudb::analyze %s.%s.%s ", 
-                            table_share->db.str, table_share->table_name.str, i == primary_key ? "primary" : table_share->key_info[i].name);
+                    TOKUDB_HANDLER_TRACE("%s.%s.%s", 
+                                         table_share->db.str, table_share->table_name.str, i == primary_key ? "primary" : table_share->key_info[i].name);
                     for (uint j = 0; j < num_key_parts; j++) 
-                        fprintf(stderr, "%lu ", rec_per_key[next_key_part+j]);
-                    fprintf(stderr, "\n");
+                        TOKUDB_HANDLER_TRACE("%lu", rec_per_key[next_key_part+j]);
                 }
             }
             next_key_part += num_key_parts;
@@ -192,7 +191,7 @@ static int hot_poll_fun(void *extra, float progress) {
 
 // flatten all DB's in this table, to do so, peform hot optimize on each db
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
 
     int error;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
@@ -262,7 +261,7 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
 }
 
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
 
     const char *old_proc_info = thd->proc_info;
     thd_proc_info(thd, "tokudb::check");
@@ -288,7 +287,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             ha_tokudb_check_info(thd, table, write_status_msg);
             time_t now = time(0);
             char timebuf[32];
-            fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+            TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
         }
         for (uint i = 0; i < num_DBs; i++) {
             DB *db = share->key_file[i];
@@ -299,7 +298,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
             }
             struct check_context check_context = { thd };
             r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, (tokudb_debug & TOKUDB_DEBUG_CHECK) != 0, keep_going);
@@ -309,7 +308,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
             }
             if (result == HA_ADMIN_OK && r != 0) {
                 result = HA_ADMIN_CORRUPT;
