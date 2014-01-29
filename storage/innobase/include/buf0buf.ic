@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1057,6 +1057,7 @@ buf_page_hash_get_low(
 		ut_a(buf_page_in_file(bpage));
 		ut_ad(bpage->in_page_hash);
 		ut_ad(!bpage->in_zip_hash);
+		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 #if UNIV_WORD_SIZE == 4
 		/* On 32-bit systems, there is no padding in
 		buf_page_t.  On other systems, Valgrind could complain
