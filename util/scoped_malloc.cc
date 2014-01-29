@@ -95,6 +95,29 @@ PATENT RIGHTS GRANT:
 
 #include <util/scoped_malloc.h>
 
+// The __thread storage class modifier isn't well supported on osx, but we
+// aren't worried about the performance on osx, so we provide a
+// pass-through implementation of scoped mallocs.
+#ifdef __APPLE__
+
+namespace toku {
+
+    scoped_malloc::scoped_malloc(const size_t size)
+        : m_size(size),
+          m_local(false),
+          m_buf(toku_xmalloc(size)) {}
+
+    scoped_malloc::~scoped_malloc() {
+        toku_free(m_buf);
+    }
+
+} // namespace toku
+
+void toku_scoped_malloc_init(void) {}
+void toku_scoped_malloc_destroy(void) {}
+
+#else // __APPLE__
+
 namespace toku {
 
     // see pthread_key handling at the bottom
@@ -196,3 +219,5 @@ void toku_scoped_malloc_destroy(void) {
     int r = pthread_key_delete(toku::tl_stack_destroy_pthread_key);
     invariant_zero(r);
 }
+
+#endif // !__APPLE__
