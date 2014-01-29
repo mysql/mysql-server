@@ -1,5 +1,5 @@
 # Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -11,12 +11,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# Avoid system checks on Windows by pre-caching  results. Most of the system checks 
+# Avoid system checks on Windows by pre-caching  results. Most of the system checks
 # are not relevant for Windows anyway and it takes lot more time to run them,
 # since CMake  to creates a Visual Studio project for each tiny test.
-# Note that only we  cache values on VC++ only, MinGW would give slightly 
+# Note that only we  cache values on VC++ only, MinGW would give slightly
 # different results.
 
 IF(MSVC)
@@ -175,14 +175,16 @@ SET(HAVE_SOCKADDR_IN6_SIN6_LEN CACHE INTERNAL "")
 SET(HAVE_SOCKADDR_STORAGE_SS_FAMILY 1 CACHE  INTERNAL "")
 SET(HAVE_SOLARIS_STYLE_GETHOST CACHE  INTERNAL "")
 SET(STACK_DIRECTION -1 CACHE INTERNAL "")
-SET(HAVE_STDINT_H CACHE  INTERNAL "")
+IF(MSVC_VERSION GREATER 1599)
+ SET(HAVE_STDINT_H 1 CACHE  INTERNAL "")
+ENDIF()
 SET(HAVE_STPCPY CACHE  INTERNAL "")
 SET(HAVE_STPNCPY CACHE  INTERNAL "")
 SET(HAVE_STRINGS_H CACHE  INTERNAL "")
 SET(HAVE_STRLCAT CACHE  INTERNAL "")
 SET(HAVE_STRLCPY CACHE  INTERNAL "")
 IF(MSVC_VERSION GREATER 1310)
-SET(HAVE_STRNLEN 1 CACHE  INTERNAL "")
+ SET(HAVE_STRNLEN 1 CACHE  INTERNAL "")
 ENDIF()
 SET(HAVE_STRSEP CACHE  INTERNAL "")
 SET(HAVE_STRSIGNAL CACHE  INTERNAL "")
