@@ -440,10 +440,20 @@ public:
     m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
   {
   }
-  /*
-    TODO: Remove this virtual method and replace by a member veriable in
-    class Binary_log_event.
-  */
+
+  unsigned long long get_table_id()
+  {
+    return m_table_id.id();
+  }
+  std::string get_table_name()
+  {
+    return m_tblnam;
+  }
+  std::string get_db_name()
+  {
+    return m_dbnam;
+  }
+
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 };
@@ -609,6 +619,40 @@ protected:
   std::vector<uint8_t> row;
 
 public:
+  unsigned long long get_table_id()
+  {
+    return m_table_id.id();
+  }
+
+  enum_flag get_flags()
+  {
+    return static_cast<enum_flag>(m_flags);
+  }
+
+  uint32_t get_null_bits_len() const
+  {
+    return n_bits_len;
+  }
+
+  unsigned long get_width() const
+  {
+    return m_width;
+  }
+
+  std::vector<uint8_t> get_columns_before_image() const
+  {
+    return columns_before_image;
+  }
+
+  std::vector<uint8_t> get_columns_after_image() const
+  {
+    return columns_after_image;
+  }
+
+  std::vector<uint8_t> get_row() const
+  {
+    return row;
+  }
 
   static std::string get_flag_string(enum_flag flag)
   {

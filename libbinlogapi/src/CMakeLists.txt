@@ -11,24 +11,24 @@ SET (REPLICATION_SOURCES
 
 
 # Configure for building static library
-ADD_LIBRARY (binlogevent_static STATIC ${REPLICATION_SOURCES})
+ADD_LIBRARY (binlogevents_static STATIC ${REPLICATION_SOURCES})
 
 IF (HAVE_MYSYS)
-  TARGET_LINK_LIBRARIES (binlogevent_static ${ZLIB_LIBRARIES} mysys dbug)
+  TARGET_LINK_LIBRARIES (binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
 ELSE (HAVE_MYSYS)
-  TARGET_LINK_LIBRARIES (binlogevent_static ${ZLIB_LIBRARIES})
+  TARGET_LINK_LIBRARIES (binlogevents_static ${ZLIB_LIBRARIES})
 ENDIF (HAVE_MYSYS)
 
-SET_TARGET_PROPERTIES (binlogevent_static PROPERTIES
-                       OUTPUT_NAME "binlogevent")
+SET_TARGET_PROPERTIES (binlogevents_static PROPERTIES
+                       OUTPUT_NAME "binlogevents")
 
 
 # Configure for building shared library
 IF (NOT HAVE_MYSYS)
-  ADD_LIBRARY (binlogevent_shared SHARED ${REPLICATION_SOURCES})
-  TARGET_LINK_LIBRARIES (binlogevent_shared ${ZLIB_LIBRARIES})
-  SET_TARGET_PROPERTIES (binlogevent_shared PROPERTIES
-                         OUTPUT_NAME "binlogevent")
-  INSTALL (TARGETS binlogevent_shared
+  ADD_LIBRARY (binlogevents_shared SHARED ${REPLICATION_SOURCES})
+  TARGET_LINK_LIBRARIES (binlogevents_shared ${ZLIB_LIBRARIES})
+  SET_TARGET_PROPERTIES (binlogevents_shared PROPERTIES
+                         OUTPUT_NAME "binlogevents")
+  INSTALL (TARGETS binlogevents_shared
            LIBRARY DESTINATION lib)
 ENDIF (NOT HAVE_MYSYS)

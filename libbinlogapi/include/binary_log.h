@@ -21,6 +21,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #ifndef BINARY_LOG_INCLUDED
 #define	BINARY_LOG_INCLUDED
 
+/*
+  This file is a convenience header file meant for the users, for inclusion
+  of other related header files. Please refrain from adding any definitions
+  to this header.
+*/
 #include "binlog_event.h"
 #include "field_iterator.h"
 #include "load_data_events.h"
