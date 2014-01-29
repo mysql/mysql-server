@@ -3605,7 +3605,8 @@ void thd_increment_bytes_sent(ulong length)
 
 void thd_increment_bytes_received(ulong length)
 {
-  current_thd->status_var.bytes_received+= length;
+  if (likely(current_thd != NULL))
+    current_thd->status_var.bytes_received+= length;
 }
 
 
