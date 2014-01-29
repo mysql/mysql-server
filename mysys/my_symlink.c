@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ int my_is_symlink(const char *filename __attribute__((unused)))
 
 int my_realpath(char *to, const char *filename, myf MyFlags)
 {
-#if defined(HAVE_REALPATH) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH)
   int result=0;
   char buff[BUFF_LEN];
   char *ptr;

@@ -525,9 +525,6 @@ buf_dblwr_process()
 			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
-			ib_logf(IB_LOG_LEVEL_INFO,
-					"Checking space:%lu page:%lu",
-					 (ulong) space_id, (ulong) page_no);
 
 			if (buf_page_is_corrupted(true, read_buf, page_size)) {
 
