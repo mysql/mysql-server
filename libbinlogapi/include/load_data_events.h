@@ -25,9 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   @file load_data_events.h
 
   @brief LOAD DATA INFILE is not written to the binary log like other
-  statements. It is written as one or more events in a packed format, 
+  statements. It is written as one or more events in a packed format,
   not as a cleartext statement in the binary log. The events indicate
-  what options are present in the statement and how to process the data file. 
+  what options are present in the statement and how to process the data file.
 */
 
 #ifndef LOAD_DATA_EVENTS_INCLUDED

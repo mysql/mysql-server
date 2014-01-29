@@ -15,13 +15,25 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-02110-1301  USA
 */
+
+/**
+  @addtogroup Replication
+  @{
+
+  @file binlog_event.h
+
+  @brief Contains the classes representing events occuring in the replication
+  stream. Each event is represented as a byte sequence with logical divisions
+  as event header, event specific data and event footer. The header and footer
+  are common to all the events and are represented as two different subclasses.
+*/
+
 #ifndef BINLOG_EVENT_INCLUDED
 #define	BINLOG_EVENT_INCLUDED
 
 #include "debug_vars.h"
-/**
+/*
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
@@ -75,12 +87,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /**
    binlog_version 3 is MySQL 4.x; 4 is MySQL 5.0.0.
    Compared to version 3, version 4 has:
-   - a different Start_log_event, which includes info about the binary log
+   - a different Start_event, which includes info about the binary log
    (sizes of headers); this info is included for better compatibility if the
    master's MySQL version is different from the slave's.
    - all events have a unique ID (the triplet (server_id, timestamp at server
    start, other) to be sure an event is not executed more than once in a
    multimaster setup, example:
+   @verbatim
                 M1
               /   \
              v     v
@@ -88,6 +101,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
              \     /
               v   v
                 S
+   @endverbatim
    if a query is run on M1, it will arrive twice on S, so we need that S
    remembers the last unique ID it has processed, to compare and know if the
    event should be skipped or not. Example of ID: we already have the server id
@@ -98,15 +112,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
    - Query and Load (Create or Execute) events may have a more precise
      timestamp (with microseconds), number of matched/affected/warnings rows
-   timestamp_when_the_master_started (4 bytes), a counter (a sequence number
-   which increments every time we write an event to the binlog) (3 bytes).
-   Q: how do we handle when the counter is overflowed and restarts from 0 ?
-
-   - Query and Load (Create or Execute) events may have a more precise
-     timestamp (with microseconds), number of matched/affected/warnings rows
-   and fields of session variables: SQL_MODE,
-   FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
-   charsets, the PASSWORD() version (old/new/...).
+     and fields of session variables: SQL_MODE,
+     FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
+     charsets, the PASSWORD() version (old/new/...).
 */
 #define BINLOG_VERSION    4
 
@@ -671,7 +679,7 @@ public:
   */
   typedef unsigned char Byte;
 
-  Log_event_header(Log_event_type type_code_arg)
+  Log_event_header(Log_event_type type_code_arg= ENUM_END_EVENT)
   : type_code(type_code_arg), log_pos(0), flags(0)
   {
     when.tv_sec= 0;
@@ -2174,6 +2182,15 @@ public:
   INCIDENT_COUNT
   };
 
+  enum_incident get_incident_type()
+  {
+    return incident;
+  }
+  char* get_message()
+  {
+    return message;
+  }
+
   Incident_event(enum_incident incident_arg)
   : Binary_log_event(INCIDENT_EVENT), incident(incident_arg), message(NULL),
     message_length(0)
@@ -2313,31 +2330,31 @@ class Rand_event: public Binary_log_event
     <th>Description</th>
   </tr>
   <tr>
-    <td>type</th>
-    <td>enum_group_type</th>
-    <td>Group type of the groups created while transaction</th>
+    <td>type</td>
+    <td>enum_group_type</td>
+    <td>Group type of the groups created while transaction</td>
   </tr>
   <tr>
-    <td>bytes_to_copy</th>
-    <td>size_t</th>
+    <td>bytes_to_copy</td>
+    <td>size_t</td>
     <td>Number of bytes to copy from the buffer, this is
-        used as the size of array uuid_buf</th>
+        used as the size of array uuid_buf</td>
   </tr>
   <tr>
     <td>uuid_buf</th>
-    <td>unsigned char array</th>
+    <td>unsigned char array</td>
     <td>This stores the Uuid of the server on which transaction
-        is originated</th>
+        is originated</td>
   </tr>
   <tr>
-    <td>rpl_gtid_sidno</th>
-    <td>4 bytes integer</th>
-    <td>SIDNO (source ID number, first component of GTID)</th>
+    <td>rpl_gtid_sidno</td>
+    <td>4 bytes integer</td>
+    <td>SIDNO (source ID number, first component of GTID)</td>
   </tr>
   <tr>
-    <td>rpl_gtid_gno</th>
-    <td>8 bytes integer</th>
-    <td>GNO (group number, second component of GTID)</th>
+    <td>rpl_gtid_gno</td>
+    <td>8 bytes integer</td>
+    <td>GNO (group number, second component of GTID)</td>
   </tr>
   </table>
 */

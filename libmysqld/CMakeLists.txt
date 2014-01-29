@@ -83,7 +83,7 @@ SET(SQL_EMBEDDED_SOURCES
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
-TARGET_LINK_LIBRARIES(sql_embedded binlogevent_static)
+TARGET_LINK_LIBRARIES(sql_embedded binlogevents_static)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
@@ -95,7 +95,7 @@ ENDIF()
 
 
 SET(LIBS 
-  dbug strings regex mysys mysys_ssl vio binlogevent_static
+  dbug strings regex mysys mysys_ssl vio binlogevents_static
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES}
   ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS}
@@ -117,7 +117,7 @@ ENDFOREACH()
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
   OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
 
-TARGET_LINK_LIBRARIES(mysqlserver binlogevent_static)
+TARGET_LINK_LIBRARIES(mysqlserver binlogevents_static)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)
