@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1421,15 +1421,15 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 140:
-      name= "prepared_statement_instances.size";
+      name= "prepared_statements_instances.size";
       size= sizeof(PFS_prepared_stmt);
       break;
     case 141:
-      name= "prepared_statement_instances.count";
+      name= "prepared_statements_instances.count";
       size= prepared_stmt_max;
       break;
     case 142:
-      name= "prepared_statement_instances.memory";
+      name= "prepared_statements_instances.memory";
       size= prepared_stmt_max * sizeof(PFS_prepared_stmt);
       total_memory+= size;
       break;
