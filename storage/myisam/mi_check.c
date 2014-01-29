@@ -138,7 +138,7 @@ int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag)
 {
   ha_rows i;
   uint delete_link_length;
-  my_off_t empty,next_link,UNINIT_VAR(old_link);
+  my_off_t empty,next_link, old_link= 0;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
