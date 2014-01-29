@@ -1711,8 +1711,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
-  tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
-						   table_count);
+  tmp_table_param= new (thd->mem_root) TMP_TABLE_PARAM[table_count];
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *

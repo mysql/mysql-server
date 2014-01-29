@@ -4235,25 +4235,28 @@ public:
   bool bit_fields_as_long;
 
   TMP_TABLE_PARAM()
-    :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0), outer_sum_func_count(0),
-     using_outer_summary_function(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     skip_create_table(FALSE), bit_fields_as_long(0)
+    :copy_field(NULL), copy_field_end(NULL),
+     recinfo(NULL), start_recinfo(NULL),
+     keyinfo(NULL),
+     field_count(0), func_count(0), sum_func_count(0), hidden_field_count(0),
+     group_parts(0), group_length(0), group_null_parts(0),
+     quick_group(1),
+     outer_sum_func_count(0),
+     using_outer_summary_function(false),
+     table_charset(NULL),
+     schema_table(false), precomputed_group_by(false), force_copy_fields(false),
+     skip_create_table(false), bit_fields_as_long(false)
   {}
   ~TMP_TABLE_PARAM()
   {
     cleanup();
   }
-  void init(void);
-  inline void cleanup(void)
+
+  void cleanup(void)
   {
-    if (copy_field)				/* Fix for Intel compiler */
-    {
-      delete [] copy_field;
-      copy_field= NULL;
-      copy_field_end= NULL;
-    }
+    delete [] copy_field;
+    copy_field= NULL;
+    copy_field_end= NULL;
   }
 };
 
