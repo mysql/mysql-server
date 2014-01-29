@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,11 +49,9 @@
 my_bool pfs_enabled= TRUE;
 
 /**
-  PFS_INSTRUMENT option settings array and associated state variable to
-  serialize access during shutdown.
+  PFS_INSTRUMENT option settings array
  */
-DYNAMIC_ARRAY pfs_instr_config_array;
-int pfs_instr_config_state= PFS_INSTR_CONFIG_NOT_INITIALIZED;
+Pfs_instr_config_array *pfs_instr_config_array= NULL;
 
 static void configure_instr_class(PFS_instr_class *entry);
 
@@ -703,10 +701,13 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
-  for (uint i= 0; i < pfs_instr_config_array.elements; i++)
+  // May be NULL in unit tests
+  if (pfs_instr_config_array == NULL)
+    return;
+  Pfs_instr_config_array::iterator it= pfs_instr_config_array->begin();
+  for ( ; it != pfs_instr_config_array->end(); it++)
   {
-    PFS_instr_config* e;
-    get_dynamic(&pfs_instr_config_array, (uchar*)&e, i);
+    PFS_instr_config* e= *it;
 
     /**
       Compare class name to all configuration entries. In case of multiple
