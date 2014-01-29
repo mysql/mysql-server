@@ -72,7 +72,7 @@ ERROR 1050 (42S01) at line 1470: Table 'memory_summary_by_host_by_event_name' al
 ERROR 1050 (42S01) at line 1488: Table 'memory_summary_by_user_by_event_name' already exists
 ERROR 1050 (42S01) at line 1523: Table 'events_statements_summary_by_digest' already exists
 ERROR 1050 (42S01) at line 1561: Table 'events_statements_summary_by_program' already exists
-ERROR 1050 (42S01) at line 1605: Table 'prepared_statement_instances' already exists
+ERROR 1050 (42S01) at line 1605: Table 'prepared_statements_instances' already exists
 ERROR 1050 (42S01) at line 1627: Table 'replication_connection_configuration' already exists
 ERROR 1050 (42S01) at line 1640: Table 'replication_connection_status' already exists
 ERROR 1050 (42S01) at line 1647: Table 'replication_execute_configuration' already exists

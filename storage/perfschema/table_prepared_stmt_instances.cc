@@ -233,7 +233,7 @@ table_prepared_stmt_instances::m_field_def=
 PFS_engine_table_share
 table_prepared_stmt_instances::m_share=
 {
-  { C_STRING_WITH_LEN("prepared_statement_instances") },
+  { C_STRING_WITH_LEN("prepared_statements_instances") },
   &pfs_truncatable_acl,
   table_prepared_stmt_instances::create,
   NULL, /* write_row */
