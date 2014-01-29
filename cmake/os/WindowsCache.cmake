@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -231,18 +231,7 @@ SET(WORDS_BIGENDIAN CACHE  INTERNAL "")
 SET(HAVE_WORKING_KQUEUE CACHE  INTERNAL "")
 SET(HAVE__S_IFIFO 1 CACHE  INTERNAL "")
 SET(HAVE__S_IREAD 1 CACHE  INTERNAL "")
-SET(HAVE__finite 1 CACHE  INTERNAL "")
 SET(HAVE__isnan 1 CACHE  INTERNAL "")
-SET(HAVE__pclose 1 CACHE  INTERNAL "")
-SET(HAVE__popen 1 CACHE  INTERNAL "")
-SET(HAVE__snprintf 1 CACHE  INTERNAL "")
-SET(HAVE__stricmp 1 CACHE  INTERNAL "")
-SET(HAVE__strnicmp 1 CACHE  INTERNAL "")
-SET(HAVE__strtoi64 1 CACHE  INTERNAL "")
-SET(HAVE__strtoui64 1 CACHE  INTERNAL "")
-IF(MSVC_VERSION GREATER 1310)
- SET(HAVE_strtok_s 1 CACHE  INTERNAL "")
-ENDIF()
 SET(TIME_WITH_SYS_TIME CACHE INTERNAL "")
 SET(HAVE_S_IROTH CACHE INTERNAL "")
 SET(HAVE_S_IFIFO CACHE INTERNAL "")
