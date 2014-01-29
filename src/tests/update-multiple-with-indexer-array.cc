@@ -92,99 +92,99 @@ PATENT RIGHTS GRANT:
 
 // verify that update_multiple where we change the data in row[i] col[j] from x to x+1
 
+static const int MAX_KEYS = 3;
+
+static int
+array_size(int ndbs) {
+    return +
+           1 + // 0 for old 1 for new
+           1 + // ndbs
+           2 * MAX_KEYS * (ndbs-1);
+}
 static int
 get_num_new_keys(int i, int dbnum) {
     if (dbnum == 0) return 1;
     if (i & (1<<4)) {
         dbnum++;  // Shift every once in a while.
     }
-    return (i + dbnum) % 3;  // 0, 1, or 2
+    return (i + dbnum) % MAX_KEYS;  // 0, 1, or 2
 }
 
 static int
-get_num_keys(int i, int dbnum) {
+get_old_num_keys(int i, int dbnum) {
     if (dbnum == 0) return 1;
-    return (i + dbnum) % 3;  // 0, 1, or 2
+    return (i + dbnum) % MAX_KEYS;  // 0, 1, or 2
 }
 
 static int
 get_total_secondary_rows(int num_primary) {
-    assert(num_primary % 3 == 0);
-    return num_primary / 3 * (0 + 1 + 2);
+    assert(num_primary % MAX_KEYS == 0);
+    return num_primary / MAX_KEYS * (0 + 1 + 2);
 }
 
 static int
-get_total_num_keys(int i, int num_dbs) {
-    int sum = 0;
-    for (int db = 1; db < num_dbs; ++db) {
-        sum += get_num_keys(i, db);
-    }
-    return sum;
-}
-
-static int
-get_total_num_new_keys(int i, int num_dbs) {
-    int sum = 0;
-    for (int db = 1; db < num_dbs; ++db) {
-        sum += get_num_new_keys(i, db);
-    }
-    return sum;
-}
-
-static int
-get_key(int i, int dbnum, int which) {
+get_old_key(int i, int dbnum, int which) {
     assert(i <  INT16_MAX / 2);
     assert(which >= 0);
-    assert(which < get_num_keys(i, dbnum));
     assert(which < 4);
     assert(dbnum < 16);
     if (dbnum == 0) {
         assert(which == 0);
-        return htonl((2*i) << 16);
-    } else {
-        return htonl(((2*i+0) << 16) + (dbnum<<8) + (which<<1));
+        return htonl(2*i);
     }
+    if (which >= get_old_num_keys(i, dbnum)) {
+        return htonl(-1);
+    }
+    return htonl(((2*i+0) << 16) + (dbnum<<8) + (which<<1));
 }
 
 static int
 get_new_key(int i, int dbnum, int which) {
     assert(which >= 0);
-    assert(which < get_num_new_keys(i, dbnum));
     assert(which < 4);
     assert(dbnum < 16);
 
     if (dbnum == 0) {
         assert(which == 0);
-        return htonl((2*i+1) << 16);
-    } else if ((i+dbnum+which) & (1<<5)) {
+        return htonl(2*i);
+    }
+    if (which >= get_num_new_keys(i, dbnum)) {
+        return htonl(-1);
+    }
+    if ((i+dbnum+which) & (1<<5)) {
         return htonl(((2*i+0) << 16) + (dbnum<<8) + (which<<1));  // no change from original
-    } else {
-        return htonl(((2*i+0) << 16) + (dbnum<<8) + (which<<1) + 1);
     }
+    return htonl(((2*i+0) << 16) + (dbnum<<8) + (which<<1) + 1);
 }
 
 static void
-get_data(int *v, int i, int ndbs) {
-    int index = 0;
+fill_data_2_and_later(int *v, int i, int ndbs) {
+    int index = 2;
     for (int dbnum = 1; dbnum < ndbs; dbnum++) {
-        for (int which = 0; which < get_num_keys(i, dbnum); ++which) {
-            v[index++] = get_key(i, dbnum, which);
+        for (int which = 0; which < MAX_KEYS; ++which) {
+            v[index++] = get_old_key(i, dbnum, which);
         }
     }
-}
-
-static void
-get_new_data(int *v, int i, int ndbs) {
-    int index = 0;
     for (int dbnum = 1; dbnum < ndbs; dbnum++) {
-        for (int which = 0; which < get_num_new_keys(i, dbnum); ++which) {
+        for (int which = 0; which < MAX_KEYS; ++which) {
             v[index++] = get_new_key(i, dbnum, which);
-            if (which > 0) {
-                assert(index >= 2);
-                assert(memcmp(&v[index-2], &v[index-1], sizeof(v[0])) < 0);
-            }
         }
     }
+}
+
+
+static void
+fill_old_data(int *v, int i, int ndbs) {
+    v[0] = 0;
+    v[1] = ndbs;
+    fill_data_2_and_later(v, i, ndbs);
+}
+
+static void
+fill_new_data(int *v, int i, int ndbs) {
+    v[0] = 1;
+    v[1] = ndbs;
+    fill_data_2_and_later(v, i, ndbs);
 }
 
 
@@ -201,10 +201,10 @@ put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *des
     int pri_key = *(int *) src_key->data;
     int* pri_val = (int*) src_val->data;
 
-    bool is_new = (ntohl(pri_key) >> 16) % 2 == 1;
-    int i = (ntohl(pri_key) >> 16) / 2;
+    bool is_new = pri_val[0] == 1;
+    int i = (ntohl(pri_key)) / 2;
 
-    int num_keys = is_new ? get_num_new_keys(i, dbnum) : get_num_keys(i, dbnum);
+    int num_keys = is_new ? get_num_new_keys(i, dbnum) : get_old_num_keys(i, dbnum);
 
     toku_dbt_array_resize(dest_key_arrays, num_keys);
 
@@ -212,13 +212,15 @@ put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *des
         toku_dbt_array_resize(dest_val_arrays, num_keys);
     }
 
-    int index = 0;
-
-    for (int idb = 1; idb < dbnum; idb++) {
-        index += is_new ? get_num_new_keys(i, idb) : get_num_keys(i, idb);
+    int ndbs = pri_val[1];
+    int index = 2 + (dbnum-1)*MAX_KEYS;
+    if (is_new) {
+        index += MAX_KEYS*(ndbs-1);
     }
+
     assert(src_val->size % sizeof(int) == 0);
     assert((int)src_val->size / 4 >= index + num_keys);
+
 
     for (int which = 0; which < num_keys; which++) {
         DBT *dest_key = &dest_key_arrays->dbts[which];
@@ -235,7 +237,7 @@ put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *des
             assert(dest_val->flags == DB_DBT_REALLOC);
             dest_val->size = 0;
         }
-        int new_key = is_new ? get_new_key(i, dbnum, which) : get_key(i, dbnum, which);
+        int new_key = is_new ? get_new_key(i, dbnum, which) : get_old_key(i, dbnum, which);
         assert(new_key == pri_val[index + which]);
         *(int*)dest_key->data = new_key;
     }
@@ -265,19 +267,17 @@ do_updates(DB_ENV *env, DB *db[], int ndbs, int nrows) {
 
         // update the data i % ndbs col from x to x+1
 
-        int old_k = get_key(i, 0, 0);
+        int old_k = get_old_key(i, 0, 0);
         DBT old_key; dbt_init(&old_key, &old_k, sizeof old_k);
         int new_k = get_new_key(i, 0, 0);
         DBT new_key; dbt_init(&new_key, &new_k, sizeof new_k);
 
-        int num_old_keys = get_total_num_keys(i, ndbs);
-        int v[num_old_keys]; get_data(v, i, ndbs);
+        int v[array_size(ndbs)]; fill_old_data(v, i, ndbs);
         DBT old_data; dbt_init(&old_data, &v[0], sizeof v);
-        
-        int num_new_keys = get_total_num_new_keys(i, ndbs);
-        int newv[num_new_keys]; get_new_data(newv, i, ndbs);
+
+        int newv[array_size(ndbs)]; fill_new_data(newv, i, ndbs);
         DBT new_data; dbt_init(&new_data, &newv[0], sizeof newv);
-  
+
         uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
 
         r = env->update_multiple(env, db[0], txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, narrays, keys, narrays, vals);
@@ -298,9 +298,9 @@ populate_primary(DB_ENV *env, DB *db, int ndbs, int nrows) {
 
     // populate
     for (int i = 0; i < nrows; i++) {
-        int k = get_key(i, 0, 0);
-        int secondary_keys = get_total_num_keys(i, ndbs);
-        int v[secondary_keys]; get_data(v, i, ndbs);
+        int k = get_old_key(i, 0, 0);
+        int v[array_size(ndbs)];
+        fill_old_data(v, i, ndbs);
         DBT key; dbt_init(&key, &k, sizeof k);
         DBT val; dbt_init(&val, &v[0], sizeof v);
         r = db->put(db, txn, &key, &val, 0); assert_zero(r);
@@ -317,11 +317,13 @@ populate_secondary(DB_ENV *env, DB *db, int dbnum, int nrows) {
 
     // populate
     for (int i = 0; i < nrows; i++) {
-        for (int which = 0; which < get_num_keys(i, dbnum); which++) {
-            int k = get_key(i, dbnum, which);
-            DBT key; dbt_init(&key, &k, sizeof k);
-            DBT val; dbt_init(&val, NULL, 0);
-            r = db->put(db, txn, &key, &val, 0); assert_zero(r);
+        for (int which = 0; which < MAX_KEYS; which++) {
+            int k = get_old_key(i, dbnum, which);
+            if (k >= 0) {
+                DBT key; dbt_init(&key, &k, sizeof k);
+                DBT val; dbt_init(&val, NULL, 0);
+                r = db->put(db, txn, &key, &val, 0); assert_zero(r);
+            }
         }
     }
 
@@ -346,14 +348,14 @@ verify_pri_seq(DB_ENV *env, DB *db, int ndbs, int nrows) {
             break;
         int k;
         int expectk = get_new_key(i, dbnum, 0);
-     
+
         assert(key.size == sizeof k);
         memcpy(&k, key.data, key.size);
         assert(k == expectk);
 
-        int num_keys = get_total_num_new_keys(i, ndbs);
+        int num_keys = array_size(ndbs);
         assert(val.size == num_keys*sizeof(int));
-        int v[num_keys]; get_new_data(v, i, ndbs);
+        int v[num_keys]; fill_new_data(v, i, ndbs);
         assert(memcmp(val.data, v, val.size) == 0);
     }
     assert(i == nrows); // if (i != nrows) printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, i, nrows); // assert(i == nrows);
@@ -398,7 +400,7 @@ verify_sec_seq(DB_ENV *env, DB *db, int dbnum, int nrows) {
                 assert(k == expectk);
             }
 
-            if (k != expectk && which < get_num_keys(i, dbnum) && k == get_key(i, dbnum, which)) {
+            if (k != expectk && which < get_old_num_keys(i, dbnum) && k == get_old_key(i, dbnum, which)) {
                 // Will fail, never got updated.
                 assert(k == expectk);
             }
@@ -457,9 +459,9 @@ run_test(int ndbs, int nrows) {
     r = indexer_txn->commit(indexer_txn, 0); assert_zero(r);
 
     verify_pri_seq(env, db[0], ndbs, nrows);
-    for (int dbnum = 1; dbnum < ndbs; dbnum++) 
+    for (int dbnum = 1; dbnum < ndbs; dbnum++)
         verify_sec_seq(env, db[dbnum], dbnum, nrows);
-    for (int dbnum = 0; dbnum < ndbs; dbnum++) 
+    for (int dbnum = 0; dbnum < ndbs; dbnum++)
         r = db[dbnum]->close(db[dbnum], 0); assert_zero(r);
 
     r = env->close(env, 0); assert_zero(r);
@@ -469,7 +471,7 @@ int
 test_main(int argc, char * const argv[]) {
     int r;
     int ndbs = 10;
-    int nrows = 3*(1<<5)*4;
+    int nrows = MAX_KEYS*(1<<5)*4;
 
     // parse_args(argc, argv);
     for (int i = 1; i < argc; i++) {
@@ -491,7 +493,7 @@ test_main(int argc, char * const argv[]) {
             continue;
         }
     }
-    while (nrows % (3*(1<<5)) != 0) {
+    while (nrows % (MAX_KEYS*(1<<5)) != 0) {
         nrows++;
     }
     //Need at least one to update, and one to index
