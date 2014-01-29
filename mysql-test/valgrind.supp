@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -870,77 +870,6 @@
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_search
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8-mem
-   Memcheck:Leak
-   fun:my_malloc
-   ...
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 9
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9a
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-{
-   missing shutdown_performance_schema 11-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
 }
 
 {
