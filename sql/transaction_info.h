@@ -387,7 +387,7 @@ public:
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   MEM_ROOT* transaction_memroot()
   {
-    return &mem_root;
+    return &m_mem_root;
   }
 #endif
 
