@@ -2064,7 +2064,7 @@ DROP PREPARE stmt;
 -- TABLE PREPARED_STATEMENT_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.prepared_statement_instances("
+SET @cmd="CREATE TABLE performance_schema.prepared_statements_instances("
   "OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,"
   "STATEMENT_ID bigint(20) unsigned NOT NULL,"
   "STATEMENT_NAME varchar(64) default NULL,"

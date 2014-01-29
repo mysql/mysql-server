@@ -58,7 +58,7 @@ metadata_locks
 mutex_instances
 objects_summary_global_by_type
 performance_timers
-prepared_statement_instances
+prepared_statements_instances
 replication_connection_configuration
 replication_connection_status
 replication_execute_configuration

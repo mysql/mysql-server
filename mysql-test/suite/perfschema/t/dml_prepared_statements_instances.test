@@ -1,7 +1,7 @@
 # This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
  --source include/have_myisam.inc
 
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,37 +22,37 @@
 --source include/have_perfschema.inc
 
 #--disable_result_log 
-select * from performance_schema.prepared_statement_instances
+select * from performance_schema.prepared_statements_instances
   where owner_object_name like 'XXYYZZ%' limit 1;
 
-select * from performance_schema.prepared_statement_instances
+select * from performance_schema.prepared_statements_instances
   where owner_object_name='XXYYZZ';
 #--enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.prepared_statement_instances
+insert into performance_schema.prepared_statements_instances
   set owner_object_name='XXYYZZ', count_execute=1, sum_timer_execute=2,
   min_timer_execute=3, avg_timer_execute=4, max_timer_execute=5;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.prepared_statement_instances set count_execute=12;
+update performance_schema.prepared_statements_instances set count_execute=12;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.prepared_statement_instances
+update performance_schema.prepared_statements_instances
   set count_execute=12 where owner_object_name like "XXYYZZ";
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.prepared_statement_instances
+delete from performance_schema.prepared_statements_instances
   where count_execute=1;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.prepared_statement_instances;
+delete from performance_schema.prepared_statements_instances;
 
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.prepared_statement_instances READ;
+LOCK TABLES performance_schema.prepared_statements_instances READ;
 UNLOCK TABLES;
 
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.prepared_statement_instances WRITE;
+LOCK TABLES performance_schema.prepared_statements_instances WRITE;
 UNLOCK TABLES;
 
