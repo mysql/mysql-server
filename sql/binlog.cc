@@ -1500,11 +1500,11 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
       With setting the status the follower ensures it won't execute anything
       including thread-specific code.
     */
-    thd->get_transaction()->flags.ready_preempt= 1;
+    thd->get_transaction()->m_flags.ready_preempt= 1;
     if (leader_await_preempt_status)
       mysql_cond_signal(&m_cond_preempt);
 #endif
-    while (thd->get_transaction()->flags.pending)
+    while (thd->get_transaction()->m_flags.pending)
       mysql_cond_wait(&m_cond_done, &m_lock_done);
     mysql_mutex_unlock(&m_lock_done);
   }
@@ -1537,7 +1537,7 @@ void Stage_manager::clear_preempt_status(THD *head)
   DBUG_ASSERT(head);
 
   mysql_mutex_lock(&m_lock_done);
-  while(!head->get_transaction()->flags.ready_preempt)
+  while(!head->get_transaction()->m_flags.ready_preempt)
   {
     leader_await_preempt_status= true;
     mysql_cond_wait(&m_cond_preempt, &m_lock_done);
@@ -6953,13 +6953,13 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
   mysql_mutex_assert_owner(&LOCK_commit);
   Thread_excursion excursion(thd);
 #ifndef DBUG_OFF
-  thd->get_transaction()->flags.ready_preempt= 1; // formality by the leader
+  thd->get_transaction()->m_flags.ready_preempt= 1; // formality by the leader
 #endif
   for (THD *head= first ; head ; head = head->next_to_commit)
   {
     DBUG_PRINT("debug", ("Thread ID: %lu, commit_error: %d, flags.pending: %s",
                          head->thread_id, head->commit_error,
-                         YESNO(head->get_transaction()->flags.pending)));
+                         YESNO(head->get_transaction()->m_flags.pending)));
     /*
       If flushing failed, set commit_error for the session, skip the
       transaction and proceed with the next transaction instead. This
@@ -6974,11 +6974,11 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
     if (head->commit_error == THD::CE_NONE)
     {
       excursion.try_to_attach_to(head);
-      bool all= head->get_transaction()->flags.real_commit;
-      if (head->get_transaction()->flags.commit_low)
+      bool all= head->get_transaction()->m_flags.real_commit;
+      if (head->get_transaction()->m_flags.commit_low)
       {
         /* head is parked to have exited append() */
-        DBUG_ASSERT(head->get_transaction()->flags.ready_preempt);
+        DBUG_ASSERT(head->get_transaction()->m_flags.ready_preempt);
         /*
           storage engine commit
         */
@@ -6987,7 +6987,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       }
       DBUG_PRINT("debug", ("commit_error: %d, flags.pending: %s",
                            head->commit_error,
-                           YESNO(head->get_transaction()->flags.pending)));
+                           YESNO(head->get_transaction()->m_flags.pending)));
     }
     /*
       Decrement the prepared XID counter after storage engine commit.
@@ -6995,7 +6995,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       flush error or session attach error for avoiding 3-way deadlock
       among user thread, rotate thread and dump thread.
     */
-    if (head->get_transaction()->flags.xid_written)
+    if (head->get_transaction()->m_flags.xid_written)
       dec_prep_xids(head);
   }
 }
@@ -7013,7 +7013,7 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
   Thread_excursion excursion(thd);
   for (THD *head= first; head; head= head->next_to_commit)
   {
-    if (head->get_transaction()->flags.run_hooks &&
+    if (head->get_transaction()->m_flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
 
@@ -7023,13 +7023,13 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
               code.
       */
       excursion.try_to_attach_to(head);
-      bool all= head->get_transaction()->flags.real_commit;
+      bool all= head->get_transaction()->m_flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
       /*
         When after_commit finished for the transaction, clear the run_hooks flag.
         This allow other parts of the system to check if after_commit was called.
       */
-      head->get_transaction()->flags.run_hooks= false;
+      head->get_transaction()->m_flags.run_hooks= false;
     }
   }
 }
@@ -7159,9 +7159,9 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
-  if (thd->get_transaction()->flags.commit_low)
+  if (thd->get_transaction()->m_flags.commit_low)
   {
-    const bool all= thd->get_transaction()->flags.real_commit;
+    const bool all= thd->get_transaction()->m_flags.real_commit;
     /*
       storage engine commit
     */
@@ -7171,7 +7171,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     /*
       Decrement the prepared XID counter after storage engine commit
     */
-    if (thd->get_transaction()->flags.xid_written)
+    if (thd->get_transaction()->m_flags.xid_written)
       dec_prep_xids(thd);
     /*
       If commit succeeded, we call the after_commit hook
@@ -7180,13 +7180,14 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
             if and be the only after_commit invocation left in the
             code.
     */
-    if ((thd->commit_error == THD::CE_NONE) && thd->get_transaction()->flags.run_hooks)
+    if ((thd->commit_error == THD::CE_NONE) &&
+        thd->get_transaction()->m_flags.run_hooks)
     {
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
-      thd->get_transaction()->flags.run_hooks= false;
+      thd->get_transaction()->m_flags.run_hooks= false;
     }
   }
-  else if (thd->get_transaction()->flags.xid_written)
+  else if (thd->get_transaction()->m_flags.xid_written)
     dec_prep_xids(thd);
 
   /*
@@ -7197,7 +7198,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   gtid_state->update_on_commit(thd);
   global_sid_lock->unlock();
 
-  DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->flags.run_hooks);
+  DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                         thd->thread_id, thd->commit_error));
@@ -7298,14 +7299,14 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     - Everything in the transaction structure is reset when calling
       ha_commit_low since that calls Transaction_ctx::cleanup.
   */
-  thd->get_transaction()->flags.pending= true;
+  thd->get_transaction()->m_flags.pending= true;
   thd->commit_error= THD::CE_NONE;
   thd->next_to_commit= NULL;
   thd->durability_property= HA_IGNORE_DURABILITY;
-  thd->get_transaction()->flags.real_commit= all;
-  thd->get_transaction()->flags.xid_written= false;
-  thd->get_transaction()->flags.commit_low= !skip_commit;
-  thd->get_transaction()->flags.run_hooks= !skip_commit;
+  thd->get_transaction()->m_flags.real_commit= all;
+  thd->get_transaction()->m_flags.xid_written= false;
+  thd->get_transaction()->m_flags.commit_low= !skip_commit;
+  thd->get_transaction()->m_flags.run_hooks= !skip_commit;
 #ifndef DBUG_OFF
   /*
      The group commit Leader may have to wait for follower whose transaction
@@ -7315,11 +7316,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
      execute any thread-specific write access code in this method, which is
      the case as of current.
   */
-  thd->get_transaction()->flags.ready_preempt= 0;
+  thd->get_transaction()->m_flags.ready_preempt= 0;
 #endif
 
   DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %lu",
-                       YESNO(thd->get_transaction()->flags.pending),
+                       YESNO(thd->get_transaction()->m_flags.pending),
                        thd->commit_error, thd->thread_id));
 
   /*
