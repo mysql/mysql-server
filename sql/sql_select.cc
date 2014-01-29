@@ -2600,7 +2600,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
-  sjm_exec->table_param.init();
+  sjm_exec->table_param= TMP_TABLE_PARAM();
   count_field_types(select_lex, &sjm_exec->table_param,
                     emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
