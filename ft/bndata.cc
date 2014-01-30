@@ -205,7 +205,7 @@ void bn_data::serialize_header(struct wbuf *wb) const {
     //key_data_size
     wbuf_nocrc_uint(wb, m_disksize_of_keys);
     //val_data_size
-    wbuf_nocrc_uint(wb, toku_mempool_get_used_space(&m_buffer_mempool));
+    wbuf_nocrc_uint(wb, toku_mempool_get_used_size(&m_buffer_mempool));
     //fixed_klpair_length
     wbuf_nocrc_uint(wb, m_buffer.get_fixed_length());
     // all_keys_same_length
@@ -222,7 +222,7 @@ void bn_data::serialize_rest(struct wbuf *wb) const {
     //Write leafentries
     //Just ran dmt_compress_kvspace so there is no fragmentation and also leafentries are in sorted order.
     paranoid_invariant(toku_mempool_get_frag_size(&m_buffer_mempool) == 0);
-    uint32_t val_data_size = toku_mempool_get_used_space(&m_buffer_mempool);
+    uint32_t val_data_size = toku_mempool_get_used_size(&m_buffer_mempool);
     wbuf_nocrc_literal_bytes(wb, toku_mempool_get_base(&m_buffer_mempool), val_data_size);
 }
 
@@ -347,7 +347,7 @@ void bn_data::deserialize_from_rbuf(uint32_t num_entries, struct rbuf *rb, uint3
         // Unnecessary after version 26
         // Reallocate smaller mempool to save memory
         invariant_zero(toku_mempool_get_frag_size(&m_buffer_mempool));
-        toku_mempool_realloc_larger(&m_buffer_mempool, toku_mempool_get_used_space(&m_buffer_mempool));
+        toku_mempool_realloc_larger(&m_buffer_mempool, toku_mempool_get_used_size(&m_buffer_mempool));
     }
 }
 
@@ -396,7 +396,7 @@ static int move_it (const uint32_t, klpair_struct *klpair, const uint32_t idx UU
 // Compress things, and grow or shrink the mempool if needed.
 // May (always if force_compress) have a side effect of putting contents of mempool in sorted order.
 void bn_data::dmt_compress_kvspace(size_t added_size, void **maybe_free, bool force_compress) {
-    uint32_t total_size_needed = toku_mempool_get_used_space(&m_buffer_mempool) + added_size;
+    uint32_t total_size_needed = toku_mempool_get_used_size(&m_buffer_mempool) + added_size;
     // set the new mempool size to be twice of the space we actually need.
     // On top of the 25% that is padded within toku_mempool_construct (which we
     // should consider getting rid of), that should be good enough.
@@ -556,7 +556,7 @@ void bn_data::split_klpairs(
 
     right_bd->init_zero();
 
-    size_t mpsize = toku_mempool_get_used_space(&m_buffer_mempool);   // overkill, but safe
+    size_t mpsize = toku_mempool_get_used_size(&m_buffer_mempool);   // overkill, but safe
 
     struct mempool new_left_mp;
     toku_mempool_construct(&new_left_mp, mpsize);
@@ -587,14 +587,14 @@ void bn_data::split_klpairs(
     // We overallocated ("overkill") above
     struct mempool *const left_mp = &m_buffer_mempool;
     paranoid_invariant_zero(toku_mempool_get_frag_size(left_mp));
-    toku_mempool_realloc_larger(left_mp, toku_mempool_get_used_space(left_mp));
+    toku_mempool_realloc_larger(left_mp, toku_mempool_get_used_size(left_mp));
     paranoid_invariant_zero(toku_mempool_get_frag_size(right_mp));
-    toku_mempool_realloc_larger(right_mp, toku_mempool_get_used_space(right_mp));
+    toku_mempool_realloc_larger(right_mp, toku_mempool_get_used_size(right_mp));
 }
 
 uint64_t bn_data::get_disk_size() {
     return m_disksize_of_keys +
-           toku_mempool_get_used_space(&m_buffer_mempool);
+           toku_mempool_get_used_size(&m_buffer_mempool);
 }
 
 struct verify_le_in_mempool_state {

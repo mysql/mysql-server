@@ -156,13 +156,13 @@ size_t toku_mempool_get_size(const struct mempool *mp);
 size_t toku_mempool_get_frag_size(const struct mempool *mp);
 
 /* get the amount of space that is holding useful data */
-size_t toku_mempool_get_used_space(const struct mempool *mp);
+size_t toku_mempool_get_used_size(const struct mempool *mp);
 
 /* get the amount of space that is available for new data */
-size_t toku_mempool_get_free_space(const struct mempool *mp);
+size_t toku_mempool_get_free_size(const struct mempool *mp);
 
 /* get the amount of space that has been allocated for use (wasted or not) */
-size_t toku_mempool_get_allocated_space(const struct mempool *mp);
+size_t toku_mempool_get_allocated_size(const struct mempool *mp);
 
 /* allocate a chunk of memory from the memory pool suitably aligned */
 void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
