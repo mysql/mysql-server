@@ -225,6 +225,7 @@ int dmt<dmtdata_t, dmtdataout_t>::insert_at(const dmtdatain_t &value, const uint
     paranoid_invariant(!is_array);
     if (!same_size) {
         this->values_same_size = false;
+        this->value_length = 0;
     }
 
     this->maybe_resize_tree(&value);

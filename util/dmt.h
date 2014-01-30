@@ -181,7 +181,7 @@ public:
         paranoid_invariant(index != NODE_NULL);
         m_index = index;
     }
-} __attribute__((__packed__,aligned(4)));
+} __attribute__((__packed__,__aligned__(4)));
 
 template<typename dmtdata_t>
 class dmt_node_templated {
@@ -191,7 +191,7 @@ public:
     subtree right;
     uint32_t value_length;
     dmtdata_t value;
-} __attribute__((__packed__,aligned(4)));
+} __attribute__((__aligned__(4)));  //NOTE: we cannot use attribute packed or dmtdata_t will call copy constructors (dmtdata_t might not be packed by default)
 
 }
 
@@ -517,9 +517,29 @@ private:
         subtree root;
     };
 
-    // TODO(yoni): comment relationship between values_same_size, num values, value_length, note about tree still keeping track (until lost once)
+    /*
+    Relationship between values_same_size, d.a.num_values, value_length, is_array:
+    In an empty dmt:
+        is_array is true
+        value_same_size is true
+        value_length is undefined
+        d.a.num_values is 0
+    In a non-empty array dmt:
+        is_array is true
+        values_same_size is true
+        value_length is defined
+        d.a.num_values > 0
+    In a non-empty tree dmt:
+        is_array = false
+        value_same_size is true iff all values have been the same size since the last time the dmt turned into a tree.
+        value_length is defined iff values_same_size is true
+        d.a.num_values is undefined (the memory is used for the tree)
+    Note that in tree form, the dmt keeps track of if all values are the same size until the first time they are not.
+    'values_same_size' will not become true again (even if we change all values to be the same size)
+        until/unless the dmt becomes empty, at which point it becomes an array again.
+     */
     bool values_same_size;
-    uint32_t value_length;
+    uint32_t value_length;  // valid iff values_same_size is true.
     struct mempool mp;
     bool is_array;
     union {
