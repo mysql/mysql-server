@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # create a temporary table, replicate at slave for all the tests below.
 
 CREATE TEMPORARY TABLE t1(a int);
+include/sync_slave_sql_with_master.inc
 
 # Make sure STOP SLAVE generates a warning.
 

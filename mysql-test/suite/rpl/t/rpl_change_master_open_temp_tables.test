@@ -31,7 +31,7 @@
 --echo
 
 CREATE TEMPORARY TABLE t1(a int);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo # Make sure STOP SLAVE generates a warning.
