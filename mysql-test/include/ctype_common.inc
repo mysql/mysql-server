@@ -68,12 +68,9 @@ drop table t1;
 # Bug#27580 SPACE() function collation bug?
 #
 set names utf8;
-# this inc is used many ctype_* files , remove replace_result when all ctype_*
-# checked with default engine
---replace_result " engine = myisam" ""
 create table t1 (
   name varchar(10),
-  level smallint unsigned) engine = myisam;
+  level smallint unsigned);
 show create table t1;
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
