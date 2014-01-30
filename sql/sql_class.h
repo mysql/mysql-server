@@ -4151,7 +4151,7 @@ typedef Mem_root_array<Item*, true> Func_ptr_array;
   tables. Temporary tables created with the help of this object are
   used only internally by the query execution engine.
 */
-class TMP_TABLE_PARAM :public Sql_alloc
+class Temp_table_param :public Sql_alloc
 {
 public:
   List<Item> copy_funcs;
@@ -4234,7 +4234,7 @@ public:
   */
   bool bit_fields_as_long;
 
-  TMP_TABLE_PARAM()
+  Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
      recinfo(NULL), start_recinfo(NULL),
      keyinfo(NULL),
@@ -4247,7 +4247,7 @@ public:
      schema_table(false), precomputed_group_by(false), force_copy_fields(false),
      skip_create_table(false), bit_fields_as_long(false)
   {}
-  ~TMP_TABLE_PARAM()
+  ~Temp_table_param()
   {
     cleanup();
   }
@@ -4262,7 +4262,7 @@ public:
 
 class select_union :public select_result_interceptor
 {
-  TMP_TABLE_PARAM tmp_table_param;
+  Temp_table_param tmp_table_param;
 public:
   TABLE *table;
 
@@ -4747,7 +4747,7 @@ class multi_update :public select_result_interceptor
   TABLE_LIST *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
   TABLE **tmp_tables, *main_table, *table_to_update;
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;

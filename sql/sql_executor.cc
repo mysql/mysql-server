@@ -222,7 +222,7 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                            !select_lex->with_sum_func) ?
     m_select_limit : HA_POS_ERROR;
 
-  tab->tmp_table_param= new (thd->mem_root) TMP_TABLE_PARAM(tmp_table_param);
+  tab->tmp_table_param= new (thd->mem_root) Temp_table_param(tmp_table_param);
   tab->tmp_table_param->skip_create_table= true;
   TABLE* table= create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                                tmp_table_group, select_distinct && !group_list,
@@ -772,7 +772,7 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
   JOIN *join= tab->join;
   TABLE *table= tab->table;
   QEP_tmp_table *op= (QEP_tmp_table *)tab->op;
-  TMP_TABLE_PARAM *tmp_tbl= tab->tmp_table_param;
+  Temp_table_param *tmp_tbl= tab->tmp_table_param;
 
   DBUG_ASSERT(table && op);
 
@@ -830,7 +830,8 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
 
 Next_select_func setup_end_select_func(JOIN *join, JOIN_TAB *tab)
 {
-  TMP_TABLE_PARAM *tmp_tbl= tab ? tab->tmp_table_param : &join->tmp_table_param;
+  Temp_table_param *tmp_tbl=
+    tab ? tab->tmp_table_param : &join->tmp_table_param;
 
   /* 
      Choose method for presenting result to user. Use end_send_group
@@ -3817,7 +3818,7 @@ int test_if_item_cache_changed(List<Cached_item> &list)
 */
 
 bool
-setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
+setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields)
@@ -3959,7 +3960,7 @@ err2:
 */
 
 void
-copy_fields(TMP_TABLE_PARAM *param)
+copy_fields(Temp_table_param *param)
 {
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;

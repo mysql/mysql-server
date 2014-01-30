@@ -2806,7 +2806,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
   int error;
   if ((error= table->file->ha_write_row(table->record[0])))
   {
-    TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
+    Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
     if (create_myisam_from_heap(thd, table, param->start_recinfo, 
                                 &param->recinfo, error, FALSE, NULL))
@@ -6969,7 +6969,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     item->maybe_null= (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
-  TMP_TABLE_PARAM *tmp_table_param = new (thd->mem_root) TMP_TABLE_PARAM;
+  Temp_table_param *tmp_table_param = new (thd->mem_root) Temp_table_param;
   if (!tmp_table_param)
     DBUG_RETURN(0);
 
