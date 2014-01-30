@@ -1240,7 +1240,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::build(dmt<dmtdata_t, dm
     // When we know the elements are fixed-length, we use the better dmt constructor.
     // In practice, as of Jan 2014, we use the builder in two cases:
     //  - When we know the elements are not fixed-length.
-    //  - During upgrade of a pre version 25 basement node.
+    //  - During upgrade of a pre version 26 basement node.
     // During upgrade, we will probably wildly overallocate because we don't account for the values that aren't stored in the dmt, so here we want to shrink the mempool.
     // When we know the elements are not fixed-length, we still know how much memory they occupy in total, modulo alignment, so we want to allow for mempool overhead and worst-case alignment overhead, and not shrink the mempool.
     const size_t max_allowed = used + (ALIGNMENT-1) * this->temp.size();
