@@ -2604,7 +2604,7 @@ ZzŹźŻżŽž
 ǃ
 drop table t1;
 SET NAMES utf8;
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_general_ci;
 c
@@ -2616,7 +2616,7 @@ c
 Μωδ
 Μωδαί̈
 DROP TABLE t1;
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_unicode_ci;
 c
@@ -2628,7 +2628,7 @@ c
 Μωδ
 Μωδαί̈
 DROP TABLE t1;
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf32) COLLATE utf32_unicode_ci;
 c
@@ -2722,7 +2722,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) COLLATE utf32_swedish_ci DEFAULT NULL,
   `level` smallint(5) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf32 COLLATE=utf32_swedish_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf32 COLLATE=utf32_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
 concat(name,space(level))	concat(name, repeat(' ',level))
@@ -3351,7 +3351,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` varchar(10) CHARACTER SET utf32 COLLATE utf32_unicode_520_ci NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
 INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
 INSERT INTO t1 VALUES (_utf32 0x023D),(_utf32 0x023E);
@@ -3623,7 +3623,7 @@ hex(c)	hex(weight_string(c))	c
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c	c	42	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	c	c	42	NULL	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select hex(`test`.`t1`.`c`) AS `hex(c)` from `test`.`t1` where (`test`.`t1`.`c` like 'a%') order by `test`.`t1`.`c`
 SELECT hex(c), hex(weight_string(c)) FROM t1 WHERE c LIKE 'a%' ORDER BY c;

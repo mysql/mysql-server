@@ -5,7 +5,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DELETE FROM t1;
 ALTER TABLE t1 ADD c3 CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
@@ -14,7 +14,7 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c3` char(4) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -30,28 +30,28 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
+t1	1	key_a	1	a	A	0	3	NULL	YES	BTREE		
 ALTER TABLE t1 CHANGE a a CHAR(4);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
+t1	1	key_a	1	a	A	0	3	NULL	YES	BTREE		
 ALTER TABLE t1 CHANGE a a CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
+t1	1	key_a	1	a	A	0	3	NULL	YES	BTREE		
 DROP TABLE t1;
