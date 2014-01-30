@@ -349,6 +349,10 @@ int
 test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     // Do test with size divisible by 4 and not
+    test_builder_fixed(4, 0);
+    test_builder_fixed(5, 0);
+    test_builder_fixed(4, 1);
+    test_builder_fixed(5, 1);
     test_builder_fixed(4, 100);
     test_builder_fixed(5, 100);
     // Do test with zero, one, or both sizes divisible
@@ -357,20 +361,13 @@ test_main(int argc, const char *argv[]) {
     test_builder_variable(5, 8, 100);
     test_builder_variable(5, 10, 100);
 
+    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 0);
+    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 0);
+    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 1);
+    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 1);
     test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 100);
     test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 100);
 
-    /*TODO
-     * insert
-     * insert_at
-     * delete_at
-     * iterate
-     * iterate_on_range
-     * verify
-     * iterate_ptr
-     * find_zero
-     * find
-     */
     return 0;
 }
 
