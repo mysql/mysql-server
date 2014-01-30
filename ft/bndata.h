@@ -306,12 +306,14 @@ public:
 
     // Allocates space in the mempool to store a new leafentry.
     // This may require reorganizing the mempool and updating the dmt.
-    void get_space_for_overwrite(uint32_t idx, const void* keyp, uint32_t keylen, uint32_t old_size, uint32_t new_size, LEAFENTRY* new_le_space);
- 
+    __attribute__((__nonnull__))
+    void get_space_for_overwrite(uint32_t idx, const void* keyp, uint32_t keylen, uint32_t old_size, uint32_t new_size, LEAFENTRY* new_le_space, void **const maybe_free);
+
     // Allocates space in the mempool to store a new leafentry
     // and inserts a new key into the dmt
     // This may require reorganizing the mempool and updating the dmt.
-    void get_space_for_insert(uint32_t idx, const void* keyp, uint32_t keylen, size_t size, LEAFENTRY* new_le_space);
+    __attribute__((__nonnull__))
+    void get_space_for_insert(uint32_t idx, const void* keyp, uint32_t keylen, size_t size, LEAFENTRY* new_le_space, void **const maybe_free);
 
     // Gets a leafentry given a klpair from this basement node.
     LEAFENTRY get_le_from_klpair(const klpair_struct *klpair) const;

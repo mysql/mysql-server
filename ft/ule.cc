@@ -242,20 +242,21 @@ static void get_space_for_le(
     uint32_t keylen,
     uint32_t old_le_size,
     size_t size,
-    LEAFENTRY* new_le_space
+    LEAFENTRY* new_le_space,
+    void **const maybe_free
     )
 {
-    if (data_buffer == NULL) {
+    if (data_buffer == nullptr) {
         CAST_FROM_VOIDP(*new_le_space, toku_xmalloc(size));
     }
     else {
         // this means we are overwriting something
         if (old_le_size > 0) {
-            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space);
+            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space, maybe_free);
         }
         // this means we are inserting something new
         else {
-            data_buffer->get_space_for_insert(idx, keyp, keylen, size, new_le_space);
+            data_buffer->get_space_for_insert(idx, keyp, keylen, size, new_le_space, maybe_free);
         }
     }
 }
@@ -470,23 +471,17 @@ toku_le_apply_msg(FT_MSG   msg,
     int64_t newnumbytes = 0;
     uint64_t oldmemsize = 0;
     uint32_t keylen = ft_msg_get_keylen(msg);
-    LEAFENTRY copied_old_le = NULL;
-    size_t old_le_size = old_leafentry ? leafentry_memsize(old_leafentry) : 0;
-    toku::scoped_malloc copied_old_le_buf(old_le_size);
-    if (old_leafentry) {
-        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
-        memcpy(copied_old_le, old_leafentry, old_le_size);
-    }
 
     if (old_leafentry == NULL) {
         msg_init_empty_ule(&ule);
     } else {
         oldmemsize = leafentry_memsize(old_leafentry);
-        le_unpack(&ule, copied_old_le); // otherwise unpack leafentry
+        le_unpack(&ule, old_leafentry); // otherwise unpack leafentry
         oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
     ule_simple_garbage_collection(&ule, oldest_referenced_xid, gc_info);
+    void *maybe_free = nullptr;
     int rval = le_pack(
         &ule, // create packed leafentry
         data_buffer,
@@ -494,7 +489,8 @@ toku_le_apply_msg(FT_MSG   msg,
         ft_msg_get_key(msg), // contract of this function is caller has this set, always
         keylen, // contract of this function is caller has this set, always
         oldmemsize,
-        new_leafentry_p
+        new_leafentry_p,
+        &maybe_free
         );
     invariant_zero(rval);
     if (*new_leafentry_p) {
@@ -502,6 +498,9 @@ toku_le_apply_msg(FT_MSG   msg,
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
+    if (maybe_free) {
+        toku_free(maybe_free);
+    }
 }
 
 bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known) {
@@ -557,15 +556,8 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
-    LEAFENTRY copied_old_le = NULL;
-    size_t old_le_size = old_leaf_entry ? leafentry_memsize(old_leaf_entry) : 0;
-    toku::scoped_malloc copied_old_le_buf(old_le_size);
-    if (old_leaf_entry) {
-        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
-        memcpy(copied_old_le, old_leaf_entry, old_le_size);
-    }
 
-    le_unpack(&ule, copied_old_le);
+    le_unpack(&ule, old_leaf_entry);
 
     oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     uint32_t old_mem_size = leafentry_memsize(old_leaf_entry);
@@ -580,6 +572,7 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
     ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
 
+    void *maybe_free = nullptr;
     int r = le_pack(
         &ule,
         data_buffer,
@@ -587,7 +580,8 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
         keyp,
         keylen,
         old_mem_size,
-        new_leaf_entry
+        new_leaf_entry,
+        &maybe_free
         );
     assert(r == 0);
     if (*new_leaf_entry) {
@@ -595,6 +589,9 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
+    if (maybe_free) {
+        toku_free(maybe_free);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -901,7 +898,8 @@ le_pack(ULE ule, // data to be packed into new leafentry
         void* keyp,
         uint32_t keylen,
         uint32_t old_le_size,
-        LEAFENTRY * const new_leafentry_p // this is what this function creates
+        LEAFENTRY * const new_leafentry_p, // this is what this function creates
+        void **const maybe_free
         )
 {
     invariant(ule->num_cuxrs > 0);
@@ -930,7 +928,7 @@ le_pack(ULE ule, // data to be packed into new leafentry
 found_insert:
     memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry;
-    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry);
+    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry, maybe_free);
 
     //p always points to first unused byte after leafentry we are packing
     uint8_t *p;
@@ -2393,12 +2391,14 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     // malloc instead of a mempool.  However after supporting upgrade,
     // we need to use mempools and the OMT.
     rval = le_pack(&ule, // create packed leafentry
-                   NULL,
+                   nullptr,
                    0, //only matters if we are passing in a bn_data
-                   NULL, //only matters if we are passing in a bn_data
+                   nullptr, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
-                   new_leafentry_p);  
+                   new_leafentry_p,
+                   nullptr //only matters if we are passing in a bn_data
+                   );
     ule_cleanup(&ule);
     *new_leafentry_memorysize = leafentry_memsize(*new_leafentry_p);
     return rval;
