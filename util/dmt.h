@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 #include <vector>
 
 namespace toku {
-typedef uint32_t node_idx;
+typedef uint32_t node_offset;
 
 
 /**
@@ -170,14 +170,14 @@ public:
     }
 
     inline bool is_null(void) const {
-        return NODE_NULL == this->get_index();
+        return NODE_NULL == this->get_offset();
     }
 
-    inline node_idx get_index(void) const {
+    inline node_offset get_offset(void) const {
         return m_index;
     }
 
-    inline void set_index(node_idx index) {
+    inline void set_offset(node_offset index) {
         paranoid_invariant(index != NODE_NULL);
         m_index = index;
     }
@@ -231,7 +231,7 @@ public:
     private:
         uint32_t max_values;
         uint32_t max_value_bytes;
-        node_idx *sorted_nodes;
+        node_offset *sorted_node_offsets;
         bool temp_valid;
         dmt<dmtdata_t, dmtdataout_t> temp;
     };
@@ -241,13 +241,6 @@ public:
      * Performance: constant time.
      */
     void create(void);
-
-    /**
-     * Effect: Create an empty DMT with no internal allocated space.
-     * Performance: constant time.
-     * Rationale: In some cases we need a valid dmt but don't want to malloc.
-     */
-    void create_no_array(void);
 
     /**
      * Effect: Create a DMT containing values.  The number of values is in numvalues.
@@ -517,7 +510,6 @@ private:
     ENSURE_POD(dmt_node);
 
     struct dmt_array {
-        uint32_t start_idx;
         uint32_t num_values;
     };
 
@@ -525,6 +517,7 @@ private:
         subtree root;
     };
 
+    // TODO(yoni): comment relationship between values_same_size, num values, value_length, note about tree still keeping track (until lost once)
     bool values_same_size;
     uint32_t value_length;
     struct mempool mp;
@@ -538,21 +531,19 @@ private:
 
     void verify_internal(const subtree &subtree, std::vector<bool> *touched) const;
 
-    void create_internal_no_alloc(bool as_tree);
-
     dmt_node & get_node(const subtree &subtree) const;
 
-    dmt_node & get_node(const node_idx offset) const;
+    dmt_node & get_node(const node_offset offset) const;
 
     uint32_t nweight(const subtree &subtree) const;
 
-    node_idx node_malloc_and_set_value(const dmtdatain_t &value);
+    node_offset node_malloc_and_set_value(const dmtdatain_t &value);
 
     void node_set_value(dmt_node *n, const dmtdatain_t &value);
 
     void node_free(const subtree &st);
 
-    void maybe_resize_array(const int change);
+    void maybe_resize_array_for_insert(void);
 
     void convert_to_tree(void);
 
@@ -566,15 +557,11 @@ private:
     template<bool with_resize>
     int insert_at_array_end(const dmtdatain_t& value_in);
 
-    int insert_at_array_beginning(const dmtdatain_t& value_in);
-
     dmtdata_t * alloc_array_value_end(void);
-
-    dmtdata_t * alloc_array_value_beginning(void);
 
     dmtdata_t * get_array_value(const uint32_t idx) const;
 
-    dmtdata_t * get_array_value_internal(const struct mempool *mempool, const uint32_t real_idx) const;
+    dmtdata_t * get_array_value_internal(const struct mempool *mempool, const uint32_t idx) const;
 
     void convert_from_array_to_tree(void);
 
@@ -610,10 +597,10 @@ private:
     void fetch_internal(const subtree &subtree, const uint32_t i, uint32_t *const value_len, dmtdataout_t *const value) const;
 
     __attribute__((nonnull))
-    void fill_array_with_subtree_idxs(node_idx *const array, const subtree &subtree) const;
+    void fill_array_with_subtree_offsets(node_offset *const array, const subtree &subtree) const;
 
     __attribute__((nonnull))
-    void rebuild_subtree_from_idxs(subtree *const subtree, const node_idx *const idxs, const uint32_t numvalues);
+    void rebuild_subtree_from_offsets(subtree *const subtree, const node_offset *const offsets, const uint32_t numvalues);
 
     __attribute__((nonnull))
     void rebalance(subtree *const subtree);
@@ -654,7 +641,7 @@ private:
              int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
     int find_internal_minus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const;
 
-    node_idx* alloc_temp_node_idxs(uint32_t num_idxs);
+    node_offset* alloc_temp_node_offsets(uint32_t num_idxs);
 
     uint32_t align(const uint32_t x) const;
 };

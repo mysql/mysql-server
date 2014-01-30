@@ -123,6 +123,10 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_
  */
 void toku_mempool_construct(struct mempool *mp, size_t data_size);
 
+/* treat mempool as if it has just been created; ignore any frag and start allocating from beginning again.
+ */
+void toku_mempool_reset(struct mempool *mp);
+
 /* reallocate memory for construct mempool
  */
 void toku_mempool_realloc_larger(struct mempool *mp, size_t data_size);

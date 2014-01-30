@@ -142,6 +142,11 @@ void toku_mempool_construct(struct mempool *mp, size_t data_size) {
     }
 }
 
+void toku_mempool_reset(struct mempool *mp) {
+    mp->free_offset = 0;
+    mp->frag_size = 0;
+}
+
 void toku_mempool_realloc_larger(struct mempool *mp, size_t data_size) {
     invariant(data_size > mp->free_offset);
     size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
