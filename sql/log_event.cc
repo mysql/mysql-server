@@ -46,7 +46,13 @@
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
 #include <mysql/psi/mysql_statement.h>
-
+#define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
+Error_log_throttle
+slave_ignored_err_throttle(window_size,
+                           sql_print_warning,
+                           "Error log throttle: %lu time(s) Error_code: 1237"
+                           " \"Slave SQL thread ignored the query because of"
+                           " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
 #include <base64.h>
@@ -5137,9 +5143,20 @@ compare_errors:
       DBUG_PRINT("info",("error ignored"));
       if (ignored_error_code(actual_error))
       {
-        rli->report(INFORMATION_LEVEL, actual_error,
-                    "Could not execute %s event. Detailed error: %s;",
-                    get_type_str(), thd->get_stmt_da()->message_text());
+        if (actual_error == ER_SLAVE_IGNORED_TABLE)
+        {
+          if (!slave_ignored_err_throttle.log(thd))
+            rli->report(INFORMATION_LEVEL, actual_error,
+                        "Could not execute %s event. Detailed error: %s;"
+                        " Error log throttle is enabled. This error will not be"
+                        " displayed for next %lu secs. It will be suppressed",
+                        get_type_str(), thd->get_stmt_da()->message_text(),
+                        (window_size / 1000000));
+        }
+        else
+          rli->report(INFORMATION_LEVEL, actual_error,
+                      "Could not execute %s event. Detailed error: %s;",
+                      get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
