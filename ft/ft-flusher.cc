@@ -689,16 +689,16 @@ ftleaf_get_split_loc(
     switch (split_mode) {
     case SPLIT_LEFT_HEAVY: {
         *num_left_bns = node->n_children;
-        *num_left_les = BLB_DATA(node, *num_left_bns - 1)->dmt_size();
+        *num_left_les = BLB_DATA(node, *num_left_bns - 1)->num_klpairs();
         if (*num_left_les == 0) {
             *num_left_bns = node->n_children - 1;
-            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->dmt_size();
+            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->num_klpairs();
         }
         goto exit;
     }
     case SPLIT_RIGHT_HEAVY: {
         *num_left_bns = 1;
-        *num_left_les = BLB_DATA(node, 0)->dmt_size() ? 1 : 0;
+        *num_left_les = BLB_DATA(node, 0)->num_klpairs() ? 1 : 0;
         goto exit;
     }
     case SPLIT_EVENLY: {
@@ -708,7 +708,7 @@ ftleaf_get_split_loc(
         uint32_t size_so_far = 0;
         for (int i = 0; i < node->n_children; i++) {
             bn_data* bd = BLB_DATA(node, i);
-            uint32_t n_leafentries = bd->dmt_size();
+            uint32_t n_leafentries = bd->num_klpairs();
             for (uint32_t j=0; j < n_leafentries; j++) {
                 size_t size_this_le;
                 int rr = bd->fetch_klpair_disksize(j, &size_this_le);
@@ -725,7 +725,7 @@ ftleaf_get_split_loc(
                             (*num_left_les)--;
                         } else if (*num_left_bns > 1) {
                             (*num_left_bns)--;
-                            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->dmt_size();
+                            *num_left_les = BLB_DATA(node, *num_left_bns - 1)->num_klpairs();
                         } else {
                             // we are trying to split a leaf with only one
                             // leafentry in it
@@ -754,7 +754,7 @@ move_leafentries(
     )
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
-    invariant(ube == src_bn->data_buffer.dmt_size());
+    invariant(ube == src_bn->data_buffer.num_klpairs());
     src_bn->data_buffer.split_klpairs(&dest_bn->data_buffer, lbi);
 }
 
@@ -852,7 +852,7 @@ ftleaf_split(
     ftleaf_get_split_loc(node, split_mode, &num_left_bns, &num_left_les);
     {
         // did we split right on the boundary between basement nodes?
-        const bool split_on_boundary = (num_left_les == 0) || (num_left_les == (int) BLB_DATA(node, num_left_bns - 1)->dmt_size());
+        const bool split_on_boundary = (num_left_les == 0) || (num_left_les == (int) BLB_DATA(node, num_left_bns - 1)->num_klpairs());
         // Now we know where we are going to break it
         // the two nodes will have a total of n_children+1 basement nodes
         // and n_children-1 pivots
@@ -913,7 +913,7 @@ ftleaf_split(
             move_leafentries(BLB(B, curr_dest_bn_index),
                              BLB(node, curr_src_bn_index),
                              num_left_les,         // first row to be moved to B
-                             BLB_DATA(node, curr_src_bn_index)->dmt_size()  // number of rows in basement to be split
+                             BLB_DATA(node, curr_src_bn_index)->num_klpairs()  // number of rows in basement to be split
                              );
             BLB_MAX_MSN_APPLIED(B, curr_dest_bn_index) = BLB_MAX_MSN_APPLIED(node, curr_src_bn_index);
             curr_dest_bn_index++;
@@ -958,7 +958,7 @@ ftleaf_split(
             bn_data* bd = BLB_DATA(node, num_left_bns - 1);
             uint32_t keylen;
             void *key;
-            int rr = bd->fetch_key_and_len(bd->dmt_size() - 1, &keylen, &key);
+            int rr = bd->fetch_key_and_len(bd->num_klpairs() - 1, &keylen, &key);
             invariant_zero(rr);
             toku_memdup_dbt(splitk, key, keylen);
         }
@@ -1173,7 +1173,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     // this bool states if the last basement node in a has any items or not
     // If it does, then it stays in the merge. If it does not, the last basement node
     // of a gets eliminated because we do not have a pivot to store for it (because it has no elements)
-    const bool a_has_tail = a_last_bd->dmt_size() > 0;
+    const bool a_has_tail = a_last_bd->num_klpairs() > 0;
 
     // move each basement node from b to a
     // move the pivots, adding one of what used to be max(a)
@@ -1200,7 +1200,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     if (a_has_tail) {
         uint32_t keylen;
         void *key;
-        int rr = a_last_bd->fetch_key_and_len(a_last_bd->dmt_size() - 1, &keylen, &key);
+        int rr = a_last_bd->fetch_key_and_len(a_last_bd->num_klpairs() - 1, &keylen, &key);
         invariant_zero(rr);
         toku_memdup_dbt(&a->childkeys[a->n_children-1], key, keylen);
         a->totalchildkeylens += keylen;

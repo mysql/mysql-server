@@ -122,7 +122,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     DBT theval; toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
-    uint32_t idx = BLB_DATA(leafnode, 0)->dmt_size();
+    uint32_t idx = BLB_DATA(leafnode, 0)->num_klpairs();
 
     MSN msn = next_dummymsn();
 

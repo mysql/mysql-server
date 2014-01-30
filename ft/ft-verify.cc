@@ -424,7 +424,7 @@ toku_verify_ftnode_internal(FT_HANDLE brt,
         }
         else {
             BASEMENTNODE bn = BLB(node, i);
-            for (uint32_t j = 0; j < bn->data_buffer.dmt_size(); j++) {
+            for (uint32_t j = 0; j < bn->data_buffer.num_klpairs(); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= this_msn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 DBT kdbt = get_ith_key_dbt(bn, j);
                 if (curr_less_pivot) {

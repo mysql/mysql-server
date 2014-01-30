@@ -315,9 +315,9 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
             }
         } else {
             printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());
-            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->dmt_size());
+            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->num_klpairs());
             if (dump_data) {
-                BLB_DATA(n, i)->dmt_iterate<void, print_le>(NULL);
+                BLB_DATA(n, i)->iterate<void, print_le>(NULL);
             }
         }
     }

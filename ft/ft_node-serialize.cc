@@ -353,7 +353,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
         bn_data* bd = BLB_DATA(node, i);
 
         wbuf_nocrc_char(&wb, ch);
-        wbuf_nocrc_uint(&wb, bd->dmt_size());
+        wbuf_nocrc_uint(&wb, bd->num_klpairs());
 
         bd->serialize_to_wbuf(&wb);
     }
@@ -518,7 +518,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Count number of leaf entries in this leaf (num_le).
     uint32_t num_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
-        num_le += BLB_DATA(node, i)->dmt_size();
+        num_le += BLB_DATA(node, i)->num_klpairs();
     }
 
     uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
@@ -545,8 +545,8 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     for (uint32_t i = 0; i < num_orig_basements; i++) {
         bn_data* bd = BLB_DATA(node, i);
         struct array_info ai {.offset = curr_le, .le_array = leafpointers, .key_sizes_array = key_sizes, .key_ptr_array = key_pointers };
-        bd->dmt_iterate<array_info, array_item>(&ai);
-        curr_le += bd->dmt_size();
+        bd->iterate<array_info, array_item>(&ai);
+        curr_le += bd->num_klpairs();
     }
 
     // Create an array that will store indexes of new pivots.

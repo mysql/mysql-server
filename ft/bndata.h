@@ -193,22 +193,19 @@ public:
     void verify_mempool(void);
 
     // size() of key dmt
-    // TODO(yoni): maybe rename to something like num_klpairs
-    uint32_t dmt_size(void) const;
+    uint32_t num_klpairs(void) const;
 
     // iterate() on key dmt (and associated leafentries)
-    // TODO(yoni): rename to iterate
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
-    int dmt_iterate(iterate_extra_t *const iterate_extra) const {
-        return dmt_iterate_on_range<iterate_extra_t, f>(0, dmt_size(), iterate_extra);
+    int iterate(iterate_extra_t *const iterate_extra) const {
+        return iterate_on_range<iterate_extra_t, f>(0, num_klpairs(), iterate_extra);
     }
 
     // iterate_on_range() on key dmt (and associated leafentries)
-    // TODO(yoni): rename to iterate_on_range
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
-    int dmt_iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
+    int iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
         klpair_iterate_extra<iterate_extra_t> klpair_extra = { iterate_extra, this };
         return m_buffer.iterate_on_range< klpair_iterate_extra<iterate_extra_t>, klpair_iterate_wrapper<iterate_extra_t, f> >(left, right, &klpair_extra);
     }
