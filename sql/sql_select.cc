@@ -2600,7 +2600,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
-  sjm_exec->table_param= TMP_TABLE_PARAM();
+  sjm_exec->table_param= Temp_table_param();
   count_field_types(select_lex, &sjm_exec->table_param,
                     emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
@@ -4362,11 +4362,11 @@ fix_ICP:
 
 
 /**
-  Update TMP_TABLE_PARAM with count of the different type of fields.
+  Update Temp_table_param with count of the different type of fields.
 
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
-  create_tmp_table() and stores it in the TMP_TABLE_PARAM object. It
+  create_tmp_table() and stores it in the Temp_table_param object. It
   also resets and calculates the quick_group property, which may have
   to be reverted if this function is called after deciding to use
   ROLLUP (see JOIN::rollup_init()).
@@ -4380,7 +4380,7 @@ fix_ICP:
 */
 
 void
-count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                   List<Item> &fields, bool reset_with_sum_func,
                   bool save_sum_fields)
 {

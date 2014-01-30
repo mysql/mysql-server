@@ -1711,7 +1711,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
-  tmp_table_param= new (thd->mem_root) TMP_TABLE_PARAM[table_count];
+  tmp_table_param= new (thd->mem_root) Temp_table_param[table_count];
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
@@ -1895,7 +1895,7 @@ multi_update::initialize_tables(JOIN *join)
     uint cnt= table_ref->shared;
     List<Item> temp_fields;
     ORDER     group;
-    TMP_TABLE_PARAM *tmp_param;
+    Temp_table_param *tmp_param;
 
     if (ignore)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
