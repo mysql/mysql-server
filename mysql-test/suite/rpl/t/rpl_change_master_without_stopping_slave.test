@@ -47,7 +47,7 @@
 
 --connection master
 GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo With both receiver and applier stopped, all CHANGE MASTER options should
