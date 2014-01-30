@@ -27,7 +27,7 @@
 
 FLUSH BINARY LOGS;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #save old values to restore after test in the cleanup section.
 let $slave_heartbeat_timeout_before_test= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
