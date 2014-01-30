@@ -152,7 +152,7 @@ verify_msg_in_child_buffer(FT_HANDLE brt, enum ft_msg_type type, MSN msn, byteve
 static DBT
 get_ith_key_dbt (BASEMENTNODE bn, int i) {
     DBT kdbt;
-    int r = bn->data_buffer.fetch_le_key_and_len(i, &kdbt.size, &kdbt.data);
+    int r = bn->data_buffer.fetch_key_and_len(i, &kdbt.size, &kdbt.data);
     invariant_zero(r); // this is a bad failure if it happens.
     return kdbt;
 }
@@ -424,7 +424,7 @@ toku_verify_ftnode_internal(FT_HANDLE brt,
         }
         else {
             BASEMENTNODE bn = BLB(node, i);
-            for (uint32_t j = 0; j < bn->data_buffer.omt_size(); j++) {
+            for (uint32_t j = 0; j < bn->data_buffer.dmt_size(); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= this_msn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 DBT kdbt = get_ith_key_dbt(bn, j);
                 if (curr_less_pivot) {

@@ -375,10 +375,10 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
     }
     else {
         unsigned char ch = FTNODE_PARTITION_OMT_LEAVES;
-        BN_DATA bd = BLB_DATA(node, i);
+        bn_data* bd = BLB_DATA(node, i);
 
         wbuf_nocrc_char(&wb, ch);
-        wbuf_nocrc_uint(&wb, bd->omt_size());
+        wbuf_nocrc_uint(&wb, bd->dmt_size());
 
         bd->prepare_to_serialize();
         bd->serialize_header(&wb);
@@ -386,7 +386,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
             //
             // iterate over leafentries and place them into the buffer
             //
-            bd->omt_iterate<struct wbuf, wbufwriteleafentry>(&wb);
+            bd->dmt_iterate<struct wbuf, wbufwriteleafentry>(&wb);
         } else {
             bd->serialize_rest(&wb);
         }
@@ -552,7 +552,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Count number of leaf entries in this leaf (num_le).
     uint32_t num_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
-        num_le += BLB_DATA(node, i)->omt_size();
+        num_le += BLB_DATA(node, i)->dmt_size();
     }
 
     uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
@@ -577,10 +577,10 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
 
     uint32_t curr_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
-        BN_DATA bd = BLB_DATA(node, i);
+        bn_data* bd = BLB_DATA(node, i);
         struct array_info ai {.offset = curr_le, .le_array = leafpointers, .key_sizes_array = key_sizes, .key_ptr_array = key_pointers };
-        bd->omt_iterate<array_info, array_item>(&ai);
-        curr_le += bd->omt_size();
+        bd->dmt_iterate<array_info, array_item>(&ai);
+        curr_le += bd->dmt_size();
     }
 
     // Create an array that will store indexes of new pivots.
@@ -702,8 +702,8 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
         uint32_t num_les_to_copy = num_les_this_bn[i];
         invariant(num_les_to_copy == num_in_bn); 
 
-        BN_DATA bd = BLB_DATA(node, i);
-        bd->replace_contents_with_clone_of_sorted_array(
+        bn_data* bd = BLB_DATA(node, i);
+        bd->set_contents_as_clone_of_sorted_array(
             num_les_to_copy,
             &key_pointers[baseindex_this_bn],
             &key_sizes[baseindex_this_bn],
@@ -1560,7 +1560,7 @@ deserialize_ftnode_partition(
         data_size -= rb.ndone; // remaining bytes of leafentry data
 
         BASEMENTNODE bn = BLB(node, childnum);
-        bn->data_buffer.initialize_from_data(num_entries, &rb, data_size, node->layout_version_read_from_disk);
+        bn->data_buffer.deserialize_from_rbuf(num_entries, &rb, data_size, node->layout_version_read_from_disk);
     }
     assert(rb.ndone == rb.size);
 exit:
@@ -2112,7 +2112,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
         if (has_end_to_end_checksum) {
             data_size -= sizeof(uint32_t);
         }
-        bn->data_buffer.initialize_from_data(n_in_buf, rb, data_size, node->layout_version_read_from_disk);
+        bn->data_buffer.deserialize_from_rbuf(n_in_buf, rb, data_size, node->layout_version_read_from_disk);
     }
 
     // Whatever this is must be less than the MSNs of every message above

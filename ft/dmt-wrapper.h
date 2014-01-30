@@ -143,8 +143,32 @@ PATENT RIGHTS GRANT:
 
 //typedef struct value *DMTVALUE; // A slight improvement over using void*.
 #include <util/dmt.h>
+
 typedef void *DMTVALUE;
-typedef toku::dmt<DMTVALUE> *DMT;
+
+namespace dmt_wrapper_internal {
+class dmtvalue_writer {
+    public:
+        size_t get_size(void) const {
+            return sizeof(DMTVALUE);
+        }
+        void write_to(DMTVALUE *const dest) const {
+            *dest = value;
+        }
+
+        dmtvalue_writer(DMTVALUE _value)
+            : value(_value) {}
+        dmtvalue_writer(const uint32_t size UU(), DMTVALUE *const src)
+            : value(*src) {
+            paranoid_invariant(size == sizeof(DMTVALUE));
+        }
+    private:
+        const DMTVALUE value;
+};
+};
+
+
+typedef toku::dmt<DMTVALUE, DMTVALUE, dmt_wrapper_internal::dmtvalue_writer> *DMT;
 
 
 int toku_dmt_create (DMT *dmtp);

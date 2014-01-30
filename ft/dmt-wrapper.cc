@@ -97,28 +97,6 @@ PATENT RIGHTS GRANT:
 #include <util/mempool.h>
 #include "dmt-wrapper.h"
 
-namespace toku {
-template<>
-class dmt_functor<DMTVALUE> {
-    public:
-        size_t get_dmtdatain_t_size(void) const {
-            return sizeof(DMTVALUE);
-        }
-        void write_dmtdata_t_to(DMTVALUE *const dest) const {
-            *dest = value;
-        }
-
-        dmt_functor(DMTVALUE _value)
-            : value(_value) {}
-        dmt_functor(const uint32_t size UU(), DMTVALUE *const src)
-            : value(*src) {
-            paranoid_invariant(size == sizeof(DMTVALUE));
-        }
-    private:
-        const DMTVALUE value;
-};
-}
-
 int
 toku_dmt_create_steal_sorted_array(DMT *dmtp, DMTVALUE **valuesp, uint32_t numvalues, uint32_t capacity) {
     //TODO: implement using create_steal_sorted_array when it exists
@@ -167,7 +145,7 @@ int toku_dmt_create_from_sorted_array(DMT *dmtp, DMTVALUE *values, uint32_t numv
 }
 
 int toku_dmt_insert_at(DMT dmt, DMTVALUE value, uint32_t index) {
-    toku::dmt_functor<DMTVALUE> functor(value);
+    dmt_wrapper_internal::dmtvalue_writer functor(value);
     return dmt->insert_at(functor, index);
 }
 
@@ -222,7 +200,7 @@ int call_heftor(const uint32_t size, const DMTVALUE &v, const heftor &htor) {
 
 int toku_dmt_insert(DMT dmt, DMTVALUE value, int(*h)(DMTVALUE, void*v), void *v, uint32_t *index) {
     struct heftor htor = { .h = h, .v = v };
-    toku::dmt_functor<DMTVALUE> functor(value);
+    dmt_wrapper_internal::dmtvalue_writer functor(value);
     return dmt->insert<heftor, call_heftor>(functor, htor, index);
 }
 

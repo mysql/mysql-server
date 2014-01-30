@@ -357,7 +357,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->dmt_size(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
@@ -431,7 +431,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
         if (i < nrows-1) {
             uint32_t keylen;
             void* curr_key;
-            BLB_DATA(&sn, i)->fetch_le_key_and_len(0, &keylen, &curr_key);
+            BLB_DATA(&sn, i)->fetch_key_and_len(0, &keylen, &curr_key);
             toku_memdup_dbt(&sn.childkeys[i], curr_key, keylen);
         }
     }
@@ -499,8 +499,8 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->dmt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->dmt_size(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
@@ -631,8 +631,8 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->dmt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->dmt_size(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
@@ -781,8 +781,8 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->dmt_size() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->dmt_size(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
@@ -919,7 +919,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->dmt_size(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
@@ -1040,7 +1040,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
             if (i > 0) {
                 assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
-            assert(BLB_DATA(dn, i)->omt_size() == 0);
+            assert(BLB_DATA(dn, i)->dmt_size() == 0);
         }
     }
     toku_ftnode_free(&dn);

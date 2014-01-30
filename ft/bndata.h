@@ -106,7 +106,6 @@ static constexpr uint32_t keylen_from_klpair_len(const uint32_t klpair_len) {
     return klpair_len - __builtin_offsetof(klpair_struct, key);
 }
 
-typedef struct klpair_struct KLPAIR_S, *KLPAIR;
 
 static_assert(__builtin_offsetof(klpair_struct, key) == 1*sizeof(uint32_t), "klpair alignment issues");
 static_assert(__builtin_offsetof(klpair_struct, key) == sizeof(klpair_struct), "klpair size issues");
@@ -116,7 +115,7 @@ static_assert(__builtin_offsetof(klpair_struct, key) == sizeof(klpair_struct), "
 // Alternative to this wrapper is to expose accessor functions and rewrite all the external heaviside functions.
 template<typename dmtcmp_t,
          int (*h)(const DBT &, const dmtcmp_t &)>
-static int wrappy_fun_find(const uint32_t klpair_len, const klpair_struct &klpair, const dmtcmp_t &extra) {
+static int klpair_find_wrapper(const uint32_t klpair_len, const klpair_struct &klpair, const dmtcmp_t &extra) {
     DBT kdbt;
     kdbt.data = const_cast<void*>(reinterpret_cast<const void*>(klpair.key));
     kdbt.size = keylen_from_klpair_len(klpair_len);
@@ -124,7 +123,7 @@ static int wrappy_fun_find(const uint32_t klpair_len, const klpair_struct &klpai
 }
 
 template<typename inner_iterate_extra_t>
-struct wrapped_iterate_extra_t {
+struct klpair_iterate_extra {
     public:
     inner_iterate_extra_t *inner;
     const class bn_data * bd;
@@ -135,7 +134,7 @@ struct wrapped_iterate_extra_t {
 // Alternative to this wrapper is to expose accessor functions and rewrite all the external heaviside functions.
 template<typename iterate_extra_t,
          int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t idx, iterate_extra_t *const)>
-static int wrappy_fun_iterate(const uint32_t klpair_len, const klpair_struct &klpair, const uint32_t idx, wrapped_iterate_extra_t<iterate_extra_t> *const extra) {
+static int klpair_iterate_wrapper(const uint32_t klpair_len, const klpair_struct &klpair, const uint32_t idx, klpair_iterate_extra<iterate_extra_t> *const extra) {
     const void* key = &klpair.key;
     LEAFENTRY le = extra->bd->get_le_from_klpair(&klpair);
     return f(key, keylen_from_klpair_len(klpair_len), le, idx, extra->inner);
@@ -143,21 +142,22 @@ static int wrappy_fun_iterate(const uint32_t klpair_len, const klpair_struct &kl
 
 
 namespace toku {
-template<>
-// Use of dmt requires a dmt_functor for the specific type.
-class dmt_functor<klpair_struct> {
+// dmt writer for klpair_struct
+class klpair_dmtwriter {
     public:
-        size_t get_dmtdatain_t_size(void) const {
+        // Return the size needed for the klpair_struct that this dmtwriter represents
+        size_t get_size(void) const {
             return sizeof(klpair_struct) + this->keylen;
         }
-        void write_dmtdata_t_to(klpair_struct *const dest) const {
+        // Write the klpair_struct this dmtwriter represents to a destination
+        void write_to(klpair_struct *const dest) const {
             dest->le_offset = this->le_offset;
             memcpy(dest->key, this->keyp, this->keylen);
         }
 
-        dmt_functor(uint32_t _keylen, uint32_t _le_offset, const void* _keyp)
+        klpair_dmtwriter(uint32_t _keylen, uint32_t _le_offset, const void* _keyp)
             : keylen(_keylen), le_offset(_le_offset), keyp(_keyp) {}
-        dmt_functor(const uint32_t klpair_len, klpair_struct *const src)
+        klpair_dmtwriter(const uint32_t klpair_len, klpair_struct *const src)
             : keylen(keylen_from_klpair_len(klpair_len)), le_offset(src->le_offset), keyp(src->key) {}
     private:
         const uint32_t keylen;
@@ -166,48 +166,63 @@ class dmt_functor<klpair_struct> {
 };
 }
 
-typedef toku::dmt<KLPAIR_S, KLPAIR> klpair_dmt_t;
+typedef toku::dmt<klpair_struct, klpair_struct*, toku::klpair_dmtwriter> klpair_dmt_t;
 // This class stores the data associated with a basement node
 class bn_data {
 public:
+    // Initialize an empty bn_data _without_ a dmt backing.
+    // Externally only used for deserialization.
     void init_zero(void);
+
+    // Initialize an empty bn_data _with_ a dmt
     void initialize_empty(void);
 
-    // Deserialize from rbuf.
-    void initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version);
-    // globals
+    // Deserialize a bn_data from rbuf.
+    // This is the entry point for deserialization.
+    void deserialize_from_rbuf(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version);
+
+    // Retrieve the memory footprint of this basement node.
+    // May over or under count: see Tokutek/ft-index#136
+    // Also see dmt's implementation.
     uint64_t get_memory_size(void);
+
+    // Get the serialized size of this basement node.
     uint64_t get_disk_size(void);
+
+    // Perform (paranoid) verification that all leafentries are fully contained within the mempool
     void verify_mempool(void);
 
-    // Interact with "dmt"
-    uint32_t omt_size(void) const;
+    // size() of key dmt
+    uint32_t dmt_size(void) const;
 
+    // iterate() on key dmt (and associated leafentries)
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
-    int omt_iterate(iterate_extra_t *const iterate_extra) const {
-        return omt_iterate_on_range<iterate_extra_t, f>(0, omt_size(), iterate_extra);
+    int dmt_iterate(iterate_extra_t *const iterate_extra) const {
+        return dmt_iterate_on_range<iterate_extra_t, f>(0, dmt_size(), iterate_extra);
     }
 
+    // iterate_on_range() on key dmt (and associated leafentries)
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
-    int omt_iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
-        wrapped_iterate_extra_t<iterate_extra_t> wrapped_extra = { iterate_extra, this };
-        return m_buffer.iterate_on_range< wrapped_iterate_extra_t<iterate_extra_t>, wrappy_fun_iterate<iterate_extra_t, f> >(left, right, &wrapped_extra);
+    int dmt_iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
+        klpair_iterate_extra<iterate_extra_t> klpair_extra = { iterate_extra, this };
+        return m_buffer.iterate_on_range< klpair_iterate_extra<iterate_extra_t>, klpair_iterate_wrapper<iterate_extra_t, f> >(left, right, &klpair_extra);
     }
 
+    // find_zero() on key dmt
     template<typename dmtcmp_t,
              int (*h)(const DBT &, const dmtcmp_t &)>
     int find_zero(const dmtcmp_t &extra, LEAFENTRY *const value, void** key, uint32_t* keylen, uint32_t *const idxp) const {
-        KLPAIR klpair = NULL;
+        klpair_struct* klpair = nullptr;
         uint32_t klpair_len;
-        int r = m_buffer.find_zero< dmtcmp_t, wrappy_fun_find<dmtcmp_t, h> >(extra, &klpair_len, &klpair, idxp);
+        int r = m_buffer.find_zero< dmtcmp_t, klpair_find_wrapper<dmtcmp_t, h> >(extra, &klpair_len, &klpair, idxp);
         if (r == 0) {
             if (value) {
                 *value = get_le_from_klpair(klpair);
             }
             if (key) {
-                paranoid_invariant(keylen != NULL);
+                paranoid_invariant_notnull(keylen);
                 *key = klpair->key;
                 *keylen = keylen_from_klpair_len(klpair_len);
             }
@@ -218,45 +233,56 @@ public:
         return r;
     }
 
+    // find() on key dmt (and associated leafentries)
     template<typename dmtcmp_t,
              int (*h)(const DBT &, const dmtcmp_t &)>
     int find(const dmtcmp_t &extra, int direction, LEAFENTRY *const value, void** key, uint32_t* keylen, uint32_t *const idxp) const {
-        KLPAIR klpair = NULL;
+        klpair_struct* klpair = nullptr;
         uint32_t klpair_len;
-        int r = m_buffer.find< dmtcmp_t, wrappy_fun_find<dmtcmp_t, h> >(extra, direction, &klpair_len, &klpair, idxp);
+        int r = m_buffer.find< dmtcmp_t, klpair_find_wrapper<dmtcmp_t, h> >(extra, direction, &klpair_len, &klpair, idxp);
         if (r == 0) {
             if (value) {
                 *value = get_le_from_klpair(klpair);
             }
             if (key) {
-                paranoid_invariant(keylen != NULL);
+                paranoid_invariant_notnull(keylen);
                 *key = klpair->key;
                 *keylen = keylen_from_klpair_len(klpair_len);
             }
             else {
-                paranoid_invariant(keylen == NULL);
+                paranoid_invariant_null(keylen);
             }
         }
         return r;
     }
 
-    // get info about a single leafentry by index
+    // Fetch leafentry by index
+    __attribute__((__nonnull__))
     int fetch_le(uint32_t idx, LEAFENTRY *le);
+    // Fetch (leafentry, key, keylen) by index
+    __attribute__((__nonnull__))
     int fetch_klpair(uint32_t idx, LEAFENTRY *le, uint32_t *len, void** key);
+    // Fetch (serialized size of leafentry, key, and keylen) by index
+    __attribute__((__nonnull__))
     int fetch_klpair_disksize(uint32_t idx, size_t *size);
-    int fetch_le_key_and_len(uint32_t idx, uint32_t *len, void** key);
+    // Fetch (key, keylen) by index
+    __attribute__((__nonnull__))
+    int fetch_key_and_len(uint32_t idx, uint32_t *len, void** key);
 
-    // Interact with another bn_data
-    void move_leafentries_to(BN_DATA dest_bd,
+    // Move leafentries (and associated key/keylens) from this basement node to dest_bd
+    // Moves indexes [lbi-ube)
+    __attribute__((__nonnull__))
+    void move_leafentries_to(bn_data* dest_bd,
                               uint32_t lbi, //lower bound inclusive
                               uint32_t ube //upper bound exclusive
                               );
 
+    // Destroy this basement node and free memory.
     void destroy(void);
 
-    // Replaces contents, into brand new mempool.
-    // Returns old mempool base, expects caller to free it.
-    void replace_contents_with_clone_of_sorted_array(
+    // Uses sorted array as input for this basement node.
+    // Expects this to be a basement node just initialized with initialize_empty()
+    void set_contents_as_clone_of_sorted_array(
         uint32_t num_les,
         const void** old_key_ptrs,
         uint32_t* old_keylens,
@@ -266,32 +292,46 @@ public:
         size_t total_le_size
         );
 
+    // Make this basement node a clone of orig_bn_data.
+    // orig_bn_data still owns all its memory (dmt, mempool)
+    // this basement node will have a new dmt, mempool containing same data.
     void clone(bn_data* orig_bn_data);
+
+    // Delete klpair index idx with provided keylen and old leafentry with size old_le_size
     void delete_leafentry (
         uint32_t idx,
         uint32_t keylen,
         uint32_t old_le_size
         );
+
+    // Allocates space in the mempool to store a new leafentry.
+    // This may require reorganizing the mempool and updating the dmt.
     void get_space_for_overwrite(uint32_t idx, const void* keyp, uint32_t keylen, uint32_t old_size, uint32_t new_size, LEAFENTRY* new_le_space);
+ 
+    // Allocates space in the mempool to store a new leafentry
+    // and inserts a new key into the dmt
+    // This may require reorganizing the mempool and updating the dmt.
     void get_space_for_insert(uint32_t idx, const void* keyp, uint32_t keylen, size_t size, LEAFENTRY* new_le_space);
 
+    // Gets a leafentry given a klpair from this basement node.
     LEAFENTRY get_le_from_klpair(const klpair_struct *klpair) const;
 
+    // Prepares this basement node for serialization.
     // Must be called before serializing this basement node.
     // Between calling prepare_to_serialize and actually serializing, the basement node may not be modified
     void prepare_to_serialize(void);
 
-    // Requires prepare_to_serialize() to have been called first.
     // Serialize the basement node header to a wbuf
+    // Requires prepare_to_serialize() to have been called first.
     void serialize_header(struct wbuf *wb) const;
 
-    // Requires prepare_to_serialize() (and serialize_header()) has been called first.
     // Serialize all keys and leafentries to a wbuf
+    // Requires prepare_to_serialize() (and serialize_header()) has been called first.
     // Currently only supported when all keys are fixed-length.
     void serialize_rest(struct wbuf *wb) const;
 
-    // Requires prepare_to_serialize() to have been called first.
     // Returns true if we must use the old (version 24) serialization method for this basement node
+    // Requires prepare_to_serialize() to have been called first.
     // In other words, the bndata does not know how to serialize the keys and leafentries.
     bool need_to_serialize_each_leafentry_with_key(void) const;
 
@@ -304,25 +344,40 @@ public:
         + 0;
 private:
 
-    // Private functions
-    LEAFENTRY mempool_malloc_and_update_omt(size_t size, void **maybe_free);
-    void omt_compress_kvspace(size_t added_size, void **maybe_free, bool force_compress);
+    // Allocates space in the mempool.
+    // If there is insufficient space, the mempool is enlarged and leafentries may be shuffled to reduce fragmentation.
+    // If shuffling happens, the offsets stored in the dmt are updated.
+    LEAFENTRY mempool_malloc_and_update_dmt(size_t size, void **maybe_free);
 
-    // Maintain metadata about size of memory for keys (adding a single key)
+    // Change the size of the mempool to support what is already in it, plus added_size.
+    // possibly "compress" by shuffling leafentries around to reduce fragmentation to 0.
+    // If fragmentation is already 0 and force_compress is not true, shuffling may be skipped.
+    // If shuffling happens, leafentries will be stored in the mempool in sorted order.
+    void dmt_compress_kvspace(size_t added_size, void **maybe_free, bool force_compress);
+
+    // Note that a key was added (for maintaining disk-size of this basement node)
     void add_key(uint32_t keylen);
-    // Maintain metadata about size of memory for keys (adding multiple keys)
+
+    // Note that multiple keys were added (for maintaining disk-size of this basement node)
     void add_keys(uint32_t n_keys, uint32_t combined_keylen);
-    // Maintain metadata about size of memory for keys (removing a single key)
+
+    // Note that a key was removed (for maintaining disk-size of this basement node)
     void remove_key(uint32_t keylen);
 
     klpair_dmt_t m_buffer;                     // pointers to individual leaf entries
     struct mempool m_buffer_mempool;  // storage for all leaf entries
 
     friend class bndata_bugfix_test;
+
+    // Get the serialized size of a klpair.
+    // As of Jan 14, 2014, serialized size of a klpair is independent of if this basement node has fixed-length keys.
     uint32_t klpair_disksize(const uint32_t klpair_len, const klpair_struct *klpair) const;
+
     // The disk/memory size of all keys.  (Note that the size of memory for the leafentries is maintained by m_buffer_mempool)
     size_t m_disksize_of_keys;
 
+    // Deserialize this basement node from rbuf
+    // all keys will be first followed by all leafentries (both in sorted order)
     void initialize_from_separate_keys_and_vals(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version,
                                                 uint32_t key_data_size, uint32_t val_data_size, bool all_keys_same_length,
                                                 uint32_t fixed_key_length);
