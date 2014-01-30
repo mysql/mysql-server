@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,11 +53,10 @@ table_users::m_share=
 {
   { C_STRING_WITH_LEN("users") },
   &pfs_truncatable_acl,
-  &table_users::create,
+  table_users::create,
   NULL, /* write_row */
   table_users::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  cursor_by_user::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,

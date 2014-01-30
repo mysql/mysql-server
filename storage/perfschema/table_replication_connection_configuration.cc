@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -128,11 +128,10 @@ table_replication_connection_configuration::m_share=
 {
   { C_STRING_WITH_LEN("replication_connection_configuration") },
   &pfs_readonly_acl,
-  &table_replication_connection_configuration::create,
+  table_replication_connection_configuration::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_connection_configuration::get_row_count,
-  1, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -77,8 +77,7 @@ table_esgs_global_by_event_name::m_share=
   table_esgs_global_by_event_name::create,
   NULL, /* write_row */
   table_esgs_global_by_event_name::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_esgs_global_by_event_name::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -100,6 +99,12 @@ table_esgs_global_by_event_name::delete_all_rows(void)
   reset_events_stages_by_host();
   reset_events_stages_global();
   return 0;
+}
+
+ha_rows
+table_esgs_global_by_event_name::get_row_count(void)
+{
+  return stage_class_max;
 }
 
 table_esgs_global_by_event_name::table_esgs_global_by_event_name()
