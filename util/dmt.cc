@@ -449,8 +449,9 @@ int dmt<dmtdata_t, dmtdataout_t>::delete_at(const uint32_t idx) {
         this->clear();  //Emptying out the entire dmt.
         return 0;
     }
-    //TODO: support array delete
     if (this->is_array) {
+        //TODO: support array delete
+        //TODO: If/when we implement array delete, we must update verify() (and others?)  w.r.t. mempool fragmentation
         this->convert_from_array_to_tree();
     }
     paranoid_invariant(!is_array);
@@ -489,27 +490,70 @@ int dmt<dmtdata_t, dmtdataout_t>::iterate_on_range(const uint32_t left, const ui
 
 template<typename dmtdata_t, typename dmtdataout_t>
 void dmt<dmtdata_t, dmtdataout_t>::verify(void) const {
-    if (!is_array) {
-        verify_internal(this->d.t.root);
+    uint32_t num_values = this->size();
+    invariant(num_values < UINT32_MAX);
+    size_t pool_used = toku_mempool_get_used_space(&this->mp);
+    size_t pool_size = toku_mempool_get_size(&this->mp);
+    size_t pool_frag = toku_mempool_get_frag_size(&this->mp);
+    invariant(pool_used <= pool_size);
+    if (this->is_array) {
+        invariant(this->values_same_size);
+        invariant(num_values == this->d.a.num_values);
+
+        // We know exactly how much memory should be used.
+        invariant(pool_used == num_values * align(this->value_length));
+
+        // Array form must have 0 fragmentation in mempool.
+        invariant(pool_frag == 0);  //TODO: if/when we implement array delete this invariant may need to change.
+    } else {
+        if (this->values_same_size) {
+            // We know exactly how much memory should be used.
+            invariant(pool_used == num_values * align(this->value_length + __builtin_offsetof(dmt_node, value)));
+        } else {
+            // We can only do a lower bound on memory usage.
+            invariant(pool_used >= num_values * __builtin_offsetof(dmt_node, value));
+        }
+        std::vector<bool> touched(pool_size, false);
+        verify_internal(this->d.t.root, &touched);
+        size_t bytes_used = 0;
+        for (size_t i = 0; i < pool_size; i++) {
+            if (touched.at(i)) {
+                ++bytes_used;
+            }
+        }
+        invariant(bytes_used == pool_used);
     }
 }
 
+// Verifies all weights are internally consistent.
 template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::verify_internal(const subtree &subtree) const {
+void dmt<dmtdata_t, dmtdataout_t>::verify_internal(const subtree &subtree, std::vector<bool> *touched) const {
     if (subtree.is_null()) {
         return;
     }
     const dmt_node &node = get_node(subtree);
 
+    if (this->values_same_size) {
+        invariant(node.value_length == this->value_length);
+    }
+
+    size_t offset = toku_mempool_get_offset_from_pointer_and_base(&this->mp, &node);
+    size_t node_size = align(__builtin_offsetof(dmt_node, value) + node.value_length);
+    invariant(offset <= touched->size());
+    invariant(offset+node_size <= touched->size());
+    invariant(offset % ALIGNMENT == 0);
+    // Mark memory as touched and never allocated to multiple nodes.
+    for (size_t i = offset; i < offset+node_size; ++i) {
+        invariant(!touched->at(i));
+        touched->at(i) = true;
+    }
+
     const uint32_t leftweight = this->nweight(node.left);
     const uint32_t rightweight = this->nweight(node.right);
 
     invariant(leftweight + rightweight + 1 == this->nweight(subtree));
-    if (this->values_same_size) {
-        invariant(node.value_length == this->value_length);
-    }
-    verify_internal(node.left);
-    verify_internal(node.right);
+    verify_internal(node.left, touched);
+    verify_internal(node.right, touched);
 }
 
 template<typename dmtdata_t, typename dmtdataout_t>
@@ -621,7 +665,6 @@ void dmt<dmtdata_t, dmtdataout_t>::node_free(const subtree &st) {
 
 template<typename dmtdata_t, typename dmtdataout_t>
 void dmt<dmtdata_t, dmtdataout_t>::maybe_resize_tree(const dmtdatain_t * value) {
-    static_assert(std::is_same<dmtdatain_t, dmtdatain_t>::value, "functor wrong type");
     const ssize_t curr_capacity = toku_mempool_get_size(&this->mp);
     const ssize_t curr_free = toku_mempool_get_free_space(&this->mp);
     const ssize_t curr_used = toku_mempool_get_used_space(&this->mp);

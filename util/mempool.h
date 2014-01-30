@@ -137,7 +137,7 @@ void *toku_mempool_get_base(const struct mempool *mp);
 void *toku_mempool_get_pointer_from_base_and_offset(const struct mempool *mp, size_t offset);
 
 /* get the offset from base of a pointer */
-size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, void* p);
+size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, const void* p);
 
 /* get the a pointer of the first free byte (if any) */
 void* toku_mempool_get_next_free_ptr(const struct mempool *mp);
