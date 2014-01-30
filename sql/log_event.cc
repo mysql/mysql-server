@@ -9797,13 +9797,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     DBUG_RETURN(0);
   }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
-#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
@@ -10630,13 +10624,7 @@ Rows_log_event::open_record_scan()
       goto end;
     }
 
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
     DBUG_DUMP("key data", m_key, keyinfo->key_length);
-#endif
   }
   else
   {
@@ -10817,14 +10805,8 @@ INDEX_SCAN:
   }
 
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_PRINT("info",("found first matching record"));
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
   /*
     Below is a minor "optimization".  If the key (i.e., key number
     0) has the HA_NOSAME flag set, we know that we have found the
@@ -12139,13 +12121,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   /* Set the event data size = post header + body */
   m_data_size= event_len - common_header_len;
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("event buffer", (uchar*) buf, event_len);
-#endif
 
   /* Read the post-header */
   const char *post_start= buf + common_header_len;
@@ -13283,15 +13259,9 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-#endif
 
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
