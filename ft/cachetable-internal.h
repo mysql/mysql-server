@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include "background_job_manager.h"
 #include <portability/toku_random.h>
 #include <util/frwlock.h>
-#include <util/frwlock.cc>
 #include <util/kibbutz.h>
 #include <util/nb_mutex.h>
 #include <util/partitioned_counter.h>

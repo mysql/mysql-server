@@ -92,6 +92,7 @@ PATENT RIGHTS GRANT:
 #include <toku_assert.h>
 
 #include <util/context.h>
+#include <util/frwlock.h>
 
 namespace toku {
 
