@@ -193,9 +193,11 @@ public:
     void verify_mempool(void);
 
     // size() of key dmt
+    // TODO(yoni): maybe rename to something like num_klpairs
     uint32_t dmt_size(void) const;
 
     // iterate() on key dmt (and associated leafentries)
+    // TODO(yoni): rename to iterate
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
     int dmt_iterate(iterate_extra_t *const iterate_extra) const {
@@ -203,6 +205,7 @@ public:
     }
 
     // iterate_on_range() on key dmt (and associated leafentries)
+    // TODO(yoni): rename to iterate_on_range
     template<typename iterate_extra_t,
              int (*f)(const void * key, const uint32_t keylen, const LEAFENTRY &, const uint32_t, iterate_extra_t *const)>
     int dmt_iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const {
@@ -272,10 +275,7 @@ public:
     // Move leafentries (and associated key/keylens) from this basement node to dest_bd
     // Moves indexes [lbi-ube)
     __attribute__((__nonnull__))
-    void move_leafentries_to(bn_data* dest_bd,
-                              uint32_t lbi, //lower bound inclusive
-                              uint32_t ube //upper bound exclusive
-                              );
+    void split_klpairs(bn_data* dest_bd, uint32_t first_index_for_dest);
 
     // Destroy this basement node and free memory.
     void destroy(void);
@@ -321,6 +321,8 @@ public:
     // Between calling prepare_to_serialize and actually serializing, the basement node may not be modified
     void prepare_to_serialize(void);
 
+    //TODO(yoni): go to serialize_ftnode_partition and move prepare/header/etc (and wbufwriteleafentry) into here and add just one external function: serialize_to_wbuf()
+
     // Serialize the basement node header to a wbuf
     // Requires prepare_to_serialize() to have been called first.
     void serialize_header(struct wbuf *wb) const;
@@ -344,10 +346,10 @@ public:
         + 0;
 private:
 
-    // move_leafentry_extra should be a local class in move_leafentries_to, but
+    // split_klpairs_extra should be a local class in split_klpairs, but
     // the dmt template parameter for iterate needs linkage, so it has to be a
     // separate class, but we want it to be able to call e.g. add_key
-    friend class move_leafentry_extra;
+    friend class split_klpairs_extra;
 
     // Allocates space in the mempool.
     // If there is insufficient space, the mempool is enlarged and leafentries may be shuffled to reduce fragmentation.
@@ -364,7 +366,7 @@ private:
     void add_key(uint32_t keylen);
 
     // Note that multiple keys were added (for maintaining disk-size of this basement node)
-    void add_keys(uint32_t n_keys, uint32_t combined_keylen);
+    void add_keys(uint32_t n_keys, uint32_t combined_klpair_len);
 
     // Note that a key was removed (for maintaining disk-size of this basement node)
     void remove_key(uint32_t keylen);
@@ -375,7 +377,7 @@ private:
     friend class bndata_bugfix_test;
 
     // Get the serialized size of a klpair.
-    // As of Jan 14, 2014, serialized size of a klpair is independent of if this basement node has fixed-length keys.
+    // As of Jan 14, 2014, serialized size of a klpair is independent of whether this basement node has fixed-length keys.
     uint32_t klpair_disksize(const uint32_t klpair_len, const klpair_struct *klpair) const;
 
     // The disk/memory size of all keys.  (Note that the size of memory for the leafentries is maintained by m_buffer_mempool)
@@ -385,6 +387,6 @@ private:
     // all keys will be first followed by all leafentries (both in sorted order)
     void initialize_from_separate_keys_and_vals(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version,
                                                 uint32_t key_data_size, uint32_t val_data_size, bool all_keys_same_length,
-                                                uint32_t fixed_key_length);
+                                                uint32_t fixed_klpair_length);
 };
 

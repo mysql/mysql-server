@@ -754,7 +754,8 @@ move_leafentries(
     )
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
-    src_bn->data_buffer.move_leafentries_to(&dest_bn->data_buffer, lbi, ube);
+    invariant(ube == src_bn->data_buffer.dmt_size());
+    src_bn->data_buffer.split_klpairs(&dest_bn->data_buffer, lbi);
 }
 
 static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_node) {
