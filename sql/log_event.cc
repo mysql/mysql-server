@@ -8004,6 +8004,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %lu", (ulong) m_table, m_table_id));
 
+  /*
+    A row event comprising of a P_S table
+    - should not be replicated (i.e executed) by the slave SQL thread.
+    - should not be executed by the client in the  form BINLOG '...' stmts.
+  */
+  if (table && table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+    table= NULL;
+
   if (table)
   {
     bool transactional_table= table->file->has_transactions();
