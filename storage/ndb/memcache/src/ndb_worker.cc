@@ -787,7 +787,6 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
    */
   
   const NdbOperation *ndbop1, *ndbop2, *ndbop3;
-  int tx_result = tx->getNdbError().code;
   int r_read = -1;
   int r_insert = -1;
   int r_update = -1;
@@ -809,8 +808,8 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
       r_update = ndbop3->getNdbError().code;
     }
   }
-  DEBUG_PRINT("tx: %d   r_read: %d   r_insert: %d   r_update: %d   create: %d",
-              tx_result, r_read, r_insert, r_update, wqitem->base.math_create);
+  DEBUG_PRINT("r_read: %d   r_insert: %d   r_update: %d   create: %d",
+              r_read, r_insert, r_update, wqitem->base.math_create);
   
   if(r_read == 626 && ! wqitem->base.math_create) {
     /* row did not exist, and create flag was not set */
