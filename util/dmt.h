@@ -102,16 +102,16 @@ typedef uint32_t node_offset;
 
 
 /**
- * Order Maintenance Tree (DMT)
+ * Dynamic Order Maintenance Tree (DMT)
  *
- * Maintains a collection of totally ordered values, where each value has an integer weight.
+ * Maintains a collection of totally ordered values, where each value has weight 1.
+ * A DMT supports variable sized values.
  * The DMT is a mutable datatype.
  *
  * The Abstraction:
  *
  * An DMT is a vector of values, $V$, where $|V|$ is the length of the vector.
  * The vector is numbered from $0$ to $|V|-1$.
- * Each value has a weight.  The weight of the $i$th element is denoted $w(V_i)$.
  *
  * We can create a new DMT, which is the empty vector.
  *
@@ -137,25 +137,19 @@ typedef uint32_t node_offset;
  *
  * When looking up a value using a Heaviside function, we get the value and its index.
  *
- * We can also split an DMT into two DMTs, splitting the weight of the values evenly.
- * Find a value $j$ such that the values to the left of $j$ have about the same total weight as the values to the right of $j$.
- * The resulting two DMTs contain the values to the left of $j$ and the values to the right of $j$ respectively.
- * All of the values from the original DMT go into one of the new DMTs.
- * If the weights of the values don't split exactly evenly, then the implementation has the freedom to choose whether
- *  the new left DMT or the new right DMT is larger.
- *
  * Performance:
  *  Insertion and deletion should run with $O(\log |V|)$ time and $O(\log |V|)$ calls to the Heaviside function.
  *  The memory required is O(|V|).
  *
  * Usage:
- *  The dmt is templated by two parameters:
+ *  The dmt is templated by three parameters:
  *   - dmtdata_t is what will be stored within the dmt.  These could be pointers or real data types (ints, structs).
  *   - dmtdataout_t is what will be returned by find and related functions.  By default, it is the same as dmtdata_t, but you can set it to (dmtdata_t *).
+ *   - dmtwriter_t is a class that effectively handles (de)serialization between the value stored in the dmt and outside the dmt.
  *  To create an dmt which will store "TXNID"s, for example, it is a good idea to typedef the template:
- *   typedef dmt<TXNID> txnid_dmt_t;
- *  If you are storing structs, you may want to be able to get a pointer to the data actually stored in the dmt (see find_zero).  To do this, use the second template parameter:
- *   typedef dmt<struct foo, struct foo *> foo_dmt_t;
+ *   typedef dmt<TXNID, TXNID, txnid_writer_t> txnid_dmt_t;
+ *  If you are storing structs (or you want to edit what is stored), you may want to be able to get a pointer to the data actually stored in the dmt (see find_zero).  To do this, use the second template parameter:
+ *   typedef dmt<struct foo, struct foo *, foo_writer_t> foo_dmt_t;
  */
 
 namespace dmt_internal {
@@ -164,6 +158,7 @@ class subtree {
 private:
     uint32_t m_index;
 public:
+    // The maximum mempool size for a dmt is 2**32-2
     static const uint32_t NODE_NULL = UINT32_MAX;
     inline void set_to_null(void) {
         m_index = NODE_NULL;
@@ -198,11 +193,12 @@ public:
 using namespace toku::dmt_internal;
 
 // Each data type used in a dmt requires a dmt_writer class (allows you to insert/etc with dynamic sized types).
+// A dmt_writer can be thought of a (de)serializer
 // There is no default implementation.
 // A dmtwriter instance handles reading/writing 'dmtdata_t's to/from the dmt.
 // The class must implement the following functions:
 //      The size required in a dmt for the dmtdata_t represented:
-//          size_t get_size(void) const;  
+//          size_t get_size(void) const;
 //      Write the dmtdata_t to memory owned by a dmt:
 //          void write_to(dmtdata_t *const dest) const;
 //      Constructor (others are allowed, but this one is required)
@@ -222,8 +218,15 @@ public:
     class builder {
     public:
         void append(const dmtwriter_t &value);
+
+        // Create a dmt builder to build a dmt that will have at most n_values values and use
+        // at most n_value_bytes bytes in the mempool to store values (not counting node or alignment overhead).
         void create(uint32_t n_values, uint32_t n_value_bytes);
+
         bool value_length_is_fixed(void);
+
+        // Constructs a dmt that contains everything that was append()ed to this builder.
+        // Destroys this builder and frees associated memory.
         void build(dmt<dmtdata_t, dmtdataout_t, dmtwriter_t> *dest);
     private:
         uint32_t max_values;
@@ -241,6 +244,9 @@ public:
 
     /**
      * Effect: Create a DMT containing values.  The number of values is in numvalues.
+     *         Each value is of a fixed (at runtime) length.
+     *         mem contains the values in packed form (no alignment padding)
+     *         Caller retains ownership of mem.
      * Requires: this has not been created yet
      * Rationale:    Normally to insert N values takes O(N lg N) amortized time.
      *               If the N values are known in advance, are sorted, and
@@ -257,33 +263,45 @@ public:
      * Effect: Creates a copy of an dmt.
      *  Creates this as the clone.
      *  Each element is copied directly.  If they are pointers, the underlying data is not duplicated.
-     * Performance: O(n) or the running time of fill_array_with_subtree_values()
+     * Performance: O(memory) (essentially a memdup)
+     *  The underlying structures are memcpy'd.  Only the values themselves are copied (shallow copy)
      */
     void clone(const dmt &src);
 
     /**
      * Effect: Set the tree to be empty.
      *  Note: Will not reallocate or resize any memory.
+     *  Note: If this dmt had variable sized elements, it will start tracking again (until it gets values of two different sizes)
      * Performance: time=O(1)
      */
     void clear(void);
 
     /**
      * Effect:  Destroy an DMT, freeing all its memory.
-     *   If the values being stored are pointers, their underlying data is not freed.  See free_items()
-     *   Those values may be freed before or after calling toku_dmt_destroy.
+     *   If the values being stored are pointers, their underlying data is not freed.
+     *   Those values may be freed before or after calling ::destroy()
      * Rationale: Returns no values since free() cannot fail.
-     * Rationale: Does not free the underlying pointers to reduce complexity.
+     * Rationale: Does not free the underlying pointers to reduce complexity/maintain abstraction layer
      * Performance:  time=O(1)
      */
     void destroy(void);
 
     /**
-     * Effect: return |this|.
+     * Effect: return |this| (number of values stored in this dmt).
      * Performance:  time=O(1)
      */
     uint32_t size(void) const;
 
+    /**
+     * Effect: Serialize all values contained in this dmt into a packed form (no alignment padding).
+     *  We serialized to wb.  expected_unpadded_memory is the size of memory reserved in the wbuf
+     *  for serialization.  (We assert that serialization requires exactly the expected amount)
+     * Requires:
+     *  ::prepare_for_serialize() has been called and no non-const functions have been called since.
+     *  This dmt has fixed-length values and is in array form.
+     * Performance:
+     *  O(memory)
+     */
     void serialize_values(uint32_t expected_unpadded_memory, struct wbuf *wb) const;
 
     /**
@@ -486,14 +504,29 @@ public:
     int find(const dmtcmp_t &extra, int direction, uint32_t *const value_size, dmtdataout_t *const value, uint32_t *const idxp) const;
 
     /**
-     * Effect: Return the size (in bytes) of the dmt, as it resides in main memory.  If the data stored are pointers, don't include the size of what they all point to.
+     * Effect: Return the size (in bytes) of the dmt, as it resides in main memory.
+     * If the data stored are pointers, don't include the size of what they all point to.
+     * //TODO(leif or yoni): (maybe rename and) return memory footprint instead of allocated size
      */
     size_t memory_size(void);
 
+    // Returns whether all values in the dmt are known to be the same size.
+    // Note:
+    //  There are no false positives, but false negatives are allowed.
+    //  A false negative can happen if this dmt had 2 (or more) different size values,
+    //  and then enough were deleted so that all the remaining ones are the same size.
+    //  Once that happens, this dmt will never again return true for this function unless/until
+    //  ::clear() is called
     bool value_length_is_fixed(void) const;
 
+
+    // If this dmt is empty, return value is undefined.
+    // else if value_length_is_fixed() then it returns the fixed length.
+    // else returns 0
     uint32_t get_fixed_length(void) const;
 
+    // Preprocesses the dmt so that serialization can happen quickly.
+    // After this call, serialize_values() can be called but no other mutator function can be called in between.
     void prepare_for_serialize(void);
 
 private:
@@ -544,29 +577,49 @@ private:
         struct dmt_tree t;
     } d;
 
+    // Returns pad bytes per element (for alignment) or 0 if not fixed length.
     uint32_t get_fixed_length_alignment_overhead(void) const;
 
     void verify_internal(const subtree &subtree, std::vector<bool> *touched) const;
 
+    // Retrieves the node for a given subtree.
+    // Requires: !subtree.is_null()
     dmt_node & get_node(const subtree &subtree) const;
 
+    // Retrieves the node at a given offset in the mempool.
     dmt_node & get_node(const node_offset offset) const;
 
-    uint32_t nweight(const subtree &subtree) const;
+    // Returns the weight of a subtree rooted at st.
+    // if st.is_null(), returns 0
+    // Perf: O(1)
+    uint32_t nweight(const subtree &st) const;
 
+    // Allocates space for a node (in the mempool) and uses the dmtwriter to write the value into the node
     node_offset node_malloc_and_set_value(const dmtwriter_t &value);
 
+    // Uses the dmtwriter to write a value into node n
     void node_set_value(dmt_node *n, const dmtwriter_t &value);
 
+    // (mempool-)free the memory for a node
     void node_free(const subtree &st);
 
+    // Effect: Resizes the mempool (holding the array) if necessary to hold one more item of length: this->value_length
+    // Requires:
+    //  This dmt is in array form (and thus this->values_same_length)
     void maybe_resize_array_for_insert(void);
 
+    // Effect: Converts a dmt from array form to tree form.
+    // Perf: O(n)
+    // Note: This does not clear the 'this->values_same_size' bit
     void convert_to_tree(void);
 
+    // Effect: Resizes the mempool holding a tree if necessary.  If value==nullptr then it may shrink if overallocated,
+    //         otherwise resize only happens if there is not enough free space for an insert of value
     void maybe_resize_tree(const dmtwriter_t * value);
 
-    bool will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const;
+    // Returns true if the tree rooted at st would need rebalance after adding
+    // leftmod to the left subtree and rightmod to the right subtree
+    bool will_need_rebalance(const subtree &st, const int leftmod, const int rightmod) const;
 
     __attribute__((nonnull))
     void insert_internal(subtree *const subtreep, const dmtwriter_t &value, const uint32_t idx, subtree **const rebalance_subtree);
@@ -658,8 +711,13 @@ private:
              int (*h)(const uint32_t, const dmtdata_t &, const dmtcmp_t &)>
     int find_internal_minus(const subtree &subtree, const dmtcmp_t &extra, uint32_t *const value_len, dmtdataout_t *const value, uint32_t *const idxp) const;
 
+    // Allocate memory for an array:  node_offset[num_idx] from pre-allocated contiguous free space in the mempool.
+    // If there is not enough space, returns nullptr.
     node_offset* alloc_temp_node_offsets(uint32_t num_idxs);
 
+    // Returns the aligned size of x.
+    // If x % ALIGNMENT == 0, returns x
+    // o.w. returns x + (ALIGNMENT - (x % ALIGNMENT))
     uint32_t align(const uint32_t x) const;
 };
 
