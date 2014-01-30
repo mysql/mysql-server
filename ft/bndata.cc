@@ -482,47 +482,79 @@ void bn_data::get_space_for_insert(
     }
 }
 
+class move_leafentry_extra {
+    bn_data *const m_src_bn;
+    bn_data *const m_dest_bn;
+    klpair_dmt_t::builder *const m_builder;
+
+    struct mempool *src_mp() const { return &m_src_bn->m_buffer_mempool; }
+    struct mempool *dest_mp() const { return &m_dest_bn->m_buffer_mempool; }
+
+    int move_leafentry(const uint32_t klpair_len, const klpair_struct &klpair, const uint32_t UU(idx)) {
+        LEAFENTRY old_le = m_src_bn->get_le_from_klpair(&klpair);
+        size_t le_size = leafentry_memsize(old_le);
+        void *new_le = toku_mempool_malloc(dest_mp(), le_size, 1);
+        paranoid_invariant_notnull(new_le);
+        memcpy(new_le, old_le, le_size);
+        size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(dest_mp(), new_le);
+        size_t keylen = keylen_from_klpair_len(klpair_len);
+        m_builder->append(klpair_dmtwriter(keylen, le_offset, klpair.key));
+
+        // TODO(yoni): change these to "note_removed_key"
+        m_src_bn->remove_key(keylen);
+        m_dest_bn->add_key(keylen);
+
+        toku_mempool_mfree(src_mp(), old_le, le_size);
+        return 0;
+    }
+
+  public:
+    move_leafentry_extra(bn_data *const src_bn, bn_data *const dest_bn,
+                         klpair_dmt_t::builder *const builder)
+        : m_src_bn(src_bn),
+          m_dest_bn(dest_bn),
+          m_builder(builder) {}
+    static int cb(const uint32_t klpair_len, const klpair_struct &klpair, const uint32_t idx, move_leafentry_extra *const thisp) {
+        return thisp->move_leafentry(klpair_len, klpair, idx);
+    }
+};
+
 void bn_data::move_leafentries_to(
      bn_data* dest_bd,
      uint32_t lbi, //lower bound inclusive
      uint32_t ube //upper bound exclusive
      )
-//Effect: move leafentries in the range [lbi, ube) from this to src_dmt to newly created dest_dmt
 {
-    //TODO: improve speed: maybe use dmt_builder for one or both, or implement some version of optimized split_at?
+    // We use move_leafentries_to during a split, and the split algorithm should never call this
+    // if it's splitting on a boundary, so there must be some leafentries in the range to move.
     paranoid_invariant(lbi < ube);
     paranoid_invariant(ube <= dmt_size());
 
-    dest_bd->initialize_empty();
+    dest_bd->init_zero();
 
     size_t mpsize = toku_mempool_get_used_space(&m_buffer_mempool);   // overkill, but safe
     struct mempool *dest_mp = &dest_bd->m_buffer_mempool;
-    struct mempool *src_mp  = &m_buffer_mempool;
     toku_mempool_construct(dest_mp, mpsize);
 
-    for (uint32_t i = lbi; i < ube; i++) {
-        klpair_struct* curr_kl = nullptr;
-        uint32_t curr_kl_len;
-        int r = m_buffer.fetch(i, &curr_kl_len, &curr_kl);
-        invariant_zero(r);
+    klpair_dmt_t::builder dest_dmt_builder;
+    dest_dmt_builder.create(ube-lbi, m_disksize_of_keys);  // overkill, but safe (builder will realloc at the end)
 
-        LEAFENTRY old_le = get_le_from_klpair(curr_kl);
-        size_t le_size = leafentry_memsize(old_le);
-        void* new_le = toku_mempool_malloc(dest_mp, le_size, 1);
-        memcpy(new_le, old_le, le_size);
-        size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(dest_mp, new_le);
-        dest_bd->m_buffer.insert_at(klpair_dmtwriter(keylen_from_klpair_len(curr_kl_len), le_offset, curr_kl->key), i-lbi);
+    move_leafentry_extra extra(this, dest_bd, &dest_dmt_builder);
 
-        this->remove_key(keylen_from_klpair_len(curr_kl_len));
-        dest_bd->add_key(keylen_from_klpair_len(curr_kl_len));
+    int r = m_buffer.iterate_on_range<move_leafentry_extra, move_leafentry_extra::cb>(lbi, ube, &extra);
+    invariant_zero(r);
 
-        toku_mempool_mfree(src_mp, old_le, le_size);
-    }
+    dest_dmt_builder.build(&dest_bd->m_buffer);
 
     // now remove the elements from src_dmt
     for (uint32_t i=ube-1; i >= lbi; i--) {
         m_buffer.delete_at(i);
     }
+
+    // Potentially shrink memory pool for destination.
+    // We overallocated ("overkill") above
+    paranoid_invariant_zero(toku_mempool_get_frag_size(dest_mp));
+    toku_mempool_realloc_larger(dest_mp, toku_mempool_get_used_space(dest_mp));
 }
 
 uint64_t bn_data::get_disk_size() {
