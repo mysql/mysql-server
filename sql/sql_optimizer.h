@@ -178,7 +178,7 @@ public:
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   ulonglong  select_options;
   select_result *result;
-  TMP_TABLE_PARAM tmp_table_param;
+  Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
   /// unit structure (with global parameters) for this select
   SELECT_LEX_UNIT *unit;
@@ -477,7 +477,7 @@ public:
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
     keyuse_array.clear();
-    tmp_table_param= TMP_TABLE_PARAM();
+    tmp_table_param= Temp_table_param();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
 
