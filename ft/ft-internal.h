@@ -1178,6 +1178,8 @@ typedef enum {
     FT_PRO_NUM_STOP_LOCK_CHILD,
     FT_PRO_NUM_STOP_CHILD_INMEM,
     FT_PRO_NUM_DIDNT_WANT_PROMOTE,
+    FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE, // how many basement nodes were deserialized with a fixed keysize
+    FT_BASEMENT_DESERIALIZE_VARIABLE_KEYSIZE, // how many basement nodes were deserialized with a variable keysize
     FT_STATUS_NUM_ROWS
 } ft_status_entry;
 
