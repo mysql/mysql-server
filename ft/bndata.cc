@@ -120,6 +120,8 @@ void bn_data::remove_key(uint32_t keylen) {
     m_disksize_of_keys -= sizeof(keylen) + keylen;
 }
 
+// Deserialize from format optimized for keys being inlined.
+// Currently only supports fixed-length keys.
 void bn_data::initialize_from_separate_keys_and_vals(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version UU(),
                                                      uint32_t key_data_size, uint32_t val_data_size, bool all_keys_same_length,
                                                      uint32_t fixed_key_length) {
@@ -149,17 +151,18 @@ void bn_data::initialize_from_separate_keys_and_vals(uint32_t num_entries, struc
 
     invariant(rb->ndone - ndone_before == data_size);
 }
-// static inline void rbuf_literal_bytes (struct rbuf *r, bytevec *bytes, unsigned int n_bytes) {
 
+// If we have fixed-length keys, we prepare the dmt and mempool.
+// The mempool is prepared by removing any fragmented space and ordering leafentries in the same order as their keys.
 void bn_data::prepare_to_serialize(void) {
-    if (m_buffer.is_value_length_fixed()) {
+    if (m_buffer.value_length_is_fixed()) {
         m_buffer.prepare_for_serialize();
         omt_compress_kvspace(0, nullptr, true);  // Gets it ready for easy serialization.
     }
 }
 
 void bn_data::serialize_header(struct wbuf *wb) const {
-    bool fixed = m_buffer.is_value_length_fixed();
+    bool fixed = m_buffer.value_length_is_fixed();
 
     //key_data_size
     wbuf_nocrc_uint(wb, m_disksize_of_keys);
@@ -175,27 +178,31 @@ void bn_data::serialize_header(struct wbuf *wb) const {
 
 void bn_data::serialize_rest(struct wbuf *wb) const {
     //Write keys
-    invariant(m_buffer.is_value_length_fixed()); //Assumes prepare_to_serialize was called
+    invariant(m_buffer.value_length_is_fixed()); //Assumes prepare_to_serialize was called
     m_buffer.serialize_values(m_disksize_of_keys, wb);
 
     //Write leafentries
-    paranoid_invariant(toku_mempool_get_frag_size(&m_buffer_mempool) == 0); //Just ran omt_compress_kvspace
+    //Just ran omt_compress_kvspace so there is no fragmentation and also leafentries are in sorted order.
+    paranoid_invariant(toku_mempool_get_frag_size(&m_buffer_mempool) == 0);
     uint32_t val_data_size = toku_mempool_get_used_space(&m_buffer_mempool);
     wbuf_nocrc_literal_bytes(wb, toku_mempool_get_base(&m_buffer_mempool), val_data_size);
 }
 
+// No optimized (de)serialize method implemented (yet?) for non-fixed length keys.
 bool bn_data::need_to_serialize_each_leafentry_with_key(void) const {
-    return !m_buffer.is_value_length_fixed();
+    return !m_buffer.value_length_is_fixed();
 }
 
+// Deserialize from rbuf
 void bn_data::initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32_t data_size, uint32_t version) {
-    uint32_t key_data_size = data_size;  // overallocate if < version 25
-    uint32_t val_data_size = data_size;  // overallocate if < version 25
+    uint32_t key_data_size = data_size;  // overallocate if < version 25 (best guess that is guaranteed not too small)
+    uint32_t val_data_size = data_size;  // overallocate if < version 25 (best guess that is guaranteed not too small)
 
     bool all_keys_same_length = false;
     bool keys_vals_separate = false;
     uint32_t fixed_key_length = 0;
 
+    // In version 24 and older there is no header.  Skip reading header for old version.
     if (version >= FT_LAYOUT_VERSION_25) {
         uint32_t ndone_before = rb->ndone;
         key_data_size = rbuf_int(rb);
@@ -214,6 +221,7 @@ void bn_data::initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32
             return;
         }
     }
+    // Version >= 25 and version 24 deserialization are now identical except that <= 24 might allocate too much memory.
     bytevec bytes;
     rbuf_literal_bytes(rb, &bytes, data_size);
     const unsigned char *CAST_FROM_VOIDP(buf, bytes);
@@ -259,7 +267,7 @@ void bn_data::initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32
             curr_src_pos += keylen;
         }
         uint32_t le_offset = curr_dest_pos - newmem;
-        dmt_builder.insert_sorted(toku::dmt_functor<klpair_struct>(keylen, le_offset, keyp));
+        dmt_builder.append(toku::dmt_functor<klpair_struct>(keylen, le_offset, keyp));
         add_key(keylen);
 
         // now curr_dest_pos is pointing to where the leafentry should be packed
@@ -285,8 +293,8 @@ void bn_data::initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32
             curr_src_pos += num_rest_bytes;
         }
     }
-    dmt_builder.build_and_destroy(&this->m_buffer);
-    toku_note_deserialized_basement_node(m_buffer.is_value_length_fixed());
+    dmt_builder.build(&this->m_buffer);
+    toku_note_deserialized_basement_node(m_buffer.value_length_is_fixed());
 
 #if TOKU_DEBUG_PARANOID
     uint32_t num_bytes_read = (uint32_t)(curr_src_pos - buf);
@@ -298,6 +306,8 @@ void bn_data::initialize_from_data(uint32_t num_entries, struct rbuf *rb, uint32
     toku_mempool_init(&m_buffer_mempool, newmem, (size_t)(curr_dest_pos - newmem), allocated_bytes_vals);
 
     paranoid_invariant(get_disk_size() == data_size);
+    // Versions older than 25 might have allocated too much memory.  Try to shrink the mempool now that we
+    // know how much memory we need.
     if (version < FT_LAYOUT_VERSION_25) {
         //Maybe shrink mempool.  Unnecessary after version 25
         size_t used = toku_mempool_get_used_space(&m_buffer_mempool);
@@ -336,7 +346,7 @@ void bn_data::delete_leafentry (
     uint32_t idx,
     uint32_t keylen,
     uint32_t old_le_size
-    ) 
+    )
 {
     remove_key(keylen);
     m_buffer.delete_at(idx);
@@ -361,11 +371,15 @@ static int move_it (const uint32_t, klpair_struct *klpair, const uint32_t idx UU
 }
 
 // Compress things, and grow the mempool if needed.
+// May (always if force_compress) have a side effect of putting contents of mempool in sorted order.
 void bn_data::omt_compress_kvspace(size_t added_size, void **maybe_free, bool force_compress) {
     uint32_t total_size_needed = toku_mempool_get_used_space(&m_buffer_mempool) + added_size;
     // set the new mempool size to be twice of the space we actually need.
     // On top of the 25% that is padded within toku_mempool_construct (which we
     // should consider getting rid of), that should be good enough.
+
+    // If there is no fragmentation, e.g. in serial inserts, we can just increase the size of the mempool
+    // with a realloc.  (force_compress means we NEED the side effect that all contents are put in sorted order).
     if (!force_compress && toku_mempool_get_frag_size(&m_buffer_mempool) == 0) {
         // Skip iterate, just realloc.
         toku_mempool_realloc_larger(&m_buffer_mempool, 2*total_size_needed);
@@ -401,7 +415,6 @@ LEAFENTRY bn_data::mempool_malloc_and_update_omt(size_t size, void **maybe_free)
     return (LEAFENTRY)v;
 }
 
-//TODO: probably not free the "maybe_free" right away?
 void bn_data::get_space_for_overwrite(
     uint32_t idx,
     const void* keyp UU(),
@@ -418,13 +431,13 @@ void bn_data::get_space_for_overwrite(
         );
     toku_mempool_mfree(&m_buffer_mempool, nullptr, old_le_size);  // Must pass nullptr, since le is no good any more.
     KLPAIR klp = nullptr;
-    uint32_t klpair_len;  //TODO: maybe delete klpair_len
+    uint32_t klpair_len;
     int r = m_buffer.fetch(idx, &klpair_len, &klp);
     invariant_zero(r);
     paranoid_invariant(klp!=nullptr);
     // Key never changes.
     paranoid_invariant(keylen_from_klpair_len(klpair_len) == keylen);
-    paranoid_invariant(!memcmp(klp->key_le, keyp, keylen));  // TODO: can keyp be pointing to the old space?  If so this could fail
+    paranoid_invariant(!memcmp(klp->key, keyp, keylen));  // TODO: can keyp be pointing to the old space?  If so this could fail
 
     size_t new_le_offset = toku_mempool_get_offset_from_pointer_and_base(&this->m_buffer_mempool, new_le);
     paranoid_invariant(new_le_offset <= UINT32_MAX - new_size);  // Not using > 4GB
@@ -439,7 +452,6 @@ void bn_data::get_space_for_overwrite(
     }
 }
 
-//TODO: probably not free the "maybe_free" right away?
 void bn_data::get_space_for_insert(
     uint32_t idx,
     const void* keyp,
@@ -499,7 +511,7 @@ void bn_data::move_leafentries_to(
         void* new_le = toku_mempool_malloc(dest_mp, le_size, 1);
         memcpy(new_le, old_le, le_size);
         size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(dest_mp, new_le);
-        dest_bd->m_buffer.insert_at(dmt_functor<klpair_struct>(keylen_from_klpair_len(curr_kl_len), le_offset, curr_kl->key_le), i-lbi);
+        dest_bd->m_buffer.insert_at(dmt_functor<klpair_struct>(keylen_from_klpair_len(curr_kl_len), le_offset, curr_kl->key), i-lbi);
 
         this->remove_key(keylen_from_klpair_len(curr_kl_len));
         dest_bd->add_key(keylen_from_klpair_len(curr_kl_len));
@@ -534,7 +546,6 @@ void bn_data::destroy(void) {
     m_disksize_of_keys = 0;
 }
 
-//TODO: Splitting key/val requires changing this
 void bn_data::replace_contents_with_clone_of_sorted_array(
     uint32_t num_les,
     const void** old_key_ptrs,
@@ -557,10 +568,10 @@ void bn_data::replace_contents_with_clone_of_sorted_array(
         void* new_le = toku_mempool_malloc(&m_buffer_mempool, le_sizes[idx], 1);
         memcpy(new_le, old_les[idx], le_sizes[idx]);
         size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(&m_buffer_mempool, new_le);
-        dmt_builder.insert_sorted(dmt_functor<klpair_struct>(old_keylens[idx], le_offset, old_key_ptrs[idx]));
+        dmt_builder.append(dmt_functor<klpair_struct>(old_keylens[idx], le_offset, old_key_ptrs[idx]));
         add_key(old_keylens[idx]);
     }
-    dmt_builder.build_and_destroy(&this->m_buffer);
+    dmt_builder.build(&this->m_buffer);
 }
 
 LEAFENTRY bn_data::get_le_from_klpair(const klpair_struct *klpair) const {
@@ -586,7 +597,7 @@ int bn_data::fetch_klpair(uint32_t idx, LEAFENTRY *le, uint32_t *len, void** key
     int r = m_buffer.fetch(idx, &klpair_len, &klpair);
     if (r == 0) {
         *len = keylen_from_klpair_len(klpair_len);
-        *key = klpair->key_le;
+        *key = klpair->key;
         *le = get_le_from_klpair(klpair);
     }
     return r;
@@ -608,7 +619,7 @@ int bn_data::fetch_le_key_and_len(uint32_t idx, uint32_t *len, void** key) {
     int r = m_buffer.fetch(idx, &klpair_len, &klpair);
     if (r == 0) {
         *len = keylen_from_klpair_len(klpair_len);
-        *key = klpair->key_le;
+        *key = klpair->key;
     }
     return r;
 }

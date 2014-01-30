@@ -1,0 +1,79 @@
+
+See wiki:
+https://github.com/Tokutek/ft-index/wiki/Improving-in-memory-query-performance---Design
+
+
+ft/bndata.{cc,h}  The basement node was heavily modified to split the key/value, and inline the keys
+    bn_data::initialize_from_separate_keys_and_vals
+        This is effectively the deserialize
+
+    The bn_data::omt_* functions (probably badly named) kind of treat the basement node as an omt of key+leafentry pairs
+    There are many references to 'omt' that could be renamed to dmt if it's worth it.
+
+
+util/dmt.{cc,h}  The new DMT structure
+    Possible questions:
+        1-Should we merge dmt<> & omt<>? (delete omt entirely)
+        2-Should omt<> become a wrapper for dmt<>?
+        3-Should we just keep both around?
+            If we plan to do this for a while, should we get rid of any scaffolding that would make it easier to do 1 or 2?
+    The dmt is basically an omt with dynamic sized nodes/values.
+    There are two representations:  an array of values, or a tree of nodes.
+    The high-level algorithm is basically the same for dmt and omt, except the dmt tries not to move values around in tree form
+        Instead, it moves the metadata from nodes around.
+    Insertion into a dmt requires a functor that can provide information about size, since it's expected to be (potentially at least) dynamically sized
+
+    The dmt does not revert to array form when rebalancing the root, but it CAN revert to array form when it prepares for serializing (if it notices everything is fixed length)
+
+    The dmt also can serialize and deserialize the values (set) it represents.  It saves no information about the dmt itself, just the values.
+
+
+Some comments about what's in each file.
+
+
+ft/CMakeLists.txt
+    add dmt-wrapper (test wrapper, nearly identical to ft/omt.cc which is also a test wrapper)
+ft/dmt-wrapper.cc/h
+    Just like ft/omt.cc,h.  Is a test wrapper for the dmt to implement a version of the old (non-templated) omt tests.
+ft/ft-internal.h
+    Additional engine status
+ft/ft-ops.cc/h
+    Additional engine status
+    in ftnode_memory_size()
+        fix a minor bug where we didn't count all the memory.
+    comments
+ft/ft_layout_version.h
+    Update comment describing version change.
+    NOTE: May need to add version 26 if 25 is sent to customers before this goes live.
+        Adding 26 requires additional code changes (limited to a subset of places where version 24/25 are referred to)
+ft/ft_node-serialize.cc
+    Changes calculation of size of a leaf node to include basement-node header
+    Adds optimized serialization for basement nodes with fixed-length keys
+        Maintains old method when not using fixed-length keys.
+    rebalance_ftnode_leaf()
+        Minor changes since key/leafentries are separated
+    deserialize_ftnode_partition()
+        Minor changes, including passing rbuf directly to child function (so ndone calculation is done by child)
+ft/memarena.cc
+    Changes so that toku_memory_footprint is more accurate.  (Not exactly related project)
+ft/rollback.cc
+    Just uses new memarena function for memory footprint
+ft/tests/dmt-test.cc
+    "clone" of old omt-test (non templated) ported to dmt
+    Basically not worth looking at except to make sure it imports dmt instead of omt.
+ft/tests/dmt-test2.cc
+    New dmt tests.
+    You might decide not enough new tests were implemented.
+ft/tests/ft-serialize-benchmark.cc
+    Minor improvements s.t. you can take an average of a bunch of runs.
+ft/tests/ft-serialize-test.cc
+    Just ported to changed api
+ft/tests/test-pick-child-to-flush.cc
+    The new basement-node headers reduce available memory.. reduce max size of test appropriately.
+ft/wbuf.h
+    Added wbuf_nocrc_reserve_literal_bytes()
+    Gives you a pointer to write to the wbuf, but notes the memory was used.
+util/mempool.cc
+    Made mempool allocations aligned to cachelines
+    Minor 'const' changes to help compilation
+    Some utility functions to get/give offsets

@@ -1180,7 +1180,7 @@ uint32_t dmt<dmtdata_t, dmtdataout_t>::get_fixed_length_alignment_overhead(void)
 }
 
 template<typename dmtdata_t, typename dmtdataout_t>
-bool dmt<dmtdata_t, dmtdataout_t>::is_value_length_fixed(void) const {
+bool dmt<dmtdata_t, dmtdataout_t>::value_length_is_fixed(void) const {
     return this->values_same_size;
 }
 
@@ -1223,7 +1223,7 @@ void dmt<dmtdata_t, dmtdataout_t>::builder::create(uint32_t _max_values, uint32_
 }
 
 template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::builder::insert_sorted(const dmtdatain_t &value) {
+void dmt<dmtdata_t, dmtdataout_t>::builder::append(const dmtdatain_t &value) {
     paranoid_invariant(this->temp_valid);
     //NOTE: Always use d.a.num_values for size because we have not yet created root.
     if (this->temp.values_same_size && (this->temp.d.a.num_values == 0 || value.get_dmtdatain_t_size() == this->temp.value_length)) {
@@ -1257,13 +1257,13 @@ void dmt<dmtdata_t, dmtdataout_t>::builder::insert_sorted(const dmtdatain_t &val
 }
 
 template<typename dmtdata_t, typename dmtdataout_t>
-bool dmt<dmtdata_t, dmtdataout_t>::builder::is_value_length_fixed(void) {
+bool dmt<dmtdata_t, dmtdataout_t>::builder::value_length_is_fixed(void) {
     paranoid_invariant(this->temp_valid);
     return this->temp.values_same_size;
 }
 
 template<typename dmtdata_t, typename dmtdataout_t>
-void dmt<dmtdata_t, dmtdataout_t>::builder::build_and_destroy(dmt<dmtdata_t, dmtdataout_t> *dest) {
+void dmt<dmtdata_t, dmtdataout_t>::builder::build(dmt<dmtdata_t, dmtdataout_t> *dest) {
     invariant(this->temp_valid);
     //NOTE: Always use d.a.num_values for size because we have not yet created root.
     invariant(this->temp.d.a.num_values == this->max_values); // Optionally make it <=
