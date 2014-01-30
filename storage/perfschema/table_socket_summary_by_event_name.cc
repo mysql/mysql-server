@@ -163,7 +163,7 @@ table_socket_summary_by_event_name::m_share=
 {
   { C_STRING_WITH_LEN("socket_summary_by_event_name") },
   &pfs_readonly_acl,
-  &table_socket_summary_by_event_name::create,
+  table_socket_summary_by_event_name::create,
   NULL, /* write_row */
   table_socket_summary_by_event_name::delete_all_rows,
   table_socket_summary_by_event_name::get_row_count,
