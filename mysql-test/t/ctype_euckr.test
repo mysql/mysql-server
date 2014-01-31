@@ -1,4 +1,6 @@
 -- source include/have_euckr.inc
+-- source include/no_valgrind_without_big.inc
+
 
 #
 # Tests with the euckr character set
