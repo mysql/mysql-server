@@ -1,4 +1,8 @@
+# test case simplified from RQG run that forces a lock not granted error on an update with a 
+# concurrent load into the same table.
+
 source include/have_tokudb.inc;
+source include/have_debug.inc;
 set default_storage_engine=tokudb;
 
 disable_warnings;
@@ -130,10 +134,12 @@ CREATE TABLE `t2` (
 LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` fields terminated by ',';
 
 connect(conn1,localhost,root,,);
-send LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2`;
+set session debug="+d,tokudb_end_bulk_insert_sleep";
+send LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` fields terminated by ',';
 
 connection default;
-sleep 1;
+let $wait_condition= select count(*)=1 from information_schema.processlist where info like 'LOAD DATA INFILE%' and state like 'DBUG sleep';
+source include/wait_condition.inc;
 --error 1205
 UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= 'o';
 

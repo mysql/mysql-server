@@ -117,7 +117,8 @@ KEY `c27` (`c27`(255)),
 KEY `c31` (`c31`)
 );
 LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` fields terminated by ',';
-LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2`;
+set session debug="+d,tokudb_end_bulk_insert_sleep";
+LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` fields terminated by ',';
 UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= 'o';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 drop table t1,t2;

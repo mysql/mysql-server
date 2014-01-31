@@ -3303,6 +3303,12 @@ int ha_tokudb::end_bulk_insert(bool abort) {
     loader_error = 0;
     if (loader) {
         if (!abort_loader && !thd->killed) {
+            DBUG_EXECUTE_IF("tokudb_end_bulk_insert_sleep", {
+                const char *old_proc_info= thd->proc_info;
+                thd->proc_info= "DBUG sleep";
+                my_sleep(20000000);
+                thd->proc_info= old_proc_info;
+            });
             error = loader->close(loader);
             loader = NULL;
             if (error) { 
