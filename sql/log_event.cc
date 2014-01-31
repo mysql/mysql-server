@@ -46,7 +46,13 @@
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
 #include <mysql/psi/mysql_statement.h>
-
+#define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
+Error_log_throttle
+slave_ignored_err_throttle(window_size,
+                           sql_print_information,
+                           "Error log throttle: %lu time(s) Error_code: 1237"
+                           " \"Slave SQL thread ignored the query because of"
+                           " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
 #include <base64.h>
@@ -5137,9 +5143,20 @@ compare_errors:
       DBUG_PRINT("info",("error ignored"));
       if (ignored_error_code(actual_error))
       {
-        rli->report(INFORMATION_LEVEL, actual_error,
-                    "Could not execute %s event. Detailed error: %s;",
-                    get_type_str(), thd->get_stmt_da()->message_text());
+        if (actual_error == ER_SLAVE_IGNORED_TABLE)
+        {
+          if (!slave_ignored_err_throttle.log(thd))
+            rli->report(INFORMATION_LEVEL, actual_error,
+                        "Could not execute %s event. Detailed error: %s;"
+                        " Error log throttle is enabled. This error will not be"
+                        " displayed for next %lu secs. It will be suppressed",
+                        get_type_str(), thd->get_stmt_da()->message_text(),
+                        (window_size / 1000000));
+        }
+        else
+          rli->report(INFORMATION_LEVEL, actual_error,
+                      "Could not execute %s event. Detailed error: %s;",
+                      get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -9780,13 +9797,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     DBUG_RETURN(0);
   }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
-#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
@@ -10613,13 +10624,7 @@ Rows_log_event::open_record_scan()
       goto end;
     }
 
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
     DBUG_DUMP("key data", m_key, keyinfo->key_length);
-#endif
   }
   else
   {
@@ -10800,14 +10805,8 @@ INDEX_SCAN:
   }
 
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_PRINT("info",("found first matching record"));
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
   /*
     Below is a minor "optimization".  If the key (i.e., key number
     0) has the HA_NOSAME flag set, we know that we have found the
@@ -11425,6 +11424,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %llu", (ulong) m_table,
                        m_table_id.id()));
+
+  /*
+    A row event comprising of a P_S table
+    - should not be replicated (i.e executed) by the slave SQL thread.
+    - should not be executed by the client in the  form BINLOG '...' stmts.
+  */
+  if (table && table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+    table= NULL;
 
   if (table)
   {
@@ -12122,13 +12129,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   /* Set the event data size = post header + body */
   m_data_size= event_len - common_header_len;
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("event buffer", (uchar*) buf, event_len);
-#endif
 
   /* Read the post-header */
   const char *post_start= buf + common_header_len;
@@ -13266,15 +13267,9 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-#endif
 
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);

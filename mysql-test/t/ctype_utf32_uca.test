@@ -1,7 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/have_myisam.inc
+# There are MyISAM specific sub tests in this scirpt and also there are tests for bugs which have not been migrated. 
 
 -- source include/have_ucs2.inc
 -- source include/have_utf32.inc
@@ -70,7 +68,8 @@ drop table t1;
 #
 SET NAMES utf8;
 #test1
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 #Check one row
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_general_ci;
@@ -80,7 +79,8 @@ SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025
 COLLATE utf32_general_ci ORDER BY c;
 DROP TABLE t1;
 #test2
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 #Check one row
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_unicode_ci;
@@ -90,7 +90,8 @@ SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025
 COLLATE utf32_unicode_ci ORDER BY c;
 DROP TABLE t1;
 #test 3
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 #Check one row row
 SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf32) COLLATE utf32_unicode_ci;

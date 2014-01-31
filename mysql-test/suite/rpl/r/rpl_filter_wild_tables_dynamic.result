@@ -17,6 +17,7 @@ CREATE TABLE c1 (a INT);
 INSERT INTO a1 VALUES (1);
 INSERT INTO b1 VALUES (2);
 INSERT INTO c1 VALUES (3);
+include/sync_slave_sql_with_master.inc
 [on slave]
 SHOW TABLES LIKE '%1';
 Tables_in_test (%1)

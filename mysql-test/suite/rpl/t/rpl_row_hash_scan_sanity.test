@@ -28,7 +28,7 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 INSERT INTO t4 VALUES (1);
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
 
 ###################### TABLE_SCAN assertions
@@ -170,7 +170,7 @@ SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 #clean Up
 --connection master
 DROP TABLE IF EXISTS t1, t2, t3, t4;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
   
 -- source include/rpl_reset.inc
 

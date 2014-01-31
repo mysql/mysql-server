@@ -315,17 +315,43 @@
 #cmakedefine SIGQUIT @SIGQUIT@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
+
+#cmakedefine alloca @alloca@
 #cmakedefine finite @finite@
 #cmakedefine popen @popen@
 #cmakedefine pclose @pclose@
-#cmakedefine ssize_t @ssize_t@
 #cmakedefine strcasecmp @strcasecmp@
 #cmakedefine strncasecmp @strncasecmp@
-#cmakedefine snprintf @snprintf@
-#cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine snprintf @snprintf@
 #cmakedefine vsnprintf @vsnprintf@
+
+#cmakedefine access @access@
+#cmakedefine chdir @chdir@
+#cmakedefine chmod @chmod@
+#cmakedefine close @close@
+#cmakedefine dup @dup@
+#cmakedefine fdopen @fdopen@
+#cmakedefine fileno @fileno@
+#cmakedefine getcwd @getcwd@
+#cmakedefine getpid @getpid@
+#cmakedefine isatty @isatty@
+#cmakedefine mkdir @mkdir@
+#cmakedefine open @open@
+#cmakedefine putenv @putenv@
+#cmakedefine read @read@
+#cmakedefine rmdir @rmdir@
+#cmakedefine strdup @strdup@
+#cmakedefine stricmp @stricmp@
+#cmakedefine tzset @tzset@
+#cmakedefine umask @umask@
+#cmakedefine unlink @unlink@
+
+#cmakedefine strtok_r @strtok_r@
+
+#cmakedefine ssize_t @ssize_t@
+
 #if (_MSC_VER > 1310)
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)

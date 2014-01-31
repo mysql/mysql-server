@@ -314,8 +314,8 @@ private:
     List contain only transactional tables, that not invalidated in query
     cache (instead of full list of changed in transaction tables).
   */
-  CHANGED_TABLE_LIST* changed_tables;
-  MEM_ROOT mem_root; // Transaction-life memory allocation pool
+  CHANGED_TABLE_LIST* m_changed_tables;
+  MEM_ROOT m_mem_root; // Transaction-life memory allocation pool
 
 public:
   /*
@@ -338,22 +338,22 @@ public:
 #ifndef DBUG_OFF
     bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
-  } flags;
+  } m_flags;
 
   Transaction_ctx()
   {
     memset(this, 0, sizeof(*this));
-    init_sql_alloc(key_memory_thd_transactions, &mem_root,
+    init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
                    ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   }
 
   void cleanup()
   {
     DBUG_ENTER("Transaction_ctx::cleanup");
-    changed_tables= NULL;
+    m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
-    free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }
 
@@ -379,7 +379,7 @@ public:
   void init_mem_root_defaults(ulong trans_alloc_block_size,
                               ulong trans_prealloc_size)
   {
-    reset_root_defaults(&mem_root,
+    reset_root_defaults(&m_mem_root,
                         trans_alloc_block_size,
                         trans_prealloc_size);
   }
@@ -387,29 +387,29 @@ public:
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   MEM_ROOT* transaction_memroot()
   {
-    return &mem_root;
+    return &m_mem_root;
   }
 #endif
 
   void* allocate_memory(unsigned int size)
   {
-    return alloc_root(&mem_root, size);
+    return alloc_root(&m_mem_root, size);
   }
 
   void free_memory(myf root_alloc_flags)
   {
-    free_root(&mem_root, root_alloc_flags);
+    free_root(&m_mem_root, root_alloc_flags);
   }
 
   char* strmake(const char *str, size_t len)
   {
-    return strmake_root(&mem_root, str, len);
+    return strmake_root(&m_mem_root, str, len);
   }
 
   void invalidate_changed_tables_in_cache()
   {
-    if (changed_tables)
-      query_cache.invalidate(changed_tables);
+    if (m_changed_tables)
+      query_cache.invalidate(m_changed_tables);
   }
 
   bool add_changed_table(const char *key, long key_length);

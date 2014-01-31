@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #include "pfs_defaults.h"
 #include "pfs_digest.h"
 #include "pfs_program.h"
+#include "template_utils.h"
 #include "pfs_prepared_stmt.h"
 
 PFS_global_param pfs_param;
@@ -288,21 +289,18 @@ void shutdown_performance_schema(void)
 */
 void init_pfs_instrument_array()
 {
-  my_init_dynamic_array(&pfs_instr_config_array, sizeof(PFS_instr_config*), 10, 10);
-  pfs_instr_config_state=  PFS_INSTR_CONFIG_ALLOCATED;
+  pfs_instr_config_array= new Pfs_instr_config_array(PSI_NOT_INSTRUMENTED);
 }
 
 /**
-  Deallocate the PFS_INSTRUMENT array. Use an atomic compare-and-swap to ensure
-  that it is deallocated only once in the chaotic environment of server shutdown.
+  Deallocate the PFS_INSTRUMENT array.
 */
 void cleanup_instrument_config()
 {
-  int desired_state= PFS_INSTR_CONFIG_ALLOCATED;
-
-  /* Ignore if another thread has already deallocated the array */
-  if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
-    delete_dynamic(&pfs_instr_config_array);
+  if (pfs_instr_config_array != NULL)
+    my_free_container_pointers(*pfs_instr_config_array);
+  delete pfs_instr_config_array;
+  pfs_instr_config_array= NULL;
 }
 
 /**
@@ -363,7 +361,7 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   }
 
   /* Add to the array of default startup options */
-  if (insert_dynamic(&pfs_instr_config_array, &e))
+  if (pfs_instr_config_array->push_back(e))
   {
     my_free(e);
     return 1;

@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now();
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 #DROP database from slave.
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now(); 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 SHOW TABLES in mysqltest;
@@ -104,7 +104,7 @@ CREATE TABLE t2(c1 INTEGER) SELECT c1 FROM t3;
 # value '1' in them.  The records of t2 are not inserted into them.  
 SELECT * FROM t1; 
 SELECT * FROM t2; 
-sync_slave_with_master; 
+--source include/sync_slave_sql_with_master.inc 
 
 # In these two statements, t1 and t2 are the base table. The recoreds of t2
 # are inserted into it when CREATE TABLE ...  SELECT was executed.  
@@ -168,7 +168,7 @@ CREATE VIEW v1 AS SELECT 1 as a;
 --let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
 --source include/show_binlog_events.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 DROP VIEW v1;
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS t2 LIKE t1;
 CREATE TABLE IF NOT EXISTS t2 LIKE t1;
 --echo # Clean-up.
 DROP TABLE t1, t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 
 

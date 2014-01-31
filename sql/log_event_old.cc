@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -763,14 +763,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
-#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -789,14 +783,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
-#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -1442,13 +1430,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
   DBUG_ENTER("Old_rows_log_event::do_add_row_data");
   DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
                        (ulong) length));
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
-#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
@@ -2344,13 +2326,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     DBUG_ASSERT(m_key);
     key_copy(m_key, table->record[0], table->key_info, 0);
 
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
-#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -2374,14 +2350,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_PRINT("info",("found first matching record")); 
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -2890,15 +2860,9 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-#endif
 
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
   if (error == HA_ERR_RECORD_IS_THE_SAME)

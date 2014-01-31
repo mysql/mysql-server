@@ -133,7 +133,7 @@ source include/wait_for_slave_param.inc;
 connection master;
 drop tables t1, t2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 set @@global.slave_checkpoint_period= @save.slave_checkpoint_period;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;

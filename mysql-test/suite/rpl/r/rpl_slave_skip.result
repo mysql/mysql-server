@@ -79,6 +79,7 @@ START SLAVE;
 include/wait_for_slave_to_start.inc
 **** On Master ****
 DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
 SET SESSION BINLOG_FORMAT=ROW;
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT, b VARCHAR(20)) ENGINE=myisam;
@@ -97,6 +98,7 @@ BEGIN
 UPDATE t3 SET a =2, b = 'master only';
 END|
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 **** On Master ****
 UPDATE t1 SET a = 2, b = 'master only' WHERE a = 1;
@@ -134,12 +136,14 @@ a	b
 1	master/slave
 3	master/slave
 DROP TABLE t1, t2, t3;
+include/sync_slave_sql_with_master.inc
 **** Case 2: Row binlog format and transactional tables ****
 *** On Master ***
 CREATE TABLE t4 (a INT, b VARCHAR(20)) ENGINE=innodb;
 CREATE TABLE t5 (a INT, b VARCHAR(20)) ENGINE=innodb;
 CREATE TABLE t6 (a INT, b VARCHAR(20)) ENGINE=innodb;
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 *** On Master ***
 BEGIN;
@@ -269,10 +273,12 @@ a	b
 3	master/slave
 5	master/slave
 DROP TABLE t4, t5, t6;
+include/sync_slave_sql_with_master.inc
 **** Case 3: Statement logging format and LOAD DATA with non-transactional table ****
 *** On Master ***
 CREATE TABLE t10 (a INT, b VARCHAR(20)) ENGINE=myisam;
 *** On Slave ***
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 *** On Master ***
 SET SESSION BINLOG_FORMAT=STATEMENT;
@@ -288,4 +294,5 @@ include/start_slave.inc
 SELECT * FROM t10 ORDER BY a;
 a	b
 DROP TABLE t10;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

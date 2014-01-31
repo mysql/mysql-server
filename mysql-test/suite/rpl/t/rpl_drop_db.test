@@ -1,6 +1,7 @@
 # test case for BUG#4680 -- if there are extra files in the db directory
 # dropping the db on the master causes replication problems
 
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 connection master;
 

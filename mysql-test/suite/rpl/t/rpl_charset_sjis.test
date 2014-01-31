@@ -12,14 +12,14 @@ SET NAMES binary;
 CALL p1 ('–\\');
 select "--- on master ---";
 select hex(a) from t1 ;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 select "--- on slave ---";
 select hex(a) from t1;
 connection master;
 drop table t1;
 drop procedure p1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 
 # End of 5.0 tests

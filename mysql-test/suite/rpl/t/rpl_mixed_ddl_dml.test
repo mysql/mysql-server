@@ -14,12 +14,12 @@ source include/master-slave.inc;
 create table t1 (n int auto_increment primary key);
 set insert_id = 2000;
 insert into t1 values (NULL),(NULL),(NULL);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 connection master;
 --source include/show_slave_hosts.inc
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 connection master;
@@ -50,7 +50,7 @@ show create table t5;
 connection master;
 drop table t2,t3,t5;
 drop temporary table if exists t4;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

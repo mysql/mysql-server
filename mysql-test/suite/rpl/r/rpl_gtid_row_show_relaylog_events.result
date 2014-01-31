@@ -1,0 +1,203 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/rpl_reset.inc
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+******** [master] SHOW BINLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+******** [master] SHOW BINLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
+******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+******** [slave] SHOW BINLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+slave-relay-bin.000003	#	Query	#	#	BEGIN
+slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000003	#	Query	#	#	COMMIT
+slave-relay-bin.000003	#	Query	#	#	BEGIN
+slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000003	#	Query	#	#	COMMIT
+slave-relay-bin.000003	#	Query	#	#	BEGIN
+slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000003	#	Query	#	#	COMMIT
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=POS
+******** [slave] SHOW RELAYLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Rotate	#	#	slave-relay-bin.000003;pos=POS
+FLUSH LOGS;
+FLUSH LOGS;
+DROP TABLE t1;
+******** [master] SHOW BINLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+******** [master] SHOW BINLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
+include/sync_slave_sql_with_master.inc
+******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+******** [slave] SHOW BINLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Rotate	#	#	slave-bin.000002;pos=POS
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000006	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 1 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 1,3 ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+******** [slave] SHOW RELAYLOG EVENTS  ********
+include/show_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000005	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000005	#	Rotate	#	#	slave-relay-bin.000006;pos=POS
+include/rpl_end.inc

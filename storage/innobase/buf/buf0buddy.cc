@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -553,6 +553,12 @@ buf_buddy_relocate(
 	UNIV_MEM_VALID(&offset, sizeof offset);
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
+
+	/* If space,offset is bogus, then we know that the
+	buf_page_hash_get_low() call below will return NULL. */
+	if (buf_pool != buf_pool_get(space, offset)) {
+		return(false);
+	}
 
 	ulint		fold = buf_page_address_fold(space, offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);

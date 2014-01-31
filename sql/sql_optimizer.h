@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,7 +178,7 @@ public:
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   ulonglong  select_options;
   select_result *result;
-  TMP_TABLE_PARAM tmp_table_param;
+  Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
   /// unit structure (with global parameters) for this select
   SELECT_LEX_UNIT *unit;
@@ -477,7 +477,7 @@ public:
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
     keyuse_array.clear();
-    tmp_table_param.init();
+    tmp_table_param= Temp_table_param();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
 
