@@ -22,7 +22,8 @@
 
 "use strict";
 
-var     udebug     = unified_debug.getLogger("Query.js");
+var     BitMask    = require("../impl/common/BitMask.js");
+var      udebug    = unified_debug.getLogger("Query.js");
 var userContext    = require("./UserContext.js");
 
 var keywords = ['param', 'where', 'field', 'execute'];
@@ -52,7 +53,7 @@ var execute = function() {
   var session = this.mynode_query_domain_type.session;
   var context = new userContext.UserContext(arguments, 2, 2, session, session.sessionFactory);
   // delegate to context's execute for execution
-  context.executeQuery(this);
+  return context.executeQuery(this);
 };
 
 var queryDomainTypeFunctions = {};
@@ -116,8 +117,7 @@ QueryField.prototype.isNotNull = function() {
   return new QueryIsNotNull(this);
 };
 
-QueryField.prototype.toString = function() {
-  udebug.log_detail('QueryField.toString: ', this.field.fieldName);
+QueryField.prototype.inspect = function() {
   return this.field.fieldName;
 };
 
@@ -148,7 +148,6 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
   mynode.dbTableHandler.fieldNumberToFieldMap.forEach(function(field) {
     fieldName = field.fieldName;
     queryField = new QueryField(queryDomainType, field);
-    udebug.log_detail('QueryDomainType<ctor> queryField for', fieldName, ':', queryField);
     if (keywords.indexOf(fieldName) === -1) {
       // field name is not a keyword
       queryDomainType[fieldName] = queryField;
@@ -168,6 +167,13 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
   });
 };
 
+QueryDomainType.prototype.inspect = function() { 
+  var mynode = this.mynode_query_domain_type;
+  return "[[API Query on table: " + mynode.dbTableHandler.dbTable.name + 
+    ", type: " + mynode.queryType + ", predicate: " + 
+    util.inspect(mynode.predicate) + "]]\n";
+};
+
 QueryDomainType.prototype.not = function(queryPredicate) {
   return new QueryNot(queryPredicate);
 };
@@ -185,7 +191,7 @@ QueryParameter = function(queryDomainType, name) {
   this.name = name;
 };
 
-QueryParameter.prototype.toString = function() {
+QueryParameter.prototype.inspect = function() {
   return '?' + this.name;
 };
 
@@ -243,20 +249,69 @@ SQLVisitor.prototype.visitQueryBetweenOperator = function(node) {
 };
 
 /******************************************************************************
+ *                 MARKS COLUMN MASKS IN QUERY NODES
+ *****************************************************************************/
+function MaskMarkerVisitor() {
+}
+
+/** Set column number in usedColumnMask */
+function markUsed(node) {
+  node.usedColumnMask = new BitMask(); 
+  node.equalColumnMask = new BitMask();
+  node.usedColumnMask.set(node.queryField.field.columnNumber);
+}
+
+/** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
+MaskMarkerVisitor.prototype.visitQueryComparator = function(node) {
+  markUsed(node);
+  if(node.operationCode === 4) {  // QueryEq
+    node.equalColumnMask.set(node.queryField.field.columnNumber);
+  }
+};
+
+/** Nodes Between, IsNotNull, IsNotNull are all handled by markUsed() */
+MaskMarkerVisitor.prototype.visitQueryUnaryOperator = markUsed;
+MaskMarkerVisitor.prototype.visitQueryBetweenOperator = markUsed;
+
+/** Handle QueryNot */
+MaskMarkerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  node.predicates[0].visit(this);
+  node.equalColumnMask = new BitMask();  // Set to zero 
+  node.usedColumnMask  = node.predicates[0].usedColumnMask;
+};
+
+/** Handle nodes QueryAnd, QueryOr */
+MaskMarkerVisitor.prototype.visitQueryNaryPredicate = function(node) {
+  var i;
+  node.usedColumnMask = new BitMask(); 
+  node.equalColumnMask = new BitMask();
+  for(i = 0 ; i < node.predicates.length ; i++) {
+    node.predicates[i].visit(this);
+    node.usedColumnMask.orWith(node.predicates[i].usedColumnMask);
+    if(this.operationCode === 1) {  // QueryAnd
+      node.equalColumnMask.orWith(node.predicates[i].equalColumnMask);
+    }
+  }
+};
+
+var theMaskMarkerVisitor = new MaskMarkerVisitor();   // Singleton
+
+
+/******************************************************************************
  *                 TOP LEVEL ABSTRACT QUERY PREDICATE
  *****************************************************************************/
 var AbstractQueryPredicate = function() {
   this.sql = {};
 };
 
-AbstractQueryPredicate.prototype.markCandidateIndex = function(candidateIndex) {
-  var topLevelPredicates = this.getTopLevelPredicates();
-  topLevelPredicates.forEach(function(predicate) {
-    predicate.mark(candidateIndex);
-  }); 
-};
-
-AbstractQueryPredicate.prototype.mark = function(candidateIndex) {
+AbstractQueryPredicate.prototype.inspect = function() {
+  var str = this.operator + "(";
+  this.predicates.forEach(function(value,index) { 
+    if(index) str += " , ";
+    str += value.inspect(); 
+  });
+  str += ")";
+  return str;
 };
 
 AbstractQueryPredicate.prototype.and = function(predicate) {
@@ -338,8 +393,8 @@ var AbstractQueryComparator = function() {
 /** AbstractQueryComparator inherits AbstractQueryPredicate */
 AbstractQueryComparator.prototype = new AbstractQueryPredicate();
 
-AbstractQueryComparator.prototype.toString = function() {
-  return this.queryField.toString() + this.comparator + this.parameter.toString();
+AbstractQueryComparator.prototype.inspect = function() {
+  return this.queryField.field.fieldName + this.comparator + this.parameter.inspect();
 };
 
 AbstractQueryComparator.prototype.visit = function(visitor) {
@@ -360,13 +415,6 @@ QueryEq = function(queryField, parameter) {
 
 QueryEq.prototype = new AbstractQueryComparator();
 
-QueryEq.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryEq.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markEq(columnNumber, parameterName);
-};
-
 /******************************************************************************
  *                 QUERY LESS THAN OR EQUAL
  *****************************************************************************/
@@ -378,13 +426,6 @@ QueryLe = function(queryField, parameter) {
 };
 
 QueryLe.prototype = new AbstractQueryComparator();
-
-QueryLe.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryLe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markLe(columnNumber, parameterName);
-};
 
 /******************************************************************************
  *                 QUERY GREATER THAN OR EQUAL
@@ -398,13 +439,6 @@ QueryGe = function(queryField, parameter) {
 
 QueryGe.prototype = new AbstractQueryComparator();
 
-QueryGe.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryGe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markGe(columnNumber, parameterName);
-};
-
 /******************************************************************************
  *                 QUERY LESS THAN
  *****************************************************************************/
@@ -417,13 +451,6 @@ QueryLt = function(queryField, parameter) {
 
 QueryLt.prototype = new AbstractQueryComparator();
 
-QueryLt.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryGe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markLt(columnNumber, parameterName);
-};
-
 /******************************************************************************
  *                 QUERY GREATER THAN
  *****************************************************************************/
@@ -435,13 +462,6 @@ QueryGt = function(queryField, parameter) {
 };
 
 QueryGt.prototype = new AbstractQueryComparator();
-
-QueryGt.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryGt.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markGt(columnNumber, parameterName);
-};
 
 /******************************************************************************
  *                 QUERY BETWEEN
@@ -458,18 +478,9 @@ QueryBetween = function(queryField, parameter1, parameter2) {
 
 QueryBetween.prototype = new AbstractQueryComparator();
 
-QueryBetween.prototype.mark = function(candidateIndex) {
-  var columnNumber = this.queryField.field.columnNumber;
-  var parameterName1 = this.parameter1.name;
-  var parameterName2 = this.parameter2.name;
-  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber,
-      'parameterNames:', parameterName1, parameterName2);
-  candidateIndex.markGe(columnNumber, parameterName1);
-  candidateIndex.markLe(columnNumber, parameterName2);
-};
-
-QueryBetween.prototype.toString = function() {
-  return this.queryField.toString() + ' BETWEEN ' + this.parameter1.toString() + ' AND ' + this.parameter2.toString();
+QueryBetween.prototype.inspect = function() {
+  return this.queryField.inspect() + ' BETWEEN ' + this.parameter1.inspect() + 
+    ' AND ' + this.parameter2.inspect();
 };
 
 QueryBetween.prototype.visit = function(visitor) {
@@ -509,8 +520,9 @@ var AbstractQueryUnaryOperator = function() {
 
 AbstractQueryUnaryOperator.prototype = new AbstractQueryPredicate();
 
-AbstractQueryUnaryOperator.prototype.toString = function() {
-  return this.queryField.toString() + this.comparator + this.parameter.toString();
+AbstractQueryUnaryOperator.prototype.inspect = function() {
+  return util.format(this);
+//  return this.queryField.inspect() + this.comparator + this.parameter.inspect();
 };
 
 AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
@@ -524,6 +536,7 @@ AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
  *****************************************************************************/
 QueryIsNull = function(queryField) {
   this.operator = ' IS NULL';
+  this.operationCode = 7;
   this.queryField = queryField;
 };
 
@@ -534,6 +547,7 @@ QueryIsNull.prototype = new AbstractQueryUnaryOperator();
  *****************************************************************************/
 QueryIsNotNull = function(queryField) {
   this.operator = ' IS NOT NULL';
+  this.operationCode = 8;
   this.queryField = queryField;
 };
 
@@ -595,153 +609,95 @@ QueryNot = function(left) {
 
 QueryNot.prototype = new AbstractQueryUnaryPredicate();
 
+
 /******************************************************************************
  *                 CANDIDATE INDEX
  *****************************************************************************/
+// CandidateIndex is almost stateless now.
+// For future consideration: move mask into DbIndexHandler, then eliminate
+// CandidateIndex completely.
+
 var CandidateIndex = function(dbTableHandler, indexNumber) {
-  this.dbTableHandler = dbTableHandler;
   this.dbIndexHandler = dbTableHandler.dbIndexHandlers[indexNumber];
-  udebug.log_detail('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name,
-      'isUnique', this.dbIndexHandler.dbIndex.isUnique, 'isOrdered', this.dbIndexHandler.dbIndex.isOrdered);
   if(! this.dbIndexHandler) {
     console.log("indexNumber", typeof(indexNumber));
     console.trace("not an index handler");
     throw new Error('Query.CandidateIndex<ctor> indexNumber is not found');
   }
-  var i;
-  this.numberOfColumnsInTable = this.dbTableHandler.fieldNumberToFieldMap.length;
-  this.numberOfColumnsInIndex = this.dbIndexHandler.dbIndex.columnNumbers.length;
-  // make an array of parameter names corresponding to index columns
-  this.parameterNames = [];
   this.isOrdered = this.dbIndexHandler.dbIndex.isOrdered;
   this.isUnique = this.dbIndexHandler.dbIndex.isUnique;
-  // count the number of query terms that can be used with this index
-  this.columnBounds = [];
-  for (i = 0; i < this.numberOfColumnsInTable; ++i) {
-    this.columnBounds[i] = {};
-  }
+  udebug.log_detail('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name,
+      'isUnique', this.isUnique, 'isOrdered', this.isOrdered);
+  this.indexColumns = this.dbIndexHandler.dbIndex.columnNumbers;
+  var mask = new BitMask(dbTableHandler.dbTable.columns.length);
+  this.indexColumns.forEach(function(columnNumber) {
+    mask.set(columnNumber);
+  });
+  this.mask = mask;
 };
 
-CandidateIndex.prototype.markEq = function(columnNumber, parameterName) {
-  udebug.log_detail('CandidateIndex markEq for index', this.dbIndexHandler.dbIndex.name,
-      'columnNumber', columnNumber,
-      'parameterName', parameterName);
-  if (this.isOrdered) {
-    this.columnBounds[columnNumber].greater = true;
-    this.columnBounds[columnNumber].less = true;
-  } else {
-    this.columnBounds[columnNumber].equal = true;
-  }
-  this.parameterNames[columnNumber] = parameterName;
-};
-
-CandidateIndex.prototype.markGe = function(columnNumber, parameterName) {
-  udebug.log_detail('CandidateIndex markGe for index', this.dbIndexHandler.dbIndex.name,
-      'columnNumber', columnNumber,
-      'parameterName', parameterName);
-  if (this.isOrdered) {
-    // only works with ordered indexes
-    this.columnBounds[columnNumber].greater = true;
-    this.parameterNames[columnNumber] = parameterName;
-  }
-};
-
-CandidateIndex.prototype.markLe = function(columnNumber, parameterName) {
-  udebug.log_detail('CandidateIndex markLe for index', this.dbIndexHandler.dbIndex.name,
-      'columnNumber', columnNumber,
-      'parameterName', parameterName);
-  if (this.isOrdered) {
-    // only works with ordered indexes
-    this.columnBounds[columnNumber].less = true;
-    this.parameterNames[columnNumber] = parameterName;
-  }
-};
-
-CandidateIndex.prototype.markGt = function(columnNumber, parameterName) {
-  udebug.log_detail('CandidateIndex markGt for index', this.dbIndexHandler.dbIndex.name,
-      'columnNumber', columnNumber,
-      'parameterName', parameterName);
-  if (this.isOrdered) {
-    // only works with ordered indexes
-    this.columnBounds[columnNumber].greater = true;
-    this.parameterNames[columnNumber] = parameterName;
-  }
-};
-
-CandidateIndex.prototype.markLt = function(columnNumber, parameterName) {
-  udebug.log_detail('CandidateIndex markLt for index', this.dbIndexHandler.dbIndex.name,
-      'columnNumber', columnNumber,
-      'parameterName', parameterName);
-  if (this.isOrdered) {
-    // only works with ordered indexes
-    this.columnBounds[columnNumber].less = true;
-    this.parameterNames[columnNumber] = parameterName;
-  }
-};
-
-
-CandidateIndex.prototype.isUsable = function(numberOfPredicateTerms) {
-  var i, columnNumber;
-  var numberOfMarkedColumns = 0;
-  var numberOfEqualColumns = 0;
-  var firstColumnMarked = false;
-  var usable = false;
-  // count the number of index columns marked
-  for (i = 0; i < this.numberOfColumnsInIndex; ++i) {
-    columnNumber = this.dbIndexHandler.dbIndex.columnNumbers[i];
-    if (typeof(this.parameterNames[columnNumber]) !== 'undefined') {
-      if (i === 0) {
-        firstColumnMarked = true;
-      }
-      ++numberOfMarkedColumns;
-      if (this.columnBounds[columnNumber].equal) {
-        ++numberOfEqualColumns;
-      }
-    }
-  }
+CandidateIndex.prototype.isUsable = function(predicate) {
+  var usable;
   if (this.isUnique) {
-    // all columns must be marked with equal to use a unique index
-    if (numberOfMarkedColumns === this.numberOfColumnsInIndex
-        && numberOfEqualColumns === this.numberOfColumnsInIndex
-        && numberOfMarkedColumns === numberOfPredicateTerms
-        ) {
-      usable = true;
-    }
-  } else if (this.isOrdered) {
-    // the first column must be marked to use a btree index
-    usable = firstColumnMarked;
+    usable = predicate.equalColumnMask.and(this.mask).isEqualTo(this.mask);
+  } else if(this.isOrdered) {
+    usable = predicate.usedColumnMask.bitIsSet(this.indexColumns[0]);
   }
-  udebug.log_detail('CandidateIndex.isUsable found ', numberOfMarkedColumns,
-      'marked for', this.dbIndexHandler.dbIndex.name, 'with ', this.numberOfColumnsInIndex,
-      'columns in index; returning', usable);
   return usable;
 };
 
-CandidateIndex.prototype.getKeys = function(parameterValues) {
+
+// This is used in Primary Key & Unique Key queries.
+// param predicate: query predicate
+// param parameterValues: the parameters object passed to query.execute()
+// It returns an array, in key-column order, of the key values from the 
+// parameter object.
+CandidateIndex.prototype.getKeys = function(predicate, parameterValues) {
+
+  function getParameterNameForColumn(node, columnNumber) {
+    var i, name;
+    if(node.equalColumnMask.bitIsSet(columnNumber)) {
+      if(node.queryField && node.queryField.field.columnNumber == columnNumber) {
+        return node.parameter.name;
+      }
+      if(node.predicates) {
+        for(i = 0 ; i < node.predicates.length ; i++) {
+          name = getParameterNameForColumn(node, columnNumber);
+          if(name !== null) return name;
+        }
+      }
+    }
+    return null;
+  }
+
   var result = [];
   var candidateIndex = this;
-  udebug.log_detail('CandidateIndex.getKeys parameters:',parameterValues,
-      'candidateIndex.parameterNames', candidateIndex.parameterNames);
-  // for each column in the index, get the parameter value from parameters
-  this.dbIndexHandler.dbIndex.columnNumbers.forEach(function(columnNumber) {
-    result.push(parameterValues[candidateIndex.parameterNames[columnNumber]]);
+  this.indexColumns.forEach(function(columnNumber) {
+    result.push(parameterValues[getParameterNameForColumn(predicate, columnNumber)]);
   });
+  udebug.log_detail('CandidateIndex.getKeys parameters:', parameterValues,
+                    'key:', result);
   return result;
 };
 
-/** Evaluate candidate indexes. One point for each upper bound and lower bound. */
-CandidateIndex.prototype.score = function() {
-  var i;
+/** Evaluate candidate indexes.
+    Score 1 point for each consecutive key part used plus 1 more point
+    if the column is in QueryEq. */
+CandidateIndex.prototype.score = function(predicate) {
   var score = 0;
-  for (i = 0; i < this.numberOfColumnsInIndex; ++i) {
-    var columnIndex = this.dbIndexHandler.dbIndex.columnNumbers[i];
-    if (this.columnBounds[columnIndex].greater) {
-      ++score;
+  var point, i;
+  i = 0;
+  do {
+    point = predicate.usedColumnMask.bitIsSet(this.indexColumns[i]);
+    if(point) { 
+      score += 1; 
+      if(predicate.usedColumnMask.bitIsSet(this.indexColumns[i])) {
+        score += 1;
+      }
     }
-    if (this.columnBounds[columnIndex].less) {
-      ++score;
-    }
-  }
+    i++;
+  } while(point && i < this.indexColumns.length);
+    
   udebug.log_detail('score', this.dbIndexHandler.dbIndex.name, 'is', score);
   return score;
 };
@@ -765,13 +721,15 @@ var QueryHandler = function(dbTableHandler, predicate) {
   this.dbTableHandler = dbTableHandler;
   this.predicate = predicate;
   var indexes = dbTableHandler.dbTable.indexes;
+
+  // Mark the usedColumnMask and equalColumnMask in each query node
+  predicate.visit(theMaskMarkerVisitor);
+  
   // create a CandidateIndex object for each index
-  // use the predicate to mark the candidate indexes
   // if the primary index is usable, choose it
   var primaryCandidateIndex = new CandidateIndex(dbTableHandler, 0);
-  predicate.markCandidateIndex(primaryCandidateIndex);
-  var numberOfPredicateTerms = predicate.getTopLevelPredicates().length;
-  if (primaryCandidateIndex.isUsable(numberOfPredicateTerms)) {
+
+  if(primaryCandidateIndex.isUsable(predicate)) {
     // we're done!
     this.candidateIndex = primaryCandidateIndex;
     this.queryType = 0; // primary key lookup
@@ -782,12 +740,11 @@ var QueryHandler = function(dbTableHandler, predicate) {
   var i, index;
   for (i = 1; i < indexes.length; ++i) {
     index = indexes[i];
-    udebug.log_detail('QueryHandler<ctor> for index', index);
+    udebug.log_detail('QueryHandler<ctor> for index', JSON.stringify(index));
     if (index.isUnique) {
       // create a candidate index for unique index
       uniqueCandidateIndex = new CandidateIndex(dbTableHandler, i);
-      predicate.markCandidateIndex(uniqueCandidateIndex);
-      if (uniqueCandidateIndex.isUsable(numberOfPredicateTerms)) {
+      if (uniqueCandidateIndex.isUsable(predicate)) {
         this.candidateIndex = uniqueCandidateIndex;
         this.queryType = 1; // unique key lookup
         // we're done!
@@ -805,13 +762,13 @@ var QueryHandler = function(dbTableHandler, predicate) {
   var topScore = 0, candidateScore = 0;
   var bestCandidateIndex = null;
   orderedCandidateIndexes.forEach(function(candidateIndex) {
-    predicate.markCandidateIndex(candidateIndex);
-    candidateScore = candidateIndex.score();
+    candidateScore = candidateIndex.score(predicate);
     if (candidateScore > topScore) {
       topScore = candidateScore;
       bestCandidateIndex = candidateIndex;
     }
   });
+  udebug.log("Best score is", topScore);
   if (topScore > 0) {
     this.candidateIndex = bestCandidateIndex;
     this.dbIndexHandler = bestCandidateIndex.dbIndexHandler;
@@ -823,7 +780,7 @@ var QueryHandler = function(dbTableHandler, predicate) {
 
 /** Get key values from candidate indexes and parameters */
 QueryHandler.prototype.getKeys = function(parameterValues) {
-  return this.candidateIndex.getKeys(parameterValues);
+  return this.candidateIndex.getKeys(this.predicate, parameterValues);
 };
 
 exports.QueryDomainType = QueryDomainType;

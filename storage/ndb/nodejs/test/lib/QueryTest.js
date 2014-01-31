@@ -72,7 +72,7 @@ QueryTest.prototype.run = function() {
           }
           // compare the results one by one, in order
           for (j = 0; j < queryTest.expected.length; ++j) {
-            udebug.log_detail('QueryPrimaryIndexScan.testQueries ' + queryTest.testName + ' expected: '
+            udebug.log_detail('QueryPrimaryIndexScan.testQueries ' + queryTest.name + ' expected: '
                 + queryTest.expected[j] + ' actual: ' + queryTest.resultIds[j]);
             testCase.errorIfNotEqual(queryTest.name + ' wrong result at position ' + j,
                 queryTest.expected[j], queryTest.resultIds[j]);
